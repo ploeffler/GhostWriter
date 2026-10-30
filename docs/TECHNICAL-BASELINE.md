@@ -29,6 +29,10 @@ Cloudflare dokumentiert separate Secret-Bindings für vertrauliche Werte. Zugang
 6. Schreiboperationen verlangen weiterhin explizite fachliche Freigabe, `expected_head_sha` und `Idempotency-Key`.
 7. Ein erfolgreicher Schreibaufruf meldet Commit-SHA und Commit-URL zurück.
 
+## Authentifizierungsarchitektur
+
+Die beiden OAuth-Vertrauensbeziehungen sind getrennt: ChatGPT authentifiziert sich gegenüber GhostWriter; GhostWriter verbindet GitHub serverseitig über eine GitHub App. Details und Sicherheitsprüfungen stehen in [OAUTH-FLOW.md](OAUTH-FLOW.md). Der konkrete Identity Provider für GhostWriter-Konten ist noch nicht festgelegt. Der Kandidat `workers-oauth-provider` muss zuerst den realen GPT-Action-OAuth-Handshake bestehen; eine MCP-OAuth-Kompatibilität allein reicht nicht als Nachweis.
+
 ## Noch offene Architekturentscheidungen
 
 - OAuth-Server für die GPT-Action und dessen Benutzer-/Kontenmodell;

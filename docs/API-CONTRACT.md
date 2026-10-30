@@ -22,6 +22,17 @@ Die GPT-Action kommuniziert ausschließlich mit dem GhostWriter-Dienst. Dieser f
 - Tokens werden serverseitig sicher gespeichert, nie protokolliert und nie an das Modell zurückgegeben.
 
 ## Vorgeschlagene Endpunkte
+
+Der detaillierte getrennte OAuth- und GitHub-Verbindungsfluss steht in [OAUTH-FLOW.md](OAUTH-FLOW.md). Die folgenden zusätzlichen Endpunkte sind vorgesehen, aber noch nicht implementiert:
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| GET | /v1/account | GhostWriter-Konto und Verbindungsstatus ohne Secrets |
+| POST | /v1/github/connections/start | GitHub-Verknüpfung starten |
+| GET | /v1/github/connections/callback | Serverseitiger OAuth-Callback |
+| GET | /v1/github/repositories | Autorisierte Repositories auflisten |
+| DELETE | /v1/github/connections/{connection_id} | Verbindung trennen |
+
 Die Pfade sind Entwurf und müssen mit dem implementierten Dienst übereinstimmen.
 
 | Methode | Pfad | Zweck |
