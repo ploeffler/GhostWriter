@@ -1,0 +1,29 @@
+project:
+  title: ""
+  working_title: ""
+  subtitle: ""
+  author: ""
+  language: "de"
+  description_short: ""
+  target_audience: ""
+  book_type: ""
+  status: "concept"
+
+ai_settings:
+  hallucination_policy: "strict"
+  source_policy: "required"
+  uncertainty_policy: "explicit"
+  creativity: "balanced"
+  web_research: "research"
+
+workflow:
+  current_phase: "wizard"
+  current_chapter_id: null
+  current_section_id: null
+  require_section_writing_approval: true
+  require_section_approval: true
+  require_chapter_approval: true
+  fact_checking_default: "optional"
+
+structure:
+  chapters: []
