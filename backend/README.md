@@ -1,26 +1,26 @@
 # GhostWriter API
 
-Cloudflare Workers foundation for the future GhostWriter GPT Action API.
+Cloudflare Workers foundation for the GhostWriter GPT Action API.
 
 ## Current status
 
-Initial runtime scaffold only; not deployed and not production-ready.
+The Worker is not deployed and is not production-ready.
 
 Implemented:
-- `GET /v1/health`
-- JSON error response for unknown routes
-- no-store and basic response security headers
+- \`GET /v1/health\` (public)
+- \`GET /v1/account\` (Auth0 JWT validation; requires \`read:account\`)
+- RS256 signature validation against Auth0 JWKS
+- issuer, audience, expiry and subject validation
+- basic response security headers and no-store
 - TypeScript type-check and unit-test setup
 
 Not implemented:
-- GPT Action authentication
-- GitHub user authorization / GitHub App integration
+- Auth0 tenant/client configuration (manual dashboard setup required)
+- GitHub App authorization and token storage
 - repository listing and permission checks
 - project read/write operations
 - idempotency storage and expected-head-SHA checks
 - production OpenAPI document
-
-No credentials, tokens, repository content, or book data belong here.
 
 ## Requirements
 
@@ -29,23 +29,24 @@ No credentials, tokens, repository content, or book data belong here.
 
 ## Local development
 
-```sh
+\`\`\`sh
 npm install
+cp .dev.vars.example .dev.vars
+# Replace the example Auth0 issuer and audience with your Auth0 values.
 npm run typecheck
 npm test
 npm run dev
-```
+\`\`\`
 
-Then check `http://localhost:8787/v1/health`.
+Then check \`http://localhost:8787/v1/health\`.
+
+## Auth0 environment values
+
+- \`AUTH0_ISSUER\`: exact HTTPS issuer URL from your Auth0 tenant, including trailing slash.
+- \`AUTH0_AUDIENCE\`: the API Identifier configured in Auth0.
+
+These values are not secrets. The GPT Action's Auth0 client secret belongs in the GPT Action authentication settings, not here. Never commit \`.dev.vars\`.
 
 ## Deployment
 
-Production deployment is intentionally not enabled yet. Before deployment:
-1. implement and test authentication;
-2. implement GitHub authorization and repository-level access checks;
-3. add required Cloudflare bindings and secrets;
-4. generate OpenAPI from the implemented routes;
-5. run security and integration tests;
-6. configure a production domain and GPT Action OAuth settings.
-
-Use Wrangler secrets for credentials. Never put secrets in `wrangler.jsonc`, source files, prompts, or Git.
+Do not deploy publicly until the Auth0 tenant, GPT Action handshake, JWT/scope integration tests, GitHub authorization, production OpenAPI document, privacy policy and production domain are ready.
