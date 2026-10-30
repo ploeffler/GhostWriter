@@ -8,10 +8,21 @@ Ghostwriter ist ein chatgesteuerter Schreib- und Rechercheworkflow. GitHub ist p
 
 1. Benutzer erstellt ein Repository aus dem Ghostwriter-Starter (Fork oder Template).
 2. Repository kann optional nach einem Arbeitstitel benannt werden.
-3. Benutzer startet ChatGPT über den Link/Startprompt in `START.md`.
-4. Wizard entwickelt Buchkonzept und Kapitel-/Abschnittsstruktur ausschließlich im Chat.
-5. Nach ausdrücklicher Freigabe wird die Struktur in das Benutzerrepository übertragen.
-6. Danach beginnt der laufende Abschnittsworkflow.
+3. Benutzer verbindet GitHub in ChatGPT, autorisiert den Zugriff und wählt – soweit angeboten – nur das GhostWriter-Repository aus.
+4. Ghostwriter prüft den Zugriff, indem es Repository und Projektdateien wie `README.md` und `START.md` liest. Vor der Strukturfreigabe erfolgen keine Schreibtests und keine Projektänderungen.
+5. Benutzer startet den Wizard über den Startprompt in `START.md`.
+6. Wizard entwickelt Buchkonzept und Kapitel-/Abschnittsstruktur ausschließlich im Chat.
+7. Nach ausdrücklicher Freigabe und Bestätigung des Zielrepositorys wird die Struktur übertragen.
+8. Danach beginnt der laufende Abschnittsworkflow.
+
+## GitHub-Verbindung und Berechtigungen
+
+- Die ChatGPT-GitHub-Verbindung ist das vorhandene Konto-/App-Connector-Onboarding.
+- Die Verbindung muss vom Benutzer in ChatGPT autorisiert werden; Ghostwriter darf keine Passwörter oder Tokens im Chat oder Repository erfragen oder speichern.
+- Repository-Zugriff wird vor dem Wizard durch einen Lesezugriff auf das ausgewählte Repository verifiziert.
+- Schreibberechtigungen werden nur für die spätere, ausdrücklich freigegebene Übertragung benötigt. Kein künstlicher Schreibtest vor der Freigabe.
+- Die maßgeschneiderte GhostWriter-GPT-Action bzw. eigene GitHub-App ist eine separate, spätere Integration und entsteht nicht automatisch durch das Verbinden des GitHub-Connectors.
+- Bei fehlendem Zugriff muss der Assistent dies melden und darf keine erfolgreichen Lese- oder Schreibvorgänge behaupten.
 
 ## Architekturprinzipien
 
@@ -26,13 +37,20 @@ Ghostwriter ist ein chatgesteuerter Schreib- und Rechercheworkflow. GitHub ist p
 
 ## Phasen
 
+### 0 – Verbindung und Zugriff prüfen
+
+GitHub verbinden, Repository auswählen und Lesezugriff bestätigen. Keine Repository-Schreiboperation vor der Strukturfreigabe.
+
 ### A – Konzeption im Chat
+
 Buchidee, Metadaten, Zielgruppe, Stil, Kapitel und Abschnitte entwickeln. Keine Repository-Änderungen vor Strukturfreigabe.
 
 ### B – Repository initialisieren
-README, Konfiguration, Kapitelordner, Kapitelübersichten und Abschnittsdateien erzeugen.
+
+Nach Freigabe und erneuter Bestätigung des Zielrepositorys README, Konfiguration, Kapitelordner, Kapitelübersichten und Abschnittsdateien erzeugen.
 
 ### C – Abschnittsweise Buchentwicklung
+
 Für jeden Abschnitt: Recherche → Brainstorming → Schreibfreigabe → Schreiben → Überarbeiten → optional Fact-Checking → Abschnittsfreigabe.
 
 Wenn alle Abschnitte eines Kapitels freigegeben sind: Kapitel zusammenführen → Kapitelprüfung und Überarbeitung → Gesamtfreigabe.
@@ -55,13 +73,14 @@ Kapitel- und Abschnittsregeln dürfen ergänzen, aber globale Wahrheits- und Que
 ## MVP-Grenze
 
 MVP:
+- GitHub-Verbindungs-Onboarding und Lesezugriffsprüfung;
 - Wizard und Strukturentwicklung;
 - explizite Freigabe;
 - Repository-Initialisierung;
 - stabile Datei- und Statuskonventionen.
 
 Später:
-- GPT Actions / GitHub App;
+- eigene GPT Actions / GhostWriter-GitHub-App;
 - Recherche- und Brainstormingläufe im Repository speichern;
 - Abschnittsmanuskripte und Prüfberichte;
 - Kapitelzusammenführung;
