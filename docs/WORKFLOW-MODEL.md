@@ -69,3 +69,23 @@ Jede veröffentlichte Ausgabe des Buches wird als eigener GitHub Release abgebil
 - Release Notes dokumentieren Änderungen gegenüber der vorherigen Ausgabe.
 - Korrekturen erzeugen eine neue Ausgabeversion; bestehende Releases werden nicht stillschweigend verändert.
 - GhostWriter-Produktversionen (v0.5/v1.0), technische Git-Tags und Buchausgaben sind getrennte Versionsräume.
+
+
+## AI-Kosten und Nutzungsverbrauch
+
+Jede AI-Aktivität wird als eigener, unveränderlicher Kosteneintrag erfasst und primär einem Abschnitt über dessen stabile ID zugeordnet. Erfasst werden – soweit verfügbar – Anbieter, Modell, Aktivitätstyp, Zeitpunkt, Token-/Nutzungsmenge, Preisgrundlage, Preisquelle und Betrag. Nicht verfügbare Werte werden ausdrücklich als unbekannt markiert; manuelle Eingaben und Schätzungen bleiben als solche gekennzeichnet.
+
+- **Abschnitt:** Summe aller zugeordneten AI-Aktivitäten.
+- **Kapitel:** automatisch berechnete Summe der Abschnittssummen.
+- **Projekt:** automatisch berechnete Summe aller Kapitelsummen zuzüglich separat ausgewiesener projektweiter Kosten.
+- Tatsächliche und geschätzte Kosten werden getrennt ausgewiesen. Originalwährung und Originalbetrag bleiben erhalten; Umrechnungen speichern Wechselkurs und Datum.
+- Summen werden aus Einzelbuchungen abgeleitet. Dieselbe Aktivität darf nicht zusätzlich auf Kapitel- oder Projektebene verbucht werden.
+- Korrekturen erzeugen nachvollziehbare Gegen- oder Folgeeinträge; historische Buchungen werden nicht stillschweigend überschrieben.
+
+### Ausbaustufen
+
+**v0.5:** einfache manuelle Kostenerfassung, optionale Token-/Nutzungsdaten, Abschnittszuordnung, Kapitelzwischensummen und Projektgesamtbetrag; Kennzeichnung tatsächlicher, geschätzter und manuell eingetragener Kosten.
+
+**v1.0:** automatischer Import von Provider-Nutzungsdaten, modellbezogene Preisberechnung, soweit technisch verfügbar automatische Zuordnung, Währungsumrechnung, detaillierte Berichte sowie Budgetgrenzen und Warnungen.
+
+Die Kostenfunktion muss auch dann nutzbar bleiben, wenn ein Anbieter keine Nutzungsdaten oder Rechnungswerte bereitstellt.
