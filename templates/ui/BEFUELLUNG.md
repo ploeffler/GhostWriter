@@ -6,7 +6,8 @@ Diese Regeln sagen dem Assistenten, wie er die Chat-Vorlagen mit Daten aus dem B
 python scripts/render_view.py <projektordner> project [--text] [--repo owner/name] [--branch name]
 python scripts/render_view.py <projektordner> chapter 2 [--text]
 python scripts/render_view.py <projektordner> section 2.4 [--text]
-python scripts/render_view.py <projektordner> project-edit | chapter-create | edition-create [--text]
+python scripts/render_view.py <projektordner> project-edit | project-settings | chapter-create | chapter-reorder | edition-create [--text]
+python scripts/render_view.py <projektordner> chapter-edit 2 | section-create 2 | section-reorder 2 [--text]
 ```
 
 ## Ausgabe im Chat
@@ -111,6 +112,38 @@ Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die
 | `APPROVAL_WARNING_TEXT` | „Bisher sind N von M Kapiteln freigegeben; nur diese kommen in die Auflage.“; leer, wenn alle freigegeben sind (der Hinweis entfällt) |
 | Block `FORMATS`: `FORMAT_LABEL` | `book_releases.assets`, in v0.5 PDF, DOCX, EPUB |
 
+### `kapitel-bearbeiten.html`
+
+`CHAPTER_ID`, `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_SUBTITLE` wie in der Kapitelansicht; `CHAPTER_SUMMARY` und `CHAPTER_GOAL` aus `## Kurzbeschreibung` und `## Ziel des Kapitels` der Kapitel-README („Offen.“ gilt als leer).
+
+### `abschnitt-anlegen.html`
+
+| Platzhalter | Quelle |
+|---|---|
+| `CHAPTER_ID`, `CHAPTER_NUMBER`, `CHAPTER_TITLE` | das Kapitel |
+| `FACT_CHECK_DEFAULT` | `workflow.fact_checking_default`, sonst `optional` |
+| Block `POSITIONS`: `POSITION_LABEL`, `POSITION_SELECTED` | „Am Anfang (vor N.1)“, dann „Nach N.M „Titel““ je Abschnitt; die letzte lautet „Am Ende (nach N.M „Titel“)“. Ohne Abschnitte nur „Als erster Abschnitt“. Vorauswahl am Ende |
+
+### `reihenfolge.html`
+
+Für Kapitel und Abschnitte.
+
+| Platzhalter | Quelle |
+|---|---|
+| `REORDER_KIND` | `chapter` bzw. `section` |
+| `REORDER_HEADING` | „Kapitelreihenfolge ändern“ bzw. „Abschnittsreihenfolge in Kapitel N ändern“ |
+| `CHAPTER_ID`, `CHAPTER_NUMBER` | bei Abschnitten das Kapitel, sonst leer |
+| Block `ITEMS`: `ITEM_ID`, `ITEM_NUMBER`, `ITEM_TITLE` | Kapitel bzw. Abschnitte in der bisherigen Reihenfolge |
+
+### `projekteinstellungen.html`
+
+| Platzhalter | Quelle |
+|---|---|
+| `FACT_CHECK_DEFAULT` | `workflow.fact_checking_default`, sonst `optional` |
+| `PAGE_SIZE`, `FONT`, `FONT_SIZE`, `TOC_DEPTH` | `typesetting`, fehlende Felder mit den Vorgaben aus `docs/DATA-MODEL.md` |
+| `TITLE_PAGE`, `IMPRINT`, `TOC` | `typesetting` als `true`/`false` |
+| Block `FIXED`: `FIXED_LABEL`, `FIXED_VALUE` | KI-Grundeinstellungen (`ai_settings`) und Freigabepflichten (`workflow.require_…`), nur zur Anzeige |
+
 ## Textfassung ohne Widgets
 
 Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown; Beispiele erzeugt `scripts/render_view.py … --text`.
@@ -140,20 +173,25 @@ Der Assistent wertet den Block `gw` aus; die Zeile darüber ist für Menschen. F
 | `view.section` | `section_id` | Abschnittsformular zeigen | Vorlage `abschnitt-bearbeiten` (`render_view.py section N.M`) | `GET /v1/projects/{owner}/{repo}` |
 | `project.edit` | – | Formular „Projektdaten bearbeiten“ zeigen | Vorlage `projektdaten-bearbeiten` (`render_view.py project-edit`) | – |
 | `project.update` | `title`, `title_short`, `author`, `description_short`, `description` | Projektdaten speichern | in `ghostwriter.yml` schreiben, danach Projektübersicht | noch offen |
-| `project.settings.open` | – | Projekteinstellungen zeigen | Formular fehlt noch (#11): aktuelle Einstellungen als Text zeigen und Änderungen im Chat erfragen | – |
+| `project.settings.open` | – | Projekteinstellungen zeigen | Vorlage `projekteinstellungen` (`render_view.py project-settings`) | – |
+| `project.settings.update` | `fact_checking_default`, `typesetting` (`page_size`, `font`, `font_size`, `title_page`, `imprint`, `toc`, `toc_depth`) | Einstellungen speichern | `workflow.fact_checking_default` und `typesetting` in `ghostwriter.yml` schreiben, danach Projektübersicht | noch offen |
 | `chapter.create.open` | – | Formular „Neues Kapitel anlegen“ zeigen | Vorlage `kapitel-anlegen` (`render_view.py chapter-create`) | – |
 | `chapter.create` | `title`, `summary`, `goal`, `position` (Index, 0 = am Anfang), `position_label` | Kapitel anlegen | Kapitel anlegen, danach Kapitelansicht des neuen Kapitels | `POST …/chapters` |
-| `chapter.edit.open` | `chapter_id` | Kapitel bearbeiten | Formular fehlt noch (#11): Titel, Kurzbeschreibung und Ziel als Text zeigen und Änderungen im Chat erfragen | – |
-| `chapter.reorder.open` | – | Kapitelreihenfolge ändern | Formular fehlt noch (#11): nummerierte Liste zeigen, neue Reihenfolge im Chat erfragen | – |
-| `section.create.open` | `chapter_id` | Neuen Abschnitt anlegen | Formular fehlt noch (#11): Titel, Ziel und Position im Chat erfragen | – |
-| `section.reorder.open` | `chapter_id` | Abschnittsreihenfolge ändern | Formular fehlt noch (#11): nummerierte Liste zeigen, neue Reihenfolge im Chat erfragen | – |
+| `chapter.edit.open` | `chapter_id` | Kapitel bearbeiten | Vorlage `kapitel-bearbeiten` (`render_view.py chapter-edit N`) | – |
+| `chapter.update` | `chapter_id`, `title`, `subtitle`, `summary`, `goal` | Kapitel speichern | Titel in `structure.chapters` und Kapitel-README im selben Commit ändern, danach Kapitelansicht | `PATCH …/chapters/{chapter_id}` |
+| `chapter.reorder.open` | – | Kapitelreihenfolge ändern | Vorlage `reihenfolge` (`render_view.py chapter-reorder`) | – |
+| `chapter.reorder` | `order` (alle Kapitel-IDs in neuer Reihenfolge) | Kapitelreihenfolge speichern | `structure.chapters` umsortieren; IDs und Pfade bleiben; danach Projektübersicht | noch offen |
+| `section.create.open` | `chapter_id` | Neuen Abschnitt anlegen | Vorlage `abschnitt-anlegen` (`render_view.py section-create N`) | – |
+| `section.create` | `chapter_id`, `title`, `goal`, `summary`, `fact_check`, `position` (Index, 0 = am Anfang), `position_label` | Abschnitt anlegen | Abschnittsdatei aus `templates/section.md` anlegen und in `structure.chapters` eintragen, danach Abschnittsformular | `POST …/chapters/{chapter_id}/sections` |
+| `section.reorder.open` | `chapter_id` | Abschnittsreihenfolge ändern | Vorlage `reihenfolge` (`render_view.py section-reorder N`) | – |
+| `section.reorder` | `chapter_id`, `order` (alle Abschnitts-IDs des Kapitels in neuer Reihenfolge) | Abschnittsreihenfolge speichern | `sections` des Kapitels umsortieren; IDs und Dateinamen bleiben; danach Kapitelansicht | `POST …/sections/{section_id}/move` je verschobenem Abschnitt |
 | `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `approvals`, `manuscript` | Abschnitt speichern | Abschnittsdatei schreiben, danach Abschnittsformular | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
 | `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen, Ergebnis und Kosten speichern | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
 | `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | Vorlage `auflage-erzeugen` (`render_view.py edition-create`) | – |
 | `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | Pull Request für die Auflage anlegen | noch offen |
 | `form.cancel` | `form` und betroffene ID | Formular ohne Änderung geschlossen | kurz bestätigen, nichts schreiben | – |
 
-Jede `….open`-Aktion beantwortet der Assistent sofort mit dem genannten Formular, ohne Rückfrage. Gibt es die Vorlage noch nicht, sagt er das in einem Satz und führt das Formular als Text im Chat.
+Jede `….open`-Aktion beantwortet der Assistent sofort mit dem genannten Formular, ohne Rückfrage. Eine Reihenfolge wird nur gespeichert, wenn `order` genau die bisherigen IDs enthält; sonst fragt der Assistent nach.
 
 ## Statustexte
 
@@ -164,11 +202,15 @@ Statuszeilen, Ladetexte und Ergebniszeilen nach `START.md`, „Statusanzeige“.
 | `view.project` | → Lese ghostwriter.yml · → Berechne Kosten | Projektübersicht wird geladen | – |
 | `view.chapter` | → Lese Kapitel N · → Zähle Marker und Kosten | Kapitel N wird geladen | – |
 | `view.section` | → Lese Abschnitt N.M | Abschnitt N.M wird geladen | – |
-| `project.edit`, `chapter.create.open`, `edition.create.open`, `project.settings.open` | – | Formular wird vorbereitet | – |
+| `project.edit`, `project.settings.open`, alle `….open` | – | Formular wird vorbereitet | – |
 | `project.update` | → Prüfe Eingaben · → Speichere Projektdaten (Commit) · → Prüfe Validierung | – | ✓ Projektdaten gespeichert, Commit `abc1234` |
 | `chapter.create` | → Lege Kapitel „Titel“ an · → Trage es in ghostwriter.yml ein · → Speichere (Commit) | – | ✓ Kapitel N „Titel“ angelegt, Commit `abc1234` |
 | `section.update` | → Prüfe, ob sich die Datei geändert hat · → Speichere Abschnitt N.M (Commit) | – | ✓ Abschnitt N.M gespeichert, Commit `abc1234` |
 | `run.start` | → Recherche bzw. Ghostwriting für N.M · → Erfasse Kosten · → Speichere Ergebnis (Commit) | – | ✓ Entwurf für N.M gespeichert, Kosten ≈ 0,12 €, Commit `abc1234` |
+| `chapter.update` | → Speichere Kapitel N (ghostwriter.yml und README, Commit) | – | ✓ Kapitel N gespeichert, Commit `abc1234` |
+| `chapter.reorder`, `section.reorder` | → Prüfe die neue Reihenfolge · → Speichere ghostwriter.yml (Commit) | – | ✓ Reihenfolge gespeichert, Commit `abc1234` |
+| `section.create` | → Lege Abschnitt „Titel“ in Kapitel N an · → Speichere (Commit) | – | ✓ Abschnitt N.M „Titel“ angelegt, Commit `abc1234` |
+| `project.settings.update` | → Speichere Projekteinstellungen (Commit) | – | ✓ Projekteinstellungen gespeichert, Commit `abc1234` |
 | `edition.create` | → Lege Pull Request für Auflage N an | – | ✓ Pull Request #NN für Auflage N angelegt; Tag und Release erzeugt die Action nach dem Merge |
 | Fehler | – | – | ✗ Nicht gespeichert: Grund, etwa „Datei wurde inzwischen geändert“ |
 

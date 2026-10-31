@@ -39,4 +39,8 @@ Dateien in `ghostwriter-ui/templates/`:
 | `kapitelansicht.html` | Anzeige mit Symbolleiste | Alle Abschnitte eines Kapitels mit offenen Markern, Kosten und Status; ein Klick öffnet den Abschnitt zur Bearbeitung |
 | `kapitel-anlegen.html` | Formular | Neues Kapitel mit Titel, Kurzbeschreibung, Ziel und Position anlegen |
 | `projektdaten-bearbeiten.html` | Formular | Titel, Kurztitel, Autor, Kurzbeschreibung und Beschreibung des Buchprojekts bearbeiten |
+| `kapitel-bearbeiten.html` | Formular | Titel, Untertitel, Kurzbeschreibung und Ziel eines Kapitels bearbeiten |
+| `abschnitt-anlegen.html` | Formular | Neuen Abschnitt in einem Kapitel mit Titel, Ziel, Kurzbeschreibung, Faktencheck und Position anlegen |
+| `reihenfolge.html` | Formular | Reihenfolge der Kapitel oder der Abschnitte eines Kapitels mit Pfeilen ändern |
+| `projekteinstellungen.html` | Formular | Feste Regeln anzeigen; Faktencheck-Vorgabe und Buchsatz (Seitenformat, Schrift, Titelei, Inhaltsverzeichnis) bearbeiten |
 | `auflage-erzeugen.html` | Formular | Neue Auflage mit Erscheinungsdatum und Anmerkungen erzeugen; Name, Tag und Formate ergeben sich aus `workflow.yml` |

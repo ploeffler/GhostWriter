@@ -5,7 +5,8 @@ Aufruf:
   python scripts/render_view.py <projektordner> project            [--text] [--repo owner/name] [--branch main]
   python scripts/render_view.py <projektordner> chapter <kapitel>  [--text] ...
   python scripts/render_view.py <projektordner> section <kapitel>.<abschnitt> [--text] ...
-  python scripts/render_view.py <projektordner> project-edit | chapter-create | edition-create [--text]
+  python scripts/render_view.py <projektordner> project-edit | project-settings | chapter-create | chapter-reorder | edition-create [--text]
+  python scripts/render_view.py <projektordner> chapter-edit | section-create | section-reorder <kapitel> [--text]
 
 Ohne --text wird der Widget-Code ausgegeben: Ladezeile für ghostwriter-ui (fester
 Commit aus templates/ui/ghostwriter-ui.yml) plus GW.render mit den Daten. Mit
@@ -256,7 +257,7 @@ def chapter_create_view(base, config, args):
         labels = ['Am Anfang (vor Kapitel 1)']
         labels += [f'Nach Kapitel {i} „{ch["title"]}“' for i, ch in enumerate(chapters[:-1], start=1)]
         labels += [f'Am Ende (nach Kapitel {len(chapters)} „{chapters[-1]["title"]}“)']
-    rows = [{'POSITION_LABEL': l, 'POSITION_SELECTED': 'selected' if i == len(labels) - 1 else ''} for i, l in enumerate(labels)]
+    rows = positions(labels)
     if args.text:
         return '\n'.join(['**Neues Kapitel anlegen** – schicke Titel, Kurzbeschreibung, Ziel und Position:', '',
                           'Positionen:'] + [f'{i}. {l}' + (' (Vorauswahl)' if r['POSITION_SELECTED'] else '') for i, (l, r) in enumerate(zip(labels, rows))]) + '\n'
@@ -286,7 +287,121 @@ def edition_create_view(base, config, args):
     return fill('auflage-erzeugen.html', values, {'FORMATS': formats})
 
 
-FORMS = {'project-edit': project_edit_view, 'chapter-create': chapter_create_view, 'edition-create': edition_create_view}
+TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'title_page': True,
+                      'imprint': True, 'toc': True, 'toc_depth': 1}
+FIXED_RULES = [('ai_settings', 'hallucination_policy', 'Halluzinationen'), ('ai_settings', 'source_policy', 'Quellen'),
+               ('ai_settings', 'uncertainty_policy', 'Unsicherheiten'), ('ai_settings', 'creativity', 'Kreativität'),
+               ('ai_settings', 'web_research', 'Internetrecherche'),
+               ('workflow', 'require_section_writing_approval', 'Schreibfreigabe je Abschnitt'),
+               ('workflow', 'require_section_approval', 'Freigabe je Abschnitt'),
+               ('workflow', 'require_chapter_approval', 'Freigabe je Kapitel')]
+FIXED_TEXT = {'strict': 'strikt ausgeschlossen', 'required': 'Pflicht', 'explicit': 'ausdrücklich kennzeichnen',
+              'balanced': 'ausgewogen', 'research': 'bei Rechercheaufträgen', True: 'Pflicht', False: 'aus'}
+FC_TEXT = {'disabled': 'aus', 'optional': 'optional', 'requested': 'angefordert'}
+
+
+def chapter_number(config, where):
+    n = int(where)
+    return n, config['structure']['chapters'][n - 1]
+
+
+def chapter_readme(base, ch):
+    path = base / ch['path'] / 'README.md'
+    text = path.read_text(encoding='utf-8') if path.is_file() else ''
+    sub = re.search(r'(?m)^\*([^*].*)\*$', text)
+    def part(name):
+        m = re.search(rf'(?m)^## {re.escape(name)}\n\n(.*?)(?=^## |\Z)', text, re.S)
+        v = m.group(1).strip() if m else ''
+        return '' if v == 'Offen.' else v
+    return (sub.group(1) if sub else ''), part('Kurzbeschreibung'), part('Ziel des Kapitels')
+
+
+def positions(labels):
+    return [{'POSITION_LABEL': l, 'POSITION_SELECTED': 'selected' if i == len(labels) - 1 else ''} for i, l in enumerate(labels)]
+
+
+def chapter_edit_view(base, config, args):
+    n, ch = chapter_number(config, args.where)
+    subtitle, summary, goal = chapter_readme(base, ch)
+    values = {'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': n, 'CHAPTER_TITLE': ch['title'], 'CHAPTER_SUBTITLE': subtitle,
+              'CHAPTER_SUMMARY': summary, 'CHAPTER_GOAL': goal}
+    if args.text:
+        return '\n'.join([f'**Kapitel {n} bearbeiten** – schicke die geänderten Felder als Antwort:', '',
+                          f'- Titel: {ch["title"]}', f'- Untertitel: {subtitle or "(leer)"}',
+                          f'- Kurzbeschreibung: {summary or "(leer)"}', f'- Ziel: {goal or "(leer)"}']) + '\n'
+    return fill('kapitel-bearbeiten.html', values)
+
+
+def section_create_view(base, config, args):
+    n, ch = chapter_number(config, args.where)
+    secs = ch['sections']
+    if not secs:
+        labels = ['Als erster Abschnitt']
+    else:
+        labels = [f'Am Anfang (vor {n}.1)']
+        labels += [f'Nach {n}.{i} „{s["title"]}“' for i, s in enumerate(secs[:-1], start=1)]
+        labels += [f'Am Ende (nach {n}.{len(secs)} „{secs[-1]["title"]}“)']
+    fc = (config.get('workflow') or {}).get('fact_checking_default') or 'optional'
+    if args.text:
+        return '\n'.join([f'**Neuer Abschnitt in Kapitel {n}** – schicke Titel, Ziel, Kurzbeschreibung und Position:', '',
+                          f'Faktencheck: {FC_TEXT[fc]} (Vorgabe)', '', 'Positionen:']
+                         + [f'{i}. {l}' + (' (Vorauswahl)' if i == len(labels) - 1 else '') for i, l in enumerate(labels)]) + '\n'
+    return fill('abschnitt-anlegen.html', {'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': n, 'CHAPTER_TITLE': ch['title'],
+                                           'FACT_CHECK_DEFAULT': fc}, {'POSITIONS': positions(labels)})
+
+
+def reorder(args, kind, heading, items, chapter_id='', chapter_no=''):
+    if args.text:
+        return '\n'.join([f'**{heading}** – schicke die Nummern in der neuen Reihenfolge, z. B. „3, 1, 2, …“:', '']
+                         + [f'{i["ITEM_NUMBER"]}. {i["ITEM_TITLE"]}' for i in items]) + '\n'
+    return fill('reihenfolge.html', {'REORDER_KIND': kind, 'REORDER_HEADING': heading, 'CHAPTER_ID': chapter_id,
+                                     'CHAPTER_NUMBER': chapter_no}, {'ITEMS': items})
+
+
+def chapter_reorder_view(base, config, args):
+    items = [{'ITEM_ID': ch['id'], 'ITEM_NUMBER': i, 'ITEM_TITLE': ch['title']}
+             for i, ch in enumerate(config['structure']['chapters'], start=1)]
+    return reorder(args, 'chapter', 'Kapitelreihenfolge ändern', items)
+
+
+def section_reorder_view(base, config, args):
+    n, ch = chapter_number(config, args.where)
+    items = [{'ITEM_ID': s['id'], 'ITEM_NUMBER': f'{n}.{i}', 'ITEM_TITLE': s['title']}
+             for i, s in enumerate(ch['sections'], start=1)]
+    return reorder(args, 'section', f'Abschnittsreihenfolge in Kapitel {n} ändern', items, ch['id'], n)
+
+
+def project_settings_view(base, config, args):
+    ts = dict(TYPESETTING_DEFAULT)
+    ts.update(config.get('typesetting') or {})
+    wf = config.get('workflow') or {}
+    fixed = []
+    for block, key, label in FIXED_RULES:
+        v = (config.get(block) or {}).get(key)
+        if v is None:
+            continue
+        text = FIXED_TEXT.get(v, str(v))
+        fixed.append({'FIXED_LABEL': label, 'FIXED_VALUE': text if isinstance(v, bool) else f'{text} ({v})'})
+    fc = wf.get('fact_checking_default') or 'optional'
+    if args.text:
+        return '\n'.join(['**Projekteinstellungen**', '', 'Feste Regeln (nur im Chat mit ausdrücklicher Bestätigung änderbar):']
+                         + [f'- {f["FIXED_LABEL"]}: {f["FIXED_VALUE"]}' for f in fixed]
+                         + ['', f'Faktencheck für neue Abschnitte: {FC_TEXT[fc]}', '',
+                            'Buchsatz:', f'- Seitenformat: {ts["page_size"]}', f'- Schrift: {ts["font"]}, {ts["font_size"]} pt',
+                            f'- Titelseite: {"ja" if ts["title_page"] else "nein"}, Impressum: {"ja" if ts["imprint"] else "nein"}',
+                            f'- Inhaltsverzeichnis: ' + (('nur Kapitel' if ts['toc_depth'] == 1 else 'Kapitel und Abschnitte') if ts['toc'] else 'nein'),
+                            '', 'Schicke die gewünschten Änderungen als Antwort.']) + '\n'
+    def b(v):
+        return 'true' if v else 'false'
+    return fill('projekteinstellungen.html', {'FACT_CHECK_DEFAULT': fc, 'PAGE_SIZE': ts['page_size'], 'FONT': ts['font'],
+                                              'FONT_SIZE': str(ts['font_size']).rstrip('0').rstrip('.') if isinstance(ts['font_size'], float) else str(ts['font_size']),
+                                              'TITLE_PAGE': b(ts['title_page']), 'IMPRINT': b(ts['imprint']), 'TOC': b(ts['toc']),
+                                              'TOC_DEPTH': str(ts['toc_depth'])}, {'FIXED': fixed})
+
+
+FORMS = {'project-edit': project_edit_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
+         'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
+         'section-create': section_create_view, 'section-reorder': section_reorder_view}
 
 
 def main():

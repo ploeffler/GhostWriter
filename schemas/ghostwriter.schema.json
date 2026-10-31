@@ -69,6 +69,20 @@
       },
       "additionalProperties": false
     },
+    "typesetting": {
+      "type": "object",
+      "description": "Buchsatz für die Auflagen; fehlt der Block, gelten die Vorgaben aus docs/DATA-MODEL.md",
+      "properties": {
+        "page_size": {"enum": ["a5", "12x19", "13.5x21.5", "a4"]},
+        "font": {"enum": ["serif", "sans"]},
+        "font_size": {"enum": [10, 10.5, 11, 11.5, 12]},
+        "title_page": {"type": "boolean"},
+        "imprint": {"type": "boolean"},
+        "toc": {"type": "boolean"},
+        "toc_depth": {"enum": [1, 2]}
+      },
+      "additionalProperties": false
+    },
     "structure": {
       "type": "object",
       "required": ["chapters"],

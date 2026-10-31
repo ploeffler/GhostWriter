@@ -79,6 +79,28 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `workflow.current_chapter_id`, `workflow.current_section_id` | zuletzt bearbeitete Stelle für den Wiedereinstieg |
 | `structure.chapters` | Kapitel in Reihenfolge, je mit `id`, `title`, `path`, `status` und `sections` (je `id`, `title`, `path`) |
 
+| `typesetting` | Buchsatz der Auflagen, in den Projekteinstellungen bearbeitbar (siehe unten) |
+
+### Buchsatz
+
+`typesetting` steuert PDF, DOCX und EPUB der nächsten Auflage. Fehlt der Block oder ein Feld, gilt die Vorgabe:
+
+| Feld | Werte | Vorgabe |
+|---|---|---|
+| `page_size` | `a5`, `12x19`, `13.5x21.5`, `a4` | `a5` |
+| `font` | `serif`, `sans` | `serif` |
+| `font_size` | `10`, `10.5`, `11`, `11.5`, `12` (pt) | `11` |
+| `title_page` | Titelseite in der Titelei | `true` |
+| `imprint` | Impressum in der Titelei | `true` |
+| `toc` | Inhaltsverzeichnis | `true` |
+| `toc_depth` | `1` = nur Kapitel, `2` = Kapitel und Abschnitte | `1` |
+
+Seitenformat, Schrift und Titelei wirken nur in PDF und DOCX; EPUB übernimmt Inhaltsverzeichnis und Titelei.
+
+### Kapitel-README
+
+Titel, Untertitel (erste kursive Zeile `*…*`), `## Kurzbeschreibung` und `## Ziel des Kapitels` stehen in `chapters/<kapitel>/README.md`; „Offen.“ steht für noch leer. Der Titel steht zusätzlich in `structure.chapters`. „Kapitel bearbeiten“ ändert beides im selben Commit.
+
 Die Struktur von `ghostwriter.yml` beschreibt [`schemas/ghostwriter.schema.json`](../schemas/ghostwriter.schema.json).
 
 ## Abschnittsdatei – Frontmatter-Beispiel

@@ -69,5 +69,14 @@ workflow:
 #       - id: sec-01-01-zielsetzung
 #         title: "Zielsetzung"
 #         path: chapters/01-einleitung/sections/01-zielsetzung.md
+typesetting:
+  # Buchsatz für PDF, DOCX und EPUB der Auflagen (Projekteinstellungen)
+  page_size: a5        # a5 | 12x19 | 13.5x21.5 | a4
+  font: serif          # serif | sans
+  font_size: 11        # 10 | 10.5 | 11 | 11.5 | 12 (pt)
+  title_page: true     # Titelei: Titelseite
+  imprint: true        # Titelei: Impressum
+  toc: true            # Inhaltsverzeichnis
+  toc_depth: 1         # 1 = nur Kapitel, 2 = Kapitel und Abschnitte
 structure:
   chapters: []
