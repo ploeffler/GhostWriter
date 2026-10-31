@@ -37,7 +37,7 @@ Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Re
 
 ### Nachrichten aus den Vorlagen
 
-Klicks in den Chat-Vorlagen schicken eine Zeile Text und einen Block `gw` mit festen Daten, etwa `{"action":"view.section","section_id":"…"}`. Werte den Block aus; die Aktionen und ihre Daten stehen in `templates/ui/BEFUELLUNG.md`. Freie Eingaben ohne Block bleiben erlaubt.
+Klicks in den Chat-Vorlagen schicken eine Zeile Text und einen Block `gw` mit festen Daten, etwa `{"action":"view.section","section_id":"…"}`. Werte den Block aus und antworte mit der Ansicht oder dem Formular, das die Aktionstabelle in `templates/ui/BEFUELLUNG.md` nennt; Aktionen, die ein Formular öffnen (`….open`, `project.edit`), sofort und ohne Rückfrage. Freie Eingaben ohne Block bleiben erlaubt.
 
 ### Statusanzeige (verbindlich)
 

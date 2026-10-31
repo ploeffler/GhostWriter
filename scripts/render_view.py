@@ -5,6 +5,7 @@ Aufruf:
   python scripts/render_view.py <projektordner> project            [--text] [--repo owner/name] [--branch main]
   python scripts/render_view.py <projektordner> chapter <kapitel>  [--text] ...
   python scripts/render_view.py <projektordner> section <kapitel>.<abschnitt> [--text] ...
+  python scripts/render_view.py <projektordner> project-edit | chapter-create | edition-create [--text]
 
 Ohne --text wird der Widget-Code ausgegeben: Ladezeile für ghostwriter-ui (fester
 Commit aus templates/ui/ghostwriter-ui.yml) plus GW.render mit den Daten. Mit
@@ -230,10 +231,68 @@ def section_view(base, config, args, cnum, snum):
     return fill('abschnitt-bearbeiten.html', values, {'MARKERS': markers})
 
 
+def project_values(config):
+    p = config['project']
+    title = p['title'] or p['working_title'] or ''
+    return {'PROJECT_TITLE': title, 'PROJECT_TITLE_SHORT': p['title_short'] or '', 'PROJECT_AUTHOR': p['author'] or '',
+            'PROJECT_DESCRIPTION_SHORT': p['description_short'] or '', 'PROJECT_DESCRIPTION': p['description'] or ''}
+
+
+def project_edit_view(base, config, args):
+    values = project_values(config)
+    if args.text:
+        return '\n'.join(['**Projektdaten bearbeiten** – schicke die geänderten Felder als Antwort:', '',
+                          f'- Titel: {values["PROJECT_TITLE"] or "(leer)"}', f'- Kurztitel: {values["PROJECT_TITLE_SHORT"] or "(leer)"}',
+                          f'- Autor: {values["PROJECT_AUTHOR"] or "(leer)"}', f'- Kurzbeschreibung: {values["PROJECT_DESCRIPTION_SHORT"] or "(leer)"}',
+                          f'- Beschreibung: {values["PROJECT_DESCRIPTION"] or "(leer)"}']) + '\n'
+    return fill('projektdaten-bearbeiten.html', values)
+
+
+def chapter_create_view(base, config, args):
+    chapters = config['structure']['chapters']
+    if not chapters:
+        labels = ['Als erstes Kapitel']
+    else:
+        labels = ['Am Anfang (vor Kapitel 1)']
+        labels += [f'Nach Kapitel {i} „{ch["title"]}“' for i, ch in enumerate(chapters[:-1], start=1)]
+        labels += [f'Am Ende (nach Kapitel {len(chapters)} „{chapters[-1]["title"]}“)']
+    rows = [{'POSITION_LABEL': l, 'POSITION_SELECTED': 'selected' if i == len(labels) - 1 else ''} for i, l in enumerate(labels)]
+    if args.text:
+        return '\n'.join(['**Neues Kapitel anlegen** – schicke Titel, Kurzbeschreibung, Ziel und Position:', '',
+                          'Positionen:'] + [f'{i}. {l}' + (' (Vorauswahl)' if r['POSITION_SELECTED'] else '') for i, (l, r) in enumerate(zip(labels, rows))]) + '\n'
+    return fill('kapitel-anlegen.html', {}, {'POSITIONS': rows})
+
+
+def edition_create_view(base, config, args):
+    import datetime
+    p = config['project']
+    wf_path = base / 'workflow.yml' if (base / 'workflow.yml').is_file() else ROOT / 'workflow.yml'
+    workflow = yaml.safe_load(wf_path.read_text(encoding='utf-8'))
+    br = workflow['book_releases']
+    n = (p['current_edition'] or 0) + 1
+    short = p['title_short'] or p['title'] or p['working_title'] or ''
+    chapters = config['structure']['chapters']
+    approved = sum(ch['status'] == 'approved' for ch in chapters)
+    warn = '' if chapters and approved == len(chapters) else \
+        f'Bisher sind {approved} von {len(chapters)} Kapiteln freigegeben; nur diese kommen in die Auflage.'
+    values = {'EDITION_NUMBER': n, 'EDITION_NAME': br['name_pattern'].format(title_short=short, edition=n),
+              'EDITION_TAG': br['tag_pattern'].format(title_short_slug=tag_slug(short), edition=n),
+              'EDITION_DATE_DEFAULT': datetime.date.today().isoformat(), 'APPROVAL_WARNING_TEXT': warn}
+    formats = [{'FORMAT_LABEL': a.upper()} for a in br['assets']]
+    if args.text:
+        return '\n'.join([f'**Neue Auflage erzeugen** – Auflage {n}', '', f'- Name: {values["EDITION_NAME"]}', f'- Tag: {values["EDITION_TAG"]}',
+                          f'- Formate: {", ".join(f["FORMAT_LABEL"] for f in formats)}', f'- Erscheinungsdatum: {values["EDITION_DATE_DEFAULT"]} (Vorschlag)']
+                         + ([f'', f'Hinweis: {warn}'] if warn else []) + ['', 'Schicke Erscheinungsdatum und Anmerkungen, oder „abbrechen“.']) + '\n'
+    return fill('auflage-erzeugen.html', values, {'FORMATS': formats})
+
+
+FORMS = {'project-edit': project_edit_view, 'chapter-create': chapter_create_view, 'edition-create': edition_create_view}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section'])
+    ap.add_argument('view', choices=['project', 'chapter', 'section'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
@@ -243,7 +302,9 @@ def main():
     ui = yaml.safe_load(UI_CONFIG.read_text(encoding='utf-8'))
     UI['repo'], UI['ref'] = ui['repo'], args.ui_ref or ui['commit']
     base, config = load(args.project)
-    if args.view == 'project':
+    if args.view in FORMS:
+        out = FORMS[args.view](base, config, args)
+    elif args.view == 'project':
         out = project_view(base, config, args)
     elif args.view == 'chapter':
         out = chapter_view(base, config, args, int(args.where))

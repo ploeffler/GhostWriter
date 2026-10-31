@@ -6,6 +6,7 @@ Diese Regeln sagen dem Assistenten, wie er die Chat-Vorlagen mit Daten aus dem B
 python scripts/render_view.py <projektordner> project [--text] [--repo owner/name] [--branch name]
 python scripts/render_view.py <projektordner> chapter 2 [--text]
 python scripts/render_view.py <projektordner> section 2.4 [--text]
+python scripts/render_view.py <projektordner> project-edit | chapter-create | edition-create [--text]
 ```
 
 ## Ausgabe im Chat
@@ -132,25 +133,27 @@ Abschnitt 2.4 „Die Scham, die wir mitbringen“ bearbeiten
 
 Der Assistent wertet den Block `gw` aus; die Zeile darüber ist für Menschen. Freie Eingaben ohne Block bleiben erlaubt.
 
-| Aktion | Daten | Bedeutung | Endpunkt in `docs/API-CONTRACT.md` (Weg B) |
-|---|---|---|---|
-| `view.project` | – | Projektübersicht zeigen | `GET /v1/projects/{owner}/{repo}` |
-| `view.chapter` | `chapter_id` | Kapitelansicht zeigen | `GET /v1/projects/{owner}/{repo}` |
-| `view.section` | `section_id` | Abschnittsformular zeigen | `GET /v1/projects/{owner}/{repo}` |
-| `project.edit` | – | Formular „Projektdaten bearbeiten“ zeigen | – |
-| `project.update` | `title`, `title_short`, `author`, `description_short`, `description` | Projektdaten speichern | noch offen |
-| `project.settings.open` | – | Projekteinstellungen zeigen | – |
-| `chapter.create.open` | – | Formular „Neues Kapitel anlegen“ zeigen | – |
-| `chapter.create` | `title`, `summary`, `goal`, `position` (Index, 0 = am Anfang), `position_label` | Kapitel anlegen | `POST …/chapters` |
-| `chapter.edit.open` | `chapter_id` | Kapitel bearbeiten | – |
-| `chapter.reorder.open` | – | Kapitelreihenfolge ändern | – |
-| `section.create.open` | `chapter_id` | Neuen Abschnitt anlegen | – |
-| `section.reorder.open` | `chapter_id` | Abschnittsreihenfolge ändern | – |
-| `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `approvals`, `manuscript` | Abschnitt speichern | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
-| `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
-| `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | – |
-| `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | noch offen |
-| `form.cancel` | `form` und betroffene ID | Formular ohne Änderung geschlossen | – |
+| Aktion | Daten | Bedeutung | Antwort des Assistenten | Endpunkt in `docs/API-CONTRACT.md` (Weg B) |
+|---|---|---|---|---|
+| `view.project` | – | Projektübersicht zeigen | Vorlage `projektuebersicht` (`render_view.py project`) | `GET /v1/projects/{owner}/{repo}` |
+| `view.chapter` | `chapter_id` | Kapitelansicht zeigen | Vorlage `kapitelansicht` (`render_view.py chapter N`) | `GET /v1/projects/{owner}/{repo}` |
+| `view.section` | `section_id` | Abschnittsformular zeigen | Vorlage `abschnitt-bearbeiten` (`render_view.py section N.M`) | `GET /v1/projects/{owner}/{repo}` |
+| `project.edit` | – | Formular „Projektdaten bearbeiten“ zeigen | Vorlage `projektdaten-bearbeiten` (`render_view.py project-edit`) | – |
+| `project.update` | `title`, `title_short`, `author`, `description_short`, `description` | Projektdaten speichern | in `ghostwriter.yml` schreiben, danach Projektübersicht | noch offen |
+| `project.settings.open` | – | Projekteinstellungen zeigen | Formular fehlt noch (#11): aktuelle Einstellungen als Text zeigen und Änderungen im Chat erfragen | – |
+| `chapter.create.open` | – | Formular „Neues Kapitel anlegen“ zeigen | Vorlage `kapitel-anlegen` (`render_view.py chapter-create`) | – |
+| `chapter.create` | `title`, `summary`, `goal`, `position` (Index, 0 = am Anfang), `position_label` | Kapitel anlegen | Kapitel anlegen, danach Kapitelansicht des neuen Kapitels | `POST …/chapters` |
+| `chapter.edit.open` | `chapter_id` | Kapitel bearbeiten | Formular fehlt noch (#11): Titel, Kurzbeschreibung und Ziel als Text zeigen und Änderungen im Chat erfragen | – |
+| `chapter.reorder.open` | – | Kapitelreihenfolge ändern | Formular fehlt noch (#11): nummerierte Liste zeigen, neue Reihenfolge im Chat erfragen | – |
+| `section.create.open` | `chapter_id` | Neuen Abschnitt anlegen | Formular fehlt noch (#11): Titel, Ziel und Position im Chat erfragen | – |
+| `section.reorder.open` | `chapter_id` | Abschnittsreihenfolge ändern | Formular fehlt noch (#11): nummerierte Liste zeigen, neue Reihenfolge im Chat erfragen | – |
+| `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `approvals`, `manuscript` | Abschnitt speichern | Abschnittsdatei schreiben, danach Abschnittsformular | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
+| `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen, Ergebnis und Kosten speichern | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
+| `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | Vorlage `auflage-erzeugen` (`render_view.py edition-create`) | – |
+| `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | Pull Request für die Auflage anlegen | noch offen |
+| `form.cancel` | `form` und betroffene ID | Formular ohne Änderung geschlossen | kurz bestätigen, nichts schreiben | – |
+
+Jede `….open`-Aktion beantwortet der Assistent sofort mit dem genannten Formular, ohne Rückfrage. Gibt es die Vorlage noch nicht, sagt er das in einem Satz und führt das Formular als Text im Chat.
 
 ## Statustexte
 
