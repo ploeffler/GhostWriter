@@ -20,13 +20,13 @@
 
   Platzhalter (vor der Ausgabe ersetzen):
   - {{PROJECT_TITLE}}              project.title (bzw. working_title, solange kein Titel feststeht)
-  - {{PROJECT_TITLE_SHORT}}        Kurztitel
+  - {{PROJECT_TITLE_SHORT}}        project.title_short
   - {{PROJECT_AUTHOR}}             project.author
   - {{PROJECT_DESCRIPTION_SHORT}}  project.description_short
-  - {{PROJECT_DESCRIPTION}}        ausführliche Beschreibung
+  - {{PROJECT_DESCRIPTION}}        project.description
   - {{PROJECT_COST}}               bisherige Gesamtkosten, formatiert, z. B. "1,60 €"
   - {{PROJECT_COST_HINT}}          Tooltip, z. B. "Bisherige Gesamtkosten"
-  - {{PROJECT_EDITION_TEXT}}       aktuelle Auflage, z. B. "Auflage 2" oder "noch keine Auflage"
+  - {{PROJECT_EDITION_TEXT}}       aus project.current_edition: "Auflage 2", bei 0 "noch keine Auflage"
                                    (siehe book_releases in workflow.yml)
 
   Wiederholung pro Kapitel in Reihenfolge der Struktur:
@@ -48,9 +48,6 @@
   - Gesamtkosten = Summe der Kapitelsummen plus projektweite Kosten.
   - Enthält eine Summe geschätzte Kosten, wird "≈ " vorangestellt und
     im Tooltip ", enthält geschätzte Kosten" ergänzt.
-
-  Hinweis: Kurztitel und ausführliche Beschreibung gibt es in
-  ghostwriter.yml noch nicht als eigene Felder.
 
   Voraussetzungen der Darstellungsumgebung: CSS-Variablen des Hosts
   (--surface-*, --text-*, --border-*, --bg-*, --gap-*, --pad-*, --radius),

@@ -62,6 +62,25 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 - `ready_for_approval`
 - `approved`
 
+## Projektdaten in `ghostwriter.yml`
+
+| Feld | Bedeutung |
+|---|---|
+| `project.title` | Titel des Buches |
+| `project.title_short` | Kurztitel für Badge, Listen und den Namen der Auflagen („Kurztitel – Auflage N“) |
+| `project.working_title` | Arbeitstitel, solange kein Titel feststeht |
+| `project.subtitle` | Untertitel |
+| `project.author` | Autorin oder Autor |
+| `project.description_short` | Kurzbeschreibung in einem Satz |
+| `project.description` | ausführliche Beschreibung |
+| `project.status` | Projektstatus, z. B. `concept` |
+| `project.current_edition` | Nummer der letzten erschienenen Auflage, `0` = noch keine |
+| `workflow.current_phase` | `wizard` bis zur Strukturfreigabe, danach eine andere Phase |
+| `workflow.current_chapter_id`, `workflow.current_section_id` | zuletzt bearbeitete Stelle für den Wiedereinstieg |
+| `structure.chapters` | Kapitel in Reihenfolge, je mit `id`, `title`, `path`, `status` und `sections` (je `id`, `title`, `path`) |
+
+Die Struktur von `ghostwriter.yml` beschreibt [`schemas/ghostwriter.schema.json`](../schemas/ghostwriter.schema.json).
+
 ## Abschnittsdatei – Frontmatter-Beispiel
 
 ```yaml
@@ -70,14 +89,27 @@ id: sec-01-purpose
 number: "1.1"
 title: "Zielsetzung"
 status: planned
-fact_check:
-  enabled: false
-  level: standard
+fact_check: optional   # disabled | optional | requested
 approvals:
   writing: false
   section: false
 ---
 ```
+
+Der Kopf jeder Abschnittsdatei folgt [`schemas/section.schema.json`](../schemas/section.schema.json). `fact_check` übernimmt die Werte aus `workflow.yml` (`entities.section.fact_check`).
+
+## Marker im Manuskript
+
+Offene Prüfpunkte stehen als Marker in eckigen Klammern direkt im Manuskript, mit optionalem Hinweis nach dem Doppelpunkt, z. B. `[QUELLE PRÜFEN: Band, Seiten, DOI]`. Es gibt vier Arten:
+
+| Marker | Art | Bedeutung |
+|---|---|---|
+| `[PLATZHALTER-ANEKDOTE …]` | `anekdote` | durch ein eigenes Erlebnis der Autorin oder des Autors ersetzen |
+| `[QUELLE PRÜFEN …]` | `quelle` | Quelle oder Beleg vor Veröffentlichung prüfen |
+| `[MEDIZIN PRÜFEN …]` | `medizin` | medizinische Aussage fachlich prüfen |
+| `[RECHT PRÜFEN …]` | `recht` | rechtliche Aussage, Leistung oder Zuständigkeit prüfen |
+
+Die Kapitelansicht zählt die Marker je Abschnitt und Art, das Abschnittsformular listet sie einzeln. Ein Abschnitt mit offenen Markern sollte nicht freigegeben werden.
 
 ## Recherchelauf
 
