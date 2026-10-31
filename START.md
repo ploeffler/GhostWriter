@@ -21,10 +21,11 @@ Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`
 1. **Repository lesen:** Lies über die GitHub-Verbindung `README.md`, diese Datei und `ghostwriter.yml`. Ohne Lesezugriff: erkläre, was fehlt, und bitte den Benutzer, die GitHub-Verbindung einzurichten oder `ghostwriter.yml` und die benötigten Kapiteldateien anzuhängen.
 2. **Stand erkennen:** Das Projekt gilt als eingerichtet, wenn in `ghostwriter.yml` `workflow.current_phase` nicht `wizard` ist oder `structure.chapters` mindestens ein Kapitel enthält. Sonst beginne mit Abschnitt 1.
 3. **Onboarding und Wizard überspringen:** Kein erneutes Onboarding, keine erneuten Wizard-Fragen. Nenne das gelesene Repository eindeutig.
-4. **Übersicht zeigen:** Zeige die Projektübersicht (`templates/ui/projektuebersicht.html`, Hauptvorlage) mit den aktuellen Daten aus dem Repository: Projektdaten, Kapitel mit Status, Kosten aus den Kostendateien und aktuelle Auflage. Befülle sie nach `templates/ui/BEFUELLUNG.md`. Kann der Chat keine Widgets darstellen, gib die dort beschriebene Textfassung aus.
-5. **Zuletzt bearbeitete Stelle anbieten:** Sind `workflow.current_chapter_id` oder `workflow.current_section_id` gesetzt, biete an, dort weiterzumachen.
-6. **Direktlinks:** Zeigt der Link auf ein Kapitel (`chapters/<id>/…`) oder einen Abschnitt (`chapters/<id>/sections/<datei>.md`), zeige statt der Übersicht direkt die Kapitelansicht (`templates/ui/kapitelansicht.html`) bzw. das Abschnittsformular (`templates/ui/abschnitt-bearbeiten.html`).
-7. **Stand mitschreiben:** Wechselt die Arbeit zu einem anderen Kapitel oder Abschnitt, aktualisiere `workflow.current_chapter_id` und `workflow.current_section_id` mit dem nächsten freigegebenen Commit, damit der nächste Wiedereinstieg dort ansetzt.
+4. **Buchkontext laden:** Befolge vor der Anzeige die Startregel in `docs/CONTEXT.md`: bis einschließlich 15.000 Wörter den Manuskripttext vollständig lesen, soweit der Kontext reicht; darüber aktuelle Buch- und Kapitelzusammenfassungen verwenden und Originaltexte gezielt nachladen. Projektregeln, Gliederung und Bearbeitungsstand immer lesen. Fehlende/veraltete Zusammenfassungen nicht als aktuellen Stand behandeln. Die Grenze ist fest; eine Einstellung dafür folgt erst ab v1.1.
+5. **Übersicht zeigen:** Zeige die Projektübersicht (`templates/ui/projektuebersicht.html`, Hauptvorlage) mit den aktuellen Daten aus dem Repository: Projektdaten, Kapitel mit Status, Kosten aus den Kostendateien und aktuelle Auflage. Befülle sie nach `templates/ui/BEFUELLUNG.md`. Kann der Chat keine Widgets darstellen, gib die dort beschriebene Textfassung aus.
+6. **Zuletzt bearbeitete Stelle anbieten:** Sind `workflow.current_chapter_id` oder `workflow.current_section_id` gesetzt, biete an, dort weiterzumachen.
+7. **Direktlinks:** Zeigt der Link auf ein Kapitel (`chapters/<id>/…`) oder einen Abschnitt (`chapters/<id>/sections/<datei>.md`), zeige statt der Übersicht direkt die Kapitelansicht (`templates/ui/kapitelansicht.html`) bzw. das Abschnittsformular (`templates/ui/abschnitt-bearbeiten.html`).
+8. **Stand mitschreiben:** Wechselt die Arbeit zu einem anderen Kapitel oder Abschnitt, aktualisiere `workflow.current_chapter_id` und `workflow.current_section_id` mit dem nächsten freigegebenen Commit, damit der nächste Wiedereinstieg dort ansetzt.
 
 Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Repository ohne die jeweils erforderliche Freigabe, keine erfundenen Angaben über den Projektstand.
 
@@ -193,3 +194,4 @@ Kennzeichne jederzeit:
 - was noch ungeprüft oder unsicher ist;
 - welche Abschnitte und Kapitel freigegeben sind;
 - welche Arbeitsschritte noch offen sind.
+
