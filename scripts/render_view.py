@@ -262,8 +262,13 @@ def chapter_edit_view(base, config, args, cnum):
                 f"Titel: {ch['title']}\n\nKurzbeschreibung: {values['CHAPTER_SUMMARY'] or 'offen'}\n\n"
                 f"Ziel: {values['CHAPTER_GOAL'] or 'offen'}\n\n"
                 "Änderungen als Antwort senden. Aktionen: 1 Speichern · 2 Abbrechen.\n"
+                "KI-Aktionen: Abschnitt wählen, dann Recherche · Sofort oder Ghostwriting · Sofort.\n"
+                "KI-Aktionen speichern keine Formularänderungen; Ghostwriting benötigt Schreibfreigabe.\n"
+                + "\n".join(f"{cnum}.{i} · {sec['title']}" for i, sec in enumerate(ch['sections'], 1)) + "\n"
                 "Speichern erteilt keine Kapitelfreigabe.\n")
-    return fill('kapitel-bearbeiten.html', values)
+    rows = [{'SECTION_ID': sec['id'], 'SECTION_NUMBER': f'{cnum}.{i}', 'SECTION_TITLE': sec['title']}
+            for i, sec in enumerate(ch['sections'], 1)]
+    return fill('kapitel-bearbeiten.html', values, {'AI_SECTIONS': rows})
 
 
 def main():

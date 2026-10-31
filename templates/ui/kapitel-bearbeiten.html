@@ -38,6 +38,21 @@ Keine Status-/Freigabeänderung und keine Umordnung durch dieses Formular.
       <label for="gw-goal">Ziel des Kapitels <span class="hint">was soll der Leser danach verstanden haben?</span></label>
       <textarea id="gw-goal" rows="3">{{CHAPTER_GOAL}}</textarea>
     </div>
+    <section aria-labelledby="gw-ai-heading" style="border:0.5px solid var(--border);border-radius:16px;background:var(--surface-2);padding:var(--pad-md);display:flex;flex-direction:column;gap:var(--gap-sm)">
+      <div id="gw-ai-heading" style="font-size:16px;font-weight:500">KI-Aktionen</div>
+      <label for="gw-ai-section">Abschnitt</label>
+      <select id="gw-ai-section">
+        <option value="">Abschnitt auswählen</option>
+        {{#AI_SECTIONS}}
+        <option value="{{SECTION_ID}}">{{SECTION_NUMBER}} · {{SECTION_TITLE}}</option>
+        {{/AI_SECTIONS}}
+      </select>
+      <div style="display:flex;gap:var(--gap-sm);flex-wrap:wrap">
+        <button type="button" class="gw-btn" data-ai-task="research" disabled style="border:0.5px solid var(--border-strong);background:var(--surface-1);color:var(--text-primary)"><i class="ti ti-search" aria-hidden="true"></i> Recherche · Sofort</button>
+        <button type="button" class="gw-btn" data-ai-task="writing" disabled style="border:0.5px solid var(--border-strong);background:var(--surface-1);color:var(--text-primary)"><i class="ti ti-feather" aria-hidden="true"></i> Ghostwriting · Sofort</button>
+      </div>
+      <p class="hint" style="margin:0">Direkt im Chat für den gewählten Abschnitt. Änderungen oben werden dabei nicht gespeichert. Ghostwriting benötigt eine Schreibfreigabe.</p>
+    </section>
     <p class="hint" style="margin:0">Die Kapitelreihenfolge änderst du in der Projektübersicht. Speichern erteilt keine Kapitelfreigabe.</p>
     <div style="display:flex;justify-content:flex-end;gap:var(--gap-sm);border-top:0.5px solid var(--border);padding-top:var(--pad-md)">
       <button type="button" class="gw-btn" id="gw-cancel" style="border:0.5px solid var(--border-strong);background:transparent;color:var(--text-primary)">Abbrechen</button>
@@ -66,6 +81,18 @@ Keine Status-/Freigabeänderung und keine Umordnung durch dieses Formular.
   }
   f.addEventListener('submit',function(event){event.preventDefault();save();});
   $('gw-save').addEventListener('click',save);
+  var section=$('gw-ai-section');
+  section.addEventListener('change',function(){
+    f.querySelectorAll('[data-ai-task]').forEach(function(button){button.disabled=busy||!section.value;});
+  });
+  f.querySelectorAll('[data-ai-task]').forEach(function(button){
+    button.addEventListener('click',function(){
+      if(busy||!section.value)return;
+      send((button.dataset.aiTask==='research'?'Recherche':'Ghostwriting')+' für '+section.options[section.selectedIndex].text+' sofort im Chat starten',{
+        action:'run.start',section_id:section.value,task:button.dataset.aiTask,mode:'immediate'
+      });
+    });
+  });
   $('gw-cancel').addEventListener('click',function(){send('Kapitelbearbeitung abgebrochen',{
     action:'form.cancel',form:'chapter.update',chapter_id:f.dataset.chapterId
   });});
