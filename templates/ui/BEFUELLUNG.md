@@ -3,28 +3,10 @@
 Diese Regeln sagen dem Assistenten, wie er die Vorlagen in `templates/ui/` aus dem Buch-Repository befüllt, wie er sie ohne Widgets als Text ausgibt und in welchem Format die Vorlagen Nachrichten in den Chat schicken. `scripts/render_view.py` setzt die Regeln für Projektübersicht, Kapitelansicht und Abschnittsformular um und dient als Referenz:
 
 ```sh
-python scripts/render_view.py <projektordner> project [--buttons|--text] [--repo owner/name] [--branch name]
-python scripts/render_view.py <projektordner> chapter 2 [--buttons|--text]
+python scripts/render_view.py <projektordner> project [--text] [--repo owner/name] [--branch name]
+python scripts/render_view.py <projektordner> chapter 2 [--text]
 python scripts/render_view.py <projektordner> section 2.4 [--text]
 ```
-
-## Darstellung (verbindlich)
-
-Volle HTML-Widgets bauen sich im Chat spürbar langsam auf, Markdown erscheint sofort. Deshalb gilt:
-
-| Ansicht | Darstellung |
-|---|---|
-| Projektübersicht, Kapitelansicht | **Text + Knopfleiste**: die Textfassung als Markdown, darunter eine Knopfleiste |
-| Abschnitt bearbeiten, alle übrigen Formulare | volles Widget aus der Vorlage |
-| Chats ohne Widgets | nur die Textfassung mit Aktionsliste |
-
-Die **Knopfleiste** ist ein kleines Widget ohne Inhalte: Es bekommt nur kompakte Daten (Nummern, gekürzte IDs, Aktionen) und baut die Knöpfe beim Laden selbst. Obere Zeile: ein Knopf „✎ Nummer“ je Kapitel bzw. Abschnitt, die zuletzt bearbeitete Stelle (`workflow.current_chapter_id`, `workflow.current_section_id`) hervorgehoben. Untere Zeile: die Aktionen der Ansicht. Die Klicks schicken dieselben Nachrichten wie die Vorlagen (siehe Nachrichtenformat). `render_view.py --buttons` gibt die Textfassung, eine Zeile `<!-- KNOPFLEISTE -->` und danach den Code der Knopfleiste aus; der Assistent gibt den Text als Nachricht aus und den Teil nach der Marke als Widget.
-
-Knöpfe der Projektübersicht: „✎ 1“ … je Kapitel (`view.chapter`), „N.M öffnen (zuletzt bearbeitet)“ (`view.section`), Projektdaten bearbeiten (`project.edit`), Neues Kapitel (`chapter.create.open`), Kapitelreihenfolge (`chapter.reorder.open`), Neue Auflage (`edition.create.open`), Einstellungen (`project.settings.open`).
-
-Knöpfe der Kapitelansicht: „✎ N.1“ … je Abschnitt (`view.section`), Zur Übersicht (`view.project`), Kapitel bearbeiten (`chapter.edit.open`), Neuer Abschnitt (`section.create.open`), Reihenfolge ändern (`section.reorder.open`).
-
-Die Vorlagen `projektuebersicht.html` und `kapitelansicht.html` bleiben als Referenz und für spätere eigene Oberflächen (Weg B) erhalten.
 
 ## Grundregeln
 
@@ -96,8 +78,6 @@ Die Vorlagen `projektuebersicht.html` und `kapitelansicht.html` bleiben als Refe
 ## Textfassung ohne Widgets
 
 Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown; Beispiele erzeugt `scripts/render_view.py … --text`.
-
-Status werden deutsch ausgegeben (`approved` → freigegeben, `in_progress` → in Arbeit, `writing` → Schreiben, `revision` → Überarbeitung …; die vollständige Liste steht in `render_view.py`, `STATUS_DE`). Die Aktionszeile entfällt, wenn eine Knopfleiste folgt.
 
 - **Projektübersicht:** Titel, Auflage, Autor, Kosten; Kurzbeschreibung als Zitat; Beschreibung; Tabelle der Kapitel mit Link, Kosten und Status; darunter die Aktionen als nummerierte Auswahl.
 - **Kapitelansicht:** Kapitel mit Untertitel; Anzahl Abschnitte, Marker, Kosten, Freigaben; Tabelle der Abschnitte mit Markern (Anekdote/Quelle/Medizin/Recht), Kosten und Status; Aktionen.
