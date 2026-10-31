@@ -1,0 +1,12 @@
+# TESTDATEN – erfundene Kosteneinträge
+scope: project
+entries:
+- activity_id: act-test-007
+  occurred_at: '2026-10-15T18:00:00+02:00'
+  provider: chat
+  model: ''
+  activity_type: other
+  currency: EUR
+  cost_amount: 2.5
+  cost_status: manually_entered
+  note: Strukturentwurf im Wizard

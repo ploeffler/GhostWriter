@@ -1,73 +1,453 @@
+# TESTDATEN – Testbuch auf Basis des ADHS-Manuskripts, siehe TESTDATEN.md
 project:
-  title: ""
-  title_short: ""          # Kurztitel für Badge, Listen und Auflagen-Namen
-  working_title: ""
-  subtitle: ""
-  author: ""
-  language: "de"
-  description_short: ""   # ein Satz
-  description: ""          # ausführliche Beschreibung
-  target_audience: ""
-  book_type: ""
-  status: "concept"
-  current_edition: 0       # letzte erschienene Auflage, 0 = noch keine
-
+  title: ADHS im Erwachsenenleben
+  title_short: ADHS im Erwachsenenleben
+  working_title: ''
+  subtitle: ''
+  author: Erika Muster
+  language: de
+  description_short: Ein Buch für Erwachsene, die ADHS spät bei sich entdecken und verstehen wollen, was
+    hinter den alten Etiketten steckt.
+  description: 'Aus eigener Erfahrung erzählt und an der S3-Leitlinie der AWMF ausgerichtet: Das Buch
+    übersetzt Etiketten wie „faul“ oder „chaotisch“ in Muster, erklärt Zeitblindheit und emotionale Dysregulation
+    und zeigt Wege durch Diagnose und Alltag im DACH-Raum.'
+  target_audience: ''
+  book_type: ''
+  status: writing
+  current_edition: 1
 ai_settings:
-  hallucination_policy: "strict"
-  source_policy: "required"
-  uncertainty_policy: "explicit"
-  creativity: "balanced"
-  web_research: "research"
-
-# Welcher KI-Anbieter übernimmt welche Aufgabe?
-# provider: ID aus providers.yml, "chat" = aktueller Chat-Assistent, "" = noch nicht gewählt
-# model:    frei wählbarer Modellname des Anbieters ("" = Standardmodell des Anbieters)
-# Leere Rollen erben von `default`. Globale KI-Regeln (ai_settings) gelten für alle Anbieter.
+  hallucination_policy: strict
+  source_policy: required
+  uncertainty_policy: explicit
+  creativity: balanced
+  web_research: research
 ai_providers:
   default:
-    provider: "chat"
-    model: ""
+    provider: chat
+    model: ''
   research:
-    provider: ""
-    model: ""
-    search_tools: []        # optional, IDs aus providers.yml > search_tools
+    provider: ''
+    model: ''
+    search_tools: []
   brainstorming:
-    provider: ""
-    model: ""
+    provider: ''
+    model: ''
   writing:
-    provider: ""
-    model: ""
+    provider: ''
+    model: ''
   revision:
-    provider: ""
-    model: ""
+    provider: ''
+    model: ''
   fact_check:
-    provider: ""
-    model: ""
+    provider: ''
+    model: ''
   queue_processing:
-    agent: "manual"         # ID aus providers.yml > queue_agents
-    model: ""
+    agent: manual
+    model: ''
   rules:
-    fact_check_independent_of_writing: recommended   # recommended | required | off
+    fact_check_independent_of_writing: recommended
     require_web_research_for_research_role: true
-
 workflow:
-  current_phase: "wizard"
-  current_chapter_id: null
-  current_section_id: null
+  current_phase: writing
+  current_chapter_id: ch-02-der-blick-auf-sich-selbst
+  current_section_id: sec-02-04-die-scham-die-wir-mitbringen
   require_section_writing_approval: true
   require_section_approval: true
   require_chapter_approval: true
-  fact_checking_default: "optional"
-
-# Kapitel in Reihenfolge; Abschnitte je Kapitel in Reihenfolge.
-# Sichtbare Nummern ergeben sich aus der Reihenfolge, IDs bleiben stabil.
-#   - id: ch-01-einleitung
-#     title: "Einleitung"
-#     path: chapters/01-einleitung
-#     status: planned
-#     sections:
-#       - id: sec-01-01-zielsetzung
-#         title: "Zielsetzung"
-#         path: chapters/01-einleitung/sections/01-zielsetzung.md
+  fact_checking_default: optional
 structure:
-  chapters: []
+  chapters:
+  - id: ch-01-endlich-eine-erklaerung
+    title: Endlich eine Erklärung
+    path: chapters/01-endlich-eine-erklaerung
+    status: approved
+    sections:
+    - id: sec-01-01-der-brief-der-sechs-monate
+      title: Der Brief, der sechs Monate auf dem Küchentisch lag
+      path: chapters/01-endlich-eine-erklaerung/sections/01-der-brief-der-sechs-monate.md
+    - id: sec-01-02-die-etiketten-die-wir-kennen
+      title: Die Etiketten, die wir kennen
+      path: chapters/01-endlich-eine-erklaerung/sections/02-die-etiketten-die-wir-kennen.md
+    - id: sec-01-03-was-hinter-den-etiketten-steckt
+      title: Was hinter den Etiketten steckt
+      path: chapters/01-endlich-eine-erklaerung/sections/03-was-hinter-den-etiketten-steckt.md
+    - id: sec-01-04-die-uhr-die-bei-mir
+      title: Die Uhr, die bei mir anders tickt
+      path: chapters/01-endlich-eine-erklaerung/sections/04-die-uhr-die-bei-mir.md
+    - id: sec-01-05-wenn-die-gefuehle-die-lautstaerke
+      title: Wenn die Gefühle die Lautstärke hochdrehen
+      path: chapters/01-endlich-eine-erklaerung/sections/05-wenn-die-gefuehle-die-lautstaerke.md
+    - id: sec-01-06-was-die-leitlinie-dazu-sagt
+      title: Was die Leitlinie dazu sagt
+      path: chapters/01-endlich-eine-erklaerung/sections/06-was-die-leitlinie-dazu-sagt.md
+    - id: sec-01-07-wie-sich-adhs-im-erwachsenenalter
+      title: Wie sich ADHS im Erwachsenenalter zeigt
+      path: chapters/01-endlich-eine-erklaerung/sections/07-wie-sich-adhs-im-erwachsenenalter.md
+    - id: sec-01-08-uebung-meine-etiketten
+      title: 'Übung: Meine Etiketten'
+      path: chapters/01-endlich-eine-erklaerung/sections/08-uebung-meine-etiketten.md
+    - id: sec-01-09-ausblick
+      title: Ausblick
+      path: chapters/01-endlich-eine-erklaerung/sections/09-ausblick.md
+  - id: ch-02-der-blick-auf-sich-selbst
+    title: Der Blick auf sich selbst
+    path: chapters/02-der-blick-auf-sich-selbst
+    status: in_progress
+    sections:
+    - id: sec-02-01-der-fragebogen-bei-dem-ich
+      title: Der Fragebogen, bei dem ich den Textmarker holen wollte
+      path: chapters/02-der-blick-auf-sich-selbst/sections/01-der-fragebogen-bei-dem-ich.md
+    - id: sec-02-02-der-doppelte-aufschlag
+      title: Der doppelte Aufschlag
+      path: chapters/02-der-blick-auf-sich-selbst/sections/02-der-doppelte-aufschlag.md
+    - id: sec-02-03-warum-so-viele-menschen-erschoepft
+      title: Warum so viele Menschen erschöpft ankommen
+      path: chapters/02-der-blick-auf-sich-selbst/sections/03-warum-so-viele-menschen-erschoepft.md
+    - id: sec-02-04-die-scham-die-wir-mitbringen
+      title: Die Scham, die wir mitbringen
+      path: chapters/02-der-blick-auf-sich-selbst/sections/04-die-scham-die-wir-mitbringen.md
+    - id: sec-02-05-die-maske-besonders-bei-frauen
+      title: Die Maske, besonders bei Frauen
+      path: chapters/02-der-blick-auf-sich-selbst/sections/05-die-maske-besonders-bei-frauen.md
+    - id: sec-02-06-staerken-ohne-verklaerung
+      title: Stärken ohne Verklärung
+      path: chapters/02-der-blick-auf-sich-selbst/sections/06-staerken-ohne-verklaerung.md
+    - id: sec-02-07-was-du-heute-tun-kannst
+      title: Was du heute tun kannst
+      path: chapters/02-der-blick-auf-sich-selbst/sections/07-was-du-heute-tun-kannst.md
+    - id: sec-02-08-uebung-meine-staerken-kosten-liste
+      title: 'Übung: Meine Stärken-Kosten-Liste'
+      path: chapters/02-der-blick-auf-sich-selbst/sections/08-uebung-meine-staerken-kosten-liste.md
+    - id: sec-02-09-ausblick
+      title: Ausblick
+      path: chapters/02-der-blick-auf-sich-selbst/sections/09-ausblick.md
+  - id: ch-03-anfangen-dranbleiben-abschliessen
+    title: Anfangen, dranbleiben, abschließen
+    path: chapters/03-anfangen-dranbleiben-abschliessen
+    status: in_progress
+    sections:
+    - id: sec-03-01-die-e-mail-und-die
+      title: Die E-Mail und die Gewürzschublade
+      path: chapters/03-anfangen-dranbleiben-abschliessen/sections/01-die-e-mail-und-die.md
+    - id: sec-03-02-warum-anfangen-so-schwer-ist
+      title: Warum Anfangen so schwer ist
+      path: chapters/03-anfangen-dranbleiben-abschliessen/sections/02-warum-anfangen-so-schwer-ist.md
+    - id: sec-03-03-anfangen-den-funken-kleiner-machen
+      title: 'Anfangen: Den Funken kleiner machen'
+      path: chapters/03-anfangen-dranbleiben-abschliessen/sections/03-anfangen-den-funken-kleiner-machen.md
+    - id: sec-03-04-dranbleiben-die-umgebung-arbeitet-mit
+      title: 'Dranbleiben: Die Umgebung arbeitet mit'
+      path: chapters/03-anfangen-dranbleiben-abschliessen/sections/04-dranbleiben-die-umgebung-arbeitet-mit.md
+    - id: sec-03-05-abschliessen-die-letzten-zehn-prozent
+      title: 'Abschließen: Die letzten zehn Prozent'
+      path: chapters/03-anfangen-dranbleiben-abschliessen/sections/05-abschliessen-die-letzten-zehn-prozent.md
+    - id: sec-03-06-wenn-gar-nichts-geht
+      title: Wenn gar nichts geht
+      path: chapters/03-anfangen-dranbleiben-abschliessen/sections/06-wenn-gar-nichts-geht.md
+    - id: sec-03-07-was-du-heute-tun-kannst
+      title: Was du heute tun kannst
+      path: chapters/03-anfangen-dranbleiben-abschliessen/sections/07-was-du-heute-tun-kannst.md
+    - id: sec-03-08-uebung-mein-mini-start-plan
+      title: 'Übung: Mein Mini-Start-Plan'
+      path: chapters/03-anfangen-dranbleiben-abschliessen/sections/08-uebung-mein-mini-start-plan.md
+    - id: sec-03-09-ausblick
+      title: Ausblick
+      path: chapters/03-anfangen-dranbleiben-abschliessen/sections/09-ausblick.md
+  - id: ch-04-zeit-und-termine
+    title: Zeit und Termine
+    path: chapters/04-zeit-und-termine
+    status: in_progress
+    sections:
+    - id: sec-04-01-der-kalender-der-drei-tage
+      title: Der Kalender, der drei Tage überlebte
+      path: chapters/04-zeit-und-termine/sections/01-der-kalender-der-drei-tage.md
+    - id: sec-04-02-zeit-die-man-nicht-spuert
+      title: Zeit, die man nicht spürt
+      path: chapters/04-zeit-und-termine/sections/02-zeit-die-man-nicht-spuert.md
+    - id: sec-04-03-schritt-eins-zeit-sichtbar-machen
+      title: 'Schritt eins: Zeit sichtbar machen'
+      path: chapters/04-zeit-und-termine/sections/03-schritt-eins-zeit-sichtbar-machen.md
+    - id: sec-04-04-schritt-zwei-besser-schaetzen
+      title: 'Schritt zwei: Besser schätzen'
+      path: chapters/04-zeit-und-termine/sections/04-schritt-zwei-besser-schaetzen.md
+    - id: sec-04-05-schritt-drei-ein-kalender-der
+      title: 'Schritt drei: Ein Kalender, der dich findet'
+      path: chapters/04-zeit-und-termine/sections/05-schritt-drei-ein-kalender-der.md
+    - id: sec-04-06-schritt-vier-routinen-als-anker
+      title: 'Schritt vier: Routinen als Anker'
+      path: chapters/04-zeit-und-termine/sections/06-schritt-vier-routinen-als-anker.md
+    - id: sec-04-07-wenn-es-trotzdem-schiefgeht
+      title: Wenn es trotzdem schiefgeht
+      path: chapters/04-zeit-und-termine/sections/07-wenn-es-trotzdem-schiefgeht.md
+    - id: sec-04-08-was-du-heute-tun-kannst
+      title: Was du heute tun kannst
+      path: chapters/04-zeit-und-termine/sections/08-was-du-heute-tun-kannst.md
+    - id: sec-04-09-uebung-mein-zeit-experiment
+      title: 'Übung: Mein Zeit-Experiment'
+      path: chapters/04-zeit-und-termine/sections/09-uebung-mein-zeit-experiment.md
+    - id: sec-04-10-ausblick
+      title: Ausblick
+      path: chapters/04-zeit-und-termine/sections/10-ausblick.md
+  - id: ch-05-gefuehle-und-ueberforderung
+    title: Gefühle und Überforderung
+    path: chapters/05-gefuehle-und-ueberforderung
+    status: in_progress
+    sections:
+    - id: sec-05-01-der-supermarkt-in-dem-ploetzlich
+      title: Der Supermarkt, in dem plötzlich alles zu viel war
+      path: chapters/05-gefuehle-und-ueberforderung/sections/01-der-supermarkt-in-dem-ploetzlich.md
+    - id: sec-05-02-wenn-der-lautstaerkeregler-klemmt
+      title: Wenn der Lautstärkeregler klemmt
+      path: chapters/05-gefuehle-und-ueberforderung/sections/02-wenn-der-lautstaerkeregler-klemmt.md
+    - id: sec-05-03-ueberforderung-und-reize
+      title: Überforderung und Reize
+      path: chapters/05-gefuehle-und-ueberforderung/sections/03-ueberforderung-und-reize.md
+    - id: sec-05-04-muster-erkennen
+      title: Muster erkennen
+      path: chapters/05-gefuehle-und-ueberforderung/sections/04-muster-erkennen.md
+    - id: sec-05-05-die-erste-hilfe-liste-fuer
+      title: Die Erste-Hilfe-Liste für den Moment
+      path: chapters/05-gefuehle-und-ueberforderung/sections/05-die-erste-hilfe-liste-fuer.md
+    - id: sec-05-06-das-fass-kleiner-halten
+      title: Das Fass kleiner halten
+      path: chapters/05-gefuehle-und-ueberforderung/sections/06-das-fass-kleiner-halten.md
+    - id: sec-05-07-wenn-es-mehr-ist-als
+      title: Wenn es mehr ist als Überforderung
+      path: chapters/05-gefuehle-und-ueberforderung/sections/07-wenn-es-mehr-ist-als.md
+    - id: sec-05-08-was-du-heute-tun-kannst
+      title: Was du heute tun kannst
+      path: chapters/05-gefuehle-und-ueberforderung/sections/08-was-du-heute-tun-kannst.md
+    - id: sec-05-09-uebung-meine-erste-hilfe-karte
+      title: 'Übung: Meine Erste-Hilfe-Karte'
+      path: chapters/05-gefuehle-und-ueberforderung/sections/09-uebung-meine-erste-hilfe-karte.md
+    - id: sec-05-10-ausblick
+      title: Ausblick
+      path: chapters/05-gefuehle-und-ueberforderung/sections/10-ausblick.md
+  - id: ch-06-beziehungen-und-kommunikation
+    title: Beziehungen und Kommunikation
+    path: chapters/06-beziehungen-und-kommunikation
+    status: in_progress
+    sections:
+    - id: sec-06-01-die-nachricht-die-ich-nie
+      title: Die Nachricht, die ich nie abgeschickt habe
+      path: chapters/06-beziehungen-und-kommunikation/sections/01-die-nachricht-die-ich-nie.md
+    - id: sec-06-02-warum-beziehungen-mit-adhs-besonders
+      title: Warum Beziehungen mit ADHS besonders fordern
+      path: chapters/06-beziehungen-und-kommunikation/sections/02-warum-beziehungen-mit-adhs-besonders.md
+    - id: sec-06-03-die-andere-seite-des-tisches
+      title: Die andere Seite des Tisches
+      path: chapters/06-beziehungen-und-kommunikation/sections/03-die-andere-seite-des-tisches.md
+    - id: sec-06-04-beduerfnisse-ausdruecken
+      title: Bedürfnisse ausdrücken
+      path: chapters/06-beziehungen-und-kommunikation/sections/04-beduerfnisse-ausdruecken.md
+    - id: sec-06-05-wem-sage-ich-es
+      title: Wem sage ich es?
+      path: chapters/06-beziehungen-und-kommunikation/sections/05-wem-sage-ich-es.md
+    - id: sec-06-06-freundschaften
+      title: Freundschaften
+      path: chapters/06-beziehungen-und-kommunikation/sections/06-freundschaften.md
+    - id: sec-06-07-elternschaft
+      title: Elternschaft
+      path: chapters/06-beziehungen-und-kommunikation/sections/07-elternschaft.md
+    - id: sec-06-08-konflikte-und-reparatur
+      title: Konflikte und Reparatur
+      path: chapters/06-beziehungen-und-kommunikation/sections/08-konflikte-und-reparatur.md
+    - id: sec-06-09-was-du-heute-tun-kannst
+      title: Was du heute tun kannst
+      path: chapters/06-beziehungen-und-kommunikation/sections/09-was-du-heute-tun-kannst.md
+    - id: sec-06-10-uebung-meine-bedienungsanleitung-fuer-andere
+      title: 'Übung: Meine Bedienungsanleitung für andere'
+      path: chapters/06-beziehungen-und-kommunikation/sections/10-uebung-meine-bedienungsanleitung-fuer-andere.md
+    - id: sec-06-11-ausblick
+      title: Ausblick
+      path: chapters/06-beziehungen-und-kommunikation/sections/11-ausblick.md
+  - id: ch-07-arbeit-und-beruf
+    title: Arbeit und Beruf
+    path: chapters/07-arbeit-und-beruf
+    status: in_progress
+    sections:
+    - id: sec-07-01-das-grossraumbuero-und-der-dienstagnachmittag
+      title: Das Großraumbüro und der Dienstagnachmittag
+      path: chapters/07-arbeit-und-beruf/sections/01-das-grossraumbuero-und-der-dienstagnachmittag.md
+    - id: sec-07-02-was-im-beruf-oft-schwerfaellt
+      title: Was im Beruf oft schwerfällt, und was leichtfällt
+      path: chapters/07-arbeit-und-beruf/sections/02-was-im-beruf-oft-schwerfaellt.md
+    - id: sec-07-03-die-passung-macht-den-unterschied
+      title: Die Passung macht den Unterschied
+      path: chapters/07-arbeit-und-beruf/sections/03-die-passung-macht-den-unterschied.md
+    - id: sec-07-04-der-arbeitsalltag-was-ich-veraendern
+      title: 'Der Arbeitsalltag: Was ich verändern kann'
+      path: chapters/07-arbeit-und-beruf/sections/04-der-arbeitsalltag-was-ich-veraendern.md
+    - id: sec-07-05-sagen-oder-nicht-sagen
+      title: Sagen oder nicht sagen?
+      path: chapters/07-arbeit-und-beruf/sections/05-sagen-oder-nicht-sagen.md
+    - id: sec-07-06-rechtliche-moeglichkeiten-im-dach-raum
+      title: Rechtliche Möglichkeiten im DACH-Raum
+      path: chapters/07-arbeit-und-beruf/sections/06-rechtliche-moeglichkeiten-im-dach-raum.md
+    - id: sec-07-07-wenn-der-job-zu-viel
+      title: Wenn der Job zu viel wird
+      path: chapters/07-arbeit-und-beruf/sections/07-wenn-der-job-zu-viel.md
+    - id: sec-07-08-was-du-heute-tun-kannst
+      title: Was du heute tun kannst
+      path: chapters/07-arbeit-und-beruf/sections/08-was-du-heute-tun-kannst.md
+    - id: sec-07-09-uebung-mein-arbeitsprofil
+      title: 'Übung: Mein Arbeitsprofil'
+      path: chapters/07-arbeit-und-beruf/sections/09-uebung-mein-arbeitsprofil.md
+    - id: sec-07-10-ausblick
+      title: Ausblick
+      path: chapters/07-arbeit-und-beruf/sections/10-ausblick.md
+  - id: ch-08-haushalt-geld-und-papierkram
+    title: Haushalt, Geld und Papierkram
+    path: chapters/08-haushalt-geld-und-papierkram
+    status: in_progress
+    sections:
+    - id: sec-08-01-die-mahnung-die-ich-laengst
+      title: Die Mahnung, die ich längst hätte vermeiden können
+      path: chapters/08-haushalt-geld-und-papierkram/sections/01-die-mahnung-die-ich-laengst.md
+    - id: sec-08-02-warum-ausgerechnet-haushalt-und-papierkram
+      title: Warum ausgerechnet Haushalt und Papierkram so zehren
+      path: chapters/08-haushalt-geld-und-papierkram/sections/02-warum-ausgerechnet-haushalt-und-papierkram.md
+    - id: sec-08-03-die-grundidee-systeme-fuer-schlechte
+      title: 'Die Grundidee: Systeme für schlechte Tage'
+      path: chapters/08-haushalt-geld-und-papierkram/sections/03-die-grundidee-systeme-fuer-schlechte.md
+    - id: sec-08-04-haushalt-die-mindestversion
+      title: 'Haushalt: Die Mindestversion'
+      path: chapters/08-haushalt-geld-und-papierkram/sections/04-haushalt-die-mindestversion.md
+    - id: sec-08-05-geld-weniger-denken-mehr-automatisieren
+      title: 'Geld: Weniger denken, mehr automatisieren'
+      path: chapters/08-haushalt-geld-und-papierkram/sections/05-geld-weniger-denken-mehr-automatisieren.md
+    - id: sec-08-06-papierkram-eine-station-ein-ablauf
+      title: 'Papierkram: Eine Station, ein Ablauf'
+      path: chapters/08-haushalt-geld-und-papierkram/sections/06-papierkram-eine-station-ein-ablauf.md
+    - id: sec-08-07-wenn-es-zu-viel-ist
+      title: Wenn es zu viel ist
+      path: chapters/08-haushalt-geld-und-papierkram/sections/07-wenn-es-zu-viel-ist.md
+    - id: sec-08-08-was-du-heute-tun-kannst
+      title: Was du heute tun kannst
+      path: chapters/08-haushalt-geld-und-papierkram/sections/08-was-du-heute-tun-kannst.md
+    - id: sec-08-09-uebung-mein-schlechte-tage-system
+      title: 'Übung: Mein Schlechte-Tage-System'
+      path: chapters/08-haushalt-geld-und-papierkram/sections/09-uebung-mein-schlechte-tage-system.md
+    - id: sec-08-10-ausblick
+      title: Ausblick
+      path: chapters/08-haushalt-geld-und-papierkram/sections/10-ausblick.md
+  - id: ch-09-unterstuetzung-finden
+    title: Unterstützung finden
+    path: chapters/09-unterstuetzung-finden
+    status: in_progress
+    sections:
+    - id: sec-09-01-der-anruf-bei-dem-ich
+      title: Der Anruf, bei dem ich die Zahl nicht mehr zählen konnte
+      path: chapters/09-unterstuetzung-finden/sections/01-der-anruf-bei-dem-ich.md
+    - id: sec-09-02-wer-macht-was
+      title: Wer macht was?
+      path: chapters/09-unterstuetzung-finden/sections/02-wer-macht-was.md
+    - id: sec-09-03-die-diagnostik-was-dich-erwartet
+      title: 'Die Diagnostik: Was dich erwartet'
+      path: chapters/09-unterstuetzung-finden/sections/03-die-diagnostik-was-dich-erwartet.md
+    - id: sec-09-04-die-behandlung-was-es-gibt
+      title: 'Die Behandlung: Was es gibt'
+      path: chapters/09-unterstuetzung-finden/sections/04-die-behandlung-was-es-gibt.md
+    - id: sec-09-05-kosten-und-zugang-im-dach
+      title: Kosten und Zugang im DACH-Raum
+      path: chapters/09-unterstuetzung-finden/sections/05-kosten-und-zugang-im-dach.md
+    - id: sec-09-06-austausch-und-selbsthilfe
+      title: Austausch und Selbsthilfe
+      path: chapters/09-unterstuetzung-finden/sections/06-austausch-und-selbsthilfe.md
+    - id: sec-09-07-wenn-es-dringend-wird
+      title: Wenn es dringend wird
+      path: chapters/09-unterstuetzung-finden/sections/07-wenn-es-dringend-wird.md
+    - id: sec-09-08-was-du-heute-tun-kannst
+      title: Was du heute tun kannst
+      path: chapters/09-unterstuetzung-finden/sections/08-was-du-heute-tun-kannst.md
+    - id: sec-09-09-uebung-meine-vorbereitung
+      title: 'Übung: Meine Vorbereitung'
+      path: chapters/09-unterstuetzung-finden/sections/09-uebung-meine-vorbereitung.md
+    - id: sec-09-10-ausblick
+      title: Ausblick
+      path: chapters/09-unterstuetzung-finden/sections/10-ausblick.md
+  - id: ch-10-wenn-mehr-dabei-ist-und
+    title: Wenn mehr dabei ist, und was den Körper trägt
+    path: chapters/10-wenn-mehr-dabei-ist-und
+    status: in_progress
+    sections:
+    - id: sec-10-01-die-nacht-in-der-ich
+      title: Die Nacht, in der ich um drei Uhr hellwach war
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/01-die-nacht-in-der-ich.md
+    - id: sec-10-02-adhs-kommt-selten-allein
+      title: ADHS kommt selten allein
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/02-adhs-kommt-selten-allein.md
+    - id: sec-10-03-woran-du-merkst-dass-mehr
+      title: Woran du merkst, dass mehr dabei sein könnte
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/03-woran-du-merkst-dass-mehr.md
+    - id: sec-10-04-warum-das-bei-der-diagnostik
+      title: Warum das bei der Diagnostik wichtig ist
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/04-warum-das-bei-der-diagnostik.md
+    - id: sec-10-05-autismus-und-adhs-wo-sich
+      title: 'Autismus und ADHS: Wo sich die Wege kreuzen'
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/05-autismus-und-adhs-wo-sich.md
+    - id: sec-10-06-wenn-es-dir-sehr-schlecht
+      title: Wenn es dir sehr schlecht geht
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/06-wenn-es-dir-sehr-schlecht.md
+    - id: sec-10-07-schlaf-die-unterschaetzte-basis
+      title: 'Schlaf: die unterschätzte Basis'
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/07-schlaf-die-unterschaetzte-basis.md
+    - id: sec-10-08-bewegung-dampf-ablassen-und-kopf
+      title: 'Bewegung: Dampf ablassen und Kopf sortieren'
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/08-bewegung-dampf-ablassen-und-kopf.md
+    - id: sec-10-09-ernaehrung-weniger-verbote-mehr-regelmaessigkeit
+      title: 'Ernährung: weniger Verbote, mehr Regelmäßigkeit'
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/09-ernaehrung-weniger-verbote-mehr-regelmaessigkeit.md
+    - id: sec-10-10-reizregulation-das-fass-im-blick
+      title: 'Reizregulation: das Fass im Blick behalten'
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/10-reizregulation-das-fass-im-blick.md
+    - id: sec-10-11-was-du-heute-tun-kannst
+      title: Was du heute tun kannst
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/11-was-du-heute-tun-kannst.md
+    - id: sec-10-12-uebung-mein-basis-check
+      title: 'Übung: Mein Basis-Check'
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/12-uebung-mein-basis-check.md
+    - id: sec-10-13-ausblick
+      title: Ausblick
+      path: chapters/10-wenn-mehr-dabei-ist-und/sections/13-ausblick.md
+  - id: ch-11-den-eigenen-weg-entwickeln
+    title: Den eigenen Weg entwickeln
+    path: chapters/11-den-eigenen-weg-entwickeln
+    status: in_progress
+    sections:
+    - id: sec-11-01-das-system-das-vier-wochen
+      title: Das System, das vier Wochen hielt
+      path: chapters/11-den-eigenen-weg-entwickeln/sections/01-das-system-das-vier-wochen.md
+    - id: sec-11-02-warum-systeme-irgendwann-kippen
+      title: Warum Systeme irgendwann kippen
+      path: chapters/11-den-eigenen-weg-entwickeln/sections/02-warum-systeme-irgendwann-kippen.md
+    - id: sec-11-03-ausprobieren-wie-eine-forscherin-oder
+      title: Ausprobieren wie eine Forscherin oder ein Forscher
+      path: chapters/11-den-eigenen-weg-entwickeln/sections/03-ausprobieren-wie-eine-forscherin-oder.md
+    - id: sec-11-04-anpassen-statt-aufgeben
+      title: Anpassen statt aufgeben
+      path: chapters/11-den-eigenen-weg-entwickeln/sections/04-anpassen-statt-aufgeben.md
+    - id: sec-11-05-neu-beginnen-ohne-scham
+      title: Neu beginnen, ohne Scham
+      path: chapters/11-den-eigenen-weg-entwickeln/sections/05-neu-beginnen-ohne-scham.md
+    - id: sec-11-06-rueckschlag-oder-mehr
+      title: Rückschlag oder mehr?
+      path: chapters/11-den-eigenen-weg-entwickeln/sections/06-rueckschlag-oder-mehr.md
+    - id: sec-11-07-menschen-die-dich-tragen
+      title: Menschen, die dich tragen
+      path: chapters/11-den-eigenen-weg-entwickeln/sections/07-menschen-die-dich-tragen.md
+    - id: sec-11-08-ein-selbstbild-das-mitwaechst
+      title: Ein Selbstbild, das mitwächst
+      path: chapters/11-den-eigenen-weg-entwickeln/sections/08-ein-selbstbild-das-mitwaechst.md
+    - id: sec-11-09-die-notfallseite-fuer-schlechte-tage
+      title: Die Notfallseite für schlechte Tage
+      path: chapters/11-den-eigenen-weg-entwickeln/sections/09-die-notfallseite-fuer-schlechte-tage.md
+    - id: sec-11-10-was-du-heute-tun-kannst
+      title: Was du heute tun kannst
+      path: chapters/11-den-eigenen-weg-entwickeln/sections/10-was-du-heute-tun-kannst.md
+    - id: sec-11-11-uebung-mein-versuchsplan
+      title: 'Übung: Mein Versuchsplan'
+      path: chapters/11-den-eigenen-weg-entwickeln/sections/11-uebung-mein-versuchsplan.md
+    - id: sec-11-12-schlusswort
+      title: Schlusswort
+      path: chapters/11-den-eigenen-weg-entwickeln/sections/12-schlusswort.md

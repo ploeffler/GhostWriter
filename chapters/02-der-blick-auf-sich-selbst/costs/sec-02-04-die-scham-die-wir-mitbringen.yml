@@ -1,0 +1,21 @@
+# TESTDATEN – erfundene Kosteneinträge
+section_id: sec-02-04-die-scham-die-wir-mitbringen
+entries:
+- activity_id: act-test-005
+  occurred_at: '2026-10-28T11:00:00+01:00'
+  provider: chat
+  model: ''
+  activity_type: writing
+  currency: EUR
+  cost_amount: 0.35
+  cost_status: estimated
+  section_id: sec-02-04-die-scham-die-wir-mitbringen
+- activity_id: act-test-006
+  occurred_at: '2026-10-29T16:20:00+01:00'
+  provider: chat
+  model: ''
+  activity_type: revision
+  currency: EUR
+  cost_amount: 0.12
+  cost_status: estimated
+  section_id: sec-02-04-die-scham-die-wir-mitbringen
