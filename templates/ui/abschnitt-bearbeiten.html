@@ -43,6 +43,10 @@
   Gibt es keine Marker, entfällt der Bereich "Offene Marker" ganz.
 
   Verhalten:
+  - "Zeitgesteuert" ist in v0.5 nicht verfügbar (workflow.yml,
+    product_roadmap.v0_5: ai_runs_scheduled_queue ausgeschlossen). Die
+    Option bleibt sichtbar, ist ausgegraut und trägt den Hinweis
+    "nach v0.5". Zum Freischalten in der Option data-available="true" setzen.
   - Speichern sendet alle Felder samt Manuskript als Nachricht in den
     Chat; Verwerfen meldet nur den Abbruch. Danach ist das Formular gesperrt.
   - Das Schloss sperrt bzw. entsperrt alles unterhalb des Kopfs nur im
@@ -78,6 +82,8 @@
 .gw-btn{padding:9px 16px;border-radius:var(--radius);font:inherit;font-size:14px;font-weight:500;cursor:pointer}
 .gw-wrap.locked .gw-lockable{opacity:0.5;pointer-events:none}
 @media (max-width:560px){.gw-two{grid-template-columns:1fr!important}}
+.gw-opt[data-available="false"]{opacity:0.45;cursor:default}
+.gw-later{font-size:11px;color:var(--text-muted);margin-left:auto;white-space:nowrap}
 </style>
 <div style="padding:1rem 0">
   <div class="gw-wrap" id="gw-abschnitt" data-section-id="{{SECTION_ID}}" data-section-number="{{SECTION_NUMBER}}" data-section-title="{{SECTION_TITLE}}" data-fact-check="{{FACT_CHECK}}" data-approval-writing="{{APPROVAL_WRITING}}" data-approval-section="{{APPROVAL_SECTION}}" data-prev="{{PREV_SECTION_PROMPT}}" data-next="{{NEXT_SECTION_PROMPT}}" style="border:0.5px solid var(--border);border-radius:16px;background:var(--surface-1);padding:var(--pad-lg);display:flex;flex-direction:column;gap:var(--gap-md)">
@@ -153,12 +159,12 @@
         <div class="gw-two" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--gap-sm)">
           <div class="gw-card" data-task="Recherche">
             <div style="display:flex;align-items:center;gap:var(--gap-sm)"><div class="gw-ico"><i class="ti ti-search" aria-hidden="true"></i></div><div><div style="font-size:14px;font-weight:500">Recherche</div><div style="font-size:12px;color:var(--text-secondary)">Quellen finden und auswerten</div></div></div>
-            <button type="button" class="gw-opt" data-mode="zeitgesteuert"><i class="ti ti-clock" style="font-size:16px;color:var(--text-secondary)" aria-hidden="true"></i><span style="font-size:13px"><span style="font-weight:500">Zeitgesteuert</span> · Cloud-Warteschlange</span></button>
+            <button type="button" class="gw-opt" data-mode="zeitgesteuert" data-available="false"><i class="ti ti-clock" style="font-size:16px;color:var(--text-secondary)" aria-hidden="true"></i><span style="font-size:13px"><span style="font-weight:500">Zeitgesteuert</span> · Cloud-Warteschlange</span></button>
             <button type="button" class="gw-opt" data-mode="sofort"><i class="ti ti-bolt" style="font-size:16px;color:var(--text-secondary)" aria-hidden="true"></i><span style="font-size:13px"><span style="font-weight:500">Sofort</span> · hier im Chat</span></button>
           </div>
           <div class="gw-card" data-task="Ghostwriting">
             <div style="display:flex;align-items:center;gap:var(--gap-sm)"><div class="gw-ico"><i class="ti ti-feather" aria-hidden="true"></i></div><div><div style="font-size:14px;font-weight:500">Ghostwriting</div><div style="font-size:12px;color:var(--text-secondary)">Automated Content Generation</div></div></div>
-            <button type="button" class="gw-opt" data-mode="zeitgesteuert"><i class="ti ti-clock" style="font-size:16px;color:var(--text-secondary)" aria-hidden="true"></i><span style="font-size:13px"><span style="font-weight:500">Zeitgesteuert</span> · Cloud-Warteschlange</span></button>
+            <button type="button" class="gw-opt" data-mode="zeitgesteuert" data-available="false"><i class="ti ti-clock" style="font-size:16px;color:var(--text-secondary)" aria-hidden="true"></i><span style="font-size:13px"><span style="font-weight:500">Zeitgesteuert</span> · Cloud-Warteschlange</span></button>
             <button type="button" class="gw-opt" data-mode="sofort"><i class="ti ti-bolt" style="font-size:16px;color:var(--text-secondary)" aria-hidden="true"></i><span style="font-size:13px"><span style="font-weight:500">Sofort</span> · hier im Chat</span></button>
           </div>
         </div>
@@ -198,6 +204,10 @@
     'Ghostwriting|zeitgesteuert':'Ghostwriting für '+ref+' zeitgesteuert als Job in die Cloud-Warteschlange übergeben',
     'Ghostwriting|sofort':ref+' jetzt sofort hier im Chat schreiben (Ghostwriting)'
   };
+  wrap.querySelectorAll('.gw-opt[data-available="false"]').forEach(function(x){
+    x.disabled=true;x.title='Nicht verfügbar in v0.5';
+    var s=document.createElement('span');s.className='gw-later';s.textContent='nach v0.5';x.appendChild(s);
+  });
   wrap.querySelectorAll('.gw-card').forEach(function(card){
     var o=card.querySelectorAll('.gw-opt');
     o.forEach(function(b){b.addEventListener('click',function(){
