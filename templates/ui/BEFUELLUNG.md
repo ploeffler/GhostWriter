@@ -225,7 +225,7 @@ Nach Speichern, Abbrechen oder „nichts geändert“ zeigt der Assistent sofort
 |---|---|
 | Projektdaten bearbeiten, Projekteinstellungen, Kapitelreihenfolge, Neue Auflage | Projektübersicht |
 | Neues Kapitel anlegen | gespeichert: Kapitelansicht des neuen Kapitels; abgebrochen: Projektübersicht |
-| Kapitel bearbeiten | Kapitelansicht; mit `BN` aus der Textfassung der Projektübersicht geöffnet: Projektübersicht |
+| Kapitel bearbeiten | aus der Kapitelansicht geöffnet: Kapitelansicht; aus der Projektübersicht (Stift je Kapitel bzw. `BN` in der Textfassung): Projektübersicht |
 | Abschnittsreihenfolge | Kapitelansicht |
 | Neuer Abschnitt | gespeichert: Abschnittsformular des neuen Abschnitts; abgebrochen: Kapitelansicht |
 | Abschnitt bearbeiten | Abschnittsformular mit dem neuen Stand; „Zum Kapitel“ führt zurück |
