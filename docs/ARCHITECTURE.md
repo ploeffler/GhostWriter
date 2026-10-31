@@ -72,12 +72,13 @@ Kapitel- und Abschnittsregeln dürfen ergänzen, aber globale Wahrheits- und Que
 
 ## Betriebsweg bis v0.5: Weg A
 
-Entschieden am 31.10.2026: GhostWriter v0.5 läuft über **Weg A**. Der KI-Assistent liest und schreibt das Buch-Repository über die GitHub-Verbindung der Chat-Anwendung, gesteuert durch `START.md` und die Chat-Vorlagen in `templates/ui/`. Die eigene GhostWriter-Schnittstelle (**Weg B**: Backend, GitHub App, Auth0, MCP-Server) wird bis v0.5 nicht weiterentwickelt, aber bei jedem Schritt berücksichtigt:
+Entschieden am 31.10.2026: GhostWriter v0.5 läuft über **Weg A**. Der KI-Assistent liest und schreibt das Buch-Repository über die GitHub-Verbindung der Chat-Anwendung, gesteuert durch `START.md` und die Chat-Vorlagen aus `ghostwriter-ui` (Regeln in `templates/ui/`). Die eigene GhostWriter-Schnittstelle (**Weg B**: Backend, GitHub App, Auth0, MCP-Server) wird bis v0.5 nicht weiterentwickelt, aber bei jedem Schritt berücksichtigt:
 
 - **Formular entspricht Endpunkt:** Jede Schreibregel in `START.md` nennt den passenden Endpunkt aus `docs/API-CONTRACT.md`.
 - **Feste Nachrichtenform:** Formulare senden ihre Daten in einem festen, maschinenlesbaren Format, das später unverändert an die API gehen kann.
 - **Versionsschutz im Chat:** Der Assistent prüft vor dem Schreiben, ob sich die Datei seit dem Lesen geändert hat (entspricht `expected_head_sha`).
 - **Prüfregeln einmal schreiben:** Schemas und Prüfungen der GitHub Action sind so abgelegt, dass das Backend sie wiederverwenden kann.
+- **Eine Oberfläche:** Die Vorlagen in `ghostwriter-ui` bekommen ihre Daten als JSON über `GW.render`; mit Weg B kommen dieselben Daten von der API.
 - **Contract mitpflegen:** Änderungen am Datenmodell werden im selben Schritt in `docs/API-CONTRACT.md` nachgetragen.
 
 ## MVP-Grenze

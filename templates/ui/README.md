@@ -1,6 +1,14 @@
 # UI-Vorlagen für die Ausgabe im Chat
 
-Diese Vorlagen sind HTML-Fragmente, die als Inline-Widget im Chat ausgegeben werden. Platzhalter in der Form `{{NAME}}` werden vor der Ausgabe durch Projektdaten ersetzt. Jede Datei beschreibt in einem Kommentar am Anfang Aufbau, Platzhalter und Verhalten.
+Die Chat-Vorlagen sind HTML-Fragmente, die als Inline-Widget im Chat erscheinen. Sie werden nur an einer Stelle gepflegt: im öffentlichen Repository [ploeffler/ghostwriter-ui](https://github.com/ploeffler/ghostwriter-ui), Ordner `templates/`. Jede Datei beschreibt dort in einem Kommentar am Anfang Aufbau, Platzhalter und Verhalten.
+
+Dieser Ordner enthält:
+
+- `ghostwriter-ui.yml`: der feste Commit von `ghostwriter-ui`, der verwendet wird
+- `BEFUELLUNG.md`: wie der Assistent die Vorlagen mit Daten ausgibt, die Textfassung und das Nachrichtenformat
+- diese Datei: Begriffe und Liste der Vorlagen
+
+Eine Vorlage ändern: in `ghostwriter-ui` ändern, `python3 build.py` ausführen, committen und den neuen Commit in `ghostwriter-ui.yml` eintragen.
 
 ## Begriffe
 
@@ -20,6 +28,8 @@ Diese Vorlagen sind HTML-Fragmente, die als Inline-Widget im Chat ausgegeben wer
 
 Die **Hauptvorlage** ist die Projektübersicht: Sie wird ausgegeben, wenn das Buchprojekt als Ganzes im Chat gezeigt wird.
 
+
+Dateien in `ghostwriter-ui/templates/`:
 
 | Datei | Art | Zweck |
 |---|---|---|

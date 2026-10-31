@@ -1,0 +1,12 @@
+# Darstellungscode der Chat-Vorlagen
+#
+# Die Vorlagen (HTML, Skripte) liegen nur im öffentlichen Repository
+# ghostwriter-ui. Es enthält keine Buchinhalte; die Daten setzt der Assistent
+# zur Laufzeit ein (siehe BEFUELLUNG.md, „Ausgabe im Chat“).
+#
+# commit ist fest: So ändert sich keine Ansicht unbemerkt. Neue Fassungen von
+# ghostwriter-ui werden hier bewusst eingetragen.
+repo: ploeffler/ghostwriter-ui
+version: 0.3.0
+commit: b06448550759afd66b8283909fc03c0524242d51
+script: https://cdn.jsdelivr.net/gh/ploeffler/ghostwriter-ui@b06448550759afd66b8283909fc03c0524242d51/dist/gw.js
