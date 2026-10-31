@@ -196,7 +196,8 @@ Vor der Übertragung:
 3. Zeige alle Abschnitte in der vorgesehenen Reihenfolge.
 4. Frage ausdrücklich: „Gibst du diese Kapitel- und Abschnittsstruktur zur Übertragung ins Repository frei?“
 5. Erst nach Zustimmung das zuvor geprüfte Zielrepository nochmals eindeutig bestätigen.
-6. Die freigegebene Struktur in dieses Repository übertragen und den erfolgreichen Commit bzw. Fehlerstatus mitteilen.
+6. Die freigegebene Struktur wie jede andere Änderung übertragen (Abschnitt 0, „Schreiben ins Repository“): ein Commit `Buchstruktur angelegt` im Arbeits-Branch mit Pull Request, den erfolgreichen Commit bzw. Fehlerstatus mitteilen.
+7. Danach die Projektübersicht zeigen; sie liest aus dem Arbeits-Branch und bietet „Änderungen übernehmen“ an. Erst nach dieser Bestätigung steht die Struktur im Buch-Branch.
 
 Die Übertragung umfasst mindestens:
 - `README.md` mit Autor, Titel, Untertitel, Kurzbeschreibung und Kapitelübersicht;
