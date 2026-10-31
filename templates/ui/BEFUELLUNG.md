@@ -23,6 +23,7 @@ Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die
 - `<commit>` ist der feste Commit aus `templates/ui/ghostwriter-ui.yml`, nie `main`. So ändert sich keine Ansicht unbemerkt.
 - `<vorlage>` ist der Dateiname der Vorlage ohne `.html`, etwa `projektuebersicht`.
 - Die Daten sind ein JSON-Objekt: Platzhalter als Schlüssel ohne Klammern, Wiederholblöcke als Arrays von Objekten. Welche Platzhalter es gibt, steht unten.
+- Statuswerte (Felder auf `_STATUS`) stehen als Rohwert in den Daten, etwa `writing`; `gw.js` zeigt sie deutsch an, mit derselben Zuordnung wie die Textfassung.
 - `gw.js` maskiert die Werte, wiederholt die Blöcke und entfernt Bereiche mit `data-gw-if="NAME"`, wenn `NAME` fehlt oder leer ist (Kapitel der Projektübersicht, offene Marker des Abschnitts).
 - In den Daten wird `</` als `<\/` geschrieben, damit Manuskripttext das Skript nicht beendet.
 - `ghostwriter-ui` enthält nur Darstellungscode. Buchinhalte kommen ausschließlich über die Daten in den Chat, nie in dieses Repository.
