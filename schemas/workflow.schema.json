@@ -400,6 +400,48 @@
             }
           },
           "additionalProperties": false
+        },
+        "v0_5_steps": {
+          "type": "object",
+          "required": [
+            "operating_path",
+            "later_path_considered",
+            "tracking",
+            "steps"
+          ],
+          "properties": {
+            "operating_path": {
+              "const": "chat_with_github_connection"
+            },
+            "later_path_considered": {
+              "const": "own_api_and_mcp"
+            },
+            "tracking": {
+              "const": "github_milestones_and_issues"
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "version",
+                  "goal"
+                ],
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "pattern": "^v0\\.[1-5]$"
+                  },
+                  "goal": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

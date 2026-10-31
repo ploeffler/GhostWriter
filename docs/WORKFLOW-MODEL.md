@@ -67,6 +67,18 @@ Die GhostWriter-Produktversion und die Ausgabeversion eines Buches sind getrennt
 - **GhostWriter v1.0** ist der geplante Vollausbau: vollständige Workflow-Automatisierung, GitHub-Issue-/Milestone-Steuerung, robuste Freigabe- und Auditmechanismen, wiederholbare Recherche und Faktenprüfung sowie vollständige Export- und Release-Pipeline.
 - Die Roadmap beschreibt den Zielumfang; Funktionen gelten erst nach Implementierung und Prüfung als umgesetzt.
 
+### Stufen bis v0.5
+
+Der Weg zu v0.5 ist in fünf Stufen geteilt. Jede endet mit einer Abnahme im Chat mit den Testdaten. Die Stufen sind als GitHub-Milestones `v0.1` bis `v0.5` angelegt, die Arbeitsaufträge als Issues; der ausführliche Plan steht in [GhostWriter v0.5 – Voraussetzungen und Arbeitsaufträge](https://claude.ai/artifact/Dx54iTWGE9nx9KgHUBdfPj).
+
+| Stufe | Ziel | Abnahme |
+|---|---|---|
+| v0.1 | Datenmodell steht und wird geprüft | Prüf-Action läuft ohne Fehler über das leere Projekt und ein ADHS-Kapitel |
+| v0.2 | Testprojekt lesen und anzeigen | Link zum Test-Repo zeigt Übersicht, Kapitel und Abschnitt mit richtigen Summen und Markern |
+| v0.3 | Projekt und Kapitel einrichten und bearbeiten | Im leeren Projekt anlegen, umordnen, speichern und mit Bestätigung freigeben; jede Änderung ein Commit |
+| v0.4 | AI-Läufe „Sofort“ mit Kosten | Recherche und Ghostwriting für einen ADHS-Abschnitt mit Lauf-Datei, Statuswechsel und Kosteneintrag |
+| v0.5 | Auflage und Export | Auflage 2 mit PDF, DOCX und EPUB; Auflage 1 unverändert; Testplan bestanden |
+
 ## Buchausgaben als GitHub Releases
 
 Jede veröffentlichte Ausgabe des Buches wird als eigener GitHub Release abgebildet. Ein Release ist ein unveränderlicher Snapshot eines konkreten Repository-Commits mit Release Notes und – soweit erzeugt – PDF-, EPUB- und DOCX-Dateien.

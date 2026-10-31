@@ -8,6 +8,16 @@ product_roadmap:
     purpose: usable_basics
     scope: [project_create_and_setup, chapter_create_and_setup, chapter_and_section_editing, book_edition_create, book_export_pdf_docx_epub, ai_runs_immediate_in_chat]
     exclusions: [ai_runs_scheduled_queue, full_end_to_end_workflow_automation, advanced_issue_and_milestone_orchestration, complete_fact_checking_automation]
+  v0_5_steps:
+    operating_path: chat_with_github_connection   # Weg A
+    later_path_considered: own_api_and_mcp        # Weg B, nach v0.5
+    tracking: github_milestones_and_issues
+    steps:
+      - {version: "v0.1", goal: data_model_defined_and_validated}
+      - {version: "v0.2", goal: read_and_display_test_project}
+      - {version: "v0.3", goal: set_up_and_edit_project_and_chapters}
+      - {version: "v0.4", goal: immediate_ai_runs_with_costs}
+      - {version: "v0.5", goal: edition_and_export}
   v1_0:
     purpose: full_product_expansion
     scope: complete_ghostwriter_target_capabilities
