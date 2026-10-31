@@ -154,17 +154,27 @@ Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown; Beisp
 
 ## Nachrichtenformat
 
-Jede Vorlage schickt eine Nachricht aus einer lesbaren Zeile und einem Block mit festen Daten:
+Jede Vorlage schickt eine Nachricht aus einer lesbaren Zeile und den festen Daten. Der Chat zeigt die Nachricht vollständig an; damit sie unauffällig bleibt, gibt es zwei Formen.
+
+**Kurzform** für Klicks ohne Eingaben (Ansichten öffnen, Formulare öffnen, Navigation): eine Zeile Inline-Code `gw:<aktion>`, dahinter die Daten als `schlüssel=wert`, getrennt durch Leerzeichen:
 
 ````text
 Abschnitt 2.4 „Die Scham, die wir mitbringen“ bearbeiten
 
+`gw:view.section section_id=sec-02-04-die-scham-die-wir-mitbringen`
+````
+
+**Block** für alles mit Eingaben (Formulare speichern) oder wenn ein Wert Leerzeichen enthält, leer oder länger als 80 Zeichen ist: JSON im Block `gw`:
+
+````text
+Projektdaten speichern: ADHS im Erwachsenenleben
+
 ```gw
-{"action":"view.section","section_id":"sec-02-04-die-scham-die-wir-mitbringen"}
+{"action":"project.update","title":"ADHS im Erwachsenenleben", …}
 ```
 ````
 
-Der Assistent wertet den Block `gw` aus; die Zeile darüber ist für Menschen. Freie Eingaben ohne Block bleiben erlaubt.
+Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen bedeuten dasselbe: Kurzform `gw:a k=v` entspricht `{"action":"a","k":"v"}`; Zahlen und `true`/`false` werden als solche gelesen. Der Assistent wertet die Daten aus; die Zeile darüber ist für Menschen. Freie Eingaben ohne Daten bleiben erlaubt.
 
 | Aktion | Daten | Bedeutung | Antwort des Assistenten | Endpunkt in `docs/API-CONTRACT.md` (Weg B) |
 |---|---|---|---|---|
