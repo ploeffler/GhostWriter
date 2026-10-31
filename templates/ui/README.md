@@ -34,7 +34,7 @@ Dateien in `ghostwriter-ui/templates/`:
 | Datei | Art | Zweck |
 |---|---|---|
 | `abschnittssteuerung.html` | Aktionspanel | Recherche und Ghostwriting eines Abschnitts zeitgesteuert oder sofort starten; Abschnitt sperren und entsperren |
-| `projektuebersicht.html` | **Hauptvorlage**, Anzeige mit Symbolleiste | Titel, Kurztitel, Autor, bisherige Gesamtkosten, Kurzbeschreibung und Beschreibung des Buchprojekts sowie die Kapitel mit Kapitelkosten und Status; ein Klick öffnet die Kapitelansicht; Symbol-Knopf „Neue Auflage erzeugen“ |
+| `projektuebersicht.html` | **Hauptvorlage**, Anzeige mit Symbolleiste | Titel, Kurztitel, Autor, bisherige Gesamtkosten, Kurzbeschreibung und Beschreibung des Buchprojekts sowie die Kapitel mit Kapitelkosten und Status; ein Klick öffnet die Kapitelansicht, der Stift je Kapitel das Formular „Kapitel bearbeiten“; Symbol-Knopf „Neue Auflage erzeugen“ |
 | `abschnitt-bearbeiten.html` | Formular mit Symbolleiste, enthält die Abschnittssteuerung | Ziel, Kurzbeschreibung, offene Marker, Manuskript, Faktencheck und Freigaben eines Abschnitts bearbeiten |
 | `kapitelansicht.html` | Anzeige mit Symbolleiste | Alle Abschnitte eines Kapitels mit offenen Markern, Kosten und Status; ein Klick öffnet den Abschnitt zur Bearbeitung |
 | `kapitel-anlegen.html` | Formular | Neues Kapitel mit Titel, Kurzbeschreibung, Ziel und Position anlegen |
