@@ -11,7 +11,8 @@
     "entities",
     "section_workflow",
     "chapter_workflow",
-    "github_automation"
+    "github_automation",
+    "cost_tracking"
   ],
   "properties": {
     "version": {
@@ -471,6 +472,198 @@
             }
           },
           "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "cost_tracking": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "purpose",
+        "project_currency",
+        "attribution",
+        "activity_record",
+        "aggregation",
+        "v0_5",
+        "v1_0",
+        "invariants"
+      ],
+      "properties": {
+        "enabled": {
+          "const": true
+        },
+        "purpose": {
+          "const": "transparent_ai_activity_cost_accounting"
+        },
+        "project_currency": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 3
+        },
+        "attribution": {
+          "type": "object",
+          "required": [
+            "primary_unit",
+            "section_id_required",
+            "chapter_total",
+            "project_total",
+            "prevent_double_counting"
+          ],
+          "properties": {
+            "primary_unit": {
+              "const": "section"
+            },
+            "section_id_required": {
+              "const": true
+            },
+            "chapter_total": {
+              "const": "sum_of_assigned_section_costs"
+            },
+            "project_total": {
+              "const": "sum_of_all_chapter_totals_and_project_level_costs"
+            },
+            "allow_project_level_costs": {
+              "type": "boolean"
+            },
+            "prevent_double_counting": {
+              "const": true
+            }
+          },
+          "additionalProperties": true
+        },
+        "activity_record": {
+          "type": "object",
+          "required": [
+            "immutable",
+            "one_record_per_ai_activity",
+            "required_fields",
+            "cost_status_values"
+          ],
+          "properties": {
+            "immutable": {
+              "const": true
+            },
+            "one_record_per_ai_activity": {
+              "const": true
+            },
+            "required_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "optional_usage_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "pricing_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cost_status_values": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "actual",
+                  "estimated",
+                  "manually_entered",
+                  "unavailable"
+                ]
+              },
+              "minItems": 4
+            },
+            "preserve_original_currency_and_amount": {
+              "type": "boolean"
+            },
+            "conversion": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": true
+        },
+        "aggregation": {
+          "type": "object",
+          "required": [
+            "section_subtotal",
+            "chapter_subtotal",
+            "project_total",
+            "show_actual_and_estimated_separately"
+          ],
+          "properties": {
+            "section_subtotal": {
+              "const": "sum_of_activity_records_for_section"
+            },
+            "chapter_subtotal": {
+              "const": "sum_of_section_subtotals"
+            },
+            "project_total": {
+              "const": "sum_of_chapter_subtotals_and_project_level_costs"
+            },
+            "show_currency": {
+              "type": "boolean"
+            },
+            "show_actual_and_estimated_separately": {
+              "const": true
+            },
+            "show_usage_and_cost_breakdown": {
+              "type": "boolean"
+            },
+            "refresh_after_each_record": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": true
+        },
+        "v0_5": {
+          "type": "object",
+          "required": [
+            "scope",
+            "includes"
+          ],
+          "properties": {
+            "scope": {
+              "const": "basic_cost_tracking"
+            },
+            "includes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "v1_0": {
+          "type": "object",
+          "required": [
+            "scope",
+            "includes"
+          ],
+          "properties": {
+            "scope": {
+              "const": "automated_cost_accounting"
+            },
+            "includes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
         }
       },
       "additionalProperties": false
