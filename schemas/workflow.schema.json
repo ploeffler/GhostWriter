@@ -320,6 +320,160 @@
     },
     "audit": {
       "type": "object"
+    },
+    "product_roadmap": {
+      "type": "object",
+      "required": [
+        "current_target",
+        "v0_5",
+        "v1_0",
+        "delivery_policy"
+      ],
+      "properties": {
+        "current_target": {
+          "type": "string"
+        },
+        "v0_5": {
+          "type": "object",
+          "required": [
+            "purpose",
+            "scope"
+          ],
+          "properties": {
+            "purpose": {
+              "const": "usable_basics"
+            },
+            "scope": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "exclusions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "v1_0": {
+          "type": "object",
+          "required": [
+            "purpose",
+            "scope"
+          ],
+          "properties": {
+            "purpose": {
+              "const": "full_product_expansion"
+            },
+            "scope": {
+              "type": "string"
+            },
+            "requires": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "delivery_policy": {
+          "type": "object",
+          "required": [
+            "incremental_delivery",
+            "v0_5_must_be_useful_without_v1_0_features",
+            "do_not_block_basic_book_work_on_advanced_automation"
+          ],
+          "properties": {
+            "incremental_delivery": {
+              "const": true
+            },
+            "v0_5_must_be_useful_without_v1_0_features": {
+              "const": true
+            },
+            "do_not_block_basic_book_work_on_advanced_automation": {
+              "const": true
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "book_releases": {
+      "type": "object",
+      "required": [
+        "purpose",
+        "platform",
+        "tag_pattern",
+        "immutable_snapshot",
+        "release_must_reference_commit",
+        "release_notes_required",
+        "approval",
+        "distinction"
+      ],
+      "properties": {
+        "purpose": {
+          "const": "versioned_book_editions"
+        },
+        "platform": {
+          "const": "github_releases"
+        },
+        "tag_pattern": {
+          "type": "string"
+        },
+        "immutable_snapshot": {
+          "const": true
+        },
+        "release_must_reference_commit": {
+          "const": true
+        },
+        "release_notes_required": {
+          "const": true
+        },
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "approval": {
+          "type": "object",
+          "required": [
+            "explicit_user_approval_required",
+            "only_approved_manuscript_content_may_be_released"
+          ],
+          "properties": {
+            "explicit_user_approval_required": {
+              "const": true
+            },
+            "only_approved_manuscript_content_may_be_released": {
+              "const": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "distinction": {
+          "type": "object",
+          "required": [
+            "product_milestones_are_not_book_releases",
+            "github_software_tags_are_not_book_edition_tags"
+          ],
+          "properties": {
+            "product_milestones_are_not_book_releases": {
+              "const": true
+            },
+            "github_software_tags_are_not_book_edition_tags": {
+              "const": true
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
