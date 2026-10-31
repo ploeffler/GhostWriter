@@ -12,7 +12,7 @@ Die **eingebauten GitHub-Verbindungen** beider Apps können nur lesen. Für Weg 
 | Commit, Branch | nein | ja | nein | ja | laut Werkzeugliste vorgesehen, im Chat zu testen |
 | Pull Request anlegen | nein | ja | nein | ja | zu testen |
 | Pull Request mergen | nein | ja | nein | nicht belegt | zu testen |
-| Tag und Release anlegen | nein | ja (Tag per Git, Release über die API) | nein | nicht belegt | nicht belegt |
+| Tag und Release anlegen | nein | nein: in der Sitzung vom 31.10.2026 von GitHub abgelehnt („not permitted for this session type“), ebenso Branches löschen | nein | nicht belegt | nicht belegt |
 | Chat-Vorlagen als Widget mit Rückmeldung in den Chat | ja (Inline-Widgets) | ja, wenn die Sitzung Widgets anbietet | nein, Textfassung nötig | nein | wie die jeweilige App |
 
 Belege:
@@ -25,6 +25,8 @@ Belege:
 1. **Claude mit Arbeitsumgebung.** Funktioniert heute vollständig, inklusive Widgets. Abhängig von der Claude-App mit agentischen Sitzungen.
 2. **Eigener Connector mit GitHubs MCP-Server** in Claude und ChatGPT. Einmalige OAuth-Einrichtung je App; welche Schreibwerkzeuge im Chat verfügbar sind, muss praktisch getestet werden.
 3. **Rückfall** aus `docs/INTEGRATION.md`, Betriebsart B: Der Assistent gibt geänderte Dateien vollständig aus, der Benutzer committet selbst. Funktioniert überall, aber ohne Pull-Request-Ablauf aus dem Chat.
+
+Keiner der Wege legt verlässlich Tags und Releases an. Vorschlag: Eine Auflage wird ein Pull Request, der `project.current_edition` hochzählt und die Release Notes enthält; nach dem Merge legt eine GitHub Action Tag und Release an und hängt PDF, DOCX und EPUB an (Issues #16 und #17).
 
 Welcher Weg für v0.5 gilt, wird am Ende von v0.2 entschieden.
 
