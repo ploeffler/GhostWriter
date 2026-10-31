@@ -2,12 +2,16 @@
   Vorlage: Projektübersicht
 
   Inline-Widget für den Chat. Zeigt die Eckdaten des gesamten
-  Buchprojekts an. Reine Anzeige, ohne Aktionen (kein Aktionspanel).
+  Buchprojekts an. Anzeige mit Symbolleiste: Die Symbol-Knöpfe senden
+  per sendPrompt() eine Nachricht in den Chat.
 
   Aufbau:
   - Kopf: Buch-Icon, Kurztitel als Badge, Titel, Autor
   - Kurzbeschreibung als hervorgehobener Einleitungssatz
   - Beschreibung als Fließtext
+  - Symbolleiste mit quadratischen Symbol-Knöpfen:
+    Projektdaten bearbeiten, Neues Kapitel anlegen,
+    Kapitelreihenfolge ändern, Buch exportieren, Projekteinstellungen
   - Liste mit Links zu den Kapiteln (Nummer, Titel, Status)
 
   Platzhalter (vor der Ausgabe ersetzen):
@@ -32,12 +36,14 @@
 
   Voraussetzungen der Darstellungsumgebung: CSS-Variablen des Hosts
   (--surface-*, --text-*, --border-*, --bg-*, --gap-*, --pad-*) und
-  Tabler-Icons (ti-*).
+  Tabler-Icons (ti-*) und eine globale Funktion sendPrompt(text).
 -->
 <h2 class="sr-only">Projektübersicht für „{{PROJECT_TITLE}}“ von {{PROJECT_AUTHOR}} mit Links zu den Kapiteln.</h2>
 <style>
 .gw-ch{display:flex;align-items:center;gap:var(--gap-md);padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--surface-2);color:var(--text-primary);text-decoration:none}
 .gw-ch:hover{border-color:var(--border-strong)}
+.gw-sq{width:40px;height:40px;flex:none;border:0.5px solid var(--border);border-radius:12px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--text-secondary);cursor:pointer;padding:0}
+.gw-sq:hover{border-color:var(--border-strong);color:var(--text-primary)}
 </style>
 <div style="padding:1rem 0">
   <div style="border:0.5px solid var(--border);border-radius:16px;background:var(--surface-1);padding:var(--pad-lg);display:flex;flex-direction:column;gap:var(--gap-md)">
@@ -57,6 +63,13 @@
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Beschreibung</div>
       <p style="margin:0;font-size:14px;line-height:1.7;color:var(--text-secondary)">{{PROJECT_DESCRIPTION}}</p>
     </div>
+    <div style="border-top:0.5px solid var(--border);padding-top:var(--pad-md);display:flex;gap:var(--gap-sm);flex-wrap:wrap">
+      <button type="button" class="gw-sq" data-p="Projektdaten bearbeiten" title="Projektdaten bearbeiten" aria-label="Projektdaten bearbeiten"><i class="ti ti-edit" aria-hidden="true"></i></button>
+      <button type="button" class="gw-sq" data-p="Neues Kapitel anlegen" title="Neues Kapitel anlegen" aria-label="Neues Kapitel anlegen"><i class="ti ti-plus" aria-hidden="true"></i></button>
+      <button type="button" class="gw-sq" data-p="Kapitelreihenfolge ändern" title="Kapitelreihenfolge ändern" aria-label="Kapitelreihenfolge ändern"><i class="ti ti-arrows-sort" aria-hidden="true"></i></button>
+      <button type="button" class="gw-sq" data-p="Buch exportieren" title="Buch exportieren" aria-label="Buch exportieren"><i class="ti ti-download" aria-hidden="true"></i></button>
+      <button type="button" class="gw-sq" data-p="Projekteinstellungen anzeigen" title="Projekteinstellungen" aria-label="Projekteinstellungen"><i class="ti ti-settings" aria-hidden="true"></i></button>
+    </div>
     <div style="border-top:0.5px solid var(--border);padding-top:var(--pad-md)">
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Kapitel</div>
       <div style="display:flex;flex-direction:column;gap:var(--gap-xs)">
@@ -67,3 +80,6 @@
     </div>
   </div>
 </div>
+<script>
+document.querySelectorAll('.gw-sq[data-p]').forEach(function(b){b.addEventListener('click',function(){sendPrompt(b.dataset.p);});});
+</script>
