@@ -2,13 +2,13 @@
 
 ## Produktidee
 
-Ghostwriter ist ein chatgesteuerter Schreib- und Rechercheworkflow. GitHub ist persistenter Projektspeicher und Versionsverwaltung; ChatGPT übernimmt Dialog, Planung und inhaltliche Arbeit.
+Ghostwriter ist ein chatgesteuerter Schreib- und Rechercheworkflow. GitHub ist persistenter Projektspeicher und Versionsverwaltung; ein KI-Chat-Assistent übernimmt Dialog, Planung und inhaltliche Arbeit. Der Workflow ist anbieterunabhängig: Er setzt nur einen Assistenten voraus, der die Anweisungen in `START.md` befolgt.
 
 ## Benutzerablauf
 
 1. Benutzer erstellt ein Repository aus dem Ghostwriter-Starter (Fork oder Template).
 2. Repository kann optional nach einem Arbeitstitel benannt werden.
-3. Benutzer verbindet GitHub in ChatGPT, autorisiert den Zugriff und wählt – soweit angeboten – nur das GhostWriter-Repository aus.
+3. Benutzer verbindet GitHub in seiner Chat-Anwendung, autorisiert den Zugriff und wählt – soweit angeboten – nur das GhostWriter-Repository aus. Ohne GitHub-Anbindung gibt der Assistent Dateien im Chat aus und der Benutzer committet selbst.
 4. Ghostwriter prüft den Zugriff, indem es Repository und Projektdateien wie `README.md` und `START.md` liest. Vor der Strukturfreigabe erfolgen keine Schreibtests und keine Projektänderungen.
 5. Benutzer startet den Wizard über den Startprompt in `START.md`.
 6. Wizard entwickelt Buchkonzept und Kapitel-/Abschnittsstruktur ausschließlich im Chat.
@@ -17,11 +17,11 @@ Ghostwriter ist ein chatgesteuerter Schreib- und Rechercheworkflow. GitHub ist p
 
 ## GitHub-Verbindung und Berechtigungen
 
-- Die ChatGPT-GitHub-Verbindung ist das vorhandene Konto-/App-Connector-Onboarding.
-- Die Verbindung muss vom Benutzer in ChatGPT autorisiert werden; Ghostwriter darf keine Passwörter oder Tokens im Chat oder Repository erfragen oder speichern.
+- Die GitHub-Verbindung ist die vom jeweiligen Chat-Anbieter bereitgestellte Verbindung (Connector, Integration, App oder Werkzeug).
+- Die Verbindung muss vom Benutzer in seiner Chat-Anwendung autorisiert werden; Ghostwriter darf keine Passwörter oder Tokens im Chat oder Repository erfragen oder speichern.
 - Repository-Zugriff wird vor dem Wizard durch einen Lesezugriff auf das ausgewählte Repository verifiziert.
 - Schreibberechtigungen werden nur für die spätere, ausdrücklich freigegebene Übertragung benötigt. Kein künstlicher Schreibtest vor der Freigabe.
-- Die maßgeschneiderte GhostWriter-GPT-Action bzw. eigene GitHub-App ist eine separate, spätere Integration und entsteht nicht automatisch durch das Verbinden des GitHub-Connectors.
+- Eine maßgeschneiderte GhostWriter-Schnittstelle (API, MCP-Server oder eigene GitHub-App) ist eine separate, spätere Integration und entsteht nicht automatisch durch das Verbinden von GitHub.
 - Bei fehlendem Zugriff muss der Assistent dies melden und darf keine erfolgreichen Lese- oder Schreibvorgänge behaupten.
 
 ## Architekturprinzipien
@@ -80,7 +80,7 @@ MVP:
 - stabile Datei- und Statuskonventionen.
 
 Später:
-- eigene GPT Actions / GhostWriter-GitHub-App;
+- eigene GhostWriter-Schnittstelle (API/MCP-Server, ggf. GitHub-App) für beliebige Chat-Clients;
 - Recherche- und Brainstormingläufe im Repository speichern;
 - Abschnittsmanuskripte und Prüfberichte;
 - Kapitelzusammenführung;
