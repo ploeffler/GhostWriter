@@ -121,6 +121,40 @@ def fill(template, values, blocks=None):
             f'<script>GW.render({json.dumps(template[:-5])},{payload})</script>\n')
 
 
+# ---------- Textfassung (Chats ohne Widgets) ----------
+
+STATUS_DE = {'planned': 'geplant', 'in_progress': 'in Arbeit', 'ready_for_assembly': 'bereit zum Zusammenführen',
+             'assembly': 'wird zusammengeführt', 'review': 'Durchsicht', 'ready_for_approval': 'bereit zur Freigabe',
+             'approved': 'freigegeben', 'research': 'Recherche', 'brainstorming': 'Ideensammlung',
+             'ready_to_write': 'bereit zum Schreiben', 'writing': 'Schreiben', 'revision': 'Überarbeitung',
+             'fact_check': 'Faktencheck'}
+STATUS_ICON = {'planned': '⚪', 'research': '🔎', 'brainstorming': '💡', 'ready_to_write': '🟦', 'writing': '✏️',
+               'in_progress': '✏️', 'revision': '🔁', 'fact_check': '🔍', 'review': '🔍', 'ready_for_assembly': '🟡',
+               'assembly': '🧩', 'ready_for_approval': '🟡', 'approved': '✅'}
+MARKER_ICON = {'anekdote': '💬', 'quelle': '📚', 'medizin': '🩺', 'recht': '⚖️'}
+MARKER_LEGEND = 'Marker: 💬 Anekdote · 📚 Quelle prüfen · 🩺 Medizin prüfen · ⚖️ Recht prüfen'
+
+
+def status_text(st):
+    return f'{STATUS_ICON.get(st, "•")} {STATUS_DE.get(st, st)}'
+
+
+def menu(items, intro='Was möchtest du tun? Antworte mit dem Kürzel'):
+    """items: [(kürzel, text)] -> Aktionszeile mit Kürzeln als Inline-Code."""
+    return f'**{intro}:**  \n' + ' · '.join(f'`{k}` {t}' for k, t in items)
+
+
+def field_table(rows):
+    out = ['| Feld | Aktueller Wert |', '|---|---|']
+    for label, value in rows:
+        v = str(value).replace('\n', ' ').replace('|', '\\|') if value not in ('', None) else '*(leer)*'
+        out.append(f'| {label} | {v} |')
+    return out
+
+
+FORM_HINT = 'Antworte mit den Feldern, die sich ändern sollen, je Zeile `Feld: neuer Wert`. `X` bricht ab.'
+
+
 # ---------- Ansichten ----------
 
 def project_view(base, config, args):
@@ -144,18 +178,28 @@ def project_view(base, config, args):
         'PROJECT_EDITION_TEXT': f'Auflage {edition}' if edition else 'noch keine Auflage',
     }
     if args.text:
-        lines = [f'**{values["PROJECT_TITLE"] or "Noch ohne Titel"}** · Buchprojekt · {values["PROJECT_EDITION_TEXT"]}',
-                 f'Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · Bisherige Kosten: {values["PROJECT_COST"]}', '']
+        lines = [f'### 📘 {values["PROJECT_TITLE"] or "Noch ohne Titel"}',
+                 f'**{values["PROJECT_EDITION_TEXT"]}** · Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · Kosten bisher: **{values["PROJECT_COST"]}**', '']
         if values['PROJECT_DESCRIPTION_SHORT']:
             lines += [f'> {values["PROJECT_DESCRIPTION_SHORT"]}', '']
         if values['PROJECT_DESCRIPTION']:
             lines += [values['PROJECT_DESCRIPTION'], '']
         if rows:
-            lines += ['| Nr. | Kapitel | Kosten | Status |', '|---|---|---|---|']
-            lines += [f'| {r["CHAPTER_NUMBER"]} | [{r["CHAPTER_TITLE"]}]({r["CHAPTER_URL"]}) | {r["CHAPTER_COST"]} | {r["CHAPTER_STATUS"]} |' for r in rows]
+            lines += ['| # | Kapitel | Kosten | Status |', '|--:|---|--:|---|']
+            lines += [f'| {r["CHAPTER_NUMBER"]} | [{r["CHAPTER_TITLE"]}]({r["CHAPTER_URL"]}) | {r["CHAPTER_COST"]} | {status_text(r["CHAPTER_STATUS"])} |' for r in rows]
         else:
-            lines += ['Noch keine Kapitel.']
-        lines += ['', 'Aktionen: 1 Projektdaten bearbeiten · 2 Neues Kapitel anlegen · 3 Kapitelreihenfolge ändern · 4 Neue Auflage erzeugen · 5 Projekteinstellungen']
+            lines += ['*Noch keine Kapitel.*']
+        lines += ['', '---']
+        items = []
+        if rows:
+            items.append((f'1' + (f'–{len(rows)}' if len(rows) > 1 else ''), 'Kapitel öffnen'))
+        cur = (config.get('workflow') or {}).get('current_section_id')
+        for ci, ch in enumerate(chapters, start=1):
+            for si, sec in enumerate(ch['sections'], start=1):
+                if sec['id'] == cur:
+                    items.append((f'{ci}.{si}', 'zuletzt bearbeitet'))
+        items += [('P', 'Projektdaten'), ('N', 'Neues Kapitel'), ('R', 'Reihenfolge'), ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
+        lines += [menu(items)]
         return '\n'.join(lines) + '\n'
     return fill('projektuebersicht.html', values, {'CHAPTERS': rows})
 
@@ -186,11 +230,24 @@ def chapter_view(base, config, args, cnum):
               'CHAPTER_COST': money(amount, est), 'CHAPTER_COST_HINT': cost_hint('Summe der Abschnittskosten', amount, est),
               'APPROVED_COUNT_TEXT': f'{approved} von {n}'}
     if args.text:
-        lines = [f'**Kapitel {cnum}: {ch["title"]}**' + (f' – *{values["CHAPTER_SUBTITLE"]}*' if values['CHAPTER_SUBTITLE'] else ''),
-                 f'{values["SECTION_COUNT_TEXT"]} · {values["MARKER_COUNT_TEXT"]} · Kosten: {values["CHAPTER_COST"]} · freigegeben: {values["APPROVED_COUNT_TEXT"]}', '',
-                 '| Nr. | Abschnitt | Marker (A/Q/M/R) | Kosten | Status |', '|---|---|---|---|---|']
-        lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {r["MARKERS_ANEKDOTE"]}/{r["MARKERS_QUELLE"]}/{r["MARKERS_MEDIZIN"]}/{r["MARKERS_RECHT"]} | {r["SECTION_COST"]} | {r["SECTION_STATUS"]} |' for r in rows]
-        lines += ['', 'Aktionen: Nummer eines Abschnitts zum Bearbeiten · Kapitel bearbeiten · Neuer Abschnitt · Reihenfolge ändern · Zur Übersicht']
+        def marks(r):
+            parts = [f'{MARKER_ICON[k]} {r["MARKERS_" + k.upper()]}' for k in MARKER_ICON if r['MARKERS_' + k.upper()]]
+            return ' '.join(parts) or '–'
+        lines = [f'### 📖 Kapitel {cnum} · {ch["title"]}']
+        if values['CHAPTER_SUBTITLE']:
+            lines += [f'*{values["CHAPTER_SUBTITLE"]}*']
+        lines += ['', f'{values["SECTION_COUNT_TEXT"]} · ✅ {values["APPROVED_COUNT_TEXT"]} freigegeben · {values["MARKER_COUNT_TEXT"]} · Kosten **{values["CHAPTER_COST"]}**', '']
+        if rows:
+            lines += ['| # | Abschnitt | Marker | Kosten | Status |', '|--:|---|---|--:|---|']
+            lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {marks(r)} | {r["SECTION_COST"]} | {status_text(r["SECTION_STATUS"])} |' for r in rows]
+            if counts_total:
+                lines += ['', f'<sub>{MARKER_LEGEND}</sub>']
+        else:
+            lines += ['*Noch keine Abschnitte.*']
+        lines += ['', '---']
+        items = [(f'{cnum}.1' + (f'–{cnum}.{n}' if n > 1 else ''), 'Abschnitt öffnen')] if rows else []
+        items += [('B', 'Kapitel bearbeiten'), ('N', 'Neuer Abschnitt'), ('R', 'Reihenfolge'), ('Ü', 'Übersicht')]
+        lines += [menu(items)]
         return '\n'.join(lines) + '\n'
     return fill('kapitelansicht.html', values, {'SECTIONS': rows})
 
@@ -222,12 +279,26 @@ def section_view(base, config, args, cnum, snum):
               'PREV_SECTION_ID': prev_id, 'PREV_SECTION_PROMPT': prev_text,
               'NEXT_SECTION_ID': next_id, 'NEXT_SECTION_PROMPT': next_text}
     if args.text:
-        lines = [f'**{cnum}.{snum} {s["title"]}** · Kapitel {cnum} · Status {head["status"]} · Kosten: {values["SECTION_COST"]}',
-                 f'Faktencheck: {head["fact_check"]} · Schreibfreigabe: {"ja" if head["approvals"]["writing"] else "nein"} · Abschnitt freigegeben: {"ja" if head["approvals"]["section"] else "nein"}', '',
-                 f'Ziel: {goal or "offen"}', f'Kurzbeschreibung: {summary or "offen"}', '', f'Offene Marker ({n}):']
-        lines += [f'- {m["MARKER_LABEL"]}: {m["MARKER_TEXT"]}' for m in markers] or ['- keine']
-        lines += ['', '---', '', ms, '', '---', '',
-                  'Aktionen: Recherche sofort · Ghostwriting sofort · Speichern (geänderten Text schicken) · Vorheriger/Nächster Abschnitt · Zum Kapitel']
+        yn = lambda v: '✅ ja' if v else '— nein'
+        lines = [f'### ✏️ {cnum}.{snum} · {s["title"]}',
+                 f'Kapitel {cnum} · {status_text(head["status"])} · Kosten **{values["SECTION_COST"]}**', '',
+                 '| | |', '|---|---|',
+                 f'| Ziel | {goal or "*offen*"} |', f'| Kurzbeschreibung | {summary or "*offen*"} |',
+                 f'| Faktencheck | {FC_TEXT.get(head["fact_check"], head["fact_check"])} |',
+                 f'| Schreibfreigabe | {yn(head["approvals"]["writing"])} |', f'| Abschnitt freigegeben | {yn(head["approvals"]["section"])} |', '']
+        if markers:
+            lines += [f'**Offene Marker ({n})**'] + [f'- {MARKER_ICON[m["MARKER_TYPE"]]} {m["MARKER_LABEL"]}: {m["MARKER_TEXT"]}' for m in markers] + ['']
+        else:
+            lines += ['Keine offenen Marker.', '']
+        lines += ['---', '', ms, '', '---']
+        items = [('T', 'Text ändern (geänderten Text schicken)'), ('F', 'Ziel, Faktencheck, Freigaben'),
+                 ('RS', 'Recherche sofort'), ('GS', 'Ghostwriting sofort')]
+        if prev_id:
+            items.append((f'{cnum}.{snum - 1}', '← vorheriger'))
+        if next_id:
+            items.append((f'{cnum}.{snum + 1}', 'nächster →'))
+        items.append(('K', 'Zum Kapitel'))
+        lines += [menu(items)]
         return '\n'.join(lines) + '\n'
     return fill('abschnitt-bearbeiten.html', values, {'MARKERS': markers})
 
@@ -242,10 +313,10 @@ def project_values(config):
 def project_edit_view(base, config, args):
     values = project_values(config)
     if args.text:
-        return '\n'.join(['**Projektdaten bearbeiten** – schicke die geänderten Felder als Antwort:', '',
-                          f'- Titel: {values["PROJECT_TITLE"] or "(leer)"}', f'- Kurztitel: {values["PROJECT_TITLE_SHORT"] or "(leer)"}',
-                          f'- Autor: {values["PROJECT_AUTHOR"] or "(leer)"}', f'- Kurzbeschreibung: {values["PROJECT_DESCRIPTION_SHORT"] or "(leer)"}',
-                          f'- Beschreibung: {values["PROJECT_DESCRIPTION"] or "(leer)"}']) + '\n'
+        return '\n'.join(['### 📝 Projektdaten bearbeiten', ''] + field_table([
+            ('Titel', values['PROJECT_TITLE']), ('Kurztitel', values['PROJECT_TITLE_SHORT']), ('Autor', values['PROJECT_AUTHOR']),
+            ('Kurzbeschreibung', values['PROJECT_DESCRIPTION_SHORT']), ('Beschreibung', values['PROJECT_DESCRIPTION'])])
+            + ['', FORM_HINT]) + '\n'
     return fill('projektdaten-bearbeiten.html', values)
 
 
@@ -259,8 +330,9 @@ def chapter_create_view(base, config, args):
         labels += [f'Am Ende (nach Kapitel {len(chapters)} „{chapters[-1]["title"]}“)']
     rows = positions(labels)
     if args.text:
-        return '\n'.join(['**Neues Kapitel anlegen** – schicke Titel, Kurzbeschreibung, Ziel und Position:', '',
-                          'Positionen:'] + [f'{i}. {l}' + (' (Vorauswahl)' if r['POSITION_SELECTED'] else '') for i, (l, r) in enumerate(zip(labels, rows))]) + '\n'
+        return '\n'.join(['### ➕ Neues Kapitel anlegen', '', 'Schicke je Zeile `Titel: …` (Pflicht), `Kurzbeschreibung: …`, `Ziel: …` und `Position: Nummer`.', '',
+                           '**Positionen**'] + [f'`{i}` {l}' + (' *(Vorgabe)*' if r['POSITION_SELECTED'] else '') + '  ' for i, (l, r) in enumerate(zip(labels, rows))]
+                          + ['', '`X` bricht ab.']) + '\n'
     return fill('kapitel-anlegen.html', {}, {'POSITIONS': rows})
 
 
@@ -275,15 +347,18 @@ def edition_create_view(base, config, args):
     chapters = config['structure']['chapters']
     approved = sum(ch['status'] == 'approved' for ch in chapters)
     warn = '' if chapters and approved == len(chapters) else \
-        f'Bisher sind {approved} von {len(chapters)} Kapiteln freigegeben; nur diese kommen in die Auflage.'
+        (f'Bisher {"ist" if approved == 1 else "sind"} {approved} von {len(chapters)} Kapiteln freigegeben; '
+         'nur freigegebene Kapitel kommen in die Auflage.')
     values = {'EDITION_NUMBER': n, 'EDITION_NAME': br['name_pattern'].format(title_short=short, edition=n),
               'EDITION_TAG': br['tag_pattern'].format(title_short_slug=tag_slug(short), edition=n),
               'EDITION_DATE_DEFAULT': datetime.date.today().isoformat(), 'APPROVAL_WARNING_TEXT': warn}
     formats = [{'FORMAT_LABEL': a.upper()} for a in br['assets']]
     if args.text:
-        return '\n'.join([f'**Neue Auflage erzeugen** – Auflage {n}', '', f'- Name: {values["EDITION_NAME"]}', f'- Tag: {values["EDITION_TAG"]}',
-                          f'- Formate: {", ".join(f["FORMAT_LABEL"] for f in formats)}', f'- Erscheinungsdatum: {values["EDITION_DATE_DEFAULT"]} (Vorschlag)']
-                         + ([f'', f'Hinweis: {warn}'] if warn else []) + ['', 'Schicke Erscheinungsdatum und Anmerkungen, oder „abbrechen“.']) + '\n'
+        return '\n'.join([f'### 📚 Neue Auflage erzeugen · Auflage {n}', '', '| | |', '|---|---|', f'| Name | {values["EDITION_NAME"]} |',
+                           f'| Tag | `{values["EDITION_TAG"]}` |', f'| Formate | {", ".join(f["FORMAT_LABEL"] for f in formats)} |',
+                           f'| Erscheinungsdatum | {values["EDITION_DATE_DEFAULT"]} *(Vorschlag)* |']
+                          + (['', f'> ⚠️ {warn}'] if warn else [])
+                          + ['', 'Schicke `Datum: JJJJ-MM-TT` und optional `Anmerkungen: …`. `OK` übernimmt den Vorschlag, `X` bricht ab.']) + '\n'
     return fill('auflage-erzeugen.html', values, {'FORMATS': formats})
 
 
@@ -326,9 +401,8 @@ def chapter_edit_view(base, config, args):
     values = {'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': n, 'CHAPTER_TITLE': ch['title'], 'CHAPTER_SUBTITLE': subtitle,
               'CHAPTER_SUMMARY': summary, 'CHAPTER_GOAL': goal}
     if args.text:
-        return '\n'.join([f'**Kapitel {n} bearbeiten** – schicke die geänderten Felder als Antwort:', '',
-                          f'- Titel: {ch["title"]}', f'- Untertitel: {subtitle or "(leer)"}',
-                          f'- Kurzbeschreibung: {summary or "(leer)"}', f'- Ziel: {goal or "(leer)"}']) + '\n'
+        return '\n'.join([f'### 📝 Kapitel {n} bearbeiten', ''] + field_table([
+            ('Titel', ch['title']), ('Untertitel', subtitle), ('Kurzbeschreibung', summary), ('Ziel', goal)]) + ['', FORM_HINT]) + '\n'
     return fill('kapitel-bearbeiten.html', values)
 
 
@@ -343,17 +417,20 @@ def section_create_view(base, config, args):
         labels += [f'Am Ende (nach {n}.{len(secs)} „{secs[-1]["title"]}“)']
     fc = (config.get('workflow') or {}).get('fact_checking_default') or 'optional'
     if args.text:
-        return '\n'.join([f'**Neuer Abschnitt in Kapitel {n}** – schicke Titel, Ziel, Kurzbeschreibung und Position:', '',
-                          f'Faktencheck: {FC_TEXT[fc]} (Vorgabe)', '', 'Positionen:']
-                         + [f'{i}. {l}' + (' (Vorauswahl)' if i == len(labels) - 1 else '') for i, l in enumerate(labels)]) + '\n'
+        return '\n'.join([f'### ➕ Neuer Abschnitt in Kapitel {n}', '',
+                           'Schicke je Zeile `Titel: …` (Pflicht), `Ziel: …`, `Kurzbeschreibung: …`, `Position: Nummer` '
+                           f'und optional `Faktencheck: aus | optional | angefordert` (Vorgabe: {FC_TEXT[fc]}).', '', '**Positionen**']
+                          + [f'`{i}` {l}' + (' *(Vorgabe)*' if i == len(labels) - 1 else '') + '  ' for i, l in enumerate(labels)]
+                          + ['', '`X` bricht ab.']) + '\n'
     return fill('abschnitt-anlegen.html', {'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': n, 'CHAPTER_TITLE': ch['title'],
                                            'FACT_CHECK_DEFAULT': fc}, {'POSITIONS': positions(labels)})
 
 
 def reorder(args, kind, heading, items, chapter_id='', chapter_no=''):
     if args.text:
-        return '\n'.join([f'**{heading}** – schicke die Nummern in der neuen Reihenfolge, z. B. „3, 1, 2, …“:', '']
-                         + [f'{i["ITEM_NUMBER"]}. {i["ITEM_TITLE"]}' for i in items]) + '\n'
+        return '\n'.join([f'### ↕️ {heading}', '', '| Jetzt | Titel |', '|--:|---|']
+                          + [f'| `{i["ITEM_NUMBER"]}` | {i["ITEM_TITLE"]} |' for i in items]
+                          + ['', 'Schicke die Nummern in der neuen Reihenfolge, z. B. `' + ', '.join(str(i['ITEM_NUMBER']) for i in (items[1::-1] + items[2:4] if len(items) > 1 else items)) + (', …' if len(items) > 4 else '') + '`. `X` bricht ab.']) + '\n'
     return fill('reihenfolge.html', {'REORDER_KIND': kind, 'REORDER_HEADING': heading, 'CHAPTER_ID': chapter_id,
                                      'CHAPTER_NUMBER': chapter_no}, {'ITEMS': items})
 
@@ -384,13 +461,19 @@ def project_settings_view(base, config, args):
         fixed.append({'FIXED_LABEL': label, 'FIXED_VALUE': text if isinstance(v, bool) else f'{text} ({v})'})
     fc = wf.get('fact_checking_default') or 'optional'
     if args.text:
-        return '\n'.join(['**Projekteinstellungen**', '', 'Feste Regeln (nur im Chat mit ausdrücklicher Bestätigung änderbar):']
-                         + [f'- {f["FIXED_LABEL"]}: {f["FIXED_VALUE"]}' for f in fixed]
-                         + ['', f'Faktencheck für neue Abschnitte: {FC_TEXT[fc]}', '',
-                            'Buchsatz:', f'- Seitenformat: {ts["page_size"]}', f'- Schrift: {ts["font"]}, {ts["font_size"]} pt',
-                            f'- Titelseite: {"ja" if ts["title_page"] else "nein"}, Impressum: {"ja" if ts["imprint"] else "nein"}',
-                            f'- Inhaltsverzeichnis: ' + (('nur Kapitel' if ts['toc_depth'] == 1 else 'Kapitel und Abschnitte') if ts['toc'] else 'nein'),
-                            '', 'Schicke die gewünschten Änderungen als Antwort.']) + '\n'
+        page = {'a5': 'A5 (14,8 × 21 cm)', '12x19': '12 × 19 cm', '13.5x21.5': '13,5 × 21,5 cm', 'a4': 'A4'}
+        jn = lambda v: 'ja' if v else 'nein'
+        return '\n'.join(['### ⚙️ Projekteinstellungen', '', '**🔒 Feste Regeln** *(nur im Chat mit ausdrücklicher Bestätigung änderbar)*', '',
+                           '| Regel | Wert |', '|---|---|'] + [f'| {f["FIXED_LABEL"]} | {f["FIXED_VALUE"]} |' for f in fixed]
+                          + ['', '**Bearbeitbar**', '', '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|',
+                             f'| Faktencheck | {FC_TEXT[fc]} | aus, optional, angefordert |',
+                             f'| Seitenformat | {page.get(ts["page_size"], ts["page_size"])} | A5, 12×19, 13,5×21,5, A4 |',
+                             f'| Schrift | {"Serifenschrift" if ts["font"] == "serif" else "serifenlos"} | Serif, Serifenlos |',
+                             f'| Schriftgröße | {str(ts["font_size"]).replace(".", ",")} pt | 10, 10,5, 11, 11,5, 12 |',
+                             f'| Titelseite | {jn(ts["title_page"])} | ja, nein |', f'| Impressum | {jn(ts["imprint"])} | ja, nein |',
+                             f'| Inhaltsverzeichnis | {jn(ts["toc"])} | ja, nein |',
+                             f'| Verzeichnistiefe | {"nur Kapitel" if ts["toc_depth"] == 1 else "Kapitel und Abschnitte"} | Kapitel, Abschnitte |',
+                             '', FORM_HINT]) + '\n'
     def b(v):
         return 'true' if v else 'false'
     return fill('projekteinstellungen.html', {'FACT_CHECK_DEFAULT': fc, 'PAGE_SIZE': ts['page_size'], 'FONT': ts['font'],

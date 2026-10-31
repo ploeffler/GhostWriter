@@ -146,11 +146,25 @@ Für Kapitel und Abschnitte.
 
 ## Textfassung ohne Widgets
 
-Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown; Beispiele erzeugt `scripts/render_view.py … --text`.
+Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown. **Dort nie HTML, `GW.render` oder Widget-Code ausgeben.** Muster erzeugt `scripts/render_view.py … --text`; jede Ansicht und jedes Formular hat eine Textfassung.
 
-- **Projektübersicht:** Titel, Auflage, Autor, Kosten; Kurzbeschreibung als Zitat; Beschreibung; Tabelle der Kapitel mit Link, Kosten und Status; darunter die Aktionen als nummerierte Auswahl.
-- **Kapitelansicht:** Kapitel mit Untertitel; Anzahl Abschnitte, Marker, Kosten, Freigaben; Tabelle der Abschnitte mit Markern (Anekdote/Quelle/Medizin/Recht), Kosten und Status; Aktionen.
-- **Abschnitt:** Kopfzeile mit Status und Kosten; Faktencheck und Freigaben; Ziel und Kurzbeschreibung; Liste der offenen Marker; der Manuskripttext dieses einen Abschnitts zwischen Trennlinien; Aktionen. Änderungen schickt der Benutzer als geänderten Text zurück.
+Gestaltung:
+
+- **Überschrift** `###` mit Symbol: 📘 Projekt, 📖 Kapitel, ✏️ Abschnitt, 📝 Bearbeiten, ➕ Anlegen, ↕️ Reihenfolge, ⚙️ Einstellungen, 📚 Auflage.
+- **Status** deutsch mit Symbol: ⚪ geplant, 🔎 Recherche, 💡 Ideensammlung, 🟦 bereit zum Schreiben, ✏️ Schreiben bzw. in Arbeit, 🔁 Überarbeitung, 🔍 Faktencheck bzw. Durchsicht, 🟡 bereit zur Freigabe, ✅ freigegeben.
+- **Marker** als Symbol mit Anzahl: 💬 Anekdote, 📚 Quelle, 🩺 Medizin, ⚖️ Recht; darunter klein die Legende.
+- **Tabellen** für Listen und Felder; Zahlen und Kosten rechtsbündig.
+- **Aktionen** am Ende nach einer Trennlinie als Kürzel in Inline-Code: Zahlen öffnen Kapitel (`2`) oder Abschnitte (`2.4`), Buchstaben lösen Aktionen aus.
+- **Formulare** zeigen die aktuellen Werte als Tabelle; geantwortet wird mit `Feld: neuer Wert`, je Zeile ein Feld. `X` bricht ab.
+
+| Ansicht | Kürzel |
+|---|---|
+| Projektübersicht | `1`–`N` Kapitel öffnen · `N.M` zuletzt bearbeiteter Abschnitt · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
+| Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `B` Kapitel bearbeiten · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `Ü` Übersicht |
+| Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck, Freigaben · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
+| Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · `X` bricht ab |
+
+Ein Kürzel entspricht dem Klick auf den gleichnamigen Knopf; es gelten dieselbe Aktion, dieselben Statuszeilen und dieselbe Ausgangsansicht danach.
 
 ## Nachrichtenformat
 
