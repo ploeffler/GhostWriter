@@ -54,6 +54,10 @@ Die Pfade sind Entwurf und müssen mit dem implementierten Dienst übereinstimme
 | POST | /v1/projects/{owner}/{repo}/sections/{section_id}/approve | Abschnitt nach Zustimmung freigeben |
 | POST | /v1/projects/{owner}/{repo}/chapters/{chapter_id}/assemble | Kapitel aus freigegebenen Abschnitten zusammenführen |
 | POST | /v1/projects/{owner}/{repo}/chapters/{chapter_id}/approve | Kapitel nach Gesamtzustimmung freigeben |
+| POST | /v1/projects/{owner}/{repo}/sections/{section_id}/writing-approval | Schreibfreigabe nach Zustimmung erteilen |
+| DELETE | /v1/projects/{owner}/{repo}/sections/{section_id}/writing-approval | Schreibfreigabe zurücknehmen |
+| DELETE | /v1/projects/{owner}/{repo}/sections/{section_id}/approve | Abschnittsfreigabe zurücknehmen |
+| DELETE | /v1/projects/{owner}/{repo}/chapters/{chapter_id}/approve | Kapitelfreigabe zurücknehmen |
 | PATCH | /v1/projects/{owner}/{repo} | Projektdaten ändern (`project.update`) |
 | PATCH | /v1/projects/{owner}/{repo}/settings | Projekteinstellungen ändern (`project.settings.update`) |
 | POST | /v1/projects/{owner}/{repo}/chapters/reorder | Kapitelreihenfolge ändern (`chapter.reorder`) |
@@ -79,6 +83,7 @@ Erfolgsantworten enthalten mindestens success, commit_sha, commit_url, updated_p
 - Kapitelzusammenführung nur, wenn alle Abschnitte approved sind.
 - Kapitel-Freigabe nur nach Sichtung und ausdrücklicher Gesamtzustimmung.
 - Ein technischer API-Aufruf ersetzt niemals die Zustimmung des Benutzers.
+- Freigabe-Endpunkte verlangen `confirmed: true` aus der Bestätigung im Chat und hängen einen Eintrag an `approvals.yml` an (`kind`, `id`, `action`, `at`, `by`, `commit` = `expected_head_sha`); Schreib-Endpunkte ändern `approvals` nie.
 
 ## Statuscodes
 | HTTP | Bedeutung |

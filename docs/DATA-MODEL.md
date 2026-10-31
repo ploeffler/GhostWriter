@@ -13,6 +13,7 @@ repository/
 ├── brainstorming/
 ├── costs/
 │   └── project.yml        # projektweite Kosteneinträge
+├── approvals.yml          # Freigabe-Protokoll, nur anhängen
 ├── chapters/
 │   ├── 01-einleitung/
 │   │   ├── README.md
@@ -119,6 +120,20 @@ approvals:
 ```
 
 Der Kopf jeder Abschnittsdatei folgt [`schemas/section.schema.json`](../schemas/section.schema.json). `fact_check` übernimmt die Werte aus `workflow.yml` (`entities.section.fact_check`).
+
+## Freigabe-Protokoll
+
+`approvals.yml` hält jede erteilte oder zurückgenommene Freigabe als eigenen Eintrag fest (`workflow.yml`: `record_approval_actor_and_timestamp`, `user_approval_record`). Einträge werden nur angehängt. Die Felder `approvals.writing` und `approvals.section` im Kopf der Abschnittsdatei und der Kapitelstatus zeigen den aktuellen Stand; das Protokoll zeigt, wer wann welchen Stand bestätigt hat. Schema: [`schemas/approvals.schema.json`](../schemas/approvals.schema.json); Ablauf: `START.md`, „Freigaben“.
+
+```yaml
+entries:
+- kind: section          # writing | section | chapter
+  id: sec-02-04-die-scham-die-wir-mitbringen
+  action: granted        # granted | revoked
+  at: '2026-10-31T23:30:00+01:00'
+  by: ploeffler          # GitHub-Login, sonst chat
+  commit: 06e780b…       # bestätigter Stand (expected_head_sha)
+```
 
 ## Marker im Manuskript
 

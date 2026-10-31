@@ -12,6 +12,8 @@ Geprüft werden:
 - workflow.current_chapter_id / current_section_id verweisen auf vorhandene IDs
 - jede Kostendatei (chapters/*/costs/*.yml, costs/project.yml) gegen
   schemas/costs.schema.json, eindeutige activity_id, Abschnitts-ID bekannt
+- approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt,
+  Art passt zur ID (writing/section: Abschnitt, chapter: Kapitel)
 
 Endet mit Code 1, sobald ein Fehler gefunden wurde.
 """
@@ -35,6 +37,7 @@ def validator(name):
 GHOSTWRITER = validator('ghostwriter.schema.json')
 SECTION = validator('section.schema.json')
 COSTS = validator('costs.schema.json')
+APPROVALS = validator('approvals.schema.json')
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
 
 
@@ -132,6 +135,18 @@ def check_project(project_dir):
             activity_ids.add(entry['activity_id'])
             if file_section and entry.get('section_id') not in (None, file_section):
                 errors.append(f'{path}: {entry["activity_id"]}: section_id passt nicht zur Datei')
+    approvals_path = base / 'approvals.yml'
+    if approvals_path.is_file():
+        data = load_yaml(approvals_path, errors)
+        if data is not None:
+            errs = schema_errors(APPROVALS, data, approvals_path)
+            errors += errs
+            if not errs:
+                for i, entry in enumerate(data['entries'], start=1):
+                    known = chapter_ids if entry['kind'] == 'chapter' else section_ids
+                    if entry['id'] not in known:
+                        art = 'Kapitel' if entry['kind'] == 'chapter' else 'Abschnitt'
+                        errors.append(f'{approvals_path}: Eintrag {i}: {art} {entry["id"]} unbekannt')
     return errors
 
 

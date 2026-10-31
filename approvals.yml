@@ -1,0 +1,5 @@
+# Freigabe-Protokoll: jede erteilte oder zurückgenommene Freigabe als eigener
+# Eintrag (START.md, „Freigaben“). Nur anhängen, nie ändern oder löschen.
+#   kind: writing (Schreibfreigabe) | section (Abschnitt) | chapter (Kapitel)
+#   commit: Stand, den der Benutzer bestätigt hat (expected_head_sha)
+entries: []

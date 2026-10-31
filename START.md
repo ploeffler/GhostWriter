@@ -78,10 +78,25 @@ Was jedes Formular schreibt:
 | Kapitelreihenfolge | `chapter.reorder` | `ghostwriter.yml` (Reihenfolge; IDs und Pfade bleiben) | `Kapitelreihenfolge geändert` | – | `POST …/chapters/reorder` |
 | Neuer Abschnitt | `section.create` | Abschnittsdatei aus `templates/section.md`, `ghostwriter.yml`, Abschnittsliste der Kapitel-README | `Abschnitt N.M „Titel“ angelegt` | – | `POST …/chapters/{chapter_id}/sections` |
 | Abschnittsreihenfolge | `section.reorder` | `ghostwriter.yml` (Reihenfolge; IDs und Dateinamen bleiben), Abschnittsliste der Kapitel-README | `Abschnittsreihenfolge in Kapitel N geändert` | – | `POST …/chapters/{chapter_id}/sections/reorder` |
-| Abschnitt bearbeiten | `section.update` | Abschnittsdatei (Ziel, Kurzbeschreibung, Faktencheck, Manuskript, Status), Status in der Abschnittsliste der Kapitel-README | `Abschnitt N.M gespeichert` | Manuskript nur mit Schreibfreigabe (`approvals.writing`); die Abschnittsfreigabe nie über dieses Formular, sondern über den eigenen Bestätigungsschritt | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
+| Abschnitt bearbeiten | `section.update` | Abschnittsdatei (Ziel, Kurzbeschreibung, Faktencheck, Manuskript, Status; nie `approvals`), Status in der Abschnittsliste der Kapitel-README | `Abschnitt N.M gespeichert` | Manuskript nur mit Schreibfreigabe (`approvals.writing`); Freigaben nie über dieses Formular, sondern über „Freigabe bestätigen“ | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
+| Freigabe bestätigen | `approval.confirm` | Abschnittsdatei (`approvals`, Status) bzw. `ghostwriter.yml` (Kapitelstatus), Status in der Kapitel-README, neuer Eintrag in `approvals.yml` | `Abschnitt N.M freigegeben`, `Schreiben für Abschnitt N.M freigegeben`, `Kapitel N freigegeben`; beim Zurücknehmen `Freigabe … zurückgenommen` | ausdrückliche Bestätigung (siehe „Freigaben“) | `POST`/`DELETE …/sections/{section_id}/writing-approval`, `…/sections/{section_id}/approve`, `…/chapters/{chapter_id}/approve` |
 | Änderungen übernehmen | `changes.merge` | – (Merge des Pull Requests) | Merge-Commit `GhostWriter: N Änderungen übernommen` | ausdrückliche Bestätigung | `POST …/changes/merge` |
 
 Ausnahmen: KI-Läufe (`run.start`, ab v0.4) schreiben Lauf-Datei, Kosten und Abschnittsstatus nach denselben Regeln in den Arbeits-Branch. Eine neue Auflage (`edition.create`) bekommt einen eigenen Pull Request, nicht den Arbeits-Branch. Kein Formular und keine Schreibregel gibt mehr als den Text eines Abschnitts im Chat aus.
+
+### Freigaben (verbindlich)
+
+Eine Freigabe entsteht nur durch eine eigene Bestätigung, nie beim Speichern eines Formulars und nie aus einer freien Formulierung, die der Assistent als Zustimmung deutet (`workflow.yml`: `approvals_require_explicit_user_confirmation`, `automation_must_not_infer_approval`).
+
+1. **Öffnen:** Die Knöpfe „Freigeben“ bzw. „Zurücknehmen“ im Abschnittsformular und „Kapitel freigeben“ in der Kapitelansicht schicken `approval.open` (Textfassung `FS`, `FA`, `FK`). Der Assistent antwortet mit der Vorlage `freigabe-bestaetigen` (`render_view.py approval-writing|approval-section N.M`, `approval-chapter N`, mit `--revoke` zum Zurücknehmen).
+2. **Prüfpunkte:** Die Bestätigung zeigt, was erfüllt ist (✅), was fehlt, aber nicht hindert (⚠️, etwa offene Marker oder fehlende Rechercheläufe), und was hindert (⛔). Hindernisse: Abschnittsfreigabe ohne Schreibfreigabe oder ohne Manuskript; Kapitelfreigabe, solange nicht alle Abschnitte freigegeben sind oder das Kapitel nicht auf `ready_for_approval` steht; Zurücknehmen der Schreibfreigabe, solange der Abschnitt freigegeben ist.
+3. **Bestätigen:** Erst „Freigeben“ bzw. „Zurücknehmen“ in der Bestätigung (Textfassung `OK`) schickt `approval.confirm` mit `expected_head_sha`. Das ist die ausdrückliche Bestätigung. Der Assistent prüft die Hindernisse erneut und schreibt dann nach „Schreiben ins Repository“ einen Commit.
+4. **Was sich ändert:**
+   - Schreibfreigabe: `approvals.writing: true`; steht der Abschnitt vor `writing`, wird der Status `writing`. Zurücknehmen: `approvals.writing: false`, Status bleibt.
+   - Abschnittsfreigabe: `approvals.section: true`, Status `approved`. Zurücknehmen: `approvals.section: false`, Status `revision`; war das Kapitel freigegeben, wird es `in_progress` (`invalidate_affected_chapter_approval`).
+   - Kapitelfreigabe: Kapitelstatus `approved` in `ghostwriter.yml` und in der Kapitel-README. Zurücknehmen: `in_progress`.
+   - Den Status des Abschnitts in der Abschnittsliste der Kapitel-README nachziehen.
+5. **Festhalten:** Jede erteilte oder zurückgenommene Freigabe bekommt im selben Commit einen neuen Eintrag am Ende von `approvals.yml` (Schema `schemas/approvals.schema.json`): `kind` (`writing`, `section`, `chapter`), `id`, `action` (`granted`, `revoked`), `at` (Zeitpunkt mit Zeitzone), `by` (GitHub-Login, sonst `chat`), `commit` (der bestätigte Stand, also `expected_head_sha`). Einträge werden nie geändert oder gelöscht.
 
 ## 1. Start und GitHub-Onboarding (verbindlich)
 
