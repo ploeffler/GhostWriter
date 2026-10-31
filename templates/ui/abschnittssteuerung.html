@@ -27,6 +27,9 @@
   - Ab 560 px Breite und darunter rutscht "Ghostwriting" unter
     "Recherche", die Steuerleiste bleibt rechts.
 
+  Nachrichten: Klartextzeile plus Block ```gw mit JSON, siehe templates/ui/BEFUELLUNG.md.
+  Aktionen: run.start {section_id, task: research|writing, mode: immediate|scheduled}
+
   Voraussetzungen der Darstellungsumgebung: CSS-Variablen des Hosts
   (--surface-*, --text-*, --border-*, --bg-*, --gap-*, --pad-*, --radius),
   Tabler-Icons (ti-*) und eine globale Funktion sendPrompt(text).
@@ -72,6 +75,7 @@
   </div>
 </div>
 <script>
+function gwSend(text,action,data){var p=Object.assign({action:action},data||{});sendPrompt(text+'\n\n```gw\n'+JSON.stringify(p)+'\n```');}
 (function(){
   var wrap=document.getElementById('gw-abschnittssteuerung');
   var ref='Abschnitt '+wrap.dataset.sectionNumber+' „'+wrap.dataset.sectionTitle+'“ (ID '+wrap.dataset.sectionId+')';
@@ -100,7 +104,7 @@
         card.dataset.done='1';
         opts.forEach(function(x){if(x===b){x.classList.add('sel');}else{x.style.opacity='0.45';}});
         refresh();
-        sendPrompt(texts[card.dataset.task+'|'+b.dataset.mode]);
+        gwSend(texts[card.dataset.task+'|'+b.dataset.mode],'run.start',{section_id:wrap.dataset.sectionId,task:card.dataset.task==='Recherche'?'research':'writing',mode:b.dataset.mode==='sofort'?'immediate':'scheduled'});
       });
     });
   });

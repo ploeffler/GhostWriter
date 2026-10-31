@@ -38,6 +38,9 @@
   - Nur freigegebene Manuskriptinhalte kommen in die Auflage
     (book_releases.approval).
 
+  Nachrichten: Klartextzeile plus Block ```gw mit JSON, siehe templates/ui/BEFUELLUNG.md.
+  Aktionen: edition.create {name, tag, date, formats, notes}, form.cancel
+
   Voraussetzungen der Darstellungsumgebung: CSS-Variablen des Hosts
   (--surface-*, --text-*, --border-*, --bg-*, --gap-*, --pad-*, --radius,
   --font-mono), Tabler-Icons (ti-*) und eine globale Funktion sendPrompt(text).
@@ -95,6 +98,7 @@
   </form>
 </div>
 <script>
+function gwSend(text,action,data){var p=Object.assign({action:action},data||{});sendPrompt(text+'\n\n```gw\n'+JSON.stringify(p)+'\n```');}
 (function(){
   var f=document.getElementById('gw-auflage');
   var $=function(id){return document.getElementById(id);};
@@ -107,8 +111,8 @@
     var formats=[].map.call($('gw-formats').querySelectorAll('.gw-pill'),function(p){return p.textContent.trim();}).join(', ');
     var notes=$('gw-notes').value.trim()||'(keine – Release Notes aus den Änderungen seit der letzten Auflage zusammenstellen)';
     lock();
-    sendPrompt('Neue Auflage erzeugen:\nName: '+f.dataset.name+'\nTag: '+f.dataset.tag+'\nErscheinungsdatum: '+d.value+'\nFormate: '+formats+'\nAnmerkungen: '+notes);
+    gwSend('Neue Auflage erzeugen: '+f.dataset.name,'edition.create',{name:f.dataset.name,tag:f.dataset.tag,date:d.value,formats:formats.split(', '),notes:$('gw-notes').value.trim()});
   });
-  $('gw-cancel').addEventListener('click',function(){lock();sendPrompt('Neue Auflage erzeugen abgebrochen');});
+  $('gw-cancel').addEventListener('click',function(){lock();gwSend('Neue Auflage erzeugen abgebrochen','form.cancel',{form:'edition.create'});});
 })();
 </script>

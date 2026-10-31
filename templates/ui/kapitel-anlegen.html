@@ -30,6 +30,9 @@
   - Ein Kapitel braucht mindestens einen Abschnitt (START.md); den legt
     man danach in der Kapitelansicht an.
 
+  Nachrichten: Klartextzeile plus Block ```gw mit JSON, siehe templates/ui/BEFUELLUNG.md.
+  Aktionen: chapter.create {title, summary, goal, position: Index der Auswahl, 0 = am Anfang}, form.cancel
+
   Voraussetzungen der Darstellungsumgebung: CSS-Variablen des Hosts
   (--surface-*, --text-*, --border-*, --bg-*, --gap-*, --pad-*, --radius),
   Tabler-Icons (ti-*) und eine globale Funktion sendPrompt(text).
@@ -78,6 +81,7 @@
   </form>
 </div>
 <script>
+function gwSend(text,action,data){var p=Object.assign({action:action},data||{});sendPrompt(text+'\n\n```gw\n'+JSON.stringify(p)+'\n```');}
 (function(){
   var f=document.getElementById('gw-kapitel-anlegen');
   var $=function(id){return document.getElementById(id);};
@@ -88,8 +92,9 @@
     if(!t.value.trim()){e.hidden=false;t.focus();return;}
     var v=function(id){return $(id).value.trim()||'(leer)';};
     lock();
-    sendPrompt('Neues Kapitel anlegen:\nTitel: '+v('gw-title')+'\nKurzbeschreibung: '+v('gw-summary')+'\nZiel des Kapitels: '+v('gw-goal')+'\nPosition: '+v('gw-pos'));
+    var s=$('gw-pos');
+    gwSend('Neues Kapitel anlegen: '+$('gw-title').value.trim(),'chapter.create',{title:$('gw-title').value.trim(),summary:$('gw-summary').value.trim(),goal:$('gw-goal').value.trim(),position:s.selectedIndex,position_label:s.value});
   });
-  $('gw-cancel').addEventListener('click',function(){lock();sendPrompt('Neues Kapitel anlegen abgebrochen');});
+  $('gw-cancel').addEventListener('click',function(){lock();gwSend('Neues Kapitel anlegen abgebrochen','form.cancel',{form:'chapter.create'});});
 })();
 </script>

@@ -29,7 +29,9 @@ python scripts/import_manuscript.py tests/fixtures/sources/adhs-im-erwachsenenle
 
 Der Manuskripttext ist unverändert. Jede „##“-Überschrift eines Kapitels wird ein Abschnitt (Status `writing`, Schreibfreigabe erteilt, Faktencheck `optional`). Untertitel und Vorspann, Quellenverzeichnis und Prüfliste stehen in der `README.md` des Kapitels. Ziel und Kurzbeschreibung der Abschnitte sind „Offen.“.
 
-Erfundene Testdaten (Autor, Freigaben, Kosten, Auflage 1) kommen erst im Branch `test/test-book` dazu (Issue #7).
+Erfundene Testdaten (Autor, Freigaben, Kosten, Auflage 1) kommen erst im Branch `test/test-book` dazu. Sie stehen in `test-book.yml`; `scripts/build_test_book.py` baut daraus auf einem frischen Checkout von `main` das Testbuch und schreibt `TESTDATEN.md`. Wie der Branch zurückgesetzt wird, steht dort.
+
+Tag und Release der Testauflage legt das Skript nicht an; das übernimmt die Auflagen-Action (Issue #16).
 
 ## Prüfung
 
