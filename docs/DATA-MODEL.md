@@ -11,16 +11,20 @@ repository/
 ├── research/
 │   └── sources.md
 ├── brainstorming/
+├── costs/
+│   └── project.yml        # projektweite Kosteneinträge
 ├── chapters/
 │   ├── 01-einleitung/
 │   │   ├── README.md
 │   │   ├── sections/
 │   │   │   ├── 01-zielsetzung.md
 │   │   │   └── 02-aufbau.md
-│   │   └── research/
-│   │       └── <section-id>/
-│   │           ├── run-001.md
-│   │           └── run-002.md
+│   │   ├── research/
+│   │   │   └── <section-id>/
+│   │   │       ├── run-001.md
+│   │   │       └── run-002.md
+│   │   └── costs/
+│   │       └── <section-id>.yml   # Kosteneinträge des Abschnitts
 │   └── 02-grundlagen/
 │       ├── README.md
 │       └── sections/
@@ -131,5 +135,24 @@ Bei Abweichungen gilt:
 Jede AI-Aktivität erhält einen eigenen Kosteneintrag, der über die stabile `section_id` einem Abschnitt zugeordnet wird. Die Einträge sind unveränderlich und enthalten mindestens Aktivitäts-ID, Zeitpunkt, Anbieter, Modell, Aktivitätstyp, Abschnitts-ID, Währung, Betrag und Kostenstatus. Token- und sonstige Nutzungsdaten sowie Preisgrundlage und Preisquelle werden ergänzt, soweit verfügbar.
 
 Die Abschnittssumme wird aus den Einträgen berechnet. Die Kapitelsumme ist die Summe seiner Abschnittssummen; die Projektsumme addiert die Kapitelsummen und separat ausgewiesene projektweite Kosten. Es gibt keine manuell duplizierten Kapitel- oder Projektbuchungen. Tatsächliche, geschätzte und manuell erfasste Kosten sind unterscheidbar. Originalwährung und Umrechnungsdaten bleiben nachvollziehbar.
+
+### Ablage
+
+Die Einträge liegen als YAML, eine Datei pro Abschnitt unter `chapters/<kapitel-id>/costs/<abschnitts-id>.yml`; projektweite Kosten, die keinem Abschnitt gehören, in `costs/project.yml`. Neue Einträge werden nur angehängt, bestehende nie verändert. Kapitel- und Projektsummen werden nicht gespeichert, sondern beim Anzeigen berechnet.
+
+```yaml
+# chapters/ch-01-endlich-eine-erklaerung/costs/sec-01-04-die-uhr.yml
+section_id: sec-01-04-die-uhr
+entries:
+  - activity_id: act-2026-10-31-001
+    occurred_at: "2026-10-31T16:45:00+01:00"
+    provider: chat
+    model: ""
+    activity_type: research
+    section_id: sec-01-04-die-uhr
+    currency: EUR
+    cost_amount: 0.12
+    cost_status: estimated      # actual | estimated | manually_entered | unavailable
+```
 
 Für v0.5 genügt die manuelle Erfassung mit Summenbildung. v1.0 ergänzt nach Möglichkeit automatischen Provider-Import, Preisberechnung, Währungsumrechnung und Budgetwarnungen.

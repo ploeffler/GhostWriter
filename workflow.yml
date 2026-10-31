@@ -58,6 +58,12 @@ cost_tracking:
     conversion:
       allowed: true
       require_exchange_rate_and_date: true
+  storage:
+    format: yaml
+    section_ledger_path: "chapters/{chapter_id}/costs/{section_id}.yml"
+    project_ledger_path: "costs/project.yml"
+    one_file_per_section: true
+    append_only: true
   aggregation:
     section_subtotal: sum_of_activity_records_for_section
     chapter_subtotal: sum_of_section_subtotals

@@ -503,7 +503,8 @@
         "aggregation",
         "v0_5",
         "v1_0",
-        "invariants"
+        "invariants",
+        "storage"
       ],
       "properties": {
         "enabled": {
@@ -683,6 +684,34 @@
         },
         "currency_is_configurable": {
           "type": "boolean"
+        },
+        "storage": {
+          "type": "object",
+          "required": [
+            "format",
+            "section_ledger_path",
+            "project_ledger_path",
+            "one_file_per_section",
+            "append_only"
+          ],
+          "properties": {
+            "format": {
+              "const": "yaml"
+            },
+            "section_ledger_path": {
+              "type": "string"
+            },
+            "project_ledger_path": {
+              "type": "string"
+            },
+            "one_file_per_section": {
+              "const": true
+            },
+            "append_only": {
+              "const": true
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
