@@ -21,6 +21,10 @@ Die In-Chat-Version funktioniert mit jedem KI-Chat-Assistenten, der die Anweisun
 
 Menübezeichnungen, Berechtigungsoptionen und verfügbare Werkzeuge unterscheiden sich je nach Anbieter. Maßgeblich ist die Hilfe des jeweiligen Anbieters. Der Benutzer autorisiert selbst. Ghostwriter fragt keine Passwörter oder persönlichen Tokens im Chat ab.
 
+## Entscheidung für v0.5
+
+GhostWriter v0.5 nutzt ausschließlich die In-Chat-Version, Betriebsart A (mit GitHub-Anbindung der Chat-Anwendung). Die eigene Schnittstelle folgt nach v0.5; wie sie schon jetzt berücksichtigt wird, steht in `docs/ARCHITECTURE.md` unter „Betriebsweg bis v0.5: Weg A“.
+
 ## Wichtige Abgrenzung
 Die GitHub-Verbindung einer Chat-Anwendung ist nicht dasselbe wie eine eigene GhostWriter-Schnittstelle (API, MCP-Server oder GitHub-App). Sie lädt START.md nicht automatisch als Systemprompt und stellt keine GhostWriter-spezifischen Operationen bereit. Ein Markdown-Link lädt Dateiinhalte nicht automatisch in den Chat.
 
