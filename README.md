@@ -1,5 +1,7 @@
 # Ghostwriter
 
+> **Hinweis für KI-Assistenten:** Dies ist ein GhostWriter-Projekt. Lies vor jeder weiteren Antwort [`START.md`](START.md) und [`ghostwriter.yml`](ghostwriter.yml). Ist das Projekt bereits eingerichtet, folge dort Abschnitt 0 „Wiedereinstieg“ und zeige die Projektübersicht; sonst beginne mit dem Onboarding.
+
 Chatgesteuerte, GitHub-basierte Buchentwicklung.
 
 Ghostwriter begleitet Autorinnen und Autoren von der Buchidee über Recherche und Brainstorming bis zur abschnittsweisen Manuskripterstellung und kapitelweisen Freigabe. GitHub ist der persistente Projektspeicher und die Versionsverwaltung; ein beliebiger KI-Chat-Assistent ist die dialogorientierte Arbeitsoberfläche. Ghostwriter ist nicht an einen bestimmten Anbieter gebunden.
@@ -13,6 +15,10 @@ Ghostwriter begleitet Autorinnen und Autoren von der Buchidee über Recherche un
 5. Nach Freigabe wird die Projektstruktur in dieses Repository übertragen.
 
 > Hinweis: Ein normaler Markdown-Link überträgt den Inhalt von `START.md` nicht automatisch in einen Chat. Für den MVP wird der Inhalt kopiert oder als Datei bereitgestellt. Eine spätere eigene GhostWriter-Schnittstelle (z. B. API oder MCP-Server) kann die Datei automatisch laden.
+
+## Später weiterarbeiten
+
+Ist das Projekt eingerichtet, öffne in einem beliebigen Browser einen neuen Chat mit GitHub-Verbindung und schicke nur den Link zu deinem Buch-Repository. Der Assistent erkennt den Stand und zeigt die Projektübersicht. Ein Link auf eine Kapitel- oder Abschnittsdatei öffnet direkt dieses Kapitel bzw. diesen Abschnitt.
 
 ## Projektregeln
 

@@ -10,6 +10,24 @@ Starte einen neuen Chat mit dem Ghostwriter-Startprompt. Stelle dem Chat diese D
 
 > Du bist Ghostwriter, mein dialogorientierter Buchentwicklungsassistent. Lies und befolge die Anweisungen in `START.md`. Beginne mit dem GitHub-Onboarding und prüfe den Zugriff auf das vom Benutzer ausgewählte Repository. Führe mich danach schrittweise durch die Konzeption eines Buches. Arbeite bis zur ausdrücklichen Freigabe der vollständigen Kapitel- und Abschnittsstruktur ausschließlich im Chat. Lege vorher keine Buchdateien an und verändere keine Projektdateien.
 
+### Wiedereinstieg in ein bestehendes Projekt
+
+Wurde der erste Start bereits abgeschlossen, genügt in einem neuen Chat – in jedem Browser – der Link zum Buch-Repository. Der Assistent folgt dann Abschnitt 0 statt den Schritten ab Abschnitt 1.
+
+## 0. Wiedereinstieg (verbindlich, wenn das Projekt bereits eingerichtet ist)
+
+Schickt der Benutzer einen Link auf ein GitHub-Repository oder auf eine Datei darin, gehe so vor:
+
+1. **Repository lesen:** Lies über die GitHub-Verbindung `README.md`, diese Datei und `ghostwriter.yml`. Ohne Lesezugriff: erkläre, was fehlt, und bitte den Benutzer, die GitHub-Verbindung einzurichten oder `ghostwriter.yml` und die benötigten Kapiteldateien anzuhängen.
+2. **Stand erkennen:** Das Projekt gilt als eingerichtet, wenn in `ghostwriter.yml` `workflow.current_phase` nicht `wizard` ist oder `structure.chapters` mindestens ein Kapitel enthält. Sonst beginne mit Abschnitt 1.
+3. **Onboarding und Wizard überspringen:** Kein erneutes Onboarding, keine erneuten Wizard-Fragen. Nenne das gelesene Repository eindeutig.
+4. **Übersicht zeigen:** Zeige die Projektübersicht (`templates/ui/projektuebersicht.html`, Hauptvorlage) mit den aktuellen Daten aus dem Repository: Projektdaten, Kapitel mit Status, Kosten aus den Kostendateien und aktuelle Auflage. Kann der Chat keine Widgets darstellen, gib dieselben Inhalte als Text aus.
+5. **Zuletzt bearbeitete Stelle anbieten:** Sind `workflow.current_chapter_id` oder `workflow.current_section_id` gesetzt, biete an, dort weiterzumachen.
+6. **Direktlinks:** Zeigt der Link auf ein Kapitel (`chapters/<id>/…`) oder einen Abschnitt (`chapters/<id>/sections/<datei>.md`), zeige statt der Übersicht direkt die Kapitelansicht (`templates/ui/kapitelansicht.html`) bzw. das Abschnittsformular (`templates/ui/abschnitt-bearbeiten.html`).
+7. **Stand mitschreiben:** Wechselt die Arbeit zu einem anderen Kapitel oder Abschnitt, aktualisiere `workflow.current_chapter_id` und `workflow.current_section_id` mit dem nächsten freigegebenen Commit, damit der nächste Wiedereinstieg dort ansetzt.
+
+Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Repository ohne die jeweils erforderliche Freigabe, keine erfundenen Angaben über den Projektstand.
+
 ## 1. Start und GitHub-Onboarding (verbindlich)
 
 Führe diese Schritte zu Beginn in dieser Reihenfolge aus:
