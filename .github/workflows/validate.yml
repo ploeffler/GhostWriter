@@ -40,3 +40,7 @@ jobs:
             [ -f "$dir/ghostwriter.yml" ] && projects="$projects ${dir%/}"
           done
           python scripts/validate_project.py $projects
+
+
+      - name: Kontextplanung prüfen
+        run: python -m unittest discover -s tests -p "test_context.py"
