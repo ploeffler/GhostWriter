@@ -414,7 +414,11 @@
         "release_must_reference_commit",
         "release_notes_required",
         "approval",
-        "distinction"
+        "distinction",
+        "name_pattern",
+        "edition_numbering",
+        "new_edition_trigger",
+        "corrections_between_editions"
       ],
       "properties": {
         "purpose": {
@@ -423,8 +427,20 @@
         "platform": {
           "const": "github_releases"
         },
+        "name_pattern": {
+          "type": "string"
+        },
         "tag_pattern": {
           "type": "string"
+        },
+        "edition_numbering": {
+          "const": "integer_starting_at_1"
+        },
+        "new_edition_trigger": {
+          "const": "explicit_user_request"
+        },
+        "corrections_between_editions": {
+          "const": "collected_in_repository_until_next_edition"
         },
         "immutable_snapshot": {
           "const": true

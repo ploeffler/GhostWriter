@@ -6,8 +6,8 @@ product_roadmap:
   current_target: "v0.5"
   v0_5:
     purpose: usable_basics
-    scope: [book_project_setup_and_metadata, chapter_and_section_structure, section_based_research_and_brainstorming, drafting_and_revision_with_explicit_approvals, repository_storage_and_version_history, basic_book_export]
-    exclusions: [full_end_to_end_workflow_automation, advanced_issue_and_milestone_orchestration, complete_fact_checking_automation, advanced_multi_format_publishing]
+    scope: [project_create_and_setup, chapter_create_and_setup, chapter_and_section_editing, book_edition_create, book_export_pdf_docx_epub, ai_runs_immediate_in_chat]
+    exclusions: [ai_runs_scheduled_queue, full_end_to_end_workflow_automation, advanced_issue_and_milestone_orchestration, complete_fact_checking_automation]
   v1_0:
     purpose: full_product_expansion
     scope: complete_ghostwriter_target_capabilities
@@ -20,7 +20,11 @@ product_roadmap:
 book_releases:
   purpose: versioned_book_editions
   platform: github_releases
-  tag_pattern: "book-v{major}.{minor}[.{patch}]"
+  name_pattern: "{title_short} – Auflage {edition}"
+  tag_pattern: "{title_short_slug}-auflage-{edition}"
+  edition_numbering: integer_starting_at_1
+  new_edition_trigger: explicit_user_request
+  corrections_between_editions: collected_in_repository_until_next_edition
   immutable_snapshot: true
   release_must_reference_commit: true
   release_notes_required: true

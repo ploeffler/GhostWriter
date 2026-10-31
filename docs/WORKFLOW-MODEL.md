@@ -56,7 +56,14 @@ Die Workflow-Datei definiert das Soll-Verhalten. Sie bedeutet nicht, dass alle b
 
 Die GhostWriter-Produktversion und die Ausgabeversion eines Buches sind getrennte Dinge.
 
-- **GhostWriter v0.5** ist eine bereits nutzbare Basisversion: Buchprojekt und Metadaten, Kapitel-/Abschnittsstruktur, Recherche, Brainstorming, Schreiben, Überarbeitung, explizite Freigaben, GitHub-Ablage und einfacher Buch-Export. Erweiterte Automatisierung darf die Basisnutzung nicht blockieren.
+- **GhostWriter v0.5** ist eine bereits nutzbare Basisversion mit diesem Funktionsumfang:
+  - ein Projekt erstellen und einrichten,
+  - Kapitel erstellen und einrichten,
+  - Kapitel und Abschnitte bearbeiten,
+  - eine Auflage erstellen und ihren Inhalt als PDF, DOCX und EPUB bereitstellen,
+  - AI-Läufe (Recherche, Brainstorming, Schreiben) nur im Modus „Sofort“ direkt im Chat; der Modus „Zeitgesteuert“ über die Cloud-Warteschlange folgt nach v0.5.
+
+  Erweiterte Automatisierung darf die Basisnutzung nicht blockieren.
 - **GhostWriter v1.0** ist der geplante Vollausbau: vollständige Workflow-Automatisierung, GitHub-Issue-/Milestone-Steuerung, robuste Freigabe- und Auditmechanismen, wiederholbare Recherche und Faktenprüfung sowie vollständige Export- und Release-Pipeline.
 - Die Roadmap beschreibt den Zielumfang; Funktionen gelten erst nach Implementierung und Prüfung als umgesetzt.
 
@@ -64,10 +71,12 @@ Die GhostWriter-Produktversion und die Ausgabeversion eines Buches sind getrennt
 
 Jede veröffentlichte Ausgabe des Buches wird als eigener GitHub Release abgebildet. Ein Release ist ein unveränderlicher Snapshot eines konkreten Repository-Commits mit Release Notes und – soweit erzeugt – PDF-, EPUB- und DOCX-Dateien.
 
-- Tags folgen dem Muster `book-vMAJOR.MINOR[.PATCH]`, z. B. `book-v1.0`.
+- Ausgaben heißen **Auflagen** und werden mit ganzen Zahlen ab 1 gezählt. Der Release-Name verbindet Kurztitel und Auflage, z. B. „ADHS im Erwachsenenleben – Auflage 1“.
+- Der Tag ist daraus abgeleitet: Kurztitel in Kleinbuchstaben, Umlaute umgeschrieben, Leer- und Sonderzeichen als Bindestrich, z. B. `adhs-im-erwachsenenleben-auflage-1`.
+- Eine neue Auflage entsteht nur auf ausdrücklichen Wunsch des Benutzers.
 - Nur ausdrücklich freigegebene Manuskriptinhalte dürfen veröffentlicht werden.
 - Release Notes dokumentieren Änderungen gegenüber der vorherigen Ausgabe.
-- Korrekturen erzeugen eine neue Ausgabeversion; bestehende Releases werden nicht stillschweigend verändert.
+- Korrekturen werden im Repository gesammelt und erscheinen mit der nächsten Auflage. Veröffentlichte Auflagen werden nicht verändert.
 - GhostWriter-Produktversionen (v0.5/v1.0), technische Git-Tags und Buchausgaben sind getrennte Versionsräume.
 
 
