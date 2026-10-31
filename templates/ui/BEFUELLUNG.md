@@ -159,7 +159,7 @@ Gestaltung:
 
 | Ansicht | Kürzel |
 |---|---|
-| Projektübersicht | `1`–`N` Kapitel öffnen · `N.M` zuletzt bearbeiteter Abschnitt · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
+| Projektübersicht | `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
 | Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `B` Kapitel bearbeiten · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `Ü` Übersicht |
 | Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck, Freigaben · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
 | Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · `X` bricht ab |
@@ -225,7 +225,8 @@ Nach Speichern, Abbrechen oder „nichts geändert“ zeigt der Assistent sofort
 |---|---|
 | Projektdaten bearbeiten, Projekteinstellungen, Kapitelreihenfolge, Neue Auflage | Projektübersicht |
 | Neues Kapitel anlegen | gespeichert: Kapitelansicht des neuen Kapitels; abgebrochen: Projektübersicht |
-| Kapitel bearbeiten, Abschnittsreihenfolge | Kapitelansicht |
+| Kapitel bearbeiten | Kapitelansicht; mit `BN` aus der Textfassung der Projektübersicht geöffnet: Projektübersicht |
+| Abschnittsreihenfolge | Kapitelansicht |
 | Neuer Abschnitt | gespeichert: Abschnittsformular des neuen Abschnitts; abgebrochen: Kapitelansicht |
 | Abschnitt bearbeiten | Abschnittsformular mit dem neuen Stand; „Zum Kapitel“ führt zurück |
 

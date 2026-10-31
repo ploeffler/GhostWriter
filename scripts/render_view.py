@@ -185,20 +185,25 @@ def project_view(base, config, args):
         if values['PROJECT_DESCRIPTION']:
             lines += [values['PROJECT_DESCRIPTION'], '']
         if rows:
-            lines += ['| # | Kapitel | Kosten | Status |', '|--:|---|--:|---|']
-            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_COST"]} | {status_text(r["CHAPTER_STATUS"])} |' for r in rows]
+            # Letzte Spalte: Kürzel zum Bearbeiten des Kapitels (wie der Bearbeiten-Knopf der Kapitelansicht).
+            lines += ['| # | Kapitel | Kosten | Status | |', '|--:|---|--:|---|:-:|']
+            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_COST"]} | {status_text(r["CHAPTER_STATUS"])} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
         else:
             lines += ['*Noch keine Kapitel.*']
         lines += ['', '---']
-        items = []
+        wf = config.get('workflow') or {}
         if rows:
-            items.append((f'1' + (f'–{len(rows)}' if len(rows) > 1 else ''), 'Kapitel öffnen'))
-        cur = (config.get('workflow') or {}).get('current_section_id')
+            # Ein Kürzel je Kapitel; das zuletzt bearbeitete Kapitel ist fett.
+            chips = [(f'**`📖 {i}`**' if ch['id'] == wf.get('current_chapter_id') else f'`📖 {i}`')
+                     for i, ch in enumerate(chapters, start=1)]
+            lines += ['**Kapitel öffnen:**  ', ' '.join(chips), '', '---']
+        items = []
         for ci, ch in enumerate(chapters, start=1):
             for si, sec in enumerate(ch['sections'], start=1):
-                if sec['id'] == cur:
-                    items.append((f'{ci}.{si}', 'zuletzt bearbeitet'))
-        items += [('P', 'Projektdaten'), ('N', 'Neues Kapitel'), ('R', 'Reihenfolge'), ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
+                if sec['id'] == wf.get('current_section_id'):
+                    items.append((f'{ci}.{si}', 'öffnen (zuletzt bearbeitet)'))
+        items += [('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
+                  ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
         lines += [menu(items)]
         return '\n'.join(lines) + '\n'
     return fill('projektuebersicht.html', values, {'CHAPTERS': rows})
