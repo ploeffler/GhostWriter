@@ -28,6 +28,7 @@
   - {{APPROVED_COUNT_TEXT}}   z. B. "0 von 9"
 
   Wiederholung pro Abschnitt in Reihenfolge zwischen {{#SECTIONS}} und {{/SECTIONS}}:
+  - {{SECTION_ID}}        stabile Abschnitts-ID
   - {{SECTION_NUMBER}}    sichtbare Nummer, z. B. 1.4
   - {{SECTION_TITLE}}     Titel
   - {{SECTION_STATUS}}    Status laut workflow.yml (sections.statuses)
@@ -43,6 +44,9 @@
   Kosten (siehe docs/DATA-MODEL.md): Abschnittssumme aus den Kosteneinträgen,
   Kapitelsumme = Summe der Abschnittssummen. Enthält eine Summe geschätzte
   Kosten, wird "≈ " vorangestellt.
+
+  Nachrichten: Klartextzeile plus Block ```gw mit JSON, siehe templates/ui/BEFUELLUNG.md.
+  Aktionen: view.project, chapter.edit.open, section.create.open, section.reorder.open, view.section
 
   Voraussetzungen der Darstellungsumgebung: CSS-Variablen des Hosts
   (--surface-*, --text-*, --border-*, --bg-*, --gap-*, --pad-*, --radius),
@@ -75,10 +79,10 @@
           <div id="gw-subtitle" style="font-size:14px;color:var(--text-secondary);font-style:italic;margin-top:2px">{{CHAPTER_SUBTITLE}}</div>
         </div>
         <div style="display:flex;gap:var(--gap-sm);margin-left:auto">
-          <button type="button" class="gw-sq" data-p="Zurück zur Projektübersicht" title="Zur Projektübersicht" aria-label="Zur Projektübersicht"><i class="ti ti-arrow-left" aria-hidden="true"></i></button>
-          <button type="button" class="gw-sq" data-p="Kapitel {{CHAPTER_NUMBER}} bearbeiten" title="Kapitel bearbeiten" aria-label="Kapitel bearbeiten"><i class="ti ti-edit" aria-hidden="true"></i></button>
-          <button type="button" class="gw-sq" data-p="Neuen Abschnitt in Kapitel {{CHAPTER_NUMBER}} anlegen" title="Neuer Abschnitt" aria-label="Neuer Abschnitt"><i class="ti ti-plus" aria-hidden="true"></i></button>
-          <button type="button" class="gw-sq" data-p="Abschnittsreihenfolge in Kapitel {{CHAPTER_NUMBER}} ändern" title="Abschnittsreihenfolge ändern" aria-label="Abschnittsreihenfolge ändern"><i class="ti ti-arrows-sort" aria-hidden="true"></i></button>
+          <button type="button" class="gw-sq" data-p="Zurück zur Projektübersicht" data-a="view.project" title="Zur Projektübersicht" aria-label="Zur Projektübersicht"><i class="ti ti-arrow-left" aria-hidden="true"></i></button>
+          <button type="button" class="gw-sq" data-p="Kapitel {{CHAPTER_NUMBER}} bearbeiten" data-a="chapter.edit.open" data-args='{"chapter_id":"{{CHAPTER_ID}}"}' title="Kapitel bearbeiten" aria-label="Kapitel bearbeiten"><i class="ti ti-edit" aria-hidden="true"></i></button>
+          <button type="button" class="gw-sq" data-p="Neuen Abschnitt in Kapitel {{CHAPTER_NUMBER}} anlegen" data-a="section.create.open" data-args='{"chapter_id":"{{CHAPTER_ID}}"}' title="Neuer Abschnitt" aria-label="Neuer Abschnitt"><i class="ti ti-plus" aria-hidden="true"></i></button>
+          <button type="button" class="gw-sq" data-p="Abschnittsreihenfolge in Kapitel {{CHAPTER_NUMBER}} ändern" data-a="section.reorder.open" data-args='{"chapter_id":"{{CHAPTER_ID}}"}' title="Abschnittsreihenfolge ändern" aria-label="Abschnittsreihenfolge ändern"><i class="ti ti-arrows-sort" aria-hidden="true"></i></button>
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--gap-md);flex-wrap:wrap;margin-top:8px">
@@ -96,7 +100,7 @@
       </div>
       <div id="gw-sections" style="display:flex;flex-direction:column;gap:var(--gap-xs)">
         {{#SECTIONS}}
-        <button type="button" class="gw-row" data-number="{{SECTION_NUMBER}}" data-title="{{SECTION_TITLE}}" data-anekdote="{{MARKERS_ANEKDOTE}}" data-quelle="{{MARKERS_QUELLE}}" data-medizin="{{MARKERS_MEDIZIN}}" data-recht="{{MARKERS_RECHT}}"><span class="gw-num">{{SECTION_NUMBER}}</span><span style="flex:1;min-width:0;font-size:14px;font-weight:500">{{SECTION_TITLE}}</span><span class="gw-tags" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"></span><span class="gw-meta" style="min-width:32px;text-align:right" title="Kosten">{{SECTION_COST}}</span><span class="gw-meta">{{SECTION_STATUS}}</span><i class="ti ti-chevron-right" style="font-size:16px;color:var(--text-muted)" aria-hidden="true"></i></button>
+        <button type="button" class="gw-row" data-id="{{SECTION_ID}}" data-number="{{SECTION_NUMBER}}" data-title="{{SECTION_TITLE}}" data-anekdote="{{MARKERS_ANEKDOTE}}" data-quelle="{{MARKERS_QUELLE}}" data-medizin="{{MARKERS_MEDIZIN}}" data-recht="{{MARKERS_RECHT}}"><span class="gw-num">{{SECTION_NUMBER}}</span><span style="flex:1;min-width:0;font-size:14px;font-weight:500">{{SECTION_TITLE}}</span><span class="gw-tags" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"></span><span class="gw-meta" style="min-width:32px;text-align:right" title="Kosten">{{SECTION_COST}}</span><span class="gw-meta">{{SECTION_STATUS}}</span><i class="ti ti-chevron-right" style="font-size:16px;color:var(--text-muted)" aria-hidden="true"></i></button>
         {{/SECTIONS}}
       </div>
     </div>
@@ -106,6 +110,7 @@
   </div>
 </div>
 <script>
+function gwSend(text,action,data){var p=Object.assign({action:action},data||{});sendPrompt(text+'\n\n```gw\n'+JSON.stringify(p)+'\n```');}
 (function(){
   var wrap=document.getElementById('gw-kapitel');
   var sub=document.getElementById('gw-subtitle');
@@ -133,9 +138,9 @@
     if(!box.children.length){
       box.innerHTML='<span class="gw-meta" style="display:flex;align-items:center;gap:4px"><i class="ti ti-check" aria-hidden="true"></i>keine Marker</span>';
     }
-    r.addEventListener('click',function(){sendPrompt('Abschnitt '+r.dataset.number+' „'+r.dataset.title+'“ bearbeiten');});
+    r.addEventListener('click',function(){gwSend('Abschnitt '+r.dataset.number+' „'+r.dataset.title+'“ bearbeiten','view.section',{section_id:r.dataset.id});});
   });
 
-  wrap.querySelectorAll('.gw-sq[data-p]').forEach(function(b){b.addEventListener('click',function(){sendPrompt(b.dataset.p);});});
+  wrap.querySelectorAll('.gw-sq[data-p]').forEach(function(b){b.addEventListener('click',function(){gwSend(b.dataset.p,b.dataset.a,b.dataset.args?JSON.parse(b.dataset.args):{});});});
 })();
 </script>

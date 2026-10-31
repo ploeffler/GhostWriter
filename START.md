@@ -16,17 +16,28 @@ Wurde der erste Start bereits abgeschlossen, genügt in einem neuen Chat – in 
 
 ## 0. Wiedereinstieg (verbindlich, wenn das Projekt bereits eingerichtet ist)
 
-Schickt der Benutzer einen Link auf ein GitHub-Repository oder auf eine Datei darin, gehe so vor:
+Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`…/tree/<branch>`) oder eine Datei, gehe so vor. Bei einem Branch-Link gilt dieser Branch für alles Lesen und für alle Links in den Ansichten.
 
 1. **Repository lesen:** Lies über die GitHub-Verbindung `README.md`, diese Datei und `ghostwriter.yml`. Ohne Lesezugriff: erkläre, was fehlt, und bitte den Benutzer, die GitHub-Verbindung einzurichten oder `ghostwriter.yml` und die benötigten Kapiteldateien anzuhängen.
 2. **Stand erkennen:** Das Projekt gilt als eingerichtet, wenn in `ghostwriter.yml` `workflow.current_phase` nicht `wizard` ist oder `structure.chapters` mindestens ein Kapitel enthält. Sonst beginne mit Abschnitt 1.
 3. **Onboarding und Wizard überspringen:** Kein erneutes Onboarding, keine erneuten Wizard-Fragen. Nenne das gelesene Repository eindeutig.
-4. **Übersicht zeigen:** Zeige die Projektübersicht (`templates/ui/projektuebersicht.html`, Hauptvorlage) mit den aktuellen Daten aus dem Repository: Projektdaten, Kapitel mit Status, Kosten aus den Kostendateien und aktuelle Auflage. Kann der Chat keine Widgets darstellen, gib dieselben Inhalte als Text aus.
+4. **Übersicht zeigen:** Zeige die Projektübersicht (`templates/ui/projektuebersicht.html`, Hauptvorlage) mit den aktuellen Daten aus dem Repository: Projektdaten, Kapitel mit Status, Kosten aus den Kostendateien und aktuelle Auflage. Befülle sie nach `templates/ui/BEFUELLUNG.md`. Kann der Chat keine Widgets darstellen, gib die dort beschriebene Textfassung aus.
 5. **Zuletzt bearbeitete Stelle anbieten:** Sind `workflow.current_chapter_id` oder `workflow.current_section_id` gesetzt, biete an, dort weiterzumachen.
 6. **Direktlinks:** Zeigt der Link auf ein Kapitel (`chapters/<id>/…`) oder einen Abschnitt (`chapters/<id>/sections/<datei>.md`), zeige statt der Übersicht direkt die Kapitelansicht (`templates/ui/kapitelansicht.html`) bzw. das Abschnittsformular (`templates/ui/abschnitt-bearbeiten.html`).
 7. **Stand mitschreiben:** Wechselt die Arbeit zu einem anderen Kapitel oder Abschnitt, aktualisiere `workflow.current_chapter_id` und `workflow.current_section_id` mit dem nächsten freigegebenen Commit, damit der nächste Wiedereinstieg dort ansetzt.
 
 Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Repository ohne die jeweils erforderliche Freigabe, keine erfundenen Angaben über den Projektstand.
+
+### Kein ganzes Buch im Chat (verbindlich)
+
+1. Gib im Chat höchstens den Text eines Abschnitts auf einmal aus, nie ein ganzes Kapitel oder das ganze Buch.
+2. Zusammenführen und Export laufen nur über die GitHub Action, nicht im Chat.
+3. Lesen für Prüfungen ist erlaubt, wenn nötig; das Ergebnis im Chat ist ein Bericht, kein Volltext.
+4. Ganze Dateien gibt es nur als Release-Download auf ausdrückliche Anforderung.
+
+### Nachrichten aus den Vorlagen
+
+Klicks in den Chat-Vorlagen schicken eine Zeile Text und einen Block `gw` mit festen Daten, etwa `{"action":"view.section","section_id":"…"}`. Werte den Block aus; die Aktionen und ihre Daten stehen in `templates/ui/BEFUELLUNG.md`. Freie Eingaben ohne Block bleiben erlaubt.
 
 ## 1. Start und GitHub-Onboarding (verbindlich)
 

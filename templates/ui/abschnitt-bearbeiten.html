@@ -33,8 +33,11 @@
   - {{FACT_CHECK}}              disabled | optional | requested (workflow.yml)
   - {{APPROVAL_WRITING}}        true | false (approvals.writing)
   - {{APPROVAL_SECTION}}        true | false (approvals.section)
-  - {{PREV_SECTION_PROMPT}}     z. B. 'Abschnitt 1.3 „…“ bearbeiten'; leer = erster Abschnitt
-  - {{NEXT_SECTION_PROMPT}}     wie oben; leer = letzter Abschnitt
+  - {{CHAPTER_ID}}              stabile Kapitel-ID
+  - {{PREV_SECTION_ID}}         ID des vorherigen Abschnitts; leer = erster Abschnitt
+  - {{PREV_SECTION_PROMPT}}     z. B. 'Abschnitt 1.3 „…“ bearbeiten'
+  - {{NEXT_SECTION_ID}}         ID des nächsten Abschnitts; leer = letzter Abschnitt
+  - {{NEXT_SECTION_PROMPT}}     wie oben
 
   Wiederholung pro offenem Marker zwischen {{#MARKERS}} und {{/MARKERS}}:
   - {{MARKER_TYPE}}   anekdote | quelle | medizin | recht
@@ -54,6 +57,9 @@
     Widget; es sendet keine Nachricht.
   - Die Abschnittssteuerung sendet dieselben Nachrichten wie
     abschnittssteuerung.html.
+
+  Nachrichten: Klartextzeile plus Block ```gw mit JSON, siehe templates/ui/BEFUELLUNG.md.
+  Aktionen: view.chapter, view.section, run.start, section.update, form.cancel
 
   Voraussetzungen der Darstellungsumgebung: CSS-Variablen des Hosts
   (--surface-*, --text-*, --border-*, --bg-*, --gap-*, --pad-*, --radius,
@@ -88,7 +94,7 @@
 .gw-later{font-size:11px;color:var(--text-muted);margin-left:auto;white-space:nowrap}
 </style>
 <div style="padding:1rem 0">
-  <div class="gw-wrap" id="gw-abschnitt" data-section-id="{{SECTION_ID}}" data-section-number="{{SECTION_NUMBER}}" data-section-title="{{SECTION_TITLE}}" data-fact-check="{{FACT_CHECK}}" data-approval-writing="{{APPROVAL_WRITING}}" data-approval-section="{{APPROVAL_SECTION}}" data-prev="{{PREV_SECTION_PROMPT}}" data-next="{{NEXT_SECTION_PROMPT}}" style="border:0.5px solid var(--border);border-radius:16px;background:var(--surface-1);padding:var(--pad-lg);display:flex;flex-direction:column;gap:var(--gap-md)">
+  <div class="gw-wrap" id="gw-abschnitt" data-section-id="{{SECTION_ID}}" data-section-number="{{SECTION_NUMBER}}" data-section-title="{{SECTION_TITLE}}" data-fact-check="{{FACT_CHECK}}" data-approval-writing="{{APPROVAL_WRITING}}" data-approval-section="{{APPROVAL_SECTION}}" data-chapter-id="{{CHAPTER_ID}}" data-prev="{{PREV_SECTION_PROMPT}}" data-prev-id="{{PREV_SECTION_ID}}" data-next="{{NEXT_SECTION_PROMPT}}" data-next-id="{{NEXT_SECTION_ID}}" style="border:0.5px solid var(--border);border-radius:16px;background:var(--surface-1);padding:var(--pad-lg);display:flex;flex-direction:column;gap:var(--gap-md)">
     <div>
       <div style="display:flex;align-items:flex-start;gap:var(--gap-md);flex-wrap:wrap-reverse">
         <div style="flex:1;min-width:220px">
@@ -99,7 +105,7 @@
           <div style="font-size:20px;font-weight:500;line-height:1.3">{{SECTION_TITLE}}</div>
         </div>
         <div style="display:flex;gap:var(--gap-sm);margin-left:auto">
-          <button type="button" class="gw-sq" data-p="Zurück zu Kapitel {{CHAPTER_NUMBER}}" title="Zum Kapitel" aria-label="Zum Kapitel"><i class="ti ti-arrow-up" aria-hidden="true"></i></button>
+          <button type="button" class="gw-sq" data-p="Zurück zu Kapitel {{CHAPTER_NUMBER}}" data-a="view.chapter" data-args='{"chapter_id":"{{CHAPTER_ID}}"}' title="Zum Kapitel" aria-label="Zum Kapitel"><i class="ti ti-arrow-up" aria-hidden="true"></i></button>
           <button type="button" class="gw-sq" id="gw-prev" title="Vorheriger Abschnitt" aria-label="Vorheriger Abschnitt"><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
           <button type="button" class="gw-sq" id="gw-next" title="Nächster Abschnitt" aria-label="Nächster Abschnitt"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
           <button type="button" class="gw-sq" id="gw-lock" aria-pressed="false" title="Abschnitt sperren" aria-label="Abschnitt sperren"><i class="ti ti-lock-open" aria-hidden="true"></i></button>
@@ -180,6 +186,7 @@
   </div>
 </div>
 <script>
+function gwSend(text,action,data){var p=Object.assign({action:action},data||{});sendPrompt(text+'\n\n```gw\n'+JSON.stringify(p)+'\n```');}
 (function(){
   var wrap=document.getElementById('gw-abschnitt'),d=wrap.dataset;
   var ref='Abschnitt '+d.sectionNumber+' „'+d.sectionTitle+'“ (ID '+d.sectionId+')';
@@ -192,13 +199,13 @@
   $('gw-apw').checked=d.approvalWriting==='true';
   $('gw-aps').checked=d.approvalSection==='true';
 
-  [['gw-prev',d.prev],['gw-next',d.next]].forEach(function(p){
+  [['gw-prev',d.prev,d.prevId],['gw-next',d.next,d.nextId]].forEach(function(p){
     var b=$(p[0]);
-    if(!p[1]){b.disabled=true;return;}
+    if(!p[2]){b.disabled=true;return;}
     b.title=p[1];
-    b.addEventListener('click',function(){sendPrompt(p[1]);});
+    b.addEventListener('click',function(){gwSend(p[1],'view.section',{section_id:p[2]});});
   });
-  wrap.querySelectorAll('.gw-sq[data-p]').forEach(function(b){b.addEventListener('click',function(){sendPrompt(b.dataset.p);});});
+  wrap.querySelectorAll('.gw-sq[data-p]').forEach(function(b){b.addEventListener('click',function(){gwSend(b.dataset.p,b.dataset.a,b.dataset.args?JSON.parse(b.dataset.args):{});});});
 
   var texts={
     'Recherche|zeitgesteuert':'Recherche für '+ref+' zeitgesteuert als Job in die Cloud-Warteschlange übergeben',
@@ -214,7 +221,7 @@
     var o=card.querySelectorAll('.gw-opt');
     o.forEach(function(b){b.addEventListener('click',function(){
       o.forEach(function(x){x.disabled=true;if(x===b)x.classList.add('sel');else x.style.opacity='0.45';});
-      sendPrompt(texts[card.dataset.task+'|'+b.dataset.mode]);
+      gwSend(texts[card.dataset.task+'|'+b.dataset.mode],'run.start',{section_id:d.sectionId,task:card.dataset.task==='Recherche'?'research':'writing',mode:b.dataset.mode==='sofort'?'immediate':'scheduled'});
     });});
   });
 
@@ -232,16 +239,11 @@
   function done(){wrap.querySelectorAll('.gw-lockable input,.gw-lockable textarea,.gw-lockable select,.gw-lockable button').forEach(function(x){x.disabled=true;});}
   var fcText={disabled:'aus',optional:'optional',requested:'angefordert'};
   $('gw-save').addEventListener('click',function(){
-    var v=function(id){return $(id).value.trim()||'(leer)';};
-    var msg=ref+' speichern:'
-      +'\nZiel: '+v('gw-goal')
-      +'\nKurzbeschreibung: '+v('gw-summary')
-      +'\nFaktencheck: '+fcText[$('gw-fc').value]
-      +'\nSchreiben freigegeben: '+($('gw-apw').checked?'ja':'nein')
-      +'\nAbschnitt freigegeben: '+($('gw-aps').checked?'ja':'nein')
-      +'\n\nManuskript:\n'+$('gw-ms').value;
-    done();sendPrompt(msg);
+    var data={section_id:d.sectionId,goal:$('gw-goal').value.trim(),summary:$('gw-summary').value.trim(),
+      fact_check:$('gw-fc').value,approvals:{writing:$('gw-apw').checked,section:$('gw-aps').checked},
+      manuscript:$('gw-ms').value};
+    done();gwSend(ref+' speichern (Faktencheck: '+fcText[data.fact_check]+')','section.update',data);
   });
-  $('gw-cancel').addEventListener('click',function(){done();sendPrompt('Änderungen an '+ref+' verworfen');});
+  $('gw-cancel').addEventListener('click',function(){done();gwSend('Änderungen an '+ref+' verworfen','form.cancel',{form:'section.update',section_id:d.sectionId});});
 })();
 </script>

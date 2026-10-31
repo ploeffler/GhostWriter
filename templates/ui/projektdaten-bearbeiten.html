@@ -27,6 +27,9 @@
     "(leer)" gesendet.
   - Abbrechen meldet nur den Abbruch. Danach ist das Formular gesperrt.
 
+  Nachrichten: Klartextzeile plus Block ```gw mit JSON, siehe templates/ui/BEFUELLUNG.md.
+  Aktionen: project.update {title, title_short, author, description_short, description}, form.cancel
+
   Voraussetzungen der Darstellungsumgebung: CSS-Variablen des Hosts
   (--surface-*, --text-*, --border-*, --bg-*, --gap-*, --pad-*, --radius),
   Tabler-Icons (ti-*) und eine globale Funktion sendPrompt(text).
@@ -77,6 +80,7 @@
   </form>
 </div>
 <script>
+function gwSend(text,action,data){var p=Object.assign({action:action},data||{});sendPrompt(text+'\n\n```gw\n'+JSON.stringify(p)+'\n```');}
 (function(){
   var f=document.getElementById('gw-projektdaten');
   var $=function(id){return document.getElementById(id);};
@@ -87,8 +91,9 @@
     if(!t.value.trim()){e.hidden=false;t.focus();return;}
     var v=function(id){return $(id).value.trim()||'(leer)';};
     lock();
-    sendPrompt('Projektdaten speichern:\nTitel: '+v('gw-title')+'\nKurztitel: '+v('gw-short')+'\nAutor: '+v('gw-author')+'\nKurzbeschreibung: '+v('gw-dshort')+'\nBeschreibung: '+v('gw-desc'));
+    var t=function(id){return $(id).value.trim();};
+    gwSend('Projektdaten speichern: '+t('gw-title'),'project.update',{title:t('gw-title'),title_short:t('gw-short'),author:t('gw-author'),description_short:t('gw-dshort'),description:t('gw-desc')});
   });
-  $('gw-cancel').addEventListener('click',function(){lock();sendPrompt('Projektdaten bearbeiten abgebrochen');});
+  $('gw-cancel').addEventListener('click',function(){lock();gwSend('Projektdaten bearbeiten abgebrochen','form.cancel',{form:'project.update'});});
 })();
 </script>
