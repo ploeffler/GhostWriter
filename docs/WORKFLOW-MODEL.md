@@ -50,3 +50,22 @@ Stabile IDs werden unabhängig von sichtbaren Nummern geführt. Nummern werden a
 - `docs/DATA-MODEL.md`: Dateistruktur und Datenkonventionen.
 
 Die Workflow-Datei definiert das Soll-Verhalten. Sie bedeutet nicht, dass alle beschriebenen Automatisierungen bereits implementiert sind.
+
+
+## Produkt-Roadmap: v0.5 und v1.0
+
+Die GhostWriter-Produktversion und die Ausgabeversion eines Buches sind getrennte Dinge.
+
+- **GhostWriter v0.5** ist eine bereits nutzbare Basisversion: Buchprojekt und Metadaten, Kapitel-/Abschnittsstruktur, Recherche, Brainstorming, Schreiben, Überarbeitung, explizite Freigaben, GitHub-Ablage und einfacher Buch-Export. Erweiterte Automatisierung darf die Basisnutzung nicht blockieren.
+- **GhostWriter v1.0** ist der geplante Vollausbau: vollständige Workflow-Automatisierung, GitHub-Issue-/Milestone-Steuerung, robuste Freigabe- und Auditmechanismen, wiederholbare Recherche und Faktenprüfung sowie vollständige Export- und Release-Pipeline.
+- Die Roadmap beschreibt den Zielumfang; Funktionen gelten erst nach Implementierung und Prüfung als umgesetzt.
+
+## Buchausgaben als GitHub Releases
+
+Jede veröffentlichte Ausgabe des Buches wird als eigener GitHub Release abgebildet. Ein Release ist ein unveränderlicher Snapshot eines konkreten Repository-Commits mit Release Notes und – soweit erzeugt – PDF-, EPUB- und DOCX-Dateien.
+
+- Tags folgen dem Muster `book-vMAJOR.MINOR[.PATCH]`, z. B. `book-v1.0`.
+- Nur ausdrücklich freigegebene Manuskriptinhalte dürfen veröffentlicht werden.
+- Release Notes dokumentieren Änderungen gegenüber der vorherigen Ausgabe.
+- Korrekturen erzeugen eine neue Ausgabeversion; bestehende Releases werden nicht stillschweigend verändert.
+- GhostWriter-Produktversionen (v0.5/v1.0), technische Git-Tags und Buchausgaben sind getrennte Versionsräume.
