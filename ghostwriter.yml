@@ -16,6 +16,37 @@ ai_settings:
   creativity: "balanced"
   web_research: "research"
 
+# Welcher KI-Anbieter übernimmt welche Aufgabe?
+# provider: ID aus providers.yml, "chat" = aktueller Chat-Assistent, "" = noch nicht gewählt
+# model:    frei wählbarer Modellname des Anbieters ("" = Standardmodell des Anbieters)
+# Leere Rollen erben von `default`. Globale KI-Regeln (ai_settings) gelten für alle Anbieter.
+ai_providers:
+  default:
+    provider: "chat"
+    model: ""
+  research:
+    provider: ""
+    model: ""
+    search_tools: []        # optional, IDs aus providers.yml > search_tools
+  brainstorming:
+    provider: ""
+    model: ""
+  writing:
+    provider: ""
+    model: ""
+  revision:
+    provider: ""
+    model: ""
+  fact_check:
+    provider: ""
+    model: ""
+  queue_processing:
+    agent: "manual"         # ID aus providers.yml > queue_agents
+    model: ""
+  rules:
+    fact_check_independent_of_writing: recommended   # recommended | required | off
+    require_web_research_for_research_role: true
+
 workflow:
   current_phase: "wizard"
   current_chapter_id: null

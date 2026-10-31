@@ -4,6 +4,8 @@ type: brainstorming
 section_id: <SECTION-ID>
 status: completed
 date: YYYY-MM-DD
+provider: <ANBIETER-ID aus providers.yml>
+model: <MODELL>
 ---
 
 # Brainstorminglauf 001

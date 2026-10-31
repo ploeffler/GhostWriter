@@ -6,7 +6,8 @@
 repository/
 ├── README.md
 ├── START.md
-├── ghostwriter.yml
+├── ghostwriter.yml        # inkl. ai_providers (Anbieter je Aufgabe)
+├── providers.yml          # Katalog möglicher KI-Anbieter
 ├── research/
 │   └── sources.md
 ├── brainstorming/

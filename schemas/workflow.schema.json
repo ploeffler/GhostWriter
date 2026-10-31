@@ -664,6 +664,64 @@
             "type": "string"
           },
           "minItems": 1
+        },
+        "currency_is_configurable": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "provider_selection": {
+      "type": "object",
+      "required": [
+        "config_source",
+        "catalog",
+        "roles",
+        "record_provider_and_model_per_run"
+      ],
+      "properties": {
+        "purpose": {
+          "type": "string"
+        },
+        "config_source": {
+          "type": "string"
+        },
+        "catalog": {
+          "type": "string"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "research",
+              "brainstorming",
+              "writing",
+              "revision",
+              "fact_check",
+              "queue_processing"
+            ]
+          }
+        },
+        "fallback_role": {
+          "type": "string"
+        },
+        "special_provider_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "queue_processing_uses": {
+          "type": "string"
+        },
+        "record_provider_and_model_per_run": {
+          "const": true
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

@@ -66,8 +66,20 @@ Erarbeite mit mir:
 8. Grobe Kapitelstruktur.
 9. Abschnitte pro Kapitel.
 10. Kurzbeschreibung und Ziel jedes Kapitels und Abschnitts.
+11. KI-Anbieter je Aufgabe: Recherche, Brainstorming, Schreiben, Überarbeiten, Fact-Checking und Queue-Bearbeitung (siehe Abschnitt 4a).
 
 Stelle keine lange Formularliste auf einmal. Führe ein natürliches Gespräch und frage nur nach den Informationen, die als Nächstes gebraucht werden. Unbekannte Angaben dürfen vorläufig offenbleiben.
+
+## 4a. Auswahl der KI-Anbieter
+
+Recherche und Schreiben müssen nicht mit dem Anbieter erfolgen, mit dem gerade gechattet wird. Für das Projekt wird pro Aufgabe festgelegt, welcher Anbieter sie übernimmt. Die Auswahl steht in `ghostwriter.yml` unter `ai_providers`, die möglichen Anbieter in `providers.yml` (Übersicht: `docs/PROVIDERS.md`).
+
+- Frage den Benutzer, ob er für alle Aufgaben den aktuellen Chat-Assistenten (`chat`) verwenden möchte oder einzelne Aufgaben anderen Anbietern zuweisen will. Nicht festgelegte Aufgaben erben von `default`.
+- Für **Recherche** ist ein Anbieter mit Internetrecherche zu bevorzugen; optional können ergänzende Suchquellen (`search_tools`) gewählt werden.
+- Für **Fact-Checking** ist ein vom Schreib-Anbieter unabhängiger Anbieter empfehlenswert.
+- Die **Queue-Bearbeitung** (Abarbeiten von GitHub-Issues) braucht einen Agenten aus `queue_agents`, der technisch mit dem Repository arbeiten kann; Standard ist `manual`.
+- Kannst du einen gewählten Anbieter in dieser Umgebung nicht selbst aufrufen, sage das offen. Bereite dann den Auftrag (Prompt mit allen nötigen Regeln und Eingaben) so vor, dass der Benutzer ihn beim gewählten Anbieter ausführen und das Ergebnis zurück in den Chat geben kann. Ersetze den gewählten Anbieter nie stillschweigend durch einen anderen.
+- Jeder Recherche-, Brainstorming- und Prüflauf dokumentiert Anbieter und Modell. Die globalen KI-Regeln gelten für jeden Anbieter gleichermaßen.
 
 ## 5. Kapitel- und Abschnittsstruktur
 
@@ -99,7 +111,7 @@ Vor der Übertragung:
 
 Die Übertragung umfasst mindestens:
 - `README.md` mit Autor, Titel, Untertitel, Kurzbeschreibung und Kapitelübersicht;
-- `ghostwriter.yml` mit Metadaten, globalen KI-Einstellungen und Status;
+- `ghostwriter.yml` mit Metadaten, globalen KI-Einstellungen, gewählten KI-Anbietern und Status;
 - `chapters/` mit je einem Ordner pro Kapitel;
 - je Kapitel eine `README.md` mit Kapitelziel, Kurzbeschreibung, Abschnittsliste und Status;
 - je Abschnitt eine Markdown-Datei mit Metadaten und Arbeitsstatus.

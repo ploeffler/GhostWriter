@@ -92,6 +92,22 @@ global_ai_policy:
   web_research: research
   override_policy: only_add_stricter_rules
 
+provider_selection:
+  purpose: selectable_ai_provider_per_role
+  config_source: ghostwriter.yml#ai_providers
+  catalog: providers.yml
+  roles: [research, brainstorming, writing, revision, fact_check, queue_processing]
+  fallback_role: default
+  special_provider_ids: [chat]
+  queue_processing_uses: queue_agents
+  record_provider_and_model_per_run: true
+  invariants:
+    - global_ai_policy_applies_to_every_provider
+    - provider_change_never_relaxes_quality_rules
+    - research_role_requires_web_research_or_explicit_uncertainty_label
+    - unavailable_provider_must_be_reported_not_silently_replaced
+    - provider_and_model_recorded_in_every_run_and_cost_record
+
 entities:
   chapter:
     id_pattern: "^ch-[a-z0-9][a-z0-9-]*$"
@@ -111,17 +127,17 @@ runs:
     repeatable: true
     immutable: true
     path: "chapters/{chapter_id}/research/{section_id}/run-{sequence}.md"
-    required_fields: [run_id, created_at, research_question, scope, sources, findings, uncertainties, contradictions, open_questions]
+    required_fields: [run_id, created_at, provider, model, research_question, scope, sources, findings, uncertainties, contradictions, open_questions]
   brainstorming:
     repeatable: true
     immutable: true
     path: "chapters/{chapter_id}/brainstorming/{section_id}/run-{sequence}.md"
-    required_fields: [run_id, created_at, objective, ideas, argument_lines, examples, open_questions, selected_results]
+    required_fields: [run_id, created_at, provider, model, objective, ideas, argument_lines, examples, open_questions, selected_results]
   fact_check:
     repeatable: true
     immutable: true
     path: "chapters/{chapter_id}/fact-check/{section_id}/run-{sequence}.md"
-    required_fields: [run_id, created_at, confirmed_claims, insufficiently_supported_claims, contradictory_claims, potentially_false_claims, proposed_corrections]
+    required_fields: [run_id, created_at, provider, model, confirmed_claims, insufficiently_supported_claims, contradictory_claims, potentially_false_claims, proposed_corrections]
     may_modify_manuscript: false
 
 section_workflow:

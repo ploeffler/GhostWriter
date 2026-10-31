@@ -1,0 +1,284 @@
+# GhostWriter – Katalog möglicher KI-Anbieter
+#
+# Diese Liste ist eine Auswahlhilfe, keine Empfehlung und keine Garantie.
+# Funktionen, Modelle, Preise und Datenschutzbedingungen ändern sich häufig.
+# Vor dem Einsatz beim jeweiligen Anbieter prüfen und `checked_at` aktualisieren.
+#
+# Die IDs werden in ghostwriter.yml unter `ai_providers` verwendet.
+# Modellnamen werden bewusst NICHT hier gepflegt, sondern pro Rolle in
+# ghostwriter.yml (`model`), weil sie sich zu schnell ändern.
+#
+# Felder:
+#   kind:          llm | search_api | scholarly_index | coding_agent | platform | aggregator | local
+#   access:        app (Chat-Oberfläche), api (Programmierschnittstelle), cli
+#   web_research:  native (eingebaute Websuche), via_tool (über Werkzeug/Connector),
+#                  none (keine), n/a (nicht anwendbar)
+#   roles:         research | brainstorming | writing | revision | fact_check | queue_processing
+#   hq:            Sitzland des Anbieters (Ländercode) – sagt nichts über Datenverarbeitungsort aus
+
+version: "1.0"
+checked_at: "2026-10-31"
+
+# Sonderwert: der Assistent, mit dem gerade gechattet wird (egal welcher Anbieter).
+special:
+  - id: chat
+    name: Aktueller Chat-Assistent
+    note: Verwendet den Assistenten der laufenden Sitzung. Standard für die In-Chat-Version.
+
+providers:
+  # --- Große Sprachmodell-Anbieter (Recherche, Brainstorming, Schreiben, Revision, Fact-Check) ---
+  - id: openai
+    name: OpenAI (ChatGPT / OpenAI API)
+    kind: llm
+    hq: US
+    access: [app, api]
+    web_research: native
+    roles: [research, brainstorming, writing, revision, fact_check, queue_processing]
+    queue_agents: [openai_codex]
+    url: https://openai.com
+
+  - id: anthropic
+    name: Anthropic (Claude / Claude API)
+    kind: llm
+    hq: US
+    access: [app, api]
+    web_research: native
+    roles: [research, brainstorming, writing, revision, fact_check, queue_processing]
+    queue_agents: [claude_code]
+    url: https://www.anthropic.com
+
+  - id: google
+    name: Google (Gemini / Gemini API)
+    kind: llm
+    hq: US
+    access: [app, api]
+    web_research: native
+    note: Websuche als „Grounding with Google Search“.
+    roles: [research, brainstorming, writing, revision, fact_check, queue_processing]
+    queue_agents: [google_jules, gemini_cli]
+    url: https://ai.google.dev
+
+  - id: mistral
+    name: Mistral AI (Le Chat / Mistral API)
+    kind: llm
+    hq: FR
+    access: [app, api]
+    web_research: via_tool
+    note: Europäischer Anbieter; Websuche über Agents API / Connector.
+    roles: [research, brainstorming, writing, revision, fact_check]
+    url: https://mistral.ai
+
+  - id: xai
+    name: xAI (Grok / xAI API)
+    kind: llm
+    hq: US
+    access: [app, api]
+    web_research: native
+    roles: [research, brainstorming, writing, revision, fact_check]
+    url: https://x.ai
+
+  - id: perplexity
+    name: Perplexity (App / Sonar API)
+    kind: llm
+    hq: US
+    access: [app, api]
+    web_research: native
+    note: Auf quellenbasierte Recherche spezialisiert; für Langtexte weniger geeignet.
+    roles: [research, fact_check]
+    url: https://www.perplexity.ai
+
+  - id: microsoft_copilot
+    name: Microsoft Copilot
+    kind: llm
+    hq: US
+    access: [app]
+    web_research: native
+    roles: [research, brainstorming, writing, revision]
+    url: https://copilot.microsoft.com
+
+  - id: cohere
+    name: Cohere (Command / Cohere API)
+    kind: llm
+    hq: CA
+    access: [api]
+    web_research: via_tool
+    note: Stark auf Retrieval/RAG mit eigenen Dokumenten ausgerichtet.
+    roles: [research, revision, fact_check]
+    url: https://cohere.com
+
+  - id: deepseek
+    name: DeepSeek
+    kind: llm
+    hq: CN
+    access: [app, api]
+    web_research: via_tool
+    note: Datenschutz und Verarbeitungsort vor Einsatz besonders prüfen.
+    roles: [brainstorming, writing, revision]
+    url: https://www.deepseek.com
+
+  - id: qwen
+    name: Alibaba Qwen
+    kind: llm
+    hq: CN
+    access: [app, api]
+    web_research: via_tool
+    note: Auch als offene Modellgewichte verfügbar (lokal oder über Plattformen nutzbar).
+    roles: [brainstorming, writing, revision]
+    url: https://qwen.ai
+
+  - id: moonshot
+    name: Moonshot AI (Kimi)
+    kind: llm
+    hq: CN
+    access: [app, api]
+    web_research: via_tool
+    roles: [brainstorming, writing, revision]
+    url: https://www.moonshot.ai
+
+  - id: meta_llama
+    name: Meta Llama (offene Modelle)
+    kind: llm
+    hq: US
+    access: [api]
+    web_research: none
+    note: Keine eigene Schreib-App; Nutzung über Plattformen, Aggregatoren oder lokal.
+    roles: [brainstorming, writing, revision]
+    url: https://www.llama.com
+
+  # --- Plattformen und Aggregatoren (Zugang zu mehreren Modellen über eine Schnittstelle) ---
+  - id: openrouter
+    name: OpenRouter
+    kind: aggregator
+    hq: US
+    access: [api]
+    web_research: via_tool
+    note: Ein API-Schlüssel für viele Modelle; Anbieter/Modell dann in `model` angeben.
+    roles: [research, brainstorming, writing, revision, fact_check]
+    url: https://openrouter.ai
+
+  - id: aws_bedrock
+    name: Amazon Bedrock
+    kind: platform
+    hq: US
+    access: [api]
+    web_research: via_tool
+    note: Modelle mehrerer Anbieter; Rechenzentrumsregion wählbar.
+    roles: [brainstorming, writing, revision, fact_check]
+    url: https://aws.amazon.com/bedrock
+
+  - id: azure_ai_foundry
+    name: Microsoft Azure AI Foundry
+    kind: platform
+    hq: US
+    access: [api]
+    web_research: via_tool
+    note: Modelle mehrerer Anbieter; Rechenzentrumsregion wählbar.
+    roles: [brainstorming, writing, revision, fact_check]
+    url: https://azure.microsoft.com/products/ai-foundry
+
+  - id: google_vertex
+    name: Google Cloud Vertex AI
+    kind: platform
+    hq: US
+    access: [api]
+    web_research: via_tool
+    note: Gemini und weitere Modelle; Rechenzentrumsregion wählbar.
+    roles: [research, brainstorming, writing, revision, fact_check]
+    url: https://cloud.google.com/vertex-ai
+
+  # --- Lokal (keine Cloud, keine laufenden Kosten, keine eingebaute Websuche) ---
+  - id: local_ollama
+    name: Ollama (lokal)
+    kind: local
+    hq: n/a
+    access: [api, cli]
+    web_research: none
+    note: Offene Modelle auf eigenem Rechner; Qualität hängt von Modell und Hardware ab.
+    roles: [brainstorming, writing, revision]
+    url: https://ollama.com
+
+  - id: local_lmstudio
+    name: LM Studio (lokal)
+    kind: local
+    hq: n/a
+    access: [app, api]
+    web_research: none
+    roles: [brainstorming, writing, revision]
+    url: https://lmstudio.ai
+
+# Ergänzende Recherchequellen: liefern Suchtreffer/Quellen, schreiben aber keine Texte.
+# Werden in ghostwriter.yml unter ai_providers.research.search_tools eingetragen.
+search_tools:
+  - id: brave_search
+    name: Brave Search API
+    kind: search_api
+    note: Eigener, von Google unabhängiger Index.
+    url: https://brave.com/search/api
+  - id: tavily
+    name: Tavily
+    kind: search_api
+    note: Für KI-Agenten entwickelte Such-API.
+    url: https://tavily.com
+  - id: exa
+    name: Exa
+    kind: search_api
+    note: Semantische Suche, „ähnliche Seiten finden“.
+    url: https://exa.ai
+  - id: parallel
+    name: Parallel
+    kind: search_api
+    note: Liefert für LLMs aufbereitete Auszüge.
+    url: https://parallel.ai
+  - id: perplexity_sonar
+    name: Perplexity Sonar API
+    kind: search_api
+    note: Suche mit zusammengefasster, belegter Antwort.
+    url: https://docs.perplexity.ai
+  - id: serpapi
+    name: SerpAPI
+    kind: search_api
+    note: Ergebnisse klassischer Suchmaschinen inkl. Google Scholar.
+    url: https://serpapi.com
+  - id: semantic_scholar
+    name: Semantic Scholar API
+    kind: scholarly_index
+    note: Wissenschaftliche Literatur, kostenlos nutzbar.
+    url: https://www.semanticscholar.org/product/api
+  - id: openalex
+    name: OpenAlex
+    kind: scholarly_index
+    note: Offener Katalog wissenschaftlicher Publikationen, kostenlos.
+    url: https://openalex.org
+
+# Agenten für die Queue-Bearbeitung (GitHub-Issues abarbeiten, Pull Requests erstellen).
+# Nur hier ist relevant, welcher Chat-/Agent-Anbieter technisch mit dem Repository arbeitet.
+queue_agents:
+  - id: github_copilot_agent
+    name: GitHub Copilot Coding Agent
+    provider: microsoft_copilot
+    note: Issue in GitHub zuweisen; erstellt einen Pull Request.
+    url: https://docs.github.com/copilot
+  - id: openai_codex
+    name: OpenAI Codex
+    provider: openai
+    note: Auch als Partner-Agent direkt in GitHub zuweisbar (je nach Copilot-Plan).
+    url: https://openai.com/codex
+  - id: claude_code
+    name: Claude Code
+    provider: anthropic
+    note: Auch als Partner-Agent direkt in GitHub zuweisbar (je nach Copilot-Plan).
+    url: https://claude.com/claude-code
+  - id: google_jules
+    name: Google Jules
+    provider: google
+    note: Asynchroner Agent, arbeitet mit GitHub-Repositories.
+    url: https://jules.google
+  - id: gemini_cli
+    name: Gemini CLI
+    provider: google
+    note: Kommandozeilen-Agent, z. B. in GitHub Actions einsetzbar.
+    url: https://github.com/google-gemini/gemini-cli
+  - id: manual
+    name: Manuell im Chat
+    provider: chat
+    note: Keine automatische Abarbeitung; der Benutzer bearbeitet Issues gemeinsam mit dem Chat-Assistenten.

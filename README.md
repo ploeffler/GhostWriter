@@ -24,12 +24,15 @@ Die globalen KI-Einstellungen stehen in `ghostwriter.yml` und gelten für Recher
 - Kreativität: `balanced`
 - Internetrecherche: `research`
 
+Welcher KI-Anbieter recherchiert, brainstormt, schreibt, überarbeitet, prüft und die Issue-Queue abarbeitet, ist pro Projekt wählbar (`ghostwriter.yml` → `ai_providers`). Die Liste möglicher Anbieter steht in [`providers.yml`](providers.yml) und [docs/PROVIDERS.md](docs/PROVIDERS.md).
+
 ## Dokumentation
 
 - [Start-Wizard](START.md)
 - [Architektur und Workflow](docs/ARCHITECTURE.md)
 - [Datei- und Statusmodell](docs/DATA-MODEL.md)
 - [Chat- und GitHub-Integration](docs/INTEGRATION.md)
+- [KI-Anbieter und Auswahl](docs/PROVIDERS.md)
 
 ## Grundprinzip
 
