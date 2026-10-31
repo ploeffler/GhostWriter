@@ -17,4 +17,4 @@ Diese Vorlagen sind HTML-Fragmente, die als Inline-Widget im Chat ausgegeben wer
 | Datei | Art | Zweck |
 |---|---|---|
 | `abschnittssteuerung.html` | Aktionspanel | Recherche und Ghostwriting eines Abschnitts zeitgesteuert oder sofort starten; Abschnitt sperren und entsperren |
-| `projektuebersicht.html` | Anzeige | Titel, Kurztitel, Autor, Kurzbeschreibung und Beschreibung des Buchprojekts |
+| `projektuebersicht.html` | Anzeige | Titel, Kurztitel, Autor, Kurzbeschreibung und Beschreibung des Buchprojekts sowie Links zu den Kapiteln |

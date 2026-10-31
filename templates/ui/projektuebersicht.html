@@ -8,6 +8,7 @@
   - Kopf: Buch-Icon, Kurztitel als Badge, Titel, Autor
   - Kurzbeschreibung als hervorgehobener Einleitungssatz
   - Beschreibung als Fließtext
+  - Liste mit Links zu den Kapiteln (Nummer, Titel, Status)
 
   Platzhalter (vor der Ausgabe ersetzen):
   - {{PROJECT_TITLE}}              project.title (bzw. working_title, solange kein Titel feststeht)
@@ -16,6 +17,16 @@
   - {{PROJECT_DESCRIPTION_SHORT}}  project.description_short
   - {{PROJECT_DESCRIPTION}}        ausführliche Beschreibung
 
+  Wiederholung pro Kapitel in Reihenfolge der Struktur:
+  Der Block zwischen {{#CHAPTERS}} und {{/CHAPTERS}} wird für jedes
+  Kapitel einmal ausgegeben; die Marker selbst werden entfernt.
+  - {{CHAPTER_NUMBER}}  sichtbare Kapitelnummer
+  - {{CHAPTER_TITLE}}   Kapiteltitel
+  - {{CHAPTER_STATUS}}  Kapitelstatus, z. B. planned
+  - {{CHAPTER_URL}}     Link zur Kapitelübersicht im Repository:
+                        https://github.com/<OWNER>/<REPO>/blob/<BRANCH>/chapters/<CHAPTER_ID>/README.md
+  Gibt es noch keine Kapitel, entfällt der Abschnitt "Kapitel" ganz.
+
   Hinweis: Kurztitel und ausführliche Beschreibung gibt es in
   ghostwriter.yml noch nicht als eigene Felder.
 
@@ -23,7 +34,11 @@
   (--surface-*, --text-*, --border-*, --bg-*, --gap-*, --pad-*) und
   Tabler-Icons (ti-*).
 -->
-<h2 class="sr-only">Projektübersicht für „{{PROJECT_TITLE}}“ von {{PROJECT_AUTHOR}}.</h2>
+<h2 class="sr-only">Projektübersicht für „{{PROJECT_TITLE}}“ von {{PROJECT_AUTHOR}} mit Links zu den Kapiteln.</h2>
+<style>
+.gw-ch{display:flex;align-items:center;gap:var(--gap-md);padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--surface-2);color:var(--text-primary);text-decoration:none}
+.gw-ch:hover{border-color:var(--border-strong)}
+</style>
 <div style="padding:1rem 0">
   <div style="border:0.5px solid var(--border);border-radius:16px;background:var(--surface-1);padding:var(--pad-lg);display:flex;flex-direction:column;gap:var(--gap-md)">
     <div style="display:flex;align-items:flex-start;gap:var(--gap-md)">
@@ -41,6 +56,14 @@
     <div style="border-top:0.5px solid var(--border);padding-top:var(--pad-md)">
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Beschreibung</div>
       <p style="margin:0;font-size:14px;line-height:1.7;color:var(--text-secondary)">{{PROJECT_DESCRIPTION}}</p>
+    </div>
+    <div style="border-top:0.5px solid var(--border);padding-top:var(--pad-md)">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Kapitel</div>
+      <div style="display:flex;flex-direction:column;gap:var(--gap-xs)">
+        {{#CHAPTERS}}
+        <a class="gw-ch" href="{{CHAPTER_URL}}"><span style="font-size:13px;color:var(--text-muted);min-width:20px">{{CHAPTER_NUMBER}}</span><span style="flex:1;font-size:14px;font-weight:500">{{CHAPTER_TITLE}}</span><span style="font-size:12px;color:var(--text-muted)">{{CHAPTER_STATUS}}</span><i class="ti ti-external-link" style="font-size:16px;color:var(--text-muted)" aria-hidden="true"></i></a>
+        {{/CHAPTERS}}
+      </div>
     </div>
   </div>
 </div>
