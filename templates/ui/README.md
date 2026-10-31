@@ -12,6 +12,8 @@ Diese Vorlagen sind HTML-Fragmente, die als Inline-Widget im Chat ausgegeben wer
 
 **Anzeige**: ein Widget, das nur Informationen zeigt und keine Aktionen auslöst.
 
+**Formular**: ein Widget mit Eingabefeldern. Speichern sendet alle Werte als Nachricht in den Chat, Verwerfen meldet nur den Abbruch; danach ist das Formular gesperrt.
+
 **Symbolleiste**: eine Zeile quadratischer Symbol-Knöpfe innerhalb eines Widgets. Jeder Knopf zeigt seinen Namen beim Darüberfahren und sendet beim Klick eine Nachricht in den Chat.
 
 ## Vorhandene Vorlagen
@@ -23,3 +25,4 @@ Die **Hauptvorlage** ist die Projektübersicht: Sie wird ausgegeben, wenn das Bu
 |---|---|---|
 | `abschnittssteuerung.html` | Aktionspanel | Recherche und Ghostwriting eines Abschnitts zeitgesteuert oder sofort starten; Abschnitt sperren und entsperren |
 | `projektuebersicht.html` | **Hauptvorlage**, Anzeige mit Symbolleiste | Titel, Kurztitel, Autor, bisherige Gesamtkosten, Kurzbeschreibung und Beschreibung des Buchprojekts sowie Links zu den Kapiteln mit Kapitelkosten und Status |
+| `abschnitt-bearbeiten.html` | Formular mit Symbolleiste, enthält die Abschnittssteuerung | Ziel, Kurzbeschreibung, offene Marker, Manuskript, Faktencheck und Freigaben eines Abschnitts bearbeiten |
