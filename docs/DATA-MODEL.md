@@ -152,6 +152,10 @@ Fact-Checking erzeugt einen Bericht mit bestätigten, unzureichend belegten, wid
 - Neue Abschnitte in einem freigegebenen Kapitel setzen den Kapitelstatus auf `in_progress`.
 
 
+## Automatische Prüfung
+
+`scripts/validate_project.py` prüft ein Buchprojekt gegen die Schemas in `schemas/` (`ghostwriter.schema.json`, `section.schema.json`, `costs.schema.json`): Projektdatei, Kopf jeder Abschnittsdatei, Übereinstimmung von IDs, Titeln und Nummern mit `structure.chapters`, Verweise in `workflow` und alle Kostendateien. Die GitHub Action „Projektdateien prüfen“ führt die Prüfung bei jedem Push aus. Ein späteres Backend kann dieselben Schemas verwenden.
+
 ## Verbindliche Workflow-Definition
 
 Die kanonische maschinenlesbare Definition der Zustände, Übergänge, Freigabeschranken und GitHub-Automatisierung liegt in [`workflow.yml`](../workflow.yml). Ihre Struktur wird durch [`schemas/workflow.schema.json`](../schemas/workflow.schema.json) beschrieben. Die Erläuterung steht in [`docs/WORKFLOW-MODEL.md`](WORKFLOW-MODEL.md).

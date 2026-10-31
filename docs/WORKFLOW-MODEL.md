@@ -73,9 +73,9 @@ Der Weg zu v0.5 ist in fünf Stufen geteilt. Jede endet mit einer Abnahme im Cha
 
 | Stufe | Ziel | Abnahme |
 |---|---|---|
-| v0.1 | Datenmodell steht und wird geprüft | Prüf-Action läuft ohne Fehler über das leere Projekt und ein ADHS-Kapitel |
+| v0.1 | Datenmodell steht und wird geprüft | Prüf-Action läuft ohne Fehler über das leere Projekt und das ADHS-Projekt |
 | v0.2 | Testprojekt lesen und anzeigen | Link zum Test-Repo zeigt Übersicht, Kapitel und Abschnitt mit richtigen Summen und Markern |
-| v0.3 | Projekt und Kapitel einrichten und bearbeiten | Im leeren Projekt anlegen, umordnen, speichern und mit Bestätigung freigeben; jede Änderung ein Commit |
+| v0.3 | Projekt und Kapitel einrichten und bearbeiten | Ersten Start auf einem kurzlebigen Branch vom Starter durchlaufen; im Testbuch anlegen, umordnen, speichern und mit Bestätigung freigeben; jede Änderung als Pull Request, Merge per Schaltfläche |
 | v0.4 | AI-Läufe „Sofort“ mit Kosten | Recherche und Ghostwriting für einen ADHS-Abschnitt mit Lauf-Datei, Statuswechsel und Kosteneintrag |
 | v0.5 | Auflage und Export | Auflage 2 mit PDF, DOCX und EPUB; Auflage 1 unverändert; Testplan bestanden |
 
