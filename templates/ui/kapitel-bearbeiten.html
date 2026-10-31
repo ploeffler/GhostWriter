@@ -49,9 +49,8 @@ Keine Status-/Freigabeänderung und keine Umordnung durch dieses Formular.
       </select>
       <div style="display:flex;gap:var(--gap-sm);flex-wrap:wrap">
         <button type="button" class="gw-btn" data-ai-task="research" disabled style="border:0.5px solid var(--border-strong);background:var(--surface-1);color:var(--text-primary)"><i class="ti ti-search" aria-hidden="true"></i> Recherche · Sofort</button>
-        <button type="button" class="gw-btn" data-ai-task="writing" disabled style="border:0.5px solid var(--border-strong);background:var(--surface-1);color:var(--text-primary)"><i class="ti ti-feather" aria-hidden="true"></i> Ghostwriting · Sofort</button>
       </div>
-      <p class="hint" style="margin:0">Direkt im Chat für den gewählten Abschnitt. Änderungen oben werden dabei nicht gespeichert. Ghostwriting benötigt eine Schreibfreigabe.</p>
+      <p class="hint" style="margin:0">Direkt im Chat für den gewählten Abschnitt. Änderungen oben werden dabei nicht gespeichert.</p>
     </section>
     <p class="hint" style="margin:0">Die Kapitelreihenfolge änderst du in der Projektübersicht. Speichern erteilt keine Kapitelfreigabe.</p>
     <div style="display:flex;justify-content:flex-end;gap:var(--gap-sm);border-top:0.5px solid var(--border);padding-top:var(--pad-md)">
@@ -88,7 +87,7 @@ Keine Status-/Freigabeänderung und keine Umordnung durch dieses Formular.
   f.querySelectorAll('[data-ai-task]').forEach(function(button){
     button.addEventListener('click',function(){
       if(busy||!section.value)return;
-      send((button.dataset.aiTask==='research'?'Recherche':'Ghostwriting')+' für '+section.options[section.selectedIndex].text+' sofort im Chat starten',{
+      send('Recherche für '+section.options[section.selectedIndex].text+' sofort im Chat starten',{
         action:'run.start',section_id:section.value,task:button.dataset.aiTask,mode:'immediate'
       });
     });
