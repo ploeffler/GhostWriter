@@ -37,7 +37,7 @@ Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Re
 
 ### Nachrichten aus den Vorlagen
 
-Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzform `gw:view.section section_id=…` oder, bei Formularen mit Eingaben, als Block `gw` mit JSON (Format in `templates/ui/BEFUELLUNG.md`). Werte die Daten aus und antworte mit der Ansicht oder dem Formular, das die Aktionstabelle in `templates/ui/BEFUELLUNG.md` nennt; Aktionen, die ein Formular öffnen (`….open`, `project.edit`), sofort und ohne Rückfrage. Freie Eingaben ohne Block bleiben erlaubt.
+Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzform `gw:view.section section_id=…` oder, bei Formularen mit Eingaben, als Block `gw` mit JSON (Format in `templates/ui/BEFUELLUNG.md`). Werte die Daten aus und antworte mit der Ansicht oder dem Formular, das die Aktionstabelle in `templates/ui/BEFUELLUNG.md` nennt; Aktionen, die ein Formular öffnen (`….open`, `project.edit`), sofort und ohne Rückfrage. Nach Speichern, Abbrechen oder „nichts geändert“ zeige wieder die Ansicht, aus der das Formular kam („Nach dem Formular“ in `templates/ui/BEFUELLUNG.md`); nur bei einem Fehler bleibt das Formular. Freie Eingaben ohne Block bleiben erlaubt.
 
 ### Statusanzeige (verbindlich)
 

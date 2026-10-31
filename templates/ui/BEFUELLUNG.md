@@ -199,9 +199,23 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen, Ergebnis und Kosten speichern | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
 | `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | Vorlage `auflage-erzeugen` (`render_view.py edition-create`) | – |
 | `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | Pull Request für die Auflage anlegen | noch offen |
-| `form.cancel` | `form` und betroffene ID | Formular ohne Änderung geschlossen | kurz bestätigen, nichts schreiben | – |
+| `form.cancel` | `form` und betroffene ID | Formular ohne Änderung geschlossen | nichts schreiben, Ausgangsansicht zeigen (siehe „Nach dem Formular“) | – |
 
 Jede `….open`-Aktion beantwortet der Assistent sofort mit dem genannten Formular, ohne Rückfrage. Eine Reihenfolge wird nur gespeichert, wenn `order` genau die bisherigen IDs enthält; sonst fragt der Assistent nach.
+
+## Nach dem Formular
+
+Nach Speichern, Abbrechen oder „nichts geändert“ zeigt der Assistent sofort wieder die Ansicht, aus der das Formular geöffnet wurde, neu unter dem Formular. Die alte Ansicht bleibt im Verlauf stehen; der Chat kann nicht zurückblättern.
+
+| Formular | Danach |
+|---|---|
+| Projektdaten bearbeiten, Projekteinstellungen, Kapitelreihenfolge, Neue Auflage | Projektübersicht |
+| Neues Kapitel anlegen | gespeichert: Kapitelansicht des neuen Kapitels; abgebrochen: Projektübersicht |
+| Kapitel bearbeiten, Abschnittsreihenfolge | Kapitelansicht |
+| Neuer Abschnitt | gespeichert: Abschnittsformular des neuen Abschnitts; abgebrochen: Kapitelansicht |
+| Abschnitt bearbeiten | Abschnittsformular mit dem neuen Stand; „Zum Kapitel“ führt zurück |
+
+Ausnahme: Schlägt das Speichern fehl (✗), bleibt es beim Formular; der Assistent zeigt es mit den gesendeten Werten erneut, damit keine Eingabe verloren geht.
 
 ## Statustexte
 
