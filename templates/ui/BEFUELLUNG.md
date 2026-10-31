@@ -9,6 +9,7 @@ python scripts/render_view.py <projektordner> section 2.4 [--text]
 python scripts/render_view.py <projektordner> project-edit | project-settings | chapter-create | chapter-reorder | edition-create [--text]
 python scripts/render_view.py <projektordner> project | changes-merge --changes <offene-aenderungen.json> [--head-sha <commit>] [--text]
 python scripts/render_view.py <projektordner> chapter-edit 2 | section-create 2 | section-reorder 2 [--text]
+python scripts/render_view.py <projektordner> approval-writing 2.4 | approval-section 2.4 | approval-chapter 2 [--revoke] [--text]
 ```
 
 ## Ausgabe im Chat
@@ -48,7 +49,7 @@ Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die
 | Marker-Text | `keine offenen Marker`, `1 offener Marker`, `N offene Marker` |
 | Anzahl Abschnitte | `1 Abschnitt`, `N Abschnitte` |
 | Freigegeben | `<Anzahl Abschnitte mit Status approved> von <Anzahl Abschnitte>` |
-| Gelesener Stand (`HEAD_SHA`) | vollständiger Commit-SHA des Stands, aus dem gelesen wurde: Arbeits-Branch, wenn es offene Änderungen gibt, sonst Buch-Branch (`START.md`, „Schreiben ins Repository“). Jede Vorlage bekommt ihn; `gw.js` hängt ihn an jede schreibende Aktion als `expected_head_sha` an |
+| Gelesener Stand (`HEAD_SHA`) | vollständiger Commit-SHA des Stands, aus dem gelesen wurde: Arbeits-Branch, wenn es offene Änderungen gibt, sonst Buch-Branch (`START.md`, „Schreiben ins Repository“). Jede Vorlage bekommt ihn; `gw.js` hängt ihn an jede schreibende Aktion (auch `approval.confirm`) als `expected_head_sha` an |
 | Auflage | `project.current_edition` > 0: „Auflage N“, sonst „noch keine Auflage“ |
 | Sichtbare Nummern | Kapitel- und Abschnittsnummer aus der Reihenfolge in `structure.chapters` |
 | Ziel, Kurzbeschreibung | Text unter `## Ziel des Abschnitts` bzw. `## Kurzbeschreibung`; „Offen.“ gilt als leer |
@@ -86,6 +87,7 @@ Gibt es keinen offenen Pull Request, gibt es keine offenen Änderungen; die Ansi
 | `PROJECT_TITLE_SHORT`, `CHAPTER_ID`, `CHAPTER_NUMBER`, `CHAPTER_TITLE` | Projekt und Kapitel |
 | `CHAPTER_SUBTITLE` | erste kursive Zeile `*…*` in der `README.md` des Kapitels; sonst leer |
 | `SECTION_COUNT_TEXT`, `MARKER_COUNT_TEXT`, `APPROVED_COUNT_TEXT` | wie oben, Marker über alle Abschnitte |
+| `CHAPTER_APPROVABLE` | `true`, wenn das Kapitel auf `ready_for_approval` steht und alle Abschnitte `approved` sind; sonst leer (dann fehlt der Knopf „Kapitel freigeben“) |
 | `CHAPTER_COST`, `CHAPTER_COST_HINT` | Kapitelkosten |
 | Block `SECTIONS`: `SECTION_ID`, `SECTION_NUMBER`, `SECTION_TITLE`, `SECTION_STATUS`, `SECTION_COST`, `MARKERS_ANEKDOTE`, `MARKERS_QUELLE`, `MARKERS_MEDIZIN`, `MARKERS_RECHT` | je Abschnitt; Status aus dem Kopf der Abschnittsdatei |
 
@@ -95,7 +97,7 @@ Gibt es keinen offenen Pull Request, gibt es keine offenen Änderungen; die Ansi
 |---|---|
 | `PROJECT_TITLE_SHORT`, `CHAPTER_ID`, `CHAPTER_NUMBER`, `SECTION_ID`, `SECTION_NUMBER`, `SECTION_TITLE` | Projekt, Kapitel, Abschnitt |
 | `SECTION_STATUS`, `FACT_CHECK` | Kopf der Abschnittsdatei: `status`, `fact_check` |
-| `APPROVAL_WRITING`, `APPROVAL_SECTION` | `approvals.writing`, `approvals.section` als `true`/`false` |
+| `APPROVAL_WRITING`, `APPROVAL_SECTION` | `approvals.writing`, `approvals.section` als `true`/`false`; nur Anzeige, geändert werden sie über „Freigabe bestätigen“ |
 | `SECTION_COST`, `SECTION_COST_HINT` | Abschnittskosten, Tooltip „Summe der Kosteneinträge“ |
 | `SECTION_GOAL`, `SECTION_SUMMARY`, `SECTION_MANUSCRIPT` | Ziel, Kurzbeschreibung, Manuskript |
 | `MARKER_COUNT_TEXT` | Marker des Abschnitts |
@@ -129,6 +131,17 @@ Gibt es keinen offenen Pull Request, gibt es keine offenen Änderungen; die Ansi
 ### `kapitel-bearbeiten.html`
 
 `CHAPTER_ID`, `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_SUBTITLE` wie in der Kapitelansicht; `CHAPTER_SUMMARY` und `CHAPTER_GOAL` aus `## Kurzbeschreibung` und `## Ziel des Kapitels` der Kapitel-README („Offen.“ gilt als leer).
+
+### `freigabe-bestaetigen.html`
+
+| Platzhalter | Quelle |
+|---|---|
+| `APPROVAL_KIND` | `writing`, `section` oder `chapter` aus `approval.open` |
+| `APPROVAL_REVOKE` | `true` beim Zurücknehmen (`revoke` in `approval.open`), sonst leer |
+| `APPROVAL_TITLE`, `APPROVAL_BUTTON`, `APPROVAL_EFFECT` | Überschrift, Knopf und Satz zur Wirkung, je nach Art (Muster: `render_view.py approval-…`) |
+| `TARGET_ID`, `TARGET_LABEL` | Abschnitts- bzw. Kapitel-ID und „Abschnitt N.M „Titel““ bzw. „Kapitel N „Titel““ |
+| `HEAD_SHA`, `HEAD_SHORT` | gelesener Stand, voll und mit 7 Zeichen; er landet als `commit` in `approvals.yml` |
+| Block `CHECKS`: `CHECK_STATE`, `CHECK_TEXT` | Prüfpunkte nach `START.md`, „Freigaben“, Schritt 2: `ok`, `warn` oder `block`; bei `block` ist Bestätigen gesperrt |
 
 ### `aenderungen-uebernehmen.html`
 
@@ -173,7 +186,7 @@ Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown. **Dor
 
 Gestaltung:
 
-- **Überschrift** `###` mit Symbol: 📘 Projekt, 📖 Kapitel, ✏️ Abschnitt, 📝 Bearbeiten, ➕ Anlegen, ↕️ Reihenfolge, ⚙️ Einstellungen, 📚 Auflage, 🔀 Änderungen übernehmen.
+- **Überschrift** `###` mit Symbol: 📘 Projekt, 📖 Kapitel, ✏️ Abschnitt, 📝 Bearbeiten, ➕ Anlegen, ↕️ Reihenfolge, ⚙️ Einstellungen, 📚 Auflage, 🔀 Änderungen übernehmen, ✅ Freigeben, ↩️ Freigabe zurücknehmen.
 - **Status** deutsch mit Symbol: ⚪ geplant, 🔎 Recherche, 💡 Ideensammlung, 🟦 bereit zum Schreiben, ✏️ Schreiben bzw. in Arbeit, 🔁 Überarbeitung, 🔍 Faktencheck bzw. Durchsicht, 🟡 bereit zur Freigabe, ✅ freigegeben.
 - **Marker** als Symbol mit Anzahl: 💬 Anekdote, 📚 Quelle, 🩺 Medizin, ⚖️ Recht; darunter klein die Legende.
 - **Tabellen** für Listen und Felder; Zahlen und Kosten rechtsbündig.
@@ -183,9 +196,9 @@ Gestaltung:
 | Ansicht | Kürzel |
 |---|---|
 | Projektübersicht | `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
-| Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `B` Kapitel bearbeiten · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `Ü` Übersicht |
-| Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck, Freigaben · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
-| Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Änderungen übernehmen: `OK` übernimmt · `X` bricht ab |
+| Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `B` Kapitel bearbeiten · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `FK` Kapitel freigeben (nur wenn möglich) · `Ü` Übersicht |
+| Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` Abschnitt freigeben bzw. zurücknehmen · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
+| Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Änderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · `X` bricht ab |
 
 Ein Kürzel entspricht dem Klick auf den gleichnamigen Knopf; es gelten dieselbe Aktion, dieselben Statuszeilen und dieselbe Ausgangsansicht danach.
 
@@ -232,15 +245,17 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `section.create` | `chapter_id`, `title`, `goal`, `summary`, `fact_check`, `position` (Index, 0 = am Anfang), `position_label`, `expected_head_sha` | Abschnitt anlegen | Abschnittsdatei aus `templates/section.md` anlegen und in `structure.chapters` eintragen, danach Abschnittsformular | `POST …/chapters/{chapter_id}/sections` |
 | `section.reorder.open` | `chapter_id` | Abschnittsreihenfolge ändern | Vorlage `reihenfolge` (`render_view.py section-reorder N`) | – |
 | `section.reorder` | `chapter_id`, `order` (alle Abschnitts-IDs des Kapitels in neuer Reihenfolge), `expected_head_sha` | Abschnittsreihenfolge speichern | `sections` des Kapitels umsortieren; IDs und Dateinamen bleiben; danach Kapitelansicht | `POST …/chapters/{chapter_id}/sections/reorder` |
-| `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `approvals`, `manuscript`, `expected_head_sha` | Abschnitt speichern | Abschnittsdatei schreiben, danach Abschnittsformular | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
+| `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `manuscript`, `expected_head_sha` (nie `approvals`) | Abschnitt speichern | Abschnittsdatei schreiben, danach Abschnittsformular | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
 | `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen, Ergebnis und Kosten speichern | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
 | `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | Vorlage `auflage-erzeugen` (`render_view.py edition-create`) | – |
 | `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | Pull Request für die Auflage anlegen | noch offen |
 | `changes.merge.open` | – | Bestätigung „Änderungen übernehmen“ zeigen (Knopf im Hinweis der Projektübersicht, Textfassung `M`) | offene Änderungen aus GitHub lesen, Vorlage `aenderungen-uebernehmen` (`render_view.py changes-merge`) | `GET …/changes` |
 | `changes.merge` | `pull_request`, `expected_head_sha` | Offene Änderungen übernehmen; der Klick auf „Übernehmen“ bzw. `OK` ist die ausdrückliche Bestätigung | prüfen, dass der Arbeits-Branch noch auf `expected_head_sha` steht (sonst Bestätigung neu zeigen), Pull Request mit Merge-Commit mergen, Arbeits-Branch löschen, danach Projektübersicht | `POST …/changes/merge` |
+| `approval.open` | `kind` (`writing` \| `section` \| `chapter`), `section_id` bzw. `chapter_id`, `revoke` (nur beim Zurücknehmen) | Bestätigung „Freigabe“ zeigen | Vorlage `freigabe-bestaetigen` (`render_view.py approval-<kind> N.M` bzw. `N`, `--revoke`) | – |
+| `approval.confirm` | wie `approval.open`, dazu `expected_head_sha` | Freigabe erteilen bzw. zurücknehmen; der Klick ist die ausdrückliche Bestätigung | Hindernisse erneut prüfen, dann nach `START.md`, „Freigaben“, schreiben; danach die Ausgangsansicht | `POST`/`DELETE …/sections/{section_id}/writing-approval`, `…/sections/{section_id}/approve`, `…/chapters/{chapter_id}/approve` |
 | `form.cancel` | `form` und betroffene ID | Formular ohne Änderung geschlossen | nichts schreiben, Ausgangsansicht zeigen (siehe „Nach dem Formular“) | – |
 
-Schreibende Aktionen (`….update`, `….create` außer `edition.create`, `….reorder`, `changes.merge`) laufen nach `START.md`, „Schreiben ins Repository“: Prüfung gegen `expected_head_sha`, Commit im Arbeits-Branch, kein automatischer Merge.
+Schreibende Aktionen (`….update`, `….create` außer `edition.create`, `….reorder`, `changes.merge`, `approval.confirm`) laufen nach `START.md`, „Schreiben ins Repository“: Prüfung gegen `expected_head_sha`, Commit im Arbeits-Branch, kein automatischer Merge.
 
 Jede `….open`-Aktion beantwortet der Assistent sofort mit dem genannten Formular, ohne Rückfrage. Eine Reihenfolge wird nur gespeichert, wenn `order` genau die bisherigen IDs enthält; sonst fragt der Assistent nach.
 
@@ -256,6 +271,7 @@ Nach Speichern, Abbrechen oder „nichts geändert“ zeigt der Assistent sofort
 | Abschnittsreihenfolge | Kapitelansicht |
 | Neuer Abschnitt | gespeichert: Abschnittsformular des neuen Abschnitts; abgebrochen: Kapitelansicht |
 | Abschnitt bearbeiten | Abschnittsformular mit dem neuen Stand; „Zum Kapitel“ führt zurück |
+| Freigabe bestätigen | Abschnittsfreigaben: Abschnittsformular; Kapitelfreigabe: Kapitelansicht |
 
 Ausnahme: Schlägt das Speichern fehl (✗), bleibt es beim Formular; der Assistent zeigt es mit den gesendeten Werten erneut, damit keine Eingabe verloren geht.
 
@@ -270,6 +286,8 @@ Statuszeilen, Ladetexte und Ergebniszeilen nach `START.md`, „Statusanzeige“.
 | `view.section` | → Lese Abschnitt N.M | Abschnitt N.M wird geladen | – |
 | `project.edit`, `project.settings.open`, alle `….open` | – | Formular wird vorbereitet | – |
 | `changes.merge.open` | → Lese offene Änderungen (Pull Request #NN) | Änderungen werden geladen | – |
+| `approval.open` | → Prüfe die Voraussetzungen für die Freigabe | Freigabe wird vorbereitet | – |
+| `approval.confirm` | → Prüfe die Voraussetzungen erneut · → Prüfe, ob sich die Dateien seit dem Lesen geändert haben · → Speichere die Freigabe und den Eintrag in approvals.yml (Commit im Arbeits-Branch) | – | ✓ Abschnitt N.M freigegeben, Commit `abc1234` · noch nicht übernommen (Pull Request #NN) |
 | `project.update` | → Prüfe Eingaben · → Prüfe, ob sich die Dateien seit dem Lesen geändert haben · → Speichere Projektdaten (Commit im Arbeits-Branch) · → Prüfe Validierung | – | ✓ Projektdaten gespeichert, Commit `abc1234` · noch nicht übernommen (Pull Request #NN) |
 | `chapter.create` | → Lege Kapitel „Titel“ an · → Trage es in ghostwriter.yml ein · → Speichere (Commit) | – | ✓ Kapitel N „Titel“ angelegt, Commit `abc1234` |
 | `section.update` | → Prüfe, ob sich die Datei seit dem Lesen geändert hat · → Speichere Abschnitt N.M (Commit im Arbeits-Branch) | – | ✓ Abschnitt N.M gespeichert, Commit `abc1234` |
@@ -286,4 +304,4 @@ Statuszeilen, Ladetexte und Ergebniszeilen nach `START.md`, „Statusanzeige“.
 
 Mit eigener API bleibt alles gleich, was der Benutzer sieht: dieselben Vorlagen aus `ghostwriter-ui`, dieselben Daten (die Platzhalter oben entsprechen den Feldern der API) und dieselben Nachrichten. Nur die Herkunft der Daten ändert sich; `GW.render` bekommt sie dann aus der Antwort der API statt vom Assistenten.
 
-Eine Freigabe über `section.update` mit `approvals.section: true` ersetzt nicht die ausdrückliche Bestätigung des Benutzers (Issue #10).
+Freigaben gibt es nur über `approval.confirm` (`START.md`, „Freigaben“); `section.update` ändert `approvals` nie (Issue #10).

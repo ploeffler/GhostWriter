@@ -244,7 +244,8 @@ def chapter_view(base, config, args, cnum):
               'SECTION_COUNT_TEXT': f'{n} Abschnitt' + ('' if n == 1 else 'e'),
               'MARKER_COUNT_TEXT': 'keine offenen Marker' if not counts_total else f'{counts_total} offene{"r" if counts_total == 1 else ""} Marker',
               'CHAPTER_COST': money(amount, est), 'CHAPTER_COST_HINT': cost_hint('Summe der Abschnittskosten', amount, est),
-              'APPROVED_COUNT_TEXT': f'{approved} von {n}'}
+              'APPROVED_COUNT_TEXT': f'{approved} von {n}',
+              'CHAPTER_APPROVABLE': 'true' if ch['status'] == 'ready_for_approval' and n and approved == n else ''}
     if args.text:
         def marks(r):
             parts = [f'{MARKER_ICON[k]} {r["MARKERS_" + k.upper()]}' for k in MARKER_ICON if r['MARKERS_' + k.upper()]]
@@ -262,6 +263,8 @@ def chapter_view(base, config, args, cnum):
             lines += ['*Noch keine Abschnitte.*']
         lines += ['', '---']
         items = [(f'{cnum}.1' + (f'–{cnum}.{n}' if n > 1 else ''), 'Abschnitt öffnen')] if rows else []
+        if values['CHAPTER_APPROVABLE']:
+            items.append(('FK', 'Kapitel freigeben'))
         items += [('B', 'Kapitel bearbeiten'), ('N', 'Neuer Abschnitt'), ('R', 'Reihenfolge'), ('Ü', 'Übersicht')]
         lines += [menu(items)]
         return '\n'.join(lines) + '\n'
@@ -307,7 +310,9 @@ def section_view(base, config, args, cnum, snum):
         else:
             lines += ['Keine offenen Marker.', '']
         lines += ['---', '', ms, '', '---']
-        items = [('T', 'Text ändern (geänderten Text schicken)'), ('F', 'Ziel, Faktencheck, Freigaben'),
+        items = [('T', 'Text ändern (geänderten Text schicken)'), ('F', 'Ziel, Kurzbeschreibung, Faktencheck'),
+                 ('FS', 'Schreibfreigabe zurücknehmen' if head['approvals']['writing'] else 'Schreiben freigeben'),
+                 ('FA', 'Abschnittsfreigabe zurücknehmen' if head['approvals']['section'] else 'Abschnitt freigeben'),
                  ('RS', 'Recherche sofort'), ('GS', 'Ghostwriting sofort')]
         if prev_id:
             items.append((f'{cnum}.{snum - 1}', '← vorheriger'))
@@ -419,6 +424,107 @@ def changes_merge_view(base, config, args):
                   '---', '`OK` übernimmt · `X` bricht ab']
         return '\n'.join(lines) + '\n'
     return fill('aenderungen-uebernehmen.html', values, {'CHANGES': rows})
+
+
+EMPTY_MANUSCRIPT = ('', 'Noch nicht begonnen.')
+
+
+def run_count(base, ch, sid, kind):
+    folder = base / ch['path'] / kind / sid
+    return len(list(folder.glob('*.md'))) if folder.is_dir() else 0
+
+
+def approval_view(base, config, args, kind):
+    """Bestätigung einer Freigabe (writing, section, chapter); --revoke nimmt sie zurück."""
+    chapters = config['structure']['chapters']
+    revoke = bool(getattr(args, 'revoke', False))
+    checks = []
+    def add(state, text):
+        checks.append({'CHECK_STATE': state, 'CHECK_TEXT': text})
+    if kind == 'chapter':
+        cnum, ch = chapter_number(config, args.where)
+        target_id, label = ch['id'], f'Kapitel {cnum} „{ch["title"]}“'
+        heads = [section_file(base, s)[0] for s in ch['sections']]
+        open_ = sum(h['status'] != 'approved' for h in heads)
+        if revoke:
+            title, button = 'Kapitelfreigabe zurücknehmen', 'Zurücknehmen'
+            if ch['status'] != 'approved':
+                add('block', 'Das Kapitel ist nicht freigegeben.')
+            effect = 'Das Kapitel wechselt zu „in Arbeit“; die Abschnittsfreigaben bleiben bestehen.'
+        else:
+            title, button = 'Kapitel freigeben', 'Freigeben'
+            if ch['status'] == 'approved':
+                add('block', 'Das Kapitel ist bereits freigegeben.')
+            if open_:
+                add('block', f'{open_} von {len(heads)} Abschnitten sind noch nicht freigegeben.')
+            else:
+                add('ok', f'Alle {len(heads)} Abschnitte sind freigegeben.')
+            if ch['status'] not in ('ready_for_approval', 'approved'):
+                add('block', f'Das Kapitel steht auf „{STATUS_DE.get(ch["status"], ch["status"])}“, nicht auf „bereit zur Freigabe“ '
+                             '(erst zusammenführen und durchsehen).')
+            effect = 'Das Kapitel wird „freigegeben“. Du bestätigst damit das zusammengeführte Kapitel in diesem Stand.'
+    else:
+        c, s_ = (int(x) for x in args.where.split('.'))
+        ch = chapters[c - 1]
+        sec = ch['sections'][s_ - 1]
+        head, goal, summary, ms = section_file(base, sec)
+        target_id, label = sec['id'], f'Abschnitt {c}.{s_} „{sec["title"]}“'
+        ap = head['approvals']
+        if kind == 'writing' and revoke:
+            title, button = 'Schreibfreigabe zurücknehmen', 'Zurücknehmen'
+            if not ap['writing']:
+                add('block', 'Die Schreibfreigabe ist nicht erteilt.')
+            if ap['section']:
+                add('block', 'Der Abschnitt ist freigegeben; zuerst die Abschnittsfreigabe zurücknehmen.')
+            effect = 'Die Schreibfreigabe wird zurückgenommen; das Manuskript bleibt, wie es ist, darf aber erst nach einer neuen Freigabe weiter geschrieben werden.'
+        elif kind == 'writing':
+            title, button = 'Schreiben freigeben', 'Freigeben'
+            if ap['writing']:
+                add('block', 'Die Schreibfreigabe ist bereits erteilt.')
+            add('ok' if goal else 'warn', 'Ziel des Abschnitts ist eingetragen.' if goal else 'Ziel des Abschnitts fehlt noch.')
+            add('ok' if summary else 'warn', 'Kurzbeschreibung ist eingetragen.' if summary else 'Kurzbeschreibung fehlt noch.')
+            for folder, name in (('research', 'Recherchelauf'), ('brainstorming', 'Brainstorminglauf')):
+                k = run_count(base, ch, sec['id'], folder)
+                add('ok' if k else 'warn', f'{k} {name}{"e" if k != 1 else ""} vorhanden.' if k else
+                    f'Noch kein {name} (laut workflow.yml vor der Schreibfreigabe vorgesehen).')
+            effect = 'Die Schreibfreigabe wird erteilt; danach darf das Manuskript geschrieben werden.' + \
+                (' Der Abschnitt wechselt zu „Schreiben“.' if head['status'] in ('planned', 'research', 'brainstorming', 'ready_to_write') else '')
+        elif revoke:
+            title, button = 'Abschnittsfreigabe zurücknehmen', 'Zurücknehmen'
+            if not ap['section']:
+                add('block', 'Der Abschnitt ist nicht freigegeben.')
+            if ch['status'] == 'approved':
+                add('warn', f'Damit wird auch die Freigabe von Kapitel {c} aufgehoben; es wechselt zu „in Arbeit“.')
+            effect = 'Die Abschnittsfreigabe wird zurückgenommen; der Abschnitt wechselt zu „Überarbeitung“.'
+        else:
+            title, button = 'Abschnitt freigeben', 'Freigeben'
+            if ap['section']:
+                add('block', 'Der Abschnitt ist bereits freigegeben.')
+            if not ap['writing']:
+                add('block', 'Die Schreibfreigabe fehlt.')
+            if ms.strip() in EMPTY_MANUSCRIPT:
+                add('block', 'Es gibt noch kein Manuskript.')
+            else:
+                add('ok', f'Manuskript: {len(ms.split())} Wörter.')
+            n = sum(marker_counts(ms).values())
+            add('warn' if n else 'ok', f'{n} offene{"r" if n == 1 else ""} Marker; sie bleiben im freigegebenen Text.' if n else 'Keine offenen Marker.')
+            if head['fact_check'] == 'requested':
+                add('warn', 'Ein Faktencheck ist angefordert; ist er erledigt?')
+            effect = 'Der Abschnitt wird „freigegeben“. Du bestätigst damit den Text, wie er im Abschnittsformular steht.'
+    head_sha = UI.get('head', '')
+    values = {'APPROVAL_KIND': kind, 'APPROVAL_REVOKE': 'true' if revoke else '', 'APPROVAL_TITLE': title,
+              'APPROVAL_BUTTON': button, 'APPROVAL_EFFECT': effect, 'TARGET_ID': target_id, 'TARGET_LABEL': label,
+              'HEAD_SHORT': head_sha[:7] or '–'}
+    if args.text:
+        icon = {'ok': '✅', 'warn': '⚠️', 'block': '⛔'}
+        blocked = any(x['CHECK_STATE'] == 'block' for x in checks)
+        lines = [f'### {"↩️" if revoke else "✅"} {title}', '', f'**{label}** · Stand `{values["HEAD_SHORT"]}`', '']
+        if checks:
+            lines += [f'- {icon[x["CHECK_STATE"]]} {x["CHECK_TEXT"]}' for x in checks] + ['']
+        lines += [effect, '', '---',
+                  'Bestätigen geht erst, wenn die ⛔-Punkte erledigt sind. `X` schließt.' if blocked else '`OK` bestätigt · `X` bricht ab']
+        return '\n'.join(lines) + '\n'
+    return fill('freigabe-bestaetigen.html', values, {'CHECKS': checks})
 
 
 TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'title_page': True,
@@ -544,7 +650,10 @@ def project_settings_view(base, config, args):
 FORMS = {'project-edit': project_edit_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
-         'changes-merge': changes_merge_view}
+         'changes-merge': changes_merge_view,
+         'approval-writing': lambda b, c, a: approval_view(b, c, a, 'writing'),
+         'approval-section': lambda b, c, a: approval_view(b, c, a, 'section'),
+         'approval-chapter': lambda b, c, a: approval_view(b, c, a, 'chapter')}
 
 
 def git_head(base):
@@ -563,6 +672,7 @@ def main():
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
     ap.add_argument('--branch', default='main')
+    ap.add_argument('--revoke', action='store_true', help='bei approval-*: Freigabe zurücknehmen statt erteilen')
     ap.add_argument('--changes', help='JSON-Datei mit den offenen Änderungen (Pull Request, Branches, Commits) für Projektübersicht und changes-merge')
     ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
     ap.add_argument('--ui-ref', help='Commit oder Branch von ghostwriter-ui statt des festen Commits aus templates/ui/ghostwriter-ui.yml (nur zum Testen)')
