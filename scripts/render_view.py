@@ -15,6 +15,7 @@ Text eines Abschnitts.
 """
 import argparse
 import json
+import subprocess
 import re
 import sys
 import unicodedata
@@ -115,6 +116,8 @@ def fill(template, values, blocks=None):
     Maskieren, Wiederholblöcke und data-gw-if erledigt gw.js im Chat."""
     data = dict(values)
     data.update(blocks or {})
+    if UI.get('head'):
+        data['HEAD_SHA'] = UI['head']  # gelesener Stand; gw.js schickt ihn als expected_head_sha zurück
     payload = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     url = UI_URL.format(repo=UI['repo'], ref=UI['ref'])
     return (f'<div id="gw"></div>\n<script src="{url}"></script>\n'
@@ -492,6 +495,14 @@ FORMS = {'project-edit': project_edit_view, 'project-settings': project_settings
          'section-create': section_create_view, 'section-reorder': section_reorder_view}
 
 
+def git_head(base):
+    try:
+        return subprocess.run(['git', '-C', str(base), 'rev-parse', 'HEAD'], capture_output=True, text=True,
+                              check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return ''
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
@@ -500,11 +511,13 @@ def main():
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
     ap.add_argument('--branch', default='main')
+    ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
     ap.add_argument('--ui-ref', help='Commit oder Branch von ghostwriter-ui statt des festen Commits aus templates/ui/ghostwriter-ui.yml (nur zum Testen)')
     args = ap.parse_args()
     ui = yaml.safe_load(UI_CONFIG.read_text(encoding='utf-8'))
     UI['repo'], UI['ref'] = ui['repo'], args.ui_ref or ui['commit']
     base, config = load(args.project)
+    UI['head'] = args.head_sha or git_head(base)
     if args.view in FORMS:
         out = FORMS[args.view](base, config, args)
     elif args.view == 'project':
