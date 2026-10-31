@@ -14,6 +14,8 @@ Diese Vorlagen sind HTML-Fragmente, die als Inline-Widget im Chat ausgegeben wer
 
 **Formular**: ein Widget mit Eingabefeldern. Speichern sendet alle Werte als Nachricht in den Chat, Verwerfen meldet nur den Abbruch; danach ist das Formular gesperrt.
 
+**Knopfleiste**: ein kleines Widget unter einer Textansicht (Markdown). Es enthält keine Inhalte, sondern baut beim Laden aus kompakten Daten eine Zeile Knöpfe für die Einträge der Ansicht und eine Zeile für ihre Aktionen. Projektübersicht und Kapitelansicht werden im Chat als Text + Knopfleiste ausgegeben, weil das viel schneller erscheint als ein volles Widget; siehe `BEFUELLUNG.md`, „Darstellung“.
+
 **Symbolleiste**: eine Zeile quadratischer Symbol-Knöpfe innerhalb eines Widgets. Jeder Knopf zeigt seinen Namen beim Darüberfahren und sendet beim Klick eine Nachricht in den Chat.
 
 ## Vorhandene Vorlagen

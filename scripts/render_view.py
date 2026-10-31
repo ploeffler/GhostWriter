@@ -7,7 +7,10 @@ Aufruf:
   python scripts/render_view.py <projektordner> section <kapitel>.<abschnitt> [--text] ...
 
 Ohne --text wird die befüllte HTML-Vorlage ausgegeben, mit --text die Textfassung
-für Chats ohne Widgets. Gezeigt wird höchstens der Text eines Abschnitts.
+für Chats ohne Widgets. Mit --buttons kommt nach der Textfassung eine Zeile
+KNOPFLEISTE_MARKE und danach der Code der Knopfleiste: ein kleines Widget, das
+seine Knöpfe beim Laden aus kompakten Daten baut (Projektübersicht, Kapitelansicht).
+Gezeigt wird höchstens der Text eines Abschnitts.
 """
 import argparse
 import html
@@ -32,6 +35,12 @@ MARKERS = {
 MARKER_LABEL = {'anekdote': 'Platzhalter-Anekdote', 'quelle': 'Quelle prüfen',
                 'medizin': 'Medizin prüfen', 'recht': 'Recht prüfen'}
 MARKER_TEXT = re.compile(r'\[(PLATZHALTER-ANEKDOTE|QUELLE PRÜFEN|MEDIZIN PRÜFEN|RECHT PRÜFEN)(?::\s*([^\]]*))?\]')
+STATUS_DE = {'planned': 'geplant', 'in_progress': 'in Arbeit', 'ready_for_assembly': 'bereit zum Zusammenführen',
+             'assembly': 'wird zusammengeführt', 'review': 'Durchsicht', 'ready_for_approval': 'bereit zur Freigabe',
+             'approved': 'freigegeben', 'research': 'Recherche', 'brainstorming': 'Ideensammlung',
+             'ready_to_write': 'bereit zum Schreiben', 'writing': 'Schreiben', 'revision': 'Überarbeitung',
+             'fact_check': 'Faktencheck'}
+KNOPFLEISTE_MARKE = '<!-- KNOPFLEISTE -->'
 KIND = {'PLATZHALTER-ANEKDOTE': 'anekdote', 'QUELLE PRÜFEN': 'quelle', 'MEDIZIN PRÜFEN': 'medizin', 'RECHT PRÜFEN': 'recht'}
 
 
@@ -101,6 +110,35 @@ def tag_slug(text):
     return re.sub(r'[^a-z0-9]+', '-', t.lower()).strip('-')
 
 
+# ---------- Knopfleiste ----------
+
+BAR_JS = r"""<div id="s" style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0"></div>
+<div id="b" style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;border-top:0.5px solid var(--border);margin-top:4px"></div>
+<script>
+var L=%s;
+function go(t,a,d){sendPrompt(t+'\n\n```gw\n'+JSON.stringify(Object.assign({action:a},d))+'\n```');}
+function btn(p,t,on,cur){var e=document.createElement('button');e.textContent=t;e.style.cssText='padding:6px 10px;border:0.5px solid '+(cur?'var(--border-accent)':'var(--border-strong)')+';border-radius:var(--radius);background:'+(cur?'var(--bg-accent)':'var(--surface-2)')+';color:'+(cur?'var(--text-accent)':'var(--text-primary)')+';font:inherit;font-size:13px;cursor:pointer';e.onclick=on;p.appendChild(e);}
+var s=document.getElementById('s'),b=document.getElementById('b');
+if(!L.r.length){s.remove();b.style.borderTop='none';}
+L.r.forEach(function(r){var d=Object.assign({},L.x);d[L.k]=L.p+r[1];btn(s,'✎ '+r[0],function(){go(L.t+' '+r[0]+' öffnen',L.a,d);},r[2]);});
+L.b.forEach(function(r){btn(b,r[0],function(){go(r[0],r[1],r[2]);},r[3]);});
+</script>
+"""
+
+
+def button_bar(items, prefix, key, action, prompt, extra, actions):
+    """items: [(Nummer, ID, zuletzt bearbeitet)]; IDs werden ohne gemeinsames Präfix übertragen."""
+    data = {'t': prompt, 'a': action, 'k': key, 'p': prefix, 'x': extra,
+            'r': [[n, i[len(prefix):]] + ([1] if cur else []) for n, i, cur in items],
+            'b': [list(a) for a in actions]}
+    payload = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+    return BAR_JS % payload
+
+
+def with_bar(text, bar):
+    return text + '\n' + KNOPFLEISTE_MARKE + '\n' + bar
+
+
 # ---------- Vorlage befüllen ----------
 
 WIDGET = {'on': False, 'ref': 'main'}
@@ -168,11 +206,26 @@ def project_view(base, config, args):
             lines += [values['PROJECT_DESCRIPTION'], '']
         if rows:
             lines += ['| Nr. | Kapitel | Kosten | Status |', '|---|---|---|---|']
-            lines += [f'| {r["CHAPTER_NUMBER"]} | [{r["CHAPTER_TITLE"]}]({r["CHAPTER_URL"]}) | {r["CHAPTER_COST"]} | {r["CHAPTER_STATUS"]} |' for r in rows]
+            lines += [f'| {r["CHAPTER_NUMBER"]} | [{r["CHAPTER_TITLE"]}]({r["CHAPTER_URL"]}) | {r["CHAPTER_COST"]} | {STATUS_DE.get(r["CHAPTER_STATUS"], r["CHAPTER_STATUS"])} |' for r in rows]
         else:
             lines += ['Noch keine Kapitel.']
-        lines += ['', 'Aktionen: 1 Projektdaten bearbeiten · 2 Neues Kapitel anlegen · 3 Kapitelreihenfolge ändern · 4 Neue Auflage erzeugen · 5 Projekteinstellungen']
-        return '\n'.join(lines) + '\n'
+        if not args.buttons:
+            lines += ['', 'Aktionen: 1 Projektdaten bearbeiten · 2 Neues Kapitel anlegen · 3 Kapitelreihenfolge ändern · 4 Neue Auflage erzeugen · 5 Projekteinstellungen']
+            return '\n'.join(lines) + '\n'
+        wf = config.get('workflow') or {}
+        cur_ch, cur_sec = wf.get('current_chapter_id'), wf.get('current_section_id')
+        actions = []
+        for ci, ch in enumerate(chapters, start=1):
+            for si, sec in enumerate(ch['sections'], start=1):
+                if sec['id'] == cur_sec:
+                    actions.append((f'{ci}.{si} öffnen (zuletzt bearbeitet)', 'view.section',
+                                    {'chapter_id': ch['id'], 'section_id': sec['id']}, 1))
+        actions += [('Projektdaten bearbeiten', 'project.edit', {}), ('Neues Kapitel', 'chapter.create.open', {}),
+                    ('Kapitelreihenfolge', 'chapter.reorder.open', {}), ('Neue Auflage', 'edition.create.open', {}),
+                    ('Einstellungen', 'project.settings.open', {})]
+        items = [(i, ch['id'], ch['id'] == cur_ch) for i, ch in enumerate(chapters, start=1)]
+        bar = button_bar(items, 'ch-', 'chapter_id', 'view.chapter', 'Kapitel', {}, actions)
+        return with_bar('\n'.join(lines) + '\n', bar)
     out = fill('projektuebersicht.html', values, {'CHAPTERS': rows})
     if not rows and not WIDGET['on']:
         # Bereich „Kapitel“ entfällt, solange es keine Kapitel gibt
@@ -209,9 +262,21 @@ def chapter_view(base, config, args, cnum):
         lines = [f'**Kapitel {cnum}: {ch["title"]}**' + (f' – *{values["CHAPTER_SUBTITLE"]}*' if values['CHAPTER_SUBTITLE'] else ''),
                  f'{values["SECTION_COUNT_TEXT"]} · {values["MARKER_COUNT_TEXT"]} · Kosten: {values["CHAPTER_COST"]} · freigegeben: {values["APPROVED_COUNT_TEXT"]}', '',
                  '| Nr. | Abschnitt | Marker (A/Q/M/R) | Kosten | Status |', '|---|---|---|---|---|']
-        lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {r["MARKERS_ANEKDOTE"]}/{r["MARKERS_QUELLE"]}/{r["MARKERS_MEDIZIN"]}/{r["MARKERS_RECHT"]} | {r["SECTION_COST"]} | {r["SECTION_STATUS"]} |' for r in rows]
-        lines += ['', 'Aktionen: Nummer eines Abschnitts zum Bearbeiten · Kapitel bearbeiten · Neuer Abschnitt · Reihenfolge ändern · Zur Übersicht']
-        return '\n'.join(lines) + '\n'
+        lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {r["MARKERS_ANEKDOTE"]}/{r["MARKERS_QUELLE"]}/{r["MARKERS_MEDIZIN"]}/{r["MARKERS_RECHT"]} | {r["SECTION_COST"]} | {STATUS_DE.get(r["SECTION_STATUS"], r["SECTION_STATUS"])} |' for r in rows]
+        lines += ['', 'Marker: A = Anekdote, Q = Quelle, M = Medizin, R = Recht']
+        if not args.buttons:
+            lines += ['', 'Aktionen: Nummer eines Abschnitts zum Bearbeiten · Kapitel bearbeiten · Neuer Abschnitt · Reihenfolge ändern · Zur Übersicht']
+            return '\n'.join(lines) + '\n'
+        cur_sec = (config.get('workflow') or {}).get('current_section_id')
+        prefix = 'sec-' + f'{cnum:02d}-'
+        if not all(sec['id'].startswith(prefix) for sec in ch['sections']):
+            prefix = 'sec-'
+        items = [(f'{cnum}.{si}', sec['id'], sec['id'] == cur_sec) for si, sec in enumerate(ch['sections'], start=1)]
+        actions = [('Zur Übersicht', 'view.project', {}), ('Kapitel bearbeiten', 'chapter.edit.open', {'chapter_id': ch['id']}),
+                   ('Neuer Abschnitt', 'section.create.open', {'chapter_id': ch['id']}),
+                   ('Reihenfolge ändern', 'section.reorder.open', {'chapter_id': ch['id']})]
+        bar = button_bar(items, prefix, 'section_id', 'view.section', 'Abschnitt', {'chapter_id': ch['id']}, actions)
+        return with_bar('\n'.join(lines) + '\n', bar)
     return fill('kapitelansicht.html', values, {'SECTIONS': rows})
 
 
@@ -263,11 +328,16 @@ def main():
     ap.add_argument('view', choices=['project', 'chapter', 'section'])
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
+    ap.add_argument('--buttons', action='store_true', help='Textfassung plus generierte Knopfleiste (project, chapter)')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
     ap.add_argument('--branch', default='main')
     ap.add_argument('--widget', action='store_true', help='Daten plus Ladezeile für ghostwriter-ui statt fertigem HTML')
     ap.add_argument('--ui-ref', default='main', help='Commit oder Branch von ghostwriter-ui für jsDelivr')
     args = ap.parse_args()
+    if args.buttons:
+        if args.view == 'section':
+            ap.error('--buttons gibt es nur für project und chapter; der Abschnitt ist ein Formular')
+        args.text = True
     WIDGET['on'], WIDGET['ref'] = args.widget, args.ui_ref
     base, config = load(args.project)
     if args.view == 'project':
