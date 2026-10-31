@@ -3,9 +3,7 @@ id: <STABILE-ID>
 number: "<KAPITEL>.<ABSCHNITT>"
 title: "<TITEL>"
 status: planned
-fact_check:
-  enabled: false
-  level: standard
+fact_check: optional   # disabled | optional | requested
 approvals:
   writing: false
   section: false
