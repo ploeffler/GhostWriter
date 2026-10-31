@@ -39,6 +39,7 @@ Welcher KI-Anbieter recherchiert, brainstormt, schreibt, überarbeitet, prüft u
 - [Datei- und Statusmodell](docs/DATA-MODEL.md)
 - [Chat- und GitHub-Integration](docs/INTEGRATION.md)
 - [KI-Anbieter und Auswahl](docs/PROVIDERS.md)
+- [GhostWriter mit GitHub verbinden (Connector für claude.ai und ChatGPT)](docs/CONNECTOR-SETUP.md)
 
 ## Grundprinzip
 
