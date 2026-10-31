@@ -57,7 +57,7 @@ Die Pfade sind Entwurf und müssen mit dem implementierten Dienst übereinstimme
 
 ## Projektdaten im Lese-Endpunkt
 
-`GET /v1/projects/{owner}/{repo}` liefert die Projektfelder aus `ghostwriter.yml`, wie sie `docs/DATA-MODEL.md` beschreibt, darunter `title`, `title_short`, `author`, `description_short`, `description` und `current_edition`, dazu `structure.chapters` mit Kapiteln und Abschnitten. Für Abschnitte werden die offenen Marker im Manuskript je Art gezählt (`anekdote`, `quelle`, `medizin`, `recht`), damit Kapitelansicht und Abschnittsformular sie anzeigen können.
+`GET /v1/projects/{owner}/{repo}` liefert die Projektfelder aus `ghostwriter.yml`, wie sie `docs/DATA-MODEL.md` beschreibt, darunter `title`, `title_short`, `author`, `description_short`, `description` und `current_edition`, den Buchsatz `typesetting` (mit Vorgaben ergänzt), dazu `structure.chapters` mit Kapiteln und Abschnitten. Noch offen sind Endpunkte für Projektdaten, Projekteinstellungen (`project.settings.update`) und Reihenfolgen (`chapter.reorder`, `section.reorder`); die Aktionen und ihre Daten stehen in `templates/ui/BEFUELLUNG.md`. Für Abschnitte werden die offenen Marker im Manuskript je Art gezählt (`anekdote`, `quelle`, `medizin`, `recht`), damit Kapitelansicht und Abschnittsformular sie anzeigen können.
 
 ## Gemeinsame Schreibregeln
 Jeder schreibende Request enthält expected_head_sha, idempotency_key und die fachlichen Nutzdaten. Der Dienst validiert Repository-Berechtigung, IDs, Statusübergänge und Freigabevoraussetzungen. Bei einem SHA-Konflikt antwortet er mit 409 Conflict und dem aktuellen Head-SHA. Der Assistent liest den neuen Stand und klärt den Konflikt, bevor er erneut schreibt.
