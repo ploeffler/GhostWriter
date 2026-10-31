@@ -11,6 +11,7 @@ für Chats ohne Widgets. Gezeigt wird höchstens der Text eines Abschnitts.
 """
 import argparse
 import html
+import json
 import re
 import sys
 import unicodedata
@@ -102,7 +103,21 @@ def tag_slug(text):
 
 # ---------- Vorlage befüllen ----------
 
+WIDGET = {'on': False, 'ref': 'main'}
+UI_URL = 'https://cdn.jsdelivr.net/gh/ploeffler/ghostwriter-ui@{ref}/dist/gw.js'
+
+
+def widget(template, values, blocks):
+    data = dict(values)
+    data.update(blocks or {})
+    payload = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+    return (f'<div id="gw"></div>\n<script src="{UI_URL.format(ref=WIDGET["ref"])}"></script>\n'
+            f'<script>GW.render({json.dumps(template[:-5])},{payload})</script>\n')
+
+
 def fill(template, values, blocks=None):
+    if WIDGET['on']:
+        return widget(template, values, blocks)
     text = re.sub(r'\A<!--.*?-->\n', '', (TEMPLATES / template).read_text(encoding='utf-8'), flags=re.S)
     for name, rows in (blocks or {}).items():
         m = re.search(r'\{\{#' + name + r'\}\}\n?(.*?)[ \t]*\{\{/' + name + r'\}\}\n?', text, re.S)
@@ -159,7 +174,7 @@ def project_view(base, config, args):
         lines += ['', 'Aktionen: 1 Projektdaten bearbeiten · 2 Neues Kapitel anlegen · 3 Kapitelreihenfolge ändern · 4 Neue Auflage erzeugen · 5 Projekteinstellungen']
         return '\n'.join(lines) + '\n'
     out = fill('projektuebersicht.html', values, {'CHAPTERS': rows})
-    if not rows:
+    if not rows and not WIDGET['on']:
         # Bereich „Kapitel“ entfällt, solange es keine Kapitel gibt
         out = re.sub(r'\n\s*<div style="border-top:0.5px solid var\(--border\);padding-top:var\(--pad-md\)">\n\s*<div style="font-size:12px;color:var\(--text-muted\);margin-bottom:8px">Kapitel</div>.*?</div>\n\s*</div>', '', out, count=1, flags=re.S)
     return out
@@ -234,7 +249,7 @@ def section_view(base, config, args, cnum, snum):
         lines += ['', '---', '', ms, '', '---', '',
                   'Aktionen: Recherche sofort · Ghostwriting sofort · Speichern (geänderten Text schicken) · Vorheriger/Nächster Abschnitt · Zum Kapitel']
         return '\n'.join(lines) + '\n'
-    if not markers:
+    if not markers and not WIDGET['on']:
         # Bereich „Offene Marker“ entfällt, wenn es keine gibt
         tpl = (TEMPLATES / 'abschnitt-bearbeiten.html').read_text(encoding='utf-8')
         tpl = re.sub(r'\n\s*<div style="border-top:0.5px solid var\(--border\);padding-top:var\(--pad-md\)">\n\s*<div class="gw-lbl">Offene Marker</div>.*?\{\{/MARKERS\}\}\n\s*</div>\n\s*</div>', '', tpl, flags=re.S)
@@ -250,7 +265,10 @@ def main():
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
     ap.add_argument('--branch', default='main')
+    ap.add_argument('--widget', action='store_true', help='Daten plus Ladezeile für ghostwriter-ui statt fertigem HTML')
+    ap.add_argument('--ui-ref', default='main', help='Commit oder Branch von ghostwriter-ui für jsDelivr')
     args = ap.parse_args()
+    WIDGET['on'], WIDGET['ref'] = args.widget, args.ui_ref
     base, config = load(args.project)
     if args.view == 'project':
         out = project_view(base, config, args)
