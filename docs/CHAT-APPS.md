@@ -23,7 +23,7 @@ Belege:
 ## Schreibwege für Weg A
 
 1. **Claude mit Arbeitsumgebung.** Commits, Branches, Pull Requests und Merge funktionieren heute, ebenso die Widgets; Tags und Releases nicht. Abhängig von der Claude-App mit agentischen Sitzungen.
-2. **Eigener Connector mit GitHubs MCP-Server** in Claude und ChatGPT. Einmalige OAuth-Einrichtung je App; welche Schreibwerkzeuge im Chat verfügbar sind, muss praktisch getestet werden.
+2. **Eigener Connector mit GitHubs MCP-Server** in Claude und ChatGPT. Einmalige OAuth-Einrichtung je App; welche Schreibwerkzeuge im Chat verfügbar sind, muss praktisch getestet werden. Anleitung: [CONNECTOR-SETUP.md](CONNECTOR-SETUP.md).
 3. **Rückfall** aus `docs/INTEGRATION.md`, Betriebsart B: Der Assistent gibt geänderte Dateien vollständig aus, der Benutzer committet selbst. Funktioniert überall, aber ohne Pull-Request-Ablauf aus dem Chat.
 
 Keiner der Wege legt verlässlich Tags und Releases an. Vorschlag: Eine Auflage wird ein Pull Request, der `project.current_edition` hochzählt und die Release Notes enthält; nach dem Merge legt eine GitHub Action Tag und Release an und hängt PDF, DOCX und EPUB an (Issues #16 und #17).
