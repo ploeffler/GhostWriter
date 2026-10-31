@@ -48,7 +48,6 @@ Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die
 | Freigegeben | `<Anzahl Abschnitte mit Status approved> von <Anzahl Abschnitte>` |
 | Auflage | `project.current_edition` > 0: „Auflage N“, sonst „noch keine Auflage“ |
 | Sichtbare Nummern | Kapitel- und Abschnittsnummer aus der Reihenfolge in `structure.chapters` |
-| Kapitel-Link | `https://github.com/<owner>/<repo>/blob/<branch>/<kapitelpfad>/README.md`, Branch wie im Link des Benutzers, sonst `main` |
 | Ziel, Kurzbeschreibung | Text unter `## Ziel des Abschnitts` bzw. `## Kurzbeschreibung`; „Offen.“ gilt als leer |
 
 ## Platzhalter je Vorlage
@@ -63,7 +62,7 @@ Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die
 | `PROJECT_DESCRIPTION_SHORT`, `PROJECT_DESCRIPTION` | `project.description_short`, `project.description` |
 | `PROJECT_COST`, `PROJECT_COST_HINT` | Projektkosten, Tooltip „Bisherige Gesamtkosten“ |
 | `PROJECT_EDITION_TEXT` | Auflage |
-| Block `CHAPTERS`: `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_STATUS`, `CHAPTER_COST`, `CHAPTER_COST_HINT`, `CHAPTER_URL` | je Kapitel aus `structure.chapters`, Kosten und Link wie oben; ohne Kapitel entfällt der Bereich „Kapitel“ |
+| Block `CHAPTERS`: `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_STATUS`, `CHAPTER_COST`, `CHAPTER_COST_HINT`, `CHAPTER_ID` | je Kapitel aus `structure.chapters`, Kosten wie oben; `CHAPTER_ID` ist die stabile Kapitel-ID, ein Klick auf das Kapitel schickt `view.chapter`; ohne Kapitel entfällt der Bereich „Kapitel“ |
 
 ### `kapitelansicht.html`
 
