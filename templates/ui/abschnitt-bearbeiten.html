@@ -37,8 +37,9 @@
   - {{NEXT_SECTION_PROMPT}}     wie oben; leer = letzter Abschnitt
 
   Wiederholung pro offenem Marker zwischen {{#MARKERS}} und {{/MARKERS}}:
-  - {{MARKER_TYPE}}   anekdote | quelle | medizin
-  - {{MARKER_LABEL}}  Platzhalter-Anekdote | Quelle prüfen | Medizin prüfen
+  - {{MARKER_TYPE}}   anekdote | quelle | medizin | recht
+  - {{MARKER_LABEL}}  Platzhalter-Anekdote | Quelle prüfen | Medizin prüfen | Recht prüfen
+  Markerarten: siehe docs/DATA-MODEL.md, „Marker im Manuskript“.
   - {{MARKER_TEXT}}   Hinweistext aus dem Marker im Manuskript
   Gibt es keine Marker, entfällt der Bereich "Offene Marker" ganz.
 
@@ -71,6 +72,7 @@
 .gw-mk{display:flex;align-items:flex-start;gap:var(--gap-sm);padding:8px 10px;border-radius:var(--radius);font-size:13px;line-height:1.5;border:0.5px solid var(--border);background:var(--surface-2);color:var(--text-secondary)}
 .gw-mk-quelle{border-color:var(--border-warning);background:var(--bg-warning);color:var(--text-warning)}
 .gw-mk-medizin{border-color:var(--border-danger);background:var(--bg-danger);color:var(--text-danger)}
+.gw-mk-recht{border-color:var(--border-accent);background:var(--bg-accent);color:var(--text-accent)}
 .gw-mk-label{font-weight:500}
 .gw-mk-anekdote .gw-mk-label{color:var(--text-primary)}
 .gw-opt{display:flex;align-items:center;gap:var(--gap-sm);text-align:left;padding:10px 12px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface-2);color:var(--text-primary);cursor:pointer;font:inherit;width:100%}
@@ -183,7 +185,7 @@
   var ref='Abschnitt '+d.sectionNumber+' „'+d.sectionTitle+'“ (ID '+d.sectionId+')';
   var $=function(id){return document.getElementById(id);};
 
-  var icons={anekdote:'ti-quote',quelle:'ti-book',medizin:'ti-stethoscope'};
+  var icons={anekdote:'ti-quote',quelle:'ti-book',medizin:'ti-stethoscope',recht:'ti-scale'};
   wrap.querySelectorAll('.gw-mk-icon').forEach(function(i){i.classList.add(icons[i.dataset.type]||'ti-alert-triangle');});
 
   $('gw-fc').value=d.factCheck||'optional';

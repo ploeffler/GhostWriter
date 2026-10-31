@@ -35,6 +35,8 @@
   - {{MARKERS_ANEKDOTE}}  Anzahl offener Platzhalter-Anekdoten (0, 1, …)
   - {{MARKERS_QUELLE}}    Anzahl offener Quellen-Prüfungen
   - {{MARKERS_MEDIZIN}}   Anzahl offener Medizin-Prüfungen
+  - {{MARKERS_RECHT}}     Anzahl offener Rechts-Prüfungen
+  Markerarten: siehe docs/DATA-MODEL.md, „Marker im Manuskript“.
   Gibt es noch keine Abschnitte, bleibt die Liste leer und das Skript
   zeigt "Noch keine Abschnitte".
 
@@ -54,6 +56,7 @@
 .gw-row:hover{border-color:var(--border-strong)}
 .gw-tag{font-size:11px;padding:1px 7px;border-radius:999px;white-space:nowrap;border:0.5px solid var(--border-warning);background:var(--bg-warning);color:var(--text-warning)}
 .gw-tag.med{border-color:var(--border-danger);background:var(--bg-danger);color:var(--text-danger)}
+.gw-tag.recht{border-color:var(--border-accent);background:var(--bg-accent);color:var(--text-accent)}
 .gw-tag.anek{border-color:var(--border);background:var(--surface-1);color:var(--text-secondary)}
 .gw-num{font-size:13px;color:var(--text-muted);min-width:28px;font-variant-numeric:tabular-nums}
 .gw-meta{font-size:12px;color:var(--text-muted)}
@@ -89,11 +92,11 @@
     <div style="border-top:0.5px solid var(--border);padding-top:var(--pad-md)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <span style="font-size:12px;color:var(--text-muted)">Abschnitte</span>
-        <span style="font-size:12px;color:var(--text-muted);display:flex;gap:6px;flex-wrap:wrap"><span class="gw-tag anek">Anekdote</span><span class="gw-tag">Quelle</span><span class="gw-tag med">Medizin</span></span>
+        <span style="font-size:12px;color:var(--text-muted);display:flex;gap:6px;flex-wrap:wrap"><span class="gw-tag anek">Anekdote</span><span class="gw-tag">Quelle</span><span class="gw-tag med">Medizin</span><span class="gw-tag recht">Recht</span></span>
       </div>
       <div id="gw-sections" style="display:flex;flex-direction:column;gap:var(--gap-xs)">
         {{#SECTIONS}}
-        <button type="button" class="gw-row" data-number="{{SECTION_NUMBER}}" data-title="{{SECTION_TITLE}}" data-anekdote="{{MARKERS_ANEKDOTE}}" data-quelle="{{MARKERS_QUELLE}}" data-medizin="{{MARKERS_MEDIZIN}}"><span class="gw-num">{{SECTION_NUMBER}}</span><span style="flex:1;min-width:0;font-size:14px;font-weight:500">{{SECTION_TITLE}}</span><span class="gw-tags" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"></span><span class="gw-meta" style="min-width:32px;text-align:right" title="Kosten">{{SECTION_COST}}</span><span class="gw-meta">{{SECTION_STATUS}}</span><i class="ti ti-chevron-right" style="font-size:16px;color:var(--text-muted)" aria-hidden="true"></i></button>
+        <button type="button" class="gw-row" data-number="{{SECTION_NUMBER}}" data-title="{{SECTION_TITLE}}" data-anekdote="{{MARKERS_ANEKDOTE}}" data-quelle="{{MARKERS_QUELLE}}" data-medizin="{{MARKERS_MEDIZIN}}" data-recht="{{MARKERS_RECHT}}"><span class="gw-num">{{SECTION_NUMBER}}</span><span style="flex:1;min-width:0;font-size:14px;font-weight:500">{{SECTION_TITLE}}</span><span class="gw-tags" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"></span><span class="gw-meta" style="min-width:32px;text-align:right" title="Kosten">{{SECTION_COST}}</span><span class="gw-meta">{{SECTION_STATUS}}</span><i class="ti ti-chevron-right" style="font-size:16px;color:var(--text-muted)" aria-hidden="true"></i></button>
         {{/SECTIONS}}
       </div>
     </div>
@@ -126,6 +129,7 @@
     add('anek','Anekdote',n('anekdote'));
     add('','Quelle',n('quelle'));
     add('med','Medizin',n('medizin'));
+    add('recht','Recht',n('recht'));
     if(!box.children.length){
       box.innerHTML='<span class="gw-meta" style="display:flex;align-items:center;gap:4px"><i class="ti ti-check" aria-hidden="true"></i>keine Marker</span>';
     }
