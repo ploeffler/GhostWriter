@@ -1,6 +1,36 @@
 version: "1.0"
 id: ghostwriter-book-workflow
 language: de
+
+product_roadmap:
+  current_target: "v0.5"
+  v0_5:
+    purpose: usable_basics
+    scope: [book_project_setup_and_metadata, chapter_and_section_structure, section_based_research_and_brainstorming, drafting_and_revision_with_explicit_approvals, repository_storage_and_version_history, basic_book_export]
+    exclusions: [full_end_to_end_workflow_automation, advanced_issue_and_milestone_orchestration, complete_fact_checking_automation, advanced_multi_format_publishing]
+  v1_0:
+    purpose: full_product_expansion
+    scope: complete_ghostwriter_target_capabilities
+    requires: [complete_workflow_automation, github_issue_and_milestone_orchestration, robust_approval_and_audit_controls, repeatable_research_and_fact_checking, complete_export_and_release_pipeline, workflow_validation_and_quality_gates]
+  delivery_policy:
+    incremental_delivery: true
+    v0_5_must_be_useful_without_v1_0_features: true
+    do_not_block_basic_book_work_on_advanced_automation: true
+
+book_releases:
+  purpose: versioned_book_editions
+  platform: github_releases
+  tag_pattern: "book-v{major}.{minor}[.{patch}]"
+  immutable_snapshot: true
+  release_must_reference_commit: true
+  release_notes_required: true
+  assets: [pdf, epub, docx]
+  approval:
+    explicit_user_approval_required: true
+    only_approved_manuscript_content_may_be_released: true
+  distinction:
+    product_milestones_are_not_book_releases: true
+    github_software_tags_are_not_book_edition_tags: true
 authority:
   source_of_truth: workflow.yml
   project_metadata: ghostwriter.yml
