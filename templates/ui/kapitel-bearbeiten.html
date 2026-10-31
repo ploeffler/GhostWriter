@@ -1,0 +1,73 @@
+<!--
+Vorlage: Kapitel bearbeiten. Öffnen: chapter.edit.open {chapter_id}.
+HTML-maskierte Platzhalter: CHAPTER_ID (stabile ID), CHAPTER_NUMBER (aus Reihenfolge),
+CHAPTER_TITLE (structure.chapters[].title), CHAPTER_SUMMARY und CHAPTER_GOAL
+(aus Kurzbeschreibung / Ziel des Kapitels in Kapitel-README), EXPECTED_HEAD_SHA
+(Commit des gelesenen Branchstands). Befüllung und Schreibregeln: BEFUELLUNG.md.
+Host: CSS-Variablen wie kapitel-anlegen.html, Tabler-Icons, sendPrompt(text).
+Titel ist Pflicht, Beschreibung und Ziel dürfen leer bleiben. Speichern sendet
+chapter.update als gw-JSON, Abbrechen nur form.cancel. Danach gesperrt.
+Keine Status-/Freigabeänderung und keine Umordnung durch dieses Formular.
+-->
+<h2 class="sr-only">Kapitel {{CHAPTER_NUMBER}} bearbeiten: Titel, Kurzbeschreibung und Ziel.</h2>
+<style>
+.gw-f label{display:block;font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:4px}
+.gw-f .hint{font-size:12px;color:var(--text-muted);font-weight:400}
+.gw-f input,.gw-f textarea,.gw-f select{width:100%;box-sizing:border-box;padding:9px 12px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface-2);color:var(--text-primary);font:inherit;font-size:14px}
+.gw-f input:focus,.gw-f textarea:focus,.gw-f select:focus{outline:none;border-color:var(--border-accent)}
+.gw-f textarea{resize:vertical;line-height:1.6}
+.gw-err{font-size:13px;color:var(--text-danger);margin-top:4px}
+.gw-btn{padding:9px 16px;border-radius:var(--radius);font:inherit;font-size:14px;font-weight:500;cursor:pointer}
+</style>
+<div style="padding:1rem 0">
+  <form class="gw-f" id="gw-kapitel-bearbeiten" data-chapter-id="{{CHAPTER_ID}}" data-chapter-number="{{CHAPTER_NUMBER}}" data-head-sha="{{EXPECTED_HEAD_SHA}}" novalidate style="border:0.5px solid var(--border);border-radius:16px;background:var(--surface-1);padding:var(--pad-lg);display:flex;flex-direction:column;gap:var(--gap-md)">
+    <div style="display:flex;align-items:center;gap:var(--gap-sm)">
+      <i class="ti ti-edit" style="font-size:18px;color:var(--text-secondary)" aria-hidden="true"></i>
+      <span style="font-size:16px;font-weight:500">Kapitel {{CHAPTER_NUMBER}} bearbeiten</span>
+    </div>
+    <div>
+      <label for="gw-title">Titel</label>
+      <input id="gw-title" value="{{CHAPTER_TITLE}}" required aria-describedby="gw-title-err" placeholder="Titel des Kapitels">
+      <div class="gw-err" id="gw-title-err" role="alert" hidden>Bitte einen Titel eingeben.</div>
+    </div>
+    <div>
+      <label for="gw-summary">Kurzbeschreibung <span class="hint">kurze Zusammenfassung des Kapitels</span></label>
+      <textarea id="gw-summary" rows="3">{{CHAPTER_SUMMARY}}</textarea>
+    </div>
+    <div>
+      <label for="gw-goal">Ziel des Kapitels <span class="hint">was soll der Leser danach verstanden haben?</span></label>
+      <textarea id="gw-goal" rows="3">{{CHAPTER_GOAL}}</textarea>
+    </div>
+    <p class="hint" style="margin:0">Die Kapitelreihenfolge änderst du in der Projektübersicht. Speichern erteilt keine Kapitelfreigabe.</p>
+    <div style="display:flex;justify-content:flex-end;gap:var(--gap-sm);border-top:0.5px solid var(--border);padding-top:var(--pad-md)">
+      <button type="button" class="gw-btn" id="gw-cancel" style="border:0.5px solid var(--border-strong);background:transparent;color:var(--text-primary)">Abbrechen</button>
+      <button type="button" class="gw-btn" id="gw-save" style="border:0.5px solid var(--border-accent);background:var(--bg-accent);color:var(--text-accent)">Speichern</button>
+    </div>
+  </form>
+</div>
+<script>
+(function(){
+  var f=document.getElementById('gw-kapitel-bearbeiten');
+  var $=function(id){return f.querySelector('#'+id);};
+  var title=$('gw-title'),error=$('gw-title-err'),busy=false;
+  function lock(){busy=true;f.querySelectorAll('input,textarea,button').forEach(function(x){x.disabled=true;});f.style.opacity='0.6';}
+  function send(text,data){
+    if(busy)return;
+    if(typeof sendPrompt!=='function'){error.textContent='Senden ist hier nicht verfügbar. Bitte die Textfassung im Chat verwenden.';error.hidden=false;return;}
+    sendPrompt(text+'\n\n```gw\n'+JSON.stringify(data)+'\n```');lock();
+  }
+  title.addEventListener('input',function(){error.hidden=true;title.removeAttribute('aria-invalid');});
+  function save(){
+    if(!title.value.trim()){error.textContent='Bitte einen Titel eingeben.';error.hidden=false;title.setAttribute('aria-invalid','true');title.focus();return;}
+    send('Kapitel '+f.dataset.chapterNumber+' speichern: '+title.value.trim(),{
+      action:'chapter.update',chapter_id:f.dataset.chapterId,expected_head_sha:f.dataset.headSha,
+      title:title.value.trim(),summary:$('gw-summary').value.trim(),goal:$('gw-goal').value.trim()
+    });
+  }
+  f.addEventListener('submit',function(event){event.preventDefault();save();});
+  $('gw-save').addEventListener('click',save);
+  $('gw-cancel').addEventListener('click',function(){send('Kapitelbearbeitung abgebrochen',{
+    action:'form.cancel',form:'chapter.update',chapter_id:f.dataset.chapterId
+  });});
+})();
+</script>

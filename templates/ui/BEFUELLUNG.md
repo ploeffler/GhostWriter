@@ -108,6 +108,7 @@ Der Assistent wertet den Block `gw` aus; die Zeile darüber ist für Menschen. F
 | `chapter.create.open` | – | Formular „Neues Kapitel anlegen“ zeigen | – |
 | `chapter.create` | `title`, `summary`, `goal`, `position` (Index, 0 = am Anfang), `position_label` | Kapitel anlegen | `POST …/chapters` |
 | `chapter.edit.open` | `chapter_id` | Kapitel bearbeiten | – |
+| `chapter.update` | `chapter_id`, `expected_head_sha`, `title`, `summary`, `goal` | Kapitelmetadaten als Pull Request speichern | `PATCH …/chapters/{chapter_id}` |
 | `chapter.reorder.open` | – | Kapitelreihenfolge ändern | – |
 | `section.create.open` | `chapter_id` | Neuen Abschnitt anlegen | – |
 | `section.reorder.open` | `chapter_id` | Abschnittsreihenfolge ändern | – |
@@ -118,3 +119,28 @@ Der Assistent wertet den Block `gw` aus; die Zeile darüber ist für Menschen. F
 | `form.cancel` | `form` und betroffene ID | Formular ohne Änderung geschlossen | – |
 
 Eine Freigabe über `section.update` mit `approvals.section: true` ersetzt nicht die ausdrückliche Bestätigung des Benutzers (Issue #10).
+
+
+
+## Kapitel bearbeiten
+
+`chapter.edit.open` aus der Kapitelansicht öffnet `kapitel-bearbeiten.html` für die stabile Kapitel-ID. Vor dem Befüllen Projektdatei und Kapitel-README vom selben Branchstand lesen.
+
+| Platzhalter | Quelle |
+|---|---|
+| `CHAPTER_ID` | `structure.chapters[].id` |
+| `CHAPTER_NUMBER` | Position des Kapitels, ab 1 |
+| `CHAPTER_TITLE` | `structure.chapters[].title` |
+| `CHAPTER_SUMMARY` | Text unter `## Kurzbeschreibung` in der Kapitel-README |
+| `CHAPTER_GOAL` | Text unter `## Ziel des Kapitels` in der Kapitel-README |
+| `EXPECTED_HEAD_SHA` | vollständiger Commit-SHA des gelesenen Branchstands |
+
+Fehlende Beschreibung oder fehlendes Ziel bleiben leer; „Offen.“ gilt als leer. Alle Werte HTML-maskieren, auch in Attributen und Textfeldern. Keine Manuskripttexte in dieses Formular übernehmen.
+
+Referenz: `python scripts/render_view.py <projekt> chapter-edit 2 --head-sha <commit-sha>`; mit `--text` zeigt dieselbe Ansicht Titel, Kurzbeschreibung, Ziel und die Aktionen „Speichern“ / „Abbrechen“. In der Textfassung merkt sich der Assistent Kapitel-ID und gelesenen SHA und bildet aus der Antwort dieselbe `chapter.update`-Nachricht. Leere optionale Felder dürfen bewusst gelöscht werden. Ein leerer Titel ist ungültig.
+
+### Schreibregel
+
+Speichern ist die Anweisung, ausschließlich Titel, Kurzbeschreibung und Ziel dieses Kapitels zu ändern. Vor dem Schreiben den Branch-Head erneut prüfen; bei Abweichung neu lesen und Änderungen abstimmen. Den Titel in `ghostwriter.yml` und der Kapitelüberschrift der Kapitel-README konsistent aktualisieren; Kurzbeschreibung und Ziel nur in ihren jeweiligen README-Bereichen ändern. Stabile IDs, Pfade, Reihenfolge, Abschnittsdateien, Manuskripte, Historien und Freigaben bleiben erhalten. Ein Metadaten-Speichern erteilt keine Freigabe. Abgeleitete Kontextzusammenfassungen gemäß `docs/CONTEXT.md` prüfen.
+
+Die Änderung als Commit in einem Arbeitsbranch mit Pull Request vorbereiten, Commit-Nachricht `Kapitel <id>: Metadaten aktualisieren`. Nicht automatisch mergen; Merge über den bestehenden bestätigten Ablauf der Projektübersicht. Nach bestätigter GitHub-Antwort PR-Link melden; das Absenden des Formulars allein bedeutet noch keinen erfolgreichen Speichervorgang. `form.cancel` mit `form: chapter.update` und `chapter_id` erzeugt keine Änderung. Ein erneutes Senden derselben Werte erzeugt keine unnötige weitere Änderung.

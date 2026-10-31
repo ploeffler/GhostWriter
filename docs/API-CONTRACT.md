@@ -103,3 +103,10 @@ Erfolgsantworten enthalten mindestens success, commit_sha, commit_url, updated_p
 5. OpenAPI aus dem tatsächlich implementierten Dienst erzeugen.
 6. GPT-Action konfigurieren und mit Testrepository prüfen.
 7. Erst danach die Action als einsatzbereit dokumentieren.
+
+
+## Kapitelmetadaten bearbeiten
+
+`PATCH /v1/projects/{owner}/{repo}/chapters/{chapter_id}` entspricht der Chat-Aktion `chapter.update`. Nutzdaten: `title` (nicht leer), `summary` und `goal` (dürfen leer sein), zusätzlich `expected_head_sha` und der vom Aufrufer für dieselbe Operation wiederverwendete `idempotency_key`. Weg A hält den Operationsschlüssel beim Verarbeiten der Formularnachricht fest; er ist kein Benutzereingabefeld.
+
+Die Operation aktualisiert Titel in Projektdatei und Kapitelüberschrift sowie Kurzbeschreibung und Ziel in der Kapitel-README atomar. Sie verändert keine IDs, Pfade, Reihenfolgen, Manuskripte oder Freigaben und erstellt einen Arbeitsbranch mit Pull Request. Die Erfolgsantwort ergänzt die gemeinsamen Felder um `pull_request_url`; kein automatischer Merge. SHA-Konflikte werden vor dem Schreiben abgewiesen. Dieser Endpunkt bleibt ein Entwurf; das Formular implementiert keinen Backend-Endpunkt.

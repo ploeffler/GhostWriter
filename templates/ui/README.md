@@ -30,3 +30,6 @@ Die **Hauptvorlage** ist die Projektübersicht: Sie wird ausgegeben, wenn das Bu
 | `kapitel-anlegen.html` | Formular | Neues Kapitel mit Titel, Kurzbeschreibung, Ziel und Position anlegen |
 | `projektdaten-bearbeiten.html` | Formular | Titel, Kurztitel, Autor, Kurzbeschreibung und Beschreibung des Buchprojekts bearbeiten |
 | `auflage-erzeugen.html` | Formular | Neue Auflage mit Erscheinungsdatum und Anmerkungen erzeugen; Name, Tag und Formate ergeben sich aus `workflow.yml` |
+
+
+| `kapitel-bearbeiten.html` | Formular | Titel, Kurzbeschreibung und Ziel eines bestehenden Kapitels bearbeiten; öffnet über `chapter.edit.open` |

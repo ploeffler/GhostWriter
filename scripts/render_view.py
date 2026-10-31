@@ -242,18 +242,45 @@ def section_view(base, config, args, cnum, snum):
     return fill('abschnitt-bearbeiten.html', values, {'MARKERS': markers})
 
 
+def chapter_edit_view(base, config, args, cnum):
+    if not args.head_sha or not re.fullmatch(r'[0-9a-f]{40}', args.head_sha):
+        raise ValueError('chapter-edit benötigt --head-sha mit dem gelesenen Commit-SHA')
+    chapters = config['structure']['chapters']
+    if not 1 <= cnum <= len(chapters):
+        raise ValueError('Kapitelnummer außerhalb der Struktur')
+    ch = chapters[cnum - 1]
+    readme = (base / ch['path'] / 'README.md').read_text(encoding='utf-8')
+    def part(name):
+        m = re.search(r'^## ' + re.escape(name) + r'\s*\n(.*?)(?=^## |\Z)', readme, re.M | re.S)
+        value = m.group(1).strip() if m else ''
+        return '' if value == 'Offen.' else value
+    values = {'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': cnum,
+              'CHAPTER_TITLE': ch['title'], 'CHAPTER_SUMMARY': part('Kurzbeschreibung'),
+              'CHAPTER_GOAL': part('Ziel des Kapitels'), 'EXPECTED_HEAD_SHA': args.head_sha}
+    if args.text:
+        return (f"**Kapitel {cnum} bearbeiten**\n\n"
+                f"Titel: {ch['title']}\n\nKurzbeschreibung: {values['CHAPTER_SUMMARY'] or 'offen'}\n\n"
+                f"Ziel: {values['CHAPTER_GOAL'] or 'offen'}\n\n"
+                "Änderungen als Antwort senden. Aktionen: 1 Speichern · 2 Abbrechen.\n"
+                "Speichern erteilt keine Kapitelfreigabe.\n")
+    return fill('kapitel-bearbeiten.html', values)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section'])
+    ap.add_argument('view', choices=['project', 'chapter', 'chapter-edit', 'section'])
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
     ap.add_argument('--branch', default='main')
+    ap.add_argument('--head-sha', help='Commit-SHA des gelesenen Branchstands; für chapter-edit erforderlich')
     args = ap.parse_args()
     base, config = load(args.project)
     if args.view == 'project':
         out = project_view(base, config, args)
+    elif args.view == 'chapter-edit':
+        out = chapter_edit_view(base, config, args, int(args.where))
     elif args.view == 'chapter':
         out = chapter_view(base, config, args, int(args.where))
     else:
@@ -264,3 +291,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
