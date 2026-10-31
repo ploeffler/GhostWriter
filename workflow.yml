@@ -1,0 +1,165 @@
+version: "1.0"
+id: ghostwriter-book-workflow
+language: de
+authority:
+  source_of_truth: workflow.yml
+  project_metadata: ghostwriter.yml
+  manuscript_and_history: git
+  approvals_require_explicit_user_confirmation: true
+  automation_must_not_infer_approval: true
+
+global_ai_policy:
+  hallucination_policy: strict
+  source_policy: required
+  uncertainty_policy: explicit
+  creativity: balanced
+  web_research: research
+  override_policy: only_add_stricter_rules
+
+entities:
+  chapter:
+    id_pattern: "^ch-[a-z0-9][a-z0-9-]*$"
+    stable_id: true
+    visible_number: derived_from_order
+    min_sections: 1
+    statuses: [planned, in_progress, ready_for_assembly, assembly, review, ready_for_approval, approved]
+  section:
+    id_pattern: "^sec-[a-z0-9][a-z0-9-]*$"
+    stable_id: true
+    visible_number: derived_from_order
+    statuses: [planned, research, brainstorming, ready_to_write, writing, revision, fact_check, ready_for_approval, approved]
+    fact_check: [disabled, optional, requested]
+
+runs:
+  research:
+    repeatable: true
+    immutable: true
+    path: "chapters/{chapter_id}/research/{section_id}/run-{sequence}.md"
+    required_fields: [run_id, created_at, research_question, scope, sources, findings, uncertainties, contradictions, open_questions]
+  brainstorming:
+    repeatable: true
+    immutable: true
+    path: "chapters/{chapter_id}/brainstorming/{section_id}/run-{sequence}.md"
+    required_fields: [run_id, created_at, objective, ideas, argument_lines, examples, open_questions, selected_results]
+  fact_check:
+    repeatable: true
+    immutable: true
+    path: "chapters/{chapter_id}/fact-check/{section_id}/run-{sequence}.md"
+    required_fields: [run_id, created_at, confirmed_claims, insufficiently_supported_claims, contradictory_claims, potentially_false_claims, proposed_corrections]
+    may_modify_manuscript: false
+
+section_workflow:
+  initial_status: planned
+  transitions:
+    - from: planned
+      to: research
+      trigger: start_research
+    - from: research
+      to: brainstorming
+      trigger: research_sufficient_and_user_continues
+    - from: brainstorming
+      to: ready_to_write
+      trigger: findings_consolidated
+    - from: ready_to_write
+      to: writing
+      trigger: explicit_user_writing_approval
+      requires: [research_run_exists, brainstorming_run_exists, outline_present, user_approval_record]
+    - from: writing
+      to: revision
+      trigger: draft_created
+    - from: revision
+      to: fact_check
+      trigger: user_requests_fact_check
+      optional: true
+    - from: revision
+      to: ready_for_approval
+      trigger: revision_complete_or_fact_check_skipped
+    - from: fact_check
+      to: revision
+      trigger: corrections_discussed
+    - from: ready_for_approval
+      to: approved
+      trigger: explicit_user_section_approval
+      requires: [manuscript_version, user_approval_record]
+  invariants:
+    - research_and_brainstorming_are_repeatable
+    - prior_runs_are_never_overwritten
+    - no_draft_before_writing_approval
+    - fact_check_never_silently_changes_manuscript
+    - approved_requires_explicit_user_confirmation
+
+chapter_workflow:
+  initial_status: planned
+  transitions:
+    - from: planned
+      to: in_progress
+      trigger: first_section_work_starts
+    - from: in_progress
+      to: ready_for_assembly
+      trigger: all_sections_approved
+      requires: [all_sections_status_approved]
+    - from: ready_for_assembly
+      to: assembly
+      trigger: assemble_chapter
+    - from: assembly
+      to: review
+      trigger: assembled_chapter_created
+    - from: review
+      to: ready_for_approval
+      trigger: chapter_review_complete
+    - from: ready_for_approval
+      to: approved
+      trigger: explicit_user_chapter_approval
+      requires: [all_sections_status_approved, assembled_chapter_version, user_approval_record]
+  invariants:
+    - all_sections_must_be_approved_before_assembly
+    - chapter_approval_is_separate_from_section_approval
+    - chapter_approval_requires_explicit_user_confirmation
+    - adding_or_restructuring_sections_resets_chapter_to_in_progress
+
+structure_changes:
+  add_section:
+    allowed_anytime: true
+    preserve_existing_ids: true
+    if_chapter_was_approved: set_chapter_status_to_in_progress
+  rename_or_reorder:
+    preserve_stable_ids: true
+    recalculate_visible_numbers: true
+  move_section:
+    preserve_section_id: true
+    recalculate_visible_numbers: true
+    invalidate_affected_chapter_approval: true
+  split_or_delete:
+    require_explicit_confirmation: true
+    preserve_previous_content_and_history: true
+    never_permanently_discard_without_confirmation: true
+
+github_automation:
+  issue_per_unit_of_work: true
+  milestone_per_chapter_or_project_phase: true
+  issue_must_include:
+    - entity_id
+    - current_status
+    - target_status
+    - task_type
+    - applicable_instructions
+    - required_inputs
+    - acceptance_criteria
+    - approval_gate_if_any
+    - related_file_paths
+  task_types: [research, brainstorming, outline, writing, revision, fact_check, chapter_assembly, chapter_review, approval, structure_change]
+  approval_policy:
+    github_issue_closure_is_not_user_approval: true
+    milestone_completion_is_not_user_approval: true
+    only_explicit_chat_confirmation_counts: true
+  concurrency:
+    require_expected_head_sha_for_writes: true
+    require_idempotency_key_for_mutations: true
+    never_claim_unconfirmed_write_success: true
+
+audit:
+  record_status_changes: true
+  record_approval_actor_and_timestamp: true
+  record_commit_sha_for_persisted_changes: true
+  preserve_run_history: true
+  preserve_prior_approved_versions: true
