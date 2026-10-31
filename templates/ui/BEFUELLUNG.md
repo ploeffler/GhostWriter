@@ -54,6 +54,25 @@ Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die
 | Sichtbare Nummern | Kapitel- und Abschnittsnummer aus der Reihenfolge in `structure.chapters` |
 | Ziel, Kurzbeschreibung | Text unter `## Ziel des Abschnitts` bzw. `## Kurzbeschreibung`; „Offen.“ gilt als leer |
 
+## Übersichtsdatei
+
+`ghostwriter-index.json` fasst das ganze Buch ohne Manuskripttext zusammen; erzeugt wird sie von `scripts/build_index.py`, im Repository von der Action „Übersichtsdatei aktualisieren“ nach jedem Push. Gibt es sie, befüllt der Assistent Projektübersicht und Kapitelansicht nur daraus und liest dafür keine Abschnitts- und Kostendateien. Das Abschnittsformular und jede Prüfung vor dem Schreiben lesen weiter die Einzeldateien. Fehlt die Datei oder hat der Assistent im selben Chat gerade selbst geschrieben, gelten die Einzeldateien (`START.md`, „Schreiben ins Repository“, Schritt 5).
+
+| Platzhalter | Feld in `ghostwriter-index.json` |
+|---|---|
+| `PROJECT_TITLE`, `PROJECT_TITLE_SHORT`, `PROJECT_AUTHOR` | `project.title`, `project.title_short`, `project.author` |
+| `PROJECT_DESCRIPTION_SHORT`, `PROJECT_DESCRIPTION` | nicht in der Datei: aus `ghostwriter.yml` |
+| `PROJECT_COST` | `project.cost.text`; Tooltip aus `project.cost.estimated` |
+| `PROJECT_EDITION_TEXT` | aus `project.current_edition` |
+| Block `CHAPTERS` | `chapters[]`: `number`, `id`, `title`, `status`, `cost.text` |
+| `CHAPTER_SUBTITLE`, `CHAPTER_COST` | `chapters[].subtitle`, `chapters[].cost.text` |
+| `SECTION_COUNT_TEXT`, `APPROVED_COUNT_TEXT` | `chapters[].sections_total`, `chapters[].sections_approved` |
+| `MARKER_COUNT_TEXT` | Summe von `chapters[].markers` |
+| `CHAPTER_APPROVABLE` | `chapters[].status` = `ready_for_approval` und `sections_approved` = `sections_total` |
+| Block `SECTIONS` | `chapters[].sections[]`: `number`, `id`, `title`, `status`, `cost.text`, `markers.anekdote` … `markers.recht` |
+
+`cost.amount` ist `null`, wenn es keinen Betrag gibt; `cost.text` ist dann `–`.
+
 ## Offene Änderungen
 
 Offene Änderungen sind die Commits im Arbeits-Branch `ghostwriter/<buch-branch>`, solange dazu ein offener Pull Request in den Buch-Branch besteht (`START.md`, „Schreiben ins Repository“). Der Assistent liest sie vor jeder Projektübersicht und vor `changes.merge.open` aus GitHub: offenen Pull Request mit diesem Head und dieser Basis suchen, seine Commits auflisten (älteste zuerst). Für `render_view.py` gehören sie in eine JSON-Datei für `--changes`:
