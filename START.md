@@ -16,7 +16,7 @@ Wurde der erste Start bereits abgeschlossen, genügt in einem neuen Chat – in 
 
 ## 0. Wiedereinstieg (verbindlich, wenn das Projekt bereits eingerichtet ist)
 
-Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`…/tree/<branch>`) oder eine Datei, gehe so vor. Bei einem Branch-Link gilt dieser Branch für alles Lesen und für alle Links in den Ansichten.
+Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`…/tree/<branch>`) oder eine Datei, gehe so vor. Bei einem Branch-Link ist dieser Branch der Buch-Branch; gibt es zu ihm offene Änderungen, wird aus dem Arbeits-Branch gelesen (siehe „Schreiben ins Repository“).
 
 1. **Repository lesen:** Lies über die GitHub-Verbindung `README.md`, diese Datei und `ghostwriter.yml`. Ohne Lesezugriff: erkläre, was fehlt, und bitte den Benutzer, die GitHub-Verbindung einzurichten oder `ghostwriter.yml` und die benötigten Kapiteldateien anzuhängen.
 2. **Stand erkennen:** Das Projekt gilt als eingerichtet, wenn in `ghostwriter.yml` `workflow.current_phase` nicht `wizard` ist oder `structure.chapters` mindestens ein Kapitel enthält. Sonst beginne mit Abschnitt 1.
@@ -24,7 +24,7 @@ Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`
 4. **Übersicht zeigen:** Zeige die Projektübersicht (Vorlage `projektuebersicht`, Hauptvorlage) mit den aktuellen Daten aus dem Repository: Projektdaten, Kapitel mit Status, Kosten aus den Kostendateien und aktuelle Auflage. Gib sie nach `templates/ui/BEFUELLUNG.md` aus: Ladezeile für `ghostwriter-ui` mit dem festen Commit aus `templates/ui/ghostwriter-ui.yml` und `GW.render` mit den Daten. Kann der Chat keine Widgets darstellen (etwa ChatGPT), gib die dort beschriebene Textfassung aus und nie HTML- oder Widget-Code.
 5. **Zuletzt bearbeitete Stelle anbieten:** Sind `workflow.current_chapter_id` oder `workflow.current_section_id` gesetzt, biete an, dort weiterzumachen.
 6. **Direktlinks:** Zeigt der Link auf ein Kapitel (`chapters/<id>/…`) oder einen Abschnitt (`chapters/<id>/sections/<datei>.md`), zeige statt der Übersicht direkt die Kapitelansicht (Vorlage `kapitelansicht`) bzw. das Abschnittsformular (Vorlage `abschnitt-bearbeiten`).
-7. **Stand mitschreiben:** Wechselt die Arbeit zu einem anderen Kapitel oder Abschnitt, aktualisiere `workflow.current_chapter_id` und `workflow.current_section_id` mit dem nächsten freigegebenen Commit, damit der nächste Wiedereinstieg dort ansetzt.
+7. **Stand mitschreiben:** Wechselt die Arbeit zu einem anderen Kapitel oder Abschnitt, aktualisiere `workflow.current_chapter_id` und `workflow.current_section_id` im Commit der nächsten Änderung (siehe „Schreiben ins Repository“, Schritt 5), damit der nächste Wiedereinstieg dort ansetzt.
 
 Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Repository ohne die jeweils erforderliche Freigabe, keine erfundenen Angaben über den Projektstand.
 
@@ -48,6 +48,40 @@ Der Benutzer soll jederzeit sehen, was gerade mit dem Projekt passiert:
 3. **Ergebniszeile:** Schließe jede Änderung am Repository mit einer Zeile ab: `✓` und was gespeichert wurde, mit Commit, oder `✗` und was fehlgeschlagen ist und warum. Nichts als erledigt melden, was nicht erledigt ist.
 
 Ein Widget kann nach dem Erscheinen keinen Fortschritt mehr anzeigen; die Statuszeilen stehen deshalb im Chat. In Chats, die Antworten erst am Ende zeigen, erscheinen sie gesammelt am Anfang der Antwort.
+
+### Schreiben ins Repository (verbindlich)
+
+Nach dem Einrichten ändert der Assistent das Buch nie direkt. Jede Änderung aus einem Formular wird zuerst ein Commit in einem Arbeits-Branch; übernommen wird sie erst, wenn der Benutzer in der Projektübersicht „Änderungen übernehmen“ bestätigt.
+
+- **Buch-Branch:** der Branch aus dem Link des Benutzers, sonst `main`.
+- **Arbeits-Branch:** `ghostwriter/<buch-branch>`, etwa `ghostwriter/main` oder `ghostwriter/test/test-book`. Dazu gehört genau ein offener Pull Request „GhostWriter: offene Änderungen“ in den Buch-Branch. Er sammelt alle Änderungen bis zum Übernehmen.
+
+Ablauf beim Speichern:
+
+1. **Lese-Stand:** Gibt es den Arbeits-Branch mit offenem Pull Request, lesen alle Ansichten und Formulare von dort, damit Gespeichertes sofort sichtbar ist; sonst vom Buch-Branch. Jede Ansicht bekommt den Commit dieses Stands als `HEAD_SHA` (siehe `templates/ui/BEFUELLUNG.md`); Formulare schicken ihn beim Speichern als `expected_head_sha` zurück. In der Textfassung merkt sich der Assistent den gelesenen Commit selbst. Fehlt er bei einer freien Eingabe, gilt der Stand, den der Assistent in diesem Chat zuletzt gelesen hat.
+2. **Prüfen vor dem Schreiben:** Den aktuellen Head des Lese-Branchs holen. Ist er gleich `expected_head_sha`, schreiben. Ist er neuer, die Änderungen dazwischen vergleichen: Wurde eine der Dateien geändert, die geschrieben werden sollen, nicht schreiben, `✗ Nicht gespeichert: Datei wurde inzwischen geändert` melden, neu lesen und das Formular mit den gesendeten Werten erneut zeigen. Betreffen die Änderungen nur andere Dateien, auf dem aktuellen Stand schreiben.
+3. **Nichts geändert:** Stimmen alle Werte mit dem gelesenen Stand überein, keinen Commit anlegen; melden „nichts geändert“.
+4. **Commit im Arbeits-Branch:** Gibt es den Arbeits-Branch nicht, ihn vom aktuellen Head des Buch-Branchs anlegen und den Pull Request öffnen. Eine Formular-Aktion ist genau ein Commit mit allen Dateien aus der Tabelle unten. Commit-Nachricht wie in der Tabelle, darunter eine Leerzeile und `GhostWriter-Aktion: <aktion>`.
+5. **Stand mitschreiben:** Betrifft die Änderung ein anderes Kapitel oder einen anderen Abschnitt als `workflow.current_chapter_id` bzw. `workflow.current_section_id`, diese Felder im selben Commit nachziehen. Für das bloße Ansehen gibt es keinen eigenen Commit.
+6. **Ergebnis:** `✓ <was> gespeichert, Commit abc1234 · noch nicht übernommen (Pull Request #NN)`. Danach die Ansicht nach „Nach dem Formular“ in `templates/ui/BEFUELLUNG.md`.
+7. **Übernehmen:** Nur über die Aktion `changes.merge` aus der Projektübersicht (Knopf „Änderungen übernehmen“, Textfassung `M`) und erst nach ausdrücklicher Bestätigung. Vorher zeigen, welche Änderungen übernommen werden (Commit-Nachrichten des Pull Requests). Gemergt wird mit Merge-Commit, damit jede Änderung einzeln in der Historie bleibt; danach den Arbeits-Branch löschen. Nie automatisch mergen, auch nicht nach erfolgreichem Speichern.
+8. **Fehlt ein Werkzeug:** Kann der Assistent keinen Branch oder Pull Request anlegen oder nicht mergen, sagt er das offen. Ohne Merge-Recht legt er den Commit im Arbeits-Branch an und bittet den Benutzer, den Pull Request auf GitHub zu mergen. Ohne Schreibzugriff gilt Abschnitt 7 (Dateien im Chat ausgeben).
+
+Was jedes Formular schreibt:
+
+| Formular | Aktion | Dateien | Commit-Nachricht | Nötige Freigabe | Endpunkt (Weg B, `docs/API-CONTRACT.md`) |
+|---|---|---|---|---|---|
+| Projektdaten bearbeiten | `project.update` | `ghostwriter.yml` (`project.*`) | `Projektdaten geändert` | – | `PATCH /v1/projects/{owner}/{repo}` |
+| Projekteinstellungen | `project.settings.update` | `ghostwriter.yml` (`workflow.fact_checking_default`, `typesetting`) | `Projekteinstellungen geändert` | – | `PATCH …/settings` |
+| Neues Kapitel | `chapter.create` | `ghostwriter.yml` (`structure.chapters`), `chapters/<nn-slug>/README.md` aus `templates/chapter-README.md`, erste Abschnittsdatei aus `templates/section.md` (jedes Kapitel braucht mindestens einen Abschnitt) | `Kapitel N „Titel“ angelegt` | – | `POST …/chapters` |
+| Kapitel bearbeiten | `chapter.update` | `ghostwriter.yml` (Kapiteltitel), Kapitel-README (Überschrift, Untertitel, Kurzbeschreibung, Ziel) | `Kapitel N „Titel“ geändert` | – | `PATCH …/chapters/{chapter_id}` |
+| Kapitelreihenfolge | `chapter.reorder` | `ghostwriter.yml` (Reihenfolge; IDs und Pfade bleiben) | `Kapitelreihenfolge geändert` | – | `POST …/chapters/reorder` |
+| Neuer Abschnitt | `section.create` | Abschnittsdatei aus `templates/section.md`, `ghostwriter.yml`, Abschnittsliste der Kapitel-README | `Abschnitt N.M „Titel“ angelegt` | – | `POST …/chapters/{chapter_id}/sections` |
+| Abschnittsreihenfolge | `section.reorder` | `ghostwriter.yml` (Reihenfolge; IDs und Dateinamen bleiben), Abschnittsliste der Kapitel-README | `Abschnittsreihenfolge in Kapitel N geändert` | – | `POST …/chapters/{chapter_id}/sections/reorder` |
+| Abschnitt bearbeiten | `section.update` | Abschnittsdatei (Ziel, Kurzbeschreibung, Faktencheck, Manuskript, Status), Status in der Abschnittsliste der Kapitel-README | `Abschnitt N.M gespeichert` | Manuskript nur mit Schreibfreigabe (`approvals.writing`); die Abschnittsfreigabe nie über dieses Formular, sondern über den eigenen Bestätigungsschritt | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
+| Änderungen übernehmen | `changes.merge` | – (Merge des Pull Requests) | Merge-Commit `GhostWriter: N Änderungen übernommen` | ausdrückliche Bestätigung | `POST …/changes/merge` |
+
+Ausnahmen: KI-Läufe (`run.start`, ab v0.4) schreiben Lauf-Datei, Kosten und Abschnittsstatus nach denselben Regeln in den Arbeits-Branch. Eine neue Auflage (`edition.create`) bekommt einen eigenen Pull Request, nicht den Arbeits-Branch. Kein Formular und keine Schreibregel gibt mehr als den Text eines Abschnitts im Chat aus.
 
 ## 1. Start und GitHub-Onboarding (verbindlich)
 
