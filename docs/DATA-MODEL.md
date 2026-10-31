@@ -113,3 +113,13 @@ Fact-Checking erzeugt einen Bericht mit bestätigten, unzureichend belegten, wid
 - Kapitelzusammenführung erst, wenn alle Abschnitte `approved` sind.
 - Kapitelabschluss nur nach ausdrücklicher Gesamtfreigabe.
 - Neue Abschnitte in einem freigegebenen Kapitel setzen den Kapitelstatus auf `in_progress`.
+
+
+## Verbindliche Workflow-Definition
+
+Die kanonische maschinenlesbare Definition der Zustände, Übergänge, Freigabeschranken und GitHub-Automatisierung liegt in [`workflow.yml`](../workflow.yml). Ihre Struktur wird durch [`schemas/workflow.schema.json`](../schemas/workflow.schema.json) beschrieben. Die Erläuterung steht in [`docs/WORKFLOW-MODEL.md`](WORKFLOW-MODEL.md).
+
+Bei Abweichungen gilt:
+1. Globale KI-Qualitätsregeln aus `ghostwriter.yml` dürfen durch Workflow- oder Abschnittsregeln nicht abgeschwächt werden.
+2. `workflow.yml` ist maßgeblich für Statusübergänge, Freigaben und Automatisierungsregeln.
+3. Dieses Dokument beschreibt Dateipfade und Datenkonventionen; es ersetzt nicht die Workflow-Definition.
