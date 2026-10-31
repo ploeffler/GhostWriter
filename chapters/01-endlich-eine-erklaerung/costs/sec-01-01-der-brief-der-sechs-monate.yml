@@ -19,3 +19,12 @@ entries:
   cost_amount: 0.42
   cost_status: estimated
   section_id: sec-01-01-der-brief-der-sechs-monate
+- activity_id: act-2026-10-31-sec-01-01-research-001
+  occurred_at: '2026-10-31T23:25:00+01:00'
+  provider: chat
+  model: claude-opus-5-5
+  activity_type: research
+  currency: EUR
+  cost_amount: null
+  cost_status: unavailable
+  section_id: sec-01-01-der-brief-der-sechs-monate

@@ -49,8 +49,8 @@ ai_providers:
     require_web_research_for_research_role: true
 workflow:
   current_phase: writing
-  current_chapter_id: ch-02-der-blick-auf-sich-selbst
-  current_section_id: sec-02-04-die-scham-die-wir-mitbringen
+  current_chapter_id: ch-01-endlich-eine-erklaerung
+  current_section_id: sec-01-01-der-brief-der-sechs-monate
   require_section_writing_approval: true
   require_section_approval: true
   require_chapter_approval: true
