@@ -152,6 +152,23 @@ Der Assistent wertet den Block `gw` aus; die Zeile darüber ist für Menschen. F
 | `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | noch offen |
 | `form.cancel` | `form` und betroffene ID | Formular ohne Änderung geschlossen | – |
 
+## Statustexte
+
+Statuszeilen, Ladetexte und Ergebniszeilen nach `START.md`, „Statusanzeige“. Die Texte sind Muster; Nummern und Titel werden eingesetzt.
+
+| Aktion | Statuszeilen | Ladetext | Ergebniszeile |
+|---|---|---|---|
+| `view.project` | → Lese ghostwriter.yml · → Berechne Kosten | Projektübersicht wird geladen | – |
+| `view.chapter` | → Lese Kapitel N · → Zähle Marker und Kosten | Kapitel N wird geladen | – |
+| `view.section` | → Lese Abschnitt N.M | Abschnitt N.M wird geladen | – |
+| `project.edit`, `chapter.create.open`, `edition.create.open`, `project.settings.open` | – | Formular wird vorbereitet | – |
+| `project.update` | → Prüfe Eingaben · → Speichere Projektdaten (Commit) · → Prüfe Validierung | – | ✓ Projektdaten gespeichert, Commit `abc1234` |
+| `chapter.create` | → Lege Kapitel „Titel“ an · → Trage es in ghostwriter.yml ein · → Speichere (Commit) | – | ✓ Kapitel N „Titel“ angelegt, Commit `abc1234` |
+| `section.update` | → Prüfe, ob sich die Datei geändert hat · → Speichere Abschnitt N.M (Commit) | – | ✓ Abschnitt N.M gespeichert, Commit `abc1234` |
+| `run.start` | → Recherche bzw. Ghostwriting für N.M · → Erfasse Kosten · → Speichere Ergebnis (Commit) | – | ✓ Entwurf für N.M gespeichert, Kosten ≈ 0,12 €, Commit `abc1234` |
+| `edition.create` | → Lege Pull Request für Auflage N an | – | ✓ Pull Request #NN für Auflage N angelegt; Tag und Release erzeugt die Action nach dem Merge |
+| Fehler | – | – | ✗ Nicht gespeichert: Grund, etwa „Datei wurde inzwischen geändert“ |
+
 ## Weg B
 
 Mit eigener API bleibt alles gleich, was der Benutzer sieht: dieselben Vorlagen aus `ghostwriter-ui`, dieselben Daten (die Platzhalter oben entsprechen den Feldern der API) und dieselben Nachrichten. Nur die Herkunft der Daten ändert sich; `GW.render` bekommt sie dann aus der Antwort der API statt vom Assistenten.

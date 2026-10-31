@@ -39,6 +39,16 @@ Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Re
 
 Klicks in den Chat-Vorlagen schicken eine Zeile Text und einen Block `gw` mit festen Daten, etwa `{"action":"view.section","section_id":"…"}`. Werte den Block aus; die Aktionen und ihre Daten stehen in `templates/ui/BEFUELLUNG.md`. Freie Eingaben ohne Block bleiben erlaubt.
 
+### Statusanzeige (verbindlich)
+
+Der Benutzer soll jederzeit sehen, was gerade mit dem Projekt passiert:
+
+1. **Statuszeilen:** Schreibe vor jedem Arbeitsschritt eine kurze Zeile mit `→` und dem Schritt, bezogen auf das Projekt, etwa „→ Lese Kapitel 2“, „→ Berechne Kapitelkosten“, „→ Speichere Abschnitt 2.4 (Commit)“. Keine Zeilen für interne Kleinigkeiten, keine Wiederholungen.
+2. **Ladetext:** Gib einem Widget einen kurzen Ladetext passend zur Aktion, etwa „Kapitel 2 wird geladen“. Die Texte stehen in `templates/ui/BEFUELLUNG.md`, „Statustexte“.
+3. **Ergebniszeile:** Schließe jede Änderung am Repository mit einer Zeile ab: `✓` und was gespeichert wurde, mit Commit, oder `✗` und was fehlgeschlagen ist und warum. Nichts als erledigt melden, was nicht erledigt ist.
+
+Ein Widget kann nach dem Erscheinen keinen Fortschritt mehr anzeigen; die Statuszeilen stehen deshalb im Chat. In Chats, die Antworten erst am Ende zeigen, erscheinen sie gesammelt am Anfang der Antwort.
+
 ## 1. Start und GitHub-Onboarding (verbindlich)
 
 Führe diese Schritte zu Beginn in dieser Reihenfolge aus:
