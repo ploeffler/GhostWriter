@@ -1,13 +1,16 @@
 project:
   title: ""
+  title_short: ""          # Kurztitel für Badge, Listen und Auflagen-Namen
   working_title: ""
   subtitle: ""
   author: ""
   language: "de"
-  description_short: ""
+  description_short: ""   # ein Satz
+  description: ""          # ausführliche Beschreibung
   target_audience: ""
   book_type: ""
   status: "concept"
+  current_edition: 0       # letzte erschienene Auflage, 0 = noch keine
 
 ai_settings:
   hallucination_policy: "strict"
@@ -56,5 +59,15 @@ workflow:
   require_chapter_approval: true
   fact_checking_default: "optional"
 
+# Kapitel in Reihenfolge; Abschnitte je Kapitel in Reihenfolge.
+# Sichtbare Nummern ergeben sich aus der Reihenfolge, IDs bleiben stabil.
+#   - id: ch-01-einleitung
+#     title: "Einleitung"
+#     path: chapters/01-einleitung
+#     status: planned
+#     sections:
+#       - id: sec-01-01-zielsetzung
+#         title: "Zielsetzung"
+#         path: chapters/01-einleitung/sections/01-zielsetzung.md
 structure:
   chapters: []

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/section.schema.json",
+  "title": "Kopf einer Abschnittsdatei (chapters/<kapitel>/sections/<abschnitt>.md)",
+  "type": "object",
+  "required": ["id", "number", "title", "status", "fact_check", "approvals"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^sec-[a-z0-9][a-z0-9-]*$"},
+    "number": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+    "title": {"type": "string", "minLength": 1},
+    "status": {"enum": ["planned", "research", "brainstorming", "ready_to_write", "writing", "revision", "fact_check", "ready_for_approval", "approved"]},
+    "fact_check": {"enum": ["disabled", "optional", "requested"]},
+    "approvals": {
+      "type": "object",
+      "required": ["writing", "section"],
+      "properties": {
+        "writing": {"type": "boolean"},
+        "section": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

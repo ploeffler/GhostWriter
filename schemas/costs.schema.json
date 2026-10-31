@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/costs.schema.json",
+  "title": "Kostendatei (chapters/<kapitel>/costs/<abschnitt>.yml oder costs/project.yml)",
+  "type": "object",
+  "required": ["entries"],
+  "properties": {
+    "section_id": {"type": "string", "pattern": "^sec-[a-z0-9][a-z0-9-]*$"},
+    "scope": {"const": "project"},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["activity_id", "occurred_at", "provider", "model", "activity_type", "currency", "cost_amount", "cost_status"],
+        "properties": {
+          "activity_id": {"type": "string", "minLength": 1},
+          "occurred_at": {"type": "string", "format": "date-time"},
+          "provider": {"type": "string", "minLength": 1},
+          "model": {"type": "string"},
+          "activity_type": {"enum": ["research", "brainstorming", "writing", "revision", "fact_check", "other"]},
+          "section_id": {"type": ["string", "null"], "pattern": "^sec-[a-z0-9][a-z0-9-]*$"},
+          "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+          "cost_amount": {"type": ["number", "null"], "minimum": 0},
+          "cost_status": {"enum": ["actual", "estimated", "manually_entered", "unavailable"]},
+          "input_tokens": {"type": "integer", "minimum": 0},
+          "output_tokens": {"type": "integer", "minimum": 0},
+          "cached_input_tokens": {"type": "integer", "minimum": 0},
+          "reasoning_tokens": {"type": "integer", "minimum": 0},
+          "image_units": {"type": "number", "minimum": 0},
+          "audio_units": {"type": "number", "minimum": 0},
+          "other_usage_quantity": {"type": "number", "minimum": 0},
+          "pricing_basis": {"type": "string"},
+          "input_unit_price": {"type": "number", "minimum": 0},
+          "output_unit_price": {"type": "number", "minimum": 0},
+          "cached_input_unit_price": {"type": "number", "minimum": 0},
+          "pricing_source": {"type": "string"},
+          "pricing_checked_at": {"type": "string"},
+          "note": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "oneOf": [
+    {"required": ["section_id"]},
+    {"required": ["scope"]}
+  ],
+  "additionalProperties": false
+}

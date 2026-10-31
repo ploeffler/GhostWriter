@@ -1,0 +1,42 @@
+name: Projektdateien prüfen
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Abhängigkeiten installieren
+        run: pip install pyyaml jsonschema
+
+      - name: workflow.yml gegen sein Schema prüfen
+        run: |
+          python - <<'EOF'
+          import json, yaml
+          from jsonschema import Draft202012Validator
+          schema = json.load(open('schemas/workflow.schema.json', encoding='utf-8'))
+          data = yaml.safe_load(open('workflow.yml', encoding='utf-8'))
+          errors = list(Draft202012Validator(schema).iter_errors(data))
+          for e in errors:
+              print(f"workflow.yml: {'/'.join(map(str, e.absolute_path))}: {e.message}")
+          raise SystemExit(1 if errors else 0)
+          EOF
+
+      - name: Buchprojekte prüfen
+        run: |
+          projects="."
+          for dir in tests/fixtures/*/; do
+            [ -f "$dir/ghostwriter.yml" ] && projects="$projects ${dir%/}"
+          done
+          python scripts/validate_project.py $projects
