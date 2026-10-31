@@ -16,7 +16,10 @@ Diese Vorlagen sind HTML-Fragmente, die als Inline-Widget im Chat ausgegeben wer
 
 ## Vorhandene Vorlagen
 
+Die **Hauptvorlage** ist die Projektübersicht: Sie wird ausgegeben, wenn das Buchprojekt als Ganzes im Chat gezeigt wird.
+
+
 | Datei | Art | Zweck |
 |---|---|---|
 | `abschnittssteuerung.html` | Aktionspanel | Recherche und Ghostwriting eines Abschnitts zeitgesteuert oder sofort starten; Abschnitt sperren und entsperren |
-| `projektuebersicht.html` | Anzeige mit Symbolleiste | Titel, Kurztitel, Autor, Kurzbeschreibung und Beschreibung des Buchprojekts sowie Links zu den Kapiteln |
+| `projektuebersicht.html` | **Hauptvorlage**, Anzeige mit Symbolleiste | Titel, Kurztitel, Autor, bisherige Gesamtkosten, Kurzbeschreibung und Beschreibung des Buchprojekts sowie Links zu den Kapiteln mit Kapitelkosten und Status |
