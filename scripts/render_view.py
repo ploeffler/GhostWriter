@@ -167,7 +167,7 @@ def project_view(base, config, args):
         rows.append({'CHAPTER_NUMBER': i, 'CHAPTER_TITLE': ch['title'], 'CHAPTER_STATUS': ch['status'],
                      'CHAPTER_COST': money(ch_amount, ch_est),
                      'CHAPTER_COST_HINT': cost_hint('Summe der Abschnittskosten', ch_amount, ch_est),
-                     'CHAPTER_URL': f'https://github.com/{args.repo}/blob/{args.branch}/{ch["path"]}/README.md'})
+                     'CHAPTER_ID': ch['id']})
     parts.append(total(cost_entries(base, base / 'costs' / 'project.yml')))
     amount, est = combine(parts)
     edition = p['current_edition']
@@ -186,7 +186,7 @@ def project_view(base, config, args):
             lines += [values['PROJECT_DESCRIPTION'], '']
         if rows:
             lines += ['| # | Kapitel | Kosten | Status |', '|--:|---|--:|---|']
-            lines += [f'| {r["CHAPTER_NUMBER"]} | [{r["CHAPTER_TITLE"]}]({r["CHAPTER_URL"]}) | {r["CHAPTER_COST"]} | {status_text(r["CHAPTER_STATUS"])} |' for r in rows]
+            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_COST"]} | {status_text(r["CHAPTER_STATUS"])} |' for r in rows]
         else:
             lines += ['*Noch keine Kapitel.*']
         lines += ['', '---']
