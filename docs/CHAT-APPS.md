@@ -32,5 +32,5 @@ Welcher Weg für v0.5 gilt, wird am Ende von v0.2 entschieden.
 
 ## Darstellung
 
-- **Claude** zeigt die Vorlagen aus `templates/ui/` als Inline-Widgets; ein Klick schickt die festgelegte Nachricht in den Chat.
+- **Claude** zeigt die Vorlagen als Inline-Widgets. Der Assistent gibt nur eine Ladezeile für `ghostwriter-ui` (fester Commit, über jsDelivr) und die Daten aus; das ist deutlich kürzer als die ganze Ansicht. Ein Klick schickt die festgelegte Nachricht in den Chat.
 - **ChatGPT** zeigt diese Widgets nicht. Dort gibt der Assistent die Textfassung aus `templates/ui/BEFUELLUNG.md` aus; Aktionen werden als nummerierte Auswahl angeboten, die der Benutzer per Antwort wählt.

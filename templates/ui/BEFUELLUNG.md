@@ -1,6 +1,6 @@
 # Befüllen der Chat-Vorlagen
 
-Diese Regeln sagen dem Assistenten, wie er die Vorlagen in `templates/ui/` aus dem Buch-Repository befüllt, wie er sie ohne Widgets als Text ausgibt und in welchem Format die Vorlagen Nachrichten in den Chat schicken. `scripts/render_view.py` setzt die Regeln für Projektübersicht, Kapitelansicht und Abschnittsformular um und dient als Referenz:
+Diese Regeln sagen dem Assistenten, wie er die Chat-Vorlagen mit Daten aus dem Buch-Repository ausgibt, wie er sie ohne Widgets als Text ausgibt und in welchem Format die Vorlagen Nachrichten in den Chat schicken. Die Vorlagen selbst liegen im öffentlichen Repository [ploeffler/ghostwriter-ui](https://github.com/ploeffler/ghostwriter-ui) (siehe `README.md` hier). `scripts/render_view.py` setzt die Regeln für Projektübersicht, Kapitelansicht und Abschnittsformular um und dient als Referenz:
 
 ```sh
 python scripts/render_view.py <projektordner> project [--text] [--repo owner/name] [--branch name]
@@ -8,13 +8,28 @@ python scripts/render_view.py <projektordner> chapter 2 [--text]
 python scripts/render_view.py <projektordner> section 2.4 [--text]
 ```
 
+## Ausgabe im Chat
+
+Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die Daten. Den Darstellungscode lädt der Chat von jsDelivr:
+
+```html
+<div id="gw"></div>
+<script src="https://cdn.jsdelivr.net/gh/ploeffler/ghostwriter-ui@<commit>/dist/gw.js"></script>
+<script>GW.render("<vorlage>", { "PLATZHALTER": "Wert", "BLOCK": [ { … }, … ] })</script>
+```
+
+- `<commit>` ist der feste Commit aus `templates/ui/ghostwriter-ui.yml`, nie `main`. So ändert sich keine Ansicht unbemerkt.
+- `<vorlage>` ist der Dateiname der Vorlage ohne `.html`, etwa `projektuebersicht`.
+- Die Daten sind ein JSON-Objekt: Platzhalter als Schlüssel ohne Klammern, Wiederholblöcke als Arrays von Objekten. Welche Platzhalter es gibt, steht unten.
+- `gw.js` maskiert die Werte, wiederholt die Blöcke und entfernt Bereiche mit `data-gw-if="NAME"`, wenn `NAME` fehlt oder leer ist (Kapitel der Projektübersicht, offene Marker des Abschnitts).
+- In den Daten wird `</` als `<\/` geschrieben, damit Manuskripttext das Skript nicht beendet.
+- `ghostwriter-ui` enthält nur Darstellungscode. Buchinhalte kommen ausschließlich über die Daten in den Chat, nie in dieses Repository.
+
 ## Grundregeln
 
 - **Kein ganzes Buch im Chat.** Höchstens der Text eines Abschnitts wird ausgegeben, nie ein ganzes Kapitel oder das ganze Buch. Zusammenführen und Export laufen nur über die GitHub Action. Lesen für Prüfungen ist erlaubt; das Ergebnis im Chat ist ein Bericht. Ganze Dateien gibt es nur als Release-Download auf ausdrückliche Anforderung.
 - **Nur echte Daten.** Jeder Wert stammt aus dem Repository. Fehlt ein Wert, bleibt der Platzhalter leer oder zeigt den hier festgelegten Ersatztext; nichts wird erfunden.
-- **Maskieren.** Werte werden HTML-maskiert eingesetzt (`&`, `<`, `>`, `"`, `'`).
-- **Vorlagen-Kommentar** am Dateianfang wird nicht mit ausgegeben.
-- **Wiederholblöcke** `{{#NAME}} … {{/NAME}}` werden je Eintrag einmal ausgegeben; die Marker selbst entfallen.
+- **Maskieren** übernimmt `gw.js`; die Daten enthalten den Rohtext.
 
 ## Berechnete Werte
 
@@ -75,6 +90,26 @@ python scripts/render_view.py <projektordner> section 2.4 [--text]
 
 `SECTION_ID`, `SECTION_NUMBER`, `SECTION_TITLE` wie im Abschnittsformular.
 
+### `projektdaten-bearbeiten.html`
+
+`PROJECT_TITLE`, `PROJECT_TITLE_SHORT`, `PROJECT_AUTHOR`, `PROJECT_DESCRIPTION_SHORT`, `PROJECT_DESCRIPTION` wie in der Projektübersicht, hier als Vorbelegung der Felder.
+
+### `kapitel-anlegen.html`
+
+| Platzhalter | Quelle |
+|---|---|
+| Block `POSITIONS`: `POSITION_LABEL`, `POSITION_SELECTED` | „Am Anfang (vor Kapitel 1)“, dann „Nach Kapitel N „Titel““ je Kapitel; die letzte lautet „Am Ende (nach Kapitel N „Titel“)“. Ohne Kapitel nur „Als erstes Kapitel“. `POSITION_SELECTED` ist `selected` für die Vorauswahl (am Ende), sonst leer |
+
+### `auflage-erzeugen.html`
+
+| Platzhalter | Quelle |
+|---|---|
+| `EDITION_NUMBER` | `project.current_edition` + 1 |
+| `EDITION_NAME`, `EDITION_TAG` | `book_releases.name_pattern` bzw. `tag_pattern` aus `workflow.yml` |
+| `EDITION_DATE_DEFAULT` | heutiges Datum, `YYYY-MM-DD` |
+| `APPROVAL_WARNING_TEXT` | „Bisher sind N von M Kapiteln freigegeben; nur diese kommen in die Auflage.“; leer, wenn alle freigegeben sind (der Hinweis entfällt) |
+| Block `FORMATS`: `FORMAT_LABEL` | `book_releases.assets`, in v0.5 PDF, DOCX, EPUB |
+
 ## Textfassung ohne Widgets
 
 Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown; Beispiele erzeugt `scripts/render_view.py … --text`.
@@ -116,5 +151,26 @@ Der Assistent wertet den Block `gw` aus; die Zeile darüber ist für Menschen. F
 | `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | – |
 | `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | noch offen |
 | `form.cancel` | `form` und betroffene ID | Formular ohne Änderung geschlossen | – |
+
+## Statustexte
+
+Statuszeilen, Ladetexte und Ergebniszeilen nach `START.md`, „Statusanzeige“. Die Texte sind Muster; Nummern und Titel werden eingesetzt.
+
+| Aktion | Statuszeilen | Ladetext | Ergebniszeile |
+|---|---|---|---|
+| `view.project` | → Lese ghostwriter.yml · → Berechne Kosten | Projektübersicht wird geladen | – |
+| `view.chapter` | → Lese Kapitel N · → Zähle Marker und Kosten | Kapitel N wird geladen | – |
+| `view.section` | → Lese Abschnitt N.M | Abschnitt N.M wird geladen | – |
+| `project.edit`, `chapter.create.open`, `edition.create.open`, `project.settings.open` | – | Formular wird vorbereitet | – |
+| `project.update` | → Prüfe Eingaben · → Speichere Projektdaten (Commit) · → Prüfe Validierung | – | ✓ Projektdaten gespeichert, Commit `abc1234` |
+| `chapter.create` | → Lege Kapitel „Titel“ an · → Trage es in ghostwriter.yml ein · → Speichere (Commit) | – | ✓ Kapitel N „Titel“ angelegt, Commit `abc1234` |
+| `section.update` | → Prüfe, ob sich die Datei geändert hat · → Speichere Abschnitt N.M (Commit) | – | ✓ Abschnitt N.M gespeichert, Commit `abc1234` |
+| `run.start` | → Recherche bzw. Ghostwriting für N.M · → Erfasse Kosten · → Speichere Ergebnis (Commit) | – | ✓ Entwurf für N.M gespeichert, Kosten ≈ 0,12 €, Commit `abc1234` |
+| `edition.create` | → Lege Pull Request für Auflage N an | – | ✓ Pull Request #NN für Auflage N angelegt; Tag und Release erzeugt die Action nach dem Merge |
+| Fehler | – | – | ✗ Nicht gespeichert: Grund, etwa „Datei wurde inzwischen geändert“ |
+
+## Weg B
+
+Mit eigener API bleibt alles gleich, was der Benutzer sieht: dieselben Vorlagen aus `ghostwriter-ui`, dieselben Daten (die Platzhalter oben entsprechen den Feldern der API) und dieselben Nachrichten. Nur die Herkunft der Daten ändert sich; `GW.render` bekommt sie dann aus der Antwort der API statt vom Assistenten.
 
 Eine Freigabe über `section.update` mit `approvals.section: true` ersetzt nicht die ausdrückliche Bestätigung des Benutzers (Issue #10).

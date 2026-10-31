@@ -6,11 +6,13 @@ Aufruf:
   python scripts/render_view.py <projektordner> chapter <kapitel>  [--text] ...
   python scripts/render_view.py <projektordner> section <kapitel>.<abschnitt> [--text] ...
 
-Ohne --text wird die befüllte HTML-Vorlage ausgegeben, mit --text die Textfassung
-für Chats ohne Widgets. Gezeigt wird höchstens der Text eines Abschnitts.
+Ohne --text wird der Widget-Code ausgegeben: Ladezeile für ghostwriter-ui (fester
+Commit aus templates/ui/ghostwriter-ui.yml) plus GW.render mit den Daten. Mit
+--text kommt die Textfassung für Chats ohne Widgets. Gezeigt wird höchstens der
+Text eines Abschnitts.
 """
 import argparse
-import html
+import json
 import re
 import sys
 import unicodedata
@@ -20,7 +22,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-TEMPLATES = ROOT / 'templates' / 'ui'
+UI_CONFIG = ROOT / 'templates' / 'ui' / 'ghostwriter-ui.yml'
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
 MARKERS = {
     'anekdote': re.compile(r'\[PLATZHALTER-ANEKDOTE\b'),
@@ -102,24 +104,19 @@ def tag_slug(text):
 
 # ---------- Vorlage befüllen ----------
 
+UI_URL = 'https://cdn.jsdelivr.net/gh/{repo}@{ref}/dist/gw.js'
+UI = {'repo': 'ploeffler/ghostwriter-ui', 'ref': None}
+
+
 def fill(template, values, blocks=None):
-    text = re.sub(r'\A<!--.*?-->\n', '', (TEMPLATES / template).read_text(encoding='utf-8'), flags=re.S)
-    for name, rows in (blocks or {}).items():
-        m = re.search(r'\{\{#' + name + r'\}\}\n?(.*?)[ \t]*\{\{/' + name + r'\}\}\n?', text, re.S)
-        rendered = ''.join(fill_text(m.group(1), r) for r in rows)
-        text = text[:m.start()] + rendered + text[m.end():]
-    return fill_text(text, values)
-
-
-def fill_text(text, values):
-    def sub(m):
-        key = m.group(1)
-        if key not in values:
-            return m.group(0)
-        return html.escape(str(values[key]), quote=True)
-    out = re.sub(r'\{\{([A-Z_]+)\}\}', sub, text)
-    # Vorlagen-Kommentar entfernen, damit nur die Ansicht ausgegeben wird
-    return re.sub(r'\A<!--.*?-->\n', '', out, flags=re.S)
+    """Widget-Code: Ladezeile für ghostwriter-ui und GW.render mit den Daten.
+    Maskieren, Wiederholblöcke und data-gw-if erledigt gw.js im Chat."""
+    data = dict(values)
+    data.update(blocks or {})
+    payload = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+    url = UI_URL.format(repo=UI['repo'], ref=UI['ref'])
+    return (f'<div id="gw"></div>\n<script src="{url}"></script>\n'
+            f'<script>GW.render({json.dumps(template[:-5])},{payload})</script>\n')
 
 
 # ---------- Ansichten ----------
@@ -158,11 +155,7 @@ def project_view(base, config, args):
             lines += ['Noch keine Kapitel.']
         lines += ['', 'Aktionen: 1 Projektdaten bearbeiten · 2 Neues Kapitel anlegen · 3 Kapitelreihenfolge ändern · 4 Neue Auflage erzeugen · 5 Projekteinstellungen']
         return '\n'.join(lines) + '\n'
-    out = fill('projektuebersicht.html', values, {'CHAPTERS': rows})
-    if not rows:
-        # Bereich „Kapitel“ entfällt, solange es keine Kapitel gibt
-        out = re.sub(r'\n\s*<div style="border-top:0.5px solid var\(--border\);padding-top:var\(--pad-md\)">\n\s*<div style="font-size:12px;color:var\(--text-muted\);margin-bottom:8px">Kapitel</div>.*?</div>\n\s*</div>', '', out, count=1, flags=re.S)
-    return out
+    return fill('projektuebersicht.html', values, {'CHAPTERS': rows})
 
 
 def chapter_view(base, config, args, cnum):
@@ -234,11 +227,6 @@ def section_view(base, config, args, cnum, snum):
         lines += ['', '---', '', ms, '', '---', '',
                   'Aktionen: Recherche sofort · Ghostwriting sofort · Speichern (geänderten Text schicken) · Vorheriger/Nächster Abschnitt · Zum Kapitel']
         return '\n'.join(lines) + '\n'
-    if not markers:
-        # Bereich „Offene Marker“ entfällt, wenn es keine gibt
-        tpl = (TEMPLATES / 'abschnitt-bearbeiten.html').read_text(encoding='utf-8')
-        tpl = re.sub(r'\n\s*<div style="border-top:0.5px solid var\(--border\);padding-top:var\(--pad-md\)">\n\s*<div class="gw-lbl">Offene Marker</div>.*?\{\{/MARKERS\}\}\n\s*</div>\n\s*</div>', '', tpl, flags=re.S)
-        return fill_text(tpl, values)
     return fill('abschnitt-bearbeiten.html', values, {'MARKERS': markers})
 
 
@@ -250,7 +238,10 @@ def main():
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
     ap.add_argument('--branch', default='main')
+    ap.add_argument('--ui-ref', help='Commit oder Branch von ghostwriter-ui statt des festen Commits aus templates/ui/ghostwriter-ui.yml (nur zum Testen)')
     args = ap.parse_args()
+    ui = yaml.safe_load(UI_CONFIG.read_text(encoding='utf-8'))
+    UI['repo'], UI['ref'] = ui['repo'], args.ui_ref or ui['commit']
     base, config = load(args.project)
     if args.view == 'project':
         out = project_view(base, config, args)

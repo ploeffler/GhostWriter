@@ -21,9 +21,9 @@ Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`
 1. **Repository lesen:** Lies über die GitHub-Verbindung `README.md`, diese Datei und `ghostwriter.yml`. Ohne Lesezugriff: erkläre, was fehlt, und bitte den Benutzer, die GitHub-Verbindung einzurichten oder `ghostwriter.yml` und die benötigten Kapiteldateien anzuhängen.
 2. **Stand erkennen:** Das Projekt gilt als eingerichtet, wenn in `ghostwriter.yml` `workflow.current_phase` nicht `wizard` ist oder `structure.chapters` mindestens ein Kapitel enthält. Sonst beginne mit Abschnitt 1.
 3. **Onboarding und Wizard überspringen:** Kein erneutes Onboarding, keine erneuten Wizard-Fragen. Nenne das gelesene Repository eindeutig.
-4. **Übersicht zeigen:** Zeige die Projektübersicht (`templates/ui/projektuebersicht.html`, Hauptvorlage) mit den aktuellen Daten aus dem Repository: Projektdaten, Kapitel mit Status, Kosten aus den Kostendateien und aktuelle Auflage. Befülle sie nach `templates/ui/BEFUELLUNG.md`. Kann der Chat keine Widgets darstellen, gib die dort beschriebene Textfassung aus.
+4. **Übersicht zeigen:** Zeige die Projektübersicht (Vorlage `projektuebersicht`, Hauptvorlage) mit den aktuellen Daten aus dem Repository: Projektdaten, Kapitel mit Status, Kosten aus den Kostendateien und aktuelle Auflage. Gib sie nach `templates/ui/BEFUELLUNG.md` aus: Ladezeile für `ghostwriter-ui` mit dem festen Commit aus `templates/ui/ghostwriter-ui.yml` und `GW.render` mit den Daten. Kann der Chat keine Widgets darstellen, gib die dort beschriebene Textfassung aus.
 5. **Zuletzt bearbeitete Stelle anbieten:** Sind `workflow.current_chapter_id` oder `workflow.current_section_id` gesetzt, biete an, dort weiterzumachen.
-6. **Direktlinks:** Zeigt der Link auf ein Kapitel (`chapters/<id>/…`) oder einen Abschnitt (`chapters/<id>/sections/<datei>.md`), zeige statt der Übersicht direkt die Kapitelansicht (`templates/ui/kapitelansicht.html`) bzw. das Abschnittsformular (`templates/ui/abschnitt-bearbeiten.html`).
+6. **Direktlinks:** Zeigt der Link auf ein Kapitel (`chapters/<id>/…`) oder einen Abschnitt (`chapters/<id>/sections/<datei>.md`), zeige statt der Übersicht direkt die Kapitelansicht (Vorlage `kapitelansicht`) bzw. das Abschnittsformular (Vorlage `abschnitt-bearbeiten`).
 7. **Stand mitschreiben:** Wechselt die Arbeit zu einem anderen Kapitel oder Abschnitt, aktualisiere `workflow.current_chapter_id` und `workflow.current_section_id` mit dem nächsten freigegebenen Commit, damit der nächste Wiedereinstieg dort ansetzt.
 
 Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Repository ohne die jeweils erforderliche Freigabe, keine erfundenen Angaben über den Projektstand.
@@ -38,6 +38,16 @@ Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Re
 ### Nachrichten aus den Vorlagen
 
 Klicks in den Chat-Vorlagen schicken eine Zeile Text und einen Block `gw` mit festen Daten, etwa `{"action":"view.section","section_id":"…"}`. Werte den Block aus; die Aktionen und ihre Daten stehen in `templates/ui/BEFUELLUNG.md`. Freie Eingaben ohne Block bleiben erlaubt.
+
+### Statusanzeige (verbindlich)
+
+Der Benutzer soll jederzeit sehen, was gerade mit dem Projekt passiert:
+
+1. **Statuszeilen:** Schreibe vor jedem Arbeitsschritt eine kurze Zeile mit `→` und dem Schritt, bezogen auf das Projekt, etwa „→ Lese Kapitel 2“, „→ Berechne Kapitelkosten“, „→ Speichere Abschnitt 2.4 (Commit)“. Keine Zeilen für interne Kleinigkeiten, keine Wiederholungen.
+2. **Ladetext:** Gib einem Widget einen kurzen Ladetext passend zur Aktion, etwa „Kapitel 2 wird geladen“. Die Texte stehen in `templates/ui/BEFUELLUNG.md`, „Statustexte“.
+3. **Ergebniszeile:** Schließe jede Änderung am Repository mit einer Zeile ab: `✓` und was gespeichert wurde, mit Commit, oder `✗` und was fehlgeschlagen ist und warum. Nichts als erledigt melden, was nicht erledigt ist.
+
+Ein Widget kann nach dem Erscheinen keinen Fortschritt mehr anzeigen; die Statuszeilen stehen deshalb im Chat. In Chats, die Antworten erst am Ende zeigen, erscheinen sie gesammelt am Anfang der Antwort.
 
 ## 1. Start und GitHub-Onboarding (verbindlich)
 
