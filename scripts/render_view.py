@@ -180,9 +180,15 @@ def project_view(base, config, args):
         'PROJECT_COST': money(amount, est), 'PROJECT_COST_HINT': cost_hint('Bisherige Gesamtkosten', amount, est),
         'PROJECT_EDITION_TEXT': f'Auflage {edition}' if edition else 'noch keine Auflage',
     }
+    changes = load_changes(args)
+    if changes:
+        values.update({'PENDING_COUNT': len(changes['commits']), 'PENDING_TEXT': changes_text(changes),
+                       'PENDING_PR': changes['pull_request']})
     if args.text:
         lines = [f'### 📘 {values["PROJECT_TITLE"] or "Noch ohne Titel"}',
                  f'**{values["PROJECT_EDITION_TEXT"]}** · Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · Kosten bisher: **{values["PROJECT_COST"]}**', '']
+        if changes:
+            lines += [f'> ⏳ **{values["PENDING_TEXT"]} noch nicht übernommen** (Pull Request #{changes["pull_request"]}) · `M` übernehmen', '']
         if values['PROJECT_DESCRIPTION_SHORT']:
             lines += [f'> {values["PROJECT_DESCRIPTION_SHORT"]}', '']
         if values['PROJECT_DESCRIPTION']:
@@ -205,6 +211,8 @@ def project_view(base, config, args):
             for si, sec in enumerate(ch['sections'], start=1):
                 if sec['id'] == wf.get('current_section_id'):
                     items.append((f'{ci}.{si}', 'öffnen (zuletzt bearbeitet)'))
+        if changes:
+            items.append(('M', 'Änderungen übernehmen'))
         items += [('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
                   ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
         lines += [menu(items)]
@@ -370,6 +378,49 @@ def edition_create_view(base, config, args):
     return fill('auflage-erzeugen.html', values, {'FORMATS': formats})
 
 
+def load_changes(args):
+    """Offene Änderungen aus --changes (JSON): pull_request, book_branch, work_branch,
+    commits [{sha, message, date}], älteste zuerst. Der Assistent liest sie aus GitHub."""
+    if not getattr(args, 'changes', None):
+        return None
+    data = json.loads(Path(args.changes).read_text(encoding='utf-8'))
+    return data if data.get('commits') else None
+
+
+def changes_text(changes):
+    n = len(changes['commits'])
+    return '1 Änderung' if n == 1 else f'{n} Änderungen'
+
+
+def change_date(value):
+    import datetime
+    try:
+        return datetime.datetime.fromisoformat(str(value).replace('Z', '+00:00')).strftime('%d.%m.%Y, %H:%M')
+    except ValueError:
+        return str(value or '')
+
+
+def changes_merge_view(base, config, args):
+    changes = load_changes(args)
+    if not changes:
+        msg = 'Es gibt keine offenen Änderungen.'
+        return msg + '\n' if args.text else f'<p>{msg}</p>\n'
+    rows = [{'CHANGE_MESSAGE': c['message'].splitlines()[0], 'CHANGE_DATE': change_date(c.get('date')),
+             'CHANGE_SHA': c['sha'][:7]} for c in changes['commits']]
+    values = {'PENDING_TEXT': changes_text(changes), 'PENDING_PR': changes['pull_request'],
+              'BOOK_BRANCH': changes['book_branch'], 'WORK_BRANCH': changes['work_branch']}
+    if args.text:
+        lines = ['### 🔀 Änderungen übernehmen', '',
+                 f'{values["PENDING_TEXT"]} aus `{values["WORK_BRANCH"]}` werden in `{values["BOOK_BRANCH"]}` übernommen '
+                 f'(Pull Request #{values["PENDING_PR"]}).', '',
+                 '| # | Änderung | Datum | Commit |', '|--:|---|---|---|']
+        lines += [f'| {i} | {r["CHANGE_MESSAGE"]} | {r["CHANGE_DATE"]} | `{r["CHANGE_SHA"]}` |' for i, r in enumerate(rows, start=1)]
+        lines += ['', 'Danach gehören die Änderungen zum Buch; rückgängig machen geht nur mit einer neuen Änderung.', '',
+                  '---', '`OK` übernimmt · `X` bricht ab']
+        return '\n'.join(lines) + '\n'
+    return fill('aenderungen-uebernehmen.html', values, {'CHANGES': rows})
+
+
 TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'title_page': True,
                       'imprint': True, 'toc': True, 'toc_depth': 1}
 FIXED_RULES = [('ai_settings', 'hallucination_policy', 'Halluzinationen'), ('ai_settings', 'source_policy', 'Quellen'),
@@ -492,7 +543,8 @@ def project_settings_view(base, config, args):
 
 FORMS = {'project-edit': project_edit_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
-         'section-create': section_create_view, 'section-reorder': section_reorder_view}
+         'section-create': section_create_view, 'section-reorder': section_reorder_view,
+         'changes-merge': changes_merge_view}
 
 
 def git_head(base):
@@ -511,6 +563,7 @@ def main():
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
     ap.add_argument('--branch', default='main')
+    ap.add_argument('--changes', help='JSON-Datei mit den offenen Änderungen (Pull Request, Branches, Commits) für Projektübersicht und changes-merge')
     ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
     ap.add_argument('--ui-ref', help='Commit oder Branch von ghostwriter-ui statt des festen Commits aus templates/ui/ghostwriter-ui.yml (nur zum Testen)')
     args = ap.parse_args()
