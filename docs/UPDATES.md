@@ -25,6 +25,22 @@ Neue Versionen erscheinen erst, wenn ein Versionsschritt im Hauptrepository nach
 
 In einer Bibliothek (#36–#39) liegt auf dem Standard-Branch nur das Programm, jedes Buch auf einem eigenen Branch `buch/<slug>`. Die Action aktualisiert zuerst den Standard-Branch und danach jedes Buch einzeln; die Zusammenfassung zeigt eine Zeile je Buch. Welche Branches Bücher sind, entscheidet die Erkennungsregel in `scripts/library.py`: der Standard-Branch nur, wenn er Kapitel hat (Einzelbuch), jeder `buch/*`-Branch, sonst Branches mit Kapiteln. Arbeits-Branches (`ghostwriter/…`) und andere Branches werden nicht angefasst; offene Änderungen bekommen das Update mit dem nächsten „Änderungen übernehmen“. Ein Fehler in einem Buch hält die anderen nicht auf; für das betroffene Buch öffnet die Action ein Issue.
 
+## Von v0.5 auf v0.6
+
+**Ohne Zutun:** Ein Repository mit einem Buch auf dem Standard-Branch (Einzelbuch) bekommt v0.6 wie jedes Update und läuft unverändert weiter. Der Standard-Branch hat Kapitel und gilt deshalb weiter als das Buch; ein Link auf das Repository zeigt wie bisher dessen Projektübersicht.
+
+**Umwandeln in eine Bibliothek (optional):** Wer mehrere Bücher in einem Repository führen möchte, startet einmal die Action *Actions → In Bibliothek umwandeln → Run workflow* auf dem Standard-Branch. Ohne Eingabe ist das ein **Probelauf**: Er prüft alles und zeigt, was passieren würde, ändert aber nichts. Erst mit `UMWANDELN` im Feld *confirm*:
+
+1. Prüfen: Der Standard-Branch hat Kapitel; im Arbeits-Branch liegen keine offenen Änderungen (sonst zuerst im Chat „Änderungen übernehmen“); der Name `buch/<kurztitel>` ist frei (anderer Kurztitel über das Feld *title_short*).
+2. Das Buch bekommt den Branch `buch/<kurztitel>` auf genau demselben Commit, also mit seiner ganzen Historie, und wird dort geprüft (Projektprüfung).
+3. Erst danach bekommt der Standard-Branch einen Commit „In Bibliothek umgewandelt“: Buchdateien (`chapters/`, `costs/`, `research/`, `editions/`, `approvals.yml`, Übersichtsdatei) entfernt, `ghostwriter.yml` wieder der Starter, `library.json` für das Bücherregal.
+
+Tags und Releases bleiben gültig; sie zeigen weiter auf ihre Commits. Neue Auflagen entstehen auf dem Buch-Branch. Im Chat öffnet der Link auf das Repository danach das Bücherregal, ein weiteres Buch kommt über „Neues Buch“ dazu.
+
+**Rückweg:** Den Commit „In Bibliothek umgewandelt“ auf dem Standard-Branch rückgängig machen (auf GitHub: Commit öffnen → *Revert*, oder `git revert`), danach den Branch `buch/<kurztitel>` löschen, sofern dort seitdem nichts Neues geschrieben wurde; sonst diese Änderungen vorher auf den Standard-Branch übernehmen.
+
+Neue Pflichtfelder gibt es mit v0.6 nicht; die Datenversion bleibt 1 (`scripts/migrate_project.py`).
+
 ## Hinweis im Chat
 
 Liegt der Buch-Branch hinter dem Hauptrepository, zeigt die **Projektübersicht** oben einen Hinweis, etwa „GhostWriter-Update: 3 Commits hinter ploeffler/GhostWriter:main · Version 0.3.1 verfügbar“, mit dem Knopf **Update einspielen** (Textfassung: `U`). Das kommt vor, wenn seit dem letzten nächtlichen Lauf eine neue Version erschienen ist oder wenn die Action in deinem Repository noch nicht läuft. **Update einspielen** startet die Action sofort, sofern die GitHub-Verbindung des Chats das kann; sonst bekommst du den Link *Actions → GhostWriter aktualisieren → Run workflow*.
