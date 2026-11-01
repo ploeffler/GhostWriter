@@ -5,6 +5,7 @@ project:
   subtitle: ""
   author: ""
   language: "de"
+  translations_planned: []   # geplante Übersetzungen als Sprachcodes, z. B. [en, fr]; nur Angabe, Umsetzung #75
   description_short: ""   # ein Satz
   description: ""          # ausführliche Beschreibung
   target_audience: ""

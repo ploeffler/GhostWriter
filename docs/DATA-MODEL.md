@@ -81,6 +81,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `project.description_short` | Kurzbeschreibung in einem Satz |
 | `project.description` | ausführliche Beschreibung |
 | `project.language` | Sprache des Buchs als Sprachcode, z. B. `de` (Silbentrennung und Anführungszeichen im Buchsatz) |
+| `project.translations_planned` | geplante Übersetzungen als Sprachcodes, z. B. `[en]`; nur Angabe aus dem Wizard, fehlt = keine (Umsetzung der Übersetzung: #75) |
 | `project.target_audience` | Zielgruppe |
 | `project.book_type` | Buchtyp, z. B. Sachbuch, Ratgeber, Roman, Kinderbuch |
 | `project.status` | Projektstatus, z. B. `concept` |
