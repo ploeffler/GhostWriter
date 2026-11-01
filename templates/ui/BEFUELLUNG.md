@@ -19,11 +19,11 @@ Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die
 
 ```html
 <div id="gw"></div>
-<script src="https://cdn.jsdelivr.net/gh/ploeffler/ghostwriter-ui@<commit>/dist/gw.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/ploeffler/ghostwriter-ui@<commit>/dist/gw.min.js"></script>
 <script>GW.render("<vorlage>", { "PLATZHALTER": "Wert", "BLOCK": [ { … }, … ] })</script>
 ```
 
-- `<commit>` ist der feste Commit aus `templates/ui/ghostwriter-ui.yml`, nie `main`. So ändert sich keine Ansicht unbemerkt.
+- `<commit>` ist der feste Commit aus `templates/ui/ghostwriter-ui.yml`, nie `main`. `gw.min.js` ist die von jsDelivr automatisch verkleinerte Fassung von `dist/gw.js` (schnelleres erstes Laden); bei Fehlersuche `gw.js` laden. So ändert sich keine Ansicht unbemerkt.
 - `<vorlage>` ist der Dateiname der Vorlage ohne `.html`, etwa `projektuebersicht`.
 - Die Daten sind ein JSON-Objekt: Platzhalter als Schlüssel ohne Klammern, Wiederholblöcke als Arrays von Objekten. Welche Platzhalter es gibt, steht unten.
 - Statuswerte (Felder auf `_STATUS`) stehen als Rohwert in den Daten, etwa `writing`; `gw.js` zeigt sie deutsch an, mit derselben Zuordnung wie die Textfassung.
@@ -303,7 +303,8 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `manuscript`, `expected_head_sha` (nie `approvals`) | Abschnitt speichern | Abschnittsdatei schreiben, danach Abschnittsformular | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
 | `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen und Lauf-Datei, Ergebnis und Statuswechsel speichern (`START.md`, „KI-Lauf „Sofort““); ein Kosteneintrag nur für kostenpflichtige KI-API-Aufrufe über das Backend, nie für Chat-Arbeit | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
 | `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | Vorlage `auflage-erzeugen` (`render_view.py edition-create`) | – |
-| `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | Pull Request für die Auflage anlegen | noch offen |
+| `edition.proof` | – | Probedruck erstellen | Action „Probedruck“ per `workflow_dispatch` starten oder Link *Run workflow* geben; danach Link zum Lauf (Download unter *Artifacts*) | `POST /repos/{owner}/{repo}/actions/workflows/proof.yml/dispatches` |
+| `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | prüfen, Release Notes zeigen, Auflagen-Pull-Request anlegen (`START.md`, „Neue Auflage“); nach dem Merge baut die Action „Auflage veröffentlichen“ | `POST /repos/{owner}/{repo}/actions/workflows/edition.yml/dispatches` (Bau), Pull Request wie Weg A |
 | `changes.merge.open` | – | Bestätigung „Änderungen übernehmen“ zeigen (Knopf im Hinweis der Projektübersicht, Textfassung `M`) | offene Änderungen aus GitHub lesen, Vorlage `aenderungen-uebernehmen` (`render_view.py changes-merge`) | `GET …/changes` |
 | `changes.merge` | `pull_request`, `expected_head_sha` | Offene Änderungen übernehmen; der Klick auf „Übernehmen“ bzw. `OK` ist die ausdrückliche Bestätigung | prüfen, dass der Arbeits-Branch noch auf `expected_head_sha` steht (sonst Bestätigung neu zeigen), Pull Request mit Merge-Commit mergen, Arbeits-Branch löschen, danach Projektübersicht | `POST …/changes/merge` |
 | `approval.open` | `kind` (`writing` \| `section` \| `chapter`), `section_id` bzw. `chapter_id`, `revoke` (nur beim Zurücknehmen) | Bestätigung „Freigabe“ zeigen | Vorlage `freigabe-bestaetigen` (`render_view.py approval-<kind> N.M` bzw. `N`, `--revoke`) | – |
@@ -354,6 +355,7 @@ Statuszeilen, Ladetexte und Ergebniszeilen nach `START.md`, „Statusanzeige“.
 | `project.providers.update` | → Prüfe, ob sich die Dateien seit dem Lesen geändert haben · → Speichere KI-Dienste (Commit im Arbeits-Branch) | – | ✓ KI-Dienste gespeichert, Commit `abc1234` · noch nicht übernommen (Pull Request #NN) |
 | `project.settings.update` | → Speichere Projekteinstellungen (Commit) | – | ✓ Projekteinstellungen gespeichert, Commit `abc1234` |
 | `update.apply` | → Starte GhostWriter-Update | – | ✓ Update gestartet, Lauf: <Link> · oder Link *Run workflow*, wenn der Chat Workflows nicht starten kann |
+| `edition.proof` | → Starte Probedruck | – | ✓ Probedruck gestartet, Lauf: <Link> (PDF dort unter *Artifacts*, 14 Tage) |
 | `edition.create` | → Lege Pull Request für Auflage N an | – | ✓ Pull Request #NN für Auflage N angelegt; Tag und Release erzeugt die Action nach dem Merge |
 | `changes.merge` | → Prüfe, ob seit der Bestätigung etwas dazugekommen ist · → Übernehme N Änderungen (Merge) · → Lösche den Arbeits-Branch | – | ✓ N Änderungen übernommen, Merge-Commit `abc1234` |
 | Fehler | – | – | ✗ Nicht gespeichert: Grund, etwa „Datei wurde inzwischen geändert“ |

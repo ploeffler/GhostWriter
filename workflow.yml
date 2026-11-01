@@ -18,10 +18,11 @@ product_roadmap:
       - {version: "v0.3", goal: set_up_and_edit_project_and_chapters}
       - {version: "v0.4", goal: immediate_ai_runs_with_costs}
       - {version: "v0.5", goal: edition_and_export}
+      - {version: "v0.6", goal: library_one_installation_many_books_as_branches}   # Issues #36–#41, inkl. Update von v0.5
   v1_0:
     purpose: full_product_expansion
     scope: complete_ghostwriter_target_capabilities
-    requires: [complete_workflow_automation, github_issue_and_milestone_orchestration, robust_approval_and_audit_controls, repeatable_research_and_fact_checking, complete_export_and_release_pipeline, workflow_validation_and_quality_gates]
+    requires: [complete_workflow_automation, github_issue_and_milestone_orchestration, robust_approval_and_audit_controls, repeatable_research_and_fact_checking, complete_export_and_release_pipeline, workflow_validation_and_quality_gates, installable_web_app_pwa]   # installable_web_app_pwa: Issue #35
   delivery_policy:
     incremental_delivery: true
     v0_5_must_be_useful_without_v1_0_features: true

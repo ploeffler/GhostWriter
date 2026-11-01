@@ -1,0 +1,20 @@
+% GhostWriter: Zusätze für den PDF-Satz (pandoc --include-in-header)
+\usepackage[most]{tcolorbox}
+\newtcolorbox{gwmerkkasten}{
+  breakable, enhanced, colback=black!4, colframe=black!35, boxrule=0.4pt,
+  arc=1.5pt, left=8pt, right=8pt, top=6pt, bottom=6pt,
+  before skip=10pt, after skip=10pt,
+  title={\sffamily\bfseries\small Merkkasten}, coltitle=black, colbacktitle=black!10,
+  fonttitle=\sffamily\small, attach title to upper={\par\smallskip}, detach title,
+}
+\usepackage{microtype}
+\KOMAoptions{headings=normal}
+\setkomafont{disposition}{\normalfont\bfseries}
+\setkomafont{chapter}{\Large\bfseries}
+\RedeclareSectionCommand[beforeskip=0pt,afterskip=2\baselineskip]{chapter}
+\renewcommand*{\chapterformat}{}
+\usepackage{booktabs}
+\renewcommand{\arraystretch}{1.15}
+% Probedruck: Marker und Statusvermerke (Span-Klassen gwmarker, gwstatus)
+\newcommand{\gwmarker}[1]{{\sffamily\small\bfseries\color{red!65!black}#1}}
+\newcommand{\gwstatus}[1]{{\sffamily\small\itshape\color{black!55}#1}}

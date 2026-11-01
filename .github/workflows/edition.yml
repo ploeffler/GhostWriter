@@ -1,0 +1,97 @@
+name: Auflage veröffentlichen
+
+# Baut eine Auflage als PDF, DOCX und EPUB und legt Tag und Release an (#16).
+# Ausgelöst, wenn ein Push project.current_edition erhöht, also nach dem Merge
+# eines Auflagen-Pull-Requests („Neue Auflage erzeugen“ im Chat, START.md).
+# Nur freigegebene Inhalte; offene Marker oder fehlende Freigaben brechen mit
+# klarer Meldung ab. Veröffentlichte Auflagen bleiben unverändert: Gibt es den
+# Tag schon, wird nichts überschrieben.
+# Von Hand (oder später vom Backend, Weg B): workflow_dispatch mit Auflage.
+
+on:
+  push:
+    paths:
+      - 'ghostwriter.yml'
+  workflow_dispatch:
+    inputs:
+      edition:
+        description: 'Auflage (Nummer), die gebaut und veröffentlicht werden soll'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: edition-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  edition:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python-Abhängigkeiten
+        run: pip install pyyaml jsonschema python-docx
+
+      - name: Auflage ermitteln
+        id: info
+        env:
+          BEFORE: ${{ github.event.before }}
+          INPUT_EDITION: ${{ inputs.edition }}
+        run: |
+          args=(--before "$BEFORE")
+          if [ -n "$INPUT_EDITION" ]; then args=(--edition "$INPUT_EDITION"); fi
+          python scripts/edition_info.py . "${args[@]}" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Gibt es die Auflage schon?
+        if: steps.info.outputs.build == 'true'
+        env:
+          TAG: ${{ steps.info.outputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Die Auflage $TAG ist schon veröffentlicht. Veröffentlichte Auflagen bleiben unverändert; für Korrekturen eine neue Auflage erzeugen."
+            exit 1
+          fi
+
+      - name: Prüfen
+        if: steps.info.outputs.build == 'true'
+        run: |
+          python scripts/validate_project.py .
+          python scripts/assemble.py . check --edition "${{ steps.info.outputs.edition }}"
+
+      - name: Satzwerkzeuge installieren
+        if: steps.info.outputs.build == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends pandoc texlive-xetex texlive-latex-recommended \
+            texlive-latex-extra texlive-lang-german texlive-fonts-recommended lmodern >/dev/null
+
+      - name: PDF, DOCX und EPUB bauen
+        if: steps.info.outputs.build == 'true'
+        run: |
+          python scripts/build_edition.py . --edition "${{ steps.info.outputs.edition }}" \
+            --out build --commit "$GITHUB_SHA"
+
+      - name: Tag und Release anlegen
+        if: steps.info.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.info.outputs.tag }}
+          NAME: ${{ steps.info.outputs.name }}
+          NOTES: ${{ steps.info.outputs.notes }}
+        run: |
+          if [ -f "$NOTES" ]; then notes=(--notes-file "$NOTES"); else notes=(--notes "Auflage ohne eigene Release Notes."); fi
+          gh release create "$TAG" build/*.pdf build/*.docx build/*.epub \
+            --target "$GITHUB_SHA" --title "$NAME" "${notes[@]}"
+          {
+            echo "## $NAME veröffentlicht"
+            echo
+            echo "Tag \`$TAG\`, Commit \`${GITHUB_SHA:0:7}\`. Dateien: PDF, DOCX, EPUB."
+          } >> "$GITHUB_STEP_SUMMARY"
