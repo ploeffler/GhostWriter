@@ -54,3 +54,13 @@ jobs:
       - name: Tests (Kontextplanung, Zusammenführung)
         run: |
           if [ -d tests ]; then python -m unittest discover -s tests -p "test_*.py"; fi
+
+      - name: Doku passt zum Programm
+        # Aktionen und Platzhalter der Vorlagen (ghostwriter-ui im festen Commit),
+        # Datenmodell, Läufe und Links (scripts/check_docs.py)
+        run: |
+          [ -f scripts/check_docs.py ] || exit 0
+          repo=$(python -c "import yaml;print(yaml.safe_load(open('templates/ui/ghostwriter-ui.yml'))['repo'])")
+          ref=$(python -c "import yaml;print(yaml.safe_load(open('templates/ui/ghostwriter-ui.yml'))['commit'])")
+          git init -q /tmp/ui && git -C /tmp/ui fetch -q --depth 1 "https://github.com/$repo" "$ref" && git -C /tmp/ui checkout -q FETCH_HEAD
+          python scripts/check_docs.py --ui /tmp/ui

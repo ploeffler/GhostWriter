@@ -25,6 +25,8 @@ repository/
 │   │   │   └── <section-id>/
 │   │   │       ├── run-001.md
 │   │   │       └── run-002.md
+│   │   ├── research/kapitel/
+│   │   │   └── run-001.md         # Kapitelrecherche (ganzes Kapitel, Formular „Kapitelrecherche“)
 │   │   ├── writing/
 │   │   │   └── <section-id>/
 │   │   │       └── run-001.md     # Protokoll eines Ghostwriting-Laufs (ab v0.4)
@@ -78,14 +80,22 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `project.author` | Autorin oder Autor |
 | `project.description_short` | Kurzbeschreibung in einem Satz |
 | `project.description` | ausführliche Beschreibung |
+| `project.language` | Sprache des Buchs als Sprachcode, z. B. `de` (Silbentrennung und Anführungszeichen im Buchsatz) |
+| `project.target_audience` | Zielgruppe |
+| `project.book_type` | Buchtyp, z. B. Sachbuch, Ratgeber, Roman, Kinderbuch |
 | `project.status` | Projektstatus, z. B. `concept` |
 | `project.current_edition` | Nummer der letzten erschienenen Auflage, `0` = noch keine |
 | `workflow.current_phase` | `wizard` bis zur Strukturfreigabe, danach eine andere Phase |
 | `workflow.current_chapter_id`, `workflow.current_section_id` | zuletzt bearbeitete Stelle für den Wiedereinstieg |
+| `workflow.require_section_writing_approval`, `workflow.require_section_approval`, `workflow.require_chapter_approval` | Schreib-, Abschnitts- und Kapitelfreigabe sind Pflicht; feste Regeln, nur im Chat mit ausdrücklicher Bestätigung änderbar |
+| `workflow.fact_checking_default` | Vorgabe für den Faktencheck neuer Abschnitte: `disabled`, `optional`, `requested` (Projekteinstellungen) |
+| `ai_settings` | globale KI-Regeln: `hallucination_policy` (`strict`), `source_policy` (`required`), `uncertainty_policy` (`explicit`), `creativity` (`balanced`), `web_research` (`research`); dürfen nur strenger werden (`START.md`, Abschnitt 3) |
+| `ai_providers` | vorhandene KI-Dienste (`available`), Dienst und Modell je Aufgabe, Einstellungen je Dienst (`services`); siehe [PROVIDERS.md](PROVIDERS.md) |
 | `structure.chapters` | Kapitel in Reihenfolge, je mit `id`, `title`, `path`, `status` und `sections` (je `id`, `title`, `path`) |
 
 | `typesetting` | Buchsatz der Auflagen, in den Projekteinstellungen bearbeitbar (siehe unten) |
 | `updates.auto` | neue GhostWriter-Versionen automatisch einspielen; fehlt = `true` ([UPDATES.md](UPDATES.md)) |
+| `changes.auto_merge` | gespeicherte Änderungen sofort übernehmen statt über „Änderungen übernehmen“; fehlt = `false`. Freigaben und Auflagen brauchen trotzdem ihre eigene Bestätigung (`START.md`, „Schreiben ins Repository“) |
 | `.ghostwriter/update.yml` | von der Update-Action geschrieben: installierte Version, Upstream-Commit, Zeitpunkt, ausgelassene Workflow-Dateien; nicht von Hand ändern |
 | `ghostwriter-manifest.yml` | Programmversion und welche Dateien zum Programm (`managed`) bzw. zum Buch (`book`) gehören; Teil des Programms |
 
@@ -169,6 +179,10 @@ Jeder Lauf ist eine eigene Datei und wird nicht überschrieben. Empfehlenswerte 
 - Unsicherheiten und Widersprüche;
 - offene Fragen;
 - Vorschläge für den Abschnitt.
+
+## Kapitelrecherche
+
+Eine Recherche für ein ganzes Kapitel (Formular „Kapitelrecherche“, `START.md`) ist eine eigene Datei `chapters/<kapitel>/research/kapitel/run-NNN.md` aus `templates/chapter-research-run.md` und wird nie überschrieben. Im Kopf: `task` (`goal` Ziel recherchieren, `sections` Abschnitte erstellen, `summary` Kurzbeschreibung erstellen, leer = nur Fragestellung), `question`, `scope`, `weight_prev` und `weight_next` (Gewichtung des vorherigen und nächsten Kapitels: 0 nicht berücksichtigen, 1 abgrenzen, 2 anschließen, 3 stark einbeziehen) und `context` (einbezogene Nachbarkapitel). Pflichtabschnitte: `## Kurzfassung`, `## Vorschlag: Ziel des Kapitels`, `## Vorschlag: Kurzbeschreibung`, bei `sections` `## Vorschlag: Abschnitte` (je Zeile `- Titel: Kurzbeschreibung`). Der Lauf ändert nie Ziel, Kurzbeschreibung, Abschnitte oder Status; erst „Speichern“ bzw. „Ausgewählte Abschnitte anlegen“ im Formular. Neue Abschnitte kommen ans Ende, vorhandene bleiben unverändert.
 
 ## Ghostwriting-Lauf
 

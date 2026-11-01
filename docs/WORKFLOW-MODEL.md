@@ -22,6 +22,8 @@ Der Übergang zu `writing` verlangt eine ausdrückliche Schreibfreigabe. Der Üb
 
 Ein Kapitel kann erst zusammengeführt werden, wenn alle zugehörigen Abschnitte freigegeben sind. Die Kapitelgesamtfreigabe ist eine eigenständige Benutzerentscheidung und wird nicht aus Abschnittsfreigaben abgeleitet.
 
+Die **Kapitelrecherche** (`runs.chapter_research`) recherchiert für das ganze Kapitel, wahlweise mit einer Aufgabe (Ziel recherchieren, Abschnitte erstellen, Kurzbeschreibung erstellen) und gewichtetem Zusammenhang mit dem vorherigen und nächsten Kapitel. Sie ändert keinen Status und keine Struktur; ihre Vorschläge wirken erst, wenn der Benutzer sie im Formular übernimmt. Neue Abschnitte aus Vorschlägen kommen ans Ende und setzen ein freigegebenes Kapitel auf `in_progress` zurück.
+
 ## GitHub-Aufgaben und Milestones
 
 Für jede konkrete Arbeitseinheit kann ein Issue erzeugt werden. Jedes Issue muss mindestens die Entitäts-ID, den aktuellen und angestrebten Status, Aufgabentyp, einschlägige Anweisungen, Eingaben, Akzeptanzkriterien, betroffene Dateien und gegebenenfalls die Freigabeschranke enthalten.
@@ -52,7 +54,7 @@ Stabile IDs werden unabhängig von sichtbaren Nummern geführt. Nummern werden a
 Die Workflow-Datei definiert das Soll-Verhalten. Sie bedeutet nicht, dass alle beschriebenen Automatisierungen bereits implementiert sind.
 
 
-## Produkt-Roadmap: v0.5 und v1.0
+## Produkt-Roadmap
 
 Die GhostWriter-Produktversion und die Ausgabeversion eines Buches sind getrennte Dinge.
 
@@ -77,7 +79,18 @@ Der Weg zu v0.5 ist in fünf Stufen geteilt. Jede endet mit einer Abnahme im Cha
 | v0.2 | Testprojekt lesen und anzeigen | Link zum Test-Repo zeigt Übersicht, Kapitel und Abschnitt mit richtigen Summen und Markern |
 | v0.3 | Projekt und Kapitel einrichten und bearbeiten | Ersten Start auf einem kurzlebigen Branch vom Starter durchlaufen; im Testbuch anlegen, umordnen, speichern und mit Bestätigung freigeben; jede Änderung als Pull Request, Merge per Schaltfläche |
 | v0.4 | AI-Läufe „Sofort“ | Recherche und Ghostwriting für einen ADHS-Abschnitt mit Lauf-Datei und Statuswechsel; Chat-Läufe über Abos ohne Kosteneintrag (#13) |
-| v0.5 | Auflage und Export | Auflage 2 mit PDF, DOCX und EPUB; Auflage 1 unverändert; Testplan bestanden |
+| v0.5 | Auflage und Export | Auflage 2 mit PDF, DOCX und EPUB; Auflage 1 unverändert; Testplan bestanden ([TESTPLAN-v0.5.md](TESTPLAN-v0.5.md)) |
+
+### Nach v0.5
+
+| Stufe | Ziel |
+|---|---|
+| v0.6 | Bibliothek: eine Installation, mehrere Bücher als Branches (#36–#41); automatische Migration der Datenstruktur (#59); README und Anleitung (#46); Programm-Repository öffentlich, Testbuch getrennt (#48) |
+| v0.7 | Figuren auf Buch-Ebene (#53) und Bilderzeugung (#54) |
+| v1.0 | Vollausbau (siehe oben), installierbare Web-App (#35), Widmung, Prolog, Epilog, Danksagung (#57) |
+| v1.5 | Vorwort, Nachwort, Glossar (#58) |
+
+Jeder Schritt, der die Datenstruktur ändert, liefert eine Migration mit (#59); Doku und Programm prüft `scripts/check_docs.py` in `validate.yml`.
 
 ## Buchausgaben als GitHub Releases
 

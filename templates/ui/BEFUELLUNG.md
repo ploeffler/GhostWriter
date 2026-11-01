@@ -247,6 +247,7 @@ Für Kapitel und Abschnitte.
 | `TITLE_PAGE`, `IMPRINT`, `TOC` | `typesetting` als `true`/`false` |
 | Block `FIXED`: `FIXED_LABEL`, `FIXED_VALUE` | KI-Grundeinstellungen (`ai_settings`) und Freigabepflichten (`workflow.require_…`), nur zur Anzeige |
 | `UPDATES_AUTO` | `updates.auto` als `true`/`false`; fehlt der Block, `true` |
+| `CHANGES_AUTO_MERGE` | `changes.auto_merge` als `true`/`false`; fehlt der Block, `false` |
 | `GW_VERSION_TEXT` | „Installiert: GhostWriter <version>“ aus `ghostwriter-manifest.yml`, dazu „ · zuletzt aktualisiert am TT.MM.JJJJ“ aus `.ghostwriter/update.yml` (`updated_at`), falls vorhanden |
 | `GW_UPDATE_HINT` | nur wenn `.ghostwriter/update.yml` `skipped_workflows` enthält: Hinweis auf das Secret `GHOSTWRITER_UPDATE_TOKEN` (`docs/UPDATES.md`); sonst leer |
 
