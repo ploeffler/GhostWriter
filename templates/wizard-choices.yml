@@ -1,0 +1,125 @@
+# Auswahlkarten für den Einstiegsdialog (#81)
+#
+# Wizard-Schritte mit festen Antwortmöglichkeiten werden als Auswahlkarten
+# gezeigt statt als Fließtext-Frage (START.md, Abschnitt 4, „Auswahlkarten“):
+#   python scripts/render_view.py . choice wizard.5         Widget
+#   python scripts/render_view.py . choice wizard.5 --text  Textfassung
+# Offene Schritte (Autor, Thema, Ziel, Kurzbeschreibung, Gliederung …) bleiben
+# Gespräch. Jede Karte hat zusätzlich das Feld „Andere Antwort“.
+#
+# Aufbau je Schritt:
+#   title, subtitle, note   Kopf und Fußzeile ({step} und {steps} werden ersetzt)
+#   skippable               true = Knopf „Überspringen“ (Angabe bleibt vorerst offen)
+#   questions               1–4 Fragen:
+#     key      Name der Antwort in wizard.answer → answers.<key>
+#     field    wohin die Antwort gehört (Pfad in ghostwriter.yml), optional; steht dort schon
+#              ein Wert, ist die passende Karte vorausgewählt. Ohne field fließt die Antwort
+#              ins Gespräch ein (z. B. Umfang und Stil in die Beschreibung)
+#     header   Etikett, höchstens 12 Zeichen
+#     text     Fragetext
+#     multi    true = mehrere Antworten möglich
+#     options  2–6 Antworten: value, label (1–5 Wörter), desc (eine Zeile, optional),
+#              recommended: true (höchstens eine je Frage)
+
+steps_total: 13
+
+steps:
+  wizard.4:
+    title: "Neues Buch · Schritt {step} von {steps}"
+    subtitle: Für wen schreibst du?
+    note: Die Zielgruppe lässt sich später in den Projektdaten genauer beschreiben.
+    questions:
+      - key: audience
+        field: project.target_audience
+        header: Zielgruppe
+        text: Wer soll das Buch vor allem lesen?
+        options:
+          - {value: betroffene, label: Betroffene, desc: "Menschen, die das Thema selbst erleben"}
+          - {value: angehoerige, label: Angehörige, desc: "Familie, Freunde, Partner"}
+          - {value: fachpublikum, label: Fachpublikum, desc: "Menschen, die beruflich damit zu tun haben"}
+          - {value: allgemein, label: Allgemein Interessierte, desc: "Neugierige ohne Vorwissen"}
+      - key: prior_knowledge
+        field: project.target_audience
+        header: Vorwissen
+        text: Wie viel Vorwissen setzt das Buch voraus?
+        options:
+          - {value: keines, label: Keines, desc: "Alles wird von Grund auf erklärt", recommended: true}
+          - {value: grundlagen, label: Grundlagen, desc: "Die wichtigsten Begriffe sind bekannt"}
+          - {value: fachlich, label: Fachwissen, desc: "Fachbegriffe ohne Erklärung"}
+
+  wizard.5:
+    title: "Neues Buch · Schritt {step} von {steps}"
+    subtitle: Art und Umfang
+    note: Der Umfang ist nur ein Richtwert; Kapitel und Abschnitte bleiben jederzeit änderbar.
+    questions:
+      - key: book_type
+        field: project.book_type
+        header: Buchtyp
+        text: Welche Art Buch wird es?
+        options:
+          - {value: sachbuch, label: Sachbuch, desc: "Erklärt ein Thema mit Quellen"}
+          - {value: ratgeber, label: Ratgeber, desc: "Praktische Hilfe für den Alltag"}
+          - {value: fachbuch, label: Fachbuch, desc: "Für Fachleute, mit Fachsprache"}
+          - {value: erfahrungsbericht, label: Erfahrungsbericht, desc: "Eigene Geschichte mit Hintergrundwissen"}
+      - key: length
+        header: Umfang
+        text: Wie umfangreich soll es ungefähr werden?
+        options:
+          - {value: kurz, label: Kurz, desc: "bis etwa 100 Seiten"}
+          - {value: mittel, label: Mittel, desc: "etwa 150–250 Seiten", recommended: true}
+          - {value: lang, label: Umfangreich, desc: "mehr als 250 Seiten"}
+          - {value: offen, label: Noch offen, desc: "ergibt sich aus der Gliederung"}
+
+  wizard.6:
+    title: "Neues Buch · Schritt {step} von {steps}"
+    subtitle: Sprache und Schreibstil
+    note: Der Stil gilt für alle Schreibläufe und lässt sich je Kapitel verfeinern.
+    questions:
+      - key: language
+        field: project.language
+        header: Sprache
+        text: In welcher Sprache wird das Buch geschrieben?
+        options:
+          - {value: de, label: Deutsch}
+          - {value: en, label: Englisch}
+          - {value: fr, label: Französisch}
+          - {value: es, label: Spanisch}
+      - key: style
+        header: Stil
+        text: Welcher Ton passt zum Buch?
+        options:
+          - {value: sachlich, label: Sachlich, desc: "klar, nüchtern, gut belegt"}
+          - {value: zugewandt, label: Zugewandt, desc: "persönlich, mit Beispielen aus dem Alltag", recommended: true}
+          - {value: erzaehlend, label: Erzählend, desc: "mit Geschichten und Szenen"}
+          - {value: humorvoll, label: Humorvoll, desc: "locker, mit Augenzwinkern"}
+
+  wizard.12:
+    title: "Neues Buch · Schritt {step} von {steps}"
+    subtitle: Gespeicherte Änderungen
+    note: Freigaben und Auflagen brauchen in beiden Fällen ihre eigene Bestätigung. Später in den Projekteinstellungen änderbar.
+    questions:
+      - key: auto_merge
+        field: changes.auto_merge
+        header: Übernehmen
+        text: Sollen gespeicherte Änderungen sofort ins Buch übernommen werden?
+        options:
+          - {value: "true", label: Sofort übernehmen, desc: "Jede Änderung steht gleich im Buch; einfacher, wenn du allein schreibst", recommended: true}
+          - {value: "false", label: Erst sammeln, desc: "Änderungen sammeln sich und werden auf Bestätigung übernommen"}
+
+  wizard.13:
+    title: "Neues Buch · Schritt {step} von {steps}"
+    subtitle: Übersetzungen
+    note: Hier wird nur festgehalten, was geplant ist. Übersetzungen selbst kommen in einer späteren Version.
+    skippable: true
+    questions:
+      - key: translations
+        field: project.translations_planned
+        header: Übersetzung
+        text: Sind Übersetzungen geplant? Wenn ja, in welche Sprachen?
+        multi: true
+        options:
+          - {value: keine, label: Keine geplant, recommended: true}
+          - {value: en, label: Englisch}
+          - {value: fr, label: Französisch}
+          - {value: es, label: Spanisch}
+          - {value: it, label: Italienisch}

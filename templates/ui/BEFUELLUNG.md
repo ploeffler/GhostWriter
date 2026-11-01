@@ -182,6 +182,18 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `LAST_RUN`, `LAST_RUN_ID`, `LAST_RUN_TEXT` | letzter Lauf: `true`, `id`, Abschnitt `## Kurzfassung`; ohne Lauf entfällt der Ergebnisbereich |
 | `SUGGESTED_GOAL`, `SUGGESTED_SUMMARY` | `## Vorschlag: Ziel des Kapitels` und `## Vorschlag: Kurzbeschreibung` des letzten Laufs; leer = kein Vorschlag |
 
+### `auswahl.html`
+
+Auswahlkarten für feste Antwortmöglichkeiten im Einstiegsdialog (`START.md`, Abschnitt 4, „Auswahlkarten“) und in anderen geführten Dialogen. Erzeugt mit `render_view.py choice wizard.N` aus `templates/wizard-choices.yml` oder mit `--spec` für eine eigene Auswahl.
+
+| Platzhalter | Quelle |
+|---|---|
+| `STEP` | Kennung des Schritts (`wizard.N` bzw. `step` aus `--spec`); geht in `wizard.answer` unverändert zurück |
+| `TITLE`, `SUBTITLE`, `NOTE` | `title`, `subtitle`, `note` des Schritts; `{step}` und `{steps}` werden durch Schrittnummer und `steps_total` ersetzt |
+| `SKIPPABLE` | `1`, wenn der Schritt `skippable: true` hat, sonst leer (Knopf „Überspringen“ entfällt) |
+| Block `QUESTIONS`: `Q_INDEX`, `Q_KEY`, `Q_HEADER`, `Q_TEXT`, `Q_MULTI` | je Frage: laufende Nummer ab 1, `key`, `header` (höchstens 12 Zeichen), `text`, `1` bei `multi: true` |
+| Block `OPTIONS`: `OPT_Q`, `OPT_VALUE`, `OPT_LABEL`, `OPT_DESC`, `OPT_RECOMMENDED`, `OPT_SELECTED` | alle Antworten aller Fragen in einem flachen Block (gw.js kennt keine verschachtelten Blöcke): `Q_INDEX` der Frage, `value`, `label`, `desc`, `1` bei `recommended`, `1`, wenn `field` in `ghostwriter.yml` diesen Wert schon hat |
+
 ### `ki-dienste.html`
 
 | Platzhalter | Quelle |
@@ -270,7 +282,7 @@ Gestaltung:
 | Projektübersicht | `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
 | Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `B` Kapitel bearbeiten · `Z` Ziel, Kurzbeschreibung, Kapitelrecherche · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `FK` Kapitel freigeben (nur wenn möglich) · `Ü` Übersicht |
 | Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` Abschnitt freigeben bzw. zurücknehmen · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
-| Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Änderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · Kapitelrecherche: `Ziel: …`, `Kurzbeschreibung: …`, `Frage: …`, `Schwerpunkte: …`, `Aufgabe: Ziel|Abschnitte|Kurzbeschreibung|keine`, `Vorher: 0–3`, `Nachher: 0–3`, `VZ`/`VK` Vorschlag übernehmen, `AS 1, 3` vorgeschlagene Abschnitte anlegen · KI-Dienste: `+ id`, `- id`, `Aufgabe: id` · `X` bricht ab |
+| Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Änderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · Auswahl: `1b, 2a` (Frage und Buchstabe; bei Mehrfachauswahl `2a c`), eigene Antwort `1: Text`, `S` überspringt (nur wenn angeboten) · Kapitelrecherche: `Ziel: …`, `Kurzbeschreibung: …`, `Frage: …`, `Schwerpunkte: …`, `Aufgabe: Ziel|Abschnitte|Kurzbeschreibung|keine`, `Vorher: 0–3`, `Nachher: 0–3`, `VZ`/`VK` Vorschlag übernehmen, `AS 1, 3` vorgeschlagene Abschnitte anlegen · KI-Dienste: `+ id`, `- id`, `Aufgabe: id` · `X` bricht ab |
 
 Ein Kürzel entspricht dem Klick auf den gleichnamigen Knopf; es gelten dieselbe Aktion, dieselben Statuszeilen und dieselbe Ausgangsansicht danach.
 
@@ -335,6 +347,8 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `approval.open` | `kind` (`writing` \| `section` \| `chapter`), `section_id` bzw. `chapter_id`, `revoke` (nur beim Zurücknehmen) | Bestätigung „Freigabe“ zeigen | Vorlage `freigabe-bestaetigen` (`render_view.py approval-<kind> N.M` bzw. `N`, `--revoke`) | – |
 | `approval.confirm` | wie `approval.open`, dazu `expected_head_sha` | Freigabe erteilen bzw. zurücknehmen; der Klick ist die ausdrückliche Bestätigung | Hindernisse erneut prüfen, dann nach `START.md`, „Freigaben“, schreiben; danach die Ausgangsansicht | `POST`/`DELETE …/sections/{section_id}/writing-approval`, `…/sections/{section_id}/approve`, `…/chapters/{chapter_id}/approve` |
 | `update.apply` | – | GhostWriter-Update einspielen | Action „GhostWriter aktualisieren“ per `workflow_dispatch` starten oder Link *Run workflow* geben (`START.md`, „Programmdateien und Updates“); nie selbst mergen | `POST /repos/{owner}/{repo}/actions/workflows/update.yml/dispatches` |
+| `wizard.answer` | `step`, `answers` (je `key` der Frage: Wert, Liste von Werten bei Mehrfachauswahl, `{"other": "Text"}` für eine eigene Antwort, auch als Listeneintrag) | Antworten auf Auswahlkarten | Antworten übernehmen (`START.md`, Abschnitt 4, „Auswahlkarten“), noch nichts schreiben; mit dem nächsten Wizard-Schritt weitermachen | – |
+| `wizard.skip` | `step` | Schritt überspringen | Angabe bleibt vorerst offen, nächster Wizard-Schritt | – |
 | `form.cancel` | `form` und betroffene ID | Formular ohne Änderung geschlossen | nichts schreiben, Ausgangsansicht zeigen (siehe „Nach dem Formular“) | – |
 
 Schreibende Aktionen (`….update`, `….create` außer `edition.create`, `….reorder`, `changes.merge`, `approval.confirm`) laufen nach `START.md`, „Schreiben ins Repository“: Prüfung gegen `expected_head_sha`, Commit im Arbeits-Branch, kein automatischer Merge.
