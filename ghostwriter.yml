@@ -22,25 +22,27 @@ ai_settings:
   creativity: balanced
   web_research: research
 ai_providers:
-  available: []
+  available:
+  - openai
+  - anthropic
   default:
     provider: chat
     model: ''
   research:
-    provider: ''
+    provider: openai
     model: ''
     search_tools: []
   brainstorming:
-    provider: ''
+    provider: openai
     model: ''
   writing:
-    provider: ''
+    provider: anthropic
     model: ''
   revision:
-    provider: ''
+    provider: openai
     model: ''
   fact_check:
-    provider: ''
+    provider: openai
     model: ''
   queue_processing:
     agent: manual
