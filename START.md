@@ -108,6 +108,25 @@ Was jedes Formular schreibt:
 
 Ausnahmen: KI-Läufe (`run.start`, ab v0.4) schreiben Lauf-Datei und Abschnittsstatus nach denselben Regeln in den Arbeits-Branch (Ablauf: „KI-Lauf „Sofort““); einen Kosteneintrag nur, wenn der Lauf kostenpflichtige KI-API-Aufrufe über das Backend gemacht hat. Eine neue Auflage (`edition.create`) bekommt einen eigenen Pull Request, nicht den Arbeits-Branch. Kein Formular und keine Schreibregel gibt mehr als den Text eines Abschnitts im Chat aus.
 
+### KI-Lauf „Sofort“ (verbindlich, ab v0.4)
+
+Die Knöpfe „Recherche · Sofort“ und „Ghostwriting · Sofort“ im Abschnittsformular senden `run.start` mit `task` (`research` | `writing`) und `mode: immediate`. „Zeitgesteuert“ (`mode: scheduled`) bleibt bis nach v0.5 abgeschaltet; kommt es trotzdem, antworte, dass es noch nicht verfügbar ist, und biete „Sofort“ an.
+
+1. **Zuständigkeit prüfen:** Welcher Dienst die Aufgabe übernimmt, steht in `ai_providers` (Recherche: `research`, Ghostwriting: `writing`, sonst `default`). Ist es der aktuelle Chat (`chat`), läuft der Lauf hier. Sonst „Auftrag kopieren“ (`docs/DIENSTE-NUTZEN.md`, Weg 2/3); die Rückgabe wird danach wie unten gespeichert. Nie still selbst übernehmen.
+2. **Voraussetzungen:**
+   - **Recherche:** jederzeit möglich, auch wiederholt. Status `planned` → `research`; spätere Läufe ändern den Status nicht.
+   - **Ghostwriting:** nur mit Schreibfreigabe (`approvals.writing: true`). Fehlt sie, nicht schreiben, sondern auf „Freigabe bestätigen“ (Schreibfreigabe) verweisen. Grundlage sind die vorhandenen Recherche- und Brainstorming-Läufe des Abschnitts sowie Ziel und Kurzbeschreibung; nur dieser eine Abschnitt.
+3. **Ausführen** nach den globalen KI-Regeln (Abschnitt 3): Recherche mit Internetrecherche und belegten Quellen, Unsicherheiten kennzeichnen; Ghostwriting ohne erfundene Fakten, offene Stellen als Marker (`[QUELLE PRÜFEN: …]`, `[PLATZHALTER-ANEKDOTE: …]` …).
+4. **Zeigen:** Recherche als kurze Zusammenfassung (Fragestellung, wichtigste Ergebnisse, Zahl der Quellen, offene Fragen); Ghostwriting als Text dieses einen Abschnitts. Nie mehr als ein Abschnitt.
+5. **Speichern:** ein Commit im Arbeits-Branch (Abschnitt „Schreiben ins Repository“) mit
+   - der **Lauf-Datei** nach `workflow.yml` → `runs` (Recherche: `chapters/<kapitel>/research/<abschnitt>/run-NNN.md` aus `templates/research-run.md`; Ghostwriting: `chapters/<kapitel>/writing/<abschnitt>/run-NNN.md` aus `templates/writing-run.md`); laufende Nummer, nie überschreiben;
+   - bei Ghostwriting dem **Manuskript** in der Abschnittsdatei (unter `## Manuskript`) und dem Statuswechsel `ready_to_write` → `writing` bzw., wenn schon ein Entwurf da war, `writing`/`revision` → `revision`; der vorige Text bleibt in der Git-Historie;
+   - dem **Status** in der Abschnittsliste der Kapitel-README und `workflow.current_*`;
+   - **keinem Kosteneintrag** für die Arbeit im Chat (#13). Nur wenn der Lauf über das GhostWriter-Backend kostenpflichtige KI-API-Aufrufe gemacht hat, kommt je Aufruf ein Eintrag mit `source: backend_api` und `run_id` dazu.
+   
+   Commit-Nachricht: `Recherche für Abschnitt N.M` bzw. `Entwurf für Abschnitt N.M`, darunter `GhostWriter-Aktion: run.start`.
+6. **Ergebniszeile** wie in `templates/ui/BEFUELLUNG.md`, „Statustexte“, danach wieder das Abschnittsformular mit dem neuen Stand. Freigaben erteilt ein Lauf nie; die Abschnittsfreigabe bleibt ein eigener, ausdrücklicher Schritt.
+
 ### Freigaben (verbindlich)
 
 Eine Freigabe entsteht nur durch eine eigene Bestätigung, nie beim Speichern eines Formulars und nie aus einer freien Formulierung, die der Assistent als Zustimmung deutet (`workflow.yml`: `approvals_require_explicit_user_confirmation`, `automation_must_not_infer_approval`).

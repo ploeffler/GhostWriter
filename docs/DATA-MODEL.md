@@ -25,8 +25,11 @@ repository/
 │   │   │   └── <section-id>/
 │   │   │       ├── run-001.md
 │   │   │       └── run-002.md
+│   │   ├── writing/
+│   │   │   └── <section-id>/
+│   │   │       └── run-001.md     # Protokoll eines Ghostwriting-Laufs (ab v0.4)
 │   │   └── costs/
-│   │       └── <section-id>.yml   # Kosteneinträge des Abschnitts
+│   │       └── <section-id>.yml   # KI-API-Kosten über das Backend (nur dann)
 │   └── 02-grundlagen/
 │       ├── README.md
 │       └── sections/
@@ -166,6 +169,10 @@ Jeder Lauf ist eine eigene Datei und wird nicht überschrieben. Empfehlenswerte 
 - Unsicherheiten und Widersprüche;
 - offene Fragen;
 - Vorschläge für den Abschnitt.
+
+## Ghostwriting-Lauf
+
+Ab v0.4 protokolliert jeder Ghostwriting-Lauf („Sofort“, `START.md`) eine eigene Datei `chapters/<kapitel>/writing/<abschnitt>/run-NNN.md` aus `templates/writing-run.md`: Anbieter, Modell, Grundlage (verwendete Recherche- und Brainstorming-Läufe, Schreibfreigabe), Ergebnis (Wörter, neue Marker, Statuswechsel) und Hinweise. Der Text selbst steht nur im Manuskript der Abschnittsdatei. Ein Lauf setzt die Schreibfreigabe voraus und erteilt nie eine Freigabe. Kosten entstehen nur bei Aufrufen über das Backend (siehe „AI-Kostenprotokoll“).
 
 ## Brainstorminglauf
 
