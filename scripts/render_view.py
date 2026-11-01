@@ -389,7 +389,9 @@ def load_changes(args):
     if not getattr(args, 'changes', None):
         return None
     data = json.loads(Path(args.changes).read_text(encoding='utf-8'))
-    return data if data.get('commits') else None
+    # Automatische Commits (Übersichtsdatei) sind keine Änderung des Benutzers und zählen nicht mit.
+    data['commits'] = [c for c in data.get('commits') or [] if 'GhostWriter-Aktion: index.build' not in c.get('message', '')]
+    return data if data['commits'] else None
 
 
 def changes_text(changes):
@@ -416,7 +418,7 @@ def changes_merge_view(base, config, args):
               'BOOK_BRANCH': changes['book_branch'], 'WORK_BRANCH': changes['work_branch']}
     if args.text:
         lines = ['### 🔀 Änderungen übernehmen', '',
-                 f'{values["PENDING_TEXT"]} aus `{values["WORK_BRANCH"]}` werden in `{values["BOOK_BRANCH"]}` übernommen '
+                 f'In `{values["BOOK_BRANCH"]}` übernehmen: {values["PENDING_TEXT"]} aus `{values["WORK_BRANCH"]}` '
                  f'(Pull Request #{values["PENDING_PR"]}).', '',
                  '| # | Änderung | Datum | Commit |', '|--:|---|---|---|']
         lines += [f'| {i} | {r["CHANGE_MESSAGE"]} | {r["CHANGE_DATE"]} | `{r["CHANGE_SHA"]}` |' for i, r in enumerate(rows, start=1)]
@@ -542,11 +544,21 @@ def providers_edit_view(base, config, args):
     catalog = yaml.safe_load((ROOT / 'providers.yml').read_text(encoding='utf-8'))
     ap = config.get('ai_providers') or {}
     available = list(ap.get('available') or [])
-    def link(s):
-        if s.get('setup'):
-            path, _, anchor = s['setup'].partition('#')
-            return f'https://github.com/{args.repo}/blob/{args.branch}/{path}' + (f'#{anchor}' if anchor else ''), 'Anleitung'
-        return s.get('url', ''), 'Website'
+    def guide(s, group):
+        setup = s.get('setup')
+        if not setup:
+            if group == 'search':
+                setup = 'docs/DIENSTE-NUTZEN.md#recherchequellen'
+            elif group == 'agent':
+                setup = 'docs/DIENSTE-NUTZEN.md#agenten-für-die-aufgaben-warteschlange'
+            elif s.get('kind') == 'local':
+                setup = 'docs/DIENSTE-NUTZEN.md#weg-3-lokale-modelle-auf-deinem-rechner'
+            elif s.get('kind') == 'llm' and 'app' in (s.get('access') or []):
+                setup = 'docs/DIENSTE-NUTZEN.md#weg-2-ein-anderer-chat-dienst-auftrag-kopieren'
+            else:
+                setup = 'docs/DIENSTE-NUTZEN.md#weg-4-dienste-nur-mit-api-schlüssel'
+        path, _, anchor = setup.partition('#')
+        return f'https://github.com/{args.repo}/blob/{args.branch}/{path}' + (f'#{anchor}' if anchor else '')
     services = []
     for section, group in (('providers', 'llm'), ('search_tools', 'search'), ('queue_agents', 'agent')):
         for s in catalog.get(section) or []:
@@ -559,10 +571,9 @@ def providers_edit_view(base, config, args):
                 roles, note = 'search', s.get('note', '')
             else:
                 roles, note = 'queue_processing', s.get('note', '')
-            url, label = link(s)
             services.append({'SERVICE_ID': s['id'], 'SERVICE_NAME': s['name'], 'SERVICE_GROUP': group,
                              'SERVICE_ROLES': roles, 'SERVICE_NOTE': note, 'SERVICE_AVAILABLE': 'true' if s['id'] in available else '',
-                             'SERVICE_SETUP_URL': url, 'SERVICE_SETUP_LABEL': label})
+                             'SERVICE_GUIDE_URL': guide(s, group), 'SERVICE_WEBSITE_URL': s.get('url', '')})
     roles = []
     for rid, label, hint in ROLE_INFO:
         entry = ap.get(rid) or {}
@@ -577,7 +588,8 @@ def providers_edit_view(base, config, args):
         lines += ['', '| Aufgabe | Dienst |', '|---|---|']
         lines += [f'| {r["ROLE_LABEL"]} | {names.get(r["ROLE_VALUE"], r["ROLE_VALUE"])} |' for r in roles]
         lines += ['', '<details><summary>Weitere Dienste hinzufügen</summary>', '']
-        lines += [f'- `{s["SERVICE_ID"]}` {s["SERVICE_NAME"]} · [{s["SERVICE_SETUP_LABEL"]}]({s["SERVICE_SETUP_URL"]})'
+        lines += [f'- `{s["SERVICE_ID"]}` {s["SERVICE_NAME"]} · [Anleitung]({s["SERVICE_GUIDE_URL"]})'
+                  + (f' · [Website]({s["SERVICE_WEBSITE_URL"]})' if s['SERVICE_WEBSITE_URL'] else '')
                   for s in services if not s['SERVICE_AVAILABLE']]
         lines += ['', '</details>', '', '---',
                   'Antworte je Zeile: `+ id` (Dienst habe ich), `- id` (habe ich nicht mehr), `Aufgabe: id` (zuteilen, z. B. `Recherche: perplexity`). `OK` speichert nichts Neues, `X` bricht ab.']

@@ -8,7 +8,7 @@ GhostWriter ist anbieterunabhängig. Für jedes Buchprojekt wird pro Aufgabe fes
 
 Du brauchst für GhostWriter keine neuen Abos. Im Wizard wird gefragt, welche KI-Dienste du schon nutzt; nur diese werden eingetragen (`ai_providers.available`) und den Aufgaben zugeteilt. Wer nichts nennt, arbeitet mit dem aktuellen Chat für alles.
 
-Später kannst du jederzeit weitere Dienste ergänzen: In der Projektübersicht öffnet der Knopf **KI-Dienste** (Textfassung `D`) ein Formular. Dort hakst du ab, was du hast, teilst die Aufgaben zu und findest bei jedem Dienst einen Link zur Einrichtung: eine GhostWriter-Anleitung, wo es eine gibt (Feld `setup` in `providers.yml`, z. B. [CONNECTOR-SETUP.md](CONNECTOR-SETUP.md) für Claude und ChatGPT), sonst die Website des Anbieters. Die Prüf-Action meldet, wenn eine Aufgabe einem Dienst zugeteilt ist, der nicht in `available` steht.
+Später kannst du jederzeit weitere Dienste ergänzen: In der Projektübersicht öffnet der Knopf **KI-Dienste** (Textfassung `D`) ein Formular. Dort hakst du ab, was du hast, teilst die Aufgaben zu und findest bei jedem Dienst zwei Links: **Anleitung**, wie du ihn mit GhostWriter nutzt ([DIENSTE-NUTZEN.md](DIENSTE-NUTZEN.md); für Claude und ChatGPT die Verbindung mit GitHub in [CONNECTOR-SETUP.md](CONNECTOR-SETUP.md)), und **Website** des Anbieters. Die Prüf-Action meldet, wenn eine Aufgabe einem Dienst zugeteilt ist, der nicht in `available` steht.
 
 ## Rollen
 
