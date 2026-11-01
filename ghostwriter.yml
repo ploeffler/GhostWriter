@@ -14,7 +14,7 @@ project:
   target_audience: ''
   book_type: ''
   status: writing
-  current_edition: 1
+  current_edition: 2
 ai_settings:
   hallucination_policy: strict
   source_policy: required
