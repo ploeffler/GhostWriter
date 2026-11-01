@@ -16,7 +16,8 @@ Geprüft wird:
 4. Läufe: Jede Lauf-Art aus workflow.yml (runs) steht mit ihrem Pfad in
    docs/DATA-MODEL.md.
 5. Links: Relative Links in den Markdown-Dateien zeigen auf vorhandene Dateien.
-7. Hinweis: Jede Doku-Datei endet mit der Fußzeile aus templates/branding.yml;
+7. Hinweis: Jede Doku-Datei endet mit der Fußzeile aus templates/branding.yml
+   (Hinweis und kleines Logo unten rechts, Bildpfade gültig);
    keine Vorlage für Buchdateien (templates/*.md außer ui/) enthält ihn.
 6. Roadmap: Jede Version aus workflow.yml (product_roadmap.v0_5_steps) steht in
    der Roadmap von docs/WORKFLOW-MODEL.md; mit --milestones (JSON-Liste der
@@ -164,8 +165,17 @@ def check_credit(problems):
     if not text:
         return
     for rel in DOCS:
-        if (ROOT / rel).is_file() and text not in read(rel)[-400:]:
+        if not (ROOT / rel).is_file():
+            continue
+        tail = read(rel)[-700:]
+        if text not in tail:
             problems.append(f'Fußzeile „{text}“ fehlt am Ende von {rel}')
+        images = re.findall(r'(?:src|srcset)="([^"]+)"', tail)
+        if not any(i.endswith('logo.svg') for i in images):
+            problems.append(f'Logo unten rechts fehlt am Ende von {rel}')
+        for i in images:
+            if not ((ROOT / rel).parent / i).is_file():
+                problems.append(f'Logo-Pfad in {rel} zeigt ins Leere: {i}')
     for p in sorted((ROOT / 'templates').glob('*.md')):
         if text in p.read_text(encoding='utf-8'):
             problems.append(f'Buchvorlage templates/{p.name} enthält den Hinweis; er gehört nie ins Buch')
