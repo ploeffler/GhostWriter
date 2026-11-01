@@ -254,7 +254,7 @@ def chapter_view(base, config, args, cnum):
     n = len(ch['sections'])
     _, ch_summary, ch_goal = chapter_readme(base, ch)
     values = {'PROJECT_TITLE_SHORT': p['title_short'] or p['title'], 'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': cnum,
-              'CHAPTER_GOAL': ch_goal, 'CHAPTER_SUMMARY': ch_summary, 'CHAPTER_TEXTS': 'true' if ch_goal or ch_summary else '',
+              'CHAPTER_GOAL': ch_goal, 'CHAPTER_SUMMARY': ch_summary,
               'CHAPTER_TITLE': ch['title'], 'CHAPTER_SUBTITLE': sub.group(1) if sub else '',
               'SECTION_COUNT_TEXT': f'{n} Abschnitt' + ('' if n == 1 else 'e'),
               'MARKER_COUNT_TEXT': 'keine offenen Marker' if not counts_total else f'{counts_total} offene{"r" if counts_total == 1 else ""} Marker',
@@ -268,9 +268,8 @@ def chapter_view(base, config, args, cnum):
         lines = [f'### 📖 Kapitel {cnum} · {ch["title"]}']
         if values['CHAPTER_SUBTITLE']:
             lines += [f'*{values["CHAPTER_SUBTITLE"]}*']
-        if values['CHAPTER_TEXTS']:
-            lines += ['', f'**Ziel des Kapitels:** {ch_goal or "*noch offen*"}', '',
-                      f'**Kurzbeschreibung:** {ch_summary or "*noch offen*"}']
+        lines += ['', f'**Ziel des Kapitels:** {ch_goal or "*noch offen*"}', '',
+                  f'**Kurzbeschreibung:** {ch_summary or "*noch offen*"} · `Z` ändern, Kapitelrecherche']
         lines += ['', f'{values["SECTION_COUNT_TEXT"]} · ✅ {values["APPROVED_COUNT_TEXT"]} freigegeben · {values["MARKER_COUNT_TEXT"]} · Kosten **{values["CHAPTER_COST"]}**', '']
         if rows:
             lines += ['| # | Abschnitt | Marker | Kosten | Status |', '|--:|---|---|--:|---|']
@@ -283,7 +282,8 @@ def chapter_view(base, config, args, cnum):
         items = [(f'{cnum}.1' + (f'–{cnum}.{n}' if n > 1 else ''), 'Abschnitt öffnen')] if rows else []
         if values['CHAPTER_APPROVABLE']:
             items.append(('FK', 'Kapitel freigeben'))
-        items += [('B', 'Kapitel bearbeiten'), ('N', 'Neuer Abschnitt'), ('R', 'Reihenfolge'), ('Ü', 'Übersicht')]
+        items += [('B', 'Kapitel bearbeiten'), ('Z', 'Ziel, Kurzbeschreibung, Kapitelrecherche'), ('N', 'Neuer Abschnitt'),
+                  ('R', 'Reihenfolge'), ('Ü', 'Übersicht')]
         lines += [menu(items)]
         return '\n'.join(lines) + '\n'
     return fill('kapitelansicht.html', values, {'SECTIONS': rows})
@@ -869,7 +869,67 @@ def project_settings_view(base, config, args):
                                               'GW_VERSION_TEXT': upd_text, 'GW_UPDATE_HINT': upd_hint}, {'FIXED': fixed})
 
 
-FORMS = {'project-edit': project_edit_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
+CHAPTER_RESEARCH_DIR = 'research/kapitel'   # workflow.yml, runs.chapter_research
+
+
+def run_parts(path):
+    """(Kopf, {Überschrift: Text}) einer Lauf-Datei."""
+    text = path.read_text(encoding='utf-8')
+    head, body = {}, text
+    m = re.match(r'---\n(.*?)\n---\n', text, re.S)
+    if m:
+        head = yaml.safe_load(m.group(1)) or {}
+        body = text[m.end():]
+    parts = {k.strip(): v.strip() for k, v in re.findall(r'(?m)^## ([^\n]+)\n(.*?)(?=^## |\Z)', body, re.S)}
+    return head, parts
+
+
+def chapter_research_view(base, config, args):
+    """Formular „Kapitelrecherche“: Ziel und Kurzbeschreibung ändern, Recherche für das Kapitel starten."""
+    n, ch = chapter_number(config, args.where)
+    _, summary, goal = chapter_readme(base, ch)
+    runs = sorted((base / ch['path'] / CHAPTER_RESEARCH_DIR).glob('run-*.md'))
+    last_head, last = run_parts(runs[-1]) if runs else ({}, {})
+    draft = {}
+    if getattr(args, 'draft', None):
+        draft = json.loads(Path(args.draft).read_text(encoding='utf-8'))
+    ap = config.get('ai_providers') or {}
+    pid = (ap.get('research') or {}).get('provider') or (ap.get('default') or {}).get('provider') or 'chat'
+    catalog = yaml.safe_load((ROOT / 'providers.yml').read_text(encoding='utf-8'))
+    names = {x['id']: x.get('name', x['id']) for x in catalog.get('providers') or []}
+    provider = 'aktueller Chat' if pid == 'chat' else names.get(pid, pid).split(' (')[0]
+    when = str(last_head.get('date') or '')
+    count = (f'{len(runs)} Lauf' if len(runs) == 1 else f'{len(runs)} Läufe') if runs else 'noch keine Kapitelrecherche'
+    if runs and re.match(r'\d{4}-\d{2}-\d{2}', when):
+        count += f', zuletzt am {when[8:10]}.{when[5:7]}.{when[:4]}'
+    clean = lambda v: '' if (v or '').strip() in ('', 'Offen.', '–') else v.strip()
+    values = {'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': n, 'CHAPTER_TITLE': ch['title'],
+              'CHAPTER_GOAL': draft.get('goal', goal), 'CHAPTER_SUMMARY': draft.get('summary', summary),
+              'RESEARCH_QUESTION': draft.get('question', last_head.get('question') or ''),
+              'RESEARCH_SCOPE': draft.get('scope', last_head.get('scope') or ''),
+              'RESEARCH_PROVIDER_TEXT': f'Recherche über: {provider}', 'RUN_COUNT_TEXT': count,
+              'LAST_RUN': 'true' if runs else '', 'LAST_RUN_ID': last_head.get('id') or (runs[-1].stem if runs else ''),
+              'LAST_RUN_TEXT': clean(last.get('Kurzfassung')),
+              'SUGGESTED_GOAL': clean(last.get('Vorschlag: Ziel des Kapitels')),
+              'SUGGESTED_SUMMARY': clean(last.get('Vorschlag: Kurzbeschreibung'))}
+    if args.text:
+        lines = [f'### 🔎 Kapitelrecherche · Kapitel {n} „{ch["title"]}“', ''] + field_table([
+            ('Ziel', values['CHAPTER_GOAL']), ('Kurzbeschreibung', values['CHAPTER_SUMMARY'])])
+        if values['SUGGESTED_GOAL'] or values['SUGGESTED_SUMMARY']:
+            lines += ['', f'**Vorschläge aus {values["LAST_RUN_ID"]}:**']
+            if values['SUGGESTED_GOAL']:
+                lines += [f'- Ziel: {values["SUGGESTED_GOAL"]} · `VZ` übernehmen']
+            if values['SUGGESTED_SUMMARY']:
+                lines += [f'- Kurzbeschreibung: {values["SUGGESTED_SUMMARY"]} · `VK` übernehmen']
+        if values['LAST_RUN_TEXT']:
+            lines += ['', f'> {values["LAST_RUN_TEXT"]}']
+        lines += ['', f'<sub>{values["RESEARCH_PROVIDER_TEXT"]} · {count}</sub>', '',
+                  'Ändern: je Zeile `Ziel: …` bzw. `Kurzbeschreibung: …`. Recherche starten: `Frage: …` (optional `Schwerpunkte: …`). `X` bricht ab.']
+        return '\n'.join(lines) + '\n'
+    return fill('kapitelrecherche.html', values)
+
+
+FORMS = {'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
          'changes-merge': changes_merge_view, 'providers-edit': providers_edit_view,
@@ -898,6 +958,7 @@ def main():
     ap.add_argument('--upstream', help='JSON-Datei mit dem Update-Stand (behind, upstream, version, installed) für die Projektübersicht')
     ap.add_argument('--changes', help='JSON-Datei mit den offenen Änderungen (Pull Request, Branches, Commits) für Projektübersicht und changes-merge')
     ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
+    ap.add_argument('--draft', help='bei chapter-research: JSON mit noch nicht gespeicherten Werten (goal, summary, question, scope)')
     ap.add_argument('--ui-ref', help='Commit oder Branch von ghostwriter-ui statt des festen Commits aus templates/ui/ghostwriter-ui.yml (nur zum Testen)')
     args = ap.parse_args()
     ui = yaml.safe_load(UI_CONFIG.read_text(encoding='utf-8'))

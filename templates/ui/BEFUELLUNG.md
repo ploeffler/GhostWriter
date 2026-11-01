@@ -8,7 +8,7 @@ python scripts/render_view.py <projektordner> chapter 2 [--text]
 python scripts/render_view.py <projektordner> section 2.4 [--text]
 python scripts/render_view.py <projektordner> project-edit | project-settings | chapter-create | chapter-reorder | edition-create [--text]
 python scripts/render_view.py <projektordner> project | changes-merge --changes <offene-aenderungen.json> [--head-sha <commit>] [--text]
-python scripts/render_view.py <projektordner> chapter-edit 2 | section-create 2 | section-reorder 2 [--text]
+python scripts/render_view.py <projektordner> chapter-edit 2 | chapter-research 2 | section-create 2 | section-reorder 2 [--text]
 python scripts/render_view.py <projektordner> providers-edit [--repo owner/name] [--branch name] [--text]
 python scripts/render_view.py <projektordner> approval-writing 2.4 | approval-section 2.4 | approval-chapter 2 [--revoke] [--text]
 ```
@@ -118,6 +118,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 |---|---|
 | `PROJECT_TITLE_SHORT`, `CHAPTER_ID`, `CHAPTER_NUMBER`, `CHAPTER_TITLE` | Projekt und Kapitel |
 | `CHAPTER_SUBTITLE` | erste kursive Zeile `*…*` in der `README.md` des Kapitels; sonst leer |
+| `CHAPTER_GOAL`, `CHAPTER_SUMMARY` | `## Ziel des Kapitels` und `## Kurzbeschreibung` der Kapitel-README („Offen.“ gilt als leer); nur Ausgabe, leer = „noch offen“. Der Knopf daneben öffnet die Kapitelrecherche |
 | `SECTION_COUNT_TEXT`, `MARKER_COUNT_TEXT`, `APPROVED_COUNT_TEXT` | wie oben, Marker über alle Abschnitte |
 | `CHAPTER_APPROVABLE` | `true`, wenn das Kapitel auf `ready_for_approval` steht und alle Abschnitte `approved` sind; sonst leer (dann fehlt der Knopf „Kapitel freigeben“) |
 | `CHAPTER_COST`, `CHAPTER_COST_HINT` | Kapitelkosten |
@@ -163,6 +164,17 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 ### `kapitel-bearbeiten.html`
 
 `CHAPTER_ID`, `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_SUBTITLE` wie in der Kapitelansicht; `CHAPTER_SUMMARY` und `CHAPTER_GOAL` aus `## Kurzbeschreibung` und `## Ziel des Kapitels` der Kapitel-README („Offen.“ gilt als leer).
+
+### `kapitelrecherche.html`
+
+| Platzhalter | Quelle |
+|---|---|
+| `CHAPTER_ID`, `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_GOAL`, `CHAPTER_SUMMARY` | wie in der Kapitelansicht; nach einer Recherche die zuletzt gesendeten, noch nicht gespeicherten Werte (`--draft`) |
+| `RESEARCH_QUESTION`, `RESEARCH_SCOPE` | `question` und `scope` des letzten Laufs bzw. die gesendeten Werte; sonst leer |
+| `RESEARCH_PROVIDER_TEXT` | „Recherche über: …“ aus `ai_providers.research.provider` (sonst `default`; `chat` = „aktueller Chat“) |
+| `RUN_COUNT_TEXT` | Zahl der Läufe unter `research/kapitel/` und Datum des letzten |
+| `LAST_RUN`, `LAST_RUN_ID`, `LAST_RUN_TEXT` | letzter Lauf: `true`, `id`, Abschnitt `## Kurzfassung`; ohne Lauf entfällt der Ergebnisbereich |
+| `SUGGESTED_GOAL`, `SUGGESTED_SUMMARY` | `## Vorschlag: Ziel des Kapitels` und `## Vorschlag: Kurzbeschreibung` des letzten Laufs; leer = kein Vorschlag |
 
 ### `ki-dienste.html`
 
@@ -249,9 +261,9 @@ Gestaltung:
 | Ansicht | Kürzel |
 |---|---|
 | Projektübersicht | `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
-| Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `B` Kapitel bearbeiten · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `FK` Kapitel freigeben (nur wenn möglich) · `Ü` Übersicht |
+| Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `B` Kapitel bearbeiten · `Z` Ziel, Kurzbeschreibung, Kapitelrecherche · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `FK` Kapitel freigeben (nur wenn möglich) · `Ü` Übersicht |
 | Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` Abschnitt freigeben bzw. zurücknehmen · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
-| Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Änderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · KI-Dienste: `+ id`, `- id`, `Aufgabe: id` · `X` bricht ab |
+| Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Änderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · Kapitelrecherche: `Ziel: …`, `Kurzbeschreibung: …`, `Frage: …`, `Schwerpunkte: …`, `VZ`/`VK` Vorschlag übernehmen · KI-Dienste: `+ id`, `- id`, `Aufgabe: id` · `X` bricht ab |
 
 Ein Kürzel entspricht dem Klick auf den gleichnamigen Knopf; es gelten dieselbe Aktion, dieselben Statuszeilen und dieselbe Ausgangsansicht danach.
 
@@ -296,6 +308,9 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `chapter.create` | `title`, `summary`, `goal`, `position` (Index, 0 = am Anfang), `position_label`, `expected_head_sha` | Kapitel anlegen | Kapitel anlegen, danach Kapitelansicht des neuen Kapitels | `POST …/chapters` |
 | `chapter.edit.open` | `chapter_id` | Kapitel bearbeiten | Vorlage `kapitel-bearbeiten` (`render_view.py chapter-edit N`) | – |
 | `chapter.update` | `chapter_id`, `title`, `subtitle`, `summary`, `goal`, `expected_head_sha` | Kapitel speichern | Titel in `structure.chapters` und Kapitel-README im selben Commit ändern, danach Kapitelansicht | `PATCH …/chapters/{chapter_id}` |
+| `chapter.research.open` | `chapter_id` | Kapitelrecherche öffnen | Vorlage `kapitelrecherche` (`render_view.py chapter-research N`) | – |
+| `chapter.texts.update` | `chapter_id`, `goal`, `summary`, `expected_head_sha` | Ziel und Kurzbeschreibung speichern | nur diese beiden Abschnitte der Kapitel-README ändern, danach Kapitelansicht | `PATCH …/chapters/{chapter_id}` |
+| `chapter.research.start` | `chapter_id`, `question`, `scope`, `goal`, `summary`, `expected_head_sha` | Kapitelrecherche starten | Lauf ausführen und speichern (`START.md`, „Kapitelrecherche“), danach wieder das Formular mit Vorschlägen und den gesendeten Werten (`--draft`) | `POST …/chapters/{chapter_id}/research-runs` |
 | `chapter.reorder.open` | – | Kapitelreihenfolge ändern | Vorlage `reihenfolge` (`render_view.py chapter-reorder`) | – |
 | `chapter.reorder` | `order` (alle Kapitel-IDs in neuer Reihenfolge), `expected_head_sha` | Kapitelreihenfolge speichern | `structure.chapters` umsortieren; IDs und Pfade bleiben; danach Projektübersicht | `POST …/chapters/reorder` |
 | `section.create.open` | `chapter_id` | Neuen Abschnitt anlegen | Vorlage `abschnitt-anlegen` (`render_view.py section-create N`) | – |
@@ -352,6 +367,8 @@ Statuszeilen, Ladetexte und Ergebniszeilen nach `START.md`, „Statusanzeige“.
 | `section.update` | → Prüfe, ob sich die Datei seit dem Lesen geändert hat · → Speichere Abschnitt N.M (Commit im Arbeits-Branch) | – | ✓ Abschnitt N.M gespeichert, Commit `abc1234` |
 | `run.start` | → Recherche bzw. Ghostwriting für N.M · → Speichere Lauf und Ergebnis (Commit im Arbeits-Branch) | – | ✓ Entwurf für N.M gespeichert, Lauf `run-003`, Commit `abc1234` |
 | `chapter.update` | → Speichere Kapitel N (ghostwriter.yml und README, Commit) | – | ✓ Kapitel N gespeichert, Commit `abc1234` |
+| `chapter.texts.update` | → Speichere Ziel und Kurzbeschreibung von Kapitel N (Commit) | – | ✓ Ziel und Kurzbeschreibung gespeichert, Commit `abc1234` |
+| `chapter.research.start` | → Kapitelrecherche für Kapitel N · → Speichere Lauf (Commit) | – | ✓ Kapitelrecherche gespeichert, Lauf `run-001`, Commit `abc1234` |
 | `chapter.reorder`, `section.reorder` | → Prüfe die neue Reihenfolge · → Speichere ghostwriter.yml (Commit) | – | ✓ Reihenfolge gespeichert, Commit `abc1234` |
 | `section.create` | → Lege Abschnitt „Titel“ in Kapitel N an · → Speichere (Commit) | – | ✓ Abschnitt N.M „Titel“ angelegt, Commit `abc1234` |
 | `project.providers.update` | → Prüfe, ob sich die Dateien seit dem Lesen geändert haben · → Speichere KI-Dienste (Commit im Arbeits-Branch) | – | ✓ KI-Dienste gespeichert, Commit `abc1234` · noch nicht übernommen (Pull Request #NN) |
