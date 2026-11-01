@@ -40,3 +40,7 @@ python scripts/build_test_book.py
 git add -A && git commit -m "Testbuch neu aufbauen"
 git push --force origin test/test-book
 ```
+
+## Kapitel 1 ohne Marker (01.11.2026)
+
+Für die Abnahme von v0.5 (Auflage, #18) sind in Kapitel 1 alle Marker entfernt: Platzhalter-Anekdoten gestrichen, Prüfvermerke durch „(Testangabe)“ bzw. „(Testangabe, nicht geprüft)“ ersetzt. Die Inhalte sind dadurch **nicht** geprüft; es bleiben Testdaten.

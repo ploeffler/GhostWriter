@@ -27,7 +27,7 @@ Werden in separaten Laufdateien dokumentiert.
 
 Ich kenne Menschen, die erzählen, sie regen sich kurz auf, und dann ist es vorbei. Bei mir fühlt sich eine kleine Kritik an, als würde jemand das Licht im ganzen Haus anmachen. Nach zehn Minuten ist der Ärger weg, aber die Erschöpfung bleibt.
 
-Fachleute sprechen von **emotionaler Dysregulation**: Gefühle kommen schnell und stark und lassen sich schwerer dämpfen. Das gehört nicht zu den Kernkriterien der gängigen Diagnosesysteme, wird aber in der Forschung viel diskutiert und von vielen Betroffenen als zentral erlebt *[MEDIZIN PRÜFEN: aktueller Forschungsstand und Quelle]*.
+Fachleute sprechen von **emotionaler Dysregulation**: Gefühle kommen schnell und stark und lassen sich schwerer dämpfen. Das gehört nicht zu den Kernkriterien der gängigen Diagnosesysteme, wird aber in der Forschung viel diskutiert und von vielen Betroffenen als zentral erlebt * (Testangabe)*.
 
 Wichtig für den Alltag:
 

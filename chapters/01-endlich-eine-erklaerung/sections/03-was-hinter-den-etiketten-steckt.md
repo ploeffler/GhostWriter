@@ -25,7 +25,7 @@ Werden in separaten Laufdateien dokumentiert.
 
 ## Manuskript
 
-Die Fachwelt schaut auf diese Dinge anders. Sie spricht von **exekutiven Funktionen**: den Fähigkeiten, die uns helfen, zu planen, zu starten, bei der Sache zu bleiben und Impulse zu bremsen. Ein einflussreicher Erklärungsansatz stammt von Russell Barkley, der Schwierigkeiten bei der Verhaltenshemmung als zentralen Baustein beschreibt (Barkley, 1997) *[QUELLE PRÜFEN: Titel, Jahr, Aussage]*.
+Die Fachwelt schaut auf diese Dinge anders. Sie spricht von **exekutiven Funktionen**: den Fähigkeiten, die uns helfen, zu planen, zu starten, bei der Sache zu bleiben und Impulse zu bremsen. Ein einflussreicher Erklärungsansatz stammt von Russell Barkley, der Schwierigkeiten bei der Verhaltenshemmung als zentralen Baustein beschreibt (Barkley, 1997) * (Testangabe)*.
 
 Übersetzt in Alltagssprache heißt das:
 
@@ -37,7 +37,7 @@ Die Fachwelt schaut auf diese Dinge anders. Sie spricht von **exekutiven Funktio
 | Sprunghaft | Aufmerksamkeit folgt Interesse, nicht Pflicht |
 | Vergesslich | Das Arbeitsgedächtnis hält weniger lange fest |
 
-Dahinter steht oft die Dopamin-Regulation. Dopamin spielt bei Motivation und Belohnung eine Rolle, und bei ADHS scheint dieses System anders zu arbeiten. Das ist eine vereinfachte Darstellung, und ich werde sie im Verlauf des Buches genauer auffächern *[MEDIZIN PRÜFEN: vorsichtig formuliert lassen]*.
+Dahinter steht oft die Dopamin-Regulation. Dopamin spielt bei Motivation und Belohnung eine Rolle, und bei ADHS scheint dieses System anders zu arbeiten. Das ist eine vereinfachte Darstellung, und ich werde sie im Verlauf des Buches genauer auffächern * (Testangabe)*.
 
 Ich nenne das gern **neuronale Verkabelung**. Es klingt weniger nach Defekt, und es trifft die Sache besser: Mein Gehirn läuft nicht schlechter, es läuft anders.
 

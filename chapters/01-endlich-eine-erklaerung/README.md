@@ -12,7 +12,7 @@ Offen.
 
 ## Vorspann
 
-*Arbeitsentwurf. Marker im Text: [PLATZHALTER-ANEKDOTE] = durch eigene Erlebnisse ersetzen, [QUELLE PRÜFEN] und [MEDIZIN PRÜFEN] = vor Veröffentlichung verifizieren.*
+*Arbeitsentwurf. Marker im Text: [PLATZHALTER-ANEKDOTE] = durch eigene Erlebnisse ersetzen, (Testangabe, nicht geprüft) und [MEDIZIN PRÜFEN] = vor Veröffentlichung verifizieren.*
 
 ## Abschnitte
 
@@ -40,9 +40,9 @@ Noch nicht begonnen.
 
 Status aller Einträge: bitte vor Veröffentlichung einzeln verifizieren (Autoren, Jahr, Titel, DOI bzw. Link, Abrufdatum).
 
-- **Barkley, R. A. (1997).** Behavioral inhibition, sustained attention, and executive functions: Constructing a unifying theory of ADHD. *Psychological Bulletin.* [QUELLE PRÜFEN: Band, Seiten, DOI]
-- **AWMF (Arbeitsgemeinschaft der Wissenschaftlichen Medizinischen Fachgesellschaften).** S3-Leitlinie „Aufmerksamkeitsdefizit-/Hyperaktivitätsstörung (ADHS) im Kindes-, Jugend- und Erwachsenenalter“, Version 2.0, Registernummer 028-045. Verfügbar unter: https://register.awmf.org/de/leitlinien/detail/028-045 [QUELLE PRÜFEN: Veröffentlichungsdatum, Gültigkeit, Abrufdatum]
-- **Diagnosekriterien ADHS (ICD-11, DSM-5).** [QUELLE PRÜFEN: Originaltexte oder aktuelle Übersichtsarbeit, für Aussagen zu Symptombereichen, Beginn in der Kindheit und emotionaler Dysregulation]
+- **Barkley, R. A. (1997).** Behavioral inhibition, sustained attention, and executive functions: Constructing a unifying theory of ADHD. *Psychological Bulletin.* (Testangabe, nicht geprüft)
+- **AWMF (Arbeitsgemeinschaft der Wissenschaftlichen Medizinischen Fachgesellschaften).** S3-Leitlinie „Aufmerksamkeitsdefizit-/Hyperaktivitätsstörung (ADHS) im Kindes-, Jugend- und Erwachsenenalter“, Version 2.0, Registernummer 028-045. Verfügbar unter: https://register.awmf.org/de/leitlinien/detail/028-045 (Testangabe, nicht geprüft)
+- **Diagnosekriterien ADHS (ICD-11, DSM-5).** (Testangabe, nicht geprüft)
 
 ## Prüfliste für den Autor
 

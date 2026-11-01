@@ -27,7 +27,7 @@ Werden in separaten Laufdateien dokumentiert.
 
 Wenn du an ADHS denkst, siehst du vielleicht einen zappelnden Jungen im Klassenzimmer. Dieses Bild ist so verbreitet, dass viele Erwachsene sich darin nicht wiederfinden. Ich konnte mich lange nicht erkennen, weil ich nie durchs Klassenzimmer gerannt bin.
 
-Bei Erwachsenen sieht dasselbe Grundmuster oft anders aus. Die Fachwelt unterscheidet drei Bereiche, und im Erwachsenenalter verschiebt sich meist das Bild *[MEDIZIN PRÜFEN: Diagnosekriterien in ICD-11 und DSM-5, aktuelle Fassung]*:
+Bei Erwachsenen sieht dasselbe Grundmuster oft anders aus. Die Fachwelt unterscheidet drei Bereiche, und im Erwachsenenalter verschiebt sich meist das Bild * (Testangabe)*:
 
 | Bereich | Wie es sich bei Erwachsenen oft zeigt |
 | --- | --- |
@@ -37,7 +37,7 @@ Bei Erwachsenen sieht dasselbe Grundmuster oft anders aus. Die Fachwelt untersch
 
 Viele Erwachsene entwickeln über die Jahre Strategien, um das zu überdecken. Sie arbeiten länger, kontrollieren dreimal, überspielen Fehler mit Humor oder ziehen sich zurück. Das ist die **Maske**, von der dieses Kapitel handelt. Sie funktioniert oft erstaunlich gut und kostet dabei enorm viel Kraft.
 
-Wichtig: ADHS beginnt nicht erst im Erwachsenenalter. Die Diagnosekriterien verlangen, dass die Merkmale schon in der Kindheit vorhanden waren, auch wenn sie damals niemand erkannt hat *[MEDIZIN PRÜFEN: genaue Altersangabe und Wortlaut der Kriterien]*. Bei manchen Menschen verändern sich die Symptome mit dem Alter, bei anderen bleiben sie bestehen. Eine pauschale Aussage dazu wäre unseriös.
+Wichtig: ADHS beginnt nicht erst im Erwachsenenalter. Die Diagnosekriterien verlangen, dass die Merkmale schon in der Kindheit vorhanden waren, auch wenn sie damals niemand erkannt hat * (Testangabe)*. Bei manchen Menschen verändern sich die Symptome mit dem Alter, bei anderen bleiben sie bestehen. Eine pauschale Aussage dazu wäre unseriös.
 
 ### Was du heute tun kannst
 

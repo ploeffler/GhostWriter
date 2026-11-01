@@ -25,8 +25,6 @@ Werden in separaten Laufdateien dokumentiert.
 
 ## Manuskript
 
-*[PLATZHALTER-ANEKDOTE: Details durch deine echten Erlebnisse ersetzen.]*
-
 Auf meinem Küchentisch lag ein Brief. Die Aufgabe dahinter dauerte fünf Minuten: ein Formular ausfüllen, unterschreiben, einwerfen.
 
 Der Brief lag dort sechs Monate. Er wanderte von links nach rechts, dann unter einen Stapel Zeitschriften, dann in eine Tasche. Dort fand ich ihn wieder, gemeinsam mit den Schlüsseln, die ich eine Woche lang gesucht hatte.
