@@ -77,6 +77,12 @@
       "properties": {"auto": {"type": "boolean"}},
       "additionalProperties": false
     },
+    "changes": {
+      "type": "object",
+      "description": "Übernehmen gespeicherter Änderungen (START.md, „Schreiben ins Repository“); fehlt der Block, gilt auto_merge: false",
+      "properties": {"auto_merge": {"type": "boolean"}},
+      "additionalProperties": false
+    },
     "typesetting": {
       "type": "object",
       "description": "Buchsatz für die Auflagen; fehlt der Block, gelten die Vorgaben aus docs/DATA-MODEL.md",

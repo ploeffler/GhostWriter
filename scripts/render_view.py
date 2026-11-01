@@ -838,6 +838,7 @@ def project_settings_view(base, config, args):
         fixed.append({'FIXED_LABEL': label, 'FIXED_VALUE': text if isinstance(v, bool) else f'{text} ({v})'})
     fc = wf.get('fact_checking_default') or 'optional'
     upd_auto, upd_text, upd_hint = update_info(base, config)
+    auto_merge = (config.get('changes') or {}).get('auto_merge') is True
     if args.text:
         page = {'a5': 'A5 (14,8 × 21 cm)', '12x19': '12 × 19 cm', '13.5x21.5': '13,5 × 21,5 cm', 'a4': 'A4'}
         jn = lambda v: 'ja' if v else 'nein'
@@ -852,13 +853,14 @@ def project_settings_view(base, config, args):
                              f'| Inhaltsverzeichnis | {jn(ts["toc"])} | ja, nein |',
                              f'| Verzeichnistiefe | {"nur Kapitel" if ts["toc_depth"] == 1 else "Kapitel und Abschnitte"} | Kapitel, Abschnitte |',
                              f'| Updates automatisch | {jn(upd_auto)} | ja, nein |',
+                             f'| Änderungen sofort übernehmen | {jn(auto_merge)} | ja, nein |',
                              '', f'<sub>{upd_text}</sub>'] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', FORM_HINT]) + '\n'
     def b(v):
         return 'true' if v else 'false'
     return fill('projekteinstellungen.html', {'FACT_CHECK_DEFAULT': fc, 'PAGE_SIZE': ts['page_size'], 'FONT': ts['font'],
                                               'FONT_SIZE': str(ts['font_size']).rstrip('0').rstrip('.') if isinstance(ts['font_size'], float) else str(ts['font_size']),
                                               'TITLE_PAGE': b(ts['title_page']), 'IMPRINT': b(ts['imprint']), 'TOC': b(ts['toc']),
-                                              'TOC_DEPTH': str(ts['toc_depth']), 'UPDATES_AUTO': b(upd_auto),
+                                              'TOC_DEPTH': str(ts['toc_depth']), 'UPDATES_AUTO': b(upd_auto), 'CHANGES_AUTO_MERGE': b(auto_merge),
                                               'GW_VERSION_TEXT': upd_text, 'GW_UPDATE_HINT': upd_hint}, {'FIXED': fixed})
 
 
