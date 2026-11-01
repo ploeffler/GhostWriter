@@ -15,6 +15,8 @@
 #                  none (keine), n/a (nicht anwendbar)
 #   roles:         research | brainstorming | writing | revision | fact_check | queue_processing
 #   hq:            Sitzland des Anbieters (Ländercode) – sagt nichts über Datenverarbeitungsort aus
+#   setup:         optional: GhostWriter-Anleitung zum Einrichten (Pfad im Repository, ggf. mit #Anker);
+#                  sonst verlinkt das Formular „KI-Dienste“ auf `url`
 
 version: "1.0"
 checked_at: "2026-10-31"
@@ -36,6 +38,7 @@ providers:
     roles: [research, brainstorming, writing, revision, fact_check, queue_processing]
     queue_agents: [openai_codex]
     url: https://openai.com
+    setup: docs/CONNECTOR-SETUP.md#teil-4-optional-in-chatgpt-einrichten
 
   - id: anthropic
     name: Anthropic (Claude / Claude API)
@@ -46,6 +49,7 @@ providers:
     roles: [research, brainstorming, writing, revision, fact_check, queue_processing]
     queue_agents: [claude_code]
     url: https://www.anthropic.com
+    setup: docs/CONNECTOR-SETUP.md
 
   - id: google
     name: Google (Gemini / Gemini API)

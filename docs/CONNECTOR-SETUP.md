@@ -16,6 +16,8 @@ Du richtest deshalb einmalig drei Dinge ein:
 
 Danach meldest du dich einmal an und bestätigst, und jeder neue Chat kann dein Buch lesen und Änderungen als Pull Request speichern.
 
+**Du brauchst nur den Teil für die Chat-App, die du schon hast.** Nutzt du Claude, machst du Teil 1 bis 3; nutzt du ChatGPT, Teil 1 und Teil 4. Ein neues Abo für GhostWriter ist nicht nötig. Kommt später eine zweite App dazu, machst du einfach deren Teil nach; die GitHub App aus Teil 1 verwendest du dafür weiter. Welche Dienste du nutzt, trägst du in GhostWriter im Formular **KI-Dienste** ein.
+
 ### Kleine Wörterliste
 
 | Wort | Bedeutung |
