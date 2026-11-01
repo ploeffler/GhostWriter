@@ -1,0 +1,53 @@
+name: Probedruck
+
+# Baut einen Probedruck des aktuellen Stands: alle Kapitel und Abschnitte, auch
+# nicht freigegebene (mit Vermerk), offene Marker farbig hervorgehoben, Hinweis
+# „Probedruck – nicht zur Veröffentlichung“. Kein Tag, kein Release: Die Dateien
+# stehen 14 Tage als Download („Artifacts“) am Lauf bereit.
+# Gestartet aus dem Chat („Probedruck“ im Formular „Neue Auflage“, Aktion
+# edition.proof) oder unter Actions → Probedruck → Run workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      formats:
+        description: 'Formate, kommagetrennt (pdf, docx, epub)'
+        required: false
+        default: 'pdf'
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Abhängigkeiten
+        run: |
+          pip install pyyaml jsonschema python-docx
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends pandoc texlive-xetex texlive-latex-recommended \
+            texlive-latex-extra texlive-lang-german texlive-fonts-recommended lmodern >/dev/null
+
+      - name: Probedruck bauen
+        env:
+          FORMATS: ${{ inputs.formats }}
+        run: |
+          python scripts/build_edition.py . --proof --out probedruck --commit "$GITHUB_SHA" --formats "${FORMATS:-pdf}"
+          {
+            echo "## Probedruck"
+            echo
+            echo "Stand \`${GITHUB_SHA:0:7}\` auf \`$GITHUB_REF_NAME\`. Download unten unter **Artifacts** (14 Tage)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: probedruck
+          path: probedruck/*
+          retention-days: 14

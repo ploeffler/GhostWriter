@@ -4,6 +4,13 @@
 Aufruf:
   python scripts/build_edition.py <projektordner> --edition N [--out ordner] [--date JJJJ-MM-TT]
                                    [--formats pdf,docx,epub] [--allow-markers]
+  python scripts/build_edition.py <projektordner> --proof [--out ordner] [--formats pdf]
+
+--proof baut einen Probedruck des aktuellen Stands: alle Kapitel und Abschnitte,
+auch nicht freigegebene (mit Vermerk „Stand: Entwurf, nicht freigegeben“),
+offene Marker farbig hervorgehoben, in der Fußzeile bzw. vorn der Hinweis
+„Probedruck – nicht zur Veröffentlichung“. Kein Tag, kein Release; die Action
+„Probedruck“ stellt die Dateien als Download bereit.
 
 Ablauf: scripts/assemble.py prüft und fügt die freigegebenen Kapitel zusammen,
 danach setzt Pandoc die Dateien. Die Buchsatz-Einstellungen kommen aus
@@ -93,6 +100,15 @@ def make_reference_docx(path, ts):
             doc.styles[name].font.color.rgb = RGBColor(0x22, 0x22, 0x22)
         except KeyError:
             pass
+    # Probedruck: Zeichenformate für Marker und Statusvermerke
+    for name, color, bold, italic in (('Marker', RGBColor(0x8A, 0x1C, 0x1C), True, False),
+                                      ('Stand', RGBColor(0x77, 0x77, 0x77), False, True)):
+        try:
+            doc.styles[name]
+        except KeyError:
+            cs = doc.styles.add_style(name, WD_STYLE_TYPE.CHARACTER)
+            cs.font.color.rgb, cs.font.bold, cs.font.italic = color, bold, italic
+            cs.font.size = Pt(float(ts['font_size']) - 1.5)
     try:
         doc.styles['Merkkasten']
     except KeyError:
@@ -118,7 +134,8 @@ def make_reference_docx(path, ts):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
-    ap.add_argument('--edition', type=int, required=True)
+    ap.add_argument('--edition', type=int)
+    ap.add_argument('--proof', action='store_true', help='Probedruck des aktuellen Stands (keine Auflage)')
     ap.add_argument('--out', default='build')
     ap.add_argument('--date', default=datetime.date.today().isoformat())
     ap.add_argument('--formats', default='pdf,docx,epub')
@@ -126,10 +143,17 @@ def main(argv):
     ap.add_argument('--allow-markers', action='store_true')
     args = ap.parse_args(argv[1:])
 
+    if not args.proof and args.edition is None:
+        ap.error('--edition N oder --proof angeben')
     base, config = load(args.project)
-    parts = book_parts(base, config)
-    found = problems(parts, config)
+    if args.proof:
+        args.edition = config['project'].get('current_edition') or 0
+    parts = book_parts(base, config, proof=args.proof)
+    found = [] if args.proof else problems(parts, config)
     blocking = [p for p in found if not (args.allow_markers and p.startswith('Offener Marker'))]
+    if args.proof and not parts:
+        print('Probedruck: Das Buch hat noch keine Kapitel.')
+        return 1
     if blocking:
         print(f'Auflage {args.edition} kann nicht gebaut werden:')
         for p in blocking:
@@ -142,6 +166,12 @@ def main(argv):
     short = config['project'].get('title_short') or meta['title']
     release_name = wf['name_pattern'].format(title_short=short, edition=args.edition)
     tag = wf['tag_pattern'].format(title_short_slug=tag_slug(short), edition=args.edition)
+    proof_note = ''
+    if args.proof:
+        tag = f'{tag_slug(short)}-probedruck-{args.date}'
+        release_name = f'{short} – Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]}'
+        proof_note = (f'Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]} – nicht zur Veröffentlichung. '
+                      'Enthält auch nicht freigegebene Abschnitte; offene Marker sind hervorgehoben.')
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     body = '\n'.join(p[2] for p in parts)
@@ -152,6 +182,10 @@ def main(argv):
     shown_date = f'{meta.get("edition_text", "")} · {months[int(meta["date"][5:7]) - 1]} {meta["date"][:4]}'.strip(' ·')
     common_meta = {k: meta[k] for k in ('title', 'subtitle', 'author', 'lang') if k in meta}
     common_meta['date'] = shown_date
+    if args.proof:
+        common_meta['date'] = f'Probedruck · {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]}'
+        meta['edition_text'] = 'Probedruck'
+        imprint = [release_name, proof_note] + ([f'Commit {args.commit[:7]}'] if args.commit else [])
     results = []
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -183,6 +217,11 @@ def main(argv):
                           'linestretch': 1.1, 'colorlinks': False, 'header-includes': '',
                           'include-before': imp})
                 cmd += ['--pdf-engine=xelatex', '--include-in-header', str(BOOK / 'header.tex')]
+                if args.proof:
+                    extra_header.append(str(write('proof.tex',
+                        '\\usepackage{scrlayer-scrpage}\\pagestyle{scrheadings}\\clearpairofpagestyles\n'
+                        '\\ofoot*{\\pagemark}\\ifoot*{\\footnotesize\\sffamily\\color{red!65!black}Probedruck '
+                        + args.date[8:10] + '.' + args.date[5:7] + '.' + args.date[:4] + ' – nicht zur Veröffentlichung}\n')))
                 for h in extra_header:
                     cmd += ['--include-in-header', h]
                 src = body
@@ -190,6 +229,8 @@ def main(argv):
                 pre = ''
                 if ts.get('imprint'):
                     pre = '# Impressum {.unnumbered .unlisted .impressum}\n\n' + '\n\n'.join(imprint) + '\n\n'
+                if args.proof:
+                    pre = f'::: probedruck\n{proof_note}\n:::\n\n' + pre
                 src = pre + body
                 if fmt == 'epub':
                     cmd += ['--css', str(BOOK / 'epub.css'),

@@ -63,8 +63,19 @@ def shift_headings(text, top):
     return re.sub(r'(?m)^(#{1,6})(\s)', sub, text)
 
 
-def chapter_markdown(base, chapter, number):
-    """(Markdown, ausgelassene Abschnitte, Marker) eines Kapitels."""
+STATUS_DE = {'planned': 'geplant', 'research': 'Recherche', 'brainstorming': 'Ideensammlung',
+             'ready_to_write': 'bereit zum Schreiben', 'writing': 'Entwurf', 'revision': 'Überarbeitung',
+             'fact_check': 'Faktencheck', 'ready_for_approval': 'bereit zur Freigabe', 'approved': 'freigegeben'}
+
+
+def mark_markers(text):
+    """Probedruck: Marker als Pandoc-Span [ … ]{.gwmarker}, damit sie hervorgehoben werden."""
+    return MARKER_TEXT.sub(lambda m: '[' + m.group(0).replace('[', '\\[').replace(']', '\\]') + ']{.gwmarker}', text)
+
+
+def chapter_markdown(base, chapter, number, proof=False):
+    """(Markdown, ausgelassene Abschnitte, Marker) eines Kapitels.
+    proof=True (Probedruck): auch nicht freigegebene Abschnitte, mit Statusvermerk und hervorgehobenen Markern."""
     subtitle, sources = readme_parts(base, chapter)
     out = [f'# {chapter["title"]}', '']
     if subtitle:
@@ -74,13 +85,20 @@ def chapter_markdown(base, chapter, number):
         head, _, _, manuscript = section_file(base, s)
         if head.get('status') != 'approved':
             skipped.append(f'{number}.{si} {s["title"]} ({head.get("status")})')
-            continue
-        out += [f'## {s["title"]}', '', shift_headings(manuscript.strip(), 3), '']
+            if not proof:
+                continue
+        text = shift_headings(manuscript.strip(), 3)
+        if proof:
+            text = mark_markers(text) or '*(noch kein Text)*'
+            note = '' if head.get('status') == 'approved' else \
+                f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben]{{.gwstatus}}\n\n'
+            text = note + text
+        out += [f'## {s["title"]}', '', text, '']
         markers += [(f'{number}.{si}', m.group(0)) for m in MARKER_TEXT.finditer(manuscript)]
     if sources:
         clean = re.sub(r'(?m)^Status aller Einträge:.*\n?', '', sources).strip()
         if clean:
-            out += ['## Quellen {.unnumbered .sources}', '', clean, '']
+            out += ['## Quellen {.unnumbered .sources}', '', mark_markers(clean) if proof else clean, '']
             markers += [(f'{number} Quellen', m.group(0)) for m in MARKER_TEXT.finditer(clean)]
     return '\n'.join(out).rstrip() + '\n', skipped, markers
 
@@ -96,13 +114,14 @@ def find_chapter(config, key):
     raise SystemExit(f'Kapitel {key} nicht gefunden')
 
 
-def book_parts(base, config):
-    """Freigegebene Kapitel: [(nummer, kapitel, markdown, ausgelassen, marker)]."""
+def book_parts(base, config, proof=False):
+    """Freigegebene Kapitel: [(nummer, kapitel, markdown, ausgelassen, marker)].
+    proof=True: alle Kapitel und Abschnitte (Probedruck)."""
     parts = []
     for i, ch in enumerate(config['structure']['chapters'], start=1):
-        if ch.get('status') != 'approved':
+        if ch.get('status') != 'approved' and not proof:
             continue
-        md, skipped, markers = chapter_markdown(base, ch, i)
+        md, skipped, markers = chapter_markdown(base, ch, i, proof)
         parts.append((i, ch, md, skipped, markers))
     return parts
 
