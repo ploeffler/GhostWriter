@@ -1,0 +1,80 @@
+name: Bücherregal aktualisieren
+
+# Schreibt library.json auf den Standard-Branch (scripts/library.py build, #37):
+# je Buch Titel, Status, Fortschritt, Auflage, Kosten, offene Änderungen. Kein
+# Manuskripttext. Läuft nach Pushes auf Buch- und Arbeits-Branches, wenn ein
+# Branch angelegt oder gelöscht wird, und von Hand. Commits mit GITHUB_TOKEN
+# lösen keine weiteren Workflows aus, es gibt also keine Schleife.
+#
+# Im GhostWriter-Hauptrepository läuft sie nicht: library.json würde sonst mit
+# jedem Update in fremde Bibliotheken wandern.
+
+on:
+  push:
+    branches-ignore: ['v*', 'dependabot/**']
+    paths:
+      - 'ghostwriter.yml'
+      - 'chapters/**'
+      - 'costs/**'
+  create:
+  delete:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: library
+  cancel-in-progress: true
+
+jobs:
+  library:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Abhängigkeiten installieren
+        run: pip install pyyaml
+
+      - name: Hauptrepository auslassen
+        id: gate
+        run: |
+          upstream=$(python -c "import yaml;print((yaml.safe_load(open('ghostwriter-manifest.yml')).get('upstream') or {}).get('repo',''))")
+          if [ "$upstream" = "$GITHUB_REPOSITORY" ] || [ ! -f scripts/library.py ]; then
+            echo "Hauptrepository oder ältere Version: kein Bücherregal"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: library.json erzeugen
+        if: steps.gate.outputs.skip != '1'
+        run: |
+          git fetch -q origin '+refs/heads/*:refs/remotes/origin/*'
+          python scripts/library.py list
+          python scripts/library.py build --out library.json
+
+      - name: Bei Änderungen committen
+        if: steps.gate.outputs.skip != '1'
+        env:
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git add library.json
+          if git diff --cached --quiet; then
+            echo "Bücherregal unverändert"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Bücherregal aktualisiert" -m "GhostWriter-Aktion: library.build"
+          if ! git pull --rebase origin "$BRANCH"; then
+            git rebase --abort
+            echo "::warning::Bücherregal nicht gepusht, ein neuerer Lauf erzeugt es neu"
+            exit 0
+          fi
+          git push origin "HEAD:$BRANCH"

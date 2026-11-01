@@ -44,6 +44,7 @@ book:
   - costs/
   - research/
   - ghostwriter-index.json
+  - library.json            # Bücherregal einer Bibliothek (Standard-Branch)
   - editions/
   - .ghostwriter/
 

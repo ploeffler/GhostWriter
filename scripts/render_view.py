@@ -200,6 +200,9 @@ def project_view(base, config, args):
     if changes:
         values.update({'PENDING_COUNT': len(changes['commits']), 'PENDING_TEXT': changes_text(changes),
                        'PENDING_PR': changes['pull_request']})
+    lib_count = len((json.loads(Path(args.library).read_text(encoding='utf-8')).get('books') or [])) if getattr(args, 'library', None) else 0
+    if lib_count >= 2:
+        values['LIBRARY_COUNT'] = lib_count
     upd = load_upstream(args)
     if upd:
         values.update({'UPDATE_BEHIND': upd['behind'], 'UPDATE_TEXT': update_text(upd)})
@@ -236,6 +239,8 @@ def project_view(base, config, args):
             items.append(('M', 'Änderungen übernehmen'))
         if upd:
             items.append(('U', 'Update einspielen'))
+        if lib_count >= 2:
+            items.append(('L', f'Bücherregal ({lib_count} Bücher)'))
         items += [('D', 'KI-Dienste'), ('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
                   ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
         lines += [menu(items)]
@@ -1000,6 +1005,64 @@ def chapter_research_view(base, config, args):
     return fill('kapitelrecherche.html', values, {'SUGGESTED_SECTIONS': proposals})
 
 
+# ---------- Bücherregal (#37) ----------
+
+LIBRARY_FILE = 'library.json'
+
+
+def library_data(base, args):
+    """library.json (--library oder im Projektordner); fehlt sie, live aus den Branches (scripts/library.py)."""
+    path = Path(args.library) if getattr(args, 'library', None) else base / LIBRARY_FILE
+    if path.is_file():
+        return json.loads(path.read_text(encoding='utf-8'))
+    import library
+    return library.build_library(cwd=base)
+
+
+def de_date(iso):
+    m = re.match(r'(\d{4})-(\d{2})-(\d{2})', iso or '')
+    return f'{m.group(3)}.{m.group(2)}.{m.group(1)}' if m else ''
+
+
+def plural(n, one, many):
+    return f'{n} {one if n == 1 else many}'
+
+
+def library_view(base, config, args):
+    data = library_data(base, args)
+    rows = []
+    for b in data.get('books') or []:
+        ready = b['status'] == 'ready'
+        st, sa = b.get('sections_total', 0), b.get('sections_approved', 0)
+        progress = (f'{sa} von {plural(st, "Abschnitt", "Abschnitten")} freigegeben · '
+                    f'{b.get("chapters_approved", 0)} von {plural(b.get("chapters_total", 0), "Kapitel", "Kapiteln")}') if ready else 'Gliederung noch offen'
+        ed = b.get('current_edition') or 0
+        rows.append({'BOOK_BRANCH': b['branch'], 'BOOK_TITLE': b['title'] or b['title_short'] or 'Ohne Titel',
+                     'BOOK_TITLE_SHORT': b['title_short'] or b['branch'].split('/')[-1],
+                     'BOOK_AUTHOR_TEXT': f'von {b["author"]}' if b.get('author') else '',
+                     'BOOK_STATE': 'ready' if ready else 'setup', 'BOOK_STATE_TEXT': 'eingerichtet' if ready else 'im Aufbau',
+                     'BOOK_PROGRESS': round(100 * sa / st) if st else 0, 'BOOK_PROGRESS_TEXT': progress,
+                     'BOOK_EDITION_TEXT': f'Auflage {ed}' if ed else 'noch keine Auflage',
+                     'BOOK_COST': (b.get('cost') or {}).get('text') or money(0, False),
+                     'BOOK_PENDING_TEXT': f'{plural(b["pending"], "Änderung", "Änderungen")} offen' if b.get('pending') else '',
+                     'BOOK_UPDATED_TEXT': f'{"zuletzt geändert" if ready else "angelegt"} am {de_date(b.get("updated_at"))}' if b.get('updated_at') else ''})
+    count = plural(len(rows), 'Buch', 'Bücher')
+    if args.text:
+        out = [f'### 📚 Bücherregal', f'{args.repo} · {count}', '']
+        if rows:
+            out += ['| # | Buch | Status | Fortschritt | Auflage | Kosten |', '|--:|---|---|---|---|--:|']
+            for i, r in enumerate(rows, 1):
+                out.append(f'| {i} | **{r["BOOK_TITLE"]}** ({r["BOOK_TITLE_SHORT"]}){" · ⏳ " + r["BOOK_PENDING_TEXT"] if r["BOOK_PENDING_TEXT"] else ""} | '
+                           f'{"✅ eingerichtet" if r["BOOK_STATE"] == "ready" else "🚧 im Aufbau"} | {r["BOOK_PROGRESS_TEXT"]} | {r["BOOK_EDITION_TEXT"]} | {r["BOOK_COST"]} |')
+        else:
+            out += ['*Hier steht noch kein Buch.*']
+        items = ([('1' if len(rows) == 1 else f'1–{len(rows)}', 'Buch öffnen')] if rows else []) + [('N', 'Neues Buch')]
+        out += ['', '---', menu(items)]
+        return '\n'.join(out) + '\n'
+    return fill('buecherregal.html', {'LIBRARY_NAME': args.repo, 'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
+                                      'UPDATED_TEXT': ''}, {'BOOKS': rows})
+
+
 WIZARD_CHOICES = Path(__file__).resolve().parent.parent / 'templates' / 'wizard-choices.yml'
 LETTERS = 'abcdef'
 
@@ -1110,7 +1173,7 @@ def git_head(base):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section'] + list(FORMS))
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'library'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
@@ -1120,6 +1183,7 @@ def main():
     ap.add_argument('--changes', help='JSON-Datei mit den offenen Änderungen (Pull Request, Branches, Commits) für Projektübersicht und changes-merge')
     ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
     ap.add_argument('--draft', help='bei chapter-research: JSON mit noch nicht gespeicherten Werten (goal, summary, question, scope)')
+    ap.add_argument('--library', help='library.json vom Standard-Branch (Bücherregal; in der Projektübersicht ab 2 Büchern der Link „Bücherregal“)')
     ap.add_argument('--spec', help='bei choice: JSON-Datei oder JSON-Text mit einer eigenen Auswahl (Aufbau wie templates/wizard-choices.yml)')
     ap.add_argument('--ui-ref', help='Commit oder Branch von ghostwriter-ui statt des festen Commits aus templates/ui/ghostwriter-ui.yml (nur zum Testen)')
     args = ap.parse_args()
@@ -1129,6 +1193,8 @@ def main():
     UI['head'] = args.head_sha or git_head(base)
     if args.view in FORMS:
         out = FORMS[args.view](base, config, args)
+    elif args.view == 'library':
+        out = library_view(base, config, args)
     elif args.view == 'project':
         out = project_view(base, config, args)
     elif args.view == 'chapter':

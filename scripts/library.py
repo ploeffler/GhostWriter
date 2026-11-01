@@ -5,6 +5,13 @@ Aufruf (im Repository, braucht alle Branches: git fetch origin '+refs/heads/*:re
   python scripts/library.py list [--json]       Bücher der Bibliothek
   python scripts/library.py name "<Kurztitel>"  Branch-Name, Tag-Slug und ob er schon vergeben ist
   python scripts/library.py check               Kurztitel bzw. Tag-Slugs eindeutig? (Exit 1 bei Doppelten)
+  python scripts/library.py build [--out library.json]   Übersicht der Bibliothek schreiben (#37)
+
+library.json (Action „Bücherregal aktualisieren“, auf dem Standard-Branch): je Buch
+Titel, Kurztitel, Branch, Status, Auflage, freigegebene Kapitel und Abschnitte,
+KI-API-Kosten, offene Änderungen im Arbeits-Branch, letzter Commit. Kein
+Manuskripttext und kein Zeitstempel des Laufs, damit sich die Datei nur ändert,
+wenn sich ein Buch ändert.
 
 Benennung (ghostwriter-manifest.yml → library):
   Buch-Branch     buch/<slug>                 slug aus dem Kurztitel, wie der Tag-Slug der Auflagen
@@ -135,19 +142,71 @@ def branch_configs(namespace='refs/remotes/origin', cwd=ROOT):
     return out
 
 
+def book_stats(ref, cwd=ROOT):
+    """Kennzahlen eines Buch-Branchs aus einem temporären Worktree (wie die Übersichtsdatei)."""
+    import shutil
+    import tempfile
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import build_index
+    from render_view import load
+    tmp = tempfile.mkdtemp(prefix='gw-lib-')
+    try:
+        subprocess.run(['git', 'worktree', 'add', '-q', '--detach', tmp, ref], cwd=cwd, check=True, capture_output=True)
+        base, config = load(tmp)
+        if not has_chapters(config):
+            return {'chapters_total': 0, 'chapters_approved': 0, 'sections_total': 0, 'sections_approved': 0,
+                    'cost': build_index.cost(0, False)}
+        idx = build_index.build(base, config)
+        chs = idx['chapters']
+        return {'chapters_total': len(chs), 'chapters_approved': sum(c['status'] == 'approved' for c in chs),
+                'sections_total': sum(c['sections_total'] for c in chs),
+                'sections_approved': sum(c['sections_approved'] for c in chs), 'cost': idx['project']['cost']}
+    finally:
+        subprocess.run(['git', 'worktree', 'remove', '--force', tmp], cwd=cwd, capture_output=True)
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None):
+    manifest = manifest or load_manifest()
+    configs = branch_configs(namespace, cwd)
+    out = []
+    for b in books(configs, manifest):
+        ref = f'{namespace}/{b["branch"]}'
+        p = (configs[b['branch']] or {}).get('project') or {}
+        entry = dict(b, author=p.get('author') or '')
+        entry.update(book_stats(ref, cwd))
+        work = f'{namespace}/{b["work_branch"]}'
+        ahead = git('rev-list', '--count', f'{ref}..{work}', cwd=cwd).strip() if git('rev-parse', '-q', '--verify', work, cwd=cwd).strip() else ''
+        entry['pending'] = int(ahead or 0)
+        entry['updated_at'] = git('log', '-1', '--format=%cI', ref, cwd=cwd).strip()
+        out.append(entry)
+    return {'format': 1, 'books': out}
+
+
 def load_manifest():
     return yaml.safe_load((ROOT / MANIFEST).read_text(encoding='utf-8'))
 
 
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('cmd', choices=['list', 'name', 'check'])
+    ap.add_argument('cmd', choices=['list', 'name', 'check', 'build'])
     ap.add_argument('title', nargs='?')
     ap.add_argument('--json', action='store_true')
     ap.add_argument('--namespace', default='refs/remotes/origin', help='Git-Namespace der Branches (Tests: refs/heads)')
     ap.add_argument('--repo', default=str(ROOT), help='Repository-Ordner (Standard: dieses)')
+    ap.add_argument('--out', help='bei build: Zieldatei (sonst Ausgabe)')
     a = ap.parse_args(argv[1:])
     manifest = load_manifest()
+    if a.cmd == 'build':
+        text = json.dumps(build_library(a.namespace, a.repo, manifest), ensure_ascii=False, indent=2) + '\n'
+        if a.out:
+            old = Path(a.out).read_text(encoding='utf-8') if Path(a.out).is_file() else None
+            if old != text:
+                Path(a.out).write_text(text, encoding='utf-8')
+            print(f'{a.out}: {"geschrieben" if old != text else "unverändert"}')
+        else:
+            sys.stdout.write(text)
+        return 0
     found = books(branch_configs(a.namespace, a.repo), manifest)
     if a.cmd == 'list':
         if a.json:
