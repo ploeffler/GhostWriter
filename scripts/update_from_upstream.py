@@ -1,33 +1,42 @@
 #!/usr/bin/env python3
-"""Spielt GhostWriter-Updates aus dem Hauptrepository in Buch-Branches ein.
+"""Hält Forks und Buch-Branches auf dem Stand des GhostWriter-Hauptrepositorys.
 
 Aufruf (in der Action „GhostWriter aktualisieren“, .github/workflows/update.yml):
-  python scripts/update_from_upstream.py [--dry-run] [--branch NAME]
+  python scripts/update_from_upstream.py [--dry-run] [--branch NAME] [--status FILE]
 
-Ablauf je Buch-Branch:
-  1. Upstream (ghostwriter-manifest.yml: upstream.repo, upstream.ref) holen.
-  2. Nichts tun, wenn das Buch schon auf diesem Stand ist, Updates abgeschaltet
-     sind (ghostwriter.yml: updates.auto: false) oder das Buch eine neuere
-     Programmversion hat als der Upstream (kein Zurücksetzen).
-  3. Die Programmdateien (manifest: managed) durch den Upstream-Stand ersetzen;
-     Buchdateien (manifest: book) bleiben unangetastet.
-  4. Migrationen (scripts/migrate_project.py), Übersichtsdatei
-     (scripts/build_index.py) und Prüfung (scripts/validate_project.py) mit dem
-     neuen Stand ausführen. Schlägt die Prüfung fehl, wird nichts eingespielt.
-  5. Ein Commit „GhostWriter aktualisiert auf <version>“ mit
-     „GhostWriter-Aktion: update“; Stand in .ghostwriter/update.yml.
+Wie GitHubs „Sync fork“, aber sicher für Bücher. Für jeden Branch wird gezählt,
+wie viele Commits er hinter seinem Gegenstück im Hauptrepository liegt
+(gleichnamiger Branch, sonst upstream.ref aus ghostwriter-manifest.yml).
+Liegt er dahinter, werden die Commits eingespielt:
 
-Welche Branches: In einem eigenen Buch-Repository der Standard-Branch. Liegt
-das Buch im Hauptrepository selbst (Testbuch), alle Branches mit Kapiteln außer
-update.skip_branches.
+  - Hat der Branch keine eigenen Commits: Fast-Forward, danach ist er identisch.
+  - Sonst ein Merge-Commit. Konflikte löst er nach dem Manifest: Programmdateien
+    (managed) nimmt er vom Hauptrepository, Buchdateien (book) bleiben wie im
+    Buch, auch wenn das Hauptrepository die Vorlagen geändert hat. Konflikte in
+    anderen Dateien brechen das Update für diesen Branch ab.
+  - Danach Migrationen (scripts/migrate_project.py), Übersichtsdatei und
+    Prüfung (scripts/validate_project.py). Schlägt die Prüfung fehl, wird
+    nichts eingespielt, sondern ein Issue „GhostWriter-Update fehlgeschlagen“
+    geöffnet. Ein Buch wird nie auf eine ältere Programmversion zurückgesetzt.
+
+Danach liegt kein Branch mehr hinter dem Hauptrepository; GitHubs Hinweis
+„This branch is N commits behind …“ verschwindet.
+
+Welche Branches: im Fork bzw. eigenen Buch-Repository alle Branches. Im
+Hauptrepository selbst nur Buch-Branches mit Kapiteln (z. B. test/test-book),
+nie update.skip_branches.
+
+--status FILE schreibt je Branch behind/ahead/Ergebnis als JSON (für Tests und
+die Projektübersicht).
 
 Umgebung:
   GITHUB_REPOSITORY        owner/repo dieses Repositorys
-  GITHUB_TOKEN             Token der Action (lesen/schreiben dieses Repositorys, Issues)
-  GHOSTWRITER_UPDATE_TOKEN optional: Token mit Leserecht auf ein privates Hauptrepository
-                           und Workflow-Schreibrecht; ohne ihn bleiben Änderungen an
+  GITHUB_TOKEN             Token der Action (dieses Repository, Issues)
+  GITHUB_EVENT_PATH        Ereignis der Action (Standard-Branch)
+  GHOSTWRITER_UPDATE_TOKEN optional: Leserecht auf ein privates Hauptrepository und
+                           Workflow-Schreibrecht; ohne ihn bleiben Änderungen an
                            .github/workflows/ aus und werden gemeldet
-  GHOSTWRITER_UPSTREAM_URL nur für Tests: Git-URL des Upstreams statt GitHub
+  GHOSTWRITER_UPSTREAM_URL nur für Tests: Git-URL des Hauptrepositorys
   GITHUB_STEP_SUMMARY      optional: Zusammenfassung für die Action
 """
 import argparse
@@ -47,15 +56,23 @@ import yaml
 
 MANIFEST = 'ghostwriter-manifest.yml'
 STATE = '.ghostwriter/update.yml'
-WORKFLOWS = '.github/workflows/'
+WORKFLOWS = '.github/workflows'
 TRAILER = 'GhostWriter-Aktion: update'
 ISSUE_TITLE = 'GhostWriter-Update fehlgeschlagen ({branch})'
+BOT = ['-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com']
 
 
-def git(*args, cwd=None, check=True, capture=True):
-    r = subprocess.run(['git', *args], cwd=cwd, text=True, capture_output=capture)
+def git(*args, cwd=None, check=True):
+    r = subprocess.run(['git', *args], cwd=cwd, text=True, capture_output=True)
     if check and r.returncode:
         raise RuntimeError(f'git {" ".join(args)}: {r.stderr.strip() or r.stdout.strip()}')
+    return r.stdout.strip()
+
+
+def exists(rev, path, cwd=None):
+    return subprocess.run(['git', 'cat-file', '-e', f'{rev}:{path}'], cwd=cwd, capture_output=True).returncode == 0
+
+
     return r.stdout.strip() if capture else ''
 
 
@@ -87,7 +104,8 @@ def api(method, url, data=None):
         return None
     req = urllib.request.Request(f'https://api.github.com/repos/{repo}{url}', method=method,
                                  data=json.dumps(data).encode() if data is not None else None,
-                                 headers={'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json'})
+                                 headers={'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json',
+                                          'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28'})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
             return json.loads(r.read() or b'null')
@@ -119,28 +137,44 @@ def report_success(branch, text):
         api('PATCH', f'/issues/{issue["number"]}', {'state': 'closed'})
 
 
-# ---------- Update eines Branchs ----------
-
-def managed_paths(manifest):
-    return [p for p in manifest.get('managed') or []]
 
 
-def apply_update(wt, upstream_rev, manifest, can_workflows):
-    """Ersetzt die Programmdateien im Worktree; gibt (geändert, ausgelassene Workflow-Dateien) zurück."""
-    for p in managed_paths(manifest):
-        git('rm', '-r', '-q', '--ignore-unmatch', '--', p.rstrip('/'), cwd=wt)
-        if subprocess.run(['git', 'cat-file', '-e', f'{upstream_rev}:{p.rstrip("/")}'], cwd=wt,
-                          capture_output=True).returncode == 0:
-            git('checkout', upstream_rev, '--', p.rstrip('/'), cwd=wt)
+# ---------- Pfade nach Manifest ----------
+
+def under(path, prefixes):
+    return any(path == p.rstrip('/') or path.startswith(p.rstrip('/') + '/') for p in prefixes)
+
+
+def resolve_paths(wt, up_rev, manifest, can_workflows):
+    """Nach dem Merge: Programmdateien vom Hauptrepository, Buchdateien wie im Buch.
+    Gibt (ungelöste Konflikte, ausgelassene Workflow-Dateien) zurück."""
+    managed = [p for p in manifest.get('managed') or []]
+    book = [p for p in manifest.get('book') or []]
+    if not can_workflows:
+        managed = [p for p in managed if not under(WORKFLOWS, [p]) and p.rstrip('/') != WORKFLOWS]
+    # Programmdateien: genau der Stand des Hauptrepositorys
+    for p in managed:
+        p = p.rstrip('/')
+        git('rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', p, cwd=wt)
+        shutil.rmtree(Path(wt) / p, ignore_errors=True) if (Path(wt) / p).is_dir() else (Path(wt) / p).unlink(missing_ok=True)
+        if exists(up_rev, p, wt):
+            git('checkout', up_rev, '--', p, cwd=wt)
+    # Buchdateien: wie vor dem Update
+    for p in book:
+        p = p.rstrip('/')
+        if exists('HEAD', p, wt):
+            git('rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', p, cwd=wt)
+            git('checkout', 'HEAD', '--', p, cwd=wt)
+    # Workflow-Dateien ohne Token: wie vor dem Update
     skipped = []
     if not can_workflows:
-        changed = git('diff', '--cached', '--name-only', 'HEAD', '--', WORKFLOWS, cwd=wt).splitlines()
-        if changed:
-            skipped = changed
-            git('reset', '-q', 'HEAD', '--', WORKFLOWS, cwd=wt)
-            git('checkout', 'HEAD', '--', WORKFLOWS, cwd=wt, check=False)
-            git('clean', '-fdq', '--', WORKFLOWS, cwd=wt)
-    return skipped
+        skipped = [f for f in git('diff', '--name-only', 'HEAD', up_rev, '--', WORKFLOWS, cwd=wt).splitlines() if f]
+        git('rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', WORKFLOWS, cwd=wt)
+        shutil.rmtree(Path(wt) / WORKFLOWS, ignore_errors=True)
+        if exists('HEAD', WORKFLOWS, wt):
+            git('checkout', 'HEAD', '--', WORKFLOWS, cwd=wt)
+    unresolved = [f for f in git('diff', '--name-only', '--diff-filter=U', cwd=wt).splitlines() if f]
+    return unresolved, skipped
 
 
 def run(cmd, wt):
@@ -148,58 +182,109 @@ def run(cmd, wt):
     return r.returncode, (r.stdout + r.stderr).strip()
 
 
-def update_branch(branch, upstream_rev, up_manifest, args, can_workflows):
-    """Gibt (status, text) zurück; status: updated | current | skipped | failed."""
-    base_rev = f'origin/{branch}'
-    config = yaml.safe_load(show(base_rev, 'ghostwriter.yml') or '{}') or {}
+def commits(n):
+    return f'{n} Commit' + ('' if n == 1 else 's')
+
+
+def counts(base, up):
+    behind = int(git('rev-list', '--count', f'{base}..{up}'))
+    ahead = int(git('rev-list', '--count', f'{up}..{base}'))
+    return behind, ahead
+
+
+def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
+    """Gibt ein dict mit behind, ahead, status (updated|current|skipped|failed) und text zurück."""
+    base = f'origin/{branch}'
+    # Repository aus dem Template (oder Import) teilt keine Historie mit dem Hauptrepository:
+    # dann wird nicht gemergt, sondern der Stand aus .ghostwriter/update.yml verglichen.
+    related = bool(git('merge-base', base, up_rev, check=False))
+    if related:
+        behind, ahead = counts(base, up_rev)
+    else:
+        last = (yaml.safe_load(show(base, STATE) or '{}') or {}).get('commit')
+        if last and git('cat-file', '-t', last, check=False) == 'commit':
+            behind = int(git('rev-list', '--count', f'{last}..{up_rev}'))
+        else:
+            behind = 0 if last == git('rev-parse', up_rev) else 1
+        ahead = None
+    res = {'branch': branch, 'upstream': up_label, 'behind': behind, 'ahead': ahead}
+    version = up_manifest.get('version')
+    up_sha = git('rev-parse', up_rev)
+    managed = [m.rstrip('/') for m in up_manifest.get('managed') or []]
+    if not can_workflows:
+        managed = [m for m in managed if m != WORKFLOWS]
+    drift = [f for f in git('diff', '--name-only', base, up_rev, '--', *managed).splitlines() if f] if managed else []
+    if behind == 0 and not drift:
+        return {**res, 'status': 'current', 'text': f'aktuell, nicht hinter {up_label}'}
+    config = yaml.safe_load(show(base, 'ghostwriter.yml') or '{}') or {}
     if (config.get('updates') or {}).get('auto') is False:
-        return 'skipped', 'automatische Updates abgeschaltet (ghostwriter.yml: updates.auto: false)'
-    state = yaml.safe_load(show(base_rev, STATE) or '{}') or {}
-    up_sha = git('rev-parse', upstream_rev)
-    if state.get('commit') == up_sha and not (state.get('skipped_workflows') and can_workflows):
-        return 'current', f'aktuell ({up_manifest.get("version")}, {up_sha[:7]})'
-    own = yaml.safe_load(show(base_rev, MANIFEST) or '{}') or {}
-    if version_tuple(own.get('version')) > version_tuple(up_manifest.get('version')):
-        return 'skipped', f'Buch hat neuere Programmversion ({own.get("version")}) als der Upstream ({up_manifest.get("version")})'
+        return {**res, 'status': 'skipped', 'text': f'{commits(behind)} hinter {up_label}; automatische Updates abgeschaltet'}
+    own = yaml.safe_load(show(base, MANIFEST) or '{}') or {}
+    if own and version_tuple(own.get('version')) > version_tuple(version):
+        return {**res, 'status': 'skipped',
+                'text': f'{commits(behind)} hinter {up_label}, aber neuere Programmversion ({own.get("version")} > {version}); kein Zurücksetzen'}
+    workflows_differ = bool(git('diff', '--name-only', base, up_rev, '--', WORKFLOWS))
+    if not up_manifest and not (related and ahead == 0 and (can_workflows or not workflows_differ)):
+        return {**res, 'status': 'skipped',
+                'text': f'{commits(behind)} hinter {up_label}; dort gibt es kein {MANIFEST}, daher nur von Hand zusammenführen'}
+
+    # Ohne eigene Commits: Fast-Forward wie „Sync fork“
+    if related and ahead == 0 and (can_workflows or not workflows_differ):
+        if args.dry_run:
+            return {**res, 'status': 'updated', 'text': f'(Probelauf) Fast-Forward um {commits(behind)} auf {up_label}'}
+        push = subprocess.run(['git', 'push', 'origin', f'{up_sha}:refs/heads/{branch}'], text=True, capture_output=True)
+        if push.returncode:
+            return {**res, 'status': 'failed', 'text': f'Push nach {branch} abgelehnt.\n\n```\n{push.stderr.strip()[-2000:]}\n```'}
+        return {**res, 'status': 'updated', 'text': f'{commits(behind)} von {up_label} übernommen (Fast-Forward)'}
 
     wt = tempfile.mkdtemp(prefix='gw-update-')
     try:
-        git('worktree', 'add', '-q', '--detach', wt, base_rev)
-        skipped = apply_update(wt, upstream_rev, up_manifest, can_workflows)
+        git('worktree', 'add', '-q', '--detach', wt, base)
+        if behind and related:
+            subprocess.run(['git', *BOT, 'merge', '--no-ff', '--no-commit', '-X', 'theirs', up_rev],
+                           cwd=wt, text=True, capture_output=True)
+        unresolved, skipped = resolve_paths(wt, up_rev, up_manifest, can_workflows)
+        if unresolved:
+            return {**res, 'status': 'failed',
+                    'text': f'{commits(behind)} hinter {up_label}; Konflikt in Dateien, die weder Programm noch Buch sind: '
+                            + ', '.join(unresolved) + '. Bitte von Hand zusammenführen.'}
         steps = []
-        for cmd in (['scripts/migrate_project.py', '.'], ['scripts/build_index.py', '.'], ['scripts/validate_project.py', '.']):
-            if not (Path(wt) / cmd[0]).is_file():
-                continue
-            code, out = run(cmd, wt)
-            steps.append(f'$ python {" ".join(cmd)}\n{out}')
-            if code:
-                return 'failed', (f'Prüfung mit GhostWriter {up_manifest.get("version")} ({up_sha[:7]}) fehlgeschlagen; '
-                                  f'das Update wurde nicht eingespielt.\n\n```\n' + '\n\n'.join(steps)[-6000:] + '\n```')
-        state_path = Path(wt) / STATE
-        state_path.parent.mkdir(parents=True, exist_ok=True)
-        state_path.write_text(yaml.safe_dump({
-            'upstream': f'{up_manifest.get("upstream", {}).get("repo")}@{up_manifest.get("upstream", {}).get("ref")}',
-            'version': str(up_manifest.get('version')), 'commit': up_sha,
-            'updated_at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'skipped_workflows': skipped,
-        }, allow_unicode=True, sort_keys=False), encoding='utf-8')
+        if (Path(wt) / 'ghostwriter.yml').is_file():
+            for cmd in (['scripts/migrate_project.py', '.'], ['scripts/build_index.py', '.'], ['scripts/validate_project.py', '.']):
+                if not (Path(wt) / cmd[0]).is_file():
+                    continue
+                code, out = run(cmd, wt)
+                steps.append(f'$ python {" ".join(cmd)}\n{out}')
+                if code:
+                    return {**res, 'status': 'failed',
+                            'text': (f'{commits(behind)} hinter {up_label}; Prüfung mit GhostWriter {version} ({up_sha[:7]}) '
+                                     'fehlgeschlagen, das Update wurde nicht eingespielt.\n\n```\n'
+                                     + '\n\n'.join(steps)[-6000:] + '\n```')}
+            state_path = Path(wt) / STATE
+            state_path.parent.mkdir(parents=True, exist_ok=True)
+            state_path.write_text(yaml.safe_dump({
+                'upstream': up_label, 'version': str(version), 'commit': up_sha,
+                'updated_at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'skipped_workflows': skipped}, allow_unicode=True, sort_keys=False), encoding='utf-8')
         git('add', '-A', cwd=wt)
-        files = git('diff', '--cached', '--name-only', cwd=wt).splitlines()
-        msg = f'GhostWriter aktualisiert auf {up_manifest.get("version")} ({up_sha[:7]})'
-        body = [f'{len(files)} Dateien.']
+        files = [f for f in git('diff', '--cached', '--name-only', 'HEAD', cwd=wt).splitlines() if f]
+        msg = f'GhostWriter aktualisiert auf {version} ({up_sha[:7]})'
+        body = [f'{commits(behind)} von {up_label} eingespielt, {len(files)} Dateien geändert.' if behind else
+                f'Programmdateien an {up_label} angeglichen (z. B. zuvor ausgelassene Workflow-Dateien), {len(files)} Dateien.']
         if skipped:
             body.append('Nicht aktualisiert (Workflow-Dateien brauchen GHOSTWRITER_UPDATE_TOKEN): ' + ', '.join(skipped))
         if args.dry_run:
-            return 'updated', f'(Probelauf) {msg}: ' + ', '.join(files[:20]) + (' …' if len(files) > 20 else '')
-        git('-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com',
-            'commit', '-q', '-m', msg, '-m', '\n'.join(body), '-m', TRAILER, cwd=wt)
+            return {**res, 'status': 'updated', 'text': f'(Probelauf) {body[0]}: ' + ', '.join(files[:15]) + (' …' if len(files) > 15 else '')}
+        git(*BOT, 'commit', '-q', '-m', msg, '-m', '\n'.join(body), '-m', TRAILER, cwd=wt)
         push = subprocess.run(['git', 'push', 'origin', f'HEAD:refs/heads/{branch}'], cwd=wt, text=True, capture_output=True)
         if push.returncode:
-            return 'failed', f'Push nach {branch} abgelehnt; nächster Lauf versucht es erneut.\n\n```\n{push.stderr.strip()[-2000:]}\n```'
-        text = f'{msg}, {len(files)} Dateien.'
+            return {**res, 'status': 'failed',
+                    'text': f'Push nach {branch} abgelehnt; der nächste Lauf versucht es erneut.\n\n```\n{push.stderr.strip()[-2000:]}\n```'}
+        text = (f'{commits(behind)} von {up_label} eingespielt (GhostWriter {version})' if behind else
+                f'Programmdateien an {up_label} angeglichen: ' + ', '.join(drift[:5]) + (' …' if len(drift) > 5 else ''))
         if skipped:
-            text += f' ⚠️ {len(skipped)} Workflow-Datei(en) nicht aktualisiert: Secret GHOSTWRITER_UPDATE_TOKEN fehlt (docs/UPDATES.md).'
-        return 'updated', text
+            text += f' ⚠️ {len(skipped)} Workflow-Datei(en) ausgelassen: Secret GHOSTWRITER_UPDATE_TOKEN fehlt'
+        return {**res, 'status': 'updated', 'text': text}
     finally:
         subprocess.run(['git', 'worktree', 'remove', '--force', wt], capture_output=True)
         shutil.rmtree(wt, ignore_errors=True)
@@ -207,20 +292,34 @@ def update_branch(branch, upstream_rev, up_manifest, args, can_workflows):
 
 # ---------- Ablauf ----------
 
-def target_branches(manifest, same_repo, upstream_ref, only):
+def default_branch():
+    """Standard-Branch dieses Repositorys (im Fork: der Buch-Branch)."""
+    event = os.environ.get('GITHUB_EVENT_PATH')
+    if event and Path(event).is_file():
+        try:
+            name = (json.loads(Path(event).read_text(encoding='utf-8')).get('repository') or {}).get('default_branch')
+            if name:
+                return name
+        except ValueError:
+            pass
+    head = git('symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD', check=False)
+    return head.split('/', 1)[1] if head else (os.environ.get('GITHUB_REF_NAME') or 'main')
+
+
+def branches(manifest, same_repo, upstream_ref, only):
+    names = [r.split('/', 1)[1] for r in git('for-each-ref', '--format=%(refname:short)', 'refs/remotes/origin').splitlines()
+             if '/' in r and not r.endswith('/HEAD')]
     if only:
         return [only]
     if not same_repo:
-        head = git('symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD', check=False)
-        return [head.split('/', 1)[1] if head else os.environ.get('GITHUB_REF_NAME', 'main')]
+        return sorted(names, key=lambda n: (n != default_branch(), n))
     skip = (manifest.get('update') or {}).get('skip_branches') or []
     out = []
-    for ref in git('for-each-ref', '--format=%(refname:short)', 'refs/remotes/origin').splitlines():
-        name = ref.split('/', 1)[1] if '/' in ref else ref
-        if name in ('HEAD', upstream_ref) or any(fnmatch.fnmatch(name, pat) for pat in skip):
+    for name in names:
+        if name == upstream_ref or any(fnmatch.fnmatch(name, pat) for pat in skip):
             continue
-        cfg = yaml.safe_load(show(ref, 'ghostwriter.yml') or '{}') or {}
-        if ((cfg.get('structure') or {}).get('chapters')):
+        cfg = yaml.safe_load(show(f'origin/{name}', 'ghostwriter.yml') or '{}') or {}
+        if (cfg.get('structure') or {}).get('chapters'):
             out.append(name)
     return out
 
@@ -228,7 +327,8 @@ def target_branches(manifest, same_repo, upstream_ref, only):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--dry-run', action='store_true', help='nichts committen oder pushen')
-    ap.add_argument('--branch', help='nur diesen Buch-Branch')
+    ap.add_argument('--branch', help='nur diesen Branch')
+    ap.add_argument('--status', help='Ergebnis je Branch als JSON in diese Datei schreiben')
     args = ap.parse_args(argv[1:])
 
     manifest = yaml.safe_load(Path(MANIFEST).read_text(encoding='utf-8'))
@@ -237,45 +337,57 @@ def main(argv):
     here = os.environ.get('GITHUB_REPOSITORY', '')
     same_repo = repo == here and not os.environ.get('GHOSTWRITER_UPSTREAM_URL')
     token = os.environ.get('GHOSTWRITER_UPDATE_TOKEN') or ''
-    can_workflows = bool(token)
 
     git('fetch', '-q', '--prune', 'origin', '+refs/heads/*:refs/remotes/origin/*')
     if same_repo:
-        upstream_rev = f'origin/{ref}'
+        up_ns = 'refs/remotes/origin'
     else:
         url = os.environ.get('GHOSTWRITER_UPSTREAM_URL') or \
             f'https://x-access-token:{token or os.environ.get("GITHUB_TOKEN", "")}@github.com/{repo}.git'
-        r = subprocess.run(['git', 'fetch', '-q', url, f'+{ref}:refs/ghostwriter/upstream'], text=True, capture_output=True)
+        r = subprocess.run(['git', 'fetch', '-q', '--prune', url, '+refs/heads/*:refs/ghostwriter/upstream/*'],
+                           text=True, capture_output=True)
         if r.returncode:
-            msg = (f'Hauptrepository {repo} ({ref}) nicht erreichbar. Ist es privat, braucht dieses Repository das Secret '
-                   f'GHOSTWRITER_UPDATE_TOKEN mit Leserecht darauf (docs/UPDATES.md).')
+            msg = (f'Hauptrepository {repo} nicht erreichbar. Ist es privat, braucht dieses Repository das Secret '
+                   'GHOSTWRITER_UPDATE_TOKEN mit Leserecht darauf'
+                   + (' – das vorhandene Secret reicht dafür offenbar nicht' if token else '')
+                   + ' (docs/UPDATES.md, „Eigenes Buch anlegen“).')
             summary(['## GhostWriter-Update', '', f'❌ {msg}'])
-            report_failure(target_branches(manifest, False, ref, args.branch)[0], msg)
+            if not args.dry_run:
+                report_failure(default_branch(), msg)
             return 1
-        upstream_rev = 'refs/ghostwriter/upstream'
+        up_ns = 'refs/ghostwriter/upstream'
 
-    up_manifest = yaml.safe_load(show(upstream_rev, MANIFEST) or 'null')
-    if not up_manifest:
-        summary(['## GhostWriter-Update', '', f'Upstream {repo}@{ref} hat noch kein {MANIFEST}; nichts zu tun.'])
+    def counterpart(branch):
+        if not same_repo and git('rev-parse', '-q', '--verify', f'{up_ns}/{branch}', check=False):
+            return f'{up_ns}/{branch}', f'{repo}:{branch}'
+        return f'{up_ns}/{ref}', f'{repo}:{ref}'
+
+    if not exists(f'{up_ns}/{ref}', MANIFEST):
+        summary(['## GhostWriter-Update', '', f'{repo}:{ref} hat noch kein {MANIFEST}; nichts zu tun.'])
         return 0
 
-    lines = ['## GhostWriter-Update', '', f'Upstream: `{repo}@{ref}` · Version {up_manifest.get("version")} · '
-             f'`{git("rev-parse", "--short", upstream_rev)}`', '', '| Branch | Ergebnis |', '|---|---|']
+    lines = ['## GhostWriter-Update', '', f'Hauptrepository: `{repo}`', '',
+             '| Branch | hinter | Ergebnis |', '|---|--:|---|']
     icon = {'updated': '✅', 'current': '✔️', 'skipped': '⏭️', 'failed': '❌'}
-    failed = False
-    for branch in target_branches(manifest, same_repo, ref, args.branch):
+    results, failed = [], False
+    for branch in branches(manifest, same_repo, ref, args.branch):
+        up_rev, up_label = counterpart(branch)
+        up_manifest = yaml.safe_load(show(up_rev, MANIFEST) or '{}') or {}
         try:
-            status, text = update_branch(branch, upstream_rev, up_manifest, args, can_workflows)
+            res = update_branch(branch, up_rev, up_label, up_manifest, args, bool(token))
         except RuntimeError as e:
-            status, text = 'failed', str(e)
-        lines.append(f'| `{branch}` | {icon[status]} {text.splitlines()[0]} |')
-        if status == 'failed':
+            res = {'branch': branch, 'upstream': up_label, 'status': 'failed', 'text': str(e)}
+        results.append(res)
+        lines.append(f'| `{branch}` | {res.get("behind", "?")} | {icon[res["status"]]} {res["text"].splitlines()[0]} |')
+        if res['status'] == 'failed':
             failed = True
             if not args.dry_run:
-                report_failure(branch, text)
-        elif status == 'updated' and not args.dry_run:
-            report_success(branch, f'Behoben: {text}')
+                report_failure(branch, res['text'])
+        elif res['status'] == 'updated' and not args.dry_run:
+            report_success(branch, f'Behoben: {res["text"]}')
     summary(lines)
+    if args.status:
+        Path(args.status).write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding='utf-8')
     return 1 if failed else 0
 
 

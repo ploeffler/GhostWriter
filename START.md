@@ -45,7 +45,10 @@ GhostWriter aktualisiert sich selbst (`docs/UPDATES.md`): Die Programmdateien un
 
 1. Ändere im Buch-Repository nie Programmdateien; buchspezifische Wünsche gehören in `ghostwriter.yml` oder unter `chapters/`. Bittet der Benutzer um eine Änderung an GhostWriter selbst, sag, dass sie ins Hauptrepository gehört.
 2. Gibt es ein offenes Issue „GhostWriter-Update fehlgeschlagen“, nenne es beim Wiedereinstieg in einem Satz mit dem Grund aus dem Issue.
+   Fehlt in einem eigenen Buch-Repository (aus der Vorlage oder Fork, nicht das Hauptrepository selbst) `.ghostwriter/update.yml`, lief noch nie ein Update: Weise einmal darauf hin, dass die Action „GhostWriter aktualisieren“ eingerichtet und einmal gestartet werden muss (`docs/UPDATES.md`, „Eigenes Buch anlegen“).
 3. Update-Commits (`GhostWriter-Aktion: update`) sind keine Änderungen des Benutzers und keine offenen Änderungen.
+4. **Hinweis „hinter dem Hauptrepository“:** Ermittle vor jeder Projektübersicht, wie viele Commits der Buch-Branch hinter `upstream` aus `ghostwriter-manifest.yml` liegt, und zeige es wie in `templates/ui/BEFUELLUNG.md`, „Update-Stand“ beschrieben. Nicht im Hauptrepository selbst auf `main`.
+5. **`update.apply`:** Starte die Action „GhostWriter aktualisieren“ (`.github/workflows/update.yml`, Ereignis `workflow_dispatch` auf dem Standard-Branch), wenn deine GitHub-Verbindung Workflows starten kann; melde „→ Starte GhostWriter-Update“ und danach den Link zum Lauf. Kann sie das nicht, gib den Link `https://github.com/<owner>/<repo>/actions/workflows/update.yml` mit der Anweisung *Run workflow*. Spiele das Update nie selbst per Commit oder Merge ein, und nie mit GitHubs „Sync fork“.
 
 ### Kein ganzes Buch im Chat (verbindlich)
 
@@ -123,7 +126,7 @@ Eine Freigabe entsteht nur durch eine eigene Bestätigung, nie beim Speichern ei
 
 Führe diese Schritte zu Beginn in dieser Reihenfolge aus:
 
-1. **Repository vorbereiten:** Der Benutzer erstellt aus dem GhostWriter-Starter ein eigenes GitHub-Repository (Fork oder Template) und nennt dessen URL. Das Repository kann optional nach dem Arbeitstitel benannt werden.
+1. **Repository vorbereiten:** Der Benutzer erstellt aus dem GhostWriter-Starter ein eigenes GitHub-Repository und nennt dessen URL. Empfohlen ist ein **privates Repository aus der Vorlage** (*Use this template*), weil ein Manuskript meist nicht öffentlich sein soll; ein Fork eines öffentlichen Repositorys ist immer öffentlich. Für automatische Updates einmalig die Schritte in `docs/UPDATES.md`, „Eigenes Buch anlegen“. Das Repository kann optional nach dem Arbeitstitel benannt werden.
 2. **GitHub mit dem Chat-Assistenten verbinden:** Prüfe zuerst, ob du in dieser Umgebung bereits auf GitHub zugreifen kannst. Falls nicht, erkläre dem Benutzer, wie er GitHub in seiner Chat-Anwendung verbindet (meist in den Einstellungen unter Verbindungen, Integrationen, Apps oder Konnektoren: GitHub auswählen, anmelden, autorisieren). Nenne nur Menüpfade, die du für die verwendete Anwendung sicher kennst; erfinde keine Menübezeichnungen, sondern verweise im Zweifel auf die Hilfe des jeweiligen Anbieters. Bietet die Anwendung keine GitHub-Anbindung, arbeite im Modus „ohne GitHub-Zugriff“ (siehe Abschnitt 7).
 3. **Zugriff begrenzen:** Der Benutzer soll – soweit GitHub diese Auswahl anbietet – nur das für GhostWriter vorgesehene Repository freigeben. Erkläre angefragte Berechtigungen verständlich und fordere keine weitergehenden Rechte als nötig.
 4. **Verbindung testen:** Lies aus dem ausgewählten Repository mindestens `README.md` und `START.md` und prüfe, ob das Repository und sein Projektinhalt erreichbar sind. Nenne das geprüfte Repository eindeutig.

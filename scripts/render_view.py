@@ -184,11 +184,16 @@ def project_view(base, config, args):
     if changes:
         values.update({'PENDING_COUNT': len(changes['commits']), 'PENDING_TEXT': changes_text(changes),
                        'PENDING_PR': changes['pull_request']})
+    upd = load_upstream(args)
+    if upd:
+        values.update({'UPDATE_BEHIND': upd['behind'], 'UPDATE_TEXT': update_text(upd)})
     if args.text:
         lines = [f'### 📘 {values["PROJECT_TITLE"] or "Noch ohne Titel"}',
                  f'**{values["PROJECT_EDITION_TEXT"]}** · Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · Kosten bisher: **{values["PROJECT_COST"]}**', '']
         if changes:
             lines += [f'> ⏳ **{values["PENDING_TEXT"]} noch nicht übernommen** (Pull Request #{changes["pull_request"]}) · `M` übernehmen', '']
+        if upd:
+            lines += [f'> 🔄 **GhostWriter-Update:** {values["UPDATE_TEXT"]} · `U` einspielen', '']
         if values['PROJECT_DESCRIPTION_SHORT']:
             lines += [f'> {values["PROJECT_DESCRIPTION_SHORT"]}', '']
         if values['PROJECT_DESCRIPTION']:
@@ -213,6 +218,8 @@ def project_view(base, config, args):
                     items.append((f'{ci}.{si}', 'öffnen (zuletzt bearbeitet)'))
         if changes:
             items.append(('M', 'Änderungen übernehmen'))
+        if upd:
+            items.append(('U', 'Update einspielen'))
         items += [('D', 'KI-Dienste'), ('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
                   ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
         lines += [menu(items)]
@@ -381,6 +388,22 @@ def edition_create_view(base, config, args):
                           + (['', f'> ⚠️ {warn}'] if warn else [])
                           + ['', 'Schicke `Datum: JJJJ-MM-TT` und optional `Anmerkungen: …`. `OK` übernimmt den Vorschlag, `X` bricht ab.']) + '\n'
     return fill('auflage-erzeugen.html', values, {'FORMATS': formats})
+
+
+def load_upstream(args):
+    """Update-Stand aus --upstream (JSON): behind, upstream, version, installed. Nichts, wenn nicht dahinter."""
+    if not getattr(args, 'upstream', None):
+        return None
+    data = json.loads(Path(args.upstream).read_text(encoding='utf-8'))
+    return data if int(data.get('behind') or 0) > 0 else None
+
+
+def update_text(upd):
+    n = int(upd['behind'])
+    text = f'{n} Commit{"" if n == 1 else "s"} hinter {upd.get("upstream") or "ploeffler/GhostWriter:main"}'
+    if upd.get('version') and upd.get('version') != upd.get('installed'):
+        text += f' · Version {upd["version"]} verfügbar' + (f' (installiert {upd["installed"]})' if upd.get('installed') else '')
+    return text
 
 
 def load_changes(args):
@@ -836,6 +859,7 @@ def main():
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
     ap.add_argument('--branch', default='main')
     ap.add_argument('--revoke', action='store_true', help='bei approval-*: Freigabe zurücknehmen statt erteilen')
+    ap.add_argument('--upstream', help='JSON-Datei mit dem Update-Stand (behind, upstream, version, installed) für die Projektübersicht')
     ap.add_argument('--changes', help='JSON-Datei mit den offenen Änderungen (Pull Request, Branches, Commits) für Projektübersicht und changes-merge')
     ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
     ap.add_argument('--ui-ref', help='Commit oder Branch von ghostwriter-ui statt des festen Commits aus templates/ui/ghostwriter-ui.yml (nur zum Testen)')
