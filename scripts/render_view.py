@@ -252,7 +252,9 @@ def chapter_view(base, config, args, cnum):
                      'MARKERS_MEDIZIN': counts['medizin'], 'MARKERS_RECHT': counts['recht']})
     amount, est = combine(parts)
     n = len(ch['sections'])
+    _, ch_summary, ch_goal = chapter_readme(base, ch)
     values = {'PROJECT_TITLE_SHORT': p['title_short'] or p['title'], 'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': cnum,
+              'CHAPTER_GOAL': ch_goal, 'CHAPTER_SUMMARY': ch_summary, 'CHAPTER_TEXTS': 'true' if ch_goal or ch_summary else '',
               'CHAPTER_TITLE': ch['title'], 'CHAPTER_SUBTITLE': sub.group(1) if sub else '',
               'SECTION_COUNT_TEXT': f'{n} Abschnitt' + ('' if n == 1 else 'e'),
               'MARKER_COUNT_TEXT': 'keine offenen Marker' if not counts_total else f'{counts_total} offene{"r" if counts_total == 1 else ""} Marker',
@@ -266,6 +268,9 @@ def chapter_view(base, config, args, cnum):
         lines = [f'### 📖 Kapitel {cnum} · {ch["title"]}']
         if values['CHAPTER_SUBTITLE']:
             lines += [f'*{values["CHAPTER_SUBTITLE"]}*']
+        if values['CHAPTER_TEXTS']:
+            lines += ['', f'**Ziel des Kapitels:** {ch_goal or "*noch offen*"}', '',
+                      f'**Kurzbeschreibung:** {ch_summary or "*noch offen*"}']
         lines += ['', f'{values["SECTION_COUNT_TEXT"]} · ✅ {values["APPROVED_COUNT_TEXT"]} freigegeben · {values["MARKER_COUNT_TEXT"]} · Kosten **{values["CHAPTER_COST"]}**', '']
         if rows:
             lines += ['| # | Abschnitt | Marker | Kosten | Status |', '|--:|---|---|--:|---|']
