@@ -62,6 +62,9 @@ Die Pfade sind Entwurf und müssen mit dem implementierten Dienst übereinstimme
 | PATCH | /v1/projects/{owner}/{repo}/settings | Projekteinstellungen ändern (`project.settings.update`) |
 | POST | /v1/projects/{owner}/{repo}/chapters/reorder | Kapitelreihenfolge ändern (`chapter.reorder`) |
 | POST | /v1/projects/{owner}/{repo}/chapters/{chapter_id}/sections/reorder | Abschnittsreihenfolge eines Kapitels ändern (`section.reorder`) |
+| POST | /v1/projects/{owner}/{repo}/chapters/{chapter_id}/research-runs | Kapitelrecherche unveränderlich speichern (`chapter.research.start`) |
+| PATCH | /v1/projects/{owner}/{repo}/chapters/{chapter_id} | auch Ziel und Kurzbeschreibung allein (`chapter.texts.update`) |
+| POST | /v1/projects/{owner}/{repo}/chapters/{chapter_id}/sections | auch mehrere vorgeschlagene Abschnitte am Ende in einem Commit (`chapter.sections.add`) |
 | GET | /v1/projects/{owner}/{repo}/changes | Offene Änderungen: Arbeits-Branch, Pull Request, Commits |
 | POST | /v1/projects/{owner}/{repo}/changes/merge | Offene Änderungen nach Bestätigung übernehmen (`changes.merge`) |
 
