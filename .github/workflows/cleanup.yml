@@ -1,9 +1,11 @@
 name: Branches aufräumen
 
 # Löscht erledigte Arbeits-Branches mit einem Klick (Actions → Branches aufräumen
-# → Run workflow). Gelöscht wird nur ein Branch, dessen Pull Request gemergt ist
-# und der seitdem keinen neuen Commit hat; Muster siehe PATTERN. Alles andere
-# bleibt. Mit „Nur anzeigen“ wird nichts gelöscht, nur aufgelistet.
+# → Run workflow). Gelöscht wird nur ein Branch nach PATTERN, dessen Pull Request
+# gemergt ist und der seitdem keinen neuen Commit hat, oder der vollständig im
+# Standard-Branch enthalten ist (nichts geht verloren). Dazu gehören auch die
+# Arbeits-Branches des Chats (ghostwriter/…). Ein Branch mit offenem Pull Request
+# oder eigenen, nicht übernommenen Commits bleibt immer. Mit „Nur anzeigen“ wird nichts gelöscht, nur aufgelistet.
 # Versions-Branches (v0.1, v0.2 …) werden zu Tags gleichen Namens (annotiert,
 # auf demselben Commit) und danach als Branch gelöscht; der Stand bleibt über
 # den Tag erreichbar. Gibt es den Tag schon auf einem anderen Commit, bleibt
@@ -59,7 +61,8 @@ jobs:
           R: ${{ github.repository }}
           OWNER: ${{ github.repository_owner }}
           DRY: ${{ inputs.dry_run }}
-          PATTERN: '^(feat|fix|docs|ui|chore)/|^ghostwriter/auflage-[0-9]+$'
+          PATTERN: '^(feat|fix|docs|ui|chore|ghostwriter)/'
+          BASE: ${{ github.event.repository.default_branch }}
         run: |
           deleted=0; kept=0
           echo "## Branches aufräumen" >> "$GITHUB_STEP_SUMMARY"
@@ -69,11 +72,17 @@ jobs:
             sha=$(gh api "repos/$R/branches/$b" --jq .commit.sha)
             pr=$(gh api "repos/$R/pulls?state=closed&head=$OWNER:$b&per_page=100" \
                  --jq "[.[] | select(.merged_at != null and .head.sha == \"$sha\")][0].number // empty")
+            why="Pull Request #$pr gemergt"
+            if [ -z "$pr" ]; then
+              open=$(gh api "repos/$R/pulls?state=open&head=$OWNER:$b" --jq 'length')
+              ahead=$(gh api "repos/$R/compare/$BASE...$b" --jq .ahead_by 2>/dev/null || echo 1)
+              if [ "$open" = "0" ] && [ "$ahead" = "0" ]; then pr=x; why="vollständig in $BASE enthalten"; fi
+            fi
             if [ -n "$pr" ]; then
               if [ "$DRY" != "true" ]; then gh api -X DELETE "repos/$R/git/refs/heads/$b" >/dev/null; fi
-              echo "- 🗑️ \`$b\` (Pull Request #$pr gemergt)" >> "$GITHUB_STEP_SUMMARY"; deleted=$((deleted+1))
+              echo "- 🗑️ \`$b\` ($why)" >> "$GITHUB_STEP_SUMMARY"; deleted=$((deleted+1))
             else
-              echo "- ⏸️ \`$b\` bleibt (kein gemergter Pull Request auf diesem Stand)" >> "$GITHUB_STEP_SUMMARY"; kept=$((kept+1))
+              echo "- ⏸️ \`$b\` bleibt (offener Pull Request oder eigene, nicht übernommene Commits)" >> "$GITHUB_STEP_SUMMARY"; kept=$((kept+1))
             fi
           done
           echo "" >> "$GITHUB_STEP_SUMMARY"
