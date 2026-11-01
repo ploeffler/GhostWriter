@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+"""Erzeugt eine ruhige Klavier-Streicher-Musik (D-Dur, 114 BPM halbes Tempo) für den Produktclip.
+
+Rein synthetisch (numpy/scipy), keine fremden Samples: frei verwendbar.
+Ein Takt = 240/114 s ≈ 2,105 s; zwei Takte = 4,21 s ≈ ein Szenenwechsel.
+Ausgabe: build/musik.wav (26 s, 48 kHz, Stereo)
+"""
+import numpy as np
+from scipy.io import wavfile
+from scipy.signal import butter, sosfilt, fftconvolve
+
+SR = 48000
+BPM = 114
+BEAT = 60 / BPM
+BAR = 4 * BEAT
+DUR = 26.0
+N = int(SR * DUR)
+rng = np.random.default_rng(7)
+
+
+def hz(note):
+    names = {'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5, 'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11}
+    n, o = note[:-1], int(note[-1])
+    return 440.0 * 2 ** ((names[n] + 12 * (o + 1) - 69) / 12)
+
+
+def piano(f, length, vel=0.6):
+    t = np.arange(int(SR * length)) / SR
+    out = np.zeros_like(t)
+    for k in range(1, 9):
+        fk = f * k * np.sqrt(1 + 0.0004 * k * k)          # leichte Inharmonizität
+        amp = vel / (k ** 1.6)
+        decay = np.exp(-t * (0.9 + 0.55 * k))
+        out += amp * decay * np.sin(2 * np.pi * fk * t + rng.uniform(0, 6.28))
+    attack = np.minimum(1, t / 0.004)
+    hammer = np.exp(-t * 90) * rng.normal(0, 0.004, t.size) * vel
+    return out * attack + hammer
+
+
+def pad(freqs, length, level=0.12):
+    t = np.arange(int(SR * length)) / SR
+    out = np.zeros_like(t)
+    for f in freqs:
+        for det in (-0.12, 0.0, 0.12):
+            ff = f * 2 ** (det / 12)
+            for k, a in ((1, 1.0), (2, 0.35), (3, 0.18), (4, 0.08)):
+                out += a * np.sin(2 * np.pi * ff * k * t + rng.uniform(0, 6.28) + 0.3 * np.sin(2 * np.pi * 5.2 * t))
+    env = np.minimum(1, t / 1.2) * np.minimum(1, (length - t) / 0.8).clip(0, 1)
+    return level * out * env / (len(freqs) * 3)
+
+
+def guitar(f, length, vel=0.25):
+    t = np.arange(int(SR * length)) / SR
+    out = np.zeros_like(t)
+    for k in range(1, 7):
+        out += (vel / k ** 1.3) * np.exp(-t * (2.2 + 0.9 * k)) * np.sin(2 * np.pi * f * k * t)
+    return out * np.minimum(1, t / 0.002)
+
+
+def place(buf, sig, start, ch_gain=(1.0, 1.0)):
+    i = int(start * SR)
+    j = min(N, i + sig.size)
+    if i >= N:
+        return
+    buf[0, i:j] += sig[:j - i] * ch_gain[0]
+    buf[1, i:j] += sig[:j - i] * ch_gain[1]
+
+
+# Akkorde je zwei Takte (ein Szenenwechsel), D-Dur
+chords = [
+    (['D3', 'A3', 'D4', 'F#4'], 'D2'),     # 0–4,2 s   Idee
+    (['C#3', 'A3', 'E4', 'A4'], 'A1'),     # 4,2–8,4   Struktur  (A/C#)
+    (['B2', 'F#3', 'D4', 'B4'], 'B1'),     # 8,4–12,6  Recherche (Bm)
+    (['G2', 'D3', 'B3', 'G4'], 'G1'),      # 12,6–16,8 unterwegs (G)
+    (['D3', 'A3', 'F#4', 'D5'], 'D2'),     # 16,8–21   das Buch (D, voller)
+    (['G2', 'D3', 'A3', 'E4'], 'G1'),      # 21–23,1   Endkarte Gsus2 …
+    (['D3', 'A3', 'D4', 'F#4'], 'D2'),     # … löst nach D auf, klingt aus
+]
+starts = [0, 2 * BAR, 4 * BAR, 6 * BAR, 8 * BAR, 10 * BAR, 11 * BAR]
+
+L = np.zeros((2, N))
+for idx, ((notes, bass), st) in enumerate(zip(chords, starts)):
+    length = (starts[idx + 1] - st) if idx + 1 < len(starts) else DUR - st
+    fuller = 1.6 if idx == 4 else (0.0 if idx == 0 else 1.0)
+    if fuller:
+        place(L, pad([hz(n) for n in notes[:3]], length + 0.6, 0.10 * fuller), st, (0.85, 1.0))
+        place(L, pad([hz(bass)], length + 0.6, 0.08 * fuller), st, (1.0, 0.9))
+    # Klavier: gebrochener Akkord auf jedem Schlag, ruhiges Achtel-Muster
+    beats = int(round(length / BEAT))
+    pattern = [0, 2, 1, 3]
+    for b in range(beats):
+        n = notes[pattern[b % 4]]
+        v = 0.42 if b % 4 == 0 else 0.30
+        place(L, piano(hz(n), 3.0, v), st + b * BEAT, (1.0, 0.8))
+    place(L, piano(hz(bass) * 2, 4.0, 0.5), st, (0.9, 0.9))
+    if idx >= 1:   # Gitarre ab Szene 2, leise Off-Beats
+        for b in range(beats):
+            place(L, guitar(hz(notes[(b + 1) % 4]) * 2, 1.2, 0.12), st + b * BEAT + BEAT / 2, (0.7, 1.0))
+
+# Melodie (Klavier, hoch), schlicht und hoffnungsvoll
+melody = [  # (Note, Start in Schlägen, Länge)
+    ('F#5', 0, 2), ('E5', 2, 1), ('D5', 3, 1), ('A5', 4, 3),
+    ('E5', 8, 2), ('C#5', 10, 1), ('A4', 11, 1), ('E5', 12, 3),
+    ('F#5', 16, 2), ('D5', 18, 1), ('B4', 19, 1), ('D5', 20, 3),
+    ('B4', 24, 2), ('D5', 26, 1), ('G5', 27, 1), ('F#5', 28, 3),
+    ('A5', 32, 2), ('B5', 34, 1), ('A5', 35, 1), ('F#5', 36, 2), ('D5', 38, 2),
+    ('E5', 40, 4), ('D5', 44, 6),
+]
+for note, sb, lb in melody:
+    place(L, piano(hz(note), max(2.5, lb * BEAT + 1.5), 0.36), sb * BEAT, (0.95, 1.0))
+
+# Hall: Faltung mit abklingendem Rauschen
+ir_len = int(SR * 2.4)
+t = np.arange(ir_len) / SR
+ir = rng.normal(0, 1, (2, ir_len)) * np.exp(-t * 2.6)
+ir = sosfilt(butter(2, 6000, 'low', fs=SR, output='sos'), ir)
+ir[:, :int(0.02 * SR)] = 0
+wet = np.stack([fftconvolve(L[c], ir[c])[:N] for c in range(2)])
+mix = 0.75 * L + 0.18 * wet / np.max(np.abs(wet))*np.max(np.abs(L))
+mix = sosfilt(butter(2, 9000, 'low', fs=SR, output='sos'), mix)
+mix = sosfilt(butter(1, 45, 'high', fs=SR, output='sos'), mix)
+# sanftes Ein- und Ausblenden, normalisieren
+tt = np.arange(N) / SR
+mix *= np.minimum(1, tt / 0.15) * np.clip((DUR - tt) / 2.5, 0, 1)
+mix = mix / np.max(np.abs(mix)) * 0.89
+wavfile.write('build/musik.wav', SR, (mix.T * 32767).astype(np.int16))
+print('build/musik.wav', DUR, 's')

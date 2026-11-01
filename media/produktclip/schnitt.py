@@ -78,8 +78,8 @@ def main():
     n = 6
     if a.musik:
         inputs += ['-i', a.musik]
-        audio.append(f'[{n}:a]aresample=48000,atrim=0:{total:.3f},afade=t=in:d=1,afade=t=out:st={total - 2:.3f}:d=2,volume=0.8[m]')
-        audio.append(f'[{alast}][m]amix=inputs=2:normalize=0[aout]')
+        audio.append(f'[{n}:a]aresample=48000,atrim=0:{total:.3f},afade=t=in:d=1,afade=t=out:st={total - 2:.3f}:d=2,volume=0.7[m]')
+        audio.append(f'[{alast}][m]amix=inputs=2:normalize=0,loudnorm=I=-14:TP=-1.5:LRA=11[aout]')
     else:
         audio.append(f'[{alast}]anull[aout]')
     out = build / 'ghostwriter-clip.mp4'
