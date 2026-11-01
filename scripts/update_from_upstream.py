@@ -22,7 +22,10 @@ Liegt er dahinter, werden die Commits eingespielt:
 Danach liegt kein Branch mehr hinter dem Hauptrepository; GitHubs Hinweis
 „This branch is N commits behind …“ verschwindet.
 
-Welche Branches: im Fork bzw. eigenen Buch-Repository alle Branches. Im
+Welche Branches: im Fork bzw. eigenen Repository zuerst der Standard-Branch
+(Programm einer Bibliothek bzw. das Einzelbuch), dann alle Bücher nach der
+Erkennungsregel aus scripts/library.py (#39); Arbeits-Branches (ghostwriter/*)
+und andere Branches nicht. Im
 Hauptrepository selbst nur Bücher nach der Erkennungsregel aus scripts/library.py
 (buch/*-Branches, sonst Branches mit Kapiteln wie test/test-book), nie
 update.skip_branches.
@@ -327,15 +330,18 @@ def branches(manifest, same_repo, upstream_ref, only):
              if '/' in r and not r.endswith('/HEAD')]
     if only:
         return [only]
-    if not same_repo:
-        return sorted(names, key=lambda n: (n != default_branch(), n))
     out = []
+    if not same_repo:
+        # Fork bzw. eigenes Repository: zuerst der Standard-Branch (Programm bzw. Einzelbuch),
+        # dann die Bücher nach der Erkennungsregel (#39); Arbeits- und andere Branches nicht.
+        default = default_branch()
+        out = [default] if default in names else []
     for name in names:
-        if name == upstream_ref:
+        if name in out or (same_repo and name == upstream_ref):
             continue
         text = show(f'origin/{name}', 'ghostwriter.yml')
         cfg = (yaml.safe_load(text) or {}) if text is not None else None
-        if library.is_book(name, cfg, manifest):   # Erkennungsregel der Bibliothek (#36)
+        if library.is_book(name, cfg, manifest, default_branch()):   # Erkennungsregel der Bibliothek (#36)
             out.append(name)
     return out
 

@@ -225,3 +225,50 @@ class NewBookTest(unittest.TestCase):
         t = run('--text', '--draft', json.dumps({'working_title': 'X', 'error': 'Name vergeben'}))
         self.assertIn('✗ Name vergeben', t)
         self.assertIn('`adhs` (buch/adhs)', t)
+
+
+class DefaultBranchAndUpdateTest(unittest.TestCase):
+    """#39: Standard-Branch mit Kapiteln ist ein Buch (Einzelbuch); Update im Fork: Standard-Branch zuerst, dann Bücher."""
+
+    def test_default_branch_rule(self):
+        self.assertTrue(library.is_book('main', book('X'), MANIFEST, default='main'))      # Einzelbuch, trotz skip
+        self.assertFalse(library.is_book('main', STARTER, MANIFEST, default='main'))       # Bibliothek
+        self.assertFalse(library.is_book('main', book('X'), MANIFEST))                     # Hauptrepository ohne Angabe
+
+    def test_is_command(self):
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, 'ghostwriter.yml').write_text(yaml.safe_dump(book('X')), encoding='utf-8')
+            run = lambda b, env: subprocess.run([sys.executable, str(ROOT / 'scripts/library.py'), 'is', b, '--dir', d],
+                                                capture_output=True, env=env).returncode
+            import os
+            env = dict(os.environ, GHOSTWRITER_DEFAULT_BRANCH='main')
+            self.assertEqual(run('main', env), 0)
+            self.assertEqual(run('buch/x', env), 0)
+            self.assertEqual(run('ghostwriter/buch/x', env), 1)
+            Path(d, 'ghostwriter.yml').write_text(yaml.safe_dump(STARTER), encoding='utf-8')
+            self.assertEqual(run('main', env), 1)
+
+    def test_update_branch_selection_in_fork(self):
+        import os
+        import update_from_upstream as up
+        with tempfile.TemporaryDirectory() as d:
+            g = lambda *a: subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=d, check=True,
+                                          capture_output=True, text=True).stdout
+            g('init', '-q', '-b', 'main')
+            for name, cfg in [('main', STARTER), ('buch/a', book('A')), ('buch/neu', STARTER), ('ghostwriter/buch/a', book('A')),
+                              ('feature/x', STARTER), ('alt', book('Alt'))]:
+                Path(d, 'ghostwriter.yml').write_text(yaml.safe_dump(cfg), encoding='utf-8')
+                g('add', '.')
+                g('commit', '-q', '--allow-empty', '-m', name)
+                g('update-ref', f'refs/remotes/origin/{name}', 'HEAD')
+            old, env = os.getcwd(), dict(os.environ)
+            try:
+                os.chdir(d)
+                os.environ['GITHUB_EVENT_PATH'] = str(Path(d, 'event.json'))
+                Path(d, 'event.json').write_text(json.dumps({'repository': {'default_branch': 'main'}}), encoding='utf-8')
+                self.assertEqual(up.branches(MANIFEST, False, 'main', None), ['main', 'alt', 'buch/a', 'buch/neu'])
+                self.assertEqual(up.branches(MANIFEST, True, 'main', None), ['alt', 'buch/a', 'buch/neu'])
+            finally:
+                os.chdir(old)
+                os.environ.clear()
+                os.environ.update(env)

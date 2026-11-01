@@ -21,6 +21,10 @@ Danach liegt kein Branch mehr hinter dem Hauptrepository, und GitHubs Hinweis �
 
 Neue Versionen erscheinen erst, wenn ein Versionsschritt im Hauptrepository nach `main` gemergt ist. Zwischenstände aus Entwicklungs-Branches kommen nicht in dein Buch.
 
+## Bibliothek: mehrere Bücher in einem Repository
+
+In einer Bibliothek (#36–#39) liegt auf dem Standard-Branch nur das Programm, jedes Buch auf einem eigenen Branch `buch/<slug>`. Die Action aktualisiert zuerst den Standard-Branch und danach jedes Buch einzeln; die Zusammenfassung zeigt eine Zeile je Buch. Welche Branches Bücher sind, entscheidet die Erkennungsregel in `scripts/library.py`: der Standard-Branch nur, wenn er Kapitel hat (Einzelbuch), jeder `buch/*`-Branch, sonst Branches mit Kapiteln. Arbeits-Branches (`ghostwriter/…`) und andere Branches werden nicht angefasst; offene Änderungen bekommen das Update mit dem nächsten „Änderungen übernehmen“. Ein Fehler in einem Buch hält die anderen nicht auf; für das betroffene Buch öffnet die Action ein Issue.
+
 ## Hinweis im Chat
 
 Liegt der Buch-Branch hinter dem Hauptrepository, zeigt die **Projektübersicht** oben einen Hinweis, etwa „GhostWriter-Update: 3 Commits hinter ploeffler/GhostWriter:main · Version 0.3.1 verfügbar“, mit dem Knopf **Update einspielen** (Textfassung: `U`). Das kommt vor, wenn seit dem letzten nächtlichen Lauf eine neue Version erschienen ist oder wenn die Action in deinem Repository noch nicht läuft. **Update einspielen** startet die Action sofort, sofern die GitHub-Verbindung des Chats das kann; sonst bekommst du den Link *Actions → GhostWriter aktualisieren → Run workflow*.
@@ -93,7 +97,7 @@ Der Token gehört wie jeder Schlüssel nie in den Chat oder in eine Datei (siehe
 - Welche Dateien zum Programm gehören, steht in `ghostwriter-manifest.yml` (`managed`, `book`). Neue Programmordner dort eintragen.
 - `version` im Manifest beim Merge eines Versionsschritts nach `main` erhöhen; Bücher mit höherer Version werden nicht aktualisiert.
 - **Datenstruktur ändern (#59):** Wer ein Buch-Schema in `schemas/` ändert, erhöht `DATA_VERSION` in `scripts/migrate_project.py`, trägt die Migration unter `MIGRATIONS[<neue Version>]` ein (idempotent, nur Struktur) und schreibt den Fingerabdruck neu: `python scripts/migrate_project.py --fingerprint`. Ist die Änderung rückwärtskompatibel (nur neue, optionale Felder), genügt der neue Fingerabdruck. Die Doku-Prüfung (`scripts/check_docs.py` in `validate.yml`) schlägt sonst an. Tests: `tests/test_migration.py` migriert die Beispielbücher (Datenversion 0) und prüft, dass ein zweiter Lauf nichts ändert.
-- Liegt ein Buch als Branch im Hauptrepository (z. B. `test/test-book`), aktualisiert die Action dort nur Bücher nach der Erkennungsregel (`scripts/library.py`: `buch/*`-Branches, sonst Branches mit Kapiteln) außer `update.skip_branches` (`main`, `v*`, `ghostwriter/*` …), jeweils gegen `main`. In Forks und eigenen Buch-Repositorys prüft sie alle Branches.
+- Liegt ein Buch als Branch im Hauptrepository (z. B. `test/test-book`), aktualisiert die Action dort nur Bücher nach der Erkennungsregel (`scripts/library.py`: `buch/*`-Branches, sonst Branches mit Kapiteln) außer `update.skip_branches` (`main`, `v*`, `ghostwriter/*` …), jeweils gegen `main`. In Forks und eigenen Repositorys prüft sie den Standard-Branch und alle Bücher (Abschnitt „Bibliothek“).
 - Ein Buch-Branch, auf dem eine Entwicklungsfassung getestet wird, bekommt sonst nachts wieder die Programmdateien von `main`. Deshalb in Entwicklungs-Branches `version` im Manifest sofort erhöhen (z. B. `0.4.0`); Bücher mit höherer Version werden nicht angefasst.
 - Lokal testen: `GITHUB_REPOSITORY=owner/buch GHOSTWRITER_UPSTREAM_URL=<pfad-oder-url> python scripts/update_from_upstream.py --dry-run --status status.json`.
 

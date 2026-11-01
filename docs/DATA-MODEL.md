@@ -232,6 +232,7 @@ Seit v0.6 (#36) kann ein Repository mehrere Bücher enthalten. Jedes Buch liegt 
 
 **Erkennungsregel** (gilt gleich für Bücherregal, Update-Action und Wiedereinstieg):
 
+0. Der Standard-Branch ist ein Buch, wenn er Kapitel hat (Einzelbuch); sonst enthält er nur das Programm (Bibliothek, Hauptrepository).
 1. Branches aus `update.skip_branches` sind nie Bücher.
 2. Jeder `buch/*`-Branch mit `ghostwriter.yml` ist ein Buch, auch ohne Kapitel (Status „im Aufbau“).
 3. Jeder andere Branch mit Kapiteln ist ein Buch (Altbestand wie `test/test-book`, Einzelbuch auf dem Standard-Branch).

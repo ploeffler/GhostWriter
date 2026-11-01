@@ -40,7 +40,19 @@ jobs:
       - name: Python-Abhängigkeiten
         run: pip install pyyaml jsonschema python-docx
 
+      - name: Nur Buch-Branches
+        # In einer Bibliothek baut nur ein Buch eine Auflage, nie der Standard-Branch
+        # oder ein Arbeits-Branch (Erkennungsregel scripts/library.py, #39)
+        id: book
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ ! -f scripts/library.py ] || python scripts/library.py is "$GITHUB_REF_NAME" --dir .; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Auflage ermitteln
+        if: steps.book.outputs.ok == 'true'
         id: info
         env:
           BEFORE: ${{ github.event.before }}

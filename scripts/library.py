@@ -6,6 +6,8 @@ Aufruf (im Repository, braucht alle Branches: git fetch origin '+refs/heads/*:re
   python scripts/library.py name "<Kurztitel>"  Branch-Name, Tag-Slug und ob er schon vergeben ist
   python scripts/library.py check               Kurztitel bzw. Tag-Slugs eindeutig? (Exit 1 bei Doppelten)
   python scripts/library.py build [--out library.json]   Übersicht der Bibliothek schreiben (#37)
+  python scripts/library.py is <branch> [--dir .]  Ist dieser Branch ein Buch? (Exit 0 ja, 1 nein; liest
+                                                ghostwriter.yml aus --dir, z. B. in einer Action)
   python scripts/library.py new "<Arbeitstitel>" [--short K] [--author A] [--create]
                                                 Neues Buch (#38): prüft den Namen und zeigt den
                                                 Branch; mit --create Branch buch/<slug> vom
@@ -22,8 +24,9 @@ Benennung (ghostwriter-manifest.yml → library):
   Arbeits-Branch  ghostwriter/<buch-branch>   z. B. ghostwriter/buch/adhs
 
 Erkennungsregel, einheitlich für Bücherregal, Update-Action und Wiedereinstieg:
-  1. Branches aus update.skip_branches sind nie Bücher (Arbeits-, Versions-, Bot-Branches,
-     im Hauptrepository auch main).
+  0. Der Standard-Branch ist ein Buch, wenn er Kapitel hat (Einzelbuch), sonst nicht
+     (Bibliothek: nur Programm und Starter; im Hauptrepository main).
+  1. Branches aus update.skip_branches sind nie Bücher (Arbeits-, Versions-, Bot-Branches).
   2. Jeder buch/*-Branch ist ein Buch, auch ohne Kapitel (neu angelegt, Wizard läuft).
   3. Jeder andere Branch mit Kapiteln (structure.chapters) ist ein Buch (Altbestand,
      Einzelbuch auf dem Standard-Branch, test/test-book).
@@ -77,9 +80,22 @@ def has_chapters(config):
     return bool(((config or {}).get('structure') or {}).get('chapters'))
 
 
-def is_book(name, config, manifest=None):
-    """Erkennungsregel (siehe oben). config = ghostwriter.yml des Branchs (dict, None = fehlt)."""
+def default_branch(cwd=ROOT):
+    """Standard-Branch: GHOSTWRITER_DEFAULT_BRANCH (Actions), sonst origin/HEAD, sonst None."""
+    import os
+    env = os.environ.get('GHOSTWRITER_DEFAULT_BRANCH')
+    if env:
+        return env
+    head = git('symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD', cwd=cwd).strip()
+    return head.split('/', 1)[1] if '/' in head else None
+
+
+def is_book(name, config, manifest=None, default=None):
+    """Erkennungsregel (siehe oben). config = ghostwriter.yml des Branchs (dict, None = fehlt).
+    default = Standard-Branch: Er ist ein Buch, wenn er Kapitel hat (Einzelbuch), auch wenn er in skip_branches steht."""
     s = settings(manifest)
+    if default and name == default:
+        return has_chapters(config)
     if any(fnmatch.fnmatch(name, pat) for pat in s['skip']):
         return False
     if name.startswith(s['book_prefix']):
@@ -96,9 +112,9 @@ def describe(name, config, manifest=None):
             'work_branch': work_branch(name, manifest)}
 
 
-def books(branch_configs, manifest=None):
+def books(branch_configs, manifest=None, default=None):
     """branch_configs: {branch: config|None} -> Liste der Bücher (sortiert nach Branch)."""
-    return [describe(n, c, manifest) for n, c in sorted(branch_configs.items()) if is_book(n, c, manifest)]
+    return [describe(n, c, manifest) for n, c in sorted(branch_configs.items()) if is_book(n, c, manifest, default)]
 
 
 def duplicates(book_list):
@@ -174,7 +190,7 @@ def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None):
     manifest = manifest or load_manifest()
     configs = branch_configs(namespace, cwd)
     out = []
-    for b in books(configs, manifest):
+    for b in books(configs, manifest, default_branch(cwd)):
         ref = f'{namespace}/{b["branch"]}'
         p = (configs[b['branch']] or {}).get('project') or {}
         entry = dict(b, author=p.get('author') or '')
@@ -219,8 +235,8 @@ def create_book(title, short='', author='', cwd=ROOT, namespace='refs/remotes/or
     """Lokal: Branch buch/<slug> von base anlegen, ghostwriter.yml setzen, ein Commit. Gibt das Ergebnis von new_book zurück."""
     import datetime
     manifest = manifest or load_manifest()
-    found = books(branch_configs(namespace, cwd), manifest)
-    found += [b for b in books(branch_configs('refs/heads', cwd), manifest) if b['branch'] not in {x['branch'] for x in found}]
+    found = books(branch_configs(namespace, cwd), manifest, default_branch(cwd))
+    found += [b for b in books(branch_configs('refs/heads', cwd), manifest, default_branch(cwd)) if b['branch'] not in {x['branch'] for x in found}]
     r = new_book(title, short, author, found, manifest)
     if r['taken']:
         return r
@@ -251,7 +267,7 @@ def load_manifest():
 
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('cmd', choices=['list', 'name', 'check', 'build', 'new'])
+    ap.add_argument('cmd', choices=['list', 'name', 'check', 'build', 'new', 'is'])
     ap.add_argument('title', nargs='?')
     ap.add_argument('--json', action='store_true')
     ap.add_argument('--namespace', default='refs/remotes/origin', help='Git-Namespace der Branches (Tests: refs/heads)')
@@ -259,9 +275,16 @@ def main(argv):
     ap.add_argument('--out', help='bei build: Zieldatei (sonst Ausgabe)')
     ap.add_argument('--short', default='', help='bei new: Kurztitel (sonst der Arbeitstitel)')
     ap.add_argument('--author', default='', help='bei new: Autor')
+    ap.add_argument('--dir', default='.', help='bei is: Ordner mit ghostwriter.yml')
     ap.add_argument('--create', action='store_true', help='bei new: Branch lokal anlegen und committen')
     a = ap.parse_args(argv[1:])
     manifest = load_manifest()
+    if a.cmd == 'is':
+        cfg_path = Path(a.dir, 'ghostwriter.yml')
+        cfg = (yaml.safe_load(cfg_path.read_text(encoding='utf-8')) or {}) if cfg_path.is_file() else None
+        yes = is_book(a.title or '', cfg, manifest, default_branch(a.repo))
+        print(f'{a.title}: {"Buch" if yes else "kein Buch"}')
+        return 0 if yes else 1
     if a.cmd == 'build':
         text = json.dumps(build_library(a.namespace, a.repo, manifest), ensure_ascii=False, indent=2) + '\n'
         if a.out:
@@ -276,14 +299,14 @@ def main(argv):
         if a.create:
             r = create_book(a.title or '', a.short, a.author, a.repo, a.namespace, manifest)
         else:
-            r = new_book(a.title or '', a.short, a.author, books(branch_configs(a.namespace, a.repo), manifest), manifest)
+            r = new_book(a.title or '', a.short, a.author, books(branch_configs(a.namespace, a.repo), manifest, default_branch(a.repo)), manifest)
         if a.json:
             print(json.dumps(r, ensure_ascii=False))
         else:
             print(f'{r["branch"]} (Arbeits-Branch {r["work_branch"]})' + ''.join(f'\n✗ {t}' for t in r['taken'])
                   + ('' if r['taken'] or not a.create else f'\n✓ angelegt'))
         return 1 if r['taken'] else 0
-    found = books(branch_configs(a.namespace, a.repo), manifest)
+    found = books(branch_configs(a.namespace, a.repo), manifest, default_branch(a.repo))
     if a.cmd == 'list':
         if a.json:
             print(json.dumps(found, ensure_ascii=False, indent=2))
