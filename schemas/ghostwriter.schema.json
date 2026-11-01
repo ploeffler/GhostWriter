@@ -43,6 +43,7 @@
       "properties": {
         "rules": {"type": "object"},
         "available": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "services": {"type": "object", "additionalProperties": {"type": "object", "properties": {"access": {"enum": ["app", "api", "local", "cli", "web", "github"]}, "model": {"type": "string"}, "github_connected": {"type": "boolean"}, "plan": {"type": "string"}, "monthly_cost": {"type": ["number", "null"], "minimum": 0}, "note": {"type": "string"}}, "additionalProperties": false}},
         "queue_processing": {"type": "object", "properties": {"agent": {"type": "string"}, "model": {"type": "string"}}}
       },
       "additionalProperties": {

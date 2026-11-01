@@ -13,7 +13,8 @@ Geprüft werden:
 - jede Kostendatei (chapters/*/costs/*.yml, costs/project.yml) gegen
   schemas/costs.schema.json, eindeutige activity_id, Abschnitts-ID bekannt
 - ai_providers: Dienste in `available` stehen in providers.yml; ist `available`
-  gesetzt, verwenden die Aufgaben nur diese Dienste (oder chat bzw. manual)
+  gesetzt, verwenden die Aufgaben nur diese Dienste (oder chat bzw. manual);
+  Einstellungen unter `services` nur für Dienste aus `available`
 - approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt,
   Art passt zur ID (writing/section: Abschnitt, chapter: Kapitel)
 
@@ -74,11 +75,14 @@ def provider_errors(config, config_path):
     for sid in available:
         if sid not in known:
             errors.append(f'{config_path}: ai_providers.available: unbekannter Dienst {sid} (nicht in providers.yml)')
+    for sid in ap.get('services') or {}:
+        if sid not in available:
+            errors.append(f'{config_path}: ai_providers.services.{sid}: Dienst steht nicht in available')
     if not available:
         return errors
     allowed = set(available) | {'chat', ''}
     for role, entry in ap.items():
-        if role in ('available', 'rules') or not isinstance(entry, dict):
+        if role in ('available', 'rules', 'services') or not isinstance(entry, dict):
             continue
         if role == 'queue_processing':
             agent = entry.get('agent', '')

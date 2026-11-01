@@ -160,6 +160,9 @@ Gibt es keinen offenen Pull Request, gibt es keine offenen Änderungen; die Ansi
 | `SERVICE_AVAILABLE` | `true`, wenn die ID in `ai_providers.available` steht, sonst leer |
 | `SERVICE_GUIDE_URL` | Link „Anleitung“ ins Repository des Buchs (`https://github.com/<owner>/<repo>/blob/<branch>/<pfad>`): `setup` des Dienstes, sonst der passende Abschnitt in `docs/DIENSTE-NUTZEN.md` (Chat-Dienst mit App: Weg 2, lokal: Weg 3, nur API oder Plattform: Weg 4, Recherchequellen, Agenten) |
 | `SERVICE_WEBSITE_URL` | `url` des Dienstes für den Link „Website“; leer, wenn es keine gibt |
+| `SERVICE_ACCESS_OPTIONS`, `SERVICE_ACCESS` | mögliche Zugänge und gewählter Zugang (`ai_providers.services.<id>.access`, sonst der erste): Chat-Dienste `app`/`api`/`cli` laut `access` in `providers.yml`, lokale `local`, Kataloge `web`/`api`, Such-APIs `api`, Agenten `github` |
+| `SERVICE_MODEL`, `SERVICE_GITHUB`, `SERVICE_PLAN`, `SERVICE_COST`, `SERVICE_MEMO` | aus `ai_providers.services.<id>`: `model`, `github_connected` (`true` oder leer), `plan`, `monthly_cost` (Zahl ohne Währung, leer = unbekannt), `note` |
+| `CONNECTOR_GUIDE_URL` | Link auf `docs/CONNECTOR-SETUP.md` im Repository des Buchs |
 | Block `ROLES`: `ROLE_ID`, `ROLE_LABEL`, `ROLE_HINT`, `ROLE_VALUE` | die Aufgaben `default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`, `queue_processing`; `ROLE_VALUE` ist `provider` bzw. bei der Warteschlange `agent` (leer = wie Standard) |
 
 ### `freigabe-bestaetigen.html`
@@ -266,7 +269,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `project.settings.open` | – | Projekteinstellungen zeigen | Vorlage `projekteinstellungen` (`render_view.py project-settings`) | – |
 | `project.settings.update` | `fact_checking_default`, `typesetting` (`page_size`, `font`, `font_size`, `title_page`, `imprint`, `toc`, `toc_depth`), `expected_head_sha` | Einstellungen speichern | `workflow.fact_checking_default` und `typesetting` in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH …/settings` |
 | `project.providers.open` | – | Formular „KI-Dienste“ zeigen | Vorlage `ki-dienste` (`render_view.py providers-edit`) | – |
-| `project.providers.update` | `available`, `roles` (`default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`: Dienst-ID, `chat` oder leer), `queue_agent`, `search_tools`, `expected_head_sha` | KI-Dienste speichern | `ai_providers` in `ghostwriter.yml` schreiben: `available`, `provider` je Aufgabe, `research.search_tools`, `queue_processing.agent`; Modellnamen nicht ändern. Danach Projektübersicht | `PATCH …/settings` |
+| `project.providers.update` | `available`, `services` (je eigenem Dienst `access`, `model`, `github_connected`, `plan`, `monthly_cost`, `note`), `roles` (`default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`: Dienst-ID, `chat` oder leer), `queue_agent`, `search_tools`, `expected_head_sha` | KI-Dienste speichern | `ai_providers` in `ghostwriter.yml` schreiben: `available`, `services` (nur eigene Dienste; leere Felder weglassen), `provider` je Aufgabe, `research.search_tools`, `queue_processing.agent`; Modellnamen nicht ändern. Danach Projektübersicht | `PATCH …/settings` |
 | `chapter.create.open` | – | Formular „Neues Kapitel anlegen“ zeigen | Vorlage `kapitel-anlegen` (`render_view.py chapter-create`) | – |
 | `chapter.create` | `title`, `summary`, `goal`, `position` (Index, 0 = am Anfang), `position_label`, `expected_head_sha` | Kapitel anlegen | Kapitel anlegen, danach Kapitelansicht des neuen Kapitels | `POST …/chapters` |
 | `chapter.edit.open` | `chapter_id` | Kapitel bearbeiten | Vorlage `kapitel-bearbeiten` (`render_view.py chapter-edit N`) | – |
