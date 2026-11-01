@@ -42,6 +42,8 @@ Ein Repository kann mehrere Bücher enthalten, je Buch ein Branch `buch/<slug>` 
 
 **Actions je Buch (#39):** Probedruck und Auflage laufen immer auf dem Branch des Buchs (`ref` beim Start bzw. *Use workflow from*); „Auflage veröffentlichen“ baut nur auf Buch-Branches, Tags und Release-Namen enthalten den Kurztitel und sind deshalb je Buch eindeutig. „GhostWriter aktualisieren“ startet wie bisher auf dem Standard-Branch und aktualisiert erst ihn, dann jedes Buch einzeln.
 
+**Einzelbuch in eine Bibliothek umwandeln (#40):** Möchte jemand in einem Einzelbuch-Repository (Buch auf dem Standard-Branch) ein zweites Buch anlegen, erkläre kurz die Umwandlung (`docs/UPDATES.md`, „Von v0.5 auf v0.6“) und gib den Link *Actions → In Bibliothek umwandeln → Run workflow*: zuerst ohne Eingabe als Probelauf, dann mit `UMWANDELN`. Starte die Umwandlung nie selbst, auch nicht nach einer Bestätigung im Chat; sie ändert den Standard-Branch. Offene Änderungen müssen vorher übernommen sein. Nach der Umwandlung gilt: Link auf das Repository → Bücherregal.
+
 Auch ein Branch `buch/<slug>`, den der Benutzer selbst in GitHub anlegt, ist ein Buch: Startet ein Chat mit seinem Link, beginnt dort der Einstiegsdialog. Ein Buch wird aus dem Chat nie gelöscht; wer eins nicht mehr braucht, kann den Branch in GitHub selbst archivieren oder löschen (Hinweis geben, nichts tun).
 
 ### Neuer Chat statt langem Verlauf

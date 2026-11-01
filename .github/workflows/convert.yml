@@ -1,0 +1,60 @@
+name: In Bibliothek umwandeln
+
+# Macht aus einem Einzelbuch-Repository eine Bibliothek (#40, docs/UPDATES.md,
+# „Von v0.5 auf v0.6“): Das Buch zieht mit vollständiger Historie auf einen
+# eigenen Branch buch/<kurztitel>, der Standard-Branch enthält danach nur noch
+# das Programm. Nur von Hand; ohne das Wort UMWANDELN ist es ein Probelauf, der
+# nichts ändert. Rückweg: den Commit „In Bibliothek umgewandelt“ rückgängig machen.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'UMWANDELN eingeben, um wirklich umzuwandeln (sonst Probelauf)'
+        required: false
+        default: ''
+      title_short:
+        description: 'Kurztitel für den Buch-Branch (leer = aus ghostwriter.yml)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: convert
+  cancel-in-progress: false
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Nur auf dem Standard-Branch
+        if: github.ref_name != github.event.repository.default_branch
+        run: |
+          echo "::error::Bitte auf dem Standard-Branch (${{ github.event.repository.default_branch }}) starten."
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Abhängigkeiten installieren
+        run: pip install pyyaml jsonschema
+
+      - name: Umwandeln
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CONFIRM: ${{ inputs.confirm }}
+          TITLE_SHORT: ${{ inputs.title_short }}
+        run: |
+          args=(--short "$TITLE_SHORT")
+          if [ "$CONFIRM" != "UMWANDELN" ]; then
+            args+=(--dry-run)
+            echo "Probelauf (zum Umwandeln UMWANDELN eingeben)"
+          fi
+          python scripts/convert_to_library.py "${args[@]}"
