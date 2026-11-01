@@ -87,7 +87,7 @@ Ablauf beim Speichern:
 5. **Übersichtsdatei:** `ghostwriter-index.json` wird nicht von Hand geschrieben; die Action „Übersichtsdatei aktualisieren“ erzeugt sie nach jedem Push neu, auch im Arbeits-Branch. Bis sie gelaufen ist (meist unter einer Minute), liest der Assistent nach einem eigenen Commit die geänderten Dateien direkt statt aus der Übersichtsdatei.
 6. **Stand mitschreiben:** Betrifft die Änderung ein anderes Kapitel oder einen anderen Abschnitt als `workflow.current_chapter_id` bzw. `workflow.current_section_id`, diese Felder im selben Commit nachziehen. Für das bloße Ansehen gibt es keinen eigenen Commit.
 7. **Ergebnis:** `✓ <was> gespeichert, Commit abc1234 · noch nicht übernommen (Pull Request #NN)`. Danach die Ansicht nach „Nach dem Formular“ in `templates/ui/BEFUELLUNG.md`.
-8. **Übernehmen:** Gibt es offene Änderungen, zeigt die Projektübersicht einen Hinweis mit dem Knopf „Änderungen übernehmen“ (Textfassung `M`). Er öffnet die Bestätigung (`changes.merge.open`), die alle Änderungen des Pull Requests auflistet (ohne die automatischen Commits der Übersichtsdatei). Erst „Übernehmen“ bzw. `OK` dort (`changes.merge`) ist die ausdrückliche Bestätigung. Ist seit der Bestätigung eine Änderung dazugekommen (Head ≠ `expected_head_sha`), die Bestätigung neu zeigen statt zu mergen. Gemergt wird mit Merge-Commit, damit jede Änderung einzeln in der Historie bleibt; danach den Arbeits-Branch löschen. Nie automatisch mergen, auch nicht nach erfolgreichem Speichern.
+8. **Übernehmen:** Gibt es offene Änderungen, zeigt die Projektübersicht einen Hinweis mit dem Knopf „Änderungen übernehmen“ (Textfassung `M`). Er öffnet die Bestätigung (`changes.merge.open`), die alle Änderungen des Pull Requests auflistet (ohne die automatischen Commits der Übersichtsdatei). Erst „Übernehmen“ bzw. `OK` dort (`changes.merge`) ist die ausdrückliche Bestätigung. Ist seit der Bestätigung eine Änderung dazugekommen (Head ≠ `expected_head_sha`), die Bestätigung neu zeigen statt zu mergen. Gemergt wird mit Merge-Commit, damit jede Änderung einzeln in der Historie bleibt; danach den Arbeits-Branch löschen. Nie automatisch mergen, auch nicht nach erfolgreichem Speichern – außer der Benutzer hat für dieses Repository `changes.auto_merge: true` gewählt (Wizard bzw. Projekteinstellungen): Dann den Pull Request direkt nach dem Commit mergen (Merge-Commit, Arbeits-Branch löschen) und melden `✓ <was> gespeichert und übernommen, Commit abc1234`. Auch dann gilt: Freigaben brauchen ihre eigene Bestätigung (Abschnitt „Freigaben“), und der Auflagen-Pull-Request wird nie automatisch gemergt (Abschnitt „Neue Auflage“). Scheitert der Merge (Konflikt, fehlendes Recht), bleibt der Pull Request offen; dann gilt der Weg über „Änderungen übernehmen“.
 9. **Fehlt ein Werkzeug:** Kann der Assistent keinen Branch oder Pull Request anlegen oder nicht mergen, sagt er das offen. Ohne Merge-Recht legt er den Commit im Arbeits-Branch an und bittet den Benutzer, den Pull Request auf GitHub zu mergen. Ohne Schreibzugriff gilt Abschnitt 7 (Dateien im Chat ausgeben).
 
 Was jedes Formular schreibt:
@@ -95,7 +95,7 @@ Was jedes Formular schreibt:
 | Formular | Aktion | Dateien | Commit-Nachricht | Nötige Freigabe | Endpunkt (Weg B, `docs/API-CONTRACT.md`) |
 |---|---|---|---|---|---|
 | Projektdaten bearbeiten | `project.update` | `ghostwriter.yml` (`project.*`) | `Projektdaten geändert` | – | `PATCH /v1/projects/{owner}/{repo}` |
-| Projekteinstellungen | `project.settings.update` | `ghostwriter.yml` (`workflow.fact_checking_default`, `typesetting`, `updates`) | `Projekteinstellungen geändert` | – | `PATCH …/settings` |
+| Projekteinstellungen | `project.settings.update` | `ghostwriter.yml` (`workflow.fact_checking_default`, `typesetting`, `updates`, `changes`) | `Projekteinstellungen geändert` | – | `PATCH …/settings` |
 | KI-Dienste | `project.providers.update` | `ghostwriter.yml` (`ai_providers`: `available`, `services`, Anbieter je Aufgabe, `search_tools`, `queue_processing.agent`; Modellnamen bleiben) | `KI-Dienste geändert` | – | `PATCH …/settings` |
 | Neues Kapitel | `chapter.create` | `ghostwriter.yml` (`structure.chapters`), `chapters/<nn-slug>/README.md` aus `templates/chapter-README.md`, erste Abschnittsdatei aus `templates/section.md` (jedes Kapitel braucht mindestens einen Abschnitt) | `Kapitel N „Titel“ angelegt` | – | `POST …/chapters` |
 | Kapitel bearbeiten | `chapter.update` | `ghostwriter.yml` (Kapiteltitel), Kapitel-README (Überschrift, Untertitel, Kurzbeschreibung, Ziel) | `Kapitel N „Titel“ geändert` | – | `PATCH …/chapters/{chapter_id}` |
@@ -212,6 +212,7 @@ Erarbeite mit mir:
 9. Abschnitte pro Kapitel.
 10. Kurzbeschreibung und Ziel jedes Kapitels und Abschnitts.
 11. Welche KI-Dienste schon vorhanden sind, und welcher davon welche Aufgabe übernimmt: Recherche, Brainstorming, Schreiben, Überarbeiten, Fact-Checking und Queue-Bearbeitung (siehe Abschnitt 4a). Weitere Dienste erst später über das Formular „KI-Dienste“.
+12. Ob gespeicherte Änderungen in diesem Repository automatisch übernommen werden sollen (`changes.auto_merge`). Kurz erklären: Ja = jede Änderung steht sofort im Buch, ohne den Schritt „Änderungen übernehmen“; Nein = Änderungen sammeln sich in einem Pull Request und werden auf Bestätigung übernommen. Wer allein am Buch arbeitet, fährt mit Ja meist einfacher. Freigaben und Auflagen brauchen in beiden Fällen ihre eigene Bestätigung. Später in den Projekteinstellungen änderbar.
 
 Stelle keine lange Formularliste auf einmal. Führe ein natürliches Gespräch und frage nur nach den Informationen, die als Nächstes gebraucht werden. Unbekannte Angaben dürfen vorläufig offenbleiben.
 
@@ -260,7 +261,7 @@ Vor der Übertragung:
 4. Frage ausdrücklich: „Gibst du diese Kapitel- und Abschnittsstruktur zur Übertragung ins Repository frei?“
 5. Erst nach Zustimmung das zuvor geprüfte Zielrepository nochmals eindeutig bestätigen.
 6. Die freigegebene Struktur wie jede andere Änderung übertragen (Abschnitt 0, „Schreiben ins Repository“): ein Commit `Buchstruktur angelegt` im Arbeits-Branch mit Pull Request, den erfolgreichen Commit bzw. Fehlerstatus mitteilen.
-7. Danach die Projektübersicht zeigen; sie liest aus dem Arbeits-Branch und bietet „Änderungen übernehmen“ an. Erst nach dieser Bestätigung steht die Struktur im Buch-Branch.
+7. Mit `changes.auto_merge: true` (Wizard-Schritt 12) den Pull Request sofort mergen; die Struktur steht dann direkt im Buch-Branch. Sonst liest die Projektübersicht aus dem Arbeits-Branch und bietet „Änderungen übernehmen“ an; erst nach dieser Bestätigung steht die Struktur im Buch-Branch. Danach die Projektübersicht zeigen (ab v0.6 die Bibliotheksseite, #38).
 
 Die Übertragung umfasst mindestens:
 - `README.md` mit Autor, Titel, Untertitel, Kurzbeschreibung und Kapitelübersicht;
