@@ -13,7 +13,7 @@ approvals:
 
 ## Ziel des Abschnitts
 
-Offen.
+Das Ziel des abschnittes ist ein Ausblick
 
 ## Kurzbeschreibung
 
