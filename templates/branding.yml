@@ -4,6 +4,8 @@
 # scripts/check_docs.py) und klein unten in der Projektübersicht im Chat.
 # NIE im Buch selbst: nicht in Kapiteln, Abschnitten, Probedruck oder Auflagen
 # (PDF, DOCX, EPUB); das Buch ist das Werk des Autors (Test in tests/).
+# Davon getrennt: die buchspezifische KI-Angabe (wie bei diesem Buch KI genutzt
+# wurde), die der Autor je Buch einstellt (Issue #78).
 #
 # Kein Logo von Claude oder Anthropic: Die Markenrichtlinien erlauben Logos nur
 # mit ausdrücklicher Freigabe (https://www.anthropic.com/legal/trademark-guidelines).
