@@ -255,6 +255,8 @@ Gestaltung:
 
 Ein Kürzel entspricht dem Klick auf den gleichnamigen Knopf; es gelten dieselbe Aktion, dieselben Statuszeilen und dieselbe Ausgangsansicht danach.
 
+Zusätzlich gelten überall die ausgeschriebenen Befehle aus `START.md`, Abschnitt 0, „Befehle“ (`Start`, `Übersicht`, `Kapitel 3`, `Hilfe` …).
+
 ## Nachrichtenformat
 
 Jede Vorlage schickt eine Nachricht aus einer lesbaren Zeile und den festen Daten. Der Chat zeigt die Nachricht vollständig an; damit sie unauffällig bleibt, gibt es zwei Formen.

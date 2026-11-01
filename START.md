@@ -61,6 +61,22 @@ GhostWriter aktualisiert sich selbst (`docs/UPDATES.md`): Die Programmdateien un
 
 Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzform `gw:view.section section_id=…` oder, bei Formularen mit Eingaben, als Block `gw` mit JSON (Format in `templates/ui/BEFUELLUNG.md`). Werte die Daten aus und antworte mit der Ansicht oder dem Formular, das die Aktionstabelle in `templates/ui/BEFUELLUNG.md` nennt; Aktionen, die ein Formular öffnen (`….open`, `project.edit`), sofort und ohne Rückfrage. Nach Speichern, Abbrechen oder „nichts geändert“ zeige wieder die Ansicht, aus der das Formular kam („Nach dem Formular“ in `templates/ui/BEFUELLUNG.md`); nur bei einem Fehler bleibt das Formular. Freie Eingaben ohne Block bleiben erlaubt.
 
+**Befehle** (gelten jederzeit, in jeder Ansicht und auch in der Textfassung; Groß- und Kleinschreibung egal). Ein Befehl öffnet nur eine Ansicht oder ein Formular, er speichert nie etwas:
+
+| Eingabe | Wirkung |
+|---|---|
+| `Start`, `Bibliothek` | Startseite: ab v0.6 das Bücherregal (#37), bis dahin die Projektübersicht |
+| `Übersicht` | Projektübersicht des aktuellen Buchs |
+| `Kapitel 3`, `Abschnitt 3.2` | Kapitel- bzw. Abschnittsansicht |
+| `Neues Kapitel` | Formular „Neues Kapitel“ |
+| `Probedruck` | Probedruck starten (wie `edition.proof`) |
+| `Auflage` | Formular „Neue Auflage erzeugen“ |
+| `Einstellungen`, `KI-Dienste` | das jeweilige Formular |
+| `Update` | Update-Stand zeigen; ist das Buch hinter dem Hauptrepository, „Update einspielen“ anbieten |
+| `Hilfe` | diese Befehle und die Kürzel der zuletzt gezeigten Ansicht (`templates/ui/BEFUELLUNG.md`, „Textfassung“) |
+
+Befehle haben Vorrang vor Kürzeln nur, wenn sie ausgeschrieben sind (`Auflage`, nicht `A`). Ab v0.6 kommt `Neues Buch` dazu (#38).
+
 ### Statusanzeige (verbindlich)
 
 Der Benutzer soll jederzeit sehen, was gerade mit dem Projekt passiert:
@@ -261,7 +277,7 @@ Vor der Übertragung:
 4. Frage ausdrücklich: „Gibst du diese Kapitel- und Abschnittsstruktur zur Übertragung ins Repository frei?“
 5. Erst nach Zustimmung das zuvor geprüfte Zielrepository nochmals eindeutig bestätigen.
 6. Die freigegebene Struktur wie jede andere Änderung übertragen (Abschnitt 0, „Schreiben ins Repository“): ein Commit `Buchstruktur angelegt` im Arbeits-Branch mit Pull Request, den erfolgreichen Commit bzw. Fehlerstatus mitteilen.
-7. Mit `changes.auto_merge: true` (Wizard-Schritt 12) den Pull Request sofort mergen; die Struktur steht dann direkt im Buch-Branch. Sonst liest die Projektübersicht aus dem Arbeits-Branch und bietet „Änderungen übernehmen“ an; erst nach dieser Bestätigung steht die Struktur im Buch-Branch. Danach die Projektübersicht zeigen (ab v0.6 die Bibliotheksseite, #38).
+7. Mit `changes.auto_merge: true` (Wizard-Schritt 12) den Pull Request sofort mergen; die Struktur steht dann direkt im Buch-Branch. Sonst liest die Projektübersicht aus dem Arbeits-Branch und bietet „Änderungen übernehmen“ an; erst nach dieser Bestätigung steht die Struktur im Buch-Branch. Danach die Projektübersicht zeigen (ab v0.6 die Bibliotheksseite, #38) und darunter einmalig einen kurzen Hinweis auf die Befehle (Abschnitt 0, „Befehle“): `Start` · `Übersicht` · `Kapitel 1` · `Hilfe`, dazu ein Satz, dass jede Ansicht unten ihre Kürzel nennt.
 
 Die Übertragung umfasst mindestens:
 - `README.md` mit Autor, Titel, Untertitel, Kurzbeschreibung und Kapitelübersicht;
