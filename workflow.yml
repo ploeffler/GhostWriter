@@ -18,6 +18,7 @@ product_roadmap:
       - {version: "v0.3", goal: set_up_and_edit_project_and_chapters}
       - {version: "v0.4", goal: immediate_ai_runs_with_costs}
       - {version: "v0.5", goal: edition_and_export}
+      - {version: "v0.6", goal: library_one_installation_many_books_as_branches}   # Issues #36–#41, inkl. Update von v0.5
   v1_0:
     purpose: full_product_expansion
     scope: complete_ghostwriter_target_capabilities
