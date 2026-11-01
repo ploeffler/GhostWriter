@@ -16,6 +16,10 @@ Geprüft wird:
 4. Läufe: Jede Lauf-Art aus workflow.yml (runs) steht mit ihrem Pfad in
    docs/DATA-MODEL.md.
 5. Links: Relative Links in den Markdown-Dateien zeigen auf vorhandene Dateien.
+6. Roadmap: Jede Version aus workflow.yml (product_roadmap.v0_5_steps) steht in
+   der Roadmap von docs/WORKFLOW-MODEL.md; mit --milestones (JSON-Liste der
+   GitHub-Meilensteine, z. B. aus `gh api …/milestones?state=all`) steht auch
+   jeder Meilenstein `vX.Y` in workflow.yml.
 
 Ohne --ui entfallen 1 und 2 (Hinweis). Exit-Code 1, wenn etwas fehlt.
 """
@@ -135,9 +139,24 @@ def check_links(problems):
                 problems.append(f'Link in {rel} zeigt ins Leere: {target}')
 
 
+def check_roadmap(milestones, problems):
+    wf = yaml.safe_load(read('workflow.yml'))
+    steps = [s['version'] for s in wf['product_roadmap']['v0_5_steps']['steps']]
+    model = read('docs/WORKFLOW-MODEL.md')
+    for v in steps:
+        if not re.search(rf'\|\s*{re.escape(v)}\s*\|', model):
+            problems.append(f'Version {v} aus workflow.yml fehlt in der Roadmap von docs/WORKFLOW-MODEL.md')
+    if milestones:
+        titles = [m.get('title', '') for m in json.loads(Path(milestones).read_text(encoding='utf-8'))]
+        for t in titles:
+            if re.fullmatch(r'v\d+\.\d+', t) and t not in steps:
+                problems.append(f'Meilenstein {t} fehlt in workflow.yml (product_roadmap.v0_5_steps)')
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--ui', help='Ordner mit ghostwriter-ui (Vorlagen unter templates/)')
+    ap.add_argument('--milestones', help='JSON-Datei mit den GitHub-Meilensteinen (Prüfung 6)')
     args = ap.parse_args(argv[1:])
     problems = []
     if args.ui:
@@ -148,6 +167,7 @@ def main(argv):
     check_data_model(problems)
     check_runs(problems)
     check_links(problems)
+    check_roadmap(args.milestones, problems)
     for p in problems:
         print(f'✗ {p}')
     if not problems:

@@ -22,6 +22,7 @@ Legende: ✅ bestanden · ⏳ offen · — nicht anwendbar
 | Projekteinstellungen (Updates, Buchsatz) | ⏳ | ⏳ | Chat, #28 |
 | KI-Dienste wählen, Schlüssel nur als GitHub-Secret | ✅ | ⏳ | Chat, #28 |
 | Onboarding im leeren Projekt bis zur Kapitelstruktur | — | ⏳ | Chat, #28 |
+| Buchstruktur als ein Commit (bzw. ein zusammengefasster Merge), Commit-Nachrichten deutsch | — | ⏳ | Erststart, #63 |
 | Prüf-Action `validate.yml` grün | ✅ | ✅ | Actions |
 
 ## 2. Kapitel anlegen und einrichten (`chapter_create_and_setup`)
@@ -81,9 +82,14 @@ Legende: ✅ bestanden · ⏳ offen · — nicht anwendbar
 | Tägliche Prüfung gegen das Hauptrepository, Einspielen | ✅ | — | Action „GhostWriter aktualisieren“ |
 | Buchdateien bleiben unverändert, Migrationen idempotent | ✅ | ✅ | Update-Lauf, Migration |
 | Kein Zurücksetzen auf ältere Version | ✅ | — | Update-Skript |
+| Fork in einem zweiten Konto bekommt das Update (eigenes Buch auf `main`) | ⏳ | — | #64 |
 
 ## Offen bis zum Abschluss von #18
 
-- Abnahme v0.3 (#28) durch den Benutzer: alle ⏳ in Abschnitt 1–3.
+- Abnahme v0.3 (#28) durch den Benutzer: alle ⏳ in Abschnitt 1–3 (seit 01.11.2026 Teil von v0.5).
 - Darstellung in ChatGPT (#22).
+- Erststart: Buchstruktur in einem Commit, deutsche Nachrichten (#63).
+- Update-Test im Fork (#64).
 - Ghostwriting-Lauf mit Schreibfreigabe und Freigabeablauf einmal vollständig im Testbuch.
+
+Funktionen nach v0.5 (Änderungen sofort übernehmen, Befehle, Kapitelrecherche, Doku-Prüfung) werden in der Abnahme v0.6 (#41) geprüft.
