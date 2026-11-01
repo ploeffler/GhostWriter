@@ -41,11 +41,11 @@ Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die
 
 | Wert | Regel |
 |---|---|
-| Abschnittskosten | Summe von `cost_amount` aller Einträge in `chapters/<kapitel>/costs/<abschnitts-id>.yml`; Einträge mit `cost_amount: null` (Status `unavailable`) zählen nicht |
+| Abschnittskosten | Summe von `cost_amount` aller Einträge mit `source: backend_api` in `chapters/<kapitel>/costs/<abschnitts-id>.yml`; Einträge mit `cost_amount: null` (Status `unavailable`) und alte Chat-Schätzungen (`source: legacy_chat_estimate`) zählen nicht. Erfasst werden nur zusätzliche KI-API-Kosten über das Backend (#13), nie Chat-Arbeit über Abos |
 | Kapitelkosten | Summe der Abschnittskosten des Kapitels |
 | Projektkosten | Summe der Kapitelkosten plus `costs/project.yml` |
 | Geldformat | zwei Nachkommastellen, Komma, Leerzeichen, Währungszeichen: `1,80 €`. Enthält die Summe mindestens einen Eintrag mit `cost_status: estimated`, steht `≈ ` davor. Gibt es keinen Betrag, steht `–` |
-| Kosten-Tooltip | Grundtext (z. B. „Summe der Abschnittskosten“), bei Schätzungen ergänzt um „, enthält geschätzte Kosten“; ohne Betrag „Noch keine Kosten erfasst“ |
+| Kosten-Tooltip | Grundtext (z. B. „Summe der Abschnittskosten“), bei Schätzungen ergänzt um „, enthält geschätzte Kosten“; ohne Betrag „Keine KI-API-Kosten erfasst (Arbeit im Chat über ein Abo kostet nichts zusätzlich)“ |
 | Marker | Vorkommen von `[PLATZHALTER-ANEKDOTE`, `[QUELLE PRÜFEN`, `[MEDIZIN PRÜFEN`, `[RECHT PRÜFEN` im Manuskript (Teil unter `## Manuskript`); der Hinweis nach dem Doppelpunkt bis `]` ist `MARKER_TEXT` |
 | Marker-Text | `keine offenen Marker`, `1 offener Marker`, `N offene Marker` |
 | Anzahl Abschnitte | `1 Abschnitt`, `N Abschnitte` |
@@ -85,6 +85,17 @@ Offene Änderungen sind die Commits im Arbeits-Branch `ghostwriter/<buch-branch>
 
 Gibt es keinen offenen Pull Request, gibt es keine offenen Änderungen; die Ansichten lesen dann vom Buch-Branch.
 
+## Update-Stand
+
+Wie weit der Buch-Branch hinter dem Hauptrepository liegt (`START.md`, „Programmdateien und Updates“), ermittelt der Assistent vor jeder Projektübersicht:
+
+1. `upstream.repo` und `upstream.ref` aus `ghostwriter-manifest.yml` des Buchs lesen (fehlt die Datei: kein Hinweis). Im Hauptrepository selbst auf `main`: kein Hinweis.
+2. **Fork** (gleiches Netzwerk): `GET /repos/<owner>/<repo>/compare/<buch-branch>...<upstream-owner>:<upstream-repo>:<upstream-ref>`; `ahead_by` ist die Zahl der Commits, die dem Buch fehlen.
+3. **Kein Fork** (eigenes Repository aus dem Starter) oder Vergleich nicht möglich: `version` und Head-Commit von `upstream` lesen und mit `version` im Manifest und `commit` in `.ghostwriter/update.yml` des Buchs vergleichen; weicht der Commit ab, „neue Version“ ohne Anzahl (`behind: 1`).
+4. Für `render_view.py` als JSON für `--upstream`: `{"behind": 3, "upstream": "ploeffler/GhostWriter:main", "version": "0.3.1", "installed": "0.3.0"}`. Bei `behind: 0` entfällt der Hinweis.
+
+Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepository), entfällt der Hinweis ohne Meldung.
+
 ## Platzhalter je Vorlage
 
 ### `projektuebersicht.html`
@@ -95,9 +106,10 @@ Gibt es keinen offenen Pull Request, gibt es keine offenen Änderungen; die Ansi
 | `PROJECT_TITLE_SHORT` | `project.title_short`, sonst wie `PROJECT_TITLE` |
 | `PROJECT_AUTHOR` | `project.author` |
 | `PROJECT_DESCRIPTION_SHORT`, `PROJECT_DESCRIPTION` | `project.description_short`, `project.description` |
-| `PROJECT_COST`, `PROJECT_COST_HINT` | Projektkosten, Tooltip „Bisherige Gesamtkosten“ |
+| `PROJECT_COST`, `PROJECT_COST_HINT` | Projektkosten, Tooltip „Zusätzliche KI-API-Kosten über das GhostWriter-Backend“ |
 | `PROJECT_EDITION_TEXT` | Auflage |
 | `PENDING_COUNT`, `PENDING_TEXT`, `PENDING_PR` | nur bei offenen Änderungen (Arbeits-Branch mit offenem Pull Request, siehe „Offene Änderungen“): Anzahl der Commits, „1 Änderung“ bzw. „N Änderungen“, Nummer des Pull Requests. Ohne offene Änderungen weglassen; dann entfällt der Hinweis mit dem Knopf „Änderungen übernehmen“ |
+| `UPDATE_BEHIND`, `UPDATE_TEXT` | nur wenn der Buch-Branch hinter dem Hauptrepository liegt (siehe „Update-Stand“): Anzahl Commits und Text wie „3 Commits hinter ploeffler/GhostWriter:main · Version 0.3.1 verfügbar (installiert 0.3.0)“. Sonst weglassen; dann entfällt der Hinweis mit dem Knopf „Update einspielen“ |
 | Block `CHAPTERS`: `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_STATUS`, `CHAPTER_COST`, `CHAPTER_COST_HINT`, `CHAPTER_ID` | je Kapitel aus `structure.chapters`, Kosten wie oben; `CHAPTER_ID` ist die stabile Kapitel-ID, ein Klick auf das Kapitel schickt `view.chapter`; ohne Kapitel entfällt der Bereich „Kapitel“ |
 
 ### `kapitelansicht.html`
@@ -289,13 +301,14 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `section.reorder.open` | `chapter_id` | Abschnittsreihenfolge ändern | Vorlage `reihenfolge` (`render_view.py section-reorder N`) | – |
 | `section.reorder` | `chapter_id`, `order` (alle Abschnitts-IDs des Kapitels in neuer Reihenfolge), `expected_head_sha` | Abschnittsreihenfolge speichern | `sections` des Kapitels umsortieren; IDs und Dateinamen bleiben; danach Kapitelansicht | `POST …/chapters/{chapter_id}/sections/reorder` |
 | `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `manuscript`, `expected_head_sha` (nie `approvals`) | Abschnitt speichern | Abschnittsdatei schreiben, danach Abschnittsformular | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
-| `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen, Ergebnis und Kosten speichern | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
+| `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen und Lauf-Datei, Ergebnis und Statuswechsel speichern (`START.md`, „KI-Lauf „Sofort““); ein Kosteneintrag nur für kostenpflichtige KI-API-Aufrufe über das Backend, nie für Chat-Arbeit | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
 | `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | Vorlage `auflage-erzeugen` (`render_view.py edition-create`) | – |
 | `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | Pull Request für die Auflage anlegen | noch offen |
 | `changes.merge.open` | – | Bestätigung „Änderungen übernehmen“ zeigen (Knopf im Hinweis der Projektübersicht, Textfassung `M`) | offene Änderungen aus GitHub lesen, Vorlage `aenderungen-uebernehmen` (`render_view.py changes-merge`) | `GET …/changes` |
 | `changes.merge` | `pull_request`, `expected_head_sha` | Offene Änderungen übernehmen; der Klick auf „Übernehmen“ bzw. `OK` ist die ausdrückliche Bestätigung | prüfen, dass der Arbeits-Branch noch auf `expected_head_sha` steht (sonst Bestätigung neu zeigen), Pull Request mit Merge-Commit mergen, Arbeits-Branch löschen, danach Projektübersicht | `POST …/changes/merge` |
 | `approval.open` | `kind` (`writing` \| `section` \| `chapter`), `section_id` bzw. `chapter_id`, `revoke` (nur beim Zurücknehmen) | Bestätigung „Freigabe“ zeigen | Vorlage `freigabe-bestaetigen` (`render_view.py approval-<kind> N.M` bzw. `N`, `--revoke`) | – |
 | `approval.confirm` | wie `approval.open`, dazu `expected_head_sha` | Freigabe erteilen bzw. zurücknehmen; der Klick ist die ausdrückliche Bestätigung | Hindernisse erneut prüfen, dann nach `START.md`, „Freigaben“, schreiben; danach die Ausgangsansicht | `POST`/`DELETE …/sections/{section_id}/writing-approval`, `…/sections/{section_id}/approve`, `…/chapters/{chapter_id}/approve` |
+| `update.apply` | – | GhostWriter-Update einspielen | Action „GhostWriter aktualisieren“ per `workflow_dispatch` starten oder Link *Run workflow* geben (`START.md`, „Programmdateien und Updates“); nie selbst mergen | `POST /repos/{owner}/{repo}/actions/workflows/update.yml/dispatches` |
 | `form.cancel` | `form` und betroffene ID | Formular ohne Änderung geschlossen | nichts schreiben, Ausgangsansicht zeigen (siehe „Nach dem Formular“) | – |
 
 Schreibende Aktionen (`….update`, `….create` außer `edition.create`, `….reorder`, `changes.merge`, `approval.confirm`) laufen nach `START.md`, „Schreiben ins Repository“: Prüfung gegen `expected_head_sha`, Commit im Arbeits-Branch, kein automatischer Merge.
@@ -334,12 +347,13 @@ Statuszeilen, Ladetexte und Ergebniszeilen nach `START.md`, „Statusanzeige“.
 | `project.update` | → Prüfe Eingaben · → Prüfe, ob sich die Dateien seit dem Lesen geändert haben · → Speichere Projektdaten (Commit im Arbeits-Branch) · → Prüfe Validierung | – | ✓ Projektdaten gespeichert, Commit `abc1234` · noch nicht übernommen (Pull Request #NN) |
 | `chapter.create` | → Lege Kapitel „Titel“ an · → Trage es in ghostwriter.yml ein · → Speichere (Commit) | – | ✓ Kapitel N „Titel“ angelegt, Commit `abc1234` |
 | `section.update` | → Prüfe, ob sich die Datei seit dem Lesen geändert hat · → Speichere Abschnitt N.M (Commit im Arbeits-Branch) | – | ✓ Abschnitt N.M gespeichert, Commit `abc1234` |
-| `run.start` | → Recherche bzw. Ghostwriting für N.M · → Erfasse Kosten · → Speichere Ergebnis (Commit) | – | ✓ Entwurf für N.M gespeichert, Kosten ≈ 0,12 €, Commit `abc1234` |
+| `run.start` | → Recherche bzw. Ghostwriting für N.M · → Speichere Lauf und Ergebnis (Commit im Arbeits-Branch) | – | ✓ Entwurf für N.M gespeichert, Lauf `run-003`, Commit `abc1234` |
 | `chapter.update` | → Speichere Kapitel N (ghostwriter.yml und README, Commit) | – | ✓ Kapitel N gespeichert, Commit `abc1234` |
 | `chapter.reorder`, `section.reorder` | → Prüfe die neue Reihenfolge · → Speichere ghostwriter.yml (Commit) | – | ✓ Reihenfolge gespeichert, Commit `abc1234` |
 | `section.create` | → Lege Abschnitt „Titel“ in Kapitel N an · → Speichere (Commit) | – | ✓ Abschnitt N.M „Titel“ angelegt, Commit `abc1234` |
 | `project.providers.update` | → Prüfe, ob sich die Dateien seit dem Lesen geändert haben · → Speichere KI-Dienste (Commit im Arbeits-Branch) | – | ✓ KI-Dienste gespeichert, Commit `abc1234` · noch nicht übernommen (Pull Request #NN) |
 | `project.settings.update` | → Speichere Projekteinstellungen (Commit) | – | ✓ Projekteinstellungen gespeichert, Commit `abc1234` |
+| `update.apply` | → Starte GhostWriter-Update | – | ✓ Update gestartet, Lauf: <Link> · oder Link *Run workflow*, wenn der Chat Workflows nicht starten kann |
 | `edition.create` | → Lege Pull Request für Auflage N an | – | ✓ Pull Request #NN für Auflage N angelegt; Tag und Release erzeugt die Action nach dem Merge |
 | `changes.merge` | → Prüfe, ob seit der Bestätigung etwas dazugekommen ist · → Übernehme N Änderungen (Merge) · → Lösche den Arbeits-Branch | – | ✓ N Änderungen übernommen, Merge-Commit `abc1234` |
 | Fehler | – | – | ✗ Nicht gespeichert: Grund, etwa „Datei wurde inzwischen geändert“ |

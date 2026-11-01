@@ -11,9 +11,13 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["activity_id", "occurred_at", "provider", "model", "activity_type", "currency", "cost_amount", "cost_status"],
+        "required": ["activity_id", "occurred_at", "source", "provider", "model", "activity_type", "currency", "cost_amount", "cost_status"],
         "properties": {
           "activity_id": {"type": "string", "minLength": 1},
+          "source": {"enum": ["backend_api", "legacy_chat_estimate"], "description": "backend_api: kostenpflichtiger KI-API-Aufruf über das GhostWriter-Backend (einzige erfasste Kostenart, #13); legacy_chat_estimate: Schätzung aus der Zeit vor v0.4, zählt nicht mit"},
+          "synthetic": {"type": "boolean", "description": "true = erfundene Testdaten (Testbuch)"},
+          "run_id": {"type": "string", "description": "Lauf, zu dem der Aufruf gehört (Laufhistorie, getrennt von den Kosten)"},
+          "request_id": {"type": "string", "description": "Kennung des Backend-Aufrufs beim Anbieter, falls vorhanden"},
           "occurred_at": {"type": "string", "format": "date-time"},
           "provider": {"type": "string", "minLength": 1},
           "model": {"type": "string"},

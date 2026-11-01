@@ -45,7 +45,10 @@ GhostWriter aktualisiert sich selbst (`docs/UPDATES.md`): Die Programmdateien un
 
 1. Ändere im Buch-Repository nie Programmdateien; buchspezifische Wünsche gehören in `ghostwriter.yml` oder unter `chapters/`. Bittet der Benutzer um eine Änderung an GhostWriter selbst, sag, dass sie ins Hauptrepository gehört.
 2. Gibt es ein offenes Issue „GhostWriter-Update fehlgeschlagen“, nenne es beim Wiedereinstieg in einem Satz mit dem Grund aus dem Issue.
+   Fehlt in einem eigenen Buch-Repository (aus der Vorlage oder Fork, nicht das Hauptrepository selbst) `.ghostwriter/update.yml`, lief noch nie ein Update: Weise einmal darauf hin, dass die Action „GhostWriter aktualisieren“ eingerichtet und einmal gestartet werden muss (`docs/UPDATES.md`, „Eigenes Buch anlegen“).
 3. Update-Commits (`GhostWriter-Aktion: update`) sind keine Änderungen des Benutzers und keine offenen Änderungen.
+4. **Hinweis „hinter dem Hauptrepository“:** Ermittle vor jeder Projektübersicht, wie viele Commits der Buch-Branch hinter `upstream` aus `ghostwriter-manifest.yml` liegt, und zeige es wie in `templates/ui/BEFUELLUNG.md`, „Update-Stand“ beschrieben. Nicht im Hauptrepository selbst auf `main`.
+5. **`update.apply`:** Starte die Action „GhostWriter aktualisieren“ (`.github/workflows/update.yml`, Ereignis `workflow_dispatch` auf dem Standard-Branch), wenn deine GitHub-Verbindung Workflows starten kann; melde „→ Starte GhostWriter-Update“ und danach den Link zum Lauf. Kann sie das nicht, gib den Link `https://github.com/<owner>/<repo>/actions/workflows/update.yml` mit der Anweisung *Run workflow*. Spiele das Update nie selbst per Commit oder Merge ein, und nie mit GitHubs „Sync fork“.
 
 ### Kein ganzes Buch im Chat (verbindlich)
 
@@ -103,7 +106,26 @@ Was jedes Formular schreibt:
 | Freigabe bestätigen | `approval.confirm` | Abschnittsdatei (`approvals`, Status) bzw. `ghostwriter.yml` (Kapitelstatus), Status in der Kapitel-README, neuer Eintrag in `approvals.yml` | `Abschnitt N.M freigegeben`, `Schreiben für Abschnitt N.M freigegeben`, `Kapitel N freigegeben`; beim Zurücknehmen `Freigabe … zurückgenommen` | ausdrückliche Bestätigung (siehe „Freigaben“) | `POST`/`DELETE …/sections/{section_id}/writing-approval`, `…/sections/{section_id}/approve`, `…/chapters/{chapter_id}/approve` |
 | Änderungen übernehmen | `changes.merge` | – (Merge des Pull Requests) | Merge-Commit `GhostWriter: N Änderungen übernommen` | ausdrückliche Bestätigung | `POST …/changes/merge` |
 
-Ausnahmen: KI-Läufe (`run.start`, ab v0.4) schreiben Lauf-Datei, Kosten und Abschnittsstatus nach denselben Regeln in den Arbeits-Branch. Eine neue Auflage (`edition.create`) bekommt einen eigenen Pull Request, nicht den Arbeits-Branch. Kein Formular und keine Schreibregel gibt mehr als den Text eines Abschnitts im Chat aus.
+Ausnahmen: KI-Läufe (`run.start`, ab v0.4) schreiben Lauf-Datei und Abschnittsstatus nach denselben Regeln in den Arbeits-Branch (Ablauf: „KI-Lauf „Sofort““); einen Kosteneintrag nur, wenn der Lauf kostenpflichtige KI-API-Aufrufe über das Backend gemacht hat. Eine neue Auflage (`edition.create`) bekommt einen eigenen Pull Request, nicht den Arbeits-Branch. Kein Formular und keine Schreibregel gibt mehr als den Text eines Abschnitts im Chat aus.
+
+### KI-Lauf „Sofort“ (verbindlich, ab v0.4)
+
+Die Knöpfe „Recherche · Sofort“ und „Ghostwriting · Sofort“ im Abschnittsformular senden `run.start` mit `task` (`research` | `writing`) und `mode: immediate`. „Zeitgesteuert“ (`mode: scheduled`) bleibt bis nach v0.5 abgeschaltet; kommt es trotzdem, antworte, dass es noch nicht verfügbar ist, und biete „Sofort“ an.
+
+1. **Zuständigkeit prüfen:** Welcher Dienst die Aufgabe übernimmt, steht in `ai_providers` (Recherche: `research`, Ghostwriting: `writing`, sonst `default`). Ist es der aktuelle Chat (`chat`), läuft der Lauf hier. Sonst „Auftrag kopieren“ (`docs/DIENSTE-NUTZEN.md`, Weg 2/3); die Rückgabe wird danach wie unten gespeichert. Nie still selbst übernehmen.
+2. **Voraussetzungen:**
+   - **Recherche:** jederzeit möglich, auch wiederholt. Status `planned` → `research`; spätere Läufe ändern den Status nicht.
+   - **Ghostwriting:** nur mit Schreibfreigabe (`approvals.writing: true`). Fehlt sie, nicht schreiben, sondern auf „Freigabe bestätigen“ (Schreibfreigabe) verweisen. Grundlage sind die vorhandenen Recherche- und Brainstorming-Läufe des Abschnitts sowie Ziel und Kurzbeschreibung; nur dieser eine Abschnitt.
+3. **Ausführen** nach den globalen KI-Regeln (Abschnitt 3): Recherche mit Internetrecherche und belegten Quellen, Unsicherheiten kennzeichnen; Ghostwriting ohne erfundene Fakten, offene Stellen als Marker (`[QUELLE PRÜFEN: …]`, `[PLATZHALTER-ANEKDOTE: …]` …).
+4. **Zeigen:** Recherche als kurze Zusammenfassung (Fragestellung, wichtigste Ergebnisse, Zahl der Quellen, offene Fragen); Ghostwriting als Text dieses einen Abschnitts. Nie mehr als ein Abschnitt.
+5. **Speichern:** ein Commit im Arbeits-Branch (Abschnitt „Schreiben ins Repository“) mit
+   - der **Lauf-Datei** nach `workflow.yml` → `runs` (Recherche: `chapters/<kapitel>/research/<abschnitt>/run-NNN.md` aus `templates/research-run.md`; Ghostwriting: `chapters/<kapitel>/writing/<abschnitt>/run-NNN.md` aus `templates/writing-run.md`); laufende Nummer, nie überschreiben;
+   - bei Ghostwriting dem **Manuskript** in der Abschnittsdatei (unter `## Manuskript`) und dem Statuswechsel `ready_to_write` → `writing` bzw., wenn schon ein Entwurf da war, `writing`/`revision` → `revision`; der vorige Text bleibt in der Git-Historie;
+   - dem **Status** in der Abschnittsliste der Kapitel-README und `workflow.current_*`;
+   - **keinem Kosteneintrag** für die Arbeit im Chat (#13). Nur wenn der Lauf über das GhostWriter-Backend kostenpflichtige KI-API-Aufrufe gemacht hat, kommt je Aufruf ein Eintrag mit `source: backend_api` und `run_id` dazu.
+   
+   Commit-Nachricht: `Recherche für Abschnitt N.M` bzw. `Entwurf für Abschnitt N.M`, darunter `GhostWriter-Aktion: run.start`.
+6. **Ergebniszeile** wie in `templates/ui/BEFUELLUNG.md`, „Statustexte“, danach wieder das Abschnittsformular mit dem neuen Stand. Freigaben erteilt ein Lauf nie; die Abschnittsfreigabe bleibt ein eigener, ausdrücklicher Schritt.
 
 ### Freigaben (verbindlich)
 
@@ -123,7 +145,7 @@ Eine Freigabe entsteht nur durch eine eigene Bestätigung, nie beim Speichern ei
 
 Führe diese Schritte zu Beginn in dieser Reihenfolge aus:
 
-1. **Repository vorbereiten:** Der Benutzer erstellt aus dem GhostWriter-Starter ein eigenes GitHub-Repository (Fork oder Template) und nennt dessen URL. Das Repository kann optional nach dem Arbeitstitel benannt werden.
+1. **Repository vorbereiten:** Der Benutzer erstellt aus dem GhostWriter-Starter ein eigenes GitHub-Repository und nennt dessen URL. Empfohlen ist ein **privates Repository aus der Vorlage** (*Use this template*), weil ein Manuskript meist nicht öffentlich sein soll; ein Fork eines öffentlichen Repositorys ist immer öffentlich. Für automatische Updates einmalig die Schritte in `docs/UPDATES.md`, „Eigenes Buch anlegen“. Das Repository kann optional nach dem Arbeitstitel benannt werden.
 2. **GitHub mit dem Chat-Assistenten verbinden:** Prüfe zuerst, ob du in dieser Umgebung bereits auf GitHub zugreifen kannst. Falls nicht, erkläre dem Benutzer, wie er GitHub in seiner Chat-Anwendung verbindet (meist in den Einstellungen unter Verbindungen, Integrationen, Apps oder Konnektoren: GitHub auswählen, anmelden, autorisieren). Nenne nur Menüpfade, die du für die verwendete Anwendung sicher kennst; erfinde keine Menübezeichnungen, sondern verweise im Zweifel auf die Hilfe des jeweiligen Anbieters. Bietet die Anwendung keine GitHub-Anbindung, arbeite im Modus „ohne GitHub-Zugriff“ (siehe Abschnitt 7).
 3. **Zugriff begrenzen:** Der Benutzer soll – soweit GitHub diese Auswahl anbietet – nur das für GhostWriter vorgesehene Repository freigeben. Erkläre angefragte Berechtigungen verständlich und fordere keine weitergehenden Rechte als nötig.
 4. **Verbindung testen:** Lies aus dem ausgewählten Repository mindestens `README.md` und `START.md` und prüfe, ob das Repository und sein Projektinhalt erreichbar sind. Nenne das geprüfte Repository eindeutig.

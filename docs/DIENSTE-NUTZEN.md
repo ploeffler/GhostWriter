@@ -49,7 +49,7 @@ Was je Aufgabe zurückkommt:
 Gut zu wissen:
 
 - **Ein Auftrag, ein Abschnitt.** Mische keine Abschnitte in einem Auftrag.
-- **Kosten:** GhostWriter kennt die Kosten beim anderen Dienst nicht und trägt „nicht verfügbar“ ein. Weißt du sie, sag sie dazu; dann werden sie als „manuell erfasst“ gespeichert.
+- **Kosten:** Arbeit in Chat-Diensten über dein Abo erzeugt in GhostWriter keinen Kosteneintrag; GhostWriter erfasst nur zusätzliche KI-API-Kosten, die über das eigene Backend entstehen (ab Weg B). Was dich dein Abo kostet, kannst du im Formular **KI-Dienste** unter „Kosten pro Monat“ notieren.
 - **Keine stille Vertretung:** Ist Perplexity für die Recherche gewählt, recherchiert GhostWriter nicht heimlich selbst. Willst du es ausnahmsweise im aktuellen Chat machen, sag das ausdrücklich.
 - **Datenschutz:** Der Auftrag enthält Teile deines Buchs. Prüf bei Diensten mit unklarer Datenverarbeitung (Hinweis im Formular), ob du das möchtest.
 

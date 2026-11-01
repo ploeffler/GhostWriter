@@ -25,8 +25,11 @@ repository/
 │   │   │   └── <section-id>/
 │   │   │       ├── run-001.md
 │   │   │       └── run-002.md
+│   │   ├── writing/
+│   │   │   └── <section-id>/
+│   │   │       └── run-001.md     # Protokoll eines Ghostwriting-Laufs (ab v0.4)
 │   │   └── costs/
-│   │       └── <section-id>.yml   # Kosteneinträge des Abschnitts
+│   │       └── <section-id>.yml   # KI-API-Kosten über das Backend (nur dann)
 │   └── 02-grundlagen/
 │       ├── README.md
 │       └── sections/
@@ -167,6 +170,10 @@ Jeder Lauf ist eine eigene Datei und wird nicht überschrieben. Empfehlenswerte 
 - offene Fragen;
 - Vorschläge für den Abschnitt.
 
+## Ghostwriting-Lauf
+
+Ab v0.4 protokolliert jeder Ghostwriting-Lauf („Sofort“, `START.md`) eine eigene Datei `chapters/<kapitel>/writing/<abschnitt>/run-NNN.md` aus `templates/writing-run.md`: Anbieter, Modell, Grundlage (verwendete Recherche- und Brainstorming-Läufe, Schreibfreigabe), Ergebnis (Wörter, neue Marker, Statuswechsel) und Hinweise. Der Text selbst steht nur im Manuskript der Abschnittsdatei. Ein Lauf setzt die Schreibfreigabe voraus und erteilt nie eine Freigabe. Kosten entstehen nur bei Aufrufen über das Backend (siehe „AI-Kostenprotokoll“).
+
 ## Brainstorminglauf
 
 Jeder Lauf ist eine eigene Datei. Empfehlenswerte Inhalte:
@@ -213,7 +220,7 @@ Bei Abweichungen gilt:
 
 ## AI-Kostenprotokoll
 
-Jede AI-Aktivität erhält einen eigenen Kosteneintrag, der über die stabile `section_id` einem Abschnitt zugeordnet wird. Die Einträge sind unveränderlich und enthalten mindestens Aktivitäts-ID, Zeitpunkt, Anbieter, Modell, Aktivitätstyp, Abschnitts-ID, Währung, Betrag und Kostenstatus. Token- und sonstige Nutzungsdaten sowie Preisgrundlage und Preisquelle werden ergänzt, soweit verfügbar.
+Erfasst werden nur zusätzliche KI-API-Kosten für Anbieteraufrufe über das GhostWriter-Backend (#13, Erfassungsbereich in [WORKFLOW-MODEL.md](WORKFLOW-MODEL.md#ai-kosten-und-nutzungsverbrauch)); Arbeit im Chat über Abos erzeugt keinen Eintrag. Jeder solche Aufruf erhält einen eigenen Kosteneintrag, der über die stabile `section_id` einem Abschnitt zugeordnet wird. Die Einträge sind unveränderlich und enthalten mindestens Aktivitäts-ID (projektweit eindeutig, Schutz vor Doppelzählung), Zeitpunkt, Herkunft (`source`), Anbieter, Modell, Aktivitätstyp, Abschnitts-ID, Währung, Betrag und Kostenstatus. `run_id` verweist auf den Lauf, `request_id` auf den Aufruf beim Anbieter; `synthetic: true` kennzeichnet erfundene Testdaten. Token- und sonstige Nutzungsdaten sowie Preisgrundlage und Preisquelle werden ergänzt, soweit verfügbar.
 
 Die Abschnittssumme wird aus den Einträgen berechnet. Die Kapitelsumme ist die Summe seiner Abschnittssummen; die Projektsumme addiert die Kapitelsummen und separat ausgewiesene projektweite Kosten. Es gibt keine manuell duplizierten Kapitel- oder Projektbuchungen. Tatsächliche, geschätzte und manuell erfasste Kosten sind unterscheidbar. Originalwährung und Umrechnungsdaten bleiben nachvollziehbar.
 
@@ -227,16 +234,21 @@ section_id: sec-01-04-die-uhr
 entries:
   - activity_id: act-2026-10-31-001
     occurred_at: "2026-10-31T16:45:00+01:00"
-    provider: chat
-    model: ""
+    source: backend_api         # backend_api | legacy_chat_estimate (vor v0.4, zählt nicht)
+    run_id: run-003             # optional: zugehöriger Lauf
+    request_id: req_abc123      # optional: Kennung beim Anbieter
+    provider: anthropic
+    model: claude-sonnet
     activity_type: research
     section_id: sec-01-04-die-uhr
     currency: EUR
+    input_tokens: 5200
+    output_tokens: 1400
     cost_amount: 0.12
-    cost_status: estimated      # actual | estimated | manually_entered | unavailable
+    cost_status: actual         # actual | estimated | manually_entered | unavailable
 ```
 
-Für v0.5 genügt die manuelle Erfassung mit Summenbildung. v1.0 ergänzt nach Möglichkeit automatischen Provider-Import, Preisberechnung, Währungsumrechnung und Budgetwarnungen.
+Kosteneinträge schreibt in v0.5 nur das Backend bzw. der Assistent nach einem kostenpflichtigen Backend-Aufruf; für Chat-Läufe entsteht kein Eintrag. v1.0 ergänzt nach Möglichkeit automatischen Provider-Import, Preisberechnung, Währungsumrechnung und Budgetwarnungen.
 
 
 

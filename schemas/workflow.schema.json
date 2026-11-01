@@ -546,7 +546,8 @@
         "v0_5",
         "v1_0",
         "invariants",
-        "storage"
+        "storage",
+        "scope"
       ],
       "properties": {
         "enabled": {
@@ -694,6 +695,9 @@
               "items": {
                 "type": "string"
               }
+            },
+            "cost_display_optional": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false
@@ -751,6 +755,28 @@
             },
             "append_only": {
               "const": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "scope": {
+          "type": "object",
+          "required": [
+            "records",
+            "excludes"
+          ],
+          "properties": {
+            "records": {
+              "const": "backend_ai_api_calls"
+            },
+            "excludes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "run_history_separate": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false

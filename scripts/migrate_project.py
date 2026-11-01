@@ -57,7 +57,33 @@ def ensure_available_list(base):
     return 'ai_providers.available ergänzt'
 
 
-MIGRATIONS = [ensure_approvals_log, ensure_available_list]
+def mark_legacy_costs(base):
+    """Kosteneinträge ohne `source` (vor v0.4, meist Schätzungen für Chat-Läufe) als
+    legacy_chat_estimate kennzeichnen. Sie bleiben erhalten, zählen aber nicht mehr mit (#13)."""
+    files = sorted(base.glob('chapters/*/costs/*.yml')) + ([base / 'costs' / 'project.yml'] if (base / 'costs' / 'project.yml').is_file() else [])
+    changed = 0
+    for path in files:
+        text = path.read_text(encoding='utf-8')
+        data = yaml.safe_load(text) or {}
+        entries = data.get('entries') or []
+        todo = [e for e in entries if isinstance(e, dict) and 'source' not in e]
+        if not todo:
+            continue
+        for e in todo:
+            items = list(e.items())
+            e.clear()
+            e.update(items[:2] + [('source', 'legacy_chat_estimate')] + items[2:])
+        head = ''
+        for line in text.splitlines():
+            if not line.startswith('#'):
+                break
+            head += line + '\n'
+        path.write_text(head + yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding='utf-8')
+        changed += len(todo)
+    return f'{changed} Kosteneinträge als legacy_chat_estimate gekennzeichnet' if changed else None
+
+
+MIGRATIONS = [ensure_approvals_log, ensure_available_list, mark_legacy_costs]
 
 
 def main(argv):
