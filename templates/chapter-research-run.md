@@ -8,6 +8,10 @@ provider: <ANBIETER-ID aus providers.yml>
 model: <MODELL>
 question: <FRAGESTELLUNG>
 scope: <SCHWERPUNKTE oder leer>
+goal_search: <true|false>       # Ziel des Kapitels gesucht
+weight_prev: <0-3>              # Gewichtung vorheriges Kapitel (0 nicht, 1 abgrenzen, 2 anschließen, 3 stark)
+weight_next: <0-3>              # Gewichtung nächstes Kapitel
+context: [<KAPITEL-ID vorher>, <KAPITEL-ID nachher>]   # tatsächlich einbezogene Nachbarkapitel
 ---
 
 # Kapitelrecherche 001
@@ -17,6 +21,10 @@ scope: <SCHWERPUNKTE oder leer>
 Zwei bis vier Sätze: das Wichtigste für Ziel und Zuschnitt des Kapitels.
 
 ## Fragestellung und Suchumfang
+
+## Zusammenhang mit den Nachbarkapiteln
+
+Was aus dem vorherigen und dem nächsten Kapitel einbezogen wurde und wie (Abgrenzung, Anschluss); bei Gewichtung 0 entfällt das jeweilige Kapitel.
 
 ## Rechercheergebnisse
 

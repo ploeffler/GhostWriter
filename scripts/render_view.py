@@ -903,10 +903,27 @@ def chapter_research_view(base, config, args):
     if runs and re.match(r'\d{4}-\d{2}-\d{2}', when):
         count += f', zuletzt am {when[8:10]}.{when[5:7]}.{when[:4]}'
     clean = lambda v: '' if (v or '').strip() in ('', 'Offen.', '–') else v.strip()
+    chapters = config['structure']['chapters']
+    def neighbour(k):
+        if 1 <= k <= len(chapters):
+            other = chapters[k - 1]
+            return f'Kapitel {k} · {other["title"]}', chapter_readme(base, other)[1]
+        return '', ''
+    prev_label, prev_summary = neighbour(n - 1)
+    next_label, next_summary = neighbour(n + 1)
+    def weight(key):
+        v = draft.get(key, last_head.get(key, 2))
+        return v if isinstance(v, int) and 0 <= v <= 3 else 2
+    current_goal = draft.get('goal', goal)
     values = {'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': n, 'CHAPTER_TITLE': ch['title'],
               'CHAPTER_GOAL': draft.get('goal', goal), 'CHAPTER_SUMMARY': draft.get('summary', summary),
               'RESEARCH_QUESTION': draft.get('question', last_head.get('question') or ''),
               'RESEARCH_SCOPE': draft.get('scope', last_head.get('scope') or ''),
+              'GOAL_SEARCH': 'true' if draft.get('goal_search', last_head.get('goal_search', not current_goal)) else '',
+              'PREV_CHAPTER': 'true' if prev_label else '', 'PREV_CHAPTER_LABEL': prev_label,
+              'PREV_CHAPTER_SUMMARY': prev_summary, 'PREV_WEIGHT': weight('weight_prev'),
+              'NEXT_CHAPTER': 'true' if next_label else '', 'NEXT_CHAPTER_LABEL': next_label,
+              'NEXT_CHAPTER_SUMMARY': next_summary, 'NEXT_WEIGHT': weight('weight_next'),
               'RESEARCH_PROVIDER_TEXT': f'Recherche über: {provider}', 'RUN_COUNT_TEXT': count,
               'LAST_RUN': 'true' if runs else '', 'LAST_RUN_ID': last_head.get('id') or (runs[-1].stem if runs else ''),
               'LAST_RUN_TEXT': clean(last.get('Kurzfassung')),
@@ -923,8 +940,18 @@ def chapter_research_view(base, config, args):
                 lines += [f'- Kurzbeschreibung: {values["SUGGESTED_SUMMARY"]} · `VK` übernehmen']
         if values['LAST_RUN_TEXT']:
             lines += ['', f'> {values["LAST_RUN_TEXT"]}']
-        lines += ['', f'<sub>{values["RESEARCH_PROVIDER_TEXT"]} · {count}</sub>', '',
-                  'Ändern: je Zeile `Ziel: …` bzw. `Kurzbeschreibung: …`. Recherche starten: `Frage: …` (optional `Schwerpunkte: …`). `X` bricht ab.']
+        wtext = ['nicht berücksichtigen', 'abgrenzen', 'anschließen', 'stark einbeziehen']
+        ctx = []
+        if prev_label:
+            ctx.append(f'| Vorher | {prev_label} | {values["PREV_WEIGHT"]} · {wtext[values["PREV_WEIGHT"]]} |')
+        if next_label:
+            ctx.append(f'| Nachher | {next_label} | {values["NEXT_WEIGHT"]} · {wtext[values["NEXT_WEIGHT"]]} |')
+        if ctx:
+            lines += ['', '**Zusammenhang**', '', '| | Kapitel | Gewichtung |', '|---|---|---|'] + ctx
+        lines += ['', f'Ziel suchen: **{"ja" if values["GOAL_SEARCH"] else "nein"}**',
+                  '', f'<sub>{values["RESEARCH_PROVIDER_TEXT"]} · {count}</sub>', '',
+                  'Ändern: je Zeile `Ziel: …` bzw. `Kurzbeschreibung: …`. Recherche starten: `Frage: …` (optional `Schwerpunkte: …`, '
+                  '`Ziel suchen: ja|nein`, `Vorher: 0–3`, `Nachher: 0–3`; 0 nicht berücksichtigen, 1 abgrenzen, 2 anschließen, 3 stark einbeziehen). `X` bricht ab.']
         return '\n'.join(lines) + '\n'
     return fill('kapitelrecherche.html', values)
 
