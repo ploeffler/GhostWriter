@@ -115,6 +115,8 @@ Was jedes Formular schreibt:
 | KI-Dienste | `project.providers.update` | `ghostwriter.yml` (`ai_providers`: `available`, `services`, Anbieter je Aufgabe, `search_tools`, `queue_processing.agent`; Modellnamen bleiben) | `KI-Dienste geändert` | – | `PATCH …/settings` |
 | Neues Kapitel | `chapter.create` | `ghostwriter.yml` (`structure.chapters`), `chapters/<nn-slug>/README.md` aus `templates/chapter-README.md`, erste Abschnittsdatei aus `templates/section.md` (jedes Kapitel braucht mindestens einen Abschnitt) | `Kapitel N „Titel“ angelegt` | – | `POST …/chapters` |
 | Kapitel bearbeiten | `chapter.update` | `ghostwriter.yml` (Kapiteltitel), Kapitel-README (Überschrift, Untertitel, Kurzbeschreibung, Ziel) | `Kapitel N „Titel“ geändert` | – | `PATCH …/chapters/{chapter_id}` |
+| Kapitelrecherche: Speichern | `chapter.texts.update` | Kapitel-README (`## Kurzbeschreibung`, `## Ziel des Kapitels`; leer = `Offen.`) | `Kapitel N: Ziel und Kurzbeschreibung geändert` | – | `PATCH …/chapters/{chapter_id}` |
+| Kapitelrecherche: Recherche starten | `chapter.research.start` | Lauf-Datei `chapters/<kapitel>/research/kapitel/run-NNN.md` (siehe „Kapitelrecherche“) | `Kapitelrecherche für Kapitel N` | – | `POST …/chapters/{chapter_id}/research-runs` |
 | Kapitelreihenfolge | `chapter.reorder` | `ghostwriter.yml` (Reihenfolge; IDs und Pfade bleiben) | `Kapitelreihenfolge geändert` | – | `POST …/chapters/reorder` |
 | Neuer Abschnitt | `section.create` | Abschnittsdatei aus `templates/section.md`, `ghostwriter.yml`, Abschnittsliste der Kapitel-README | `Abschnitt N.M „Titel“ angelegt` | – | `POST …/chapters/{chapter_id}/sections` |
 | Abschnittsreihenfolge | `section.reorder` | `ghostwriter.yml` (Reihenfolge; IDs und Dateinamen bleiben), Abschnittsliste der Kapitel-README | `Abschnittsreihenfolge in Kapitel N geändert` | – | `POST …/chapters/{chapter_id}/sections/reorder` |
@@ -142,6 +144,18 @@ Die Knöpfe „Recherche · Sofort“ und „Ghostwriting · Sofort“ im Abschn
    
    Commit-Nachricht: `Recherche für Abschnitt N.M` bzw. `Entwurf für Abschnitt N.M`, darunter `GhostWriter-Aktion: run.start`.
 6. **Ergebniszeile** wie in `templates/ui/BEFUELLUNG.md`, „Statustexte“, danach wieder das Abschnittsformular mit dem neuen Stand. Freigaben erteilt ein Lauf nie; die Abschnittsfreigabe bleibt ein eigener, ausdrücklicher Schritt.
+
+### Kapitelrecherche (verbindlich)
+
+Der Knopf rechts im Bereich „Ziel des Kapitels / Kurzbeschreibung“ der Kapitelansicht (Textfassung `Z`) schickt `chapter.research.open` und öffnet das Formular „Kapitelrecherche“ (`render_view.py chapter-research N`). Dort werden Ziel und Kurzbeschreibung des Kapitels bearbeitet, und eine Recherche für das ganze Kapitel liefert Vorschläge dafür.
+
+1. **Speichern** (`chapter.texts.update`): nur `## Kurzbeschreibung` und `## Ziel des Kapitels` der Kapitel-README; ein Commit nach „Schreiben ins Repository“. Danach die Kapitelansicht.
+2. **Recherche starten** (`chapter.research.start` mit `question`, `scope`, `goal_search`, `weight_prev`, `weight_next` und den aktuellen, noch nicht gespeicherten Werten `goal`, `summary`): wie „KI-Lauf „Sofort““ (Zuständigkeit `ai_providers.research`, sonst „Auftrag kopieren“; globale KI-Regeln; Internetrecherche, belegte Quellen). Grundlage: Fragestellung und Schwerpunkte, Titel, Untertitel, Ziel, Kurzbeschreibung und die Abschnittsliste des Kapitels (Titel und Kurzbeschreibungen), keine Manuskripttexte.
+   - **Ziel suchen** (`goal_search: true`, Vorgabe, solange das Ziel leer ist): Die Fragestellung ist dann optional. Gesucht wird ein Ziel, das zum Buch passt (Kurzbeschreibung, Beschreibung und Zielgruppe aus `ghostwriter.yml`), zur Abschnittsliste des Kapitels und zu seinem Platz zwischen den Nachbarkapiteln. Mit Fragestellung grenzt sie die Suche ein. Ergebnis sind die beiden Vorschläge mit kurzer Begründung im Lauf.
+   - **Nachbarkapitel:** Titel, Kurzbeschreibung und Ziel des vorherigen und des nächsten Kapitels fließen nach ihrer Gewichtung ein: `0` nicht berücksichtigen; `1` abgrenzen (Überschneidungen vermeiden, nichts vorwegnehmen, was dort behandelt wird); `2` anschließen (an das Vorherige anknüpfen, zum Nächsten hinführen); `3` stark einbeziehen (Ziel und Zuschnitt ausdrücklich aus dem Zusammenhang ableiten). Fehlt ein Nachbarkapitel (erstes bzw. letztes Kapitel), entfällt es. Manuskripttexte der Nachbarkapitel fließen nie ein.
+3. **Lauf speichern:** eigene Datei `chapters/<kapitel>/research/kapitel/run-NNN.md` aus `templates/chapter-research-run.md` (`workflow.yml` → `runs.chapter_research`), laufende Nummer, nie überschreiben. Pflicht sind `## Kurzfassung`, `## Vorschlag: Ziel des Kapitels` und `## Vorschlag: Kurzbeschreibung`; `goal_search`, `weight_prev`, `weight_next` und die einbezogenen Nachbarkapitel (`context`) stehen im Kopf, damit das Formular sie beim nächsten Mal vorbelegt. Ein Commit `Kapitelrecherche für Kapitel N`, darunter `GhostWriter-Aktion: chapter.research.start`. Kein Kosteneintrag für Chat-Arbeit (#13).
+4. **Zeigen:** eine kurze Zusammenfassung (Fragestellung, wichtigste Ergebnisse, Zahl der Quellen, offene Fragen), dann wieder das Formular mit den Vorschlägen und den vorher eingegebenen Werten (`render_view.py chapter-research N --draft <json>`). „Vorschlag übernehmen“ setzt nur das Feld; erst „Speichern“ ändert die Kapitel-README.
+5. Die Recherche ändert nie selbst Ziel, Kurzbeschreibung, Abschnitte oder Status; Hinweise zu Abschnitten stehen nur im Lauf.
 
 ### Neue Auflage (verbindlich, ab v0.5)
 

@@ -40,6 +40,7 @@ Dateien in `ghostwriter-ui/templates/`:
 | `kapitel-anlegen.html` | Formular | Neues Kapitel mit Titel, Kurzbeschreibung, Ziel und Position anlegen |
 | `projektdaten-bearbeiten.html` | Formular | Titel, Kurztitel, Autor, Kurzbeschreibung und Beschreibung des Buchprojekts bearbeiten |
 | `kapitel-bearbeiten.html` | Formular | Titel, Untertitel, Kurzbeschreibung und Ziel eines Kapitels bearbeiten |
+| `kapitelrecherche.html` | Formular | Ziel und Kurzbeschreibung eines Kapitels ändern, Recherche für das Kapitel mit Vorschlägen |
 | `abschnitt-anlegen.html` | Formular | Neuen Abschnitt in einem Kapitel mit Titel, Ziel, Kurzbeschreibung, Faktencheck und Position anlegen |
 | `reihenfolge.html` | Formular | Reihenfolge der Kapitel oder der Abschnitte eines Kapitels mit Pfeilen ändern |
 | `projekteinstellungen.html` | Formular | Feste Regeln anzeigen; Faktencheck-Vorgabe und Buchsatz (Seitenformat, Schrift, Titelei, Inhaltsverzeichnis) bearbeiten |
