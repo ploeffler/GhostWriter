@@ -1,10 +1,12 @@
-# TESTDATEN – erfundene Kosteneinträge
+# TESTDATEN – erfundene Kosteneinträge (synthetische Backend-API-Kosten, #13)
 section_id: sec-02-04-die-scham-die-wir-mitbringen
 entries:
 - activity_id: act-test-005
   occurred_at: '2026-10-28T11:00:00+01:00'
-  provider: chat
-  model: ''
+  source: backend_api
+  synthetic: true
+  provider: anthropic
+  model: claude-sonnet
   activity_type: writing
   currency: EUR
   cost_amount: 0.35
@@ -12,8 +14,10 @@ entries:
   section_id: sec-02-04-die-scham-die-wir-mitbringen
 - activity_id: act-test-006
   occurred_at: '2026-10-29T16:20:00+01:00'
-  provider: chat
-  model: ''
+  source: backend_api
+  synthetic: true
+  provider: anthropic
+  model: claude-sonnet
   activity_type: revision
   currency: EUR
   cost_amount: 0.12

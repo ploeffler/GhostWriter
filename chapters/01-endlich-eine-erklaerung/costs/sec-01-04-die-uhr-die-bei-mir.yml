@@ -1,19 +1,23 @@
-# TESTDATEN – erfundene Kosteneinträge
+# TESTDATEN – erfundene Kosteneinträge (synthetische Backend-API-Kosten, #13)
 section_id: sec-01-04-die-uhr-die-bei-mir
 entries:
 - activity_id: act-test-003
   occurred_at: '2026-10-22T14:05:00+02:00'
+  source: backend_api
+  synthetic: true
   provider: perplexity
-  model: ''
+  model: sonar
   activity_type: fact_check
   currency: EUR
   cost_amount: 1.2
-  cost_status: manually_entered
+  cost_status: actual
   section_id: sec-01-04-die-uhr-die-bei-mir
 - activity_id: act-test-004
   occurred_at: '2026-10-22T15:30:00+02:00'
-  provider: chat
-  model: ''
+  source: backend_api
+  synthetic: true
+  provider: openai
+  model: gpt-5
   activity_type: brainstorming
   currency: EUR
   cost_amount: null

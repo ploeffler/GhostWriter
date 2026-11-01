@@ -1,12 +1,14 @@
-# TESTDATEN – erfundene Kosteneinträge
+# TESTDATEN – erfundene Kosteneinträge (synthetische Backend-API-Kosten, #13)
 scope: project
 entries:
 - activity_id: act-test-007
   occurred_at: '2026-10-15T18:00:00+02:00'
-  provider: chat
-  model: ''
+  source: backend_api
+  synthetic: true
+  provider: anthropic
+  model: claude-sonnet
   activity_type: other
   currency: EUR
   cost_amount: 2.5
-  cost_status: manually_entered
-  note: Strukturentwurf im Wizard
+  cost_status: actual
+  note: Strukturentwurf über das Backend
