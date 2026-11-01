@@ -1000,7 +1000,97 @@ def chapter_research_view(base, config, args):
     return fill('kapitelrecherche.html', values, {'SUGGESTED_SECTIONS': proposals})
 
 
-FORMS = {'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
+WIZARD_CHOICES = Path(__file__).resolve().parent.parent / 'templates' / 'wizard-choices.yml'
+LETTERS = 'abcdef'
+
+
+def choice_spec(args):
+    """Auswahl-Spezifikation: Schritt aus templates/wizard-choices.yml (where) oder --spec (JSON-Datei bzw. JSON-Text)."""
+    if args.spec:
+        raw = Path(args.spec).read_text(encoding='utf-8') if Path(args.spec).is_file() else args.spec
+        spec = json.loads(raw)
+        spec.setdefault('step', args.where or 'choice')
+        return spec
+    lib = yaml.safe_load(WIZARD_CHOICES.read_text(encoding='utf-8'))
+    step = args.where or ''
+    if step not in lib['steps']:
+        raise SystemExit(f'Auswahl „{step}“ unbekannt; vorhanden: {", ".join(lib["steps"])}')
+    spec = dict(lib['steps'][step], step=step)
+    num = step.split('.')[-1]
+    for k in ('title', 'subtitle', 'note'):
+        if spec.get(k):
+            spec[k] = spec[k].replace('{step}', num).replace('{steps}', str(lib.get('steps_total', '')))
+    return spec
+
+
+def check_choice_spec(spec):
+    qs = spec.get('questions') or []
+    if not 1 <= len(qs) <= 4:
+        raise SystemExit('Auswahl: 1–4 Fragen')
+    for q in qs:
+        opts = q.get('options') or []
+        if not 2 <= len(opts) <= 6:
+            raise SystemExit(f'Auswahl „{q.get("key")}“: 2–6 Antworten')
+        if len(q.get('header', '')) > 12:
+            raise SystemExit(f'Auswahl „{q.get("key")}“: Etikett höchstens 12 Zeichen')
+        if sum(bool(o.get('recommended')) for o in opts) > 1:
+            raise SystemExit(f'Auswahl „{q.get("key")}“: höchstens eine Empfehlung')
+
+
+def config_value(config, path):
+    v = config
+    for part in (path or '').split('.'):
+        if not part or not isinstance(v, dict) or part not in v:
+            return None
+        v = v[part]
+    return v
+
+
+def is_selected(current, value):
+    if current is None or current == '' or current == []:
+        return False
+    if isinstance(current, list):
+        return value in [str(x) for x in current]
+    if isinstance(current, bool):
+        return value == ('true' if current else 'false')
+    return str(current) == value
+
+
+def choice_view(base, config, args):
+    spec = choice_spec(args)
+    check_choice_spec(spec)
+    qs = spec['questions']
+    if args.text:
+        out = [f'### {spec.get("title", "Auswahl")}']
+        if spec.get('subtitle'):
+            out += ['', spec['subtitle']]
+        for i, q in enumerate(qs, 1):
+            cur = config_value(config, q.get('field'))
+            out += ['', f'**{i}. {q["text"]}**' + (' *(mehrere möglich)*' if q.get('multi') else '')]
+            for letter, o in zip(LETTERS, q['options']):
+                tags = (' · *empfohlen*' if o.get('recommended') else '') + (' · *bisher*' if is_selected(cur, str(o['value'])) else '')
+                out.append(f'- `{i}{letter}` {o["label"]}' + (f' – {o["desc"]}' if o.get('desc') else '') + tags)
+        example = ', '.join(f'{i}{"a c" if q.get("multi") else "a"}' for i, q in enumerate(qs, 1))
+        out += ['', f'Antworte mit den Kürzeln, z. B. `{example}`; eigene Antwort als `1: Text`.'
+                + (' `S` überspringt.' if spec.get('skippable') else '')]
+        if spec.get('note'):
+            out += ['', f'<sub>{spec["note"]}</sub>']
+        return '\n'.join(out) + '\n'
+    questions, options = [], []
+    for i, q in enumerate(qs, 1):
+        cur = config_value(config, q.get('field'))
+        questions.append({'Q_INDEX': str(i), 'Q_KEY': q['key'], 'Q_HEADER': q.get('header', ''), 'Q_TEXT': q['text'],
+                          'Q_MULTI': '1' if q.get('multi') else ''})
+        for o in q['options']:
+            v = str(o['value'])
+            options.append({'OPT_Q': str(i), 'OPT_VALUE': v, 'OPT_LABEL': o['label'], 'OPT_DESC': o.get('desc', ''),
+                            'OPT_RECOMMENDED': '1' if o.get('recommended') else '', 'OPT_SELECTED': '1' if is_selected(cur, v) else ''})
+    return fill('auswahl.html', {'STEP': spec['step'], 'TITLE': spec.get('title', 'Auswahl'), 'SUBTITLE': spec.get('subtitle', ''),
+                                 'NOTE': spec.get('note', ''), 'SKIPPABLE': '1' if spec.get('skippable') else ''},
+                {'QUESTIONS': questions, 'OPTIONS': options})
+
+
+FORMS = {'choice': choice_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
          'changes-merge': changes_merge_view, 'providers-edit': providers_edit_view,
@@ -1030,6 +1120,7 @@ def main():
     ap.add_argument('--changes', help='JSON-Datei mit den offenen Änderungen (Pull Request, Branches, Commits) für Projektübersicht und changes-merge')
     ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
     ap.add_argument('--draft', help='bei chapter-research: JSON mit noch nicht gespeicherten Werten (goal, summary, question, scope)')
+    ap.add_argument('--spec', help='bei choice: JSON-Datei oder JSON-Text mit einer eigenen Auswahl (Aufbau wie templates/wizard-choices.yml)')
     ap.add_argument('--ui-ref', help='Commit oder Branch von ghostwriter-ui statt des festen Commits aus templates/ui/ghostwriter-ui.yml (nur zum Testen)')
     args = ap.parse_args()
     ui = yaml.safe_load(UI_CONFIG.read_text(encoding='utf-8'))
