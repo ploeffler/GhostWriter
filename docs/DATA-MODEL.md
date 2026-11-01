@@ -82,6 +82,9 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `structure.chapters` | Kapitel in Reihenfolge, je mit `id`, `title`, `path`, `status` und `sections` (je `id`, `title`, `path`) |
 
 | `typesetting` | Buchsatz der Auflagen, in den Projekteinstellungen bearbeitbar (siehe unten) |
+| `updates.auto` | neue GhostWriter-Versionen automatisch einspielen; fehlt = `true` ([UPDATES.md](UPDATES.md)) |
+| `.ghostwriter/update.yml` | von der Update-Action geschrieben: installierte Version, Upstream-Commit, Zeitpunkt, ausgelassene Workflow-Dateien; nicht von Hand ändern |
+| `ghostwriter-manifest.yml` | Programmversion und welche Dateien zum Programm (`managed`) bzw. zum Buch (`book`) gehören; Teil des Programms |
 
 ### Buchsatz
 

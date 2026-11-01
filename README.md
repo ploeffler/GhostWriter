@@ -20,6 +20,10 @@ Ghostwriter begleitet Autorinnen und Autoren von der Buchidee über Recherche un
 
 Ist das Projekt eingerichtet, öffne in einem beliebigen Browser einen neuen Chat mit GitHub-Verbindung und schicke nur den Link zu deinem Buch-Repository. Der Assistent erkennt den Stand und zeigt die Projektübersicht. Ein Link auf eine Kapitel- oder Abschnittsdatei öffnet direkt dieses Kapitel bzw. diesen Abschnitt.
 
+## Updates
+
+Neue GhostWriter-Versionen kommen automatisch: Die Action „GhostWriter aktualisieren“ prüft täglich das Hauptrepository und spielt neue Versionen ein. Dabei ersetzt sie nur Programmdateien, nie dein Buch, und prüft vorher. Abschalten und Details: [docs/UPDATES.md](docs/UPDATES.md).
+
 ## Projektregeln
 
 Die globalen KI-Einstellungen stehen in `ghostwriter.yml` und gelten für Recherche, Brainstorming, Schreiben, Überarbeiten und Fact-Checking:
@@ -41,6 +45,7 @@ Welcher KI-Anbieter recherchiert, brainstormt, schreibt, überarbeitet, prüft u
 - [KI-Anbieter und Auswahl](docs/PROVIDERS.md)
 - [GhostWriter mit GitHub verbinden (Connector für claude.ai und ChatGPT)](docs/CONNECTOR-SETUP.md)
 - [KI-Dienste mit GhostWriter nutzen (Auftrag kopieren, lokale Modelle, Recherchequellen, Agenten)](docs/DIENSTE-NUTZEN.md)
+- [Automatische Updates](docs/UPDATES.md)
 
 ## Grundprinzip
 

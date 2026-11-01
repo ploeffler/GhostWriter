@@ -389,8 +389,9 @@ def load_changes(args):
     if not getattr(args, 'changes', None):
         return None
     data = json.loads(Path(args.changes).read_text(encoding='utf-8'))
-    # Automatische Commits (Übersichtsdatei) sind keine Änderung des Benutzers und zählen nicht mit.
-    data['commits'] = [c for c in data.get('commits') or [] if 'GhostWriter-Aktion: index.build' not in c.get('message', '')]
+    # Automatische Commits (Übersichtsdatei, Updates) sind keine Änderung des Benutzers und zählen nicht mit.
+    auto = ('GhostWriter-Aktion: index.build', 'GhostWriter-Aktion: update')
+    data['commits'] = [c for c in data.get('commits') or [] if not any(a in c.get('message', '') for a in auto)]
     return data if data['commits'] else None
 
 
@@ -751,6 +752,27 @@ def section_reorder_view(base, config, args):
     return reorder(args, 'section', f'Abschnittsreihenfolge in Kapitel {n} ändern', items, ch['id'], n)
 
 
+def update_info(base, config):
+    """(automatisch ja/nein, Versionstext, Hinweis) aus ghostwriter.yml, Manifest und .ghostwriter/update.yml."""
+    auto = (config.get('updates') or {}).get('auto') is not False
+    def read_yaml(path):
+        try:
+            return yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+        except (OSError, yaml.YAMLError):
+            return {}
+    version = read_yaml(base / 'ghostwriter-manifest.yml').get('version') or read_yaml(ROOT / 'ghostwriter-manifest.yml').get('version')
+    state = read_yaml(base / '.ghostwriter' / 'update.yml')
+    text = f'Installiert: GhostWriter {version or "unbekannt"}'
+    when = str(state.get('updated_at') or '')
+    if re.match(r'\d{4}-\d{2}-\d{2}', when):
+        text += f' · zuletzt aktualisiert am {when[8:10]}.{when[5:7]}.{when[:4]}'
+    hint = ''
+    if state.get('skipped_workflows'):
+        hint = (f'{len(state["skipped_workflows"])} Workflow-Datei(en) wurden nicht aktualisiert; dafür braucht das '
+                'Repository das Secret GHOSTWRITER_UPDATE_TOKEN (docs/UPDATES.md).')
+    return auto, text, hint
+
+
 def project_settings_view(base, config, args):
     ts = dict(TYPESETTING_DEFAULT)
     ts.update(config.get('typesetting') or {})
@@ -763,6 +785,7 @@ def project_settings_view(base, config, args):
         text = FIXED_TEXT.get(v, str(v))
         fixed.append({'FIXED_LABEL': label, 'FIXED_VALUE': text if isinstance(v, bool) else f'{text} ({v})'})
     fc = wf.get('fact_checking_default') or 'optional'
+    upd_auto, upd_text, upd_hint = update_info(base, config)
     if args.text:
         page = {'a5': 'A5 (14,8 × 21 cm)', '12x19': '12 × 19 cm', '13.5x21.5': '13,5 × 21,5 cm', 'a4': 'A4'}
         jn = lambda v: 'ja' if v else 'nein'
@@ -776,13 +799,15 @@ def project_settings_view(base, config, args):
                              f'| Titelseite | {jn(ts["title_page"])} | ja, nein |', f'| Impressum | {jn(ts["imprint"])} | ja, nein |',
                              f'| Inhaltsverzeichnis | {jn(ts["toc"])} | ja, nein |',
                              f'| Verzeichnistiefe | {"nur Kapitel" if ts["toc_depth"] == 1 else "Kapitel und Abschnitte"} | Kapitel, Abschnitte |',
-                             '', FORM_HINT]) + '\n'
+                             f'| Updates automatisch | {jn(upd_auto)} | ja, nein |',
+                             '', f'<sub>{upd_text}</sub>'] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', FORM_HINT]) + '\n'
     def b(v):
         return 'true' if v else 'false'
     return fill('projekteinstellungen.html', {'FACT_CHECK_DEFAULT': fc, 'PAGE_SIZE': ts['page_size'], 'FONT': ts['font'],
                                               'FONT_SIZE': str(ts['font_size']).rstrip('0').rstrip('.') if isinstance(ts['font_size'], float) else str(ts['font_size']),
                                               'TITLE_PAGE': b(ts['title_page']), 'IMPRINT': b(ts['imprint']), 'TOC': b(ts['toc']),
-                                              'TOC_DEPTH': str(ts['toc_depth'])}, {'FIXED': fixed})
+                                              'TOC_DEPTH': str(ts['toc_depth']), 'UPDATES_AUTO': b(upd_auto),
+                                              'GW_VERSION_TEXT': upd_text, 'GW_UPDATE_HINT': upd_hint}, {'FIXED': fixed})
 
 
 FORMS = {'project-edit': project_edit_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,

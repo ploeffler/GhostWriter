@@ -38,6 +38,14 @@ Ein Chat lässt sich nicht leeren; jede Ansicht bleibt im Verlauf stehen. Der Pr
 
 Tipp für den Benutzer: In einem claude.ai-Projekt mit Startprompt und Link als Projektanweisung genügt im neuen Chat ein „Start“.
 
+### Programmdateien und Updates (verbindlich)
+
+GhostWriter aktualisiert sich selbst (`docs/UPDATES.md`): Die Programmdateien unter `managed` in `ghostwriter-manifest.yml` (`START.md`, `docs/`, `scripts/`, `templates/` …) werden beim nächsten Update überschrieben.
+
+1. Ändere im Buch-Repository nie Programmdateien; buchspezifische Wünsche gehören in `ghostwriter.yml` oder unter `chapters/`. Bittet der Benutzer um eine Änderung an GhostWriter selbst, sag, dass sie ins Hauptrepository gehört.
+2. Gibt es ein offenes Issue „GhostWriter-Update fehlgeschlagen“, nenne es beim Wiedereinstieg in einem Satz mit dem Grund aus dem Issue.
+3. Update-Commits (`GhostWriter-Aktion: update`) sind keine Änderungen des Benutzers und keine offenen Änderungen.
+
 ### Kein ganzes Buch im Chat (verbindlich)
 
 1. Gib im Chat höchstens den Text eines Abschnitts auf einmal aus, nie ein ganzes Kapitel oder das ganze Buch.
@@ -83,7 +91,7 @@ Was jedes Formular schreibt:
 | Formular | Aktion | Dateien | Commit-Nachricht | Nötige Freigabe | Endpunkt (Weg B, `docs/API-CONTRACT.md`) |
 |---|---|---|---|---|---|
 | Projektdaten bearbeiten | `project.update` | `ghostwriter.yml` (`project.*`) | `Projektdaten geändert` | – | `PATCH /v1/projects/{owner}/{repo}` |
-| Projekteinstellungen | `project.settings.update` | `ghostwriter.yml` (`workflow.fact_checking_default`, `typesetting`) | `Projekteinstellungen geändert` | – | `PATCH …/settings` |
+| Projekteinstellungen | `project.settings.update` | `ghostwriter.yml` (`workflow.fact_checking_default`, `typesetting`, `updates`) | `Projekteinstellungen geändert` | – | `PATCH …/settings` |
 | KI-Dienste | `project.providers.update` | `ghostwriter.yml` (`ai_providers`: `available`, `services`, Anbieter je Aufgabe, `search_tools`, `queue_processing.agent`; Modellnamen bleiben) | `KI-Dienste geändert` | – | `PATCH …/settings` |
 | Neues Kapitel | `chapter.create` | `ghostwriter.yml` (`structure.chapters`), `chapters/<nn-slug>/README.md` aus `templates/chapter-README.md`, erste Abschnittsdatei aus `templates/section.md` (jedes Kapitel braucht mindestens einen Abschnitt) | `Kapitel N „Titel“ angelegt` | – | `POST …/chapters` |
 | Kapitel bearbeiten | `chapter.update` | `ghostwriter.yml` (Kapiteltitel), Kapitel-README (Überschrift, Untertitel, Kurzbeschreibung, Ziel) | `Kapitel N „Titel“ geändert` | – | `PATCH …/chapters/{chapter_id}` |
