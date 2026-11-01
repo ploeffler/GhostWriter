@@ -27,13 +27,13 @@ def hz(note):
 def piano(f, length, vel=0.6):
     t = np.arange(int(SR * length)) / SR
     out = np.zeros_like(t)
-    for k in range(1, 9):
-        fk = f * k * np.sqrt(1 + 0.0004 * k * k)          # leichte Inharmonizität
-        amp = vel / (k ** 1.6)
-        decay = np.exp(-t * (0.9 + 0.55 * k))
+    for k in range(1, 6):
+        fk = f * k * np.sqrt(1 + 0.0003 * k * k)          # leichte Inharmonizität
+        amp = vel / (k ** 2.6)
+        decay = np.exp(-t * (0.8 + 1.4 * k))
         out += amp * decay * np.sin(2 * np.pi * fk * t + rng.uniform(0, 6.28))
-    attack = np.minimum(1, t / 0.004)
-    hammer = np.exp(-t * 90) * rng.normal(0, 0.004, t.size) * vel
+    attack = np.minimum(1, t / 0.012)              # weicher Anschlag (gedämpft)
+    hammer = 0 * t
     return out * attack + hammer
 
 
@@ -53,7 +53,7 @@ def guitar(f, length, vel=0.25):
     t = np.arange(int(SR * length)) / SR
     out = np.zeros_like(t)
     for k in range(1, 7):
-        out += (vel / k ** 1.3) * np.exp(-t * (2.2 + 0.9 * k)) * np.sin(2 * np.pi * f * k * t)
+        out += (vel / k ** 2.2) * np.exp(-t * (2.2 + 1.6 * k)) * np.sin(2 * np.pi * f * k * t)
     return out * np.minimum(1, t / 0.002)
 
 
@@ -79,6 +79,7 @@ chords = [
 starts = [0, 2 * BAR, 4 * BAR, 6 * BAR, 8 * BAR, 10 * BAR, 11 * BAR]
 
 L = np.zeros((2, N))
+P = np.zeros((2, N))   # Klavier-Bus, wird gedämpft (Tiefpass)
 for idx, ((notes, bass), st) in enumerate(zip(chords, starts)):
     length = (starts[idx + 1] - st) if idx + 1 < len(starts) else DUR - st
     fuller = 1.6 if idx == 4 else (0.0 if idx == 0 else 1.0)
@@ -91,8 +92,8 @@ for idx, ((notes, bass), st) in enumerate(zip(chords, starts)):
     for b in range(beats):
         n = notes[pattern[b % 4]]
         v = 0.42 if b % 4 == 0 else 0.30
-        place(L, piano(hz(n), 3.0, v), st + b * BEAT, (1.0, 0.8))
-    place(L, piano(hz(bass) * 2, 4.0, 0.5), st, (0.9, 0.9))
+        place(P, piano(hz(n), 3.0, v * 0.8), st + b * BEAT, (1.0, 0.8))
+    place(P, piano(hz(bass) * 2, 4.0, 0.5), st, (0.9, 0.9))
     if idx >= 1:   # Gitarre ab Szene 2, leise Off-Beats
         for b in range(beats):
             place(L, guitar(hz(notes[(b + 1) % 4]) * 2, 1.2, 0.12), st + b * BEAT + BEAT / 2, (0.7, 1.0))
@@ -107,7 +108,11 @@ melody = [  # (Note, Start in Schlägen, Länge)
     ('E5', 40, 4), ('D5', 44, 6),
 ]
 for note, sb, lb in melody:
-    place(L, piano(hz(note), max(2.5, lb * BEAT + 1.5), 0.36), sb * BEAT, (0.95, 1.0))
+    place(P, piano(hz(note) / 2, max(2.5, lb * BEAT + 1.5), 0.30), sb * BEAT, (0.95, 1.0))
+
+# Klavier dämpfen (wie Moderator-Filz) und dazumischen
+P = sosfilt(butter(2, 1600, 'low', fs=SR, output='sos'), P)
+L += P
 
 # Hall: Faltung mit abklingendem Rauschen
 ir_len = int(SR * 2.4)
@@ -117,7 +122,7 @@ ir = sosfilt(butter(2, 6000, 'low', fs=SR, output='sos'), ir)
 ir[:, :int(0.02 * SR)] = 0
 wet = np.stack([fftconvolve(L[c], ir[c])[:N] for c in range(2)])
 mix = 0.75 * L + 0.18 * wet / np.max(np.abs(wet))*np.max(np.abs(L))
-mix = sosfilt(butter(2, 9000, 'low', fs=SR, output='sos'), mix)
+mix = sosfilt(butter(2, 5000, 'low', fs=SR, output='sos'), mix)
 mix = sosfilt(butter(1, 45, 'high', fs=SR, output='sos'), mix)
 # sanftes Ein- und Ausblenden, normalisieren
 tt = np.arange(N) / SR

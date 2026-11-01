@@ -21,7 +21,7 @@ Der Clip zeigt Funktionen, die es zum Teil erst mit v1.0 gibt (z. B. Offline-Arb
 
 - **Startbild** der Hauptfigur: ImagineArt (Seedream V5 Lite), 9:16. Die Figur ist erfunden.
 - **Szenen**: Google Flow, Veo 3.1 Lite, 720p, je 8 Sekunden; Szene 1 aus dem Startbild als erstem Bild, Szenen 2–5 mit dem Startbild als Bildelement (Vorlage für die Person).
-- **Musik**: [musik.py](musik.py), rein synthetisch erzeugt (Klavier, Streicherfläche, Gitarre; D-Dur, 114 BPM im halben Tempo, Szenenwechsel auf Taktbeginn, Aufbau zum Buch bei 17 s, Schlussakkord zur Endkarte). Keine fremden Samples, frei verwendbar.
+- **Musik**: [musik.py](musik.py), rein synthetisch erzeugt (gedämpftes Klavier, Streicherfläche, Gitarre; D-Dur, 114 BPM im halben Tempo, Szenenwechsel auf Taktbeginn, Aufbau zum Buch bei 17 s, Schlussakkord zur Endkarte). Keine fremden Samples, frei verwendbar.
 - **Schnitt**: [schnitt.py](schnitt.py) mit ffmpeg: Zuschnitt auf 1080×1920, je 4,6 Sekunden ab gewählter Stelle (`--start 1.3,2.5,2.5,2.8,3.2`), Überblendungen, Texteinblendungen in Inter (SIL OFL), Endkarte mit der Wortmarke aus `assets/`; Musik mit `--musik build/musik.wav --geraeusche 0.5`, Lautheit normalisiert auf −14 LUFS.
 
 Die Szenen-Prompts (englisch) und die Stilentscheidungen: ruhig, warm, Realfilm-Anmutung, kein lesbarer Text im Bild, Logo-Farben nur als Gegenstände (orange Tasse, grüne Pflanze, grauer Pullover).
