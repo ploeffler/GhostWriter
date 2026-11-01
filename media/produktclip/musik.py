@@ -98,17 +98,33 @@ for idx, ((notes, bass), st) in enumerate(zip(chords, starts)):
         for b in range(beats):
             place(L, guitar(hz(notes[(b + 1) % 4]) * 2, 1.2, 0.12), st + b * BEAT + BEAT / 2, (0.7, 1.0))
 
-# Melodie (Klavier, hoch), schlicht und hoffnungsvoll
-melody = [  # (Note, Start in Schlägen, Länge)
-    ('F#5', 0, 2), ('E5', 2, 1), ('D5', 3, 1), ('A5', 4, 3),
-    ('E5', 8, 2), ('C#5', 10, 1), ('A4', 11, 1), ('E5', 12, 3),
-    ('F#5', 16, 2), ('D5', 18, 1), ('B4', 19, 1), ('D5', 20, 3),
-    ('B4', 24, 2), ('D5', 26, 1), ('G5', 27, 1), ('F#5', 28, 3),
-    ('A5', 32, 2), ('B5', 34, 1), ('A5', 35, 1), ('F#5', 36, 2), ('D5', 38, 2),
-    ('E5', 40, 4), ('D5', 44, 6),
+# Melodie: peppiger, Achtel und Synkopen, eine Oktave tiefer notiert gespielt (/2)
+melody = [  # (Note, Start in Schlägen, Länge in Schlägen)
+    # Szene 1 – D
+    ('F#5', 0, .5), ('A5', .5, .5), ('B5', 1, .5), ('A5', 1.5, 1), ('F#5', 2.5, .5), ('E5', 3, 1),
+    ('D5', 4, .5), ('E5', 4.5, .5), ('F#5', 5, 1.5), ('A5', 6.5, .5), ('F#5', 7, 1),
+    # Szene 2 – A/C#
+    ('E5', 8, .5), ('F#5', 8.5, .5), ('A5', 9, 1), ('E5', 10, .5), ('C#5', 10.5, .5), ('E5', 11, 1.5),
+    ('A4', 12.5, .5), ('C#5', 13, .5), ('E5', 13.5, 1), ('D5', 14.5, .5), ('C#5', 15, 1),
+    # Szene 3 – Bm
+    ('D5', 16, .5), ('F#5', 16.5, .5), ('B5', 17, 1), ('A5', 18, .5), ('F#5', 18.5, 1), ('D5', 19.5, .5),
+    ('F#5', 20, .5), ('E5', 20.5, .5), ('D5', 21, 1), ('B4', 22, .5), ('D5', 22.5, .5), ('F#5', 23, 1),
+    # Szene 4 – G
+    ('G5', 24, .5), ('F#5', 24.5, .5), ('D5', 25, 1), ('B4', 26, .5), ('D5', 26.5, .5), ('G5', 27, 1.5),
+    ('A5', 28.5, .5), ('B5', 29, 1), ('A5', 30, .5), ('G5', 30.5, .5), ('F#5', 31, 1),
+    # Szene 5 – D, Höhepunkt
+    ('A5', 32, .5), ('B5', 32.5, .5), ('D6', 33, 1), ('B5', 34, .5), ('A5', 34.5, 1), ('F#5', 35.5, .5),
+    ('A5', 36, .5), ('B5', 36.5, .5), ('A5', 37, 1), ('F#5', 38, .5), ('E5', 38.5, .5), ('D5', 39, 1),
+    # Endkarte – Gsus2 → D
+    ('E5', 40, 1), ('D5', 41, .5), ('E5', 41.5, .5), ('A5', 42, 2),
+    ('F#5', 44, .5), ('E5', 44.5, .5), ('D5', 45, 4),
 ]
+M = np.zeros((2, N))
 for note, sb, lb in melody:
-    place(P, piano(hz(note) / 2, max(2.5, lb * BEAT + 1.5), 0.30), sb * BEAT, (0.95, 1.0))
+    accent = 0.34 if float(sb).is_integer() else 0.27      # Schlag betont, Offbeat leichter
+    place(M, piano(hz(note) / 2, max(1.2, lb * BEAT + 0.8), accent), sb * BEAT, (0.95, 1.0))
+M = sosfilt(butter(2, 2600, 'low', fs=SR, output='sos'), M)   # Melodie etwas klarer als die Begleitung
+L += M
 
 # Klavier dämpfen (wie Moderator-Filz) und dazumischen
 P = sosfilt(butter(2, 1600, 'low', fs=SR, output='sos'), P)
