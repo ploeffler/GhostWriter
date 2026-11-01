@@ -76,7 +76,7 @@ Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die
 
 ## Offene Änderungen
 
-Offene Änderungen sind die Commits im Arbeits-Branch `ghostwriter/<buch-branch>`, solange dazu ein offener Pull Request in den Buch-Branch besteht (`START.md`, „Schreiben ins Repository“). Der Assistent liest sie vor jeder Projektübersicht und vor `changes.merge.open` aus GitHub: offenen Pull Request mit diesem Head und dieser Basis suchen, seine Commits auflisten (älteste zuerst). Für `render_view.py` gehören sie in eine JSON-Datei für `--changes`:
+Offene Änderungen sind die Commits im Arbeits-Branch `ghostwriter/<buch-branch>`, solange dazu ein offener Pull Request in den Buch-Branch besteht (`START.md`, „Schreiben ins Repository“). Der Assistent liest sie vor jeder Projektübersicht und vor `changes.merge.open` aus GitHub: offenen Pull Request mit diesem Head und dieser Basis suchen, seine Commits auflisten (älteste zuerst). Commits mit `GhostWriter-Aktion: index.build` (die Action „Übersichtsdatei aktualisieren“) sind keine Änderungen des Benutzers: Sie erscheinen nicht in der Liste und zählen nicht mit. Bleiben nur solche Commits übrig, gibt es keine offenen Änderungen. Für `render_view.py` gehören sie in eine JSON-Datei für `--changes`:
 
 ```json
 {"pull_request": 12, "book_branch": "main", "work_branch": "ghostwriter/main",
@@ -158,7 +158,8 @@ Gibt es keinen offenen Pull Request, gibt es keine offenen Änderungen; die Ansi
 |---|---|
 | Block `SERVICES`: `SERVICE_ID`, `SERVICE_NAME`, `SERVICE_GROUP`, `SERVICE_ROLES`, `SERVICE_NOTE` | alle Dienste aus `providers.yml` (`providers` → `llm`, `search_tools` → `search`, `queue_agents` außer `manual` → `agent`); `SERVICE_ROLES` sind die `roles` des Dienstes, bei `search` „search“, bei `agent` „queue_processing“; `SERVICE_NOTE` aus Sitzland, Websuche und `note` |
 | `SERVICE_AVAILABLE` | `true`, wenn die ID in `ai_providers.available` steht, sonst leer |
-| `SERVICE_SETUP_URL`, `SERVICE_SETUP_LABEL` | `setup` als Link ins Repository des Buchs (`https://github.com/<owner>/<repo>/blob/<branch>/<pfad>`) mit „Anleitung“, sonst `url` mit „Website“ |
+| `SERVICE_GUIDE_URL` | Link „Anleitung“ ins Repository des Buchs (`https://github.com/<owner>/<repo>/blob/<branch>/<pfad>`): `setup` des Dienstes, sonst der passende Abschnitt in `docs/DIENSTE-NUTZEN.md` (Chat-Dienst mit App: Weg 2, lokal: Weg 3, nur API oder Plattform: Weg 4, Recherchequellen, Agenten) |
+| `SERVICE_WEBSITE_URL` | `url` des Dienstes für den Link „Website“; leer, wenn es keine gibt |
 | Block `ROLES`: `ROLE_ID`, `ROLE_LABEL`, `ROLE_HINT`, `ROLE_VALUE` | die Aufgaben `default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`, `queue_processing`; `ROLE_VALUE` ist `provider` bzw. bei der Warteschlange `agent` (leer = wie Standard) |
 
 ### `freigabe-bestaetigen.html`

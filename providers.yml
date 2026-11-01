@@ -15,8 +15,9 @@
 #                  none (keine), n/a (nicht anwendbar)
 #   roles:         research | brainstorming | writing | revision | fact_check | queue_processing
 #   hq:            Sitzland des Anbieters (Ländercode) – sagt nichts über Datenverarbeitungsort aus
-#   setup:         optional: GhostWriter-Anleitung zum Einrichten (Pfad im Repository, ggf. mit #Anker);
-#                  sonst verlinkt das Formular „KI-Dienste“ auf `url`
+#   setup:         optional: eigene GhostWriter-Anleitung (Pfad im Repository, ggf. mit #Anker);
+#                  ohne setup verlinkt das Formular „KI-Dienste“ den passenden Weg in
+#                  docs/DIENSTE-NUTZEN.md (nach kind/access) und zusätzlich die Website `url`
 
 version: "1.0"
 checked_at: "2026-10-31"
