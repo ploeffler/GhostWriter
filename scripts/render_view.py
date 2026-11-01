@@ -113,7 +113,7 @@ def tag_slug(text):
 
 # ---------- Vorlage befüllen ----------
 
-UI_URL = 'https://cdn.jsdelivr.net/gh/{repo}@{ref}/dist/gw.js'
+UI_URL = 'https://cdn.jsdelivr.net/gh/{repo}@{ref}/dist/gw.min.js'  # von jsDelivr verkleinert
 UI = {'repo': 'ploeffler/ghostwriter-ui', 'ref': None}
 
 
