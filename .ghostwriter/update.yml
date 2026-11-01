@@ -1,0 +1,5 @@
+upstream: ploeffler/GhostWriter:main
+version: 0.5.0
+commit: 1c80679a9c8ffd25040c77e6fc02eb5356af0af2
+updated_at: '2026-11-01T13:38:33Z'
+skipped_workflows: []
