@@ -16,6 +16,9 @@ Geprüft wird:
 4. Läufe: Jede Lauf-Art aus workflow.yml (runs) steht mit ihrem Pfad in
    docs/DATA-MODEL.md.
 5. Links: Relative Links in den Markdown-Dateien zeigen auf vorhandene Dateien.
+8. Migration: Ändert sich ein Buch-Schema, muss die Datenversion steigen und eine
+   Migration dazukommen (scripts/migrate_project.py, Fingerabdruck in
+   schemas/data-version.yml, #59).
 7. Hinweis: Jede Doku-Datei endet mit der Fußzeile aus templates/branding.yml
    (Hinweis und kleines Logo unten rechts, Bildpfade gültig);
    keine Vorlage für Buchdateien (templates/*.md außer ui/) enthält ihn.
@@ -181,6 +184,17 @@ def check_credit(problems):
             problems.append(f'Buchvorlage templates/{p.name} enthält den Hinweis; er gehört nie ins Buch')
 
 
+def check_migration(problems):
+    sys.path.insert(0, str(ROOT / 'scripts'))
+    try:
+        import migrate_project
+    except ImportError:
+        return
+    msg = migrate_project.fingerprint_problem()
+    if msg:
+        problems.append(msg)
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--ui', help='Ordner mit ghostwriter-ui (Vorlagen unter templates/)')
@@ -197,6 +211,7 @@ def main(argv):
     check_links(problems)
     check_roadmap(args.milestones, problems)
     check_credit(problems)
+    check_migration(problems)
     for p in problems:
         print(f'✗ {p}')
     if not problems:

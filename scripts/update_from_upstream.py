@@ -248,13 +248,20 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
             return {**res, 'status': 'failed',
                     'text': f'{commits(behind)} hinter {up_label}; Konflikt in Dateien, die weder Programm noch Buch sind: '
                             + ', '.join(unresolved) + '. Bitte von Hand zusammenführen.'}
-        steps = []
+        steps, migration = [], {}
         if (Path(wt) / 'ghostwriter.yml').is_file():
             for cmd in (['scripts/migrate_project.py', '.'], ['scripts/build_index.py', '.'], ['scripts/validate_project.py', '.']):
                 if not (Path(wt) / cmd[0]).is_file():
                     continue
                 code, out = run(cmd, wt)
                 steps.append(f'$ python {" ".join(cmd)}\n{out}')
+                if cmd[0].endswith('migrate_project.py') and not code:
+                    changes = [l[len('migriert: '):] for l in out.splitlines() if l.startswith('migriert: ')]
+                    m = re.search(r'Datenversion (\d+) → (\d+)', out)
+                    if changes or m:
+                        migration = {'from': int(m.group(1)) if m else None, 'to': int(m.group(2)) if m else None,
+                                     'changes': changes,
+                                     'at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}
                 if code:
                     return {**res, 'status': 'failed',
                             'text': (f'{commits(behind)} hinter {up_label}; Prüfung mit GhostWriter {version} ({up_sha[:7]}) '
@@ -265,12 +272,16 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
             state_path.write_text(yaml.safe_dump({
                 'upstream': up_label, 'version': str(version), 'commit': up_sha,
                 'updated_at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-                'skipped_workflows': skipped}, allow_unicode=True, sort_keys=False), encoding='utf-8')
+                'skipped_workflows': skipped,
+                **({'migration': migration} if migration else {})}, allow_unicode=True, sort_keys=False), encoding='utf-8')
         git('add', '-A', cwd=wt)
         files = [f for f in git('diff', '--cached', '--name-only', 'HEAD', cwd=wt).splitlines() if f]
         msg = f'GhostWriter aktualisiert auf {version} ({up_sha[:7]})'
         body = [f'{commits(behind)} von {up_label} eingespielt, {len(files)} Dateien geändert.' if behind else
                 f'Programmdateien an {up_label} angeglichen (z. B. zuvor ausgelassene Workflow-Dateien), {len(files)} Dateien.']
+        if migration:
+            body.append('Daten migriert' + (f' (Datenversion {migration["from"]} → {migration["to"]})' if migration.get('to') is not None else '')
+                        + (': ' + '; '.join(migration['changes']) if migration.get('changes') else '') + '.')
         if skipped:
             body.append('Nicht aktualisiert (Workflow-Dateien brauchen GHOSTWRITER_UPDATE_TOKEN): ' + ', '.join(skipped))
         if args.dry_run:
@@ -282,6 +293,8 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
                     'text': f'Push nach {branch} abgelehnt; der nächste Lauf versucht es erneut.\n\n```\n{push.stderr.strip()[-2000:]}\n```'}
         text = (f'{commits(behind)} von {up_label} eingespielt (GhostWriter {version})' if behind else
                 f'Programmdateien an {up_label} angeglichen: ' + ', '.join(drift[:5]) + (' …' if len(drift) > 5 else ''))
+        if migration:
+            text += ' · Daten migriert' + (f' auf Datenversion {migration["to"]}' if migration.get('to') is not None else '')
         if skipped:
             text += f' ⚠️ {len(skipped)} Workflow-Datei(en) ausgelassen: Secret GHOSTWRITER_UPDATE_TOKEN fehlt'
         return {**res, 'status': 'updated', 'text': text}

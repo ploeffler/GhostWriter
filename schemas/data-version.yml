@@ -1,0 +1,5 @@
+# Fingerabdruck der Buch-Schemas je Datenversion (scripts/migrate_project.py --fingerprint).
+# Ändert sich ein Schema, muss DATA_VERSION steigen und eine Migration dazukommen –
+# oder die Änderung ist rückwärtskompatibel (nur neue, optionale Felder); dann nur hier neu schreiben.
+data_version: 1
+schema_sha256: 59e08b96ad5c53fa7690f18c1189d5ff46d5561816f833bd0a4f65bec6795110

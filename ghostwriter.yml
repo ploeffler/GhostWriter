@@ -1,3 +1,4 @@
+data_version: 1   # Datenstruktur-Version des Buchs (scripts/migrate_project.py), nicht von Hand ändern
 project:
   title: ""
   title_short: ""          # Kurztitel für Badge, Listen und Auflagen-Namen

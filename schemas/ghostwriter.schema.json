@@ -5,6 +5,7 @@
   "type": "object",
   "required": ["project", "ai_settings", "ai_providers", "workflow", "structure"],
   "properties": {
+    "data_version": {"type": "integer", "minimum": 0, "description": "Datenstruktur-Version des Buchs; setzt scripts/migrate_project.py (#59), fehlt = 0"},
     "project": {
       "type": "object",
       "required": ["title", "title_short", "working_title", "subtitle", "author", "language",

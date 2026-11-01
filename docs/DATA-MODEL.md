@@ -73,6 +73,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 
 | Feld | Bedeutung |
 |---|---|
+| `data_version` | Datenstruktur-Version des Buchs; setzt `scripts/migrate_project.py` beim Update, nicht von Hand ändern; fehlt = 0 ([UPDATES.md](UPDATES.md), #59) |
 | `project.title` | Titel des Buches |
 | `project.title_short` | Kurztitel für Badge, Listen und den Namen der Auflagen („Kurztitel – Auflage N“) |
 | `project.working_title` | Arbeitstitel, solange kein Titel feststeht |
