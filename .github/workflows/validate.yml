@@ -50,3 +50,6 @@ jobs:
           else
             echo "Übersichtsdatei aktuell oder nicht nötig"
           fi
+
+      - name: Kontextplanung prüfen
+        run: python -m unittest discover -s tests -p "test_context.py"
