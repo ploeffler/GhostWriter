@@ -148,6 +148,7 @@ def check_roadmap(milestones, problems):
             problems.append(f'Version {v} aus workflow.yml fehlt in der Roadmap von docs/WORKFLOW-MODEL.md')
     if milestones:
         titles = [m.get('title', '') for m in json.loads(Path(milestones).read_text(encoding='utf-8'))]
+        print(f'Meilensteine geprüft: {len(titles)}')
         for t in titles:
             if re.fullmatch(r'v\d+\.\d+', t) and t not in steps:
                 problems.append(f'Meilenstein {t} fehlt in workflow.yml (product_roadmap.v0_5_steps)')
