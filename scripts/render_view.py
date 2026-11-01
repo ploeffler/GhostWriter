@@ -537,6 +537,30 @@ ROLE_INFO = [('default', 'Standard', 'gilt für alle Aufgaben, die unten nicht e
              ('fact_check', 'Faktencheck', 'am besten ein anderer Dienst als beim Schreiben'),
              ('queue_processing', 'Aufgaben-Warteschlange', 'Agent, der GitHub-Issues abarbeitet; Standard: manuell')]
 WEB_TEXT = {'native': 'mit Websuche', 'via_tool': 'Websuche über Werkzeug', 'none': 'ohne Websuche'}
+ACCESS_TEXT = {'app': 'Chat-App oder Website', 'api': 'API-Schlüssel', 'local': 'auf meinem Rechner', 'cli': 'Kommandozeile',
+               'web': 'über die Websuche (kostenlos)', 'github': 'in GitHub zugewiesen'}
+
+
+def access_options(s, group):
+    """Mögliche Zugangsarten eines Dienstes; die erste ist die Vorgabe."""
+    if group == 'agent':
+        return ['github']
+    if group == 'search':
+        return ['web', 'api'] if s.get('kind') == 'scholarly_index' else ['api']
+    if s.get('kind') == 'local':
+        return ['local']
+    acc = list(s.get('access') or [])
+    return [a for a in ('app', 'api', 'cli') if a in acc] or ['api']
+
+
+def service_settings(s, group, cfg):
+    opts = access_options(s, group)
+    access = cfg.get('access') if cfg.get('access') in opts else opts[0]
+    cost = cfg.get('monthly_cost')
+    return {'SERVICE_ACCESS_OPTIONS': ','.join(opts), 'SERVICE_ACCESS': access,
+            'SERVICE_MODEL': cfg.get('model') or '', 'SERVICE_GITHUB': 'true' if cfg.get('github_connected') else '',
+            'SERVICE_PLAN': cfg.get('plan') or '', 'SERVICE_COST': '' if cost is None else f'{cost:g}',
+            'SERVICE_MEMO': cfg.get('note') or ''}
 
 
 def providers_edit_view(base, config, args):
@@ -544,6 +568,7 @@ def providers_edit_view(base, config, args):
     catalog = yaml.safe_load((ROOT / 'providers.yml').read_text(encoding='utf-8'))
     ap = config.get('ai_providers') or {}
     available = list(ap.get('available') or [])
+    settings = ap.get('services') or {}
     def guide(s, group):
         setup = s.get('setup')
         if not setup:
@@ -573,7 +598,8 @@ def providers_edit_view(base, config, args):
                 roles, note = 'queue_processing', s.get('note', '')
             services.append({'SERVICE_ID': s['id'], 'SERVICE_NAME': s['name'], 'SERVICE_GROUP': group,
                              'SERVICE_ROLES': roles, 'SERVICE_NOTE': note, 'SERVICE_AVAILABLE': 'true' if s['id'] in available else '',
-                             'SERVICE_GUIDE_URL': guide(s, group), 'SERVICE_WEBSITE_URL': s.get('url', '')})
+                             'SERVICE_GUIDE_URL': guide(s, group), 'SERVICE_WEBSITE_URL': s.get('url', ''),
+                             **service_settings(s, group, settings.get(s['id']) or {})})
     roles = []
     for rid, label, hint in ROLE_INFO:
         entry = ap.get(rid) or {}
@@ -584,7 +610,20 @@ def providers_edit_view(base, config, args):
         names.update({'chat': 'Aktueller Chat', 'manual': 'manuell', '': 'wie Standard'})
         lines = ['### 🤖 KI-Dienste', '', '**Deine Dienste**', '']
         mine = [s for s in services if s['SERVICE_AVAILABLE']]
-        lines += [f'- `{s["SERVICE_ID"]}` {s["SERVICE_NAME"]}' for s in mine] or ['- *noch keine eingetragen; bis dahin macht alles der aktuelle Chat*']
+        def summary(s):
+            parts = [ACCESS_TEXT[s['SERVICE_ACCESS']]]
+            if s['SERVICE_GROUP'] == 'llm':
+                parts.append(f'Modell: {s["SERVICE_MODEL"] or "Standard"}')
+                if s['SERVICE_ACCESS'] == 'app':
+                    parts.append('mit GitHub verbunden' if s['SERVICE_GITHUB'] else 'nicht mit GitHub verbunden')
+            if s['SERVICE_PLAN']:
+                parts.append(f'Tarif: {s["SERVICE_PLAN"]}')
+            if s['SERVICE_COST']:
+                parts.append(f'{money(Decimal(s["SERVICE_COST"]), False)} / Monat')
+            if s['SERVICE_MEMO']:
+                parts.append(s['SERVICE_MEMO'])
+            return ' · '.join(parts)
+        lines += [f'- `{s["SERVICE_ID"]}` {s["SERVICE_NAME"]}: {summary(s)}' for s in mine] or ['- *noch keine eingetragen; bis dahin macht alles der aktuelle Chat*']
         lines += ['', '| Aufgabe | Dienst |', '|---|---|']
         lines += [f'| {r["ROLE_LABEL"]} | {names.get(r["ROLE_VALUE"], r["ROLE_VALUE"])} |' for r in roles]
         lines += ['', '<details><summary>Weitere Dienste hinzufügen</summary>', '']
@@ -592,9 +631,11 @@ def providers_edit_view(base, config, args):
                   + (f' · [Website]({s["SERVICE_WEBSITE_URL"]})' if s['SERVICE_WEBSITE_URL'] else '')
                   for s in services if not s['SERVICE_AVAILABLE']]
         lines += ['', '</details>', '', '---',
-                  'Antworte je Zeile: `+ id` (Dienst habe ich), `- id` (habe ich nicht mehr), `Aufgabe: id` (zuteilen, z. B. `Recherche: perplexity`). `OK` speichert nichts Neues, `X` bricht ab.']
+                  'Antworte je Zeile: `+ id` (Dienst habe ich), `- id` (habe ich nicht mehr), `Aufgabe: id` (zuteilen, z. B. `Recherche: perplexity`), '
+                  '`id.Einstellung: Wert` mit Zugang, Modell, GitHub (ja/nein), Tarif, Kosten (€ pro Monat) oder Notiz (z. B. `openai.Modell: gpt-5`). `X` bricht ab.']
         return '\n'.join(lines) + '\n'
-    return fill('ki-dienste.html', {}, {'SERVICES': services, 'ROLES': roles})
+    connector = f'https://github.com/{args.repo}/blob/{args.branch}/docs/CONNECTOR-SETUP.md'
+    return fill('ki-dienste.html', {'CONNECTOR_GUIDE_URL': connector}, {'SERVICES': services, 'ROLES': roles})
 
 
 TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'title_page': True,

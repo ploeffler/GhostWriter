@@ -8,7 +8,17 @@ GhostWriter ist anbieterunabhängig. Für jedes Buchprojekt wird pro Aufgabe fes
 
 Du brauchst für GhostWriter keine neuen Abos. Im Wizard wird gefragt, welche KI-Dienste du schon nutzt; nur diese werden eingetragen (`ai_providers.available`) und den Aufgaben zugeteilt. Wer nichts nennt, arbeitet mit dem aktuellen Chat für alles.
 
-Später kannst du jederzeit weitere Dienste ergänzen: In der Projektübersicht öffnet der Knopf **KI-Dienste** (Textfassung `D`) ein Formular. Dort hakst du ab, was du hast, teilst die Aufgaben zu und findest bei jedem Dienst zwei Links: **Anleitung**, wie du ihn mit GhostWriter nutzt ([DIENSTE-NUTZEN.md](DIENSTE-NUTZEN.md); für Claude und ChatGPT die Verbindung mit GitHub in [CONNECTOR-SETUP.md](CONNECTOR-SETUP.md)), und **Website** des Anbieters. Die Prüf-Action meldet, wenn eine Aufgabe einem Dienst zugeteilt ist, der nicht in `available` steht.
+Später kannst du jederzeit weitere Dienste ergänzen: In der Projektübersicht öffnet der Knopf **KI-Dienste** (Textfassung `D`) ein Formular. Dort hakst du ab, was du hast, teilst die Aufgaben zu und findest bei jedem Dienst zwei Links: **Anleitung**, wie du ihn mit GhostWriter nutzt ([DIENSTE-NUTZEN.md](DIENSTE-NUTZEN.md); für Claude und ChatGPT die Verbindung mit GitHub in [CONNECTOR-SETUP.md](CONNECTOR-SETUP.md)), und **Website** des Anbieters. Unter **Einstellungen** hältst du je eigenem Dienst fest, wie du ihn nutzt: Zugang (Chat-App, API-Schlüssel, lokal …), Modell, ob er mit GitHub verbunden ist, Tarif, Kosten pro Monat und eine Notiz (`ai_providers.services` in `ghostwriter.yml`). Die Prüf-Action meldet, wenn eine Aufgabe einem Dienst zugeteilt ist, der nicht in `available` steht, oder wenn Einstellungen für einen Dienst eingetragen sind, den du nicht hast.
+
+```yaml
+ai_providers:
+  available: [anthropic, perplexity]
+  services:
+    anthropic:  { access: app, model: "", github_connected: true, plan: "Max", monthly_cost: 90 }
+    perplexity: { access: app, model: "sonar-pro", github_connected: false, plan: "Pro", note: "nur Recherche" }
+  default:  { provider: "anthropic", model: "" }
+  research: { provider: "perplexity", model: "" }
+```
 
 ## Rollen
 

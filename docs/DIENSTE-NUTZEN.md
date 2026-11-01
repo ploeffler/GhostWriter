@@ -91,7 +91,8 @@ Wenn du einen Agenten schon nutzt (zum Beispiel über ein GitHub-Copilot-Abo):
 
 1. Projektübersicht → Roboter-Symbol **KI-Dienste**.
 2. **Weitere Dienste hinzufügen** aufklappen und den Dienst abhaken. Daneben führt **Anleitung** hierher (oder zur passenden Einrichtung) und **Website** zum Anbieter.
-3. Bei den Aufgaben auswählen, was der neue Dienst übernehmen soll.
-4. **Speichern.** Die Änderung kommt wie jede andere in den Arbeits-Branch und gilt nach „Änderungen übernehmen“.
+3. Unter **Einstellungen** beim Dienst festhalten, wie du ihn nutzt: **Zugang** (Chat-App oder Website, API-Schlüssel, auf meinem Rechner …), **Modell** (leer = Standard), **Mit GitHub verbunden** (nur wenn du für diese App die [Verbindung](CONNECTOR-SETUP.md) eingerichtet hast), **Tarif**, **Kosten pro Monat** und eine **Notiz**. Aus dem Zugang ergibt sich, welcher Weg oben gilt.
+4. Bei den Aufgaben auswählen, was der neue Dienst übernehmen soll.
+5. **Speichern.** Die Änderung kommt wie jede andere in den Arbeits-Branch und gilt nach „Änderungen übernehmen“.
 
 Einen Dienst nicht mehr nutzen: Haken entfernen und speichern. Aufgaben, die er hatte, fallen auf **wie Standard** zurück.
