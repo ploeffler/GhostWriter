@@ -29,7 +29,7 @@ denn --allow-markers (nur für Proben, nie für eine veröffentlichte Auflage).
 
 Benötigt: pandoc (≥ 3), xelatex mit KOMA-Script, tcolorbox, TeX Gyre
 (texlive-xetex, texlive-latex-extra, texlive-lang-german,
-texlive-fonts-recommended), python-docx, pyyaml.
+texlive-fonts-recommended, fonts-texgyre), python-docx, pyyaml.
 """
 import argparse
 import datetime
@@ -172,7 +172,7 @@ def main(argv):
         release_name = f'{short} – Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]}'
         proof_note = (f'Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]} – nicht zur Veröffentlichung. '
                       'Enthält auch nicht freigegebene Abschnitte; offene Marker sind hervorgehoben.')
-    out = Path(args.out)
+    out = Path(args.out).resolve()   # Pandoc läuft im Arbeitsordner, daher absolut
     out.mkdir(parents=True, exist_ok=True)
     body = '\n'.join(p[2] for p in parts)
     imprint = imprint_markdown(meta, release_name, args.commit)
