@@ -4,7 +4,8 @@ name: Branches aufräumen
 # → Run workflow). Gelöscht wird nur ein Branch nach PATTERN, dessen Pull Request
 # gemergt ist und der seitdem keinen neuen Commit hat, oder der vollständig im
 # Standard-Branch enthalten ist (nichts geht verloren). Dazu gehören auch die
-# Arbeits-Branches des Chats (ghostwriter/…). Ein Branch mit offenem Pull Request
+# Arbeits-Branches des Chats (ghostwriter/…) und media/, test/, codex/, claude/ (außer KEEP).
+# Ein Branch mit offenem Pull Request
 # oder eigenen, nicht übernommenen Commits bleibt immer. Mit „Nur anzeigen“ wird nichts gelöscht, nur aufgelistet.
 # Versions-Branches (v0.1, v0.2 …) werden zu Tags gleichen Namens (annotiert,
 # auf demselben Commit) und danach als Branch gelöscht; der Stand bleibt über
@@ -61,14 +62,15 @@ jobs:
           R: ${{ github.repository }}
           OWNER: ${{ github.repository_owner }}
           DRY: ${{ inputs.dry_run }}
-          PATTERN: '^(feat|fix|docs|ui|chore|ghostwriter)/'
+          PATTERN: '^(feat|fix|docs|ui|chore|media|test|codex|claude|ghostwriter)/'
+          KEEP: '^(test/test-book)$'   # bleiben immer, auch wenn sie dem Muster entsprechen
           BASE: ${{ github.event.repository.default_branch }}
         run: |
           deleted=0; kept=0
           echo "## Branches aufräumen" >> "$GITHUB_STEP_SUMMARY"
           [ "$DRY" = "true" ] && echo "_Nur anzeigen – nichts gelöscht._" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          for b in $(gh api "repos/$R/branches" --paginate --jq '.[].name' | grep -E "$PATTERN" || true); do
+          for b in $(gh api "repos/$R/branches" --paginate --jq '.[].name' | grep -E "$PATTERN" | grep -vE "$KEEP" || true); do
             sha=$(gh api "repos/$R/branches/$b" --jq .commit.sha)
             pr=$(gh api "repos/$R/pulls?state=closed&head=$OWNER:$b&per_page=100" \
                  --jq "[.[] | select(.merged_at != null and .head.sha == \"$sha\")][0].number // empty")
