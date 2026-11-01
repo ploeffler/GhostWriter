@@ -92,8 +92,8 @@ Ein Widget kann nach dem Erscheinen keinen Fortschritt mehr anzeigen; die Status
 
 Nach dem Einrichten ändert der Assistent das Buch nie direkt. Jede Änderung aus einem Formular wird zuerst ein Commit in einem Arbeits-Branch; übernommen wird sie erst, wenn der Benutzer in der Projektübersicht „Änderungen übernehmen“ bestätigt.
 
-- **Buch-Branch:** der Branch aus dem Link des Benutzers, sonst `main`.
-- **Arbeits-Branch:** `ghostwriter/<buch-branch>`, etwa `ghostwriter/main` oder `ghostwriter/test/test-book`. Dazu gehört genau ein offener Pull Request „GhostWriter: offene Änderungen“ in den Buch-Branch. Er sammelt alle Änderungen bis zum Übernehmen.
+- **Buch-Branch:** der Branch aus dem Link des Benutzers, sonst `main`. In einer Bibliothek (mehrere Bücher in einem Repository, #36) heißt jedes Buch `buch/<slug>`, der Slug kommt aus dem Kurztitel. Ob ein Branch ein Buch ist, entscheidet die Erkennungsregel in `scripts/library.py`: jeder `buch/*`-Branch, auch ohne Kapitel (Wizard läuft noch), sonst jeder Branch mit Kapiteln, nie Branches aus `update.skip_branches`. Bücher werden nie in den Standard-Branch gemergt.
+- **Arbeits-Branch:** `ghostwriter/<buch-branch>`, etwa `ghostwriter/main`, `ghostwriter/buch/adhs` oder `ghostwriter/test/test-book`. Dazu gehört genau ein offener Pull Request „GhostWriter: offene Änderungen“ in den Buch-Branch. Er sammelt alle Änderungen bis zum Übernehmen.
 
 Ablauf beim Speichern:
 

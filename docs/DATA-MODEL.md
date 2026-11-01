@@ -220,6 +220,26 @@ Fact-Checking erzeugt einen Bericht mit bestätigten, unzureichend belegten, wid
 - Neue Abschnitte in einem freigegebenen Kapitel setzen den Kapitelstatus auf `in_progress`.
 
 
+## Bibliothek: mehrere Bücher, je Buch ein Branch
+
+Seit v0.6 (#36) kann ein Repository mehrere Bücher enthalten. Jedes Buch liegt auf einem eigenen Branch und hat dort dieselben Dateien wie ein Einzelbuch (`ghostwriter.yml`, `chapters/` …). Namen und Regeln stehen in `ghostwriter-manifest.yml` → `library` und `scripts/library.py`.
+
+| Begriff | Name | Beispiel |
+|---|---|---|
+| Buch-Branch | `buch/<slug>`, Slug aus dem Kurztitel wie der Tag-Slug der Auflagen | `buch/adhs-im-erwachsenenleben` |
+| Arbeits-Branch | `ghostwriter/<buch-branch>` | `ghostwriter/buch/adhs-im-erwachsenenleben` |
+| Standard-Branch | im Bibliotheksmodus nur Programm und Starter (keine Kapitel) | `main` |
+
+**Erkennungsregel** (gilt gleich für Bücherregal, Update-Action und Wiedereinstieg):
+
+1. Branches aus `update.skip_branches` sind nie Bücher.
+2. Jeder `buch/*`-Branch mit `ghostwriter.yml` ist ein Buch, auch ohne Kapitel (Status „im Aufbau“).
+3. Jeder andere Branch mit Kapiteln ist ein Buch (Altbestand wie `test/test-book`, Einzelbuch auf dem Standard-Branch).
+
+**Eindeutigkeit:** Ein Kurztitel bzw. sein Slug darf in einer Bibliothek nur einmal vorkommen, weil die Auflagen-Tags (`<slug>-auflage-N`) sonst kollidieren. `python scripts/library.py name "<Kurztitel>"` prüft das vor dem Anlegen, `python scripts/library.py check` prüft die ganze Bibliothek (in `validate.yml`). Freigaben, Kosten, Auflagen und alle Schreibregeln gelten je Buch-Branch unverändert.
+
+**Einzelbuch** (bisheriger Weg): Der Standard-Branch ist selbst das Buch. Das bleibt gültig; die Umwandlung in eine Bibliothek ist #40.
+
 ## Automatische Prüfung
 
 `scripts/validate_project.py` prüft ein Buchprojekt gegen die Schemas in `schemas/` (`ghostwriter.schema.json`, `section.schema.json`, `costs.schema.json`): Projektdatei, Kopf jeder Abschnittsdatei, Übereinstimmung von IDs, Titeln und Nummern mit `structure.chapters`, Verweise in `workflow` und alle Kostendateien. Die GitHub Action „Projektdateien prüfen“ führt die Prüfung bei jedem Push aus. Ein späteres Backend kann dieselben Schemas verwenden.

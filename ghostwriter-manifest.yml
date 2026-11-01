@@ -47,6 +47,13 @@ book:
   - editions/
   - .ghostwriter/
 
+# Bibliothek (#36): mehrere Bücher in einem Repository, je Buch ein Branch.
+# Erkennungsregel und Namen: scripts/library.py. Im Bibliotheksmodus enthält der
+# Standard-Branch nur Programm und Starter; Bücher werden nie dorthin gemergt.
+library:
+  book_prefix: buch/          # Buch-Branch: buch/<slug aus dem Kurztitel>
+  work_prefix: ghostwriter/   # Arbeits-Branch: ghostwriter/<buch-branch>
+
 update:
   # Liegt ein Buch als Branch im Hauptrepository selbst (z. B. das Testbuch),
   # werden diese Branches nie aktualisiert:
