@@ -171,7 +171,9 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 |---|---|
 | `CHAPTER_ID`, `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_GOAL`, `CHAPTER_SUMMARY` | wie in der Kapitelansicht; nach einer Recherche die zuletzt gesendeten, noch nicht gespeicherten Werte (`--draft`) |
 | `RESEARCH_QUESTION`, `RESEARCH_SCOPE` | `question` und `scope` des letzten Laufs bzw. die gesendeten Werte; sonst leer |
-| `GOAL_SEARCH` | `true`, wenn „Ziel des Kapitels suchen“ angehakt ist: gesendeter Wert, sonst letzter Lauf, sonst `true`, solange das Ziel leer ist |
+| `RESEARCH_TASK` | `goal`, `sections`, `summary` oder leer: gesendeter Wert, sonst `task` des letzten Laufs, sonst `goal`, solange das Ziel leer ist |
+| `SECTION_COUNT`, `SECTIONS_NOTE` | Zahl der vorhandenen Abschnitte und Hinweis, dass sie unverändert bleiben und neue ans Ende kommen (bei freigegebenem Kapitel: wird wieder „in Arbeit“) |
+| Block `SUGGESTED_SECTIONS`: `SUG_TITLE`, `SUG_SUMMARY` | Zeilen `- Titel: Kurzbeschreibung` unter `## Vorschlag: Abschnitte` des letzten Laufs, ohne Titel, die es im Kapitel schon gibt; leer = Bereich entfällt |
 | `PREV_CHAPTER`, `PREV_CHAPTER_LABEL`, `PREV_CHAPTER_SUMMARY`, `PREV_WEIGHT` | vorheriges Kapitel („Kapitel N · Titel“, Kurzbeschreibung); Gewichtung 0–3 aus gesendetem Wert bzw. letztem Lauf, sonst 2; ohne vorheriges Kapitel leer (Bereich entfällt) |
 | `NEXT_CHAPTER`, `NEXT_CHAPTER_LABEL`, `NEXT_CHAPTER_SUMMARY`, `NEXT_WEIGHT` | ebenso für das nächste Kapitel |
 | `RESEARCH_PROVIDER_TEXT` | „Recherche über: …“ aus `ai_providers.research.provider` (sonst `default`; `chat` = „aktueller Chat“) |
@@ -266,7 +268,7 @@ Gestaltung:
 | Projektübersicht | `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
 | Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `B` Kapitel bearbeiten · `Z` Ziel, Kurzbeschreibung, Kapitelrecherche · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `FK` Kapitel freigeben (nur wenn möglich) · `Ü` Übersicht |
 | Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` Abschnitt freigeben bzw. zurücknehmen · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
-| Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Änderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · Kapitelrecherche: `Ziel: …`, `Kurzbeschreibung: …`, `Frage: …`, `Schwerpunkte: …`, `Ziel suchen: ja|nein`, `Vorher: 0–3`, `Nachher: 0–3`, `VZ`/`VK` Vorschlag übernehmen · KI-Dienste: `+ id`, `- id`, `Aufgabe: id` · `X` bricht ab |
+| Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Änderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · Kapitelrecherche: `Ziel: …`, `Kurzbeschreibung: …`, `Frage: …`, `Schwerpunkte: …`, `Aufgabe: Ziel|Abschnitte|Kurzbeschreibung|keine`, `Vorher: 0–3`, `Nachher: 0–3`, `VZ`/`VK` Vorschlag übernehmen, `AS 1, 3` vorgeschlagene Abschnitte anlegen · KI-Dienste: `+ id`, `- id`, `Aufgabe: id` · `X` bricht ab |
 
 Ein Kürzel entspricht dem Klick auf den gleichnamigen Knopf; es gelten dieselbe Aktion, dieselben Statuszeilen und dieselbe Ausgangsansicht danach.
 
@@ -313,7 +315,8 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `chapter.update` | `chapter_id`, `title`, `subtitle`, `summary`, `goal`, `expected_head_sha` | Kapitel speichern | Titel in `structure.chapters` und Kapitel-README im selben Commit ändern, danach Kapitelansicht | `PATCH …/chapters/{chapter_id}` |
 | `chapter.research.open` | `chapter_id` | Kapitelrecherche öffnen | Vorlage `kapitelrecherche` (`render_view.py chapter-research N`) | – |
 | `chapter.texts.update` | `chapter_id`, `goal`, `summary`, `expected_head_sha` | Ziel und Kurzbeschreibung speichern | nur diese beiden Abschnitte der Kapitel-README ändern, danach Kapitelansicht | `PATCH …/chapters/{chapter_id}` |
-| `chapter.research.start` | `chapter_id`, `question`, `scope`, `goal_search`, `weight_prev`, `weight_next` (0–3), `goal`, `summary`, `expected_head_sha` | Kapitelrecherche starten | Lauf ausführen und speichern (`START.md`, „Kapitelrecherche“), danach wieder das Formular mit Vorschlägen und den gesendeten Werten (`--draft`) | `POST …/chapters/{chapter_id}/research-runs` |
+| `chapter.sections.add` | `chapter_id`, `sections` (Liste mit `title`, `summary`), `expected_head_sha` | Vorgeschlagene Abschnitte anlegen | am Ende des Kapitels anlegen (`START.md`, „Kapitelrecherche“, Schritt 6), ein Commit, danach Kapitelansicht | `POST …/chapters/{chapter_id}/sections` |
+| `chapter.research.start` | `chapter_id`, `task` (`goal` \| `sections` \| `summary` \| leer), `question`, `scope`, `weight_prev`, `weight_next` (0–3), `goal`, `summary`, `expected_head_sha` | Kapitelrecherche starten | Lauf ausführen und speichern (`START.md`, „Kapitelrecherche“), danach wieder das Formular mit Vorschlägen und den gesendeten Werten (`--draft`) | `POST …/chapters/{chapter_id}/research-runs` |
 | `chapter.reorder.open` | – | Kapitelreihenfolge ändern | Vorlage `reihenfolge` (`render_view.py chapter-reorder`) | – |
 | `chapter.reorder` | `order` (alle Kapitel-IDs in neuer Reihenfolge), `expected_head_sha` | Kapitelreihenfolge speichern | `structure.chapters` umsortieren; IDs und Pfade bleiben; danach Projektübersicht | `POST …/chapters/reorder` |
 | `section.create.open` | `chapter_id` | Neuen Abschnitt anlegen | Vorlage `abschnitt-anlegen` (`render_view.py section-create N`) | – |
@@ -372,6 +375,7 @@ Statuszeilen, Ladetexte und Ergebniszeilen nach `START.md`, „Statusanzeige“.
 | `chapter.update` | → Speichere Kapitel N (ghostwriter.yml und README, Commit) | – | ✓ Kapitel N gespeichert, Commit `abc1234` |
 | `chapter.texts.update` | → Speichere Ziel und Kurzbeschreibung von Kapitel N (Commit) | – | ✓ Ziel und Kurzbeschreibung gespeichert, Commit `abc1234` |
 | `chapter.research.start` | → Kapitelrecherche für Kapitel N · → Speichere Lauf (Commit) | – | ✓ Kapitelrecherche gespeichert, Lauf `run-001`, Commit `abc1234` |
+| `chapter.sections.add` | → Lege N Abschnitte in Kapitel K an · → Speichere (Commit) | – | ✓ N Abschnitte angelegt (K.x–K.y), Commit `abc1234` |
 | `chapter.reorder`, `section.reorder` | → Prüfe die neue Reihenfolge · → Speichere ghostwriter.yml (Commit) | – | ✓ Reihenfolge gespeichert, Commit `abc1234` |
 | `section.create` | → Lege Abschnitt „Titel“ in Kapitel N an · → Speichere (Commit) | – | ✓ Abschnitt N.M „Titel“ angelegt, Commit `abc1234` |
 | `project.providers.update` | → Prüfe, ob sich die Dateien seit dem Lesen geändert haben · → Speichere KI-Dienste (Commit im Arbeits-Branch) | – | ✓ KI-Dienste gespeichert, Commit `abc1234` · noch nicht übernommen (Pull Request #NN) |

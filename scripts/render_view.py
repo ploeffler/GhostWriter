@@ -915,11 +915,32 @@ def chapter_research_view(base, config, args):
         v = draft.get(key, last_head.get(key, 2))
         return v if isinstance(v, int) and 0 <= v <= 3 else 2
     current_goal = draft.get('goal', goal)
+    if 'task' in draft:
+        task = draft.get('task') or ''
+    elif 'task' in last_head:
+        task = last_head.get('task') or ''
+    elif 'goal_search' in last_head:            # Läufe vor 0.19: goal_search true/false
+        task = 'goal' if last_head.get('goal_search') is True else ''
+    else:
+        task = '' if current_goal else 'goal'
+    task = task if task in ('goal', 'sections', 'summary') else ''
+    existing = {sec['title'].strip().lower() for sec in ch['sections']}
+    proposals = []
+    for line in clean(last.get('Vorschlag: Abschnitte')).splitlines():
+        m = re.match(r'\s*[-*]\s+(.+?)(?::\s+(.*))?$', line)
+        if m and m.group(1).strip().lower() not in existing:
+            proposals.append({'SUG_TITLE': m.group(1).strip(), 'SUG_SUMMARY': (m.group(2) or '').strip()})
+    k = len(ch['sections'])
+    note = ('Das Kapitel hat noch keine Abschnitte; ausgewählte werden in dieser Reihenfolge angelegt.' if not k else
+            f'Das Kapitel hat schon {k} Abschnitt{"" if k == 1 else "e"}. Sie bleiben unverändert; ausgewählte neue '
+            'kommen ans Ende (Reihenfolge danach über „Abschnittsreihenfolge“).')
+    if k and ch.get('status') == 'approved':
+        note += ' Das Kapitel ist freigegeben und wird dadurch wieder „in Arbeit“.'
     values = {'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': n, 'CHAPTER_TITLE': ch['title'],
               'CHAPTER_GOAL': draft.get('goal', goal), 'CHAPTER_SUMMARY': draft.get('summary', summary),
               'RESEARCH_QUESTION': draft.get('question', last_head.get('question') or ''),
               'RESEARCH_SCOPE': draft.get('scope', last_head.get('scope') or ''),
-              'GOAL_SEARCH': 'true' if draft.get('goal_search', last_head.get('goal_search', not current_goal)) else '',
+              'RESEARCH_TASK': task, 'SECTION_COUNT': k, 'SECTIONS_NOTE': note,
               'PREV_CHAPTER': 'true' if prev_label else '', 'PREV_CHAPTER_LABEL': prev_label,
               'PREV_CHAPTER_SUMMARY': prev_summary, 'PREV_WEIGHT': weight('weight_prev'),
               'NEXT_CHAPTER': 'true' if next_label else '', 'NEXT_CHAPTER_LABEL': next_label,
@@ -940,6 +961,11 @@ def chapter_research_view(base, config, args):
                 lines += [f'- Kurzbeschreibung: {values["SUGGESTED_SUMMARY"]} · `VK` übernehmen']
         if values['LAST_RUN_TEXT']:
             lines += ['', f'> {values["LAST_RUN_TEXT"]}']
+        if proposals:
+            lines += ['', f'**Vorgeschlagene Abschnitte aus {values["LAST_RUN_ID"]}:**', '']
+            lines += [f'{i}. **{x["SUG_TITLE"]}**' + (f' – {x["SUG_SUMMARY"]}' if x['SUG_SUMMARY'] else '')
+                      for i, x in enumerate(proposals, start=1)]
+            lines += ['', f'<sub>{note}</sub> Anlegen: `AS 1, 3` (Nummern der Vorschläge).']
         wtext = ['nicht berücksichtigen', 'abgrenzen', 'anschließen', 'stark einbeziehen']
         ctx = []
         if prev_label:
@@ -948,12 +974,13 @@ def chapter_research_view(base, config, args):
             ctx.append(f'| Nachher | {next_label} | {values["NEXT_WEIGHT"]} · {wtext[values["NEXT_WEIGHT"]]} |')
         if ctx:
             lines += ['', '**Zusammenhang**', '', '| | Kapitel | Gewichtung |', '|---|---|---|'] + ctx
-        lines += ['', f'Ziel suchen: **{"ja" if values["GOAL_SEARCH"] else "nein"}**',
+        tname = {'goal': 'Ziel des Kapitels recherchieren', 'sections': 'Abschnitte erstellen', 'summary': 'Kurzbeschreibung erstellen'}
+        lines += ['', f'Aufgabe: **{tname.get(task, "keine (nur Fragestellung)")}**',
                   '', f'<sub>{values["RESEARCH_PROVIDER_TEXT"]} · {count}</sub>', '',
                   'Ändern: je Zeile `Ziel: …` bzw. `Kurzbeschreibung: …`. Recherche starten: `Frage: …` (optional `Schwerpunkte: …`, '
-                  '`Ziel suchen: ja|nein`, `Vorher: 0–3`, `Nachher: 0–3`; 0 nicht berücksichtigen, 1 abgrenzen, 2 anschließen, 3 stark einbeziehen). `X` bricht ab.']
+                  '`Aufgabe: Ziel|Abschnitte|Kurzbeschreibung|keine`, `Vorher: 0–3`, `Nachher: 0–3`; 0 nicht berücksichtigen, 1 abgrenzen, 2 anschließen, 3 stark einbeziehen). `X` bricht ab.']
         return '\n'.join(lines) + '\n'
-    return fill('kapitelrecherche.html', values)
+    return fill('kapitelrecherche.html', values, {'SUGGESTED_SECTIONS': proposals})
 
 
 FORMS = {'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
