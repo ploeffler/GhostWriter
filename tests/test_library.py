@@ -159,3 +159,69 @@ class ShelfTest(unittest.TestCase):
         self.assertIn('"LIBRARY_COUNT":2', self.view(fx, 'project', '--library', str(self.lib)))
         self.assertIn('`L` Bücherregal', self.view(fx, 'project', '--library', str(self.lib), '--text'))
         self.assertNotIn('LIBRARY_COUNT', self.view(fx, 'project'))
+
+
+class NewBookTest(unittest.TestCase):
+    """Neues Buch (#38): Felder setzen ohne Formatverlust, Branch und ein Commit, Namensprüfung, Formular."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        d = self.d = self.tmp.name
+        self.g = lambda *a: subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=d, check=True,
+                                           capture_output=True, text=True).stdout
+        self.g('init', '-q', '-b', 'main')
+        Path(d, 'ghostwriter.yml').write_text((ROOT / 'ghostwriter.yml').read_text(encoding='utf-8'), encoding='utf-8')
+        self.g('add', '.')
+        self.g('commit', '-qm', 'Starter')
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_set_fields_keeps_comments(self):
+        text = (ROOT / 'ghostwriter.yml').read_text(encoding='utf-8')
+        new = library.set_project_fields(text, {'working_title': 'Mein "Garten"jahr', 'title_short': 'Garten', 'author': 'A'})
+        cfg = yaml.safe_load(new)
+        self.assertEqual(cfg['project']['working_title'], 'Mein "Garten"jahr')
+        self.assertEqual(cfg['project']['title_short'], 'Garten')
+        self.assertEqual(sum(l.count('#') for l in text.splitlines()), sum(l.count('#') for l in new.splitlines()))
+        self.assertEqual(len(text.splitlines()), len(new.splitlines()))
+        self.assertEqual({k: v for k, v in cfg.items() if k != 'project'}, {k: v for k, v in yaml.safe_load(text).items() if k != 'project'})
+
+    def test_create(self):
+        r = library.create_book('Mein Gartenjahr', 'Gartenjahr', 'Max', self.d, 'refs/heads', MANIFEST, base='main')
+        self.assertEqual(r['taken'], [])
+        self.assertEqual(self.g('rev-parse', '--abbrev-ref', 'HEAD').strip(), 'buch/gartenjahr')
+        self.assertEqual(self.g('rev-list', '--count', 'main..buch/gartenjahr').strip(), '1')
+        msg = self.g('log', '-1', '--format=%B')
+        self.assertIn('Neues Buch angelegt: Mein Gartenjahr', msg)
+        self.assertIn('GhostWriter-Aktion: library.book.create', msg)
+        cfg = yaml.safe_load(Path(self.d, 'ghostwriter.yml').read_text(encoding='utf-8'))
+        self.assertEqual((cfg['project']['working_title'], cfg['project']['author']), ('Mein Gartenjahr', 'Max'))
+        state = yaml.safe_load(Path(self.d, '.ghostwriter/update.yml').read_text(encoding='utf-8'))
+        self.assertEqual(state['version'], str(MANIFEST['version']))
+        # Erkennung: neues Buch im Aufbau
+        found = library.books(library.branch_configs('refs/heads', self.d), MANIFEST)
+        self.assertEqual([(b['branch'], b['status']) for b in found], [('buch/gartenjahr', 'setup')])
+        # zweites Mal: vergeben, nichts angelegt
+        self.g('checkout', '-q', 'main')
+        r2 = library.create_book('Gartenjahr', '', '', self.d, 'refs/heads', MANIFEST, base='main')
+        self.assertTrue(r2['taken'])
+        self.assertEqual(self.g('rev-parse', '--abbrev-ref', 'HEAD').strip(), 'main')
+
+    def test_new_requires_title(self):
+        self.assertIn('Arbeitstitel fehlt', library.new_book('', 'X', '', [], MANIFEST)['taken'])
+
+    def test_form(self):
+        lib = Path(self.d, 'library.json')
+        lib.write_text(json.dumps({'books': [{'branch': 'buch/adhs', 'slug': 'adhs', 'author': 'Alt', 'updated_at': '2026-01-01'},
+                                             {'branch': 'buch/b', 'slug': 'b', 'author': 'Neu', 'updated_at': '2026-11-01'}]}),
+                       encoding='utf-8')
+        run = lambda *a: subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), self.d, 'book-create',
+                                         '--library', str(lib), *a], capture_output=True, text=True).stdout
+        w = run()
+        self.assertIn('GW.render("buch-anlegen"', w)
+        self.assertIn('"AUTHOR":"Neu"', w)
+        self.assertIn('{"TAKEN_SLUG":"adhs","TAKEN_BRANCH":"buch/adhs"}', w)
+        t = run('--text', '--draft', json.dumps({'working_title': 'X', 'error': 'Name vergeben'}))
+        self.assertIn('✗ Name vergeben', t)
+        self.assertIn('`adhs` (buch/adhs)', t)

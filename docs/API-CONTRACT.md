@@ -66,6 +66,7 @@ Die Pfade sind Entwurf und müssen mit dem implementierten Dienst übereinstimme
 | PATCH | /v1/projects/{owner}/{repo}/chapters/{chapter_id} | auch Ziel und Kurzbeschreibung allein (`chapter.texts.update`) |
 | POST | /v1/projects/{owner}/{repo}/chapters/{chapter_id}/sections | auch mehrere vorgeschlagene Abschnitte am Ende in einem Commit (`chapter.sections.add`) |
 | GET | /v1/projects/{owner}/{repo}/changes | Offene Änderungen: Arbeits-Branch, Pull Request, Commits |
+| POST | /v1/projects/{owner}/{repo}/books | Neues Buch in einer Bibliothek anlegen: Branch `buch/<slug>` vom Standard-Branch, ein Commit „Neues Buch angelegt“ (`library.book.create`, #38) |
 | POST | /v1/projects/{owner}/{repo}/changes/merge | Offene Änderungen nach Bestätigung übernehmen (`changes.merge`) |
 
 ## Projektdaten im Lese-Endpunkt

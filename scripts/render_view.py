@@ -1063,6 +1063,32 @@ def library_view(base, config, args):
                                       'UPDATED_TEXT': ''}, {'BOOKS': rows})
 
 
+
+def book_create_view(base, config, args):
+    """Formular „Neues Buch“ (#38). Vorhandene Bücher aus library.json bzw. live; --draft: gesendete Werte und error."""
+    import library
+    data = library_data(base, args)
+    books = data.get('books') or []
+    draft = json.loads(args.draft) if args.draft else {}
+    latest = sorted((b for b in books if b.get('author')), key=lambda b: b.get('updated_at') or '')
+    author = draft.get('author', latest[-1]['author'] if latest else '')
+    prefix = library.settings(library.load_manifest())['book_prefix']
+    if args.text:
+        out = ['### 📗 Neues Buch', '', 'Das Buch bekommt einen eigenen Bereich in dieser Bibliothek; danach folgt der Einstiegsdialog.', '']
+        if draft.get('error'):
+            out += [f'> ✗ {draft["error"]}', '']
+        out += field_table([('Titel (Arbeitstitel, Pflicht)', draft.get('working_title', '')),
+                            ('Kurztitel (optional)', draft.get('title_short', '')), ('Autor (optional)', author)])
+        if books:
+            out += ['', 'Schon vergeben: ' + ', '.join(f'`{b["slug"]}` ({b["branch"]})' for b in books if b.get('slug'))]
+        out += ['', f'Der Bereich heißt `{prefix}<kurztitel>`. Antworte mit `Titel: …`, optional `Kurztitel: …` und `Autor: …`. `X` bricht ab.']
+        return '\n'.join(out) + '\n'
+    return fill('buch-anlegen.html', {'BRANCH_PREFIX': prefix, 'WORKING_TITLE': draft.get('working_title', ''),
+                                      'TITLE_SHORT': draft.get('title_short', ''), 'AUTHOR': author,
+                                      'ERROR_TEXT': draft.get('error', '')},
+                {'TAKEN': [{'TAKEN_SLUG': b.get('slug') or '', 'TAKEN_BRANCH': b['branch']} for b in books]})
+
+
 WIZARD_CHOICES = Path(__file__).resolve().parent.parent / 'templates' / 'wizard-choices.yml'
 LETTERS = 'abcdef'
 
@@ -1153,7 +1179,7 @@ def choice_view(base, config, args):
                 {'QUESTIONS': questions, 'OPTIONS': options})
 
 
-FORMS = {'choice': choice_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
+FORMS = {'choice': choice_view, 'book-create': book_create_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
          'changes-merge': changes_merge_view, 'providers-edit': providers_edit_view,
@@ -1182,7 +1208,7 @@ def main():
     ap.add_argument('--upstream', help='JSON-Datei mit dem Update-Stand (behind, upstream, version, installed) für die Projektübersicht')
     ap.add_argument('--changes', help='JSON-Datei mit den offenen Änderungen (Pull Request, Branches, Commits) für Projektübersicht und changes-merge')
     ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
-    ap.add_argument('--draft', help='bei chapter-research: JSON mit noch nicht gespeicherten Werten (goal, summary, question, scope)')
+    ap.add_argument('--draft', help='bei chapter-research bzw. book-create: JSON mit noch nicht gespeicherten Werten (goal, summary, question, scope bzw. working_title, title_short, author, error)')
     ap.add_argument('--library', help='library.json vom Standard-Branch (Bücherregal; in der Projektübersicht ab 2 Büchern der Link „Bücherregal“)')
     ap.add_argument('--spec', help='bei choice: JSON-Datei oder JSON-Text mit einer eigenen Auswahl (Aufbau wie templates/wizard-choices.yml)')
     ap.add_argument('--ui-ref', help='Commit oder Branch von ghostwriter-ui statt des festen Commits aus templates/ui/ghostwriter-ui.yml (nur zum Testen)')

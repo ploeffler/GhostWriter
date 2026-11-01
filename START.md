@@ -31,6 +31,17 @@ Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`
 
 Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Repository ohne die jeweils erforderliche Freigabe, keine erfundenen Angaben über den Projektstand.
 
+### Neues Buch (Bibliothek, #38)
+
+Ein Repository kann mehrere Bücher enthalten, je Buch ein Branch `buch/<slug>` (Erkennungsregel: `scripts/library.py`). Ein neues Buch entsteht so:
+
+1. **Formular:** „Neues Buch“ im Bücherregal, der Befehl `Neues Buch` oder `Neues Buch: <Titel>` zeigen das Formular (`library.book.create.open` → `python scripts/render_view.py . book-create`; mit Titel `--draft '{"working_title":"…"}'`). Arbeitstitel ist Pflicht; der Kurztitel (sonst der Arbeitstitel) bestimmt den Branch-Namen; der Autor ist mit dem des zuletzt bearbeiteten Buchs vorbelegt. Das Formular zeigt den Namen `buch/<slug>` live und sperrt „Anlegen“, wenn Branch oder Kurztitel schon vergeben sind.
+2. **Prüfen:** Bei `library.book.create` den Namen erneut gegen die aktuellen Branches prüfen (`scripts/library.py new "<Arbeitstitel>" --short "<Kurztitel>"` bzw. über die GitHub-Verbindung). Ist er inzwischen vergeben, nichts anlegen und das Formular mit den gesendeten Werten und der Meldung zeigen (`--draft` mit `error`).
+3. **Anlegen:** Branch `buch/<slug>` vom aktuellen Head des Standard-Branchs anlegen; er bekommt damit das aktuelle Programm. Darauf **genau ein** Commit `Neues Buch angelegt: <Arbeitstitel>` (darunter `GhostWriter-Aktion: library.book.create`) mit `project.working_title`, `project.title_short` und `project.author` in `ghostwriter.yml` (Kommentare und Format bleiben) und, falls es sie auf dem Standard-Branch nicht gibt, `.ghostwriter/update.yml` mit dem Programmstand (Aufbau wie nach einem Update, `commit` = Head des Standard-Branchs). Dieser Commit geht direkt auf den neuen Branch, weil es noch kein Buch zu schützen gibt; alles Weitere läuft wie immer über den Arbeits-Branch. Lokal oder in einer Action macht das `scripts/library.py new … --create`.
+4. **Melden und weiter:** `✓ Neues Buch „<Arbeitstitel>“ angelegt (buch/<slug>), Commit abc1234`, dann auf diesem Branch mit dem Einstiegsdialog weitermachen (Abschnitt 1 ff.); Arbeitstitel und Autor sind schon bekannt und werden nicht noch einmal gefragt. Bis die Struktur übernommen ist, steht das Buch im Bücherregal als „im Aufbau“.
+
+Auch ein Branch `buch/<slug>`, den der Benutzer selbst in GitHub anlegt, ist ein Buch: Startet ein Chat mit seinem Link, beginnt dort der Einstiegsdialog. Ein Buch wird aus dem Chat nie gelöscht; wer eins nicht mehr braucht, kann den Branch in GitHub selbst archivieren oder löschen (Hinweis geben, nichts tun).
+
 ### Neuer Chat statt langem Verlauf
 
 Ein Chat lässt sich nicht leeren; jede Ansicht bleibt im Verlauf stehen. Der Projektstand liegt aber vollständig im Repository. Deshalb:
@@ -78,7 +89,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Update` | Update-Stand zeigen; ist das Buch hinter dem Hauptrepository, „Update einspielen“ anbieten |
 | `Hilfe` | diese Befehle und die Kürzel der zuletzt gezeigten Ansicht (`templates/ui/BEFUELLUNG.md`, „Textfassung“) |
 
-Befehle haben Vorrang vor Kürzeln nur, wenn sie ausgeschrieben sind (`Auflage`, nicht `A`). `Neues Buch` (Formular, #38) öffnet `library.book.create.open`.
+Befehle haben Vorrang vor Kürzeln nur, wenn sie ausgeschrieben sind (`Auflage`, nicht `A`). `Neues Buch` öffnet das Formular „Neues Buch“ (Abschnitt 0, „Neues Buch“); `Neues Buch: <Titel>` öffnet es mit dem Titel vorbelegt.
 
 ### Statusanzeige (verbindlich)
 
