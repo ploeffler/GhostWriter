@@ -8,7 +8,7 @@ provider: <ANBIETER-ID aus providers.yml>
 model: <MODELL>
 question: <FRAGESTELLUNG>
 scope: <SCHWERPUNKTE oder leer>
-goal_search: <true|false>       # Ziel des Kapitels gesucht
+task: <goal|sections|summary|leer>   # Aufgabe: Ziel recherchieren, Abschnitte erstellen, Kurzbeschreibung erstellen; leer = nur Fragestellung
 weight_prev: <0-3>              # Gewichtung vorheriges Kapitel (0 nicht, 1 abgrenzen, 2 anschließen, 3 stark)
 weight_next: <0-3>              # Gewichtung nächstes Kapitel
 context: [<KAPITEL-ID vorher>, <KAPITEL-ID nachher>]   # tatsächlich einbezogene Nachbarkapitel
@@ -43,6 +43,10 @@ Ein bis zwei Sätze: Was soll der Leser nach dem Kapitel verstanden haben?
 ## Vorschlag: Kurzbeschreibung
 
 Ein bis drei Sätze.
+
+## Vorschlag: Abschnitte
+
+Nur bei der Aufgabe „Abschnitte erstellen“: je Zeile `- Titel: Kurzbeschreibung in einem Satz`, in der vorgeschlagenen Reihenfolge. Nur neue Abschnitte; vorhandene stehen unter „Hinweise für die Abschnitte“.
 
 ## Hinweise für die Abschnitte
 

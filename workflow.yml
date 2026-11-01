@@ -167,8 +167,10 @@ runs:
     repeatable: true
     immutable: true
     path: "chapters/{chapter_id}/research/kapitel/run-{sequence}.md"
-    required_fields: [run_id, created_at, provider, model, research_question, scope, goal_search, weight_prev, weight_next, context, sources, findings, uncertainties, open_questions, suggested_goal, suggested_summary]
+    required_fields: [run_id, created_at, provider, model, research_question, scope, task, weight_prev, weight_next, context, sources, findings, uncertainties, open_questions, suggested_goal, suggested_summary]
     neighbour_weights: {0: ignore, 1: delimit, 2: connect, 3: derive}   # vorheriges/nächstes Kapitel; nie Manuskripttext
+    tasks: [goal, sections, summary]   # höchstens eine; ohne Aufgabe nur die Fragestellung
+    sections_proposal: add_only_at_end_after_user_selection   # vorhandene Abschnitte nie ändern, verschieben oder löschen
     may_modify_chapter: false
   brainstorming:
     repeatable: true
