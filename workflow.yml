@@ -25,10 +25,10 @@ product_roadmap:
   v1_0:
     purpose: full_product_expansion
     scope: complete_ghostwriter_target_capabilities
-    requires: [complete_workflow_automation, github_issue_and_milestone_orchestration, robust_approval_and_audit_controls, repeatable_research_and_fact_checking, complete_export_and_release_pipeline, workflow_validation_and_quality_gates, installable_web_app_pwa, offline_book_repository, own_backend_api, scheduled_ai_runs_and_queue, automated_cost_accounting_and_budget, usage_limits_pause_automation, front_and_back_matter]
+    requires: [complete_workflow_automation, github_issue_and_milestone_orchestration, robust_approval_and_audit_controls, repeatable_research_and_fact_checking, complete_export_and_release_pipeline, workflow_validation_and_quality_gates, installable_web_app_pwa, offline_book_repository, own_backend_api, scheduled_ai_runs_and_queue, automated_cost_accounting_and_budget, usage_limits_pause_automation, front_and_back_matter, output_options]
     # Issues: installable_web_app_pwa #35, offline_book_repository #61, own_backend_api #19,
     #   scheduled_ai_runs_and_queue #65, automated_cost_accounting_and_budget #66,
-    #   usage_limits_pause_automation #62, front_and_back_matter #57
+    #   usage_limits_pause_automation #62, front_and_back_matter #57, output_options #68
   delivery_policy:
     incremental_delivery: true
     v0_5_must_be_useful_without_v1_0_features: true
