@@ -544,7 +544,7 @@ ACCESS_TEXT = {'app': 'Chat-App oder Website', 'api': 'API-Schlüssel', 'local':
 def access_options(s, group):
     """Mögliche Zugangsarten eines Dienstes; die erste ist die Vorgabe."""
     if group == 'agent':
-        return ['github']
+        return ['github', 'api'] if s.get('api_key_secret') else ['github']
     if group == 'search':
         return ['web', 'api'] if s.get('kind') == 'scholarly_index' else ['api']
     if s.get('kind') == 'local':
@@ -553,11 +553,30 @@ def access_options(s, group):
     return [a for a in ('app', 'api', 'cli') if a in acc] or ['api']
 
 
-def service_settings(s, group, cfg):
+def secret_default(s):
+    return s.get('api_key_secret') or (re.sub(r'[^A-Z0-9]+', '_', s['id'].upper()) + '_API_KEY')
+
+
+def secrets_state(base):
+    """Welche Secrets es im Repository gibt, laut ghostwriter-index.json (von der Action ermittelt)."""
+    path = base / 'ghostwriter-index.json'
+    try:
+        return json.loads(path.read_text(encoding='utf-8')).get('secrets') or {}
+    except (OSError, ValueError):
+        return {}
+
+
+def service_settings(s, group, cfg, present=None):
     opts = access_options(s, group)
     access = cfg.get('access') if cfg.get('access') in opts else opts[0]
     cost = cfg.get('monthly_cost')
+    secret = cfg.get('api_key_secret') or secret_default(s)
+    alt = s.get('api_key_alt') or ''
+    present = present or {}
+    state = 'ok' if present.get(secret) else 'alt' if alt and present.get(alt) else ('missing' if secret in present else '')
     return {'SERVICE_ACCESS_OPTIONS': ','.join(opts), 'SERVICE_ACCESS': access,
+            'SERVICE_SECRET': secret, 'SERVICE_SECRET_DEFAULT': secret_default(s), 'SERVICE_SECRET_ALT': alt,
+            'SERVICE_KEY_URL': s.get('api_key_url') or s.get('url', ''), 'SERVICE_SECRET_STATE': state,
             'SERVICE_MODEL': cfg.get('model') or '', 'SERVICE_GITHUB': 'true' if cfg.get('github_connected') else '',
             'SERVICE_PLAN': cfg.get('plan') or '', 'SERVICE_COST': '' if cost is None else f'{cost:g}',
             'SERVICE_MEMO': cfg.get('note') or ''}
@@ -569,6 +588,7 @@ def providers_edit_view(base, config, args):
     ap = config.get('ai_providers') or {}
     available = list(ap.get('available') or [])
     settings = ap.get('services') or {}
+    present = secrets_state(base)
     def guide(s, group):
         setup = s.get('setup')
         if not setup:
@@ -599,12 +619,13 @@ def providers_edit_view(base, config, args):
             services.append({'SERVICE_ID': s['id'], 'SERVICE_NAME': s['name'], 'SERVICE_GROUP': group,
                              'SERVICE_ROLES': roles, 'SERVICE_NOTE': note, 'SERVICE_AVAILABLE': 'true' if s['id'] in available else '',
                              'SERVICE_GUIDE_URL': guide(s, group), 'SERVICE_WEBSITE_URL': s.get('url', ''),
-                             **service_settings(s, group, settings.get(s['id']) or {})})
+                             **service_settings(s, group, settings.get(s['id']) or {}, present)})
     roles = []
     for rid, label, hint in ROLE_INFO:
         entry = ap.get(rid) or {}
         value = entry.get('agent', 'manual') if rid == 'queue_processing' else entry.get('provider', '')
         roles.append({'ROLE_ID': rid, 'ROLE_LABEL': label, 'ROLE_HINT': hint, 'ROLE_VALUE': value or ''})
+    secrets_url = f'https://github.com/{args.repo}/settings/secrets/actions/new'
     if args.text:
         names = {s['SERVICE_ID']: s['SERVICE_NAME'] for s in services}
         names.update({'chat': 'Aktueller Chat', 'manual': 'manuell', '': 'wie Standard'})
@@ -612,6 +633,9 @@ def providers_edit_view(base, config, args):
         mine = [s for s in services if s['SERVICE_AVAILABLE']]
         def summary(s):
             parts = [ACCESS_TEXT[s['SERVICE_ACCESS']]]
+            if s['SERVICE_ACCESS'] == 'api':
+                st = {'ok': '✅ hinterlegt', 'alt': f'✅ über `{s["SERVICE_SECRET_ALT"]}`', 'missing': '⚠️ fehlt', '': 'Status unbekannt'}[s['SERVICE_SECRET_STATE']]
+                parts.append(f'Secret `{s["SERVICE_SECRET"]}` ({st})')
             if s['SERVICE_GROUP'] == 'llm':
                 parts.append(f'Modell: {s["SERVICE_MODEL"] or "Standard"}')
                 if s['SERVICE_ACCESS'] == 'app':
@@ -632,10 +656,13 @@ def providers_edit_view(base, config, args):
                   for s in services if not s['SERVICE_AVAILABLE']]
         lines += ['', '</details>', '', '---',
                   'Antworte je Zeile: `+ id` (Dienst habe ich), `- id` (habe ich nicht mehr), `Aufgabe: id` (zuteilen, z. B. `Recherche: perplexity`), '
-                  '`id.Einstellung: Wert` mit Zugang, Modell, GitHub (ja/nein), Tarif, Kosten (€ pro Monat) oder Notiz (z. B. `openai.Modell: gpt-5`). `X` bricht ab.']
+                  '`id.Einstellung: Wert` mit Zugang, Modell, GitHub (ja/nein), Secret (Name des GitHub-Secrets), Tarif, Kosten (€ pro Monat) oder Notiz (z. B. `openai.Modell: gpt-5`). `X` bricht ab.',
+                  '', f'🔑 API-Schlüssel nie hier in den Chat schreiben. Sie gehören als Secret in GitHub: [Secret anlegen]({secrets_url}).']
         return '\n'.join(lines) + '\n'
     connector = f'https://github.com/{args.repo}/blob/{args.branch}/docs/CONNECTOR-SETUP.md'
-    return fill('ki-dienste.html', {'CONNECTOR_GUIDE_URL': connector}, {'SERVICES': services, 'ROLES': roles})
+    keys_guide = f'https://github.com/{args.repo}/blob/{args.branch}/docs/DIENSTE-NUTZEN.md#api-schlüssel-als-github-secret'
+    return fill('ki-dienste.html', {'CONNECTOR_GUIDE_URL': connector, 'SECRETS_URL': secrets_url, 'KEYS_GUIDE_URL': keys_guide},
+                {'SERVICES': services, 'ROLES': roles})
 
 
 TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'title_page': True,

@@ -13,7 +13,7 @@ Diese Anleitung zeigt, wie du einen KI-Dienst, den du schon hast, für eine Aufg
 | Der Chat, in dem du mit GhostWriter arbeitest | [Weg 1](#weg-1-der-chat-in-dem-du-arbeitest) | keiner |
 | Ein anderer Chat-Dienst mit App oder Website (z. B. ChatGPT, Gemini, Perplexity, Le Chat, Copilot, Grok) | [Weg 2](#weg-2-ein-anderer-chat-dienst-auftrag-kopieren) | pro Auftrag einmal kopieren und einfügen |
 | Ein Modell auf deinem eigenen Rechner (Ollama, LM Studio) | [Weg 3](#weg-3-lokale-modelle-auf-deinem-rechner) | wie Weg 2, aber ohne Internetrecherche |
-| Ein Dienst nur mit API-Schlüssel (z. B. Cohere, OpenRouter, Amazon Bedrock, Azure, Vertex AI) | [Weg 4](#weg-4-dienste-nur-mit-api-schlüssel) | technisch; vorerst nicht direkt aus dem Chat |
+| Ein Dienst nur mit API-Schlüssel (z. B. Cohere, OpenRouter, Amazon Bedrock, Azure, Vertex AI) | [Weg 4](#weg-4-dienste-nur-mit-api-schlüssel) | technisch; Schlüssel als [GitHub-Secret](#api-schlüssel-als-github-secret), vorerst nicht direkt aus dem Chat |
 | Eine Recherchequelle (z. B. Semantic Scholar, OpenAlex, Brave Search) | [Recherchequellen](#recherchequellen) | je nach Quelle |
 | Ein Agent für die Aufgaben-Warteschlange (z. B. GitHub Copilot, Claude Code, Codex, Jules) | [Agenten](#agenten-für-die-aufgaben-warteschlange) | Einrichtung in GitHub |
 
@@ -66,16 +66,37 @@ Manche Dienste haben keine Chat-Oberfläche, sondern nur eine Programmierschnitt
 Möglichkeiten:
 
 - Viele dieser Anbieter haben zusätzlich eine Test- oder Chat-Seite („Playground“). Dort kannst du wie bei [Weg 2](#weg-2-ein-anderer-chat-dienst-auftrag-kopieren) einen Auftrag einfügen.
-- Die direkte Anbindung über API-Schlüssel ist für eine spätere Version mit eigener GhostWriter-Schnittstelle vorgesehen (Issue #19).
+- Den Schlüssel kannst du schon jetzt sicher als [GitHub-Secret](#api-schlüssel-als-github-secret) hinterlegen. Die direkte Anbindung aus dem Chat ist für eine spätere Version mit eigener GhostWriter-Schnittstelle vorgesehen (Issue #19).
 
 Für den Einstieg empfehlen wir diese Dienste nicht.
+
+## API-Schlüssel als GitHub-Secret
+
+Für die Arbeit im Chat brauchst du **keinen** API-Schlüssel: ChatGPT und Claude laufen über dein Konto bzw. Abo in der App. Ein Schlüssel ist nur nötig, wenn ein Dienst **ohne dich** arbeiten soll, etwa ein Agent in GitHub Actions, der Aufgaben aus der Warteschlange abarbeitet, oder eine Such-API.
+
+**Grundregel:** Ein API-Schlüssel gehört **nie** in einen Chat, in ein Formular, in eine Datei oder in einen Commit. Chats werden gespeichert, Repositorys geteilt. Der Schlüssel liegt ausschließlich als verschlüsseltes **Secret** in deinem GitHub-Repository. GhostWriter speichert nur den **Namen** des Secrets (`api_key_secret`), nie den Wert.
+
+So legst du ihn an:
+
+1. **Zugang wählen:** Im Formular **KI-Dienste** beim Dienst auf **Einstellungen** (direkt neben dem Namen) und als Zugang **API-Schlüssel** wählen. Darunter steht der Name des Secrets, z. B. `OPENAI_API_KEY`; meist passt der Vorschlag.
+2. **Schlüssel erstellen:** Link **„1. Schlüssel beim Anbieter erstellen“** öffnen, dort einen neuen Schlüssel anlegen und kopieren. Viele Anbieter zeigen ihn nur einmal an. Lege nach Möglichkeit ein Ausgabenlimit fest.
+3. **In GitHub hinterlegen:** Link **„2. In GitHub als Secret hinterlegen“** öffnen (Repository → *Settings → Secrets and variables → Actions → New repository secret*). Als **Name** genau den Namen aus dem Formular eintragen, als **Secret** den Schlüssel einfügen, **Add secret**. Dafür brauchst du Admin-Rechte am Repository.
+4. **Speichern:** Im Formular **Speichern**. Die Action „Übersichtsdatei aktualisieren“ prüft danach, ob das Secret vorhanden ist; das Formular zeigt **hinterlegt** oder **fehlt in GitHub**. Sie liest dafür nur die Namen der Secrets, nie die Werte. Hast du das Secret erst nach dem Speichern angelegt, startest du die Prüfung unter *Actions → Übersichtsdatei aktualisieren → Run workflow* oder speicherst das Formular erneut.
+
+Gut zu wissen:
+
+- **Versehentlich in den Chat kopiert?** Den Schlüssel beim Anbieter sofort löschen und einen neuen erstellen. GhostWriter speichert ihn nicht, aber er steht im Verlauf.
+- **Wer nutzt das Secret?** Nur GitHub Actions bzw. Agenten in deinem Repository. Der Chat kann Secrets weder lesen noch anlegen.
+- **Abo statt Schlüssel bei Claude Code:** Mit einem Claude-Pro- oder -Max-Abo kannst du statt `ANTHROPIC_API_KEY` ein Token anlegen: auf deinem Rechner `claude setup-token` ausführen und das Ergebnis als Secret `CLAUDE_CODE_OAUTH_TOKEN` hinterlegen. Eines der beiden genügt.
+- **OpenAI Codex:** Die Codex-Action in GitHub braucht einen API-Schlüssel (`OPENAI_API_KEY`). Codex in ChatGPT (Cloud) arbeitet dagegen über dein ChatGPT-Abo und die Verbindung zu GitHub, ohne Schlüssel.
+- **Plattformen** wie Amazon Bedrock, Azure oder Vertex AI brauchen oft mehrere Zugangsdaten (z. B. Endpunkt und Region); trag den Hauptschlüssel ein und notiere den Rest in der **Notiz** (ohne geheime Werte).
 
 ## Recherchequellen
 
 Recherchequellen liefern Treffer und Belege, schreiben aber keine Texte. Sie ergänzen den Dienst, der die Recherche macht.
 
 - **Kostenlose Kataloge wissenschaftlicher Literatur** (Semantic Scholar, OpenAlex): Hakst du sie an, nennt GhostWriter sie im Rechercheauftrag, und der Recherche-Dienst durchsucht sie über seine Websuche. Kein Konto nötig.
-- **Such-APIs mit Schlüssel** (Brave Search, Tavily, Exa, Parallel, Perplexity Sonar, SerpAPI): brauchen einen API-Schlüssel und lassen sich erst mit der eigenen Schnittstelle nutzen ([Weg 4](#weg-4-dienste-nur-mit-api-schlüssel)). Du kannst sie schon eintragen, damit sie später verwendet werden.
+- **Such-APIs mit Schlüssel** (Brave Search, Tavily, Exa, Parallel, Perplexity Sonar, SerpAPI): brauchen einen API-Schlüssel und lassen sich erst mit der eigenen Schnittstelle nutzen ([Weg 4](#weg-4-dienste-nur-mit-api-schlüssel)). Du kannst sie schon eintragen und den Schlüssel als [GitHub-Secret](#api-schlüssel-als-github-secret) hinterlegen, damit sie später verwendet werden.
 
 ## Agenten für die Aufgaben-Warteschlange
 
@@ -84,14 +105,14 @@ Die Warteschlange sind Aufgaben als Issues in GitHub (z. B. „Quelle in Abschni
 Wenn du einen Agenten schon nutzt (zum Beispiel über ein GitHub-Copilot-Abo):
 
 1. Trag ihn im Formular **KI-Dienste** ein und wähl ihn bei **Aufgaben-Warteschlange** aus.
-2. Die Einrichtung passiert beim Anbieter und in GitHub; folge dem Link **Website** im Formular. Meist weist man dem Agenten danach ein Issue in GitHub zu.
+2. Die Einrichtung passiert beim Anbieter und in GitHub; folge dem Link **Website** im Formular. Meist weist man dem Agenten danach ein Issue in GitHub zu. Läuft der Agent als GitHub Action (z. B. Claude Code, Codex-Action, Gemini CLI), wähl unter **Einstellungen** den Zugang **API-Schlüssel** und hinterleg den Schlüssel als [GitHub-Secret](#api-schlüssel-als-github-secret). Agenten, die du in GitHub direkt zuweist (Copilot, Partner-Agenten), brauchen keinen eigenen Schlüssel.
 3. Was der Agent ändert, kommt als Pull Request. **Freigaben bleiben immer bei dir im Chat**; ein Agent kann nichts freigeben, und ein geschlossenes Issue ist keine Freigabe.
 
 ## Einen Dienst später hinzufügen
 
 1. Projektübersicht → Roboter-Symbol **KI-Dienste**.
 2. **Weitere Dienste hinzufügen** aufklappen und den Dienst abhaken. Daneben führt **Anleitung** hierher (oder zur passenden Einrichtung) und **Website** zum Anbieter.
-3. Unter **Einstellungen** beim Dienst festhalten, wie du ihn nutzt: **Zugang** (Chat-App oder Website, API-Schlüssel, auf meinem Rechner …), **Modell** (leer = Standard), **Mit GitHub verbunden** (nur wenn du für diese App die [Verbindung](CONNECTOR-SETUP.md) eingerichtet hast), **Tarif**, **Kosten pro Monat** und eine **Notiz**. Aus dem Zugang ergibt sich, welcher Weg oben gilt.
+3. Unter **Einstellungen** (neben dem Namen des Dienstes) festhalten, wie du ihn nutzt: **Zugang** (Chat-App oder Website, API-Schlüssel, auf meinem Rechner …; bei API-Schlüssel der Name des [GitHub-Secrets](#api-schlüssel-als-github-secret)), **Modell** (leer = Standard), **Mit GitHub verbunden** (nur wenn du für diese App die [Verbindung](CONNECTOR-SETUP.md) eingerichtet hast), **Tarif**, **Kosten pro Monat** und eine **Notiz**. Aus dem Zugang ergibt sich, welcher Weg oben gilt.
 4. Bei den Aufgaben auswählen, was der neue Dienst übernehmen soll.
 5. **Speichern.** Die Änderung kommt wie jede andere in den Arbeits-Branch und gilt nach „Änderungen übernehmen“.
 

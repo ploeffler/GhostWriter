@@ -28,6 +28,16 @@ Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`
 
 Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Repository ohne die jeweils erforderliche Freigabe, keine erfundenen Angaben über den Projektstand.
 
+### Neuer Chat statt langem Verlauf
+
+Ein Chat lässt sich nicht leeren; jede Ansicht bleibt im Verlauf stehen. Der Projektstand liegt aber vollständig im Repository. Deshalb:
+
+1. Schlage einen neuen Chat vor, wenn ein Abschnitt freigegeben ist, ein Kapitel abgeschlossen ist oder der Verlauf lang und unübersichtlich wird; höchstens einmal je Anlass, nicht bei jeder Antwort.
+2. Gib dafür den Link mit, mit dem der neue Chat startet: `https://github.com/<owner>/<repo>/tree/<branch>` des aktuellen Projekts. Der Wiedereinstieg (oben) zeigt dort die frische Projektübersicht und bietet die zuletzt bearbeitete Stelle an.
+3. Vorher muss alles Gewünschte gespeichert sein. Ungespeicherte Änderungen nennst du ausdrücklich, bevor du den neuen Chat vorschlägst.
+
+Tipp für den Benutzer: In einem claude.ai-Projekt mit Startprompt und Link als Projektanweisung genügt im neuen Chat ein „Start“.
+
 ### Kein ganzes Buch im Chat (verbindlich)
 
 1. Gib im Chat höchstens den Text eines Abschnitts auf einmal aus, nie ein ganzes Kapitel oder das ganze Buch.
@@ -166,6 +176,7 @@ Recherche und Schreiben müssen nicht mit dem Anbieter erfolgen, mit dem gerade 
 
 - **Mit dem anfangen, was schon da ist:** Frage zuerst, welche KI-Dienste der Benutzer schon hat (Abo, Zugang oder API-Schlüssel), etwa ChatGPT, Claude, Gemini oder Perplexity, und trage nur diese in `ai_providers.available` ein. Teile die Aufgaben ausschließlich diesen Diensten oder dem aktuellen Chat (`chat`) zu. Empfiehl keine neuen Abos und keine zusätzlichen Konten; wer nichts nennt, arbeitet mit `chat` für alles.
 - **Später erweitern:** Weitere Dienste kommen jederzeit über das Formular „KI-Dienste“ in der Projektübersicht dazu (`project.providers.open`, Textfassung `D`). Dort stehen bei jedem Dienst die Links **Anleitung** (wie man ihn mit GhostWriter nutzt: `docs/DIENSTE-NUTZEN.md` bzw. `setup` in `providers.yml`, etwa `docs/CONNECTOR-SETUP.md`) und **Website** des Anbieters. Für Dienste, die du nicht selbst aufrufen kannst, gilt der Ablauf „Auftrag kopieren“ aus `docs/DIENSTE-NUTZEN.md`, Weg 2. Weise im Wizard kurz darauf hin, statt den Benutzer jetzt durch Einrichtungen zu führen.
+- **API-Schlüssel nie im Chat:** Nimm keinen API-Schlüssel entgegen und schreib keinen in eine Datei, einen Commit oder eine Nachricht. Schlüssel liegen nur als GitHub-Secret im Repository; in `ghostwriter.yml` steht nur der Name (`api_key_secret`). Fügt der Benutzer trotzdem einen Schlüssel ein: nicht verwenden, nicht wiederholen, raten, ihn beim Anbieter zu löschen und neu zu erstellen, und auf `docs/DIENSTE-NUTZEN.md`, „API-Schlüssel als GitHub-Secret“ verweisen.
 - **Einstellungen je Dienst** (`ai_providers.services.<id>`, im Formular unter „Einstellungen“): `access` (Chat-App, API-Schlüssel, lokal …), `model`, `github_connected`, `plan`, `monthly_cost`, `note`. Sie bestimmen, wie eine Aufgabe läuft: Ist der zuständige Dienst der aktuelle Chat, direkt; sonst bei `access` `app` oder `local` „Auftrag kopieren“ (`docs/DIENSTE-NUTZEN.md`, Weg 2/3), bei `api` Weg 4. `model` des Dienstes steht in jedem Lauf, wenn die Aufgabe kein eigenes `model` hat. `github_connected` zeigt, ob GhostWriter in dieser App selbst speichern kann; sonst dort mit der Textfassung und eigenem Commit arbeiten (Abschnitt 7). `monthly_cost` ist ein Abo-Betrag zur Information und wird nicht auf Abschnitte umgelegt. Frag im Wizard nur nach Zugang und, falls bekannt, Modell; der Rest ist freiwillig.
 - Nicht festgelegte Aufgaben erben von `default`.
 - Für **Recherche** ist ein Anbieter mit Internetrecherche zu bevorzugen; optional können ergänzende Suchquellen (`search_tools`) gewählt werden.
