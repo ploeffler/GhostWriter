@@ -23,8 +23,9 @@ Danach liegt kein Branch mehr hinter dem Hauptrepository; GitHubs Hinweis
 „This branch is N commits behind …“ verschwindet.
 
 Welche Branches: im Fork bzw. eigenen Buch-Repository alle Branches. Im
-Hauptrepository selbst nur Buch-Branches mit Kapiteln (z. B. test/test-book),
-nie update.skip_branches.
+Hauptrepository selbst nur Bücher nach der Erkennungsregel aus scripts/library.py
+(buch/*-Branches, sonst Branches mit Kapiteln wie test/test-book), nie
+update.skip_branches.
 
 --status FILE schreibt je Branch behind/ahead/Ergebnis als JSON (für Tests und
 die Projektübersicht).
@@ -41,7 +42,6 @@ Umgebung:
 """
 import argparse
 import datetime
-import fnmatch
 import json
 import os
 import re
@@ -53,6 +53,9 @@ import urllib.request
 from pathlib import Path
 
 import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import library  # noqa: E402  Erkennungsregel der Bibliothek
 
 MANIFEST = 'ghostwriter-manifest.yml'
 STATE = '.ghostwriter/update.yml'
@@ -326,13 +329,13 @@ def branches(manifest, same_repo, upstream_ref, only):
         return [only]
     if not same_repo:
         return sorted(names, key=lambda n: (n != default_branch(), n))
-    skip = (manifest.get('update') or {}).get('skip_branches') or []
     out = []
     for name in names:
-        if name == upstream_ref or any(fnmatch.fnmatch(name, pat) for pat in skip):
+        if name == upstream_ref:
             continue
-        cfg = yaml.safe_load(show(f'origin/{name}', 'ghostwriter.yml') or '{}') or {}
-        if (cfg.get('structure') or {}).get('chapters'):
+        text = show(f'origin/{name}', 'ghostwriter.yml')
+        cfg = (yaml.safe_load(text) or {}) if text is not None else None
+        if library.is_book(name, cfg, manifest):   # Erkennungsregel der Bibliothek (#36)
             out.append(name)
     return out
 

@@ -42,6 +42,14 @@ jobs:
           done
           python scripts/validate_project.py $projects
 
+      - name: Bibliothek prüfen (Kurztitel eindeutig)
+        # Alle Branches holen; jedes Buch braucht einen eigenen Kurztitel (#36)
+        run: |
+          [ -f scripts/library.py ] || exit 0
+          git fetch -q --depth=1 origin '+refs/heads/*:refs/remotes/origin/*' || true
+          python scripts/library.py list
+          python scripts/library.py check
+
       - name: Übersichtsdatei prüfen
         # Nur Hinweis, kein Fehler: Die Action „Übersichtsdatei aktualisieren“
         # erzeugt die Datei nach demselben Push neu.
