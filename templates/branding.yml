@@ -10,6 +10,23 @@
 # Kein Logo von Claude oder Anthropic: Die Markenrichtlinien erlauben Logos nur
 # mit ausdrücklicher Freigabe (https://www.anthropic.com/legal/trademark-guidelines).
 # Kein ™-Zeichen, keine Formulierung, die eine Partnerschaft nahelegt.
+# Eigenes Logo von GhostWriter (Feder mit Schreibspur; Orange, Mittelgrün, Grau),
+# erzeugt mit scripts/make_logo.py. Schriftzug aus Inter SemiBold (SIL OFL) als Pfade.
+logo:
+  mark: assets/logo.svg                     # Zeichen, heller Hintergrund
+  mark_dark: assets/logo-dark.svg           # Zeichen, dunkler Hintergrund
+  wordmark: assets/logo-wortmarke.svg       # Zeichen mit Schriftzug „GhostWriter“
+  wordmark_dark: assets/logo-wortmarke-dark.svg
+  icon: assets/icon.svg                     # App-Symbol (dunkelgrau, farbige Feder)
+  icons_png: [assets/icon-16.png, assets/icon-32.png, assets/icon-48.png, assets/icon-180.png, assets/icon-192.png, assets/icon-512.png]
+  icon_maskable: assets/icon-maskable-512.png   # PWA, Sicherheitszone für runde Masken (#35)
+  favicon: assets/favicon.ico
+colors:
+  orange: "#F07F2E"
+  green: "#4F9D69"
+  gray: "#6B7280"
+  gray_dark: "#374151"
+  gray_light: "#F3F4F6"
 credit:
   text: "Entwickelt mit Unterstützung von Claude (Anthropic)"
   url: "https://claude.ai"

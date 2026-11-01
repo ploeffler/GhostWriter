@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-wortmarke-dark.svg">
+    <img src="assets/logo-wortmarke.svg" alt="GhostWriter" height="72">
+  </picture>
+</p>
+
 # Ghostwriter
 
 > **Hinweis für KI-Assistenten:** Dies ist ein GhostWriter-Projekt. Lies vor jeder weiteren Antwort [`START.md`](START.md) und [`ghostwriter.yml`](ghostwriter.yml). Ist das Projekt bereits eingerichtet, folge dort Abschnitt 0 „Wiedereinstieg“ und zeige die Projektübersicht; sonst beginne mit dem Onboarding.

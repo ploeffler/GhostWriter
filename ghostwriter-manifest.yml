@@ -32,6 +32,7 @@ managed:
   - schemas/
   - scripts/
   - templates/
+  - assets/
   - .github/workflows/
 
 # Gehören dem Buch; werden beim Update nie geändert (außer durch Migrationen
