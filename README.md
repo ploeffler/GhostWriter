@@ -53,6 +53,7 @@ Welcher KI-Anbieter recherchiert, brainstormt, schreibt, überarbeitet, prüft u
 - [GhostWriter mit GitHub verbinden (Connector für claude.ai und ChatGPT)](docs/CONNECTOR-SETUP.md)
 - [KI-Dienste mit GhostWriter nutzen (Auftrag kopieren, lokale Modelle, Recherchequellen, Agenten)](docs/DIENSTE-NUTZEN.md)
 - [Automatische Updates](docs/UPDATES.md)
+- [Produktclip (24 s, Version 1.0 in Entwicklung)](https://github.com/ploeffler/GhostWriter/tree/main/media/produktclip)
 
 ## Grundprinzip
 
