@@ -106,7 +106,7 @@ Was jedes Formular schreibt:
 | Freigabe bestätigen | `approval.confirm` | Abschnittsdatei (`approvals`, Status) bzw. `ghostwriter.yml` (Kapitelstatus), Status in der Kapitel-README, neuer Eintrag in `approvals.yml` | `Abschnitt N.M freigegeben`, `Schreiben für Abschnitt N.M freigegeben`, `Kapitel N freigegeben`; beim Zurücknehmen `Freigabe … zurückgenommen` | ausdrückliche Bestätigung (siehe „Freigaben“) | `POST`/`DELETE …/sections/{section_id}/writing-approval`, `…/sections/{section_id}/approve`, `…/chapters/{chapter_id}/approve` |
 | Änderungen übernehmen | `changes.merge` | – (Merge des Pull Requests) | Merge-Commit `GhostWriter: N Änderungen übernommen` | ausdrückliche Bestätigung | `POST …/changes/merge` |
 
-Ausnahmen: KI-Läufe (`run.start`, ab v0.4) schreiben Lauf-Datei, Kosten und Abschnittsstatus nach denselben Regeln in den Arbeits-Branch. Eine neue Auflage (`edition.create`) bekommt einen eigenen Pull Request, nicht den Arbeits-Branch. Kein Formular und keine Schreibregel gibt mehr als den Text eines Abschnitts im Chat aus.
+Ausnahmen: KI-Läufe (`run.start`, ab v0.4) schreiben Lauf-Datei und Abschnittsstatus nach denselben Regeln in den Arbeits-Branch (Ablauf: „KI-Lauf „Sofort““); einen Kosteneintrag nur, wenn der Lauf kostenpflichtige KI-API-Aufrufe über das Backend gemacht hat. Eine neue Auflage (`edition.create`) bekommt einen eigenen Pull Request, nicht den Arbeits-Branch. Kein Formular und keine Schreibregel gibt mehr als den Text eines Abschnitts im Chat aus.
 
 ### Freigaben (verbindlich)
 

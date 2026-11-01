@@ -27,19 +27,22 @@ chapters:
     status: in_progress
     sections: {1: ready_for_approval}
 
-# Kosteneinträge je Abschnitt (Kapitel.Abschnitt) und projektweit.
+# Kosteneinträge je Abschnitt (Kapitel.Abschnitt) und projektweit: synthetische
+# Backend-API-Kosten (source: backend_api, synthetic: true). Chat-Arbeit über
+# Abos erzeugt keine Kosten (#13); diese Einträge stellen erfundene
+# Backend-Aufrufe dar, damit Summen und Anzeigen getestet werden können.
 costs:
   "1.1":
-    - {activity_id: act-test-001, occurred_at: "2026-10-20T09:15:00+02:00", provider: chat, model: "", activity_type: research, currency: EUR, cost_amount: 0.18, cost_status: actual}
-    - {activity_id: act-test-002, occurred_at: "2026-10-20T10:40:00+02:00", provider: chat, model: "", activity_type: writing, currency: EUR, cost_amount: 0.42, cost_status: estimated}
+    - {activity_id: act-test-001, occurred_at: "2026-10-20T09:15:00+02:00", source: backend_api, synthetic: true, provider: openai, model: "gpt-5", activity_type: research, currency: EUR, cost_amount: 0.18, cost_status: actual}
+    - {activity_id: act-test-002, occurred_at: "2026-10-20T10:40:00+02:00", source: backend_api, synthetic: true, provider: anthropic, model: "claude-sonnet", activity_type: writing, currency: EUR, cost_amount: 0.42, cost_status: estimated}
   "1.4":
-    - {activity_id: act-test-003, occurred_at: "2026-10-22T14:05:00+02:00", provider: perplexity, model: "", activity_type: fact_check, currency: EUR, cost_amount: 1.20, cost_status: manually_entered}
-    - {activity_id: act-test-004, occurred_at: "2026-10-22T15:30:00+02:00", provider: chat, model: "", activity_type: brainstorming, currency: EUR, cost_amount: null, cost_status: unavailable}
+    - {activity_id: act-test-003, occurred_at: "2026-10-22T14:05:00+02:00", source: backend_api, synthetic: true, provider: perplexity, model: "sonar", activity_type: fact_check, currency: EUR, cost_amount: 1.20, cost_status: actual}
+    - {activity_id: act-test-004, occurred_at: "2026-10-22T15:30:00+02:00", source: backend_api, synthetic: true, provider: openai, model: "gpt-5", activity_type: brainstorming, currency: EUR, cost_amount: null, cost_status: unavailable}
   "2.4":
-    - {activity_id: act-test-005, occurred_at: "2026-10-28T11:00:00+01:00", provider: chat, model: "", activity_type: writing, currency: EUR, cost_amount: 0.35, cost_status: estimated}
-    - {activity_id: act-test-006, occurred_at: "2026-10-29T16:20:00+01:00", provider: chat, model: "", activity_type: revision, currency: EUR, cost_amount: 0.12, cost_status: estimated}
+    - {activity_id: act-test-005, occurred_at: "2026-10-28T11:00:00+01:00", source: backend_api, synthetic: true, provider: anthropic, model: "claude-sonnet", activity_type: writing, currency: EUR, cost_amount: 0.35, cost_status: estimated}
+    - {activity_id: act-test-006, occurred_at: "2026-10-29T16:20:00+01:00", source: backend_api, synthetic: true, provider: anthropic, model: "claude-sonnet", activity_type: revision, currency: EUR, cost_amount: 0.12, cost_status: estimated}
   project:
-    - {activity_id: act-test-007, occurred_at: "2026-10-15T18:00:00+02:00", provider: chat, model: "", activity_type: other, currency: EUR, cost_amount: 2.50, cost_status: manually_entered, note: "Strukturentwurf im Wizard"}
+    - {activity_id: act-test-007, occurred_at: "2026-10-15T18:00:00+02:00", source: backend_api, synthetic: true, provider: anthropic, model: "claude-sonnet", activity_type: other, currency: EUR, cost_amount: 2.50, cost_status: actual, note: "Strukturentwurf über das Backend"}
 
 # Erschienene Auflagen (werden als Tag und Release angelegt).
 editions:

@@ -48,6 +48,14 @@ book_releases:
 cost_tracking:
   enabled: true
   purpose: transparent_ai_activity_cost_accounting
+  # Entschieden am 31.10.2026 (#13): Erfasst werden ausschließlich zusätzliche,
+  # verbrauchsabhängige KI-API-Kosten für Anbieteraufrufe über das
+  # GhostWriter-Backend (Cloudflare). Chat-Arbeit über bestehende Abos erzeugt
+  # keinen Kosteneintrag und keine Schätzung.
+  scope:
+    records: backend_ai_api_calls
+    excludes: [chat_work_via_subscription, administrative_backend_requests, cloudflare_operating_costs, chat_subscription_fees]
+    run_history_separate: true
   project_currency: EUR
   currency_is_configurable: true
   attribution:
@@ -60,7 +68,9 @@ cost_tracking:
   activity_record:
     immutable: true
     one_record_per_ai_activity: true
-    required_fields: [activity_id, occurred_at, provider, model, activity_type, section_id, currency, cost_amount, cost_status]
+    required_fields: [activity_id, occurred_at, source, provider, model, activity_type, section_id, currency, cost_amount, cost_status]
+    source_values: [backend_api, legacy_chat_estimate]   # legacy_chat_estimate zählt nicht mit
+    provenance_fields: [run_id, request_id, synthetic]
     optional_usage_fields: [input_tokens, output_tokens, cached_input_tokens, reasoning_tokens, image_units, audio_units, other_usage_quantity]
     pricing_fields: [pricing_basis, input_unit_price, output_unit_price, cached_input_unit_price, pricing_source, pricing_checked_at]
     cost_status_values: [actual, estimated, manually_entered, unavailable]
@@ -84,12 +94,15 @@ cost_tracking:
     refresh_after_each_record: true
   v0_5:
     scope: basic_cost_tracking
-    includes: [manual_cost_entry, optional_token_and_usage_entry, section_attribution, chapter_subtotals, project_total, actual_vs_estimated_label]
+    includes: [backend_api_cost_entry, optional_token_and_usage_entry, section_attribution, chapter_subtotals, project_total, actual_vs_estimated_label]
+    cost_display_optional: true   # Kostenanzeigen sind keine Voraussetzung für Chat-Arbeit
   v1_0:
     scope: automated_cost_accounting
     includes: [provider_usage_import, model_specific_price_calculation, automatic_activity_attribution, currency_conversion, detailed_cost_reports, budget_thresholds_and_alerts]
   invariants:
-    - every_billable_ai_activity_must_be_recorded_or_marked_unavailable
+    - every_billable_backend_ai_api_call_must_be_recorded_or_marked_unavailable
+    - chat_work_via_subscription_creates_no_cost_entry
+    - legacy_chat_estimates_are_not_counted
     - every_section_activity_must_reference_a_stable_section_id
     - chapter_and_project_totals_are_derived_not_manually_duplicated
     - estimated_costs_must_never_be_presented_as_actual_costs
