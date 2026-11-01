@@ -182,6 +182,24 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `LAST_RUN`, `LAST_RUN_ID`, `LAST_RUN_TEXT` | letzter Lauf: `true`, `id`, Abschnitt `## Kurzfassung`; ohne Lauf entfällt der Ergebnisbereich |
 | `SUGGESTED_GOAL`, `SUGGESTED_SUMMARY` | `## Vorschlag: Ziel des Kapitels` und `## Vorschlag: Kurzbeschreibung` des letzten Laufs; leer = kein Vorschlag |
 
+### `buecherregal.html`
+
+Startseite einer Bibliothek. Erzeugt mit `render_view.py library --library library.json` aus der Übersicht `library.json` auf dem Standard-Branch (`scripts/library.py build`, Action „Bücherregal aktualisieren“); fehlt sie, live aus den Branches.
+
+| Platzhalter | Quelle |
+|---|---|
+| `LIBRARY_NAME` | `owner/repo` (`--repo`) |
+| `BOOK_COUNT_TEXT`, `EMPTY` | Zahl der Bücher („1 Buch“, „2 Bücher“); `EMPTY` = `1` ohne Buch |
+| `UPDATED_TEXT` | derzeit leer (Bereich entfällt) |
+| Block `BOOKS`: `BOOK_BRANCH`, `BOOK_TITLE`, `BOOK_TITLE_SHORT`, `BOOK_AUTHOR_TEXT` | je Buch aus `library.json`: `branch`, `title`, `title_short`, „von <author>“ |
+| `BOOK_STATE`, `BOOK_STATE_TEXT` | `status`: `ready` „eingerichtet“ (hat Kapitel) bzw. `setup` „im Aufbau“ |
+| `BOOK_PROGRESS`, `BOOK_PROGRESS_TEXT` | Anteil `sections_approved`/`sections_total` in Prozent; „N von M Abschnitten freigegeben · K von L Kapiteln“, im Aufbau „Gliederung noch offen“ |
+| `BOOK_EDITION_TEXT`, `BOOK_COST` | `current_edition` („Auflage N“ bzw. „noch keine Auflage“), `cost.text` |
+| `BOOK_PENDING_TEXT` | `pending` > 0: „N Änderungen offen“ (Commits im Arbeits-Branch), sonst leer |
+| `BOOK_UPDATED_TEXT` | „zuletzt geändert am TT.MM.JJJJ“ bzw. „angelegt am …“ aus `updated_at` |
+
+In der Projektübersicht kommt `LIBRARY_COUNT` (Zahl der Bücher, nur ab 2, sonst leer) aus derselben Datei (`--library`).
+
 ### `auswahl.html`
 
 Auswahlkarten für feste Antwortmöglichkeiten im Einstiegsdialog (`START.md`, Abschnitt 4, „Auswahlkarten“) und in anderen geführten Dialogen. Erzeugt mit `render_view.py choice wizard.N` aus `templates/wizard-choices.yml` oder mit `--spec` für eine eigene Auswahl.
@@ -279,7 +297,8 @@ Gestaltung:
 
 | Ansicht | Kürzel |
 |---|---|
-| Projektübersicht | `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
+| Bücherregal | `1`–`N` Buch öffnen · `N` Neues Buch |
+| Projektübersicht | `L` Bücherregal (nur ab zwei Büchern) · `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
 | Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `B` Kapitel bearbeiten · `Z` Ziel, Kurzbeschreibung, Kapitelrecherche · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `FK` Kapitel freigeben (nur wenn möglich) · `Ü` Übersicht |
 | Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` Abschnitt freigeben bzw. zurücknehmen · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
 | Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Änderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · Auswahl: `1b, 2a` (Frage und Buchstabe; bei Mehrfachauswahl `2a c`), eigene Antwort `1: Text`, `S` überspringt (nur wenn angeboten) · Kapitelrecherche: `Ziel: …`, `Kurzbeschreibung: …`, `Frage: …`, `Schwerpunkte: …`, `Aufgabe: Ziel|Abschnitte|Kurzbeschreibung|keine`, `Vorher: 0–3`, `Nachher: 0–3`, `VZ`/`VK` Vorschlag übernehmen, `AS 1, 3` vorgeschlagene Abschnitte anlegen · KI-Dienste: `+ id`, `- id`, `Aufgabe: id` · `X` bricht ab |
@@ -317,6 +336,9 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `view.project` | – | Projektübersicht zeigen | Vorlage `projektuebersicht` (`render_view.py project`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.chapter` | `chapter_id` | Kapitelansicht zeigen | Vorlage `kapitelansicht` (`render_view.py chapter N`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.section` | `section_id` | Abschnittsformular zeigen | Vorlage `abschnitt-bearbeiten` (`render_view.py section N.M`) | `GET /v1/projects/{owner}/{repo}` |
+| `view.library` | – | Bücherregal zeigen | Vorlage `buecherregal` (`render_view.py library --library library.json`) | – |
+| `library.book.open` | `branch` | Buch aus dem Bücherregal öffnen | Branch als Buch-Branch übernehmen, Projektübersicht zeigen; Buch im Aufbau: Einstiegsdialog fortsetzen | `GET /v1/projects/{owner}/{repo}` |
+| `library.book.create.open` | – | Formular „Neues Buch“ zeigen (#38) | bis zum Formular: Arbeitstitel und Kurztitel im Gespräch erfragen, Namen mit `scripts/library.py name` prüfen | – |
 | `project.edit` | – | Formular „Projektdaten bearbeiten“ zeigen | Vorlage `projektdaten-bearbeiten` (`render_view.py project-edit`) | – |
 | `project.update` | `title`, `title_short`, `author`, `description_short`, `description`, `expected_head_sha` | Projektdaten speichern | in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH /v1/projects/{owner}/{repo}` |
 | `project.settings.open` | – | Projekteinstellungen zeigen | Vorlage `projekteinstellungen` (`render_view.py project-settings`) | – |

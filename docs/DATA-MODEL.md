@@ -238,6 +238,8 @@ Seit v0.6 (#36) kann ein Repository mehrere Bücher enthalten. Jedes Buch liegt 
 
 **Eindeutigkeit:** Ein Kurztitel bzw. sein Slug darf in einer Bibliothek nur einmal vorkommen, weil die Auflagen-Tags (`<slug>-auflage-N`) sonst kollidieren. `python scripts/library.py name "<Kurztitel>"` prüft das vor dem Anlegen, `python scripts/library.py check` prüft die ganze Bibliothek (in `validate.yml`). Freigaben, Kosten, Auflagen und alle Schreibregeln gelten je Buch-Branch unverändert.
 
+**Bücherregal** (`library.json` auf dem Standard-Branch, #37): `python scripts/library.py build` schreibt je Buch `branch`, `title`, `title_short`, `slug`, `author`, `status` (`ready` | `setup`), `current_edition`, `chapters_total`/`chapters_approved`, `sections_total`/`sections_approved`, `cost` (wie in der Übersichtsdatei), `pending` (Commits im Arbeits-Branch) und `updated_at` (letzter Commit). Kein Manuskripttext. Die Action „Bücherregal aktualisieren“ hält sie aktuell; im Hauptrepository läuft sie nicht.
+
 **Einzelbuch** (bisheriger Weg): Der Standard-Branch ist selbst das Buch. Das bleibt gültig; die Umwandlung in eine Bibliothek ist #40.
 
 ## Automatische Prüfung

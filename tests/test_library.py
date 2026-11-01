@@ -94,3 +94,68 @@ class GitTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ShelfTest(unittest.TestCase):
+    """Bücherregal (#37): library.json aus den Branches, Ansicht und Link in der Projektübersicht."""
+
+    @classmethod
+    def setUpClass(cls):
+        import shutil
+        cls.tmp = tempfile.TemporaryDirectory()
+        d = cls.d = cls.tmp.name
+
+        def g(*a):
+            subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=d, check=True, capture_output=True)
+        g('init', '-q', '-b', 'main')
+        Path(d, 'ghostwriter.yml').write_text((ROOT / 'ghostwriter.yml').read_text(encoding='utf-8'), encoding='utf-8')
+        g('add', '.')
+        g('commit', '-qm', 'Starter')
+        g('checkout', '-q', '-b', 'buch/adhs')
+        shutil.copytree(ROOT / 'tests/fixtures/adhs', d, dirs_exist_ok=True)
+        g('add', '.')
+        g('commit', '-qm', 'Buch')
+        g('checkout', '-q', '-b', 'ghostwriter/buch/adhs')
+        g('commit', '-q', '--allow-empty', '-m', 'offene Änderung')
+        g('checkout', '-q', '-b', 'buch/garten', 'main')
+        g('checkout', '-q', 'main')
+        cls.data = library.build_library('refs/heads', d, MANIFEST)
+        cls.lib = Path(d, 'library.json')
+        cls.lib.write_text(json.dumps(cls.data, ensure_ascii=False), encoding='utf-8')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def view(self, *a):
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), *a], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def test_build(self):
+        books = {b['branch']: b for b in self.data['books']}
+        self.assertEqual(sorted(books), ['buch/adhs', 'buch/garten'])
+        a, g = books['buch/adhs'], books['buch/garten']
+        self.assertEqual(a['status'], 'ready')
+        self.assertGreater(a['sections_total'], 0)
+        self.assertEqual(a['pending'], 1)
+        self.assertEqual(g['status'], 'setup')
+        self.assertEqual(g['sections_total'], 0)
+        self.assertNotIn('manuscript', json.dumps(self.data))
+        out = subprocess.run(['git', 'worktree', 'list'], cwd=self.d, capture_output=True, text=True).stdout
+        self.assertEqual(len(out.strip().splitlines()), 1, 'temporäre Worktrees bleiben übrig')
+
+    def test_shelf_views(self):
+        text = self.view(self.d, 'library', '--library', str(self.lib), '--text')
+        self.assertIn('2 Bücher', text)
+        self.assertIn('🚧 im Aufbau', text)
+        self.assertIn('`1–2` Buch öffnen', text)
+        widget = self.view(self.d, 'library', '--library', str(self.lib))
+        self.assertIn('GW.render("buecherregal"', widget)
+        self.assertIn('"BOOK_PENDING_TEXT":"1 Änderung offen"', widget)
+
+    def test_project_link_from_two_books(self):
+        fx = str(ROOT / 'tests/fixtures/adhs')
+        self.assertIn('"LIBRARY_COUNT":2', self.view(fx, 'project', '--library', str(self.lib)))
+        self.assertIn('`L` Bücherregal', self.view(fx, 'project', '--library', str(self.lib), '--text'))
+        self.assertNotIn('LIBRARY_COUNT', self.view(fx, 'project'))

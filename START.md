@@ -18,6 +18,8 @@ Wurde der erste Start bereits abgeschlossen, genügt in einem neuen Chat – in 
 
 Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`…/tree/<branch>`) oder eine Datei, gehe so vor. Bei einem Branch-Link ist dieser Branch der Buch-Branch; gibt es zu ihm offene Änderungen, wird aus dem Arbeits-Branch gelesen (siehe „Schreiben ins Repository“).
 
+**Bücherregal (Bibliothek, #37):** Zeigt der Link auf das Repository ohne Branch oder auf den Standard-Branch, und ist der Standard-Branch selbst kein Buch (keine Kapitel), lies `library.json` vom Standard-Branch und zeige das Bücherregal: `python scripts/render_view.py . library --library library.json` (Textfassung `--text`). Fehlt die Datei (Action „Bücherregal aktualisieren“ noch nicht gelaufen), ermittle die Bücher selbst nach der Erkennungsregel (`scripts/library.py list`, bzw. die Branches über die GitHub-Verbindung). Gibt es genau ein Buch, zeige direkt dessen Projektübersicht. Ohne Buch: Bücherregal mit „Neues Buch“. „Öffnen“ (`library.book.open`, Kürzel `1`–`N`) macht den gewählten Branch zum Buch-Branch und folgt dann den Schritten unten; ein Buch „im Aufbau“ (noch ohne Kapitel) setzt dort den Einstiegsdialog fort (Abschnitt 1 ff.). In der Projektübersicht eines Buchs steht ab zwei Büchern oben „Bücherregal“ (`view.library`, Kürzel `L`); dafür `--library` mit derselben Datei übergeben. Ist der Standard-Branch selbst ein Buch (Einzelbuch), gilt alles wie bisher.
+
 1. **Repository lesen:** Lies über die GitHub-Verbindung `README.md`, diese Datei und `ghostwriter.yml`. Ohne Lesezugriff: erkläre, was fehlt, und bitte den Benutzer, die GitHub-Verbindung einzurichten oder `ghostwriter.yml` und die benötigten Kapiteldateien anzuhängen.
 2. **Stand erkennen:** Das Projekt gilt als eingerichtet, wenn in `ghostwriter.yml` `workflow.current_phase` nicht `wizard` ist oder `structure.chapters` mindestens ein Kapitel enthält. Sonst beginne mit Abschnitt 1.
 3. **Onboarding und Wizard überspringen:** Kein erneutes Onboarding, keine erneuten Wizard-Fragen. Nenne das gelesene Repository eindeutig.
@@ -66,7 +68,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 
 | Eingabe | Wirkung |
 |---|---|
-| `Start`, `Bibliothek` | Startseite: ab v0.6 das Bücherregal (#37), bis dahin die Projektübersicht |
+| `Start`, `Bibliothek` | Startseite: das Bücherregal, wenn das Repository eine Bibliothek ist (Abschnitt 0, „Bücherregal“), sonst die Projektübersicht |
 | `Übersicht` | Projektübersicht des aktuellen Buchs |
 | `Kapitel 3`, `Abschnitt 3.2` | Kapitel- bzw. Abschnittsansicht |
 | `Neues Kapitel` | Formular „Neues Kapitel“ |
@@ -76,7 +78,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Update` | Update-Stand zeigen; ist das Buch hinter dem Hauptrepository, „Update einspielen“ anbieten |
 | `Hilfe` | diese Befehle und die Kürzel der zuletzt gezeigten Ansicht (`templates/ui/BEFUELLUNG.md`, „Textfassung“) |
 
-Befehle haben Vorrang vor Kürzeln nur, wenn sie ausgeschrieben sind (`Auflage`, nicht `A`). Ab v0.6 kommt `Neues Buch` dazu (#38).
+Befehle haben Vorrang vor Kürzeln nur, wenn sie ausgeschrieben sind (`Auflage`, nicht `A`). `Neues Buch` (Formular, #38) öffnet `library.book.create.open`.
 
 ### Statusanzeige (verbindlich)
 
