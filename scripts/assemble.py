@@ -140,6 +140,9 @@ def metadata(config, edition, date):
 
 def problems(parts, config):
     out = []
+    pr = config['project']
+    if not (pr.get('title_short') or pr.get('title') or pr.get('working_title')):
+        out.append('Das Buch hat noch keinen Titel; Name und Tag der Auflage entstehen aus dem (Kurz-)Titel.')
     if not parts:
         n = len(config['structure']['chapters'])
         out.append(f'Kein Kapitel ist freigegeben (0 von {n}); eine Auflage enthält nur freigegebene Kapitel.')

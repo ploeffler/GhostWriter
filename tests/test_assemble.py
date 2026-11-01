@@ -85,3 +85,29 @@ class AssembleTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class EmptyProjectTest(unittest.TestCase):
+    """Leeres Projekt (Abnahme #18): Auflage und Probedruck melden klar, was fehlt."""
+    EMPTY = ROOT / 'tests/fixtures/leeres-projekt'
+
+    def test_check_names_title_and_chapters(self):
+        _, config = load(self.EMPTY)
+        found = assemble.problems(assemble.book_parts(self.EMPTY, config), config)
+        self.assertTrue(any(x.startswith('Das Buch hat noch keinen Titel') for x in found))
+        self.assertTrue(any(x.startswith('Kein Kapitel ist freigegeben') for x in found))
+
+    def test_edition_form_blocks_without_junk_name(self):
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.EMPTY), 'edition-create', '--text'],
+                             capture_output=True, text=True, check=True).stdout
+        self.assertIn('Ohne Titel – Auflage 1', out)
+        self.assertIn('`ohne-titel-auflage-1`', out)
+        self.assertIn('noch keine Kapitel', out)
+        self.assertIn('So kann die Auflage nicht gebaut werden', out)
+
+    def test_proof_refuses_without_chapters(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.EMPTY), '--proof',
+                                '--out', tmp], capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('noch keine Kapitel', r.stderr + r.stdout)

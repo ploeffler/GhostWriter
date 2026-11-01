@@ -48,7 +48,7 @@ def main(argv):
         reason = (f'Auflage von {before} auf {now} erhöht' if build else
                   'Auflage unverändert' if before is not None else 'kein Vergleichsstand')
     br = yaml.safe_load((ROOT / 'workflow.yml').read_text(encoding='utf-8'))['book_releases']
-    short = p.get('title_short') or p.get('title') or p.get('working_title') or 'buch'
+    short = p.get('title_short') or p.get('title') or p.get('working_title') or 'Ohne Titel'
     out = {'build': 'true' if build and edition > 0 else 'false', 'edition': edition,
            'tag': br['tag_pattern'].format(title_short_slug=tag_slug(short), edition=edition),
            'name': br['name_pattern'].format(title_short=short, edition=edition),
