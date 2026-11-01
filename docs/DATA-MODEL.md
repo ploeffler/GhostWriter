@@ -13,6 +13,8 @@ repository/
 ├── brainstorming/
 ├── costs/
 │   └── project.yml        # projektweite Kosteneinträge
+├── approvals.yml          # Freigabe-Protokoll, nur anhängen
+├── ghostwriter-index.json # Übersichtsdatei, erzeugt von scripts/build_index.py (nicht von Hand ändern)
 ├── chapters/
 │   ├── 01-einleitung/
 │   │   ├── README.md
@@ -79,6 +81,31 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `workflow.current_chapter_id`, `workflow.current_section_id` | zuletzt bearbeitete Stelle für den Wiedereinstieg |
 | `structure.chapters` | Kapitel in Reihenfolge, je mit `id`, `title`, `path`, `status` und `sections` (je `id`, `title`, `path`) |
 
+| `typesetting` | Buchsatz der Auflagen, in den Projekteinstellungen bearbeitbar (siehe unten) |
+| `updates.auto` | neue GhostWriter-Versionen automatisch einspielen; fehlt = `true` ([UPDATES.md](UPDATES.md)) |
+| `.ghostwriter/update.yml` | von der Update-Action geschrieben: installierte Version, Upstream-Commit, Zeitpunkt, ausgelassene Workflow-Dateien; nicht von Hand ändern |
+| `ghostwriter-manifest.yml` | Programmversion und welche Dateien zum Programm (`managed`) bzw. zum Buch (`book`) gehören; Teil des Programms |
+
+### Buchsatz
+
+`typesetting` steuert PDF, DOCX und EPUB der nächsten Auflage. Fehlt der Block oder ein Feld, gilt die Vorgabe:
+
+| Feld | Werte | Vorgabe |
+|---|---|---|
+| `page_size` | `a5`, `12x19`, `13.5x21.5`, `a4` | `a5` |
+| `font` | `serif`, `sans` | `serif` |
+| `font_size` | `10`, `10.5`, `11`, `11.5`, `12` (pt) | `11` |
+| `title_page` | Titelseite in der Titelei | `true` |
+| `imprint` | Impressum in der Titelei | `true` |
+| `toc` | Inhaltsverzeichnis | `true` |
+| `toc_depth` | `1` = nur Kapitel, `2` = Kapitel und Abschnitte | `1` |
+
+Seitenformat, Schrift und Titelei wirken nur in PDF und DOCX; EPUB übernimmt Inhaltsverzeichnis und Titelei.
+
+### Kapitel-README
+
+Titel, Untertitel (erste kursive Zeile `*…*`), `## Kurzbeschreibung` und `## Ziel des Kapitels` stehen in `chapters/<kapitel>/README.md`; „Offen.“ steht für noch leer. Der Titel steht zusätzlich in `structure.chapters`. „Kapitel bearbeiten“ ändert beides im selben Commit.
+
 Die Struktur von `ghostwriter.yml` beschreibt [`schemas/ghostwriter.schema.json`](../schemas/ghostwriter.schema.json).
 
 ## Abschnittsdatei – Frontmatter-Beispiel
@@ -97,6 +124,24 @@ approvals:
 ```
 
 Der Kopf jeder Abschnittsdatei folgt [`schemas/section.schema.json`](../schemas/section.schema.json). `fact_check` übernimmt die Werte aus `workflow.yml` (`entities.section.fact_check`).
+
+## Übersichtsdatei
+
+`ghostwriter-index.json` wird von `scripts/build_index.py` erzeugt, im Repository von der Action „Übersichtsdatei aktualisieren“ (`.github/workflows/index.yml`) nach jedem Push, der Buchdateien ändert. Sie enthält je Kapitel und Abschnitt Status, Freigaben, Kosten-Summen (Betrag, Schätzkennzeichen, Text) und Markerzahlen je Art, dazu Projektsumme, Auflage und `workflow.current_*`, aber keinen Manuskripttext und keine Zeitstempel. Die Prüf-Action meldet eine veraltete Datei als Hinweis. Ohne Kapitel gibt es keine Übersichtsdatei.
+
+## Freigabe-Protokoll
+
+`approvals.yml` hält jede erteilte oder zurückgenommene Freigabe als eigenen Eintrag fest (`workflow.yml`: `record_approval_actor_and_timestamp`, `user_approval_record`). Einträge werden nur angehängt. Die Felder `approvals.writing` und `approvals.section` im Kopf der Abschnittsdatei und der Kapitelstatus zeigen den aktuellen Stand; das Protokoll zeigt, wer wann welchen Stand bestätigt hat. Schema: [`schemas/approvals.schema.json`](../schemas/approvals.schema.json); Ablauf: `START.md`, „Freigaben“.
+
+```yaml
+entries:
+- kind: section          # writing | section | chapter
+  id: sec-02-04-die-scham-die-wir-mitbringen
+  action: granted        # granted | revoked
+  at: '2026-10-31T23:30:00+01:00'
+  by: ploeffler          # GitHub-Login, sonst chat
+  commit: 06e780b…       # bestätigter Stand (expected_head_sha)
+```
 
 ## Marker im Manuskript
 

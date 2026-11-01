@@ -1,0 +1,61 @@
+name: GhostWriter aktualisieren
+
+# Holt neue GhostWriter-Versionen aus dem Hauptrepository
+# (ghostwriter-manifest.yml: upstream) und spielt sie automatisch in die
+# Buch-Branches ein: nur Programmdateien, nie Buchinhalte; vorher Migrationen
+# und Prüfung, bei Fehlern kein Update, sondern ein Issue. Siehe docs/UPDATES.md.
+#
+# Secret GHOSTWRITER_UPDATE_TOKEN (optional, Fine-grained Token):
+#   - Leserecht (Contents: read) auf das Hauptrepository, wenn es privat ist
+#   - Contents und Workflows: read/write auf dieses Repository, damit auch
+#     Dateien unter .github/workflows/ aktualisiert werden können
+# Ohne Secret werden Workflow-Dateien ausgelassen und das wird gemeldet.
+
+on:
+  schedule:
+    - cron: '23 3 * * *'   # täglich 03:23 UTC
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Nur diesen Buch-Branch aktualisieren (leer = alle)'
+        required: false
+      dry_run:
+        description: 'Probelauf: nur anzeigen, nichts einspielen'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: ghostwriter-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GHOSTWRITER_UPDATE_TOKEN || github.token }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Abhängigkeiten installieren
+        run: pip install pyyaml jsonschema
+
+      - name: Updates einspielen
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GHOSTWRITER_UPDATE_TOKEN: ${{ secrets.GHOSTWRITER_UPDATE_TOKEN }}
+          INPUT_BRANCH: ${{ inputs.branch }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=()
+          if [ -n "$INPUT_BRANCH" ]; then args+=(--branch "$INPUT_BRANCH"); fi
+          if [ "$INPUT_DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          python scripts/update_from_upstream.py "${args[@]}"

@@ -42,6 +42,8 @@
       "required": ["default"],
       "properties": {
         "rules": {"type": "object"},
+        "available": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "services": {"type": "object", "additionalProperties": {"type": "object", "properties": {"access": {"enum": ["app", "api", "local", "cli", "web", "github"]}, "model": {"type": "string"}, "github_connected": {"type": "boolean"}, "plan": {"type": "string"}, "monthly_cost": {"type": ["number", "null"], "minimum": 0}, "note": {"type": "string"}, "api_key_secret": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "Name des GitHub-Secrets mit dem API-Schlüssel; der Schlüssel selbst steht nie im Repository"}}, "additionalProperties": false}},
         "queue_processing": {"type": "object", "properties": {"agent": {"type": "string"}, "model": {"type": "string"}}}
       },
       "additionalProperties": {
@@ -66,6 +68,26 @@
         "require_section_approval": {"type": "boolean"},
         "require_chapter_approval": {"type": "boolean"},
         "fact_checking_default": {"enum": ["disabled", "optional", "requested"]}
+      },
+      "additionalProperties": false
+    },
+    "updates": {
+      "type": "object",
+      "description": "Automatische GhostWriter-Updates (docs/UPDATES.md); fehlt der Block, gilt auto: true",
+      "properties": {"auto": {"type": "boolean"}},
+      "additionalProperties": false
+    },
+    "typesetting": {
+      "type": "object",
+      "description": "Buchsatz für die Auflagen; fehlt der Block, gelten die Vorgaben aus docs/DATA-MODEL.md",
+      "properties": {
+        "page_size": {"enum": ["a5", "12x19", "13.5x21.5", "a4"]},
+        "font": {"enum": ["serif", "sans"]},
+        "font_size": {"enum": [10, 10.5, 11, 11.5, 12]},
+        "title_page": {"type": "boolean"},
+        "imprint": {"type": "boolean"},
+        "toc": {"type": "boolean"},
+        "toc_depth": {"enum": [1, 2]}
       },
       "additionalProperties": false
     },

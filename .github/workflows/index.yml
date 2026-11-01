@@ -1,0 +1,63 @@
+name: Übersichtsdatei aktualisieren
+
+# Erzeugt ghostwriter-index.json (scripts/build_index.py) nach jedem Push, der
+# Buchdateien ändert, und committet sie nur, wenn sich etwas geändert hat.
+# Commits mit GITHUB_TOKEN lösen keine weiteren Workflows aus, es gibt also
+# keine Schleife. Ohne Kapitel (Starter) entsteht keine Datei.
+
+on:
+  push:
+    paths:
+      - 'ghostwriter.yml'
+      - 'chapters/**'
+      - 'costs/**'
+      - 'scripts/build_index.py'
+      - 'scripts/render_view.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: index-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Abhängigkeiten installieren
+        run: pip install pyyaml
+
+      - name: Übersichtsdatei erzeugen
+        # SECRETS_JSON: nur damit build_index.py prüfen kann, ob die Secrets der
+        # eigenen KI-Dienste hinterlegt sind. Es liest ausschließlich die Namen;
+        # Werte werden nie ausgegeben oder gespeichert.
+        env:
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+        run: python scripts/build_index.py .
+
+      - name: Bei Änderungen committen
+        run: |
+          git add ghostwriter-index.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Übersichtsdatei unverändert"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Übersichtsdatei aktualisiert" -m "GhostWriter-Aktion: index.build"
+          # Kam inzwischen ein neuer Push, darauf aufsetzen; bei einem Konflikt
+          # auslassen, der Lauf für den neuen Push erzeugt die Datei ohnehin neu.
+          if ! git pull --rebase origin "${GITHUB_REF_NAME}"; then
+            git rebase --abort
+            echo "::warning::Übersichtsdatei nicht gepusht, ein neuerer Lauf erzeugt sie neu"
+            exit 0
+          fi
+          git push origin "HEAD:${GITHUB_REF_NAME}"

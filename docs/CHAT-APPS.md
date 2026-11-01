@@ -23,7 +23,7 @@ Belege:
 ## Schreibwege für Weg A
 
 1. **Claude mit Arbeitsumgebung.** Commits, Branches, Pull Requests und Merge funktionieren heute, ebenso die Widgets; Tags und Releases nicht. Abhängig von der Claude-App mit agentischen Sitzungen.
-2. **Eigener Connector mit GitHubs MCP-Server** in Claude und ChatGPT. Einmalige OAuth-Einrichtung je App; welche Schreibwerkzeuge im Chat verfügbar sind, muss praktisch getestet werden.
+2. **Eigener Connector mit GitHubs MCP-Server** in Claude und ChatGPT. Einmalige OAuth-Einrichtung je App; welche Schreibwerkzeuge im Chat verfügbar sind, muss praktisch getestet werden. Anleitung: [CONNECTOR-SETUP.md](CONNECTOR-SETUP.md).
 3. **Rückfall** aus `docs/INTEGRATION.md`, Betriebsart B: Der Assistent gibt geänderte Dateien vollständig aus, der Benutzer committet selbst. Funktioniert überall, aber ohne Pull-Request-Ablauf aus dem Chat.
 
 Keiner der Wege legt verlässlich Tags und Releases an. Vorschlag: Eine Auflage wird ein Pull Request, der `project.current_edition` hochzählt und die Release Notes enthält; nach dem Merge legt eine GitHub Action Tag und Release an und hängt PDF, DOCX und EPUB an (Issues #16 und #17).
@@ -32,5 +32,5 @@ Welcher Weg für v0.5 gilt, wird am Ende von v0.2 entschieden.
 
 ## Darstellung
 
-- **Claude** zeigt die Vorlagen aus `templates/ui/` als Inline-Widgets; ein Klick schickt die festgelegte Nachricht in den Chat.
-- **ChatGPT** zeigt diese Widgets nicht. Dort gibt der Assistent die Textfassung aus `templates/ui/BEFUELLUNG.md` aus; Aktionen werden als nummerierte Auswahl angeboten, die der Benutzer per Antwort wählt.
+- **Claude** zeigt die Vorlagen als Inline-Widgets. Der Assistent gibt nur eine Ladezeile für `ghostwriter-ui` (fester Commit, über jsDelivr) und die Daten aus; das ist deutlich kürzer als die ganze Ansicht. Ein Klick schickt die festgelegte Nachricht in den Chat.
+- **ChatGPT** zeigt diese Widgets nicht. Dort gibt der Assistent die Textfassung aus `templates/ui/BEFUELLUNG.md` aus: Markdown mit Tabellen und Symbolen, Aktionen als Kürzel (`2`, `2.4`, `P`, `X` …), die der Benutzer per Antwort wählt. Echte Formulare in ChatGPT gingen nur über eine eigene App mit MCP-Server (Apps SDK), siehe Weg B.

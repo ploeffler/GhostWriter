@@ -12,6 +12,11 @@ Geprüft werden:
 - workflow.current_chapter_id / current_section_id verweisen auf vorhandene IDs
 - jede Kostendatei (chapters/*/costs/*.yml, costs/project.yml) gegen
   schemas/costs.schema.json, eindeutige activity_id, Abschnitts-ID bekannt
+- ai_providers: Dienste in `available` stehen in providers.yml; ist `available`
+  gesetzt, verwenden die Aufgaben nur diese Dienste (oder chat bzw. manual);
+  Einstellungen unter `services` nur für Dienste aus `available`
+- approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt,
+  Art passt zur ID (writing/section: Abschnitt, chapter: Kapitel)
 
 Endet mit Code 1, sobald ein Fehler gefunden wurde.
 """
@@ -35,6 +40,7 @@ def validator(name):
 GHOSTWRITER = validator('ghostwriter.schema.json')
 SECTION = validator('section.schema.json')
 COSTS = validator('costs.schema.json')
+APPROVALS = validator('approvals.schema.json')
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
 
 
@@ -49,6 +55,46 @@ def load_yaml(path, errors):
     except Exception as exc:  # noqa: BLE001 - jede Lesefehlermeldung ist ein Befund
         errors.append(f'{path}: nicht lesbar: {exc}')
         return None
+
+
+def known_services():
+    path = ROOT / 'providers.yml'
+    if not path.is_file():
+        return None
+    data = yaml.safe_load(path.read_text(encoding='utf-8'))
+    return {s['id']: section for section in ('special', 'providers', 'search_tools', 'queue_agents')
+            for s in data.get(section) or []}
+
+
+def provider_errors(config, config_path):
+    errors, known = [], known_services()
+    ap = config.get('ai_providers') or {}
+    available = ap.get('available')
+    if known is None or available is None:
+        return errors
+    for sid in available:
+        if sid not in known:
+            errors.append(f'{config_path}: ai_providers.available: unbekannter Dienst {sid} (nicht in providers.yml)')
+    for sid in ap.get('services') or {}:
+        if sid not in available:
+            errors.append(f'{config_path}: ai_providers.services.{sid}: Dienst steht nicht in available')
+    if not available:
+        return errors
+    allowed = set(available) | {'chat', ''}
+    for role, entry in ap.items():
+        if role in ('available', 'rules', 'services') or not isinstance(entry, dict):
+            continue
+        if role == 'queue_processing':
+            agent = entry.get('agent', '')
+            if agent not in set(available) | {'manual', ''}:
+                errors.append(f'{config_path}: ai_providers.queue_processing.agent {agent} steht nicht in available')
+            continue
+        if entry.get('provider', '') not in allowed:
+            errors.append(f'{config_path}: ai_providers.{role}.provider {entry["provider"]} steht nicht in available')
+        for tool in entry.get('search_tools') or []:
+            if tool not in available:
+                errors.append(f'{config_path}: ai_providers.{role}.search_tools: {tool} steht nicht in available')
+    return errors
 
 
 def check_project(project_dir):
@@ -132,6 +178,20 @@ def check_project(project_dir):
             activity_ids.add(entry['activity_id'])
             if file_section and entry.get('section_id') not in (None, file_section):
                 errors.append(f'{path}: {entry["activity_id"]}: section_id passt nicht zur Datei')
+    errors += provider_errors(config, config_path)
+
+    approvals_path = base / 'approvals.yml'
+    if approvals_path.is_file():
+        data = load_yaml(approvals_path, errors)
+        if data is not None:
+            errs = schema_errors(APPROVALS, data, approvals_path)
+            errors += errs
+            if not errs:
+                for i, entry in enumerate(data['entries'], start=1):
+                    known = chapter_ids if entry['kind'] == 'chapter' else section_ids
+                    if entry['id'] not in known:
+                        art = 'Kapitel' if entry['kind'] == 'chapter' else 'Abschnitt'
+                        errors.append(f'{approvals_path}: Eintrag {i}: {art} {entry["id"]} unbekannt')
     return errors
 
 

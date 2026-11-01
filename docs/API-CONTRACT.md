@@ -54,15 +54,27 @@ Die Pfade sind Entwurf und müssen mit dem implementierten Dienst übereinstimme
 | POST | /v1/projects/{owner}/{repo}/sections/{section_id}/approve | Abschnitt nach Zustimmung freigeben |
 | POST | /v1/projects/{owner}/{repo}/chapters/{chapter_id}/assemble | Kapitel aus freigegebenen Abschnitten zusammenführen |
 | POST | /v1/projects/{owner}/{repo}/chapters/{chapter_id}/approve | Kapitel nach Gesamtzustimmung freigeben |
+| POST | /v1/projects/{owner}/{repo}/sections/{section_id}/writing-approval | Schreibfreigabe nach Zustimmung erteilen |
+| DELETE | /v1/projects/{owner}/{repo}/sections/{section_id}/writing-approval | Schreibfreigabe zurücknehmen |
+| DELETE | /v1/projects/{owner}/{repo}/sections/{section_id}/approve | Abschnittsfreigabe zurücknehmen |
+| DELETE | /v1/projects/{owner}/{repo}/chapters/{chapter_id}/approve | Kapitelfreigabe zurücknehmen |
+| PATCH | /v1/projects/{owner}/{repo} | Projektdaten ändern (`project.update`) |
+| PATCH | /v1/projects/{owner}/{repo}/settings | Projekteinstellungen ändern (`project.settings.update`) |
+| POST | /v1/projects/{owner}/{repo}/chapters/reorder | Kapitelreihenfolge ändern (`chapter.reorder`) |
+| POST | /v1/projects/{owner}/{repo}/chapters/{chapter_id}/sections/reorder | Abschnittsreihenfolge eines Kapitels ändern (`section.reorder`) |
+| GET | /v1/projects/{owner}/{repo}/changes | Offene Änderungen: Arbeits-Branch, Pull Request, Commits |
+| POST | /v1/projects/{owner}/{repo}/changes/merge | Offene Änderungen nach Bestätigung übernehmen (`changes.merge`) |
 
 ## Projektdaten im Lese-Endpunkt
 
-`GET /v1/projects/{owner}/{repo}` liefert die Projektfelder aus `ghostwriter.yml`, wie sie `docs/DATA-MODEL.md` beschreibt, darunter `title`, `title_short`, `author`, `description_short`, `description` und `current_edition`, dazu `structure.chapters` mit Kapiteln und Abschnitten. Für Abschnitte werden die offenen Marker im Manuskript je Art gezählt (`anekdote`, `quelle`, `medizin`, `recht`), damit Kapitelansicht und Abschnittsformular sie anzeigen können.
+`GET /v1/projects/{owner}/{repo}` liefert die Projektfelder aus `ghostwriter.yml`, wie sie `docs/DATA-MODEL.md` beschreibt, darunter `title`, `title_short`, `author`, `description_short`, `description` und `current_edition`, den Buchsatz `typesetting` (mit Vorgaben ergänzt), dazu `structure.chapters` mit Kapiteln und Abschnitten. Die Endpunkte für Projektdaten, Projekteinstellungen und Reihenfolgen stehen oben als Entwurf; die Aktionen und ihre Daten stehen in `templates/ui/BEFUELLUNG.md`. Gibt es offene Änderungen, liest der Endpunkt vom Arbeits-Branch und liefert zusätzlich `pending_changes` (Pull-Request-Nummer und -URL, Anzahl und Nachrichten der Commits) und `head_sha` des gelesenen Stands. Für Abschnitte werden die offenen Marker im Manuskript je Art gezählt (`anekdote`, `quelle`, `medizin`, `recht`), damit Kapitelansicht und Abschnittsformular sie anzeigen können. Kapitel und Abschnitte liefert der Endpunkt in derselben Struktur wie `ghostwriter-index.json` (Feld `chapters`, siehe `scripts/build_index.py`); ist die Datei im gelesenen Stand aktuell, kann er sie unverändert ausliefern.
 
 ## Gemeinsame Schreibregeln
-Jeder schreibende Request enthält expected_head_sha, idempotency_key und die fachlichen Nutzdaten. Der Dienst validiert Repository-Berechtigung, IDs, Statusübergänge und Freigabevoraussetzungen. Bei einem SHA-Konflikt antwortet er mit 409 Conflict und dem aktuellen Head-SHA. Der Assistent liest den neuen Stand und klärt den Konflikt, bevor er erneut schreibt.
+Jeder schreibende Request enthält expected_head_sha, idempotency_key und die fachlichen Nutzdaten. Der Dienst validiert Repository-Berechtigung, IDs, Statusübergänge und Freigabevoraussetzungen. Bei einem SHA-Konflikt antwortet er mit 409 Conflict und dem aktuellen Head-SHA. Ein Konflikt liegt nur vor, wenn seit `expected_head_sha` eine der Dateien geändert wurde, die die Operation schreibt; Änderungen an anderen Dateien werden übernommen. Der Assistent liest den neuen Stand und klärt den Konflikt, bevor er erneut schreibt.
 
-Erfolgsantworten enthalten mindestens success, commit_sha, commit_url, updated_paths und project_head_sha. Fehlerantworten enthalten einen stabilen Fehlercode, eine kurze Erklärung und eine sichere nächste Aktion. Keine Secrets oder Stacktraces zurückgeben.
+Schreibweg wie in `START.md`, „Schreiben ins Repository“: Der Dienst schreibt nie direkt auf den Buch-Branch. Jede Operation ist ein Commit im Arbeits-Branch `ghostwriter/<buch-branch>`; fehlt er, legt der Dienst ihn samt Pull Request an. `POST …/changes/merge` mergt nur mit `confirmed: true` aus einer ausdrücklichen Bestätigung im Chat, mit Merge-Commit, und löscht danach den Arbeits-Branch.
+
+Erfolgsantworten enthalten mindestens success, commit_sha, commit_url, updated_paths, project_head_sha und pull_request_url. Fehlerantworten enthalten einen stabilen Fehlercode, eine kurze Erklärung und eine sichere nächste Aktion. Keine Secrets oder Stacktraces zurückgeben.
 
 ## Freigaberegeln
 - initialize nur nach Freigabe der vollständigen Kapitel- und Abschnittsstruktur.
@@ -71,6 +83,7 @@ Erfolgsantworten enthalten mindestens success, commit_sha, commit_url, updated_p
 - Kapitelzusammenführung nur, wenn alle Abschnitte approved sind.
 - Kapitel-Freigabe nur nach Sichtung und ausdrücklicher Gesamtzustimmung.
 - Ein technischer API-Aufruf ersetzt niemals die Zustimmung des Benutzers.
+- Freigabe-Endpunkte verlangen `confirmed: true` aus der Bestätigung im Chat und hängen einen Eintrag an `approvals.yml` an (`kind`, `id`, `action`, `at`, `by`, `commit` = `expected_head_sha`); Schreib-Endpunkte ändern `approvals` nie.
 
 ## Statuscodes
 | HTTP | Bedeutung |
@@ -91,7 +104,6 @@ Erfolgsantworten enthalten mindestens success, commit_sha, commit_url, updated_p
 - OAuth-Fluss und Benutzerkontenmodell;
 - GitHub App und minimale Rechte;
 - exakte JSON-Schemas und OpenAPI-3.x-Spezifikation;
-- Commit direkt auf Branch oder Pull Request;
 - Audit-, Datenschutz- und Aufbewahrungsregeln;
 - automatisierte Tests und Deployment.
 

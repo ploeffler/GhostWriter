@@ -15,6 +15,13 @@
 #                  none (keine), n/a (nicht anwendbar)
 #   roles:         research | brainstorming | writing | revision | fact_check | queue_processing
 #   hq:            Sitzland des Anbieters (Ländercode) – sagt nichts über Datenverarbeitungsort aus
+#   api_key_secret: Vorschlag für den Namen des GitHub-Secrets, in dem der API-Schlüssel liegt
+#                  (der Schlüssel selbst steht nie im Repository oder im Chat)
+#   api_key_url:   optional: Seite des Anbieters, auf der man einen API-Schlüssel erstellt
+#   api_key_alt:   optional: alternatives Secret (z. B. Abo-Token statt API-Schlüssel)
+#   setup:         optional: eigene GhostWriter-Anleitung (Pfad im Repository, ggf. mit #Anker);
+#                  ohne setup verlinkt das Formular „KI-Dienste“ den passenden Weg in
+#                  docs/DIENSTE-NUTZEN.md (nach kind/access) und zusätzlich die Website `url`
 
 version: "1.0"
 checked_at: "2026-10-31"
@@ -36,6 +43,9 @@ providers:
     roles: [research, brainstorming, writing, revision, fact_check, queue_processing]
     queue_agents: [openai_codex]
     url: https://openai.com
+    api_key_secret: OPENAI_API_KEY
+    api_key_url: https://platform.openai.com/api-keys
+    setup: docs/CONNECTOR-SETUP.md#teil-4-optional-in-chatgpt-einrichten
 
   - id: anthropic
     name: Anthropic (Claude / Claude API)
@@ -46,6 +56,9 @@ providers:
     roles: [research, brainstorming, writing, revision, fact_check, queue_processing]
     queue_agents: [claude_code]
     url: https://www.anthropic.com
+    api_key_secret: ANTHROPIC_API_KEY
+    api_key_url: https://console.anthropic.com/settings/keys
+    setup: docs/CONNECTOR-SETUP.md
 
   - id: google
     name: Google (Gemini / Gemini API)
@@ -57,6 +70,8 @@ providers:
     roles: [research, brainstorming, writing, revision, fact_check, queue_processing]
     queue_agents: [google_jules, gemini_cli]
     url: https://ai.google.dev
+    api_key_secret: GEMINI_API_KEY
+    api_key_url: https://aistudio.google.com/apikey
 
   - id: mistral
     name: Mistral AI (Le Chat / Mistral API)
@@ -67,6 +82,8 @@ providers:
     note: Europäischer Anbieter; Websuche über Agents API / Connector.
     roles: [research, brainstorming, writing, revision, fact_check]
     url: https://mistral.ai
+    api_key_secret: MISTRAL_API_KEY
+    api_key_url: https://console.mistral.ai/api-keys
 
   - id: xai
     name: xAI (Grok / xAI API)
@@ -76,6 +93,8 @@ providers:
     web_research: native
     roles: [research, brainstorming, writing, revision, fact_check]
     url: https://x.ai
+    api_key_secret: XAI_API_KEY
+    api_key_url: https://console.x.ai
 
   - id: perplexity
     name: Perplexity (App / Sonar API)
@@ -86,6 +105,8 @@ providers:
     note: Auf quellenbasierte Recherche spezialisiert; für Langtexte weniger geeignet.
     roles: [research, fact_check]
     url: https://www.perplexity.ai
+    api_key_secret: PERPLEXITY_API_KEY
+    api_key_url: https://www.perplexity.ai/settings/api
 
   - id: microsoft_copilot
     name: Microsoft Copilot
@@ -105,6 +126,8 @@ providers:
     note: Stark auf Retrieval/RAG mit eigenen Dokumenten ausgerichtet.
     roles: [research, revision, fact_check]
     url: https://cohere.com
+    api_key_secret: COHERE_API_KEY
+    api_key_url: https://dashboard.cohere.com/api-keys
 
   - id: deepseek
     name: DeepSeek
@@ -115,6 +138,8 @@ providers:
     note: Datenschutz und Verarbeitungsort vor Einsatz besonders prüfen.
     roles: [brainstorming, writing, revision]
     url: https://www.deepseek.com
+    api_key_secret: DEEPSEEK_API_KEY
+    api_key_url: https://platform.deepseek.com/api_keys
 
   - id: qwen
     name: Alibaba Qwen
@@ -125,6 +150,7 @@ providers:
     note: Auch als offene Modellgewichte verfügbar (lokal oder über Plattformen nutzbar).
     roles: [brainstorming, writing, revision]
     url: https://qwen.ai
+    api_key_secret: DASHSCOPE_API_KEY
 
   - id: moonshot
     name: Moonshot AI (Kimi)
@@ -134,6 +160,7 @@ providers:
     web_research: via_tool
     roles: [brainstorming, writing, revision]
     url: https://www.moonshot.ai
+    api_key_secret: MOONSHOT_API_KEY
 
   - id: meta_llama
     name: Meta Llama (offene Modelle)
@@ -155,6 +182,8 @@ providers:
     note: Ein API-Schlüssel für viele Modelle; Anbieter/Modell dann in `model` angeben.
     roles: [research, brainstorming, writing, revision, fact_check]
     url: https://openrouter.ai
+    api_key_secret: OPENROUTER_API_KEY
+    api_key_url: https://openrouter.ai/keys
 
   - id: aws_bedrock
     name: Amazon Bedrock
@@ -214,36 +243,49 @@ search_tools:
     kind: search_api
     note: Eigener, von Google unabhängiger Index.
     url: https://brave.com/search/api
+    api_key_secret: BRAVE_API_KEY
+    api_key_url: https://api-dashboard.search.brave.com/app/keys
   - id: tavily
     name: Tavily
     kind: search_api
     note: Für KI-Agenten entwickelte Such-API.
     url: https://tavily.com
+    api_key_secret: TAVILY_API_KEY
+    api_key_url: https://app.tavily.com
   - id: exa
     name: Exa
     kind: search_api
     note: Semantische Suche, „ähnliche Seiten finden“.
     url: https://exa.ai
+    api_key_secret: EXA_API_KEY
+    api_key_url: https://dashboard.exa.ai/api-keys
   - id: parallel
     name: Parallel
     kind: search_api
     note: Liefert für LLMs aufbereitete Auszüge.
     url: https://parallel.ai
+    api_key_secret: PARALLEL_API_KEY
   - id: perplexity_sonar
     name: Perplexity Sonar API
     kind: search_api
     note: Suche mit zusammengefasster, belegter Antwort.
     url: https://docs.perplexity.ai
+    api_key_secret: PERPLEXITY_API_KEY
+    api_key_url: https://www.perplexity.ai/settings/api
   - id: serpapi
     name: SerpAPI
     kind: search_api
     note: Ergebnisse klassischer Suchmaschinen inkl. Google Scholar.
     url: https://serpapi.com
+    api_key_secret: SERPAPI_API_KEY
+    api_key_url: https://serpapi.com/manage-api-key
   - id: semantic_scholar
     name: Semantic Scholar API
     kind: scholarly_index
     note: Wissenschaftliche Literatur, kostenlos nutzbar.
     url: https://www.semanticscholar.org/product/api
+    api_key_secret: SEMANTIC_SCHOLAR_API_KEY
+    api_key_url: https://www.semanticscholar.org/product/api#api-key-form
   - id: openalex
     name: OpenAlex
     kind: scholarly_index
@@ -263,11 +305,16 @@ queue_agents:
     provider: openai
     note: Auch als Partner-Agent direkt in GitHub zuweisbar (je nach Copilot-Plan).
     url: https://openai.com/codex
+    api_key_secret: OPENAI_API_KEY
+    api_key_url: https://platform.openai.com/api-keys
   - id: claude_code
     name: Claude Code
     provider: anthropic
     note: Auch als Partner-Agent direkt in GitHub zuweisbar (je nach Copilot-Plan).
     url: https://claude.com/claude-code
+    api_key_secret: ANTHROPIC_API_KEY
+    api_key_url: https://console.anthropic.com/settings/keys
+    api_key_alt: CLAUDE_CODE_OAUTH_TOKEN   # statt API-Schlüssel: Token aus dem Pro/Max-Abo (`claude setup-token`)
   - id: google_jules
     name: Google Jules
     provider: google
@@ -278,6 +325,8 @@ queue_agents:
     provider: google
     note: Kommandozeilen-Agent, z. B. in GitHub Actions einsetzbar.
     url: https://github.com/google-gemini/gemini-cli
+    api_key_secret: GEMINI_API_KEY
+    api_key_url: https://aistudio.google.com/apikey
   - id: manual
     name: Manuell im Chat
     provider: chat

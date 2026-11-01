@@ -12,6 +12,7 @@ Cloudflare Workers und TypeScript sind die Backend-Basis. Auth0 ist als externer
 - **Identity Provider:** Auth0
 - **GitHub-Verbindung:** separate GitHub App
 - **Projekt- und Manuskriptpersistenz:** GitHub bleibt maßgebliche Datenquelle
+- **Schreibweg:** Änderungen gehen nicht direkt auf den Buch-Branch, sondern als Commits in den Arbeits-Branch `ghostwriter/<buch-branch>` mit einem offenen Pull Request; gemergt wird nur nach Bestätigung über „Änderungen übernehmen“ in der Projektübersicht (entschieden am 31.10.2026, Issue #9; Ablauf in `START.md`, „Schreiben ins Repository“).
 - **Zusätzlicher Speicher:** zunächst keiner; später D1 für dauerhafte Benutzer-/GitHub-Installationszuordnungen und KV für kurzlebigen OAuth-State, falls erforderlich.
 
 ## Authentifizierungsarchitektur
@@ -27,7 +28,6 @@ Siehe [AUTH0-SETUP.md](AUTH0-SETUP.md) und [OAUTH-FLOW.md](OAUTH-FLOW.md).
 - endgültige Auth0-Tenant-Region und eigene Auth0-Domain;
 - finale API-Audience und Produktionsdomain;
 - GitHub-App-Installation und Speicherung der Zuordnungen;
-- direkte Schreiboperationen auf \`main\` oder Pull Requests;
 - Audit- und Aufbewahrungsfristen, Rate Limits und Monitoring.
 
 ## Implementierungsstand
