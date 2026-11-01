@@ -127,6 +127,18 @@ Die Knöpfe „Recherche · Sofort“ und „Ghostwriting · Sofort“ im Abschn
    Commit-Nachricht: `Recherche für Abschnitt N.M` bzw. `Entwurf für Abschnitt N.M`, darunter `GhostWriter-Aktion: run.start`.
 6. **Ergebniszeile** wie in `templates/ui/BEFUELLUNG.md`, „Statustexte“, danach wieder das Abschnittsformular mit dem neuen Stand. Freigaben erteilt ein Lauf nie; die Abschnittsfreigabe bleibt ein eigener, ausdrücklicher Schritt.
 
+### Neue Auflage (verbindlich, ab v0.5)
+
+Eine Auflage ist ein unveränderlicher, veröffentlichter Stand des Buchs mit PDF, DOCX und EPUB (`workflow.yml`, `book_releases`). Sie entsteht nur auf ausdrücklichen Wunsch des Benutzers über das Formular „Neue Auflage erzeugen“ (`edition.create`), nie nebenbei. Korrekturen sammeln sich bis zur nächsten Auflage im Repository.
+
+1. **Prüfen, bevor etwas angelegt wird:** Wie `scripts/assemble.py check`: mindestens ein freigegebenes Kapitel, in freigegebenen Kapiteln nur freigegebene Abschnitte, keine offenen Marker (`[QUELLE PRÜFEN …]` usw.) im freigegebenen Text einschließlich der Quellen. Gibt es Hindernisse, nenne sie (Abschnitt und Marker, kein Buchtext) und lege nichts an. Offene Änderungen im Arbeits-Branch zuerst übernehmen lassen; sie wären sonst nicht in der Auflage.
+2. **Release Notes:** aus den Anmerkungen des Formulars; sind sie leer, aus den Änderungen seit der letzten Auflage zusammenstellen (Commit-Nachrichten seit dem Tag der letzten Auflage ohne automatische Commits: was ist neu, was wurde korrigiert, welche Kapitel sind enthalten). Zeige sie vor dem Anlegen zur Freigabe.
+3. **Auflagen-Pull-Request:** eigener Branch `ghostwriter/auflage-N` vom Buch-Branch, ein Commit „Auflage N vorbereitet“ (darunter `GhostWriter-Aktion: edition.create`) mit `project.current_edition: N` in `ghostwriter.yml` und den Release Notes in `editions/auflage-N.md` (Kopf: Name, Tag, Erscheinungsdatum, Formate). Pull Request in den Buch-Branch mit Titel „Auflage N: <Name>“.
+4. **Übernehmen:** Mergen erst nach ausdrücklicher Bestätigung (wie „Änderungen übernehmen“). Danach baut die Action „Auflage veröffentlichen“ (`.github/workflows/edition.yml`) die Dateien, legt Tag und Release an und hängt PDF, DOCX und EPUB an. Ist der Tag schon vergeben, bricht sie ab: Veröffentlichte Auflagen bleiben unverändert.
+5. **Im Chat** nur Release Notes, Name, Tag und Links (Pull Request, Lauf der Action, Release-Seite), nie den Buchtext. Die Dateien gibt es nur als Download im Release, auf ausdrückliche Anforderung als Link.
+
+Schlägt der Bau fehl (Fehler der Action), nenne den Grund aus dem Lauf. Die Auflagennummer ist dann schon erhöht; nach der Korrektur baut „Run workflow“ mit derselben Nummer die Auflage (solange es den Tag noch nicht gibt).
+
 ### Freigaben (verbindlich)
 
 Eine Freigabe entsteht nur durch eine eigene Bestätigung, nie beim Speichern eines Formulars und nie aus einer freien Formulierung, die der Assistent als Zustimmung deutet (`workflow.yml`: `approvals_require_explicit_user_confirmation`, `automation_must_not_infer_approval`).
