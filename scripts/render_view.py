@@ -835,6 +835,11 @@ def update_info(base, config):
     when = str(state.get('updated_at') or '')
     if re.match(r'\d{4}-\d{2}-\d{2}', when):
         text += f' · zuletzt aktualisiert am {when[8:10]}.{when[5:7]}.{when[:4]}'
+    mig = state.get('migration') or {}
+    if mig.get('to') is not None:
+        text += f' · Daten auf Version {mig["to"]} umgestellt'
+        if mig.get('changes'):
+            text += ' (' + '; '.join(mig['changes'][:3]) + ('; …' if len(mig['changes']) > 3 else '') + ')'
     hint = ''
     if state.get('skipped_workflows'):
         hint = (f'{len(state["skipped_workflows"])} Workflow-Datei(en) wurden nicht aktualisiert; dafür braucht das '
