@@ -4,7 +4,10 @@ name: Branches aufräumen
 # → Run workflow). Gelöscht wird nur ein Branch, dessen Pull Request gemergt ist
 # und der seitdem keinen neuen Commit hat; Muster siehe PATTERN. Alles andere
 # bleibt. Mit „Nur anzeigen“ wird nichts gelöscht, nur aufgelistet.
-# Die offenen Löschaufgaben stehen im Issue „Löschaufgaben“.
+# Versions-Branches (v0.1, v0.2 …) werden zu Tags gleichen Namens (annotiert,
+# auf demselben Commit) und danach als Branch gelöscht; der Stand bleibt über
+# den Tag erreichbar. Gibt es den Tag schon auf einem anderen Commit, bleibt
+# der Branch. Die offenen Löschaufgaben stehen im Issue „Löschaufgaben“.
 
 on:
   workflow_dispatch:
@@ -22,6 +25,34 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Versions-Branches zu Tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY: ${{ inputs.dry_run }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          echo "## Versions-Branches zu Tags" >> "$GITHUB_STEP_SUMMARY"
+          for b in $(git for-each-ref --format='%(refname:lstrip=3)' refs/remotes/origin | grep -E '^v[0-9]+\.[0-9]+$' || true); do
+            sha=$(git rev-parse "refs/remotes/origin/$b")
+            if git rev-parse -q --verify "refs/tags/$b" >/dev/null; then
+              tagsha=$(git rev-parse "refs/tags/$b^{commit}")
+              if [ "$tagsha" != "$sha" ]; then
+                echo "- ⏸️ \`$b\` bleibt: Tag zeigt auf einen anderen Commit" >> "$GITHUB_STEP_SUMMARY"; continue
+              fi
+            elif [ "$DRY" != "true" ]; then
+              git tag -a "$b" "$sha" -m "GhostWriter $b (Stand des früheren Branches $b)"
+              git push -q origin "refs/tags/$b"
+            fi
+            if [ "$DRY" != "true" ]; then git push -q origin --delete "refs/heads/$b"; fi
+            echo "- 🏷️ \`$b\` → Tag \`$b\` (${sha:0:7}), Branch gelöscht" >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Erledigte Branches löschen
         env:
           GH_TOKEN: ${{ github.token }}
