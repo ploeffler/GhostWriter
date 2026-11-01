@@ -54,6 +54,8 @@ jobs:
 
       - name: library.json erzeugen
         if: steps.gate.outputs.skip != '1'
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           git fetch -q origin '+refs/heads/*:refs/remotes/origin/*'
           python scripts/library.py list
