@@ -4,7 +4,7 @@ project:
   title_short: ADHS im Erwachsenenleben
   working_title: ''
   subtitle: ''
-  author: Max Mustermann
+  author: Max Mustermann-Test
   language: de
   description_short: Ein Buch für Erwachsene, die ADHS spät bei sich entdecken und verstehen wollen, was
     hinter den alten Etiketten steckt.
@@ -51,7 +51,7 @@ ai_providers:
 workflow:
   current_phase: writing
   current_chapter_id: ch-01-endlich-eine-erklaerung
-  current_section_id: sec-01-01-der-brief-der-sechs-monate
+  current_section_id: sec-01-09-ausblick
   require_section_writing_approval: true
   require_section_approval: true
   require_chapter_approval: true
