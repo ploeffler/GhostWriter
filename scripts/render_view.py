@@ -380,21 +380,32 @@ def edition_create_view(base, config, args):
     short = p['title_short'] or p['title'] or p['working_title'] or ''
     chapters = config['structure']['chapters']
     approved = sum(ch['status'] == 'approved' for ch in chapters)
-    warn = '' if chapters and approved == len(chapters) else \
-        (f'Bisher {"ist" if approved == 1 else "sind"} {approved} von {len(chapters)} Kapiteln freigegeben; '
-         'nur freigegebene Kapitel kommen in die Auflage.')
-    # Was den Bau der Auflage verhindert (scripts/assemble.py check): offene Marker, Lücken
+    if not chapters:
+        warn = 'Das Buch hat noch keine Kapitel.'
+    elif approved < len(chapters):
+        warn = (f'Bisher {"ist" if approved == 1 else "sind"} {approved} von {len(chapters)} Kapiteln freigegeben; '
+                'nur freigegebene Kapitel kommen in die Auflage.')
+    else:
+        warn = ''
+    # Was den Bau der Auflage verhindert (scripts/assemble.py check): kein freigegebenes
+    # Kapitel, offene Marker, Lücken; dazu ein fehlender Titel (Name und Tag der Auflage)
     from assemble import book_parts, problems
-    blockers = [x for x in problems(book_parts(base, config), config) if not x.startswith('Kein Kapitel')]
+    blockers = [x for x in problems(book_parts(base, config), config) if not x.startswith(('Kein Kapitel', 'Das Buch hat noch keinen Titel'))]
     markers = sum(x.startswith('Offener Marker') for x in blockers)
-    if blockers:
-        parts = []
-        if markers:
-            parts.append(f'{markers} offene Marker im freigegebenen Text')
-        if len(blockers) > markers:
-            parts.append('freigegebene Kapitel mit nicht freigegebenen Abschnitten')
-        warn = (warn + ' ' if warn else '') + ('So kann die Auflage nicht gebaut werden: ' + ' und '.join(parts)
-                                              + '. Bitte zuerst klären.')
+    parts = []
+    if not short:
+        parts.append('das Buch hat noch keinen Titel')
+    if not approved:
+        parts.append('noch kein Kapitel ist freigegeben')
+    if markers:
+        parts.append(f'{markers} offene Marker im freigegebenen Text')
+    if len(blockers) > markers:
+        parts.append('freigegebene Kapitel mit nicht freigegebenen Abschnitten')
+    if parts:
+        warn = (warn + ' ' if warn else '') + ('So kann die Auflage nicht gebaut werden: ' + ', '.join(parts[:-1])
+                                              + (' und ' if len(parts) > 1 else '') + parts[-1] + '. Bitte zuerst klären.')
+    if not short:
+        short = 'Ohne Titel'
     values = {'EDITION_NUMBER': n, 'EDITION_NAME': br['name_pattern'].format(title_short=short, edition=n),
               'EDITION_TAG': br['tag_pattern'].format(title_short_slug=tag_slug(short), edition=n),
               'EDITION_DATE_DEFAULT': datetime.date.today().isoformat(), 'APPROVAL_WARNING_TEXT': warn}
