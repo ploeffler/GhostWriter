@@ -19,11 +19,11 @@ Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die
 
 ```html
 <div id="gw"></div>
-<script src="https://cdn.jsdelivr.net/gh/ploeffler/ghostwriter-ui@<commit>/dist/gw.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/ploeffler/ghostwriter-ui@<commit>/dist/gw.min.js"></script>
 <script>GW.render("<vorlage>", { "PLATZHALTER": "Wert", "BLOCK": [ { … }, … ] })</script>
 ```
 
-- `<commit>` ist der feste Commit aus `templates/ui/ghostwriter-ui.yml`, nie `main`. So ändert sich keine Ansicht unbemerkt.
+- `<commit>` ist der feste Commit aus `templates/ui/ghostwriter-ui.yml`, nie `main`. `gw.min.js` ist die von jsDelivr automatisch verkleinerte Fassung von `dist/gw.js` (schnelleres erstes Laden); bei Fehlersuche `gw.js` laden. So ändert sich keine Ansicht unbemerkt.
 - `<vorlage>` ist der Dateiname der Vorlage ohne `.html`, etwa `projektuebersicht`.
 - Die Daten sind ein JSON-Objekt: Platzhalter als Schlüssel ohne Klammern, Wiederholblöcke als Arrays von Objekten. Welche Platzhalter es gibt, steht unten.
 - Statuswerte (Felder auf `_STATUS`) stehen als Rohwert in den Daten, etwa `writing`; `gw.js` zeigt sie deutsch an, mit derselben Zuordnung wie die Textfassung.
