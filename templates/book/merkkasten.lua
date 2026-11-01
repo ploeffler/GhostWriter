@@ -40,3 +40,22 @@ function BlockQuote(el)
     return pandoc.Div(inner, pandoc.Attr('', { 'merkkasten' }, {}))
   end
 end
+
+-- Probedruck: Marker und Statusvermerke hervorheben (scripts/assemble.py, proof)
+--   [ … ]{.gwmarker}  offener Marker, z. B. [QUELLE PRÜFEN: …]
+--   [ … ]{.gwstatus}  „Stand: Entwurf, nicht freigegeben“
+function Span(el)
+  local kind = el.classes:includes('gwmarker') and 'marker' or (el.classes:includes('gwstatus') and 'status' or nil)
+  if not kind then return nil end
+  if FORMAT:match('latex') then
+    local cmd = kind == 'marker' and '\\gwmarker{' or '\\gwstatus{'
+    local out = { pandoc.RawInline('latex', cmd) }
+    for _, i in ipairs(el.content) do table.insert(out, i) end
+    table.insert(out, pandoc.RawInline('latex', '}'))
+    return out
+  elseif FORMAT:match('docx') then
+    el.attributes['custom-style'] = kind == 'marker' and 'Marker' or 'Stand'
+    return el
+  end
+  return el
+end
