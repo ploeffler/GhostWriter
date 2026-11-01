@@ -36,6 +36,11 @@ jobs:
         run: pip install pyyaml
 
       - name: Übersichtsdatei erzeugen
+        # SECRETS_JSON: nur damit build_index.py prüfen kann, ob die Secrets der
+        # eigenen KI-Dienste hinterlegt sind. Es liest ausschließlich die Namen;
+        # Werte werden nie ausgegeben oder gespeichert.
+        env:
+          SECRETS_JSON: ${{ toJSON(secrets) }}
         run: python scripts/build_index.py .
 
       - name: Bei Änderungen committen

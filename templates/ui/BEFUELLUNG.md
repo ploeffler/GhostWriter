@@ -162,7 +162,12 @@ Gibt es keinen offenen Pull Request, gibt es keine offenen Änderungen; die Ansi
 | `SERVICE_WEBSITE_URL` | `url` des Dienstes für den Link „Website“; leer, wenn es keine gibt |
 | `SERVICE_ACCESS_OPTIONS`, `SERVICE_ACCESS` | mögliche Zugänge und gewählter Zugang (`ai_providers.services.<id>.access`, sonst der erste): Chat-Dienste `app`/`api`/`cli` laut `access` in `providers.yml`, lokale `local`, Kataloge `web`/`api`, Such-APIs `api`, Agenten `github` |
 | `SERVICE_MODEL`, `SERVICE_GITHUB`, `SERVICE_PLAN`, `SERVICE_COST`, `SERVICE_MEMO` | aus `ai_providers.services.<id>`: `model`, `github_connected` (`true` oder leer), `plan`, `monthly_cost` (Zahl ohne Währung, leer = unbekannt), `note` |
+| `SERVICE_SECRET` | `ai_providers.services.<id>.api_key_secret`, sonst `SERVICE_SECRET_DEFAULT` |
+| `SERVICE_SECRET_DEFAULT`, `SERVICE_SECRET_ALT`, `SERVICE_KEY_URL` | aus `providers.yml`: `api_key_secret` (ohne Eintrag `<ID>_API_KEY`), `api_key_alt`, `api_key_url` (ohne Eintrag `url`) |
+| `SERVICE_SECRET_STATE` | aus `ghostwriter-index.json`, Feld `secrets`: `ok` (Secret vorhanden), `alt` (nur das alternative Secret vorhanden), `missing` (fehlt), leer (unbekannt, z. B. Name geändert oder noch nicht geprüft) |
 | `CONNECTOR_GUIDE_URL` | Link auf `docs/CONNECTOR-SETUP.md` im Repository des Buchs |
+| `SECRETS_URL` | `https://github.com/<owner>/<repo>/settings/secrets/actions/new` |
+| `KEYS_GUIDE_URL` | Link auf `docs/DIENSTE-NUTZEN.md#api-schlüssel-als-github-secret` |
 | Block `ROLES`: `ROLE_ID`, `ROLE_LABEL`, `ROLE_HINT`, `ROLE_VALUE` | die Aufgaben `default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`, `queue_processing`; `ROLE_VALUE` ist `provider` bzw. bei der Warteschlange `agent` (leer = wie Standard) |
 
 ### `freigabe-bestaetigen.html`
@@ -269,7 +274,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `project.settings.open` | – | Projekteinstellungen zeigen | Vorlage `projekteinstellungen` (`render_view.py project-settings`) | – |
 | `project.settings.update` | `fact_checking_default`, `typesetting` (`page_size`, `font`, `font_size`, `title_page`, `imprint`, `toc`, `toc_depth`), `expected_head_sha` | Einstellungen speichern | `workflow.fact_checking_default` und `typesetting` in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH …/settings` |
 | `project.providers.open` | – | Formular „KI-Dienste“ zeigen | Vorlage `ki-dienste` (`render_view.py providers-edit`) | – |
-| `project.providers.update` | `available`, `services` (je eigenem Dienst `access`, `model`, `github_connected`, `plan`, `monthly_cost`, `note`), `roles` (`default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`: Dienst-ID, `chat` oder leer), `queue_agent`, `search_tools`, `expected_head_sha` | KI-Dienste speichern | `ai_providers` in `ghostwriter.yml` schreiben: `available`, `services` (nur eigene Dienste; leere Felder weglassen), `provider` je Aufgabe, `research.search_tools`, `queue_processing.agent`; Modellnamen nicht ändern. Danach Projektübersicht | `PATCH …/settings` |
+| `project.providers.update` | `available`, `services` (je eigenem Dienst `access`, `model`, `github_connected`, `plan`, `monthly_cost`, `note`, bei `access: api` zusätzlich `api_key_secret`), `roles` (`default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`: Dienst-ID, `chat` oder leer), `queue_agent`, `search_tools`, `expected_head_sha` | KI-Dienste speichern | `ai_providers` in `ghostwriter.yml` schreiben: `available`, `services` (nur eigene Dienste; leere Felder weglassen), `provider` je Aufgabe, `research.search_tools`, `queue_processing.agent`; Modellnamen nicht ändern. Danach Projektübersicht | `PATCH …/settings` |
 | `chapter.create.open` | – | Formular „Neues Kapitel anlegen“ zeigen | Vorlage `kapitel-anlegen` (`render_view.py chapter-create`) | – |
 | `chapter.create` | `title`, `summary`, `goal`, `position` (Index, 0 = am Anfang), `position_label`, `expected_head_sha` | Kapitel anlegen | Kapitel anlegen, danach Kapitelansicht des neuen Kapitels | `POST …/chapters` |
 | `chapter.edit.open` | `chapter_id` | Kapitel bearbeiten | Vorlage `kapitel-bearbeiten` (`render_view.py chapter-edit N`) | – |

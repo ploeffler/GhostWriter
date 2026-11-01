@@ -13,11 +13,20 @@ der Inhalt ändert. Projektübersicht und Kapitelansicht werden daraus befüllt
 weiter die Abschnittsdatei.
 
 Ohne Kapitel (Starter vor dem Einrichten) wird keine Datei geschrieben.
+
+API-Schlüssel: Ist die Umgebungsvariable SECRETS_JSON gesetzt (in der Action:
+toJSON(secrets)), steht unter "secrets" für jedes Secret, das die eigenen
+KI-Dienste brauchen, ob es im Repository hinterlegt ist (true/false). Nur die
+Namen werden gelesen, nie die Werte. Ohne SECRETS_JSON bleibt der bisherige
+Eintrag stehen.
 """
 import json
+import os
 import re
 import sys
 from pathlib import Path
+
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from render_view import (combine, cost_entries, load, marker_counts, money, section_costs,  # noqa: E402
@@ -85,6 +94,41 @@ def render(data):
     return '\n'.join(out) + '\n'
 
 
+def secret_names(config):
+    """Namen der GitHub-Secrets, die die eigenen KI-Dienste mit Zugang „API-Schlüssel“ brauchen."""
+    root = Path(__file__).resolve().parent.parent
+    try:
+        catalog = yaml.safe_load((root / 'providers.yml').read_text(encoding='utf-8')) or {}
+    except OSError:
+        catalog = {}
+    entries = {s['id']: s for sec in ('providers', 'search_tools', 'queue_agents') for s in catalog.get(sec) or []}
+    ap = config.get('ai_providers') or {}
+    names = set()
+    for sid, cfg in (ap.get('services') or {}).items():
+        if sid not in (ap.get('available') or []) or (cfg or {}).get('access') != 'api':
+            continue
+        s = entries.get(sid, {'id': sid})
+        names.add((cfg or {}).get('api_key_secret') or s.get('api_key_secret')
+                  or re.sub(r'[^A-Z0-9]+', '_', sid.upper()) + '_API_KEY')
+        if s.get('api_key_alt'):
+            names.add(s['api_key_alt'])
+    return sorted(names)
+
+
+def secrets_presence(config, current_text):
+    raw = os.environ.get('SECRETS_JSON')
+    if raw is None:
+        try:
+            return json.loads(current_text).get('secrets') if current_text else None
+        except ValueError:
+            return None
+    try:
+        have = set(json.loads(raw))
+    except ValueError:
+        have = set()
+    return {n: n in have for n in secret_names(config)}
+
+
 def main(argv):
     if len(argv) < 2 or argv[1] in ('-h', '--help'):
         print(__doc__)
@@ -98,8 +142,12 @@ def main(argv):
             return 1 if check else 0
         print(f'{base}: keine Kapitel, keine Übersichtsdatei')
         return 0
-    text = render(build(base, config))
     current = path.read_text(encoding='utf-8') if path.is_file() else None
+    data = build(base, config)
+    secrets = secrets_presence(config, current)
+    if secrets:
+        data['secrets'] = secrets
+    text = render(data)
     if check:
         if current == text:
             print(f'✓ {path}')
