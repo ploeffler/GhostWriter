@@ -76,7 +76,7 @@ Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die
 
 ## Offene Änderungen
 
-Offene Änderungen sind die Commits im Arbeits-Branch `ghostwriter/<buch-branch>`, solange dazu ein offener Pull Request in den Buch-Branch besteht (`START.md`, „Schreiben ins Repository“). Der Assistent liest sie vor jeder Projektübersicht und vor `changes.merge.open` aus GitHub: offenen Pull Request mit diesem Head und dieser Basis suchen, seine Commits auflisten (älteste zuerst). Commits mit `GhostWriter-Aktion: index.build` (die Action „Übersichtsdatei aktualisieren“) sind keine Änderungen des Benutzers: Sie erscheinen nicht in der Liste und zählen nicht mit. Bleiben nur solche Commits übrig, gibt es keine offenen Änderungen. Für `render_view.py` gehören sie in eine JSON-Datei für `--changes`:
+Offene Änderungen sind die Commits im Arbeits-Branch `ghostwriter/<buch-branch>`, solange dazu ein offener Pull Request in den Buch-Branch besteht (`START.md`, „Schreiben ins Repository“). Der Assistent liest sie vor jeder Projektübersicht und vor `changes.merge.open` aus GitHub: offenen Pull Request mit diesem Head und dieser Basis suchen, seine Commits auflisten (älteste zuerst). Commits mit `GhostWriter-Aktion: index.build` (die Action „Übersichtsdatei aktualisieren“) oder `GhostWriter-Aktion: update` (die Action „GhostWriter aktualisieren“) sind keine Änderungen des Benutzers: Sie erscheinen nicht in der Liste und zählen nicht mit. Bleiben nur solche Commits übrig, gibt es keine offenen Änderungen. Für `render_view.py` gehören sie in eine JSON-Datei für `--changes`:
 
 ```json
 {"pull_request": 12, "book_branch": "main", "work_branch": "ghostwriter/main",
@@ -217,6 +217,9 @@ Für Kapitel und Abschnitte.
 | `PAGE_SIZE`, `FONT`, `FONT_SIZE`, `TOC_DEPTH` | `typesetting`, fehlende Felder mit den Vorgaben aus `docs/DATA-MODEL.md` |
 | `TITLE_PAGE`, `IMPRINT`, `TOC` | `typesetting` als `true`/`false` |
 | Block `FIXED`: `FIXED_LABEL`, `FIXED_VALUE` | KI-Grundeinstellungen (`ai_settings`) und Freigabepflichten (`workflow.require_…`), nur zur Anzeige |
+| `UPDATES_AUTO` | `updates.auto` als `true`/`false`; fehlt der Block, `true` |
+| `GW_VERSION_TEXT` | „Installiert: GhostWriter <version>“ aus `ghostwriter-manifest.yml`, dazu „ · zuletzt aktualisiert am TT.MM.JJJJ“ aus `.ghostwriter/update.yml` (`updated_at`), falls vorhanden |
+| `GW_UPDATE_HINT` | nur wenn `.ghostwriter/update.yml` `skipped_workflows` enthält: Hinweis auf das Secret `GHOSTWRITER_UPDATE_TOKEN` (`docs/UPDATES.md`); sonst leer |
 
 ## Textfassung ohne Widgets
 
@@ -272,7 +275,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `project.edit` | – | Formular „Projektdaten bearbeiten“ zeigen | Vorlage `projektdaten-bearbeiten` (`render_view.py project-edit`) | – |
 | `project.update` | `title`, `title_short`, `author`, `description_short`, `description`, `expected_head_sha` | Projektdaten speichern | in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH /v1/projects/{owner}/{repo}` |
 | `project.settings.open` | – | Projekteinstellungen zeigen | Vorlage `projekteinstellungen` (`render_view.py project-settings`) | – |
-| `project.settings.update` | `fact_checking_default`, `typesetting` (`page_size`, `font`, `font_size`, `title_page`, `imprint`, `toc`, `toc_depth`), `expected_head_sha` | Einstellungen speichern | `workflow.fact_checking_default` und `typesetting` in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH …/settings` |
+| `project.settings.update` | `fact_checking_default`, `typesetting` (`page_size`, `font`, `font_size`, `title_page`, `imprint`, `toc`, `toc_depth`), `updates` (`auto`), `expected_head_sha` | Einstellungen speichern | `workflow.fact_checking_default`, `typesetting` und `updates` in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH …/settings` |
 | `project.providers.open` | – | Formular „KI-Dienste“ zeigen | Vorlage `ki-dienste` (`render_view.py providers-edit`) | – |
 | `project.providers.update` | `available`, `services` (je eigenem Dienst `access`, `model`, `github_connected`, `plan`, `monthly_cost`, `note`, bei `access: api` zusätzlich `api_key_secret`), `roles` (`default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`: Dienst-ID, `chat` oder leer), `queue_agent`, `search_tools`, `expected_head_sha` | KI-Dienste speichern | `ai_providers` in `ghostwriter.yml` schreiben: `available`, `services` (nur eigene Dienste; leere Felder weglassen), `provider` je Aufgabe, `research.search_tools`, `queue_processing.agent`; Modellnamen nicht ändern. Danach Projektübersicht | `PATCH …/settings` |
 | `chapter.create.open` | – | Formular „Neues Kapitel anlegen“ zeigen | Vorlage `kapitel-anlegen` (`render_view.py chapter-create`) | – |

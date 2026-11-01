@@ -1,0 +1,51 @@
+# GhostWriter – was zum Programm gehört und was dem Buch
+#
+# Ein Buch-Repository entsteht aus dem GhostWriter-Starter (Fork oder Template)
+# und bekommt Updates automatisch aus dem Hauptrepository (`upstream`), siehe
+# docs/UPDATES.md. Beim Update werden nur die Programmdateien unter `managed`
+# durch den Stand von `upstream` ersetzt. Was unter `book` steht, gehört dem
+# Buch und wird nie überschrieben. Alles andere bleibt unverändert.
+#
+# Lokale Änderungen an Programmdateien gehen beim nächsten Update verloren.
+# Buchspezifisches gehört deshalb in ghostwriter.yml oder unter chapters/.
+
+name: GhostWriter
+
+# Programmversion. Wird beim Merge eines Versionsschritts nach main erhöht.
+# Ein Buch wird nie auf eine ältere Version zurückgesetzt.
+version: 0.3.0
+
+upstream:
+  repo: ploeffler/GhostWriter
+  ref: main
+
+# Programmdateien: beim Update vom Upstream übernommen (Ordner mit /)
+managed:
+  - START.md
+  - README.md
+  - ghostwriter-manifest.yml
+  - workflow.yml
+  - providers.yml
+  - .gitattributes
+  - .gitignore
+  - docs/
+  - schemas/
+  - scripts/
+  - templates/
+  - .github/workflows/
+
+# Gehören dem Buch; werden beim Update nie geändert (außer durch Migrationen
+# in scripts/migrate_project.py und die Übersichtsdatei)
+book:
+  - ghostwriter.yml
+  - approvals.yml
+  - chapters/
+  - costs/
+  - research/
+  - ghostwriter-index.json
+  - .ghostwriter/
+
+update:
+  # Liegt ein Buch als Branch im Hauptrepository selbst (z. B. das Testbuch),
+  # werden diese Branches nie aktualisiert:
+  skip_branches: [main, 'v*', 'ghostwriter/*', 'codex/*', 'claude/*', 'dependabot/*']

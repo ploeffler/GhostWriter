@@ -62,6 +62,8 @@ workflow:
   require_chapter_approval: true
   fact_checking_default: "optional"
 
+updates:
+  auto: true          # neue GhostWriter-Versionen automatisch einspielen (docs/UPDATES.md)
 typesetting:
   # Buchsatz für PDF, DOCX und EPUB der Auflagen (Projekteinstellungen)
   page_size: a5        # a5 | 12x19 | 13.5x21.5 | a4

@@ -71,6 +71,12 @@
       },
       "additionalProperties": false
     },
+    "updates": {
+      "type": "object",
+      "description": "Automatische GhostWriter-Updates (docs/UPDATES.md); fehlt der Block, gilt auto: true",
+      "properties": {"auto": {"type": "boolean"}},
+      "additionalProperties": false
+    },
     "typesetting": {
       "type": "object",
       "description": "Buchsatz für die Auflagen; fehlt der Block, gelten die Vorgaben aus docs/DATA-MODEL.md",
