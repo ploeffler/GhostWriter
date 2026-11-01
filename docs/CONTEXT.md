@@ -32,3 +32,7 @@ Die Regel „kein ganzes Buch im Chat“ bleibt bestehen: Lesen ist erlaubt, Aus
 ## Prüfung
 
 `python3 -m unittest discover -s tests -p 'test_context.py'` prüft 15.000/15.001 Wörter, Kontextmangel, fehlende und nach Textänderung veraltete Zusammenfassungen, leere Manuskripte und Unicode-Wörter. Der Test läuft auch in der Prüf-Action. Ein realer Chat muss zusätzlich zeigen, dass die vorgesehenen Dateien tatsächlich gelesen und Einschränkungen korrekt gemeldet werden.
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

@@ -93,3 +93,7 @@ Legende: ✅ bestanden · ⏳ offen · — nicht anwendbar
 - Ghostwriting-Lauf mit Schreibfreigabe und Freigabeablauf einmal vollständig im Testbuch.
 
 Funktionen nach v0.5 (Änderungen sofort übernehmen, Befehle, Kapitelrecherche, Doku-Prüfung) werden in der Abnahme v0.6 (#41) geprüft.
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

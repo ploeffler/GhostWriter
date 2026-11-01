@@ -16,6 +16,8 @@ Geprüft wird:
 4. Läufe: Jede Lauf-Art aus workflow.yml (runs) steht mit ihrem Pfad in
    docs/DATA-MODEL.md.
 5. Links: Relative Links in den Markdown-Dateien zeigen auf vorhandene Dateien.
+7. Hinweis: Jede Doku-Datei endet mit der Fußzeile aus templates/branding.yml;
+   keine Vorlage für Buchdateien (templates/*.md außer ui/) enthält ihn.
 6. Roadmap: Jede Version aus workflow.yml (product_roadmap.v0_5_steps) steht in
    der Roadmap von docs/WORKFLOW-MODEL.md; mit --milestones (JSON-Liste der
    GitHub-Meilensteine, z. B. aus `gh api …/milestones?state=all`) steht auch
@@ -154,6 +156,21 @@ def check_roadmap(milestones, problems):
                 problems.append(f'Meilenstein {t} fehlt in workflow.yml (product_roadmap.v0_5_steps)')
 
 
+def check_credit(problems):
+    path = ROOT / 'templates' / 'branding.yml'
+    if not path.is_file():
+        return
+    text = ((yaml.safe_load(path.read_text(encoding='utf-8')) or {}).get('credit') or {}).get('text', '')
+    if not text:
+        return
+    for rel in DOCS:
+        if (ROOT / rel).is_file() and text not in read(rel)[-400:]:
+            problems.append(f'Fußzeile „{text}“ fehlt am Ende von {rel}')
+    for p in sorted((ROOT / 'templates').glob('*.md')):
+        if text in p.read_text(encoding='utf-8'):
+            problems.append(f'Buchvorlage templates/{p.name} enthält den Hinweis; er gehört nie ins Buch')
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--ui', help='Ordner mit ghostwriter-ui (Vorlagen unter templates/)')
@@ -169,6 +186,7 @@ def main(argv):
     check_runs(problems)
     check_links(problems)
     check_roadmap(args.milestones, problems)
+    check_credit(problems)
     for p in problems:
         print(f'✗ {p}')
     if not problems:

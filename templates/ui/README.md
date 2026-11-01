@@ -48,3 +48,7 @@ Dateien in `ghostwriter-ui/templates/`:
 | `freigabe-bestaetigen.html` | Bestätigung | Schreibfreigabe, Abschnitts- oder Kapitelfreigabe erteilen bzw. zurücknehmen; zeigt Prüfpunkte und sperrt bei Hindernissen |
 | `aenderungen-uebernehmen.html` | Bestätigung | Offene Änderungen (Commits des Pull Requests aus dem Arbeits-Branch) auflisten und nach Bestätigung in den Buch-Branch übernehmen |
 | `auflage-erzeugen.html` | Formular | Neue Auflage mit Erscheinungsdatum und Anmerkungen erzeugen; Name, Tag und Formate ergeben sich aus `workflow.yml` |
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

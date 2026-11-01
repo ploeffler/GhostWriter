@@ -52,3 +52,7 @@ Welcher KI-Anbieter recherchiert, brainstormt, schreibt, überarbeitet, prüft u
 **Buch → Kapitel → Abschnitte → Recherche-/Brainstormingläufe → Manuskript → Abschnittsfreigabe → Kapitelzusammenführung → Kapitelfreigabe.**
 
 Jedes Kapitel hat mindestens einen und beliebig viele Abschnitte. Abschnitte können jederzeit hinzugefügt, verschoben oder neu geordnet werden.
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

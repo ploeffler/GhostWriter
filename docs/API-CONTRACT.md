@@ -122,3 +122,7 @@ Erfolgsantworten enthalten mindestens success, commit_sha, commit_url, updated_p
 5. OpenAPI aus dem tatsächlich implementierten Dienst erzeugen.
 6. GPT-Action konfigurieren und mit Testrepository prüfen.
 7. Erst danach die Action als einsatzbereit dokumentieren.
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

@@ -112,3 +112,7 @@ Nur bei der Queue ist entscheidend, welcher Anbieter technisch mit dem Repositor
 ## Liste pflegen
 
 Neue Anbieter werden in `providers.yml` ergänzt (eindeutige `id`, Felder wie oben) und hier in die passende Tabelle eingetragen. Beim Prüfen `checked_at` aktualisieren.
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

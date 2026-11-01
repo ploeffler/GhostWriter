@@ -171,3 +171,7 @@ ChatGPT zeigt GhostWriter nicht als Formulare, sondern als Text mit Kürzeln (z.
 - [GitHub MCP Server: Official, Self-Hosted and Per-User OAuth](https://www.scalekit.com/blog/github-mcp-server-per-user-oauth) (Stand 14.10.2026; kein Copilot-Abo nötig, eigene App für OAuth)
 - [A practical guide on how to use the GitHub MCP server](https://github.blog/ai-and-ml/generative-ai/a-practical-guide-on-how-to-use-the-github-mcp-server/) (GitHub-Blog, 2025; nennt noch ein Copilot-Abo als Voraussetzung)
 - Anthropic: [Connect to GitHub](https://claude.com/docs/third-party/claude-desktop/connectors-github) (GitHub App statt OAuth App möglich; Anmeldung läuft nach etwa acht Stunden ab)
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>
