@@ -16,6 +16,7 @@
         "subtitle": {"type": "string"},
         "author": {"type": "string"},
         "language": {"type": "string", "minLength": 2},
+        "translations_planned": {"type": "array", "items": {"type": "string", "pattern": "^[a-z]{2,3}(-[A-Z]{2})?$"}, "uniqueItems": true, "description": "geplante Übersetzungen als Sprachcodes; nur Angabe (#75)"},
         "description_short": {"type": "string"},
         "description": {"type": "string"},
         "target_audience": {"type": "string"},
