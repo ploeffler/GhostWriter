@@ -29,7 +29,7 @@ denn --allow-markers (nur für Proben, nie für eine veröffentlichte Auflage).
 
 Benötigt: pandoc (≥ 3), xelatex mit KOMA-Script, tcolorbox, TeX Gyre
 (texlive-xetex, texlive-latex-extra, texlive-lang-german,
-texlive-fonts-recommended), python-docx, pyyaml.
+texlive-fonts-recommended, fonts-texgyre), python-docx, pyyaml.
 """
 import argparse
 import datetime
