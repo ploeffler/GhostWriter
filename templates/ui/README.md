@@ -43,6 +43,7 @@ Dateien in `ghostwriter-ui/templates/`:
 | `abschnitt-anlegen.html` | Formular | Neuen Abschnitt in einem Kapitel mit Titel, Ziel, Kurzbeschreibung, Faktencheck und Position anlegen |
 | `reihenfolge.html` | Formular | Reihenfolge der Kapitel oder der Abschnitte eines Kapitels mit Pfeilen ändern |
 | `projekteinstellungen.html` | Formular | Feste Regeln anzeigen; Faktencheck-Vorgabe und Buchsatz (Seitenformat, Schrift, Titelei, Inhaltsverzeichnis) bearbeiten |
+| `ki-dienste.html` | Formular | Vorhandene KI-Dienste abhaken und Aufgaben zuteilen; weitere Dienste mit Link zur Anleitung bzw. Website hinzufügen |
 | `freigabe-bestaetigen.html` | Bestätigung | Schreibfreigabe, Abschnitts- oder Kapitelfreigabe erteilen bzw. zurücknehmen; zeigt Prüfpunkte und sperrt bei Hindernissen |
 | `aenderungen-uebernehmen.html` | Bestätigung | Offene Änderungen (Commits des Pull Requests aus dem Arbeits-Branch) auflisten und nach Bestätigung in den Buch-Branch übernehmen |
 | `auflage-erzeugen.html` | Formular | Neue Auflage mit Erscheinungsdatum und Anmerkungen erzeugen; Name, Tag und Formate ergeben sich aus `workflow.yml` |

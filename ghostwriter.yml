@@ -23,7 +23,10 @@ ai_settings:
 # provider: ID aus providers.yml, "chat" = aktueller Chat-Assistent, "" = noch nicht gewählt
 # model:    frei wählbarer Modellname des Anbieters ("" = Standardmodell des Anbieters)
 # Leere Rollen erben von `default`. Globale KI-Regeln (ai_settings) gelten für alle Anbieter.
+# available: Dienste, die du schon hast (IDs aus providers.yml). Nur diese werden Aufgaben
+#            zugeteilt; weitere später im Formular „KI-Dienste“ hinzufügen.
 ai_providers:
+  available: []
   default:
     provider: "chat"
     model: ""

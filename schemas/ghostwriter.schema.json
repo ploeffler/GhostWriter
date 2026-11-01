@@ -42,6 +42,7 @@
       "required": ["default"],
       "properties": {
         "rules": {"type": "object"},
+        "available": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
         "queue_processing": {"type": "object", "properties": {"agent": {"type": "string"}, "model": {"type": "string"}}}
       },
       "additionalProperties": {

@@ -213,7 +213,7 @@ def project_view(base, config, args):
                     items.append((f'{ci}.{si}', 'öffnen (zuletzt bearbeitet)'))
         if changes:
             items.append(('M', 'Änderungen übernehmen'))
-        items += [('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
+        items += [('D', 'KI-Dienste'), ('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
                   ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
         lines += [menu(items)]
         return '\n'.join(lines) + '\n'
@@ -527,6 +527,64 @@ def approval_view(base, config, args, kind):
     return fill('freigabe-bestaetigen.html', values, {'CHECKS': checks})
 
 
+ROLE_INFO = [('default', 'Standard', 'gilt für alle Aufgaben, die unten nicht eigens belegt sind'),
+             ('research', 'Recherche', 'braucht Internetrecherche'),
+             ('brainstorming', 'Brainstorming', ''),
+             ('writing', 'Schreiben', 'Sprachqualität im Deutschen, lange Texte'),
+             ('revision', 'Überarbeiten', ''),
+             ('fact_check', 'Faktencheck', 'am besten ein anderer Dienst als beim Schreiben'),
+             ('queue_processing', 'Aufgaben-Warteschlange', 'Agent, der GitHub-Issues abarbeitet; Standard: manuell')]
+WEB_TEXT = {'native': 'mit Websuche', 'via_tool': 'Websuche über Werkzeug', 'none': 'ohne Websuche'}
+
+
+def providers_edit_view(base, config, args):
+    """Formular „KI-Dienste“: vorhandene Dienste und Zuteilung je Aufgabe."""
+    catalog = yaml.safe_load((ROOT / 'providers.yml').read_text(encoding='utf-8'))
+    ap = config.get('ai_providers') or {}
+    available = list(ap.get('available') or [])
+    def link(s):
+        if s.get('setup'):
+            path, _, anchor = s['setup'].partition('#')
+            return f'https://github.com/{args.repo}/blob/{args.branch}/{path}' + (f'#{anchor}' if anchor else ''), 'Anleitung'
+        return s.get('url', ''), 'Website'
+    services = []
+    for section, group in (('providers', 'llm'), ('search_tools', 'search'), ('queue_agents', 'agent')):
+        for s in catalog.get(section) or []:
+            if s['id'] == 'manual':
+                continue
+            if group == 'llm':
+                roles = ','.join(s.get('roles') or [])
+                note = ' · '.join(x for x in (s.get('hq', ''), WEB_TEXT.get(s.get('web_research'), ''), s.get('note', '')) if x and x != 'n/a')
+            elif group == 'search':
+                roles, note = 'search', s.get('note', '')
+            else:
+                roles, note = 'queue_processing', s.get('note', '')
+            url, label = link(s)
+            services.append({'SERVICE_ID': s['id'], 'SERVICE_NAME': s['name'], 'SERVICE_GROUP': group,
+                             'SERVICE_ROLES': roles, 'SERVICE_NOTE': note, 'SERVICE_AVAILABLE': 'true' if s['id'] in available else '',
+                             'SERVICE_SETUP_URL': url, 'SERVICE_SETUP_LABEL': label})
+    roles = []
+    for rid, label, hint in ROLE_INFO:
+        entry = ap.get(rid) or {}
+        value = entry.get('agent', 'manual') if rid == 'queue_processing' else entry.get('provider', '')
+        roles.append({'ROLE_ID': rid, 'ROLE_LABEL': label, 'ROLE_HINT': hint, 'ROLE_VALUE': value or ''})
+    if args.text:
+        names = {s['SERVICE_ID']: s['SERVICE_NAME'] for s in services}
+        names.update({'chat': 'Aktueller Chat', 'manual': 'manuell', '': 'wie Standard'})
+        lines = ['### 🤖 KI-Dienste', '', '**Deine Dienste**', '']
+        mine = [s for s in services if s['SERVICE_AVAILABLE']]
+        lines += [f'- `{s["SERVICE_ID"]}` {s["SERVICE_NAME"]}' for s in mine] or ['- *noch keine eingetragen; bis dahin macht alles der aktuelle Chat*']
+        lines += ['', '| Aufgabe | Dienst |', '|---|---|']
+        lines += [f'| {r["ROLE_LABEL"]} | {names.get(r["ROLE_VALUE"], r["ROLE_VALUE"])} |' for r in roles]
+        lines += ['', '<details><summary>Weitere Dienste hinzufügen</summary>', '']
+        lines += [f'- `{s["SERVICE_ID"]}` {s["SERVICE_NAME"]} · [{s["SERVICE_SETUP_LABEL"]}]({s["SERVICE_SETUP_URL"]})'
+                  for s in services if not s['SERVICE_AVAILABLE']]
+        lines += ['', '</details>', '', '---',
+                  'Antworte je Zeile: `+ id` (Dienst habe ich), `- id` (habe ich nicht mehr), `Aufgabe: id` (zuteilen, z. B. `Recherche: perplexity`). `OK` speichert nichts Neues, `X` bricht ab.']
+        return '\n'.join(lines) + '\n'
+    return fill('ki-dienste.html', {}, {'SERVICES': services, 'ROLES': roles})
+
+
 TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'title_page': True,
                       'imprint': True, 'toc': True, 'toc_depth': 1}
 FIXED_RULES = [('ai_settings', 'hallucination_policy', 'Halluzinationen'), ('ai_settings', 'source_policy', 'Quellen'),
@@ -650,7 +708,7 @@ def project_settings_view(base, config, args):
 FORMS = {'project-edit': project_edit_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
-         'changes-merge': changes_merge_view,
+         'changes-merge': changes_merge_view, 'providers-edit': providers_edit_view,
          'approval-writing': lambda b, c, a: approval_view(b, c, a, 'writing'),
          'approval-section': lambda b, c, a: approval_view(b, c, a, 'section'),
          'approval-chapter': lambda b, c, a: approval_view(b, c, a, 'chapter')}

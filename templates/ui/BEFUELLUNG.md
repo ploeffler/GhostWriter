@@ -9,6 +9,7 @@ python scripts/render_view.py <projektordner> section 2.4 [--text]
 python scripts/render_view.py <projektordner> project-edit | project-settings | chapter-create | chapter-reorder | edition-create [--text]
 python scripts/render_view.py <projektordner> project | changes-merge --changes <offene-aenderungen.json> [--head-sha <commit>] [--text]
 python scripts/render_view.py <projektordner> chapter-edit 2 | section-create 2 | section-reorder 2 [--text]
+python scripts/render_view.py <projektordner> providers-edit [--repo owner/name] [--branch name] [--text]
 python scripts/render_view.py <projektordner> approval-writing 2.4 | approval-section 2.4 | approval-chapter 2 [--revoke] [--text]
 ```
 
@@ -151,6 +152,15 @@ Gibt es keinen offenen Pull Request, gibt es keine offenen Änderungen; die Ansi
 
 `CHAPTER_ID`, `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_SUBTITLE` wie in der Kapitelansicht; `CHAPTER_SUMMARY` und `CHAPTER_GOAL` aus `## Kurzbeschreibung` und `## Ziel des Kapitels` der Kapitel-README („Offen.“ gilt als leer).
 
+### `ki-dienste.html`
+
+| Platzhalter | Quelle |
+|---|---|
+| Block `SERVICES`: `SERVICE_ID`, `SERVICE_NAME`, `SERVICE_GROUP`, `SERVICE_ROLES`, `SERVICE_NOTE` | alle Dienste aus `providers.yml` (`providers` → `llm`, `search_tools` → `search`, `queue_agents` außer `manual` → `agent`); `SERVICE_ROLES` sind die `roles` des Dienstes, bei `search` „search“, bei `agent` „queue_processing“; `SERVICE_NOTE` aus Sitzland, Websuche und `note` |
+| `SERVICE_AVAILABLE` | `true`, wenn die ID in `ai_providers.available` steht, sonst leer |
+| `SERVICE_SETUP_URL`, `SERVICE_SETUP_LABEL` | `setup` als Link ins Repository des Buchs (`https://github.com/<owner>/<repo>/blob/<branch>/<pfad>`) mit „Anleitung“, sonst `url` mit „Website“ |
+| Block `ROLES`: `ROLE_ID`, `ROLE_LABEL`, `ROLE_HINT`, `ROLE_VALUE` | die Aufgaben `default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`, `queue_processing`; `ROLE_VALUE` ist `provider` bzw. bei der Warteschlange `agent` (leer = wie Standard) |
+
 ### `freigabe-bestaetigen.html`
 
 | Platzhalter | Quelle |
@@ -205,7 +215,7 @@ Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown. **Dor
 
 Gestaltung:
 
-- **Überschrift** `###` mit Symbol: 📘 Projekt, 📖 Kapitel, ✏️ Abschnitt, 📝 Bearbeiten, ➕ Anlegen, ↕️ Reihenfolge, ⚙️ Einstellungen, 📚 Auflage, 🔀 Änderungen übernehmen, ✅ Freigeben, ↩️ Freigabe zurücknehmen.
+- **Überschrift** `###` mit Symbol: 📘 Projekt, 📖 Kapitel, ✏️ Abschnitt, 📝 Bearbeiten, ➕ Anlegen, ↕️ Reihenfolge, ⚙️ Einstellungen, 📚 Auflage, 🔀 Änderungen übernehmen, ✅ Freigeben, ↩️ Freigabe zurücknehmen, 🤖 KI-Dienste.
 - **Status** deutsch mit Symbol: ⚪ geplant, 🔎 Recherche, 💡 Ideensammlung, 🟦 bereit zum Schreiben, ✏️ Schreiben bzw. in Arbeit, 🔁 Überarbeitung, 🔍 Faktencheck bzw. Durchsicht, 🟡 bereit zur Freigabe, ✅ freigegeben.
 - **Marker** als Symbol mit Anzahl: 💬 Anekdote, 📚 Quelle, 🩺 Medizin, ⚖️ Recht; darunter klein die Legende.
 - **Tabellen** für Listen und Felder; Zahlen und Kosten rechtsbündig.
@@ -214,10 +224,10 @@ Gestaltung:
 
 | Ansicht | Kürzel |
 |---|---|
-| Projektübersicht | `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
+| Projektübersicht | `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
 | Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `B` Kapitel bearbeiten · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `FK` Kapitel freigeben (nur wenn möglich) · `Ü` Übersicht |
 | Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` Abschnitt freigeben bzw. zurücknehmen · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
-| Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Änderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · `X` bricht ab |
+| Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Änderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · KI-Dienste: `+ id`, `- id`, `Aufgabe: id` · `X` bricht ab |
 
 Ein Kürzel entspricht dem Klick auf den gleichnamigen Knopf; es gelten dieselbe Aktion, dieselben Statuszeilen und dieselbe Ausgangsansicht danach.
 
@@ -254,6 +264,8 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `project.update` | `title`, `title_short`, `author`, `description_short`, `description`, `expected_head_sha` | Projektdaten speichern | in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH /v1/projects/{owner}/{repo}` |
 | `project.settings.open` | – | Projekteinstellungen zeigen | Vorlage `projekteinstellungen` (`render_view.py project-settings`) | – |
 | `project.settings.update` | `fact_checking_default`, `typesetting` (`page_size`, `font`, `font_size`, `title_page`, `imprint`, `toc`, `toc_depth`), `expected_head_sha` | Einstellungen speichern | `workflow.fact_checking_default` und `typesetting` in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH …/settings` |
+| `project.providers.open` | – | Formular „KI-Dienste“ zeigen | Vorlage `ki-dienste` (`render_view.py providers-edit`) | – |
+| `project.providers.update` | `available`, `roles` (`default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`: Dienst-ID, `chat` oder leer), `queue_agent`, `search_tools`, `expected_head_sha` | KI-Dienste speichern | `ai_providers` in `ghostwriter.yml` schreiben: `available`, `provider` je Aufgabe, `research.search_tools`, `queue_processing.agent`; Modellnamen nicht ändern. Danach Projektübersicht | `PATCH …/settings` |
 | `chapter.create.open` | – | Formular „Neues Kapitel anlegen“ zeigen | Vorlage `kapitel-anlegen` (`render_view.py chapter-create`) | – |
 | `chapter.create` | `title`, `summary`, `goal`, `position` (Index, 0 = am Anfang), `position_label`, `expected_head_sha` | Kapitel anlegen | Kapitel anlegen, danach Kapitelansicht des neuen Kapitels | `POST …/chapters` |
 | `chapter.edit.open` | `chapter_id` | Kapitel bearbeiten | Vorlage `kapitel-bearbeiten` (`render_view.py chapter-edit N`) | – |
@@ -284,7 +296,7 @@ Nach Speichern, Abbrechen oder „nichts geändert“ zeigt der Assistent sofort
 
 | Formular | Danach |
 |---|---|
-| Projektdaten bearbeiten, Projekteinstellungen, Kapitelreihenfolge, Neue Auflage, Änderungen übernehmen | Projektübersicht |
+| Projektdaten bearbeiten, Projekteinstellungen, KI-Dienste, Kapitelreihenfolge, Neue Auflage, Änderungen übernehmen | Projektübersicht |
 | Neues Kapitel anlegen | gespeichert: Kapitelansicht des neuen Kapitels; abgebrochen: Projektübersicht |
 | Kapitel bearbeiten | aus der Kapitelansicht geöffnet: Kapitelansicht; aus der Projektübersicht (Stift je Kapitel bzw. `BN` in der Textfassung): Projektübersicht |
 | Abschnittsreihenfolge | Kapitelansicht |
@@ -314,6 +326,7 @@ Statuszeilen, Ladetexte und Ergebniszeilen nach `START.md`, „Statusanzeige“.
 | `chapter.update` | → Speichere Kapitel N (ghostwriter.yml und README, Commit) | – | ✓ Kapitel N gespeichert, Commit `abc1234` |
 | `chapter.reorder`, `section.reorder` | → Prüfe die neue Reihenfolge · → Speichere ghostwriter.yml (Commit) | – | ✓ Reihenfolge gespeichert, Commit `abc1234` |
 | `section.create` | → Lege Abschnitt „Titel“ in Kapitel N an · → Speichere (Commit) | – | ✓ Abschnitt N.M „Titel“ angelegt, Commit `abc1234` |
+| `project.providers.update` | → Prüfe, ob sich die Dateien seit dem Lesen geändert haben · → Speichere KI-Dienste (Commit im Arbeits-Branch) | – | ✓ KI-Dienste gespeichert, Commit `abc1234` · noch nicht übernommen (Pull Request #NN) |
 | `project.settings.update` | → Speichere Projekteinstellungen (Commit) | – | ✓ Projekteinstellungen gespeichert, Commit `abc1234` |
 | `edition.create` | → Lege Pull Request für Auflage N an | – | ✓ Pull Request #NN für Auflage N angelegt; Tag und Release erzeugt die Action nach dem Merge |
 | `changes.merge` | → Prüfe, ob seit der Bestätigung etwas dazugekommen ist · → Übernehme N Änderungen (Merge) · → Lösche den Arbeits-Branch | – | ✓ N Änderungen übernommen, Merge-Commit `abc1234` |

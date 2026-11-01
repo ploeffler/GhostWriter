@@ -74,6 +74,7 @@ Was jedes Formular schreibt:
 |---|---|---|---|---|---|
 | Projektdaten bearbeiten | `project.update` | `ghostwriter.yml` (`project.*`) | `Projektdaten geändert` | – | `PATCH /v1/projects/{owner}/{repo}` |
 | Projekteinstellungen | `project.settings.update` | `ghostwriter.yml` (`workflow.fact_checking_default`, `typesetting`) | `Projekteinstellungen geändert` | – | `PATCH …/settings` |
+| KI-Dienste | `project.providers.update` | `ghostwriter.yml` (`ai_providers`: `available`, Anbieter je Aufgabe, `search_tools`, `queue_processing.agent`; Modellnamen bleiben) | `KI-Dienste geändert` | – | `PATCH …/settings` |
 | Neues Kapitel | `chapter.create` | `ghostwriter.yml` (`structure.chapters`), `chapters/<nn-slug>/README.md` aus `templates/chapter-README.md`, erste Abschnittsdatei aus `templates/section.md` (jedes Kapitel braucht mindestens einen Abschnitt) | `Kapitel N „Titel“ angelegt` | – | `POST …/chapters` |
 | Kapitel bearbeiten | `chapter.update` | `ghostwriter.yml` (Kapiteltitel), Kapitel-README (Überschrift, Untertitel, Kurzbeschreibung, Ziel) | `Kapitel N „Titel“ geändert` | – | `PATCH …/chapters/{chapter_id}` |
 | Kapitelreihenfolge | `chapter.reorder` | `ghostwriter.yml` (Reihenfolge; IDs und Pfade bleiben) | `Kapitelreihenfolge geändert` | – | `POST …/chapters/reorder` |
@@ -155,7 +156,7 @@ Erarbeite mit mir:
 8. Grobe Kapitelstruktur.
 9. Abschnitte pro Kapitel.
 10. Kurzbeschreibung und Ziel jedes Kapitels und Abschnitts.
-11. KI-Anbieter je Aufgabe: Recherche, Brainstorming, Schreiben, Überarbeiten, Fact-Checking und Queue-Bearbeitung (siehe Abschnitt 4a).
+11. Welche KI-Dienste schon vorhanden sind, und welcher davon welche Aufgabe übernimmt: Recherche, Brainstorming, Schreiben, Überarbeiten, Fact-Checking und Queue-Bearbeitung (siehe Abschnitt 4a). Weitere Dienste erst später über das Formular „KI-Dienste“.
 
 Stelle keine lange Formularliste auf einmal. Führe ein natürliches Gespräch und frage nur nach den Informationen, die als Nächstes gebraucht werden. Unbekannte Angaben dürfen vorläufig offenbleiben.
 
@@ -163,7 +164,9 @@ Stelle keine lange Formularliste auf einmal. Führe ein natürliches Gespräch u
 
 Recherche und Schreiben müssen nicht mit dem Anbieter erfolgen, mit dem gerade gechattet wird. Für das Projekt wird pro Aufgabe festgelegt, welcher Anbieter sie übernimmt. Die Auswahl steht in `ghostwriter.yml` unter `ai_providers`, die möglichen Anbieter in `providers.yml` (Übersicht: `docs/PROVIDERS.md`).
 
-- Frage den Benutzer, ob er für alle Aufgaben den aktuellen Chat-Assistenten (`chat`) verwenden möchte oder einzelne Aufgaben anderen Anbietern zuweisen will. Nicht festgelegte Aufgaben erben von `default`.
+- **Mit dem anfangen, was schon da ist:** Frage zuerst, welche KI-Dienste der Benutzer schon hat (Abo, Zugang oder API-Schlüssel), etwa ChatGPT, Claude, Gemini oder Perplexity, und trage nur diese in `ai_providers.available` ein. Teile die Aufgaben ausschließlich diesen Diensten oder dem aktuellen Chat (`chat`) zu. Empfiehl keine neuen Abos und keine zusätzlichen Konten; wer nichts nennt, arbeitet mit `chat` für alles.
+- **Später erweitern:** Weitere Dienste kommen jederzeit über das Formular „KI-Dienste“ in der Projektübersicht dazu (`project.providers.open`, Textfassung `D`). Dort steht bei jedem Dienst ein Link zur Einrichtung: eine GhostWriter-Anleitung (`setup` in `providers.yml`, etwa `docs/CONNECTOR-SETUP.md`) oder die Website des Anbieters. Weise im Wizard kurz darauf hin, statt den Benutzer jetzt durch Einrichtungen zu führen.
+- Nicht festgelegte Aufgaben erben von `default`.
 - Für **Recherche** ist ein Anbieter mit Internetrecherche zu bevorzugen; optional können ergänzende Suchquellen (`search_tools`) gewählt werden.
 - Für **Fact-Checking** ist ein vom Schreib-Anbieter unabhängiger Anbieter empfehlenswert.
 - Die **Queue-Bearbeitung** (Abarbeiten von GitHub-Issues) braucht einen Agenten aus `queue_agents`, der technisch mit dem Repository arbeiten kann; Standard ist `manual`.
