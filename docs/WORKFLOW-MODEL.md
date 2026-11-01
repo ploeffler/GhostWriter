@@ -76,7 +76,7 @@ Der Weg zu v0.5 ist in fünf Stufen geteilt. Jede endet mit einer Abnahme im Cha
 | v0.1 | Datenmodell steht und wird geprüft | Prüf-Action läuft ohne Fehler über das leere Projekt und das ADHS-Projekt |
 | v0.2 | Testprojekt lesen und anzeigen | Link zum Test-Repo zeigt Übersicht, Kapitel und Abschnitt mit richtigen Summen und Markern |
 | v0.3 | Projekt und Kapitel einrichten und bearbeiten | Ersten Start auf einem kurzlebigen Branch vom Starter durchlaufen; im Testbuch anlegen, umordnen, speichern und mit Bestätigung freigeben; jede Änderung als Pull Request, Merge per Schaltfläche |
-| v0.4 | AI-Läufe „Sofort“ mit Kosten | Recherche und Ghostwriting für einen ADHS-Abschnitt mit Lauf-Datei, Statuswechsel und Kosteneintrag |
+| v0.4 | AI-Läufe „Sofort“ | Recherche und Ghostwriting für einen ADHS-Abschnitt mit Lauf-Datei und Statuswechsel; Chat-Läufe über Abos ohne Kosteneintrag (#13) |
 | v0.5 | Auflage und Export | Auflage 2 mit PDF, DOCX und EPUB; Auflage 1 unverändert; Testplan bestanden |
 
 ## Buchausgaben als GitHub Releases
@@ -94,7 +94,15 @@ Jede veröffentlichte Ausgabe des Buches wird als eigener GitHub Release abgebil
 
 ## AI-Kosten und Nutzungsverbrauch
 
-Jede AI-Aktivität wird als eigener, unveränderlicher Kosteneintrag erfasst und primär einem Abschnitt über dessen stabile ID zugeordnet. Erfasst werden – soweit verfügbar – Anbieter, Modell, Aktivitätstyp, Zeitpunkt, Token-/Nutzungsmenge, Preisgrundlage, Preisquelle und Betrag. Nicht verfügbare Werte werden ausdrücklich als unbekannt markiert; manuelle Eingaben und Schätzungen bleiben als solche gekennzeichnet.
+**Erfassungsbereich (entschieden am 31.10.2026, #13):** Erfasst werden ausschließlich zusätzliche, verbrauchsabhängige KI-API-Kosten für Anbieteraufrufe, die über das GhostWriter-Backend (Cloudflare) ausgeführt werden.
+
+- Arbeit im Chat über bestehende Abos erzeugt **keinen** Kosteneintrag: keine geschätzten API-Kosten, kein `unavailable`-Eintrag.
+- Reine Verwaltungsanfragen über das Backend (Projekt lesen, Dateien speichern, Übersichten laden) erzeugen keinen KI-Kosteneintrag.
+- Cloudflare-Betriebskosten und Chat-Abogebühren gehören nicht in diese Rechnung (Abos lassen sich im Formular „KI-Dienste“ zur Information notieren).
+- Laufhistorie und Kosten sind getrennt: Auch Chat-Läufe ohne Kosten werden als Lauf-Datei dokumentiert.
+- Einträge aus der Zeit vor v0.4 ohne Herkunft werden als `legacy_chat_estimate` gekennzeichnet und zählen nicht mit (`scripts/migrate_project.py`).
+
+Jeder kostenpflichtige KI-API-Aufruf über das Backend wird als eigener, unveränderlicher Kosteneintrag erfasst und primär einem Abschnitt über dessen stabile ID zugeordnet. Erfasst werden – soweit verfügbar – Anbieter, Modell, Aktivitätstyp, Zeitpunkt, Token-/Nutzungsmenge, Preisgrundlage, Preisquelle und Betrag. Nicht verfügbare Werte werden ausdrücklich als unbekannt markiert; manuelle Eingaben und Schätzungen bleiben als solche gekennzeichnet.
 
 - **Abschnitt:** Summe aller zugeordneten AI-Aktivitäten.
 - **Kapitel:** automatisch berechnete Summe der Abschnittssummen.
@@ -105,7 +113,7 @@ Jede AI-Aktivität wird als eigener, unveränderlicher Kosteneintrag erfasst und
 
 ### Ausbaustufen
 
-**v0.5:** einfache manuelle Kostenerfassung, optionale Token-/Nutzungsdaten, Abschnittszuordnung, Kapitelzwischensummen und Projektgesamtbetrag; Kennzeichnung tatsächlicher, geschätzter und manuell eingetragener Kosten.
+**v0.5:** Kosteneinträge für KI-API-Aufrufe über das Backend, optionale Token-/Nutzungsdaten, Abschnittszuordnung, Kapitelzwischensummen und Projektgesamtbetrag; Kennzeichnung tatsächlicher und geschätzter Kosten. Kostenanzeigen sind keine Voraussetzung für die Arbeit im Chat; ohne Backend-Aufrufe zeigen sie „–“.
 
 **v1.0:** automatischer Import von Provider-Nutzungsdaten, modellbezogene Preisberechnung, soweit technisch verfügbar automatische Zuordnung, Währungsumrechnung, detaillierte Berichte sowie Budgetgrenzen und Warnungen.
 

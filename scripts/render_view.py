@@ -70,8 +70,14 @@ def section_costs(base, chapter, section):
     return cost_entries(base, base / chapter['path'] / 'costs' / f'{section["id"]}.yml')
 
 
+def counted(entries):
+    """Nur KI-API-Kosten über das Backend zählen (#13); alte Chat-Schätzungen nicht."""
+    return [e for e in entries if e.get('source', 'backend_api') == 'backend_api']
+
+
 def total(entries):
     """(Summe als Decimal oder None, enthält Schätzung)"""
+    entries = counted(entries)
     amounts = [Decimal(str(e['cost_amount'])) for e in entries if e['cost_amount'] is not None]
     estimated = any(e['cost_status'] == 'estimated' for e in entries)
     return (sum(amounts) if amounts else None), estimated
@@ -86,7 +92,7 @@ def money(amount, estimated, currency='€'):
 
 def cost_hint(base_hint, amount, estimated):
     if amount is None:
-        return 'Noch keine Kosten erfasst'
+        return 'Keine KI-API-Kosten erfasst (Arbeit im Chat über ein Abo kostet nichts zusätzlich)'
     return base_hint + (', enthält geschätzte Kosten' if estimated else '')
 
 
@@ -177,7 +183,7 @@ def project_view(base, config, args):
     values = {
         'PROJECT_TITLE': p['title'] or p['working_title'], 'PROJECT_TITLE_SHORT': p['title_short'] or p['title'] or p['working_title'],
         'PROJECT_AUTHOR': p['author'], 'PROJECT_DESCRIPTION_SHORT': p['description_short'], 'PROJECT_DESCRIPTION': p['description'],
-        'PROJECT_COST': money(amount, est), 'PROJECT_COST_HINT': cost_hint('Bisherige Gesamtkosten', amount, est),
+        'PROJECT_COST': money(amount, est), 'PROJECT_COST_HINT': cost_hint('Zusätzliche KI-API-Kosten über das GhostWriter-Backend', amount, est),
         'PROJECT_EDITION_TEXT': f'Auflage {edition}' if edition else 'noch keine Auflage',
     }
     changes = load_changes(args)
@@ -189,7 +195,7 @@ def project_view(base, config, args):
         values.update({'UPDATE_BEHIND': upd['behind'], 'UPDATE_TEXT': update_text(upd)})
     if args.text:
         lines = [f'### 📘 {values["PROJECT_TITLE"] or "Noch ohne Titel"}',
-                 f'**{values["PROJECT_EDITION_TEXT"]}** · Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · Kosten bisher: **{values["PROJECT_COST"]}**', '']
+                 f'**{values["PROJECT_EDITION_TEXT"]}** · Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · KI-API-Kosten: **{values["PROJECT_COST"]}**', '']
         if changes:
             lines += [f'> ⏳ **{values["PENDING_TEXT"]} noch nicht übernommen** (Pull Request #{changes["pull_request"]}) · `M` übernehmen', '']
         if upd:
