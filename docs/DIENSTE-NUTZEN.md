@@ -117,3 +117,7 @@ Wenn du einen Agenten schon nutzt (zum Beispiel über ein GitHub-Copilot-Abo):
 5. **Speichern.** Die Änderung kommt wie jede andere in den Arbeits-Branch und gilt nach „Änderungen übernehmen“.
 
 Einen Dienst nicht mehr nutzen: Haken entfernen und speichern. Aufgaben, die er hatte, fallen auf **wie Standard** zurück.
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

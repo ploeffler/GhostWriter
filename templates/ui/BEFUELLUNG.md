@@ -108,6 +108,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `PROJECT_DESCRIPTION_SHORT`, `PROJECT_DESCRIPTION` | `project.description_short`, `project.description` |
 | `PROJECT_COST`, `PROJECT_COST_HINT` | Projektkosten, Tooltip „Zusätzliche KI-API-Kosten über das GhostWriter-Backend“ |
 | `PROJECT_EDITION_TEXT` | Auflage |
+| `CREDIT_TEXT`, `CREDIT_URL` | Hinweis und Link aus `templates/branding.yml` (`credit`), klein unter der Karte bzw. am Ende der Textfassung; nie im Buch |
 | `PENDING_COUNT`, `PENDING_TEXT`, `PENDING_PR` | nur bei offenen Änderungen (Arbeits-Branch mit offenem Pull Request, siehe „Offene Änderungen“): Anzahl der Commits, „1 Änderung“ bzw. „N Änderungen“, Nummer des Pull Requests. Ohne offene Änderungen weglassen; dann entfällt der Hinweis mit dem Knopf „Änderungen übernehmen“ |
 | `UPDATE_BEHIND`, `UPDATE_TEXT` | nur wenn der Buch-Branch hinter dem Hauptrepository liegt (siehe „Update-Stand“): Anzahl Commits und Text wie „3 Commits hinter ploeffler/GhostWriter:main · Version 0.3.1 verfügbar (installiert 0.3.0)“. Sonst weglassen; dann entfällt der Hinweis mit dem Knopf „Update einspielen“ |
 | Block `CHAPTERS`: `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_STATUS`, `CHAPTER_COST`, `CHAPTER_COST_HINT`, `CHAPTER_ID` | je Kapitel aus `structure.chapters`, Kosten wie oben; `CHAPTER_ID` ist die stabile Kapitel-ID, ein Klick auf das Kapitel schickt `view.chapter`; ohne Kapitel entfällt der Bereich „Kapitel“ |
@@ -392,3 +393,7 @@ Statuszeilen, Ladetexte und Ergebniszeilen nach `START.md`, „Statusanzeige“.
 Mit eigener API bleibt alles gleich, was der Benutzer sieht: dieselben Vorlagen aus `ghostwriter-ui`, dieselben Daten (die Platzhalter oben entsprechen den Feldern der API) und dieselben Nachrichten. Nur die Herkunft der Daten ändert sich; `GW.render` bekommt sie dann aus der Antwort der API statt vom Assistenten.
 
 Freigaben gibt es nur über `approval.confirm` (`START.md`, „Freigaben“); `section.update` ändert `approvals` nie (Issue #10).
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

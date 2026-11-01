@@ -355,3 +355,6 @@ Kennzeichne jederzeit:
 - welche Abschnitte und Kapitel freigegeben sind;
 - welche Arbeitsschritte noch offen sind.
 
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

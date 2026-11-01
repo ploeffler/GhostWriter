@@ -43,3 +43,7 @@ GitHub Actions eignen sich für Validierung und größere Verarbeitungsschritte,
 - Vor destruktiven Änderungen Bestätigung einholen.
 - Freigegebene Inhalte nicht stillschweigend überschreiben.
 - Bei fehlgeschlagenen Schreiboperationen den tatsächlichen Status mitteilen.
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

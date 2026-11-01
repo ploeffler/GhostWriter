@@ -131,3 +131,7 @@ Jeder kostenpflichtige KI-API-Aufruf über das Backend wird als eigener, unverä
 **v1.0:** automatischer Import von Provider-Nutzungsdaten, modellbezogene Preisberechnung, soweit technisch verfügbar automatische Zuordnung, Währungsumrechnung, detaillierte Berichte sowie Budgetgrenzen und Warnungen.
 
 Die Kostenfunktion muss auch dann nutzbar bleiben, wenn ein Anbieter keine Nutzungsdaten oder Rechnungswerte bereitstellt.
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

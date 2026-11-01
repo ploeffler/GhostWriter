@@ -96,3 +96,7 @@ Später:
 - Abschnittsmanuskripte und Prüfberichte;
 - Kapitelzusammenführung;
 - automatisierte Validierung via GitHub Actions.
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

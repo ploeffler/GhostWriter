@@ -53,3 +53,7 @@ Vorläufige Minimalrechte: **Contents: Read and write**, **Metadata: Read-only**
 - Tokens erscheinen weder in Action-Antworten noch in Logs;
 - GitHub-Verbindung widerrufen blockiert weitere GitHub-Zugriffe;
 - ChatGPT OAuth-Handshake wird mit einer echten GPT-Action vollständig getestet.
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

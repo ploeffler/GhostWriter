@@ -45,3 +45,7 @@ Diese beiden Werte sind keine Secrets. Das Client-Secret der GPT-Action wird nic
 Der Betreiber muss den Auth0-Tenant, die API und die Anwendung im eigenen Auth0-Konto anlegen und die GPT-Action konfigurieren. GhostWriter hat keinen Zugriff auf dein Auth0-Konto; es wurden keine Zugangsdaten erstellt und kein Dienst veröffentlicht.
 
 Preise und Tariflimits vor Produktivstart prüfen: https://auth0.com/de/pricing
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

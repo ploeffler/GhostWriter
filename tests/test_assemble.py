@@ -111,3 +111,21 @@ class EmptyProjectTest(unittest.TestCase):
                                 '--out', tmp], capture_output=True, text=True)
         self.assertNotEqual(r.returncode, 0)
         self.assertIn('noch keine Kapitel', r.stderr + r.stdout)
+
+
+class CreditNotInBookTest(unittest.TestCase):
+    """Der Hinweis „Entwickelt mit Unterstützung von Claude (Anthropic)“ steht nie im Buch."""
+
+    def test_book_and_proof_without_credit(self):
+        text = yaml.safe_load((ROOT / 'templates/branding.yml').read_text(encoding='utf-8'))['credit']['text']
+        base, config = load(ROOT / 'tests/fixtures/adhs')
+        for proof in (False, True):
+            parts = assemble.book_parts(base, config, proof=proof)
+            meta = assemble.metadata(config, 1, '2026-11-01')
+            book = yaml.safe_dump(meta, allow_unicode=True) + ''.join(p[2] for p in parts)
+            self.assertNotIn('Claude', book)
+            self.assertNotIn(text, book)
+        for name in ('header.tex', 'merkkasten.lua', 'epub.css'):
+            path = ROOT / 'templates/book' / name
+            if path.is_file():
+                self.assertNotIn('Claude', path.read_text(encoding='utf-8'))

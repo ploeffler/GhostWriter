@@ -40,3 +40,7 @@ Vor einer Produktivfreigabe:
 - OpenAI GPT Actions: https://help.openai.com/en/articles/9442513-configuring-actions-in-gpts
 - Auth0 Dynamic Client Registration: https://github.com/auth0/docs/blob/master/articles/api-auth/dynamic-client-registration.md
 - MCP Authorization: https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

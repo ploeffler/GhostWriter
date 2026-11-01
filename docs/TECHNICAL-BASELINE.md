@@ -51,3 +51,7 @@ Noch nicht vorhanden:
 3. Worker lokal mit Auth0 Issuer und Audience konfigurieren.
 4. Auth0-Handshake und geschützten Account-Endpunkt testen.
 5. GitHub App und geschützte Repository-Leseoperationen implementieren.
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>

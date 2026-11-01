@@ -166,6 +166,15 @@ FORM_HINT = 'Antworte mit den Feldern, die sich ändern sollen, je Zeile `Feld: 
 
 # ---------- Ansichten ----------
 
+def credit():
+    """Hinweis „Entwickelt mit Unterstützung von Claude (Anthropic)“ aus templates/branding.yml (nie im Buch)."""
+    try:
+        c = (yaml.safe_load((ROOT / 'templates' / 'branding.yml').read_text(encoding='utf-8')) or {}).get('credit') or {}
+    except OSError:
+        c = {}
+    return c.get('text', ''), c.get('url', '')
+
+
 def project_view(base, config, args):
     p = config['project']
     chapters = config['structure']['chapters']
@@ -186,6 +195,7 @@ def project_view(base, config, args):
         'PROJECT_COST': money(amount, est), 'PROJECT_COST_HINT': cost_hint('Zusätzliche KI-API-Kosten über das GhostWriter-Backend', amount, est),
         'PROJECT_EDITION_TEXT': f'Auflage {edition}' if edition else 'noch keine Auflage',
     }
+    values['CREDIT_TEXT'], values['CREDIT_URL'] = credit()
     changes = load_changes(args)
     if changes:
         values.update({'PENDING_COUNT': len(changes['commits']), 'PENDING_TEXT': changes_text(changes),
@@ -229,6 +239,8 @@ def project_view(base, config, args):
         items += [('D', 'KI-Dienste'), ('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
                   ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
         lines += [menu(items)]
+        if values.get('CREDIT_TEXT'):
+            lines += ['', f'<sub>{values["CREDIT_TEXT"]}</sub>']
         return '\n'.join(lines) + '\n'
     return fill('projektuebersicht.html', values, {'CHAPTERS': rows})
 

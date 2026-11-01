@@ -1,0 +1,13 @@
+# Hinweis auf die Entwicklung mit Claude – zentrale Quelle
+#
+# Erscheint in der Doku (Fußzeile jeder Doku-Datei, geprüft von
+# scripts/check_docs.py) und klein unten in der Projektübersicht im Chat.
+# NIE im Buch selbst: nicht in Kapiteln, Abschnitten, Probedruck oder Auflagen
+# (PDF, DOCX, EPUB); das Buch ist das Werk des Autors (Test in tests/).
+#
+# Kein Logo von Claude oder Anthropic: Die Markenrichtlinien erlauben Logos nur
+# mit ausdrücklicher Freigabe (https://www.anthropic.com/legal/trademark-guidelines).
+# Kein ™-Zeichen, keine Formulierung, die eine Partnerschaft nahelegt.
+credit:
+  text: "Entwickelt mit Unterstützung von Claude (Anthropic)"
+  url: "https://claude.ai"

@@ -96,3 +96,7 @@ Der Token gehört wie jeder Schlüssel nie in den Chat oder in eine Datei (siehe
 - Liegt ein Buch als Branch im Hauptrepository (z. B. `test/test-book`), aktualisiert die Action dort nur Branches mit Kapiteln außer `update.skip_branches` (`main`, `v*`, `ghostwriter/*` …), jeweils gegen `main`. In Forks und eigenen Buch-Repositorys prüft sie alle Branches.
 - Ein Buch-Branch, auf dem eine Entwicklungsfassung getestet wird, bekommt sonst nachts wieder die Programmdateien von `main`. Deshalb in Entwicklungs-Branches `version` im Manifest sofort erhöhen (z. B. `0.4.0`); Bücher mit höherer Version werden nicht angefasst.
 - Lokal testen: `GITHUB_REPOSITORY=owner/buch GHOSTWRITER_UPSTREAM_URL=<pfad-oder-url> python scripts/update_from_upstream.py --dry-run --status status.json`.
+
+---
+
+<sub>Entwickelt mit Unterstützung von Claude (Anthropic) · [claude.ai](https://claude.ai)</sub>
