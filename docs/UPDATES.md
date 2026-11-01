@@ -10,7 +10,7 @@ Die Action **„GhostWriter aktualisieren“** (`.github/workflows/update.yml`) 
 
 1. **Branch ohne eigene Commits** (reine Kopie): Er wird einfach nachgezogen, wie bei *Sync fork*.
 2. **Branch mit deinem Buch:** Die Commits des Hauptrepositorys werden **hineingemergt**. Dabei gilt das Manifest (`ghostwriter-manifest.yml`):
-   - **Programmdateien** (`managed`: `START.md`, `README.md`, `docs/`, `schemas/`, `scripts/`, `templates/`, `.github/workflows/`, `workflow.yml`, `providers.yml` …) kommen genau so, wie sie im Hauptrepository sind.
+   - **Programmdateien** (`managed`: `START.md`, `README.md`, `docs/`, `schemas/`, `scripts/`, `templates/`, `assets/` (Logo und App-Symbole), `.github/workflows/`, `workflow.yml`, `providers.yml` …) kommen genau so, wie sie im Hauptrepository sind.
    - **Dein Buch** (`book`: `ghostwriter.yml`, `chapters/`, `costs/`, `research/`, `approvals.yml`) bleibt genau so, wie es ist, auch wenn das Hauptrepository die Vorlagen dafür geändert hat.
    - Konflikte in anderen Dateien bricht die Action ab und meldet sie; die führst du von Hand zusammen.
 3. **Migrationen.** Braucht die neue Version neue Felder, ergänzt `scripts/migrate_project.py` sie in deinen Buchdateien, ohne Inhalte zu ändern.
