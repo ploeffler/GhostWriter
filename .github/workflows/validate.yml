@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  issues: read      # Meilensteine für die Roadmap-Prüfung
 
 jobs:
   validate:
@@ -63,4 +64,10 @@ jobs:
           repo=$(python -c "import yaml;print(yaml.safe_load(open('templates/ui/ghostwriter-ui.yml'))['repo'])")
           ref=$(python -c "import yaml;print(yaml.safe_load(open('templates/ui/ghostwriter-ui.yml'))['commit'])")
           git init -q /tmp/ui && git -C /tmp/ui fetch -q --depth 1 "https://github.com/$repo" "$ref" && git -C /tmp/ui checkout -q FETCH_HEAD
-          python scripts/check_docs.py --ui /tmp/ui
+          ms=""
+          if [ "$GITHUB_REPOSITORY" = "ploeffler/GhostWriter" ] && gh api "repos/$GITHUB_REPOSITORY/milestones?state=all&per_page=100" > /tmp/milestones.json 2>/dev/null; then
+            ms="--milestones /tmp/milestones.json"
+          fi
+          python scripts/check_docs.py --ui /tmp/ui $ms
+        env:
+          GH_TOKEN: ${{ github.token }}
