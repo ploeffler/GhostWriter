@@ -200,6 +200,28 @@ Startseite einer Bibliothek. Erzeugt mit `render_view.py library --library libra
 
 In der Projektübersicht kommt `LIBRARY_COUNT` (Zahl der Bücher, nur ab 2, sonst leer) aus derselben Datei (`--library`).
 
+### `daten.html`
+
+Seite „Daten“ (`render_view.py data`, `START.md`, „Daten“). Quellen: `library.json` (`--library`), Rohdaten der GitHub-API (`--github`: `repo`, `branches`, `pulls`, `runs`), Update-Stand (`--upstream`).
+
+| Platzhalter | Quelle |
+|---|---|
+| `LIBRARY_NAME` | `owner/repo` (`--repo`) |
+| `PROGRAM_VERSION_TEXT`, `UI_TEXT` | `program.version`, `program.upstream`, `program.ui_version`, `program.ui_commit` aus `library.json` |
+| `PROGRAM_UPDATE_TEXT`, `PROGRAM_BEHIND` | Update-Stand aus `--upstream` („aktuell“ bzw. Commits dahinter); ohne Angabe „nicht abgefragt“; `PROGRAM_BEHIND` nur, wenn dahinter |
+| `PROGRAM_LAST_UPDATE_TEXT`, `PROGRAM_SKIPPED_TEXT` | `program.last_update`, `program.skipped_workflows` (aus `.ghostwriter/update.yml` des Standard-Branchs) |
+| `GITHUB_KNOWN` | `1`, wenn `--github` übergeben wurde; sonst leer (Hinweis erscheint) |
+| `REPO_TEXT` | `repo.private`, `repo.size` (KB), Zahl der `branches`; ohne `--github` „unbekannt“ |
+| `CLEANUP_URL`, `TASKS_URL` | Action „Branches aufräumen“, Suche nach dem Issue „Löschaufgaben“ |
+| Block `BOOKS`: `B_TITLE`, `B_BRANCH`, `B_COMMIT_TEXT` | je Buch aus `library.json`: Titel, Branch, `updated_at` und `last_commit` |
+| `B_PENDING_TEXT`, `B_PENDING`, `B_AUTOMERGE_TEXT` | `pending` (Commits im Arbeits-Branch) und Pull Request mit `head.ref` = Arbeits-Branch; `auto_merge` |
+| `B_EDITION_TEXT` | `last_edition` (neuester Tag `<slug>-auflage-N` mit Datum) |
+| `B_PROOF_TEXT` | neuester Lauf „Probedruck“ auf dem Buch-Branch, Download 14 Tage ab Start |
+| `B_DATA_TEXT`, `B_MIGRATION` | `data_version`, `migration_pending` |
+| `B_CHECK`, `B_CHECK_TEXT` | neuester Lauf „Projektdateien prüfen“ auf dem Buch-Branch: `ok`, `fail` oder leer |
+| Block `SECRETS`: `S_NAME`, `S_STATE`, `S_TEXT` | `secret_names` und `secrets` aus `library.json`: `yes` hinterlegt, `no` fehlt, `unknown` noch nicht geprüft |
+| Block `RUNS`: `R_NAME`, `R_STATE`, `R_TEXT`, `R_URL` | je Action der neueste Lauf aus `runs`: Name, `ok`/`fail`/`other`, Ergebnis, Datum, Branch, Link |
+
 ### `buch-anlegen.html`
 
 Formular „Neues Buch“ (`render_view.py book-create`, `START.md`, „Neues Buch“).
@@ -300,7 +322,7 @@ Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown. **Dor
 
 Gestaltung:
 
-- **Überschrift** `###` mit Symbol: 📘 Projekt, 📖 Kapitel, ✏️ Abschnitt, 📝 Bearbeiten, ➕ Anlegen, ↕️ Reihenfolge, ⚙️ Einstellungen, 📚 Auflage bzw. Bücherregal, 📗 Neues Buch, 🔀 Änderungen übernehmen, ✅ Freigeben, ↩️ Freigabe zurücknehmen, 🤖 KI-Dienste.
+- **Überschrift** `###` mit Symbol: 📘 Projekt, 📖 Kapitel, ✏️ Abschnitt, 📝 Bearbeiten, ➕ Anlegen, ↕️ Reihenfolge, ⚙️ Einstellungen, 📚 Auflage bzw. Bücherregal, 📗 Neues Buch, 🗂️ Daten, 🔀 Änderungen übernehmen, ✅ Freigeben, ↩️ Freigabe zurücknehmen, 🤖 KI-Dienste.
 - **Status** deutsch mit Symbol: ⚪ geplant, 🔎 Recherche, 💡 Ideensammlung, 🟦 bereit zum Schreiben, ✏️ Schreiben bzw. in Arbeit, 🔁 Überarbeitung, 🔍 Faktencheck bzw. Durchsicht, 🟡 bereit zur Freigabe, ✅ freigegeben.
 - **Marker** als Symbol mit Anzahl: 💬 Anekdote, 📚 Quelle, 🩺 Medizin, ⚖️ Recht; darunter klein die Legende.
 - **Tabellen** für Listen und Felder; Zahlen und Kosten rechtsbündig.
@@ -309,7 +331,8 @@ Gestaltung:
 
 | Ansicht | Kürzel |
 |---|---|
-| Bücherregal | `1`–`N` Buch öffnen · `N` Neues Buch |
+| Bücherregal | `1`–`N` Buch öffnen · `N` Neues Buch · `D` Daten |
+| Daten | `Ü` Bücherregal · `U` Update einspielen (nur wenn dahinter) |
 | Projektübersicht | `L` Bücherregal (nur ab zwei Büchern) · `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
 | Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `B` Kapitel bearbeiten · `Z` Ziel, Kurzbeschreibung, Kapitelrecherche · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `FK` Kapitel freigeben (nur wenn möglich) · `Ü` Übersicht |
 | Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` Abschnitt freigeben bzw. zurücknehmen · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
@@ -349,6 +372,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `view.chapter` | `chapter_id` | Kapitelansicht zeigen | Vorlage `kapitelansicht` (`render_view.py chapter N`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.section` | `section_id` | Abschnittsformular zeigen | Vorlage `abschnitt-bearbeiten` (`render_view.py section N.M`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.library` | – | Bücherregal zeigen | Vorlage `buecherregal` (`render_view.py library --library library.json`) | – |
+| `view.data` | – | Seite „Daten“ zeigen | Daten sammeln und Vorlage `daten` (`render_view.py data`, `START.md`, „Daten“) | `GET /v1/projects/{owner}/{repo}` |
 | `library.book.open` | `branch` | Buch aus dem Bücherregal öffnen | Branch als Buch-Branch übernehmen, Projektübersicht zeigen; Buch im Aufbau: Einstiegsdialog fortsetzen | `GET /v1/projects/{owner}/{repo}` |
 | `library.book.create.open` | – | Formular „Neues Buch“ zeigen | Vorlage `buch-anlegen` (`render_view.py book-create`) | – |
 | `library.book.create` | `working_title`, `title_short`, `author`, `branch` | Neues Buch anlegen | Namen erneut prüfen, Branch und einen Commit anlegen (`START.md`, „Neues Buch“), dann Einstiegsdialog auf dem neuen Branch | `POST /v1/projects/{owner}/{repo}/books` |

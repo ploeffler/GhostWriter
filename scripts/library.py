@@ -15,7 +15,9 @@ Aufruf (im Repository, braucht alle Branches: git fetch origin '+refs/heads/*:re
 
 library.json (Action „Bücherregal aktualisieren“, auf dem Standard-Branch): je Buch
 Titel, Kurztitel, Branch, Status, Auflage, freigegebene Kapitel und Abschnitte,
-KI-API-Kosten, offene Änderungen im Arbeits-Branch, letzter Commit. Kein
+KI-API-Kosten, offene Änderungen im Arbeits-Branch, letzter Commit, Datenversion,
+„sofort übernehmen“, letzte Auflage (Tag); dazu Programmstand und, mit
+SECRETS_JSON, welche Secrets hinterlegt sind (nur Namen, nie Werte; #71). Kein
 Manuskripttext und kein Zeitstempel des Laufs, damit sich die Datei nur ändert,
 wenn sich ein Buch ändert.
 
@@ -173,14 +175,19 @@ def book_stats(ref, cwd=ROOT):
     try:
         subprocess.run(['git', 'worktree', 'add', '-q', '--detach', tmp, ref], cwd=cwd, check=True, capture_output=True)
         base, config = load(tmp)
+        import migrate_project
+        dv = migrate_project.get_version(base)
+        extra = {'data_version': dv, 'migration_pending': dv < migrate_project.DATA_VERSION,
+                 'auto_merge': (config.get('changes') or {}).get('auto_merge') is True,
+                 'secret_names': sorted(build_index.secret_names(config))}
         if not has_chapters(config):
             return {'chapters_total': 0, 'chapters_approved': 0, 'sections_total': 0, 'sections_approved': 0,
-                    'cost': build_index.cost(0, False)}
+                    'cost': build_index.cost(0, False), **extra}
         idx = build_index.build(base, config)
         chs = idx['chapters']
         return {'chapters_total': len(chs), 'chapters_approved': sum(c['status'] == 'approved' for c in chs),
                 'sections_total': sum(c['sections_total'] for c in chs),
-                'sections_approved': sum(c['sections_approved'] for c in chs), 'cost': idx['project']['cost']}
+                'sections_approved': sum(c['sections_approved'] for c in chs), 'cost': idx['project']['cost'], **extra}
     finally:
         subprocess.run(['git', 'worktree', 'remove', '--force', tmp], cwd=cwd, capture_output=True)
         shutil.rmtree(tmp, ignore_errors=True)
@@ -199,8 +206,51 @@ def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None):
         ahead = git('rev-list', '--count', f'{ref}..{work}', cwd=cwd).strip() if git('rev-parse', '-q', '--verify', work, cwd=cwd).strip() else ''
         entry['pending'] = int(ahead or 0)
         entry['updated_at'] = git('log', '-1', '--format=%cI', ref, cwd=cwd).strip()
+        entry['last_commit'] = git('log', '-1', '--format=%s', ref, cwd=cwd).strip()
+        entry['last_edition'] = last_edition(entry['slug'], cwd)
         out.append(entry)
-    return {'format': 1, 'books': out}
+    names = sorted({'GHOSTWRITER_UPDATE_TOKEN'} | {n for b in out for n in b.pop('secret_names', [])})
+    return {'format': 1, 'program': program_info(cwd, manifest), 'secret_names': names, 'books': out}
+
+
+def last_edition(slug, cwd=ROOT):
+    """Neueste Auflage eines Buchs aus den Tags <slug>-auflage-N: {tag, number, date} oder None."""
+    if not slug:
+        return None
+    best = None
+    for tag in git('tag', '--list', f'{slug}-auflage-*', cwd=cwd).split():
+        m = re.fullmatch(re.escape(slug) + r'-auflage-(\d+)', tag)
+        if m and (best is None or int(m.group(1)) > best[0]):
+            best = (int(m.group(1)), tag)
+    if not best:
+        return None
+    return {'tag': best[1], 'number': best[0], 'date': git('log', '-1', '--format=%cI', best[1], cwd=cwd).strip()}
+
+
+def program_info(cwd=ROOT, manifest=None):
+    """Installierte Programmversion, fester UI-Commit und letzter Update-Lauf (Standard-Branch)."""
+    manifest = manifest or load_manifest()
+    ui_path = Path(cwd, 'templates', 'ui', 'ghostwriter-ui.yml')
+    ui = yaml.safe_load(ui_path.read_text(encoding='utf-8')) if ui_path.is_file() else {}
+    st_path = Path(cwd, '.ghostwriter', 'update.yml')
+    st = yaml.safe_load(st_path.read_text(encoding='utf-8')) if st_path.is_file() else {}
+    up = manifest.get('upstream') or {}
+    return {'version': str(manifest.get('version', '')), 'upstream': f'{up.get("repo", "")}:{up.get("ref", "main")}',
+            'ui_version': str((ui or {}).get('version', '')), 'ui_commit': (ui or {}).get('commit', ''),
+            'last_update': (st or {}).get('updated_at', ''), 'skipped_workflows': (st or {}).get('skipped_workflows') or []}
+
+
+def secrets_presence(names, previous=None):
+    """{name: vorhanden} aus SECRETS_JSON (Action, nur Namen werden gelesen); ohne SECRETS_JSON der bisherige Stand."""
+    import os
+    raw = os.environ.get('SECRETS_JSON')
+    if raw is None:
+        return previous
+    try:
+        have = set(json.loads(raw))
+    except ValueError:
+        have = set()
+    return {n: n in have for n in names}
 
 
 # ---------- Neues Buch (#38) ----------
@@ -286,9 +336,17 @@ def main(argv):
         print(f'{a.title}: {"Buch" if yes else "kein Buch"}')
         return 0 if yes else 1
     if a.cmd == 'build':
-        text = json.dumps(build_library(a.namespace, a.repo, manifest), ensure_ascii=False, indent=2) + '\n'
+        data = build_library(a.namespace, a.repo, manifest)
+        old = Path(a.out).read_text(encoding='utf-8') if a.out and Path(a.out).is_file() else None
+        try:
+            prev = (json.loads(old) or {}).get('secrets') if old else None
+        except ValueError:
+            prev = None
+        sec = secrets_presence(data['secret_names'], prev)
+        if sec is not None:
+            data['secrets'] = sec
+        text = json.dumps(data, ensure_ascii=False, indent=2) + '\n'
         if a.out:
-            old = Path(a.out).read_text(encoding='utf-8') if Path(a.out).is_file() else None
             if old != text:
                 Path(a.out).write_text(text, encoding='utf-8')
             print(f'{a.out}: {"geschrieben" if old != text else "unverändert"}')

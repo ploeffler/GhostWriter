@@ -54,10 +54,14 @@ jobs:
 
       - name: library.json erzeugen
         if: steps.gate.outputs.skip != '1'
+        # SECRETS_JSON: nur damit library.py prüfen kann, ob GHOSTWRITER_UPDATE_TOKEN und die
+        # Schlüssel der KI-Dienste hinterlegt sind (Seite „Daten“, #71). Es liest ausschließlich
+        # die Namen; Werte werden nie ausgegeben oder gespeichert.
         env:
           GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          SECRETS_JSON: ${{ toJSON(secrets) }}
         run: |
-          git fetch -q origin '+refs/heads/*:refs/remotes/origin/*'
+          git fetch -q --tags origin '+refs/heads/*:refs/remotes/origin/*'
           python scripts/library.py list
           python scripts/library.py build --out library.json
 
