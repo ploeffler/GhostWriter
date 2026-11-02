@@ -85,7 +85,7 @@ Der Weg zu v0.5 ist in fünf Stufen geteilt. Jede endet mit einer Abnahme im Cha
 
 | Stufe | Ziel |
 |---|---|
-| v0.6 | Bibliothek: eine Installation, mehrere Bücher als Branches (#36–#41); automatische Migration der Datenstruktur (#59); README und Anleitung (#46); Programm-Repository öffentlich, Testbuch getrennt (#48) |
+| v0.6 | Bibliothek: eine Installation, mehrere Bücher als Branches (#36–#41); automatische Migration der Datenstruktur (#59); README und Anleitung (#46); Programm-Repository öffentlich, Testbuch getrennt (#48); Abnahme nach [TESTPLAN-v0.6.md](TESTPLAN-v0.6.md) |
 | v0.7 | Figuren auf Buch-Ebene (#53) und Bilderzeugung (#54) |
 | v1.0 | Vollausbau (siehe oben): eigene Schnittstelle bzw. Backend (#19), installierbare Web-App (#35) mit Offline-Arbeit am Buch (#61), zeitgesteuerte KI-Läufe und Warteschlange (#65), automatische Kostenabrechnung und Budget (#66), Limitwarnung – unter 10 % keine Automatik (#62), Widmung, Prolog, Epilog, Danksagung (#57), Ausgabeoptionen mit Satz, Umschlag und Druck (#68), Mehrsprachigkeit des Programms (#74), KI-Angabe im Buch als Einstellung je Buch (#78) |
 | v1.5 | Vorwort, Nachwort, Glossar (#58); Übersetzung des Buchs mit Auflagen je Sprache (#75) |
