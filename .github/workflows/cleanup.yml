@@ -4,7 +4,7 @@ name: Branches aufräumen
 # → Run workflow). Gelöscht wird nur ein Branch nach PATTERN, dessen Pull Request
 # gemergt ist und der seitdem keinen neuen Commit hat, oder der vollständig im
 # Standard-Branch enthalten ist (nichts geht verloren). Dazu gehören auch die
-# Arbeits-Branches des Chats (ghostwriter/…) und media/, test/, codex/, claude/ (außer KEEP).
+# Arbeits-Branches des Chats (ghostwriter/…) und media/, test/, release/, codex/, claude/ (außer KEEP).
 # Ein Branch mit offenem Pull Request
 # oder eigenen, nicht übernommenen Commits bleibt immer. Mit „Nur anzeigen“ wird nichts gelöscht, nur aufgelistet.
 # Versions-Branches (v0.1, v0.2 …) werden zu Tags gleichen Namens (annotiert,
@@ -62,7 +62,7 @@ jobs:
           R: ${{ github.repository }}
           OWNER: ${{ github.repository_owner }}
           DRY: ${{ inputs.dry_run }}
-          PATTERN: '^(feat|fix|docs|ui|chore|media|test|codex|claude|ghostwriter)/'
+          PATTERN: '^(feat|fix|docs|ui|chore|media|test|codex|claude|ghostwriter|release)/'
           KEEP: '^(test/test-book)$'   # bleiben immer, auch wenn sie dem Muster entsprechen
           BASE: ${{ github.event.repository.default_branch }}
         run: |
