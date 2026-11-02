@@ -6,6 +6,9 @@ Aufruf (im Repository, braucht alle Branches: git fetch origin '+refs/heads/*:re
   python scripts/library.py name "<Kurztitel>"  Branch-Name, Tag-Slug und ob er schon vergeben ist
   python scripts/library.py check               Kurztitel bzw. Tag-Slugs eindeutig? (Exit 1 bei Doppelten)
   python scripts/library.py build [--out library.json]   Übersicht der Bibliothek schreiben (#37)
+  python scripts/library.py check-program      Hauptrepository: keine Buchinhalte (#48); Fehler bei
+                                                Kapiteln/Auflagen auf dem Standard-Branch, Warnung
+                                                bei Buch-Branches und Auflagen-Tags
   python scripts/library.py is <branch> [--dir .]  Ist dieser Branch ein Buch? (Exit 0 ja, 1 nein; liest
                                                 ghostwriter.yml aus --dir, z. B. in einer Action)
   python scripts/library.py new "<Arbeitstitel>" [--short K] [--author A] [--create]
@@ -311,13 +314,36 @@ def create_book(title, short='', author='', cwd=ROOT, namespace='refs/remotes/or
     return r
 
 
+def program_problems(cwd=ROOT, namespace='refs/remotes/origin', manifest=None):
+    """Hauptrepository ohne Buchinhalte (#48): (fehler, warnungen)."""
+    manifest = manifest or load_manifest()
+    errors, warnings = [], []
+    cfg_path = Path(cwd, 'ghostwriter.yml')
+    cfg = yaml.safe_load(cfg_path.read_text(encoding='utf-8')) if cfg_path.is_file() else {}
+    if has_chapters(cfg):
+        errors.append('ghostwriter.yml im Programm-Repository hat Kapitel; Bücher gehören in ein eigenes Repository')
+    for d in ('chapters', 'research', 'costs'):
+        files = [p for p in Path(cwd, d).rglob('*') if p.is_file() and p.name != '.gitkeep'] if Path(cwd, d).is_dir() else []
+        if files:
+            errors.append(f'{d}/ enthält Buchdateien ({len(files)})')
+    eds = [p for p in Path(cwd, 'editions').glob('*.md')] if Path(cwd, 'editions').is_dir() else []
+    if eds:
+        errors.append(f'editions/ enthält Auflagen ({len(eds)})')
+    default = default_branch(cwd)
+    for b in books(branch_configs(namespace, cwd), manifest, default):
+        warnings.append(f'Buch-Branch {b["branch"]} im Programm-Repository (#48: in ein eigenes privates Repository umziehen)')
+    for tag in git('tag', '--list', '*-auflage-*', cwd=cwd).split():
+        warnings.append(f'Auflagen-Tag {tag} im Programm-Repository (#48)')
+    return errors, warnings
+
+
 def load_manifest():
     return yaml.safe_load((ROOT / MANIFEST).read_text(encoding='utf-8'))
 
 
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('cmd', choices=['list', 'name', 'check', 'build', 'new', 'is'])
+    ap.add_argument('cmd', choices=['list', 'name', 'check', 'build', 'new', 'is', 'check-program'])
     ap.add_argument('title', nargs='?')
     ap.add_argument('--json', action='store_true')
     ap.add_argument('--namespace', default='refs/remotes/origin', help='Git-Namespace der Branches (Tests: refs/heads)')
@@ -329,6 +355,17 @@ def main(argv):
     ap.add_argument('--create', action='store_true', help='bei new: Branch lokal anlegen und committen')
     a = ap.parse_args(argv[1:])
     manifest = load_manifest()
+    if a.cmd == 'check-program':
+        import os
+        errors, warnings = program_problems(a.repo, a.namespace, manifest)
+        gha = os.environ.get('GITHUB_ACTIONS') == 'true'
+        for w in warnings:
+            print(f'::warning::{w}' if gha else f'⚠ {w}')
+        for e in errors:
+            print(f'::error::{e}' if gha else f'✗ {e}')
+        if not errors:
+            print('✓ keine Buchinhalte auf dem Standard-Branch' + (f' ({len(warnings)} Hinweise)' if warnings else ''))
+        return 1 if errors else 0
     if a.cmd == 'is':
         cfg_path = Path(a.dir, 'ghostwriter.yml')
         cfg = (yaml.safe_load(cfg_path.read_text(encoding='utf-8')) or {}) if cfg_path.is_file() else None
