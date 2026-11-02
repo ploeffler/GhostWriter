@@ -1056,7 +1056,7 @@ def library_view(base, config, args):
                            f'{"✅ eingerichtet" if r["BOOK_STATE"] == "ready" else "🚧 im Aufbau"} | {r["BOOK_PROGRESS_TEXT"]} | {r["BOOK_EDITION_TEXT"]} | {r["BOOK_COST"]} |')
         else:
             out += ['*Hier steht noch kein Buch.*']
-        items = ([('1' if len(rows) == 1 else f'1–{len(rows)}', 'Buch öffnen')] if rows else []) + [('N', 'Neues Buch')]
+        items = ([('1' if len(rows) == 1 else f'1–{len(rows)}', 'Buch öffnen')] if rows else []) + [('N', 'Neues Buch'), ('D', 'Daten')]
         out += ['', '---', menu(items)]
         return '\n'.join(out) + '\n'
     return fill('buecherregal.html', {'LIBRARY_NAME': args.repo, 'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
@@ -1087,6 +1087,137 @@ def book_create_view(base, config, args):
                                       'TITLE_SHORT': draft.get('title_short', ''), 'AUTHOR': author,
                                       'ERROR_TEXT': draft.get('error', '')},
                 {'TAKEN': [{'TAKEN_SLUG': b.get('slug') or '', 'TAKEN_BRANCH': b['branch']} for b in books]})
+
+
+
+# ---------- Seite „Daten“ (#71, Teil 1) ----------
+
+PROOF_DAYS = 14   # Aufbewahrung der Probedruck-Artefakte (proof.yml)
+RUN_NAMES = {'validate': 'Projektdateien prüfen', 'proof': 'Probedruck'}
+
+
+def de_datetime_plus(iso, days=0):
+    import datetime
+    try:
+        d = datetime.datetime.fromisoformat((iso or '').replace('Z', '+00:00')) + datetime.timedelta(days=days)
+    except ValueError:
+        return ''
+    return d.strftime('%d.%m.%Y')
+
+
+def github_data(args):
+    """Rohdaten der GitHub-API aus --github (JSON): repo, branches, pulls, runs; fehlt die Datei, None."""
+    if not getattr(args, 'github', None):
+        return None
+    return json.loads(Path(args.github).read_text(encoding='utf-8'))
+
+
+def data_view(base, config, args):
+    lib = library_data(base, args)
+    gh = github_data(args)
+    prog = lib.get('program') or {}
+    upd = load_upstream(args)
+    known = '' if gh is None else '1'
+    runs = sorted((gh or {}).get('runs') or [], key=lambda r: r.get('created_at') or '', reverse=True)
+    pulls = (gh or {}).get('pulls') or []
+
+    def last_run(name, branch=None):
+        for r in runs:
+            if r.get('name') == name and (branch is None or r.get('head_branch') == branch):
+                return r
+        return None
+
+    unknown = 'unbekannt (ohne GitHub-Abfrage)'
+    if upd:
+        prog_update = update_text(upd)
+    elif getattr(args, 'upstream', None):
+        prog_update = 'aktuell'
+    else:
+        prog_update = 'nicht abgefragt'
+    values = {
+        'LIBRARY_NAME': args.repo,
+        'PROGRAM_VERSION_TEXT': f'GhostWriter {prog.get("version") or "?"} · Hauptrepository {prog.get("upstream") or "?"}',
+        'PROGRAM_UPDATE_TEXT': prog_update, 'PROGRAM_BEHIND': upd['behind'] if upd else '',
+        'PROGRAM_LAST_UPDATE_TEXT': f'letzter Update-Lauf am {de_datetime_plus(prog["last_update"])}' if prog.get('last_update') else 'noch kein Update-Lauf',
+        'PROGRAM_SKIPPED_TEXT': ('Workflow-Dateien ausgelassen (Secret GHOSTWRITER_UPDATE_TOKEN fehlt): ' + ', '.join(prog['skipped_workflows']))
+                                if prog.get('skipped_workflows') else '',
+        'UI_TEXT': f'ghostwriter-ui {prog.get("ui_version") or "?"} · Commit {(prog.get("ui_commit") or "")[:7]}',
+        'GITHUB_KNOWN': known,
+        'CLEANUP_URL': f'https://github.com/{args.repo}/actions/workflows/cleanup.yml',
+        'TASKS_URL': f'https://github.com/{args.repo}/issues?q=is%3Aissue+is%3Aopen+L%C3%B6schaufgaben',
+    }
+    repo = (gh or {}).get('repo') or {}
+    if gh is None:
+        values['REPO_TEXT'] = unknown
+    else:
+        size = repo.get('size')
+        size_text = (f'{size / 1024:.1f} MB'.replace('.', ',') if size and size >= 1024 else f'{size} KB') if size is not None else 'Größe ?'
+        nb = len((gh or {}).get('branches') or [])
+        values['REPO_TEXT'] = (f'{"privat" if repo.get("private") else "öffentlich"} · {size_text} · '
+                               f'{plural(nb, "Branch", "Branches")}')
+    books = []
+    for b in lib.get('books') or []:
+        pr = next((p for p in pulls if (p.get('head') or {}).get('ref') == b.get('work_branch')), None)
+        pending = b.get('pending') or 0
+        pend_text = (f'{plural(pending, "Änderung", "Änderungen")} offen' + (f' · Pull Request #{pr["number"]}' if pr else '')) if pending else 'keine offenen Änderungen'
+        ed = b.get('last_edition')
+        v = last_run(RUN_NAMES['validate'], b['branch'])
+        pr_run = last_run(RUN_NAMES['proof'], b['branch'])
+        if gh is None:
+            check, check_text, proof_text = '', 'Prüfung: unbekannt', 'Probedruck: unbekannt'
+        else:
+            check = {'success': 'ok', 'failure': 'fail'}.get((v or {}).get('conclusion'), '')
+            check_text = ('Prüfung beim letzten Push: ' + {'ok': 'bestanden', 'fail': 'fehlgeschlagen'}.get(check, (v or {}).get('status') or 'noch nicht gelaufen')) if v else 'Prüfung: noch kein Lauf'
+            if pr_run:
+                proof_text = (f'Probedruck vom {de_datetime_plus(pr_run.get("created_at"))}, Download bis '
+                              f'{de_datetime_plus(pr_run.get("created_at"), PROOF_DAYS)}')
+            else:
+                proof_text = 'noch kein Probedruck'
+        books.append({
+            'B_TITLE': b.get('title') or b.get('title_short') or b['branch'], 'B_BRANCH': b['branch'],
+            'B_COMMIT_TEXT': f'{de_date(b.get("updated_at"))} · {b.get("last_commit") or ""}'.strip(' ·'),
+            'B_PENDING_TEXT': pend_text, 'B_PENDING': '1' if pending else '',
+            'B_AUTOMERGE_TEXT': 'Änderungen sofort übernehmen: ' + ('an' if b.get('auto_merge') else 'aus'),
+            'B_EDITION_TEXT': f'Auflage {ed["number"]} vom {de_date(ed["date"])} ({ed["tag"]})' if ed else 'noch keine Auflage',
+            'B_PROOF_TEXT': proof_text,
+            'B_DATA_TEXT': f'Datenversion {b.get("data_version", "?")}' + (' · Migration steht aus (kommt mit dem nächsten Update)' if b.get('migration_pending') else ' · aktuell'),
+            'B_MIGRATION': '1' if b.get('migration_pending') else '',
+            'B_CHECK': check, 'B_CHECK_TEXT': check_text})
+    secrets = lib.get('secrets')
+    srows = []
+    for n in lib.get('secret_names') or []:
+        state = '' if secrets is None else ('yes' if secrets.get(n) else 'no')
+        srows.append({'S_NAME': n, 'S_STATE': state or 'unknown',
+                      'S_TEXT': {'yes': 'hinterlegt', 'no': 'fehlt', 'unknown': 'unbekannt'}[state or 'unknown']})
+    rrows = []
+    seen = set()
+    for r in runs:
+        if r.get('name') in seen:
+            continue
+        seen.add(r.get('name'))
+        c = r.get('conclusion') or r.get('status') or ''
+        rrows.append({'R_NAME': r.get('name') or '', 'R_STATE': {'success': 'ok', 'failure': 'fail'}.get(c, 'other'),
+                      'R_TEXT': f'{ {"success": "erfolgreich", "failure": "fehlgeschlagen", "cancelled": "abgebrochen", "skipped": "übersprungen", "in_progress": "läuft", "queued": "wartet", "action_required": "wartet auf Freigabe"}.get(c, c)} · '
+                                f'{de_datetime_plus(r.get("created_at"))} · {r.get("head_branch") or ""}',
+                      'R_URL': r.get('html_url') or ''})
+    if args.text:
+        out = ['### 🗂️ Daten', f'{args.repo}', '', '**Programm**', '',
+               f'- {values["PROGRAM_VERSION_TEXT"]}', f'- Update: {values["PROGRAM_UPDATE_TEXT"]} · {values["PROGRAM_LAST_UPDATE_TEXT"]}',
+               f'- {values["UI_TEXT"]}'] + ([f'- ⚠️ {values["PROGRAM_SKIPPED_TEXT"]}'] if values['PROGRAM_SKIPPED_TEXT'] else [])
+        out += ['', '**Bücher**', '', '| Buch | Letzter Stand | Änderungen | Auflage | Probedruck | Daten | Prüfung |', '|---|---|---|---|---|---|---|']
+        for r in books:
+            out.append(f'| {r["B_TITLE"]} (`{r["B_BRANCH"]}`) | {r["B_COMMIT_TEXT"]} | {r["B_PENDING_TEXT"]}; {r["B_AUTOMERGE_TEXT"]} | '
+                       f'{r["B_EDITION_TEXT"]} | {r["B_PROOF_TEXT"]} | {"⚠️ " if r["B_MIGRATION"] else ""}{r["B_DATA_TEXT"]} | '
+                       f'{ {"ok": "✅ ", "fail": "❌ "}.get(r["B_CHECK"], "")}{r["B_CHECK_TEXT"]} |')
+        out += ['', '**Repository**', '', f'- {values["REPO_TEXT"]}',
+                f'- Erledigte Branches: [Branches aufräumen]({values["CLEANUP_URL"]}) · [Löschaufgaben]({values["TASKS_URL"]})']
+        if srows:
+            out += ['- Secrets (nur Namen): ' + ', '.join(f'`{r["S_NAME"]}` { {"yes": "✅", "no": "❌", "unknown": "❔"}[r["S_STATE"]]} {r["S_TEXT"]}' for r in srows)]
+        if rrows:
+            out += ['', '**Letzte Läufe**', '', '| Action | Ergebnis |', '|---|---|'] + [f'| [{r["R_NAME"]}]({r["R_URL"]}) | {r["R_TEXT"]} |' for r in rrows]
+        out += ['', '---', menu([('Ü', 'Bücherregal')] + ([('U', 'Update einspielen')] if upd else []))]
+        return '\n'.join(out) + '\n'
+    return fill('daten.html', values, {'BOOKS': books, 'SECRETS': srows, 'RUNS': rrows})
 
 
 WIZARD_CHOICES = Path(__file__).resolve().parent.parent / 'templates' / 'wizard-choices.yml'
@@ -1199,7 +1330,7 @@ def git_head(base):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section', 'library'] + list(FORMS))
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'library', 'data'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
@@ -1210,6 +1341,7 @@ def main():
     ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
     ap.add_argument('--draft', help='bei chapter-research bzw. book-create: JSON mit noch nicht gespeicherten Werten (goal, summary, question, scope bzw. working_title, title_short, author, error)')
     ap.add_argument('--library', help='library.json vom Standard-Branch (Bücherregal; in der Projektübersicht ab 2 Büchern der Link „Bücherregal“)')
+    ap.add_argument('--github', help='bei data: JSON mit Rohdaten der GitHub-API (repo, branches, pulls, runs), siehe BEFUELLUNG.md, „Daten“')
     ap.add_argument('--spec', help='bei choice: JSON-Datei oder JSON-Text mit einer eigenen Auswahl (Aufbau wie templates/wizard-choices.yml)')
     ap.add_argument('--ui-ref', help='Commit oder Branch von ghostwriter-ui statt des festen Commits aus templates/ui/ghostwriter-ui.yml (nur zum Testen)')
     args = ap.parse_args()
@@ -1221,6 +1353,8 @@ def main():
         out = FORMS[args.view](base, config, args)
     elif args.view == 'library':
         out = library_view(base, config, args)
+    elif args.view == 'data':
+        out = data_view(base, config, args)
     elif args.view == 'project':
         out = project_view(base, config, args)
     elif args.view == 'chapter':

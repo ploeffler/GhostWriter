@@ -41,6 +41,7 @@ Dateien in `ghostwriter-ui/templates/`:
 | `projektdaten-bearbeiten.html` | Formular | Titel, Kurztitel, Autor, Kurzbeschreibung und Beschreibung des Buchprojekts bearbeiten |
 | `kapitel-bearbeiten.html` | Formular | Titel, Untertitel, Kurzbeschreibung und Ziel eines Kapitels bearbeiten |
 | `buecherregal.html` | Ansicht | Startseite einer Bibliothek: alle Bücher mit Status und Fortschritt, „Öffnen“ und „Neues Buch“ |
+| `daten.html` | Ansicht | Seite „Daten“: Programmstand, je Buch Stand, Auflage, Probedruck, Datenversion, Prüfung; Repository, Secrets (nur Namen), letzte Läufe |
 | `buch-anlegen.html` | Formular | Neues Buch in der Bibliothek: Arbeitstitel, Kurztitel mit Vorschau des Branch-Namens, Autor |
 | `auswahl.html` | Formular | Auswahlkarten: 1–4 Fragen mit festen Antworten, Empfehlung und eigener Antwort (Einstiegsdialog) |
 | `kapitelrecherche.html` | Formular | Ziel und Kurzbeschreibung eines Kapitels ändern, Recherche für das Kapitel mit Vorschlägen |

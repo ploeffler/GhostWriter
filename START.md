@@ -31,6 +31,16 @@ Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`
 
 Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Repository ohne die jeweils erforderliche Freigabe, keine erfundenen Angaben über den Projektstand.
 
+### Daten (#71)
+
+Die Seite „Daten“ (Knopf im Bücherregal, Befehl `Daten`, Aktion `view.data`, Kürzel `D` im Bücherregal) zeigt, wo was steht und ob alles abgeglichen ist; sie ändert nichts. Erzeuge sie mit `python scripts/render_view.py . data --library library.json --github github.json [--upstream upstream.json]` (Textfassung `--text`):
+
+1. `library.json` vom Standard-Branch lesen (Programmstand, je Buch letzter Commit, offene Änderungen, „sofort übernehmen“, Auflage, Datenversion; Secrets nur mit Namen). Fehlt sie, live aus den Branches.
+2. Über die GitHub-Verbindung die Rohdaten holen und unverändert in `github.json` legen: `repo` (`GET /repos/{owner}/{repo}`), `branches` (Namen aus `GET …/branches?per_page=100`), `pulls` (`GET …/pulls?state=open`), `runs` (`workflow_runs` aus `GET …/actions/runs?per_page=50` und für jedes Buch zusätzlich `GET …/actions/runs?branch=<buch-branch>&per_page=30`). Geht das nicht, ohne `--github`; die Seite sagt dann, was unbekannt ist.
+3. Den Update-Stand wie für die Projektübersicht ermitteln (`--upstream`, Abschnitt 0, Punkt 4a).
+
+Nie Secret-Werte lesen oder anzeigen; die Seite kennt nur, ob ein Secret hinterlegt ist (die Action „Bücherregal aktualisieren“ prüft das anhand der Namen).
+
 ### Neues Buch (Bibliothek, #38)
 
 Ein Repository kann mehrere Bücher enthalten, je Buch ein Branch `buch/<slug>` (Erkennungsregel: `scripts/library.py`). Ein neues Buch entsteht so:
@@ -91,6 +101,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Auflage` | Formular „Neue Auflage erzeugen“ |
 | `Einstellungen`, `KI-Dienste` | das jeweilige Formular |
 | `Update` | Update-Stand zeigen; ist das Buch hinter dem Hauptrepository, „Update einspielen“ anbieten |
+| `Daten` | Seite „Daten“: Stand von Programm, Büchern und Repository (Abschnitt 0, „Daten“) |
 | `Hilfe` | diese Befehle und die Kürzel der zuletzt gezeigten Ansicht (`templates/ui/BEFUELLUNG.md`, „Textfassung“) |
 
 Befehle haben Vorrang vor Kürzeln nur, wenn sie ausgeschrieben sind (`Auflage`, nicht `A`). `Neues Buch` öffnet das Formular „Neues Buch“ (Abschnitt 0, „Neues Buch“); `Neues Buch: <Titel>` öffnet es mit dem Titel vorbelegt.

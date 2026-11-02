@@ -272,3 +272,84 @@ class DefaultBranchAndUpdateTest(unittest.TestCase):
                 os.chdir(old)
                 os.environ.clear()
                 os.environ.update(env)
+
+
+class DataPageTest(unittest.TestCase):
+    """Seite „Daten“ (#71, Teil 1): library.json mit Programm- und Buchstand, Secrets nur als Namen, Ansicht mit und ohne GitHub-Daten."""
+
+    @classmethod
+    def setUpClass(cls):
+        import os
+        import shutil
+        cls.tmp = tempfile.TemporaryDirectory()
+        d = cls.d = cls.tmp.name
+        g = lambda *a: subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=d, check=True, capture_output=True)
+        g('init', '-q', '-b', 'main')
+        Path(d, 'ghostwriter.yml').write_text((ROOT / 'ghostwriter.yml').read_text(encoding='utf-8'), encoding='utf-8')
+        shutil.copytree(ROOT / 'templates/ui', Path(d, 'templates/ui'))
+        g('add', '.')
+        g('commit', '-qm', 'Starter')
+        g('checkout', '-q', '-b', 'buch/adhs')
+        shutil.copytree(ROOT / 'tests/fixtures/adhs', d, dirs_exist_ok=True)
+        g('add', '.')
+        g('commit', '-qm', 'Kapitel 1 überarbeitet')
+        g('tag', 'adhs-im-erwachsenenleben-auflage-1')
+        g('tag', 'adhs-im-erwachsenenleben-auflage-2')
+        g('checkout', '-q', 'main')
+        env = dict(os.environ, SECRETS_JSON=json.dumps({'GHOSTWRITER_UPDATE_TOKEN': '***', 'OTHER': '***'}))
+        cls.lib = Path(d, 'library.json')
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/library.py'), 'build', '--namespace', 'refs/heads',
+                            '--repo', d, '--out', str(cls.lib)], capture_output=True, text=True, env=env)
+        assert r.returncode == 0, r.stderr
+        cls.data = json.loads(cls.lib.read_text(encoding='utf-8'))
+        cls.gh = Path(d, 'github.json')
+        cls.gh.write_text(json.dumps({
+            'repo': {'private': True, 'size': 2048}, 'branches': ['main', 'buch/adhs', 'ghostwriter/buch/adhs'],
+            'pulls': [{'number': 7, 'head': {'ref': 'ghostwriter/buch/adhs'}}],
+            'runs': [{'name': 'Probedruck', 'head_branch': 'buch/adhs', 'conclusion': 'success', 'created_at': '2026-11-01T10:00:00Z', 'html_url': 'u1'},
+                     {'name': 'Projektdateien prüfen', 'head_branch': 'buch/adhs', 'conclusion': 'failure', 'created_at': '2026-11-02T10:00:00Z', 'html_url': 'u2'}]}),
+            encoding='utf-8')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def view(self, *a):
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), self.d, 'data', '--library', str(self.lib), *a],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def test_library_json(self):
+        b = self.data['books'][0]
+        self.assertEqual(b['last_commit'], 'Kapitel 1 überarbeitet')
+        self.assertEqual(b['last_edition']['number'], 2)
+        self.assertEqual(b['data_version'], 0)
+        self.assertTrue(b['migration_pending'])
+        self.assertNotIn('secret_names', b)
+        self.assertEqual(self.data['program']['ui_commit'], yaml.safe_load((ROOT / 'templates/ui/ghostwriter-ui.yml').read_text())['commit'])
+        self.assertEqual(self.data['secrets'], {'GHOSTWRITER_UPDATE_TOKEN': True})
+        self.assertNotIn('***', self.lib.read_text(encoding='utf-8'))
+
+    def test_secrets_kept_without_secrets_json(self):
+        import os
+        env = {k: v for k, v in os.environ.items() if k != 'SECRETS_JSON'}
+        subprocess.run([sys.executable, str(ROOT / 'scripts/library.py'), 'build', '--namespace', 'refs/heads',
+                        '--repo', self.d, '--out', str(self.lib)], capture_output=True, env=env, check=True)
+        self.assertEqual(json.loads(self.lib.read_text(encoding='utf-8'))['secrets'], {'GHOSTWRITER_UPDATE_TOKEN': True})
+
+    def test_view_with_github(self):
+        t = self.view('--github', str(self.gh), '--text')
+        self.assertIn('privat · 2,0 MB · 3 Branches', t)
+        self.assertIn('Probedruck vom 01.11.2026, Download bis 15.11.2026', t)
+        self.assertIn('❌ Prüfung beim letzten Push: fehlgeschlagen', t)
+        self.assertIn('Migration steht aus', t)
+        self.assertIn('`GHOSTWRITER_UPDATE_TOKEN` ✅ hinterlegt', t)
+        w = self.view('--github', str(self.gh))
+        self.assertIn('GW.render("daten"', w)
+        self.assertIn('"GITHUB_KNOWN":"1"', w)
+
+    def test_view_without_github(self):
+        w = self.view()
+        self.assertIn('"GITHUB_KNOWN":""', w)
+        self.assertIn('Prüfung: unbekannt', self.view('--text'))
