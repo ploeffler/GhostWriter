@@ -47,7 +47,7 @@ Liegt der Buch-Branch hinter dem Hauptrepository, zeigt die **Projektübersicht*
 
 ## Eigenes Buch anlegen
 
-> **Derzeit ist das Hauptrepository `ploeffler/GhostWriter` privat** (entschieden am 01.11.2026). Ein Buch-Repository kann es nur lesen, wenn du dort als Mitarbeiter eingeladen bist und dein Buch-Repository das Secret `GHOSTWRITER_UPDATE_TOKEN` hat (Schritt 3). Ohne das laufen keine Updates; die Action meldet das in einem Issue, und die Projektübersicht zeigt den Hinweis.
+> **Das Hauptrepository `ploeffler/GhostWriter` ist öffentlich** (seit 01.11.2026) und enthält nur das Programm, keine Buchinhalte (#48). Zum Lesen braucht dein Buch-Repository deshalb kein Token; `GHOSTWRITER_UPDATE_TOKEN` ist nur nötig, damit auch Workflow-Dateien aktualisiert werden (Schritt 4).
 
 Ein Manuskript gehört in der Regel in ein **privates** Repository. Das bestimmt, wie du dein Buch anlegst:
 

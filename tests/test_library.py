@@ -353,3 +353,36 @@ class DataPageTest(unittest.TestCase):
         w = self.view()
         self.assertIn('"GITHUB_KNOWN":""', w)
         self.assertIn('Prüfung: unbekannt', self.view('--text'))
+
+
+class ProgramRepoTest(unittest.TestCase):
+    """#48: Das Programm-Repository enthält keine Buchinhalte."""
+
+    def test_program_problems(self):
+        import os
+        import shutil
+        with tempfile.TemporaryDirectory() as d:
+            g = lambda *a: subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=d, check=True, capture_output=True)
+            g('init', '-q', '-b', 'main')
+            shutil.copyfile(ROOT / 'ghostwriter.yml', Path(d, 'ghostwriter.yml'))
+            g('add', '.')
+            g('commit', '-qm', 'Programm')
+            env, os.environ['GHOSTWRITER_DEFAULT_BRANCH'] = dict(os.environ), 'main'
+            try:
+                self.assertEqual(library.program_problems(d, 'refs/heads', MANIFEST), ([], []))
+                g('branch', 'buch/x')
+                g('tag', 'x-auflage-1')
+                errors, warnings = library.program_problems(d, 'refs/heads', MANIFEST)
+                self.assertEqual(errors, [])
+                self.assertEqual(len(warnings), 2)
+                shutil.copytree(ROOT / 'tests/fixtures/adhs', d, dirs_exist_ok=True)
+                errors, _ = library.program_problems(d, 'refs/heads', MANIFEST)
+                self.assertTrue(any('Kapitel' in e for e in errors))
+                self.assertTrue(any(e.startswith('chapters/') for e in errors))
+            finally:
+                os.environ.clear()
+                os.environ.update(env)
+
+    def test_main_repo_is_clean(self):
+        errors, _ = library.program_problems(ROOT, 'refs/heads', MANIFEST)
+        self.assertEqual(errors, [])
