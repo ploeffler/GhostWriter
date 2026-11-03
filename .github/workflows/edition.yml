@@ -100,10 +100,12 @@ jobs:
           NOTES: ${{ steps.info.outputs.notes }}
         run: |
           if [ -f "$NOTES" ]; then notes=(--notes-file "$NOTES"); else notes=(--notes "Auflage ohne eigene Release Notes."); fi
-          gh release create "$TAG" build/*.pdf build/*.docx build/*.epub \
+          # Nur die tatsächlich gebauten Dateien (Formate aus typesetting.formats, #68)
+          mapfile -t files < <(python -c "import yaml; d = yaml.safe_load(open('build/edition.yml')); print('\n'.join('build/' + f for f in d['files']))")
+          gh release create "$TAG" "${files[@]}" \
             --target "$GITHUB_SHA" --title "$NAME" "${notes[@]}"
           {
             echo "## $NAME veröffentlicht"
             echo
-            echo "Tag \`$TAG\`, Commit \`${GITHUB_SHA:0:7}\`. Dateien: PDF, DOCX, EPUB."
+            echo "Tag \`$TAG\`, Commit \`${GITHUB_SHA:0:7}\`. Dateien: $(printf '%s ' "${files[@]##*/}")"
           } >> "$GITHUB_STEP_SUMMARY"
