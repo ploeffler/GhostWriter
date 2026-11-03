@@ -225,6 +225,18 @@ Seite „Daten“ (`render_view.py data`, `START.md`, „Daten“). Quellen: `li
 | Block `SECRETS`: `S_NAME`, `S_STATE`, `S_TEXT` | `secret_names` und `secrets` aus `library.json`: `yes` hinterlegt, `no` fehlt, `unknown` noch nicht geprüft |
 | Block `RUNS`: `R_NAME`, `R_STATE`, `R_TEXT`, `R_URL` | je Action der neueste Lauf aus `runs`: Name, `ok`/`fail`/`other`, Ergebnis, Datum, Branch, Link |
 
+### `bilder.html`
+
+Bilder eines Abschnitts bzw. Teils (`render_view.py images <N.M|id>`, #54).
+
+| Platzhalter | Quelle |
+|---|---|
+| `PROJECT_TITLE_SHORT` | wie in der Projektübersicht |
+| `TARGET_ID`, `TARGET_TITLE` | Abschnitt (`sec-…`) bzw. Teil (`mat-…`) und Titel |
+| `IMAGE_STYLE` | `images.style`, sonst leer |
+| `TARGET_CHARACTERS` | Figuren aus `characters` im Kopf, kommagetrennt |
+| Block `IMAGES`: `I_ID`, `I_CAPTION`, `I_STATE`, `I_SOURCE`, `I_SIZE`, `I_IN_TEXT` | je Beschreibung `img-….yml` im Bildordner: ID, Bildunterschrift, `status` (`draft`/`approved`; bewusst nicht `…_STATUS`, das gw.js übersetzen würde), Herkunft deutsch, Größe in px, `1`, wenn `![](bild:…)` im Manuskript steht |
+
 ### `figuren.html`
 
 Liste der Figuren (`render_view.py characters`, #53).
@@ -449,6 +461,10 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `view.chapter` | `chapter_id` | Kapitelansicht zeigen | Vorlage `kapitelansicht` (`render_view.py chapter N`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.section` | `section_id` | Abschnittsformular zeigen | Vorlage `abschnitt-bearbeiten` (`render_view.py section N.M`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.matter` | `matter_id` (leer = alle Teile) | Teil von Vor- oder Nachspann zeigen bzw. die Liste „Vor- und Nachspann“ (#57) | Vorlage `teil-bearbeiten` (`render_view.py matter <teil>`) bzw. `vor-nachspann` (`render_view.py matter`) | `GET /v1/projects/{owner}/{repo}` |
+| `view.images` | `section_id` (auch `mat-…`) | Bilder eines Abschnitts zeigen (#54) | Vorlage `bilder` (`render_view.py images <N.M|id>`) | `GET /v1/projects/{owner}/{repo}` |
+| `image.prompt` | `section_id`, `scene`, `characters` (optional) | Bild-Auftrag zusammensetzen | `python scripts/images.py . prompt …`; Prompt zeigen, dann im Chat erzeugen oder als „Auftrag kopieren“ ausgeben (`START.md`, „Illustrationen“); nichts schreiben | – |
+| `image.add` | `section_id`, `caption`, `alt`, `source`, `provider`, `prompt`, Datei als Anhang, `expected_head_sha` | Bild ablegen | `python scripts/images.py . add …`, ein Commit; danach die Bilder des Abschnitts | `POST …/sections/{section_id}/images` |
+| `image.place` | `image_id`, `section_id` | Bild in den Text setzen | nachfragen, wohin (nach welchem Absatz), dann mit Schreibfreigabe die Zeile `![](bild:img-…)` als eigenen Absatz einfügen, Commit wie `section.update`; ohne Schreibfreigabe zuerst die Freigabe anbieten | `PUT …/sections/{section_id}/manuscript` |
 | `view.characters` | – | Liste der Figuren zeigen (#53, Befehl `Figuren`) | Vorlage `figuren` (`render_view.py characters`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.character` | `character_id` | Formular einer Figur zeigen | Vorlage `figur-bearbeiten` (`render_view.py characters <id>`) | `GET /v1/projects/{owner}/{repo}` |
 | `character.create` | `name`, `role`, `expected_head_sha` | Figur anlegen | `python scripts/characters.py . add "<Name>" --role <role>`, Commit nach `START.md`, „Figuren“; danach das Formular der neuen Figur | `POST …/characters` |
@@ -493,7 +509,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | prüfen, Release Notes zeigen, Auflagen-Pull-Request anlegen (`START.md`, „Neue Auflage“); nach dem Merge baut die Action „Auflage veröffentlichen“ | `POST /repos/{owner}/{repo}/actions/workflows/edition.yml/dispatches` (Bau), Pull Request wie Weg A |
 | `changes.merge.open` | – | Bestätigung „Änderungen übernehmen“ zeigen (Knopf im Hinweis der Projektübersicht, Textfassung `M`) | offene Änderungen aus GitHub lesen, Vorlage `aenderungen-uebernehmen` (`render_view.py changes-merge`) | `GET …/changes` |
 | `changes.merge` | `pull_request`, `expected_head_sha` | Offene Änderungen übernehmen; der Klick auf „Übernehmen“ bzw. `OK` ist die ausdrückliche Bestätigung | prüfen, dass der Arbeits-Branch noch auf `expected_head_sha` steht (sonst Bestätigung neu zeigen), Pull Request mit Merge-Commit mergen, Arbeits-Branch löschen, danach Projektübersicht | `POST …/changes/merge` |
-| `approval.open` | `kind` (`writing` \| `section` \| `chapter` \| `matter`), `section_id` bzw. `chapter_id`, `revoke` (nur beim Zurücknehmen); bei Vor- und Nachspann steht die `mat-…`-ID in `section_id` (#57) | Bestätigung „Freigabe“ zeigen | Vorlage `freigabe-bestaetigen` (`render_view.py approval-<kind> N.M` bzw. `N`, für einen Teil `approval-writing\|approval-matter <teil>`, `--revoke`) | – |
+| `approval.open` | `kind` (`writing` \| `section` \| `chapter` \| `matter` \| `image`), `section_id` bzw. `chapter_id`, `revoke` (nur beim Zurücknehmen); bei Vor- und Nachspann steht die `mat-…`-ID in `section_id` (#57) | Bestätigung „Freigabe“ zeigen | Vorlage `freigabe-bestaetigen` (`render_view.py approval-<kind> N.M` bzw. `N`, für einen Teil `approval-writing\|approval-matter <teil>`, `--revoke`) | – |
 | `approval.confirm` | wie `approval.open`, dazu `expected_head_sha` | Freigabe erteilen bzw. zurücknehmen; der Klick ist die ausdrückliche Bestätigung | Hindernisse erneut prüfen, dann nach `START.md`, „Freigaben“, schreiben; danach die Ausgangsansicht | `POST`/`DELETE …/sections/{section_id}/writing-approval`, `…/sections/{section_id}/approve`, `…/chapters/{chapter_id}/approve`, `…/matter/{matter_id}/writing-approval`, `…/matter/{matter_id}/approve` |
 | `update.apply` | – | GhostWriter-Update einspielen | Action „GhostWriter aktualisieren“ per `workflow_dispatch` starten oder Link *Run workflow* geben (`START.md`, „Programmdateien und Updates“); nie selbst mergen | `POST /repos/{owner}/{repo}/actions/workflows/update.yml/dispatches` |
 | `wizard.answer` | `step`, `answers` (je `key` der Frage: Wert, Liste von Werten bei Mehrfachauswahl, `{"other": "Text"}` für eine eigene Antwort, auch als Listeneintrag) | Antworten auf Auswahlkarten | Antworten übernehmen (`START.md`, Abschnitt 4, „Auswahlkarten“), noch nichts schreiben; mit dem nächsten Wizard-Schritt weitermachen | – |

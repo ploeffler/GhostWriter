@@ -58,7 +58,8 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 BOOK = ROOT / 'templates' / 'book'
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from assemble import book_body, book_parts, matter_notes, matter_parts, metadata, problems  # noqa: E402
+from assemble import (book_body, book_parts, matter_notes, matter_parts, metadata, problems,  # noqa: E402
+                      resolve_images)
 from render_view import load, tag_slug  # noqa: E402
 import ai_disclosure  # noqa: E402
 import build_cover  # noqa: E402
@@ -121,6 +122,29 @@ def epub_css(ts):
     if ts.get('line_spacing', 1.1) != 1.1:
         out.append(f'body {{ line-height: {round(1.45 * float(ts["line_spacing"]) / 1.1, 2)}; }}')
     return '\n'.join(out)
+
+
+def image_notes(used, ts):
+    """Hinweise zur Auflösung (#54): unter etwa 300 dpi bei voller Satzbreite."""
+    w = PAGE.get(ts['page_size'], PAGE['a5'])[0]
+    need = int((w - (30 if w < 160 else 50)) / 25.4 * 300 * 0.9)
+    return [f'Bild „{m.get("caption") or m["id"]}“ hat {m["width_px"]} px Breite; für den Druck bei voller Satzbreite '
+            f'sind etwa {need} px gut (300 dpi).' for m in used if m.get('width_px') and m['width_px'] < need]
+
+
+def image_credit(used, config):
+    """Bildnachweis im Impressum für KI-erzeugte Bilder (#54, images.credit_in_imprint, Vorgabe an)."""
+    if (config.get('images') or {}).get('credit_in_imprint') is False:
+        return ''
+    ai = [m for m in used if m.get('ai_generated')]
+    if not ai:
+        return ''
+    import ai_disclosure
+    names = ai_disclosure.provider_names()
+    services = sorted({names.get(m['provider'], m['provider']) for m in ai if m.get('provider') and m['provider'] != 'chat'})
+    n = len(ai)
+    return (f'{"Die Abbildung ist" if n == 1 else f"Die {n} Abbildungen sind"} mit KI erzeugt'
+            + (f' ({", ".join(services)})' if services else '') + '.')
 
 
 def pdf_pages(path):
@@ -276,7 +300,7 @@ def main(argv):
         args.edition = config['project'].get('current_edition') or 0
     parts = book_parts(base, config, proof=args.proof)
     matter = matter_parts(base, config, proof=args.proof)
-    found = [] if args.proof else problems(parts, config, matter)
+    found = [] if args.proof else problems(parts, config, matter, base)
     blocking = [p for p in found if not (args.allow_markers and p.startswith('Offener Marker'))]
     if args.proof and not parts:
         print('Probedruck: Das Buch hat noch keine Kapitel.')
@@ -310,11 +334,17 @@ def main(argv):
     out.mkdir(parents=True, exist_ok=True)
     disc = ai_disclosure.for_book(config)   # KI-Angabe (#78): (Ort, Wortlaut) oder None
     in_body = disc if disc and disc[0] != 'imprint' else None
-    body = book_body(parts, matter, in_body)
+    body, used_images = resolve_images(base, config, book_body(parts, matter, in_body), args.proof)
     # PDF: Widmung vor dem Inhaltsverzeichnis (include-before), daher dort ohne Widmung im Text
     dedication = ''.join(m[2] for m in matter if m[1]['kind'] == 'dedication' and m[2])
-    body_pdf = book_body(parts, [m for m in matter if m[1]['kind'] != 'dedication'], in_body)
+    body_pdf = resolve_images(base, config, book_body(parts, [m for m in matter if m[1]['kind'] != 'dedication'], in_body),
+                              args.proof)[0]
+    for note in image_notes(used_images, ts):
+        print(f'ⓘ {note}')
     imprint = imprint_markdown(meta, release_name, args.commit, config.get('publication'))
+    credit = image_credit(used_images, config)
+    if credit:
+        imprint.append(credit)
     disc_lines = [re.sub(r'^\s*[-*]\s+', '– ', line) for line in disc[1].splitlines() if line.strip()] \
         if disc and disc[0] == 'imprint' else []
     fonts = FONTS.get(ts['font'], FONTS['serif'])

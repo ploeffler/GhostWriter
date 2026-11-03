@@ -40,6 +40,11 @@ repository/
 │   │   ├── writing/
 │   │   │   └── <section-id>/
 │   │   │       └── run-001.md     # Protokoll eines Ghostwriting-Laufs (ab v0.4)
+│   │   ├── images/
+│   │   │   └── <section-id>/      # Illustrationen (#54)
+│   │   │       ├── img-<slug>.png # Bild (PNG oder JPEG)
+│   │   │       ├── img-<slug>.yml # Beschreibung: Bildunterschrift, Herkunft, Status
+│   │   │       └── run-001.md     # Bildauftrag (Prompt, Dienst, Varianten, Auswahl)
 │   │   └── costs/
 │   │       └── <section-id>.yml   # KI-API-Kosten über das Backend (nur dann)
 │   └── 02-grundlagen/
@@ -104,6 +109,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `ai_settings` | globale KI-Regeln: `hallucination_policy` (`strict`), `source_policy` (`required`), `uncertainty_policy` (`explicit`), `creativity` (`balanced`), `web_research` (`research`); dürfen nur strenger werden (`START.md`, Abschnitt 3) |
 | `ai_providers` | vorhandene KI-Dienste (`available`), Dienst und Modell je Aufgabe, Einstellungen je Dienst (`services`); siehe [PROVIDERS.md](PROVIDERS.md) |
 | `structure.chapters` | Kapitel in Reihenfolge, je mit `id`, `title`, `path`, `status` und `sections` (je `id`, `title`, `path`) |
+| `images` | Illustrationen (#54): `style` (Bildstil für alle Aufträge), `credit_in_imprint` (KI-erzeugte Bilder im Impressum nennen, Vorgabe `true`), `max_px` (längste Kante beim Ablegen, Vorgabe 3000); siehe „Illustrationen“ |
 | `characters` | Figuren (#53) in Reihenfolge, je `id` (`char-…`), `name`, `path`; fehlt = keine (siehe „Figuren“) |
 | `structure.front_matter`, `structure.back_matter` | Vor- und Nachspann (#57, #58): Teile vor Kapitel 1 (Widmung, Vorwort, Prolog) bzw. nach dem letzten Kapitel (Epilog, Nachwort, Glossar, Danksagung), je mit `id`, `kind`, `title`, `path`; fehlen = keine (siehe „Vor- und Nachspann“) |
 
@@ -265,6 +271,29 @@ ai_disclosure:
 
 `scripts/ai_disclosure.py suggest` schlägt den Wortlaut aus den Köpfen der Lauf-Dateien vor (`type` → Aufgabe, `provider` → Dienst aus `providers.yml`; `chat` erscheint als „ein Chat-Assistent“). Ins Buch kommt nur `text`, also ein bestätigter Wortlaut; ändern sich `mode` oder `name_services`, leert `set` ihn wieder. Satz: im Impressum als weitere Zeilen, am Ende von Vorwort bzw. Nachwort vor Verfasser und Ort/Datum (Block `::: ki-angabe`), als eigene Seite „Hinweis zur KI-Nutzung“ unnummeriert am Ende; in allen drei Formaten und im Probedruck. Ist eine Angabe gewählt, verhindern ein fehlender Wortlaut oder ein fehlender Ort (Impressum ausgeschaltet, kein freigegebenes Vorwort bzw. Nachwort) die Auflage.
 
+## Illustrationen
+
+Bilder zu Abschnitten und Teilen von Vor- und Nachspann (#54). Je Bild die Datei `img-<slug>.png|jpg` und die Beschreibung `img-<slug>.yml` im Ordner `chapters/<kapitel>/images/<section-id>/` bzw. `matter/images/<mat-id>/`, Schema [`schemas/image.schema.json`](../schemas/image.schema.json):
+
+```yaml
+id: img-opi-und-strolchi-auf-der-bank
+section_id: sec-01-01-…
+file: img-opi-und-strolchi-auf-der-bank.png
+caption: Opi und Strolchi auf der Bank   # Bildunterschrift
+alt: Opi und Strolchi auf der Bank       # Alternativtext (EPUB)
+status: draft                            # draft | approved
+ai_generated: true
+source: copy                             # chat (im Chat erzeugt) | copy (Auftrag bei einem anderen Dienst) | own (eigenes Bild)
+provider: openai
+prompt: "Stil: …"
+characters: [char-opi, char-strolchi]
+run: run-001
+width_px: 3000
+height_px: 2100
+```
+
+Jeder Bildauftrag ist ein unveränderlicher Lauf `run-NNN.md` daneben (`runs.illustration` in `workflow.yml`, Pfad `chapters/{chapter_id}/images/{section_id}/run-{sequence}.md`): Prompt, Dienst, Herkunft, Figuren, Zahl der Varianten, Auswahl. Im Manuskript steht das Bild als `![](bild:img-…)` an seiner Stelle (eigener Absatz); die Bildunterschrift kommt aus der Beschreibung, ein Text in den eckigen Klammern ersetzt sie. Im Buch: volle Satzbreite mit Bildunterschrift in PDF, DOCX und EPUB. Nur freigegebene Bilder (Freigabe-Art `image` in `approvals.yml`) kommen in eine Auflage; ein fehlendes oder nicht freigegebenes Bild in freigegebenem Text verhindert sie, der Probedruck zeigt alle mit Vermerk. Unter etwa 300 dpi bei voller Satzbreite gibt der Bau einen Hinweis. KI-erzeugte Bilder nennt das Impressum („Die Abbildung ist mit KI erzeugt (Dienst).“), außer `images.credit_in_imprint: false`. `scripts/images.py` setzt den Bild-Auftrag zusammen (`prompt`: Bildstil, Szene und die festen Bildmerkmale `visual` der Figuren aus #53), legt Bilder ab (`add`, verkleinert auf `max_px`) und listet sie.
+
 ## Figuren
 
 Optional auf Buch-Ebene (#53), etwa für Romane, Kinderbücher oder Fallbeispiele. Je Figur eine Datei `characters/char-<slug>.md` (Vorlage `templates/character.md`, Schema [`schemas/character.schema.json`](../schemas/character.schema.json)); `characters/` gehört dem Buch.
@@ -298,7 +327,7 @@ Darunter `## Beschreibung` und `## Notizen`. Abschnitte und Teile von Vor- und N
 
 ```yaml
 entries:
-- kind: section          # writing | section | chapter | matter (Vor-/Nachspann)
+- kind: section          # writing | section | chapter | matter (Vor-/Nachspann) | image (Illustration)
   id: sec-02-04-die-scham-die-wir-mitbringen
   action: granted        # granted | revoked
   at: '2026-10-31T23:30:00+01:00'

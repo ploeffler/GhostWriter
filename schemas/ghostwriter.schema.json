@@ -159,6 +159,16 @@
       },
       "additionalProperties": false
     },
+    "images": {
+      "type": "object",
+      "description": "Illustrationen (#54): Bildstil des Buchs und Bildnachweis; fehlt = Vorgaben",
+      "properties": {
+        "style": {"type": "string", "description": "Stil für alle Bild-Aufträge, z. B. „Aquarell, weiche Farben, kindgerecht“"},
+        "credit_in_imprint": {"type": "boolean", "description": "KI-erzeugte Bilder im Impressum nennen; fehlt = true"},
+        "max_px": {"type": "integer", "minimum": 600, "maximum": 6000, "description": "längste Kante beim Ablegen; fehlt = 3000"}
+      },
+      "additionalProperties": false
+    },
     "characters": {
       "type": "array",
       "description": "Figuren des Buchs (#53) in Reihenfolge; fehlt = keine",

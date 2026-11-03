@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/image.schema.json",
+  "title": "Beschreibung einer Illustration (images/<abschnitt>/<img-id>.yml, #54)",
+  "type": "object",
+  "required": ["id", "section_id", "file", "caption", "status", "ai_generated", "source"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^img-[a-z0-9][a-z0-9-]*$"},
+    "section_id": {"type": "string", "pattern": "^(sec|mat)-[a-z0-9][a-z0-9-]*$"},
+    "file": {"type": "string", "pattern": "^img-[a-z0-9][a-z0-9-]*\\.(png|jpe?g)$"},
+    "caption": {"type": "string", "description": "Bildunterschrift; leer = keine"},
+    "alt": {"type": "string", "description": "Alternativtext für Screenreader (EPUB)"},
+    "status": {"enum": ["draft", "approved"]},
+    "ai_generated": {"type": "boolean"},
+    "source": {"enum": ["chat", "copy", "own"], "description": "chat = im Chat erzeugt, copy = mit kopiertem Auftrag bei einem anderen Dienst, own = eigenes Bild"},
+    "provider": {"type": "string"},
+    "model": {"type": "string"},
+    "prompt": {"type": "string"},
+    "characters": {"type": "array", "items": {"type": "string", "pattern": "^char-[a-z0-9][a-z0-9-]*$"}, "uniqueItems": true},
+    "run": {"type": "string", "pattern": "^run-[0-9]{3}$"},
+    "credit": {"type": "string", "description": "Bildnachweis, z. B. Fotograf; bei eigenen Bildern optional"},
+    "width_px": {"type": "integer", "minimum": 1},
+    "height_px": {"type": "integer", "minimum": 1}
+  },
+  "additionalProperties": false
+}
