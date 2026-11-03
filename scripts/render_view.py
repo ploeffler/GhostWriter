@@ -470,7 +470,7 @@ def matter_view(base, config, args):
         items.append(('RS', 'Recherche je Begriff' if kind == 'glossary' else 'Recherche sofort'))
     if kind in MATTER_GHOSTWRITING:
         items.append(('GS', 'Ghostwriting sofort'))
-    items.append(('Ü', 'Zur Übersicht'))
+    items += [('FV', '👤 Figuren aus dem Text vorschlagen'), ('Ü', 'Zur Übersicht')]
     lines += [menu(items)]
     return '\n'.join(lines) + '\n'
 
@@ -563,7 +563,7 @@ def characters_view(base, config, args):
             else:
                 lines += ['*Noch keine Figuren.*']
             lines += ['', 'Figuren sind Arbeitsgrundlage für Brainstorming und Ghostwriting; sie kommen nicht ins Buch.', '', '---']
-            lines += [menu([(r['C_NAME'], 'öffnen') for r in rows] + [('+ Name', 'neue Figur anlegen (optional `Rolle: Nebenfigur`)'),
+            lines += [menu([(r['C_NAME'], 'öffnen') for r in rows] + [('+ Name', 'neue Figur anlegen (optional `Rolle: Nebenfigur`)'), ('FV', '👤 Figuren aus dem Text vorschlagen'),
                                                                      ('Ü', 'Zur Übersicht')])]
             return '\n'.join(lines) + '\n'
         return fill('figuren.html', {'PROJECT_TITLE_SHORT': short, 'SERIES_TITLE': ser.get('title', '')}, {'CHARACTERS': rows})
@@ -730,7 +730,7 @@ def project_view(base, config, args):
             items.append(('S', f'Serie „{ser["title"]}“'))
         items += [(m['MATTER_TITLE'], 'öffnen') for m in front + back]
         items += [('D', 'KI-Dienste'), ('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
-                  ('V', 'Vor- und Nachspann'), ('FI', f'Figuren ({n_chars})' if n_chars else 'Figuren'),
+                  ('V', 'Vor- und Nachspann'), ('FI', f'Figuren ({n_chars})' if n_chars else 'Figuren'), ('FV', '👤 Figuren aus dem Text vorschlagen'),
                   ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
         lines += [menu(items)]
         if values.get('CREDIT_TEXT'):
@@ -795,7 +795,7 @@ def chapter_view(base, config, args, cnum):
         if values['CHAPTER_APPROVABLE']:
             items.append(('FK', 'Kapitel freigeben'))
         items += [('B', 'Kapitel bearbeiten'), ('Z', 'Ziel, Kurzbeschreibung, Kapitelrecherche'), ('N', 'Neuer Abschnitt'),
-                  ('R', 'Reihenfolge'), ('Ü', 'Übersicht')]
+                  ('R', 'Reihenfolge'), ('FV', '👤 Figuren aus dem Text vorschlagen'), ('Ü', 'Übersicht')]
         lines += [menu(items)]
         return '\n'.join(lines) + '\n'
     return fill('kapitelansicht.html', values, {'SECTIONS': rows})
@@ -852,7 +852,7 @@ def section_view(base, config, args, cnum, snum):
                                                                   + (', Figuren' if chars else '')),
                  ('FS', 'Schreibfreigabe zurücknehmen' if head['approvals']['writing'] else 'Schreiben freigeben'),
                  ('FA', 'Abschnittsfreigabe zurücknehmen' if head['approvals']['section'] else 'Abschnitt freigeben'),
-                 ('RS', 'Recherche sofort'), ('GS', 'Ghostwriting sofort'), ('BI', 'Bilder')]
+                 ('RS', 'Recherche sofort'), ('GS', 'Ghostwriting sofort'), ('BI', 'Bilder'), ('FV', '👤 Figuren aus dem Text vorschlagen')]
         if prev_id:
             items.append((f'{cnum}.{snum - 1}', '← vorheriger'))
         if next_id:
@@ -1933,7 +1933,8 @@ def series_view(base, config, args):
                 if om else '**Sammelband:** noch keiner · `SB` anlegen']
         items = ([('1' if len(vols) == 1 else f'1–{len(vols)}', 'Band öffnen')] if vols else [])
         items += ([('H', 'Band hinzufügen')] if cands else []) + ([('R', 'Reihenfolge ändern'), ('ENT', 'Band entfernen')] if vols else [])
-        items += [('NB', 'Neues Buch in dieser Serie'), ('B', 'Serie bearbeiten'), ('Ü', 'Bücherregal')]
+        items += [('NB', 'Neues Buch in dieser Serie'), ('B', 'Serie bearbeiten'), ('FV', '👤 Figuren aus den Texten aller Bände vorschlagen'),
+                  ('Ü', 'Bücherregal')]
         out += ['', '---', menu(items)]
         return '\n'.join(out) + '\n'
     blocks = {'VOLUMES': vols}
@@ -1948,6 +1949,74 @@ def series_view(base, config, args):
 
 KEEP_DE = {'dedication': 'Widmung', 'foreword': 'Vorwort', 'prologue': 'Prolog', 'epilogue': 'Epilog',
            'afterword': 'Nachwort', 'acknowledgments': 'Danksagung'}
+
+
+def scope_text(scope, config=None):
+    if scope in (None, '', 'book', 'buch'):
+        return 'ganzes Buch'
+    if re.fullmatch(r'\d+', scope):
+        return f'Kapitel {scope}'
+    if re.fullmatch(r'\d+\.\d+', scope):
+        return f'Abschnitt {scope}'
+    if scope.startswith('ser-'):
+        return 'alle Bände der Serie'
+    item = find_matter(config or {'structure': {}}, scope) if config else None
+    return item['title'] if item else scope
+
+
+def character_suggest_view(base, config, args):
+    """Vorschläge „Figuren aus dem Text“ (#53, Vorlage figuren-vorschlag). --draft: JSON (Datei oder Text) des
+    Assistenten mit scope und items [{name, aliases, role, short, age, appearance, traits, voice, relations,
+    sections, evidence [{where, quote}]}]; where = Bereich (book, N, N.M, Teil bzw. ser-…)."""
+    raw = args.draft or '{}'
+    data = json.loads(Path(raw).read_text(encoding='utf-8') if Path(raw).is_file() else raw)
+    scope = data.get('scope') or args.where or 'book'
+    is_series = str(scope).startswith('ser-')
+    if is_series:   # Serienebene: auf dem Standard-Branch
+        import series as series_mod
+        s, _ = series_mod.get(base, scope)
+        known = series_mod.characters(base, s['id'])
+        ser = {'id': s['id'], 'title': s['title']}
+        find = lambda n: next((c for c in known if n.strip().casefold() in (c['id'], c['name'].casefold())), None)
+    else:
+        ser = config.get('_series') or {}
+        known = character_items(config)
+        find = lambda n: find_character(config, n)
+    rows = []
+    for i, it in enumerate(data.get('items') or []):
+        hit = None
+        for n in [it.get('name', '')] + list(it.get('aliases') or []):
+            hit = hit or (find(n) if n else None)
+        state = 'new' if not hit else ('series' if ('_series' in hit or is_series) else 'existing')
+        details = '; '.join(x for x in (f'Alter: {it["age"]}' if it.get('age') else '', it.get('appearance') or '',
+                                        ', '.join(it.get('traits') or []), f'spricht {it["voice"]}' if it.get('voice') else '') if x)
+        ev = it.get('evidence') or []
+        rows.append({'S_IDX': i, 'S_NAME': it.get('name', ''), 'S_ALIASES': ', '.join(it.get('aliases') or []),
+                     'S_ROLE': it.get('role') if it.get('role') in ROLE_DE else 'supporting', 'S_SHORT': it.get('short', ''),
+                     'S_DETAILS': details, 'S_SECTIONS': ', '.join(str(x) for x in it.get('sections') or []),
+                     'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in ev[:3]),
+                     'S_STATE': state, 'S_EXISTING': hit['name'] if hit else '',
+                     'S_STATE_TEXT': {'new': 'neu', 'existing': f'schon da: {hit["name"]}' if hit else '',
+                                      'series': f'Figur der Serie: {hit["name"]}' if hit else ''}[state]})
+    values = {'SCOPE': str(scope), 'SCOPE_TEXT': scope_text(str(scope), config), 'SERIES_ID': ser.get('id', ''),
+              'SERIES_TITLE': ser.get('title', ''), 'SERIES_LEVEL': '1' if is_series else '',
+              'SUGGEST_COUNT_TEXT': plural(len(rows), 'Vorschlag', 'Vorschläge')}
+    if args.text:
+        out = [f'### 👤 Figuren aus dem Text · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] +
+               (f' · Serie „{ser["title"]}“' if ser else ''), '']
+        if rows:
+            out += ['| # | Figur | Rolle | Kurz | Angaben | Abschnitte | Stand |', '|--:|---|---|---|---|---|---|']
+            out += [f'| {r["S_IDX"] + 1} | **{r["S_NAME"]}**{" (" + r["S_ALIASES"] + ")" if r["S_ALIASES"] else ""} | {ROLE_DE[r["S_ROLE"]]} | '
+                    f'{r["S_SHORT"] or "–"} | {r["S_DETAILS"] or "–"} | {r["S_SECTIONS"] or "–"} | {r["S_STATE_TEXT"]} |' for r in rows]
+        else:
+            out += ['*Im Text wurden keine Figuren gefunden.*']
+        out += ['', 'Nur aus dem Text; der Text selbst bleibt unverändert. Bekannte Figuren werden nur ergänzt (leere Felder) und zugeordnet.',
+                '', '---', menu([('Übernehmen: 1, 3', 'diese übernehmen'), ('Alle', 'alle übernehmen'),
+                                 ('2 = Opi', 'Vorschlag 2 mit einer bekannten Figur zusammenlegen'), ('X', 'verwerfen')]
+                                + ([('Serie: 1', 'als Figur der Serie anlegen')] if ser and not is_series else []))]
+        return '\n'.join(out) + '\n'
+    merge = [{'M_ID': c['id'], 'M_NAME': c['name']} for c in known]
+    return fill('figuren-vorschlag.html', values, {'SUGGESTIONS': rows, 'MERGE': merge})
 
 
 def omnibus_edit_view(base, config, args):
@@ -2302,7 +2371,8 @@ def choice_view(base, config, args):
                 {'QUESTIONS': questions, 'OPTIONS': options})
 
 
-FORMS = {'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
+FORMS = {'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view,
+         'character-suggest': character_suggest_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
          'changes-merge': changes_merge_view, 'providers-edit': providers_edit_view,

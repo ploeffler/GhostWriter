@@ -17,6 +17,8 @@ Aufruf (im Standard-Branch der Bibliothek):
   python scripts/series.py <repo> omnibus-approve | omnibus-revoke <ser-id>   Sammelband freigeben bzw. Freigabe zurücknehmen
   python scripts/series.py <repo> omnibus-publish <ser-id>             nächste Auflage festlegen (Action baut sie)
   python scripts/series.py <repo> omnibus-pending                       freigegebene Sammelbände ohne Tag (für die Action)
+  python scripts/series.py <repo> scan <ser-id> [--part K]              Texte aller Bände für „Figuren aus dem Text vorschlagen“
+  python scripts/series.py <repo> apply-characters <ser-id> vorschlaege.json   Vorschläge als Figuren der Serie übernehmen
 
 Gemeinsame Inhalte (Stufe 2): Figuren unter series/<ser-id>/characters/ (wie
 characters/ eines Buchs; bearbeiten mit scripts/characters.py series-add |
@@ -491,6 +493,71 @@ def omnibus_pending(base):
     return out
 
 
+# ---------- Figuren aus dem Text vorschlagen (Serie) ----------
+
+def manuscript_of(text):
+    body = re.sub(r'\A---\n.*?\n---\n', '', text or '', count=1, flags=re.S)
+    ms = body.split('\n## Manuskript\n', 1)[1].strip() if '\n## Manuskript\n' in body else ''
+    return '' if ms == 'Noch nicht begonnen.' else ms
+
+
+def scan_texts(base, sid, part=None, size=40000):
+    """Wie characters.scan, aber über alle Bände der Serie (gelesen aus ihren Branches): (text, teil, teile)."""
+    s, _ = get(base, sid)
+    known = [f'- {c["name"]} (`{c["id"]}`, Serie)' for c in characters(base, s['id'])]
+    chunks, cur = [], []
+    for n, br in enumerate(volumes(s), start=1):
+        cfg = yaml.safe_load(_branch_file(base, br, 'ghostwriter.yml') or '') or {}
+        title = (cfg.get('project') or {}).get('title') or br
+        for ci, ch in enumerate((cfg.get('structure') or {}).get('chapters') or [], start=1):
+            for si, sec in enumerate(ch.get('sections') or [], start=1):
+                ms = manuscript_of(_branch_file(base, br, sec['path']))
+                if not ms:
+                    continue
+                block = f'### Band {n} ({title}), {ci}.{si} {sec.get("title", "")}\n\n{ms}\n'
+                if cur and sum(len(x) for x in cur) + len(block) > size:
+                    chunks.append(cur)
+                    cur = []
+                cur.append(block)
+    if cur:
+        chunks.append(cur)
+    total = max(1, len(chunks))
+    k = min(max(1, int(part or 1)), total)
+    head = ['## Figuren aus dem Text vorschlagen', '', f'Serie „{s["title"]}“, alle Bände · Teil {k} von {total}', '',
+            'Nur aus dem Text, mit Fundstellen; was der Text nicht sagt, bleibt leer. Vorschläge werden Figuren der '
+            'Serie (gelten in allen Bänden); die Zuordnung zu Abschnitten geschieht im jeweiligen Band.', '',
+            '**Figuren der Serie**', ''] + (known or ['*keine*']) + ['']
+    return '\n'.join(head) + '\n' + ('\n'.join(chunks[k - 1]) if chunks else '*Kein Text in den Bänden.*\n'), k, total
+
+
+def apply_characters(base, sid, data):
+    """Vorschläge auf Serienebene: neue Figuren der Serie anlegen, bekannte nur in leeren Feldern ergänzen."""
+    import characters as ch
+    s, _ = get(base, sid)
+    created, updated = [], []
+    for it in [i for i in data.get('items') or [] if i.get('selected', True) and (i.get('name') or '').strip()]:
+        names = [it['merge_into']] if it.get('merge_into') else [it['name']] + list(it.get('aliases') or [])
+        hit = None
+        for c in characters(base, s['id']):
+            if any(x.strip().casefold() in (c['id'], c['name'].casefold()) for x in names):
+                hit = c
+                break
+        fields = {k: it[k] for k in ('short', 'age', 'appearance', 'traits', 'voice') if it.get(k)}
+        if hit:
+            from render_view import character_file
+            head = character_file(Path(base), hit)[0]
+            fill = {k: v for k, v in fields.items() if not head.get(k)}
+            if fill:
+                ch.series_update(base, s['id'], hit['id'], fill)
+                updated.append(hit['name'])
+            continue
+        new = ch.series_add(base, s['id'], it['name'], it.get('role') if it.get('role') in ('main', 'supporting', 'minor') else 'supporting')
+        if fields:
+            ch.series_update(base, s['id'], new['id'], fields)
+        created.append(new['name'])
+    return created, updated
+
+
 # ---------- Kontinuität (Stufe 2) ----------
 
 def _branch_file(base, branch, rel):
@@ -610,7 +677,8 @@ def main(argv):
     ap.add_argument('repo')
     ap.add_argument('cmd', choices=['list', 'create', 'update', 'add', 'remove', 'reorder', 'of', 'term-set', 'term-remove',
                                     'context', 'omnibus-update', 'omnibus-approve', 'omnibus-revoke', 'omnibus-publish',
-                                    'omnibus-pending'])
+                                    'omnibus-pending', 'scan', 'apply-characters'])
+    ap.add_argument('--part', type=int)
     ap.add_argument('args', nargs='*')
     ap.add_argument('--subtitle')
     ap.add_argument('--kind')
@@ -631,6 +699,19 @@ def main(argv):
             print(f'{s["id"]:<32} {s["title"]}  ({len(volumes(s))} Bände: {", ".join(volumes(s)) or "–"})')
         if not all_s and not a.json:
             print('keine Serien')
+        return 0
+    if a.cmd == 'scan':
+        text, k, n = scan_texts(base, (a.args or [''])[0], a.part)
+        sys.stdout.write(text)
+        if k < n:
+            print(f'\n---\nWeiter mit: python scripts/series.py {a.repo} scan {a.args[0]} --part {k + 1}')
+        return 0
+    if a.cmd == 'apply-characters':
+        if len(a.args) != 2:
+            ap.error('apply-characters braucht Serie und JSON-Datei')
+        created, updated = apply_characters(base, a.args[0], json.loads(Path(a.args[1]).read_text(encoding='utf-8')))
+        print(f'✓ {len(created)} Figuren der Serie angelegt, {len(updated)} ergänzt\n'
+              f'Commit-Nachricht: Serie: Figuren aus dem Text übernommen ({len(created)} neu, {len(updated)} ergänzt)')
         return 0
     if a.cmd == 'omnibus-pending':
         for sid, n, tag in omnibus_pending(base):

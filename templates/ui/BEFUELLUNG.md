@@ -280,6 +280,19 @@ Formular einer Figur (`render_view.py characters <name|id>`).
 | `CHARACTER_SOURCE`, `CHARACTER_SOURCE_TEXT` | Herkunft wie `C_SOURCE` (#116); bestimmt Speichern (`character.series.update` bei `series`) und die Knöpfe „Kopie nur für dieses Buch“, „An Serie angleichen“, „In die Serie übernehmen“ |
 | `SERIES_ID`, `SERIES_TITLE` | Serie des Bandes; ohne Serie leer |
 
+### `figuren-vorschlag.html`
+
+Auswahl „Figuren aus dem Text“ (`render_view.py character-suggest --draft vorschlaege.json`, `START.md`, „Figuren“, Schritt 6). Ausgelöst mit dem Personen-Symbol (`ti-user-search`) in Serie, Projektübersicht, Figurenliste, Kapitel, Abschnitt und Teil – nicht im Bücherregal.
+
+| Platzhalter | Quelle |
+|---|---|
+| `SCOPE`, `SCOPE_TEXT` | Bereich aus `character.suggest` (`book`, Kapitelnummer, `N.M`, `mat-…`, `ser-…`) und deutsch („ganzes Buch“, „Kapitel 2“, „alle Bände der Serie“) |
+| `SUGGEST_COUNT_TEXT` | „N Vorschläge“ |
+| `SERIES_ID`, `SERIES_TITLE`, `SERIES_LEVEL` | Serie des Buchs bzw. die Serie; `SERIES_LEVEL` = `1` beim Vorschlag auf Serienebene |
+| Block `SUGGESTIONS`: `S_IDX`, `S_NAME`, `S_ALIASES`, `S_ROLE`, `S_SHORT`, `S_DETAILS`, `S_SECTIONS`, `S_EVIDENCE` | je Vorschlag aus der JSON-Datei des Assistenten: Nummer, Name, weitere Namen, Rolle, ein Satz, Alter/Aussehen/Eigenschaften/Sprechweise, Abschnitte, bis zu drei Fundstellen |
+| `S_STATE`, `S_STATE_TEXT`, `S_EXISTING` | `new` (neu), `existing` (Figur des Buchs mit diesem Namen oder Alias), `series` (Figur der Serie); Text und Name der bekannten Figur |
+| Block `MERGE`: `M_ID`, `M_NAME` | bekannte Figuren (Buch und Serie) für „Zusammenlegen mit“ |
+
 ### `vor-nachspann.html`
 
 Liste „Vor- und Nachspann“ (`render_view.py matter`, #57, #58).
@@ -485,6 +498,7 @@ Gestaltung:
 | Serie | `1`–`N` Band öffnen · `H` Band hinzufügen · `R` Reihenfolge ändern · `ENT` Band entfernen · `NB` Neues Buch in dieser Serie · `B` Serie bearbeiten · `Ü` Bücherregal |
 | Daten | `Ü` Bücherregal · `U` Update einspielen (nur wenn dahinter) |
 | Figuren | Name einer Figur öffnet sie · `+ Name` legt eine Figur an (optional `Rolle: Nebenfigur`) · `Ü` Übersicht |
+| Projektübersicht, Kapitel, Abschnitt, Teil, Figuren, Serie | zusätzlich `FV` 👤 Figuren aus dem Text vorschlagen |
 | Projektübersicht | `FI` Figuren · `L` Bücherregal (nur ab zwei Büchern) · `S` Serie (nur bei einem Band einer Serie) · `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · Titel eines Teils von Vor- oder Nachspann öffnet ihn (nur vorhandene) · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `V` Vor- und Nachspann · `A` Neue Auflage · `E` Einstellungen |
 | Vor- und Nachspann | Titel eines Teils öffnet ihn · `+ Widmung` usw. legt einen fehlenden Teil an · `Ü` Übersicht |
 | Glossar | `+ Begriff: Erklärung` aufnehmen · `Begriff: neue Erklärung` ändern · `- Begriff` entfernen · `VB` Begriffe vorschlagen · `F` Titel, Ziel, Einleitung · `FS`, `FA` Freigaben · `RS` Recherche je Begriff · `Ü` Übersicht |
@@ -537,6 +551,8 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `character.update` | `character_id`, `name`, `role`, `short`, `age`, `appearance`, `traits` (Liste), `voice`, `visual`, `relations` (Liste `{to, kind}`), `description`, `notes`, `expected_head_sha` | Figur speichern | `python scripts/characters.py . update <id> '<json>'`, ein Commit; danach das Formular | `PATCH …/characters/{character_id}` |
 | `matter.create` | `kind` (`dedication` \| `foreword` \| `prologue` \| `epilogue` \| `afterword` \| `glossary` \| `acknowledgments`), `title` (optional), `expected_head_sha` | Teil anlegen | `python scripts/matter.py . add <art> [--title …]`, Commit nach `START.md`, „Vor- und Nachspann“; danach der neue Teil | `POST …/matter` |
 | `matter.update` | `matter_id`, `title`, `goal`, `manuscript`, bei Vorwort und Nachwort `byline`, `place_date`, `expected_head_sha` (nie `approvals`) | Teil speichern | Datei in `matter/` (und bei neuem Titel `ghostwriter.yml`) schreiben, danach der Teil | `PATCH …/matter/{matter_id}` |
+| `character.suggest` | `scope` (`book`, Kapitelnummer, `N.M`, `mat-…` bzw. `ser-…`) | Figuren aus dem Text vorschlagen | `python scripts/characters.py . scan <scope>` (Serie: `scripts/series.py . scan <ser-id>`), Teil für Teil lesen, Vorschläge als JSON (`START.md`, „Figuren“, Schritt 6), dann Vorlage `figuren-vorschlag` (`render_view.py character-suggest --draft …`) | – |
+| `character.suggest.apply` | `scope`, `choices` (Liste `{index, name, role, short, merge_into?, target?}`) | Ausgewählte Vorschläge übernehmen | Auswahl mit der eigenen JSON-Datei zusammenführen (`selected`, geänderte Namen, `merge_into`, `target: series`), dann `python scripts/characters.py . apply <datei>` (bei `target: series` mit `--series-repo`; Serienebene: `scripts/series.py . apply-characters <ser-id> <datei>`); ein Commit im Buch, ggf. einer auf dem Standard-Branch; danach die Figurenliste | `POST /v1/projects/{owner}/{repo}/characters/suggestions` |
 | `character.series.update` | `series_id`, `character_id` und die Felder wie bei `character.update`, `expected_head_sha` | Figur der Serie speichern (gilt für alle Bände ohne eigene Kopie, #116) | `python scripts/characters.py <standard> series-update <ser-id> <id> '<json>'`, ein Commit auf dem Standard-Branch; danach das Formular | `PATCH /v1/projects/{owner}/{repo}/series/{series_id}/characters/{character_id}` |
 | `character.detach` | `character_id` | Kopie einer Figur der Serie nur für dieses Buch | `python scripts/characters.py . detach <id>`, ein Commit im Buch; danach das Formular | `POST /v1/projects/{owner}/{repo}/characters/{character_id}/detach` |
 | `character.align` | `character_id` | Kopie entfernen, wieder die Figur der Serie | `python scripts/characters.py . align <id>`, ein Commit im Buch | `POST /v1/projects/{owner}/{repo}/characters/{character_id}/align` |

@@ -215,6 +215,21 @@ class SharedTest(SharedBase):
         characters.series_update(self.main, 'ser-strolchi-und-opi', 'Strolchi', {'age': '4'})
         self.assertIn("age: '4'", (self.main / 'series/ser-strolchi-und-opi/characters/char-strolchi.md').read_text(encoding='utf-8'))
 
+    def test_suggest_on_series_level(self):
+        text, k, n = series.scan_texts(self.main, 'ser-strolchi-und-opi', size=5000)
+        self.assertIn('- Strolchi (`char-strolchi`, Serie)', text)
+        self.assertIn('### Band 1 (ADHS im Erwachsenenleben), 1.1', text)
+        f = Path(self.tmp.name, 'v.json')
+        f.write_text(json.dumps({'scope': 'ser-strolchi-und-opi', 'items': [
+            {'name': 'Strolchi', 'age': '3'}, {'name': 'Wolf', 'role': 'minor', 'short': 'lebt im Wald'}]}), encoding='utf-8')
+        page = json.loads(re.search(r'GW\.render\("figuren-vorschlag",(.*)\)</script>', subprocess.run(
+            [sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.main), 'character-suggest', '--draft', str(f)],
+            capture_output=True, text=True, check=True).stdout).group(1))
+        self.assertEqual((page['SERIES_LEVEL'], [s['S_STATE'] for s in page['SUGGESTIONS']]), ('1', ['series', 'new']))
+        created, updated = series.apply_characters(self.main, 'ser-strolchi-und-opi', json.loads(f.read_text(encoding='utf-8')))
+        self.assertEqual((created, updated), (['Wolf'], ['Strolchi']))
+        self.assertEqual(series.problems(self.main), [])
+
     def test_terms_and_continuity(self):
         import matter
         matter.add(self.d, 'glossary')
