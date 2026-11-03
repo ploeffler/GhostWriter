@@ -26,8 +26,12 @@ Abschnittsdatei mit dem Abschnittstitel als Überschrift, und der Abschnitt
 „Kurzbeschreibung“, „Ziel“, „Prüfliste“ und alle Arbeitsdateien (Läufe,
 Kosten). Die Ausgabe ist Markdown für Pandoc (scripts/build_edition.py).
 
-Vor- und Nachspann (#57, structure.front_matter/back_matter): nur freigegebene
-Teile, der Text unter „## Manuskript“ der Datei in matter/. Widmung als Block
+Vor- und Nachspann (#57, #58, structure.front_matter/back_matter): nur freigegebene
+Teile, der Text unter „## Manuskript“ der Datei in matter/. Vorwort und Nachwort
+enden mit Verfasser und Ort/Datum, wenn im Kopf angegeben (byline, place_date;
+Block `::: signatur`, rechtsbündig). Das Glossar wird zur Beschreibungsliste,
+Einträge `- Begriff: Erklärung` alphabetisch nach DIN 5007-1 (ä wie a); ein
+doppelter Begriff verhindert die Auflage. Widmung als Block
 `::: widmung` mit verborgener Überschrift (Klasse dedication, nicht im
 Inhaltsverzeichnis); Prolog, Epilog und Danksagung als unnummerierte Kapitel mit
 der Art als Klasse und als EPUB-Rolle (epub:type prologue, epilogue,
@@ -46,7 +50,8 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from render_view import MARKER_TEXT, MATTER, load, matter_items, section_file  # noqa: E402
+from render_view import (MARKER_TEXT, MATTER, MATTER_SIGNED, german_key, glossary_entries,  # noqa: E402
+                         load, matter_items, section_file)
 
 TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'title_page': True,
                        'imprint': True, 'toc': True, 'toc_depth': 1}
@@ -124,12 +129,20 @@ def matter_markdown(base, item, proof=False):
     if text == 'Noch nicht begonnen.':
         text = ''
     markers = [(item['title'], m.group(0)) for m in MARKER_TEXT.finditer(text)]
-    text = shift_headings(text, 2)
+    kind = item['kind']
+    if kind == 'glossary':   # Einträge alphabetisch (DIN 5007-1) als Beschreibungsliste
+        intro, entries = glossary_entries(text)
+        dl = '\n'.join(f'{term}\n:   {expl}\n' for term, expl in sorted(entries, key=lambda e: german_key(e[0])))
+        text = '\n\n'.join(x for x in (shift_headings(intro, 2), dl) if x)
+    else:
+        text = shift_headings(text, 2)
+    if kind in MATTER_SIGNED and (head.get('byline') or head.get('place_date')):
+        sign = [x.strip() for x in (head.get('byline'), head.get('place_date')) if x and x.strip()]
+        text += '\n\n::: signatur\n' + '\n'.join(f'| {x}' for x in sign) + '\n:::'
     if proof:
         text = mark_markers(text) or '*(noch kein Text)*'
         if not approved:
             text = f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben]{{.gwstatus}}\n\n' + text
-    kind = item['kind']
     if kind == 'dedication':
         md = f'# {item["title"]} {{.unnumbered .unlisted .dedication epub:type=dedication}}\n\n::: widmung\n{text}\n:::\n'
     else:
@@ -205,9 +218,14 @@ def problems(parts, config, matter=()):
                        + '; '.join(skipped))
         for where, marker in markers:
             out.append(f'Offener Marker in {where}: {marker}')
-    for _, item, _, approved, markers in matter:
+    for _, item, md, approved, markers in matter:
         if approved:
             out += [f'Offener Marker in {where}: {marker}' for where, marker in markers]
+        if approved and item['kind'] == 'glossary':
+            seen = {}
+            for term in re.findall(r'(?m)^(.+)\n:   ', md):
+                seen.setdefault(term.casefold(), []).append(term)
+            out += [f'{item["title"]}: Begriff mehrfach eingetragen: {" / ".join(v)}' for v in seen.values() if len(v) > 1]
     return out
 
 

@@ -60,17 +60,61 @@ def section_file(base, section):
     return head, ('' if goal == 'Offen.' else goal), ('' if summary == 'Offen.' else summary), manuscript
 
 
-# Vor- und Nachspann (#57): Teile außerhalb der Kapitel, je eine Datei unter matter/.
-# Art → (Bereich, Vorgabetitel, Datei, Befehl). Bereich: front = vor Kapitel 1, back = nach dem letzten Kapitel.
+# Vor- und Nachspann (#57, #58): Teile außerhalb der Kapitel, je eine Datei unter matter/.
+# Art → (Bereich, Vorgabetitel, Datei). Bereich: front = vor Kapitel 1, back = nach dem letzten Kapitel.
+# Die Reihenfolge hier ist die Reihenfolge im Buch.
 MATTER = {
     'dedication': ('front', 'Widmung', 'widmung.md'),
+    'foreword': ('front', 'Vorwort', 'vorwort.md'),
     'prologue': ('front', 'Prolog', 'prolog.md'),
     'epilogue': ('back', 'Epilog', 'epilog.md'),
+    'afterword': ('back', 'Nachwort', 'nachwort.md'),
+    'glossary': ('back', 'Glossar', 'glossar.md'),
     'acknowledgments': ('back', 'Danksagung', 'danksagung.md'),
 }
 MATTER_AREAS = {'front': 'front_matter', 'back': 'back_matter'}
-# Ghostwriting nur für Prolog und Epilog; Widmung und Danksagung schreibt der Autor selbst (#57)
-MATTER_GHOSTWRITING = {'prologue', 'epilogue'}
+# Ghostwriting für Prolog, Epilog, Vorwort und Nachwort; Widmung und Danksagung schreibt der Autor
+# selbst, das Glossar besteht aus Einträgen, die er aufnimmt (Vorschläge und Recherche je Begriff erlaubt)
+MATTER_GHOSTWRITING = {'prologue', 'epilogue', 'foreword', 'afterword'}
+MATTER_RESEARCH = MATTER_GHOSTWRITING | {'glossary'}
+# Vorwort und Nachwort: optional Verfasser (byline) und Ort/Datum (place_date) am Ende (#58)
+MATTER_SIGNED = {'foreword', 'afterword'}
+
+GLOSSARY_ENTRY = re.compile(r'^[-*]\s+(?:\*\*(.+?)\*\*|([^:]+?))\s*:\s+(.*)$')
+
+
+def glossary_entries(text):
+    """(Einleitung, [(Begriff, Erklärung)]) aus dem Manuskript des Glossars: Einträge als Liste
+    `- Begriff: Erklärung` (auch `- **Begriff**: …`); eingerückte Folgezeilen gehören zur Erklärung."""
+    intro, entries = [], []
+    for line in (text or '').splitlines():
+        m = GLOSSARY_ENTRY.match(line)
+        if m:
+            entries.append([(m.group(1) or m.group(2)).strip(), m.group(3).strip()])
+        elif entries and line.startswith((' ', '\t')) and line.strip():
+            entries[-1][1] += ' ' + line.strip()
+        elif not entries or line.strip():
+            intro.append(line)
+    return '\n'.join(intro).strip(), [tuple(e) for e in entries]
+
+
+def german_key(term):
+    """Sortierschlüssel nach DIN 5007-1: Umlaute wie Grundbuchstaben (ä = a), ß = ss,
+    Groß/klein egal; bei Gleichstand ohne Umlaut vor mit Umlaut, dann klein vor groß."""
+    import unicodedata
+    folded = term.casefold().replace('ß', 'ss')
+    base = ''.join(c for c in unicodedata.normalize('NFD', folded) if not unicodedata.combining(c))
+    return (base, folded, term.swapcase())
+
+
+def glossary_duplicates(entries):
+    seen, dup = set(), []
+    for term, _ in entries:
+        k = term.casefold()
+        if k in seen and term not in dup:
+            dup.append(term)
+        seen.add(k)
+    return dup
 
 
 def matter_id(kind):
@@ -231,7 +275,8 @@ def matter_view(base, config, args):
             state = status_text(section_file(base, i)[0]['status']) if i else '*nicht angelegt*'
             lines.append(f'| {i["title"] if i else title} | {"Vorspann" if area == "front" else "Nachspann"} | {state} |')
         lines += ['', 'Nur freigegebene Teile kommen in eine Auflage. Widmung und Danksagung schreibst du selbst; '
-                  'für Prolog und Epilog gibt es Recherche und Ghostwriting wie bei Abschnitten.', '', '---']
+                  'für Vorwort, Prolog, Epilog und Nachwort gibt es Recherche und Ghostwriting wie bei Abschnitten, '
+                  'fürs Glossar Vorschläge und Recherche je Begriff.', '', '---']
         items = [(i['title'], 'öffnen') for _, i in matter_items(config)]
         items += [(f'+ {title}', 'anlegen') for kind, (_, title, _) in MATTER.items() if kind not in have]
         items.append(('Ü', 'Zur Übersicht'))
@@ -253,15 +298,38 @@ def matter_view(base, config, args):
     lines = [f'### 📜 {item["title"]}', f'{area} · {status_text(head["status"])}', '',
              '| | |', '|---|---|', f'| Ziel | {goal or "*offen*"} |',
              f'| Schreibfreigabe | {yn(head["approvals"]["writing"])} |',
-             f'| Freigegeben | {yn(head["approvals"]["section"])} |', '']
+             f'| Freigegeben | {yn(head["approvals"]["section"])} |']
+    if kind in MATTER_SIGNED:
+        lines += [f'| Verfasser | {head.get("byline") or "*der Autor des Buchs*"} |',
+                  f'| Ort, Datum | {head.get("place_date") or "*keine Angabe*"} |']
+    lines.append('')
     if markers:
         lines += [f'**Offene Marker ({len(markers)})**'] + [f'- {MARKER_ICON[k]} {MARKER_LABEL[k]}: {v}' for k, v in markers] + ['']
-    lines += ['---', '', ms or '*Noch kein Text.*', '', '---']
-    items = [('T', 'Text ändern (geänderten Text schicken)'), ('F', 'Titel und Ziel'),
-             ('FS', 'Schreibfreigabe zurücknehmen' if head['approvals']['writing'] else 'Schreiben freigeben'),
-             ('FA', 'Freigabe zurücknehmen' if head['approvals']['section'] else f'{item["title"]} freigeben')]
+    if kind == 'glossary':
+        intro, entries = glossary_entries('' if ms in EMPTY_MANUSCRIPT else ms)
+        dup = glossary_duplicates(entries)
+        lines += ['---', '']
+        if intro:
+            lines += [intro, '']
+        if entries:
+            lines += [f'**{len(entries)} Begriff{"e" if len(entries) != 1 else ""}** (im Buch alphabetisch)', '',
+                      '| Begriff | Erklärung |', '|---|---|']
+            lines += [f'| {t}{" ⚠️ doppelt" if t in dup else ""} | {e} |' for t, e in sorted(entries, key=lambda x: german_key(x[0]))]
+        else:
+            lines += ['*Noch keine Begriffe.*']
+        lines += ['', '---']
+        items = [('+ Begriff: Erklärung', 'aufnehmen'), ('Begriff: neue Erklärung', 'ändern'), ('- Begriff', 'entfernen'),
+                 ('VB', 'Begriffe aus dem freigegebenen Text vorschlagen'), ('F', 'Titel, Ziel und Einleitung')]
+    else:
+        lines += ['---', '', ms or '*Noch kein Text.*', '', '---']
+        items = [('T', 'Text ändern (geänderten Text schicken)'),
+                 ('F', 'Titel, Ziel, Verfasser, Ort und Datum' if kind in MATTER_SIGNED else 'Titel und Ziel')]
+    items += [('FS', 'Schreibfreigabe zurücknehmen' if head['approvals']['writing'] else 'Schreiben freigeben'),
+              ('FA', 'Freigabe zurücknehmen' if head['approvals']['section'] else f'{item["title"]} freigeben')]
+    if kind in MATTER_RESEARCH:
+        items.append(('RS', 'Recherche je Begriff' if kind == 'glossary' else 'Recherche sofort'))
     if kind in MATTER_GHOSTWRITING:
-        items += [('RS', 'Recherche sofort'), ('GS', 'Ghostwriting sofort')]
+        items.append(('GS', 'Ghostwriting sofort'))
     items.append(('Ü', 'Zur Übersicht'))
     lines += [menu(items)]
     return '\n'.join(lines) + '\n'
@@ -702,6 +770,11 @@ def approval_view(base, config, args, kind):
                 add('ok', f'Text: {len(ms.split())} Wörter.')
             n = sum(marker_counts(ms).values())
             add('warn' if n else 'ok', f'{n} offene{"r" if n == 1 else ""} Marker; sie verhindern die Auflage.' if n else 'Keine offenen Marker.')
+            if item['kind'] == 'glossary':
+                entries = glossary_entries(ms)[1]
+                dup = glossary_duplicates(entries)
+                add('block' if dup else 'ok', f'Begriffe mehrfach eingetragen: {", ".join(dup)}.' if dup else
+                    f'{len(entries)} Begriff{"e" if len(entries) != 1 else ""}, keiner doppelt.')
             effect = f'{item["title"]} wird „freigegeben“ und kommt in die nächste Auflage. Du bestätigst damit den Text in diesem Stand.'
         elif revoke:
             title, button = 'Abschnittsfreigabe zurücknehmen', 'Zurücknehmen'

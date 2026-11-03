@@ -131,6 +131,14 @@ def make_reference_docx(path, ts):
         st2.font.italic = True
         st2.paragraph_format.alignment = 1
     try:
+        doc.styles['Signatur']
+    except KeyError:   # Vorwort, Nachwort (#58): Verfasser und Ort/Datum rechtsbündig
+        st = doc.styles.add_style('Signatur', WD_STYLE_TYPE.PARAGRAPH)
+        st.base_style = doc.styles['Normal']
+        st.font.italic = True
+        st.paragraph_format.alignment = 2   # rechts
+        st.paragraph_format.space_before = Pt(12)
+    try:
         doc.styles['Merkkasten']
     except KeyError:
         st = doc.styles.add_style('Merkkasten', WD_STYLE_TYPE.PARAGRAPH)

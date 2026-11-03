@@ -4,9 +4,18 @@
 Aufruf:
   python scripts/matter.py <projektordner> add <art> [--title TITEL]
   python scripts/matter.py <projektordner> list
+  python scripts/matter.py <projektordner> glossary-set "Begriff" "Erklärung" [--new]
+  python scripts/matter.py <projektordner> glossary-remove "Begriff"
 
-Arten: dedication (Widmung), prologue (Prolog), epilogue (Epilog),
-acknowledgments (Danksagung); auch der deutsche Name geht (widmung, Prolog …).
+Arten: dedication (Widmung), foreword (Vorwort), prologue (Prolog), epilogue
+(Epilog), afterword (Nachwort), glossary (Glossar), acknowledgments (Danksagung);
+auch der deutsche Name geht (widmung, Prolog …).
+
+glossary-set nimmt einen Begriff ins Glossar auf bzw. ändert seine Erklärung
+(Groß-/Kleinschreibung egal); mit --new bricht es ab, wenn es den Begriff schon
+gibt (Prüfung auf Doppelungen beim Anlegen, #58). glossary-remove entfernt ihn.
+Beide schreiben die Einträge alphabetisch (DIN 5007-1) unter „## Manuskript“;
+eine Einleitung davor bleibt.
 
 add legt matter/<datei>.md aus templates/matter.md an und trägt den Teil in
 ghostwriter.yml ein (structure.front_matter bzw. back_matter, Reihenfolge:
@@ -24,7 +33,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'scripts'))
-from render_view import MATTER, MATTER_AREAS, matter_id, matter_items  # noqa: E402
+from render_view import (MATTER, MATTER_AREAS, german_key, glossary_entries, matter_id,  # noqa: E402
+                         matter_items, section_file)
 
 NAMES = {**{k: k for k in MATTER}, **{v[1].lower(): k for k, v in MATTER.items()}}
 
@@ -80,26 +90,83 @@ def add(base, kind, title=None):
         raise SystemExit('ghostwriter.yml ließ sich nicht sicher ändern; bitte von Hand eintragen.')
     tpl = (ROOT / 'templates' / 'matter.md').read_text(encoding='utf-8')
     head = yaml.safe_dump(title, allow_unicode=True).splitlines()[0]
-    body = (tpl.replace('<mat-ID>', item['id']).replace('<ART>   # dedication | prologue | epilogue | acknowledgments', kind)
-            .replace('"<TITEL>"', head).replace('# <TITEL>', f'# {title}'))
+    body = re.sub(r'(?m)^kind: <ART>.*$', f'kind: {kind}', tpl.replace('<mat-ID>', item['id']))
+    body = body.replace('"<TITEL>"', head).replace('# <TITEL>', f'# {title}')
+    if kind == 'glossary':
+        body = body.replace('<Was soll dieser Teil leisten? Bei Widmung und Danksagung: an wen?>',
+                            'Begriffe, die Leserinnen und Leser nachschlagen können.')
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(body, encoding='utf-8')
     cfg_path.write_text(new, encoding='utf-8')
     return item
 
 
+def glossary_write(base, change):
+    """Glossar-Einträge ändern: change(einträge) -> neue Einträge; schreibt sortiert zurück."""
+    config = yaml.safe_load((base / 'ghostwriter.yml').read_text(encoding='utf-8'))
+    item = next((i for _, i in matter_items(config) if i['kind'] == 'glossary'), None)
+    if not item:
+        raise SystemExit('Es gibt noch kein Glossar; zuerst anlegen: python scripts/matter.py . add glossary')
+    path = base / item['path']
+    text = path.read_text(encoding='utf-8')
+    ms = section_file(base, item)[3]
+    intro, entries = glossary_entries('' if ms == 'Noch nicht begonnen.' else ms)
+    entries = sorted(change(list(entries)), key=lambda e: german_key(e[0]))
+    body = '\n'.join(f'- {t}: {e}' for t, e in entries)
+    new_ms = '\n\n'.join(x for x in (intro, body) if x) or 'Noch nicht begonnen.'
+    head, sep, _ = text.partition('\n## Manuskript\n')
+    path.write_text(head + '\n## Manuskript\n\n' + new_ms + '\n', encoding='utf-8')
+    return item
+
+
+def glossary_set(base, term, explanation, new=False):
+    term, explanation = term.strip(), ' '.join(explanation.split())
+    if not term or not explanation or ':' in term:
+        raise SystemExit('Begriff (ohne Doppelpunkt) und Erklärung angeben.')
+    def change(entries):
+        hit = [i for i, (t, _) in enumerate(entries) if t.casefold() == term.casefold()]
+        if hit and new:
+            raise SystemExit(f'„{entries[hit[0]][0]}“ steht schon im Glossar.')
+        if hit:
+            entries[hit[0]] = (term, explanation)
+            return entries
+        return entries + [(term, explanation)]
+    return glossary_write(base, change)
+
+
+def glossary_remove(base, term):
+    def change(entries):
+        left = [e for e in entries if e[0].casefold() != term.strip().casefold()]
+        if len(left) == len(entries):
+            raise SystemExit(f'„{term}“ steht nicht im Glossar.')
+        return left
+    return glossary_write(base, change)
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
-    ap.add_argument('cmd', choices=['add', 'list'])
-    ap.add_argument('kind', nargs='?')
+    ap.add_argument('cmd', choices=['add', 'list', 'glossary-set', 'glossary-remove'])
+    ap.add_argument('kind', nargs='?', help='bei add: Art; bei glossary-*: Begriff')
+    ap.add_argument('explanation', nargs='?', help='bei glossary-set: Erklärung')
     ap.add_argument('--title')
+    ap.add_argument('--new', action='store_true', help='bei glossary-set: nur neu aufnehmen, nie ändern')
     a = ap.parse_args(argv[1:])
     base = Path(a.project)
     if a.cmd == 'list':
         config = yaml.safe_load((base / 'ghostwriter.yml').read_text(encoding='utf-8'))
         for area, i in matter_items(config):
             print(f'{"Vorspann " if area == "front" else "Nachspann"} {i["id"]:<16} {i["title"]}  ({i["path"]})')
+        return 0
+    if a.cmd == 'glossary-set':
+        glossary_set(base, a.kind or '', a.explanation or '', a.new)
+        print(f'✓ Glossar: „{a.kind.strip()}“ eingetragen')
+        print(f'Commit-Nachricht: Glossar: „{a.kind.strip()}“ eingetragen')
+        return 0
+    if a.cmd == 'glossary-remove':
+        glossary_remove(base, a.kind or '')
+        print(f'✓ Glossar: „{a.kind.strip()}“ entfernt')
+        print(f'Commit-Nachricht: Glossar: „{a.kind.strip()}“ entfernt')
         return 0
     item = add(base, kind_of(a.kind), a.title)
     label = MATTER[item['kind']][1] + ('' if item['title'] == MATTER[item['kind']][1] else f' „{item["title"]}“')

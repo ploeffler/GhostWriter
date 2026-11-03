@@ -17,7 +17,8 @@ Geprüft werden:
   Einstellungen unter `services` nur für Dienste aus `available`
 - Vor- und Nachspann (structure.front_matter/back_matter, #57): Datei vorhanden,
   Kopf gegen schemas/matter.schema.json, ID, Art und Titel wie in ghostwriter.yml,
-  ID passt zur Art (mat-widmung …), Datei unter matter/, jede Art höchstens einmal
+  ID passt zur Art (mat-widmung …), Datei unter matter/, jede Art höchstens einmal;
+  Verfasser und Ort/Datum nur bei Vorwort und Nachwort; Glossar ohne doppelte Begriffe
 - approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt,
   Art passt zur ID (writing: Abschnitt oder Vor-/Nachspann, section: Abschnitt,
   chapter: Kapitel, matter: Vor-/Nachspann)
@@ -34,7 +35,8 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'scripts'))
-from render_view import MATTER, matter_id, matter_items  # noqa: E402
+from render_view import (MATTER, MATTER_SIGNED, glossary_duplicates, glossary_entries,  # noqa: E402
+                         matter_id, matter_items, section_file)
 SCHEMAS = ROOT / 'schemas'
 
 
@@ -191,6 +193,12 @@ def check_project(project_dir):
             errors.append(f'{path}: Art {head["kind"]} statt {kind} wie in ghostwriter.yml')
         if head['title'] != item['title']:
             errors.append(f'{path}: Titel weicht von ghostwriter.yml ab')
+        for field in ('byline', 'place_date'):
+            if field in head and kind not in MATTER_SIGNED:
+                errors.append(f'{path}: {field} gibt es nur bei Vorwort und Nachwort')
+        if kind == 'glossary':
+            for term in glossary_duplicates(glossary_entries(section_file(base, item)[3])[1]):
+                errors.append(f'{path}: Begriff mehrfach eingetragen: {term}')
 
     wf = config['workflow']
     if wf['current_chapter_id'] and wf['current_chapter_id'] not in chapter_ids:

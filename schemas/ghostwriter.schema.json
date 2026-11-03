@@ -105,13 +105,13 @@
       "properties": {
         "front_matter": {
           "type": "array",
-          "description": "Vorspann vor Kapitel 1 (#57): Widmung, Prolog; fehlt = keiner",
+          "description": "Vorspann vor Kapitel 1 (#57, #58): Widmung, Vorwort, Prolog; fehlt = keiner",
           "items": {
             "type": "object",
             "required": ["id", "kind", "title", "path"],
             "properties": {
               "id": {"type": "string", "pattern": "^mat-[a-z0-9][a-z0-9-]*$"},
-              "kind": {"enum": ["dedication", "prologue"]},
+              "kind": {"enum": ["dedication", "foreword", "prologue"]},
               "title": {"type": "string", "minLength": 1},
               "path": {"type": "string", "pattern": "^matter/[^/]+\\.md$"}
             },
@@ -120,13 +120,13 @@
         },
         "back_matter": {
           "type": "array",
-          "description": "Nachspann nach dem letzten Kapitel (#57): Epilog, Danksagung; fehlt = keiner",
+          "description": "Nachspann nach dem letzten Kapitel (#57, #58): Epilog, Nachwort, Glossar, Danksagung; fehlt = keiner",
           "items": {
             "type": "object",
             "required": ["id", "kind", "title", "path"],
             "properties": {
               "id": {"type": "string", "pattern": "^mat-[a-z0-9][a-z0-9-]*$"},
-              "kind": {"enum": ["epilogue", "acknowledgments"]},
+              "kind": {"enum": ["epilogue", "afterword", "glossary", "acknowledgments"]},
               "title": {"type": "string", "minLength": 1},
               "path": {"type": "string", "pattern": "^matter/[^/]+\\.md$"}
             },

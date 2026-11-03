@@ -1,6 +1,6 @@
 ---
 id: <mat-ID>
-kind: <ART>   # dedication | prologue | epilogue | acknowledgments
+kind: <ART>   # dedication | foreword | prologue | epilogue | afterword | glossary | acknowledgments
 title: "<TITEL>"
 status: planned
 approvals:
