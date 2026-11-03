@@ -1844,6 +1844,8 @@ def data_view(base, config, args):
                       'R_TEXT': f'{ {"success": "erfolgreich", "failure": "fehlgeschlagen", "cancelled": "abgebrochen", "skipped": "übersprungen", "in_progress": "läuft", "queued": "wartet", "action_required": "wartet auf Freigabe"}.get(c, c)} · '
                                 f'{de_datetime_plus(r.get("created_at"))} · {r.get("head_branch") or ""}',
                       'R_URL': r.get('html_url') or ''})
+    lrows, lim_text = limit_rows(base, config, args, gh)
+    values['LIMITS_TEXT'] = lim_text
     if args.text:
         out = ['### 🗂️ Daten', f'{args.repo}', '', '**Programm**', '',
                f'- {values["PROGRAM_VERSION_TEXT"]}', f'- Update: {values["PROGRAM_UPDATE_TEXT"]} · {values["PROGRAM_LAST_UPDATE_TEXT"]}',
@@ -1857,11 +1859,39 @@ def data_view(base, config, args):
                 f'- Erledigte Branches: [Branches aufräumen]({values["CLEANUP_URL"]}) · [Löschaufgaben]({values["TASKS_URL"]})']
         if srows:
             out += ['- Secrets (nur Namen): ' + ', '.join(f'`{r["S_NAME"]}` { {"yes": "✅", "no": "❌", "unknown": "❔"}[r["S_STATE"]]} {r["S_TEXT"]}' for r in srows)]
+        if lrows:
+            out += ['', '**Nutzungsgrenzen**', '', '| Grenze | Stand |', '|---|---|']
+            out += [f'| {r["L_LABEL"]} | { {"ok": "🟢", "warn": "🟡", "pause": "🔴"}[r["L_STATE"]]} {r["L_TEXT"]} |' for r in lrows]
+            if lim_text:
+                out += ['', f'> ⏸ {lim_text}']
         if rrows:
             out += ['', '**Letzte Läufe**', '', '| Action | Ergebnis |', '|---|---|'] + [f'| [{r["R_NAME"]}]({r["R_URL"]}) | {r["R_TEXT"]} |' for r in rrows]
         out += ['', '---', menu([('Ü', 'Bücherregal')] + ([('U', 'Update einspielen')] if upd else []))]
         return '\n'.join(out) + '\n'
-    return fill('daten.html', values, {'BOOKS': books, 'SECRETS': srows, 'RUNS': rrows})
+    blocks = {'BOOKS': books, 'SECRETS': srows, 'RUNS': rrows}
+    if lrows:
+        blocks['LIMITS'] = lrows
+    return fill('daten.html', values, blocks)
+
+
+def limit_rows(base, config, args, gh):
+    """Nutzungsgrenzen für „Daten“ (#71, #62): aus --limits (limits.py check --json) bzw. aus den Kosten des Monats und,
+    wenn github.json `rate_limit` (GET /rate_limit) enthält, dem API-Rate-Limit. → ([{L_LABEL, L_STATE, L_TEXT}], text)."""
+    import limits
+    if getattr(args, 'limits', None):
+        data = json.loads(Path(args.limits).read_text(encoding='utf-8'))
+        rows, state = data.get('limits') or [], data.get('state')
+    else:
+        live = {}
+        core = (((gh or {}).get('rate_limit') or {}).get('resources') or {}).get('core') or {}
+        if core.get('limit'):
+            live['api_rate'] = (core['limit'] - core.get('remaining', 0), core['limit'])
+        rows = limits.evaluate(base, config, live=live)
+        state = limits.summary(rows)[0]
+    out = [{'L_LABEL': r['label'], 'L_STATE': r['state'], 'L_TEXT': r['text'][len(r['label']) + 1:]} for r in rows]
+    paused = [r for r in rows if r['state'] == 'pause']
+    text = ('Update-Automatik pausiert: ' + '; '.join(r['text'] for r in paused)) if state == 'pause' and paused else ''
+    return out, text
 
 
 WIZARD_CHOICES = Path(__file__).resolve().parent.parent / 'templates' / 'wizard-choices.yml'

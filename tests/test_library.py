@@ -314,6 +314,7 @@ class DataPageTest(unittest.TestCase):
         cls.gh.write_text(json.dumps({
             'repo': {'private': True, 'size': 2048}, 'branches': ['main', 'buch/adhs', 'ghostwriter/buch/adhs'],
             'pulls': [{'number': 7, 'head': {'ref': 'ghostwriter/buch/adhs'}}],
+            'rate_limit': {'resources': {'core': {'limit': 5000, 'remaining': 300}}},
             'runs': [{'name': 'Probedruck', 'head_branch': 'buch/adhs', 'conclusion': 'success', 'created_at': '2026-11-01T10:00:00Z', 'html_url': 'u1'},
                      {'name': 'Projektdateien prüfen', 'head_branch': 'buch/adhs', 'conclusion': 'failure', 'created_at': '2026-11-02T10:00:00Z', 'html_url': 'u2'}]}),
             encoding='utf-8')
@@ -353,13 +354,17 @@ class DataPageTest(unittest.TestCase):
         self.assertIn('❌ Prüfung beim letzten Push: fehlgeschlagen', t)
         self.assertIn('Migration steht aus', t)
         self.assertIn('`GHOSTWRITER_UPDATE_TOKEN` ✅ hinterlegt', t)
+        self.assertIn('| GitHub-API | 🔴 6 % übrig (4700 von 5000) |', t)   # Nutzungsgrenzen (#62)
+        self.assertIn('> ⏸ Update-Automatik pausiert: GitHub-API 6 % übrig', t)
         w = self.view('--github', str(self.gh))
+        self.assertIn('"LIMITS":[{"L_LABEL":"GitHub-API","L_STATE":"pause"', w)
         self.assertIn('GW.render("daten"', w)
         self.assertIn('"GITHUB_KNOWN":"1"', w)
 
     def test_view_without_github(self):
         w = self.view()
         self.assertIn('"GITHUB_KNOWN":""', w)
+        self.assertNotIn('"LIMITS"', w)
         self.assertIn('Prüfung: unbekannt', self.view('--text'))
 
 
