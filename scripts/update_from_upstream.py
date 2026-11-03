@@ -295,8 +295,7 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
         git(*BOT, 'commit', '-q', '-m', msg, '-m', '\n'.join(body), '-m', TRAILER, cwd=wt)
         push = subprocess.run(['git', 'push', 'origin', f'HEAD:refs/heads/{branch}'], cwd=wt, text=True, capture_output=True)
         if push.returncode:
-            return {**res, 'status': 'failed',
-                    'text': f'Push nach {branch} abgelehnt; der nächste Lauf versucht es erneut.\n\n```\n{push.stderr.strip()[-2000:]}\n```'}
+            return {**res, 'status': 'failed', 'text': push_error(branch, push.stderr)}
         text = (f'{commits(behind)} von {up_label} eingespielt (GhostWriter {version})' if behind else
                 f'Programmdateien an {up_label} angeglichen: ' + ', '.join(drift[:5]) + (' …' if len(drift) > 5 else ''))
         if migration:
@@ -344,6 +343,20 @@ def branches(manifest, same_repo, upstream_ref, only):
         if library.is_book(name, cfg, manifest, default_branch()):   # Erkennungsregel der Bibliothek (#36)
             out.append(name)
     return out
+
+
+WORKFLOW_SCOPE_HINT = ('Das Secret GHOSTWRITER_UPDATE_TOKEN darf keine Workflow-Dateien ändern. Fine-grained Token: unter '
+                       'Permissions „Workflows: Read and write“ ergänzen (zusätzlich zu „Contents: Read and write“); klassischer '
+                       'Token: Scope „workflow“ anhaken. Danach das Update erneut starten (docs/UPDATES.md, „Token für private '
+                       'Hauptrepositorys und Workflow-Dateien“).')
+
+
+def push_error(branch, stderr):
+    """Text für einen abgelehnten Push; erkennt den fehlenden Workflow-Scope des Tokens."""
+    tail = f'\n\n```\n{stderr.strip()[-2000:]}\n```'
+    if 'without `workflow` scope' in stderr or 'without workflow scope' in stderr:
+        return f'Push nach {branch} abgelehnt: Token ohne Workflow-Recht. {WORKFLOW_SCOPE_HINT}' + tail
+    return f'Push nach {branch} abgelehnt; der nächste Lauf versucht es erneut.' + tail
 
 
 def main(argv):
