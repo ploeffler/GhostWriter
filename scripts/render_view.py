@@ -602,7 +602,8 @@ def edition_create_view(base, config, args):
               'EDITION_TAG': br['tag_pattern'].format(title_short_slug=tag_slug(short), edition=n),
               'EDITION_DATE_DEFAULT': datetime.date.today().isoformat(), 'APPROVAL_WARNING_TEXT': warn}
     chosen = (config.get('typesetting') or {}).get('formats') or br['assets']   # Ausgabeoptionen (#68)
-    formats = [{'FORMAT_LABEL': a.upper()} for a in br['assets'] if a in chosen]
+    short = {'pdf_print': 'Druck-PDF', 'cover': 'Umschlag'}
+    formats = [{'FORMAT_LABEL': short.get(a, a.upper())} for a in ['pdf', 'pdf_print', 'cover', 'epub', 'docx'] if a in chosen]
     if args.text:
         return '\n'.join([f'### 📚 Neue Auflage erzeugen · Auflage {n}', '', '| | |', '|---|---|', f'| Name | {values["EDITION_NAME"]} |',
                            f'| Tag | `{values["EDITION_TAG"]}` |', f'| Formate | {", ".join(f["FORMAT_LABEL"] for f in formats)} |',
@@ -975,7 +976,8 @@ OUTPUT_LABELS = {
     'page_numbers': ('Seitenzahlen', {'header': 'oben außen', 'footer_center': 'unten Mitte', 'footer_outer': 'unten außen'}),
     'title_page': ('Titelseite', None), 'imprint': ('Impressum', None), 'toc': ('Inhaltsverzeichnis', None),
     'toc_depth': ('Verzeichnistiefe', {1: 'nur Kapitel', 2: 'Kapitel und Abschnitte'}),
-    'formats': ('Formate einer Auflage', {'pdf': 'PDF', 'docx': 'DOCX', 'epub': 'EPUB'}),
+    'formats': ('Formate einer Auflage', {'pdf': 'PDF (Bildschirm)', 'pdf_print': 'Druck-PDF (Innenteil)',
+                                          'cover': 'Umschlag-PDF', 'docx': 'DOCX', 'epub': 'EPUB'}),
 }
 FIXED_RULES = [('ai_settings', 'hallucination_policy', 'Halluzinationen'), ('ai_settings', 'source_policy', 'Quellen'),
                ('ai_settings', 'uncertainty_policy', 'Unsicherheiten'), ('ai_settings', 'creativity', 'Kreativität'),
@@ -1111,6 +1113,9 @@ PUBLICATION_LABELS = [('publisher', 'Verlag', '„Selbstverlag“ oder Name des 
                       ('rights', 'Rechtehinweis', 'z. B. „Alle Rechte vorbehalten.“')]
 
 
+TEMPLATE_DE = {'classic': 'klassisch', 'modern': 'modern', 'plain': 'schlicht'}
+
+
 def output_view(base, config, args):
     """Formular „Ausgabeoptionen“ (#68), vorerst Textfassung: typesetting und publication."""
     ts = dict(TYPESETTING_DEFAULT)
@@ -1129,14 +1134,36 @@ def output_view(base, config, args):
             elif k == 'line_spacing':
                 options = '1,0, 1,1, 1,2, 1,3, 1,5'
             elif k == 'formats':
-                options = 'PDF, DOCX, EPUB (mehrere, mit Komma)'
+                options = 'PDF, Druck-PDF, Umschlag, DOCX, EPUB (mehrere, mit Komma)'
             else:
                 options = ', '.join(names.values())
             lines.append(f'| {label} | {output_value(k, ts[k])} | {options} |')
         lines.append('')
     lines += ['**Angaben im Impressum**', '', '| Feld | Aktueller Wert | Hinweis |', '|---|---|---|']
     lines += [f'| {label} | {pub.get(k) or "–"} | {hint} |' for k, label, hint in PUBLICATION_LABELS]
-    lines += ['', '<sub>Umschlag, Druckprofile und Beschnitt folgen (#68, Teil 2).</sub>', '', FORM_HINT]
+    pr, cv = config.get('print') or {}, config.get('cover') or {}
+    prof = {'kdp': 'Amazon KDP', 'bod': 'Books on Demand', 'custom': 'eigene Werte'}
+    paper = {'white': 'weiß', 'cream': 'creme', 'premium_color': 'Premiumfarbe'}
+    spine = (f'{pr["spine_mm"]} mm (fest)' if pr.get('spine_mm') is not None else
+             f'aus Seitenzahl × {pr["paper_mm_per_page"]} mm' if pr.get('paper_mm_per_page') else
+             'aus Seitenzahl und Papier' if pr.get('profile') == 'kdp' else '–')
+    lines += ['', '**Druck**', '', '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|',
+              f'| Druckprofil | {prof.get(pr.get("profile"), "–")} | Amazon KDP, Books on Demand, eigene Werte |',
+              f'| Papier | {paper.get(pr.get("paper"), "weiß" if pr.get("profile") == "kdp" else "–")} | weiß, creme, Premiumfarbe (nur KDP) |',
+              f'| Rückenbreite | {spine} | Zahl in mm (BoD: aus dem BoD-Rechner) |',
+              f'| Beschnitt | {pr.get("bleed_mm", "Vorgabe des Profils")}{" mm" if "bleed_mm" in pr else ""} | Zahl in mm |',
+              f'| Schnittmarken | {"ja" if pr.get("crop_marks") else "nein"} | ja, nein |', '',
+              '**Umschlag**', '', '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|',
+              f'| Vorlage | {TEMPLATE_DE.get(cv.get("template", "classic"), "")} | klassisch, modern, schlicht |',
+              f'| Hintergrund | {cv.get("background", "#1F2A44")} | Farbe als #RRGGBB |',
+              f'| Schriftfarbe | {cv.get("text_color", "#FFFFFF")} | Farbe als #RRGGBB |',
+              f'| Bild vorne | {cv.get("image") or "–"} | Datei unter cover/ (JPG, PNG, mind. 300 dpi) |',
+              f'| Autorenbild | {cv.get("author_image") or "–"} | Datei unter cover/ |',
+              f'| Preis | {cv.get("price") or "–"} | z. B. 18,00 € (D) |',
+              f'| Rückentext | {"von unten nach oben" if cv.get("spine_direction") == "up" else "von oben nach unten"} | von oben nach unten, von unten nach oben |',
+              '', '<sub>Klappentext und Autorentext stehen in `cover/rueckseite.md` (`## Klappentext`, `## Über …`). '
+              'Die Vorgaben der Druckanbieter ändern sich; Maße vor dem Hochladen mit deren Rechner abgleichen.</sub>',
+              '', FORM_HINT]
     return '\n'.join(lines) + '\n'
 
 

@@ -98,7 +98,7 @@ class OutputOptionsTest(Base):
     def test_views(self):
         default = self.view('output')
         self.assertIn('| Ränder | Standard |', default)
-        self.assertIn('| Formate einer Auflage | PDF, DOCX, EPUB |', default)
+        self.assertIn('| Formate einer Auflage | PDF (Bildschirm), DOCX, EPUB |', default)
         self.set_options()
         form = self.view('output')
         self.assertIn('| Kolumnentitel | Buch- und Kapiteltitel |', form)

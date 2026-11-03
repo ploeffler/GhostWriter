@@ -22,6 +22,7 @@ repository/
 │   ├── nachwort.md
 │   ├── glossar.md
 │   └── danksagung.md
+├── cover/                 # Umschlag (#68): Bilder, rueckseite.md (Klappentext, Autorentext)
 ├── ghostwriter-index.json # Übersichtsdatei, erzeugt von scripts/build_index.py (nicht von Hand ändern)
 ├── chapters/
 │   ├── 01-einleitung/
@@ -107,6 +108,8 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `ai_disclosure` | KI-Angabe im Buch (#78): `mode` (`none`, `short`, `detailed`, `custom`), `placement` (`imprint`, `foreword`, `afterword`, `page`), `name_services`, `text` (bestätigter Wortlaut; nur dieser kommt ins Buch); fehlt = keine Angabe (siehe „KI-Angabe im Buch“) |
 | `typesetting` | Buchsatz der Auflagen, Formular „Ausgabeoptionen“ bzw. Projekteinstellungen (siehe unten) |
 | `publication` | Angaben im Impressum: Verlag, ISBN je Ausgabe, Rechtehinweis (#68; siehe „Buchsatz“) |
+| `print` | Druck (#68): Profil des Anbieters (`kdp`, `bod`, `custom`), Papier, Rückenbreite, Beschnitt, Schnittmarken (siehe „Umschlag und Druck“) |
+| `cover` | Umschlag (#68): Vorlage, Farben, Bilder, Preis, Richtung des Rückentexts (siehe „Umschlag und Druck“) |
 | `updates.auto` | neue GhostWriter-Versionen automatisch einspielen; fehlt = `true` ([UPDATES.md](UPDATES.md)) |
 | `changes.auto_merge` | gespeicherte Änderungen sofort übernehmen statt über „Änderungen übernehmen“; fehlt = `false`. Freigaben und Auflagen brauchen trotzdem ihre eigene Bestätigung (`START.md`, „Schreiben ins Repository“) |
 | `.ghostwriter/update.yml` | von der Update-Action geschrieben: installierte Version, Upstream-Commit, Zeitpunkt, ausgelassene Workflow-Dateien; nicht von Hand ändern |
@@ -134,7 +137,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `running_heads` | Kolumnentitel: `sections` (Kapitel und Abschnitt), `chapter`, `book` (Buchtitel links, Kapitel rechts), `none` | `sections` |
 | `page_numbers` | `header` (oben außen), `footer_center`, `footer_outer` | `header` |
 | `initials` | Initiale am Anfang jedes nummerierten Kapitels | `false` |
-| `formats` | Formate einer Auflage, Auswahl aus `pdf`, `docx`, `epub` | alle drei |
+| `formats` | Formate einer Auflage: `pdf` (Bildschirm), `pdf_print` (Druck-PDF des Innenteils, `…-druck.pdf`), `cover` (Umschlag, `…-umschlag.pdf`), `docx`, `epub` | `pdf`, `docx`, `epub` |
 
 `font` erlaubt neben `serif` (TeX Gyre Pagella) und `sans` (TeX Gyre Heros) die freien Schriften `pagella`, `termes`, `bonum`, `schola`, `heros`, `adventor` (DOCX nimmt die verbreitete Entsprechung, z. B. Times New Roman für Termes; EPUB nur Serif bzw. serifenlos). Bücher ohne die neuen Felder (#68) sehen aus wie bisher; im DOCX wirken Zeilenabstand und Absätze nur, wenn sie ausdrücklich gesetzt sind. Bearbeitet werden alle Felder im Formular „Ausgabeoptionen“ (Befehl `Ausgabe`).
 
@@ -147,6 +150,36 @@ Seitenformat, Ränder, Kapitelbeginn, Kolumnentitel und Seitenzahlen wirken nur 
 Titel, Untertitel (erste kursive Zeile `*…*`), `## Kurzbeschreibung` und `## Ziel des Kapitels` stehen in `chapters/<kapitel>/README.md`; „Offen.“ steht für noch leer. Der Titel steht zusätzlich in `structure.chapters`. „Kapitel bearbeiten“ ändert beides im selben Commit.
 
 Die Struktur von `ghostwriter.yml` beschreibt [`schemas/ghostwriter.schema.json`](../schemas/ghostwriter.schema.json).
+
+### Umschlag und Druck
+
+Mit `print` und `cover` (#68) entsteht beim Format `cover` ein Umschlag-PDF über Rückseite, Rücken und Vorderseite mit Beschnitt ringsum (`scripts/build_cover.py`): Breite = Beschnitt + Seite + Rücken + Seite + Beschnitt, Höhe = Beschnitt + Seite + Beschnitt; Rücken = Seitenzahl des Innenteils × Papierstärke. Gibt es `cover`, bekommt das EPUB dessen Vorderseite als Cover.
+
+```yaml
+print:
+  profile: kdp           # kdp | bod | custom
+  paper: cream           # nur kdp: white | cream | premium_color
+  # spine_mm: 9.4        # feste Rückenbreite (BoD: aus dem BoD-Rechner; Pflicht bei bod und custom ohne paper_mm_per_page)
+  # paper_mm_per_page: 0.06
+  # bleed_mm: 3          # sonst Vorgabe des Profils
+  crop_marks: false      # Schnittmarken an Druck-PDF und Umschlag (8 mm Rand)
+cover:
+  template: classic      # classic | modern | plain
+  background: '#1F2A44'
+  text_color: '#FFFFFF'
+  image: cover/vorderseite.jpg     # füllt die Vorderseite samt Beschnitt
+  author_image: cover/autor.jpg
+  price: 18,00 € (D)
+  spine_direction: down  # down (von oben nach unten) | up
+```
+
+| Profil | Beschnitt | Rücken je Seite | Rückentext |
+|---|---|---|---|
+| `kdp` (Amazon KDP, Taschenbuch) | 3,2 mm | weiß 0,0572 mm, creme 0,0635 mm, Premiumfarbe 0,0596 mm | ab 79 Seiten, 1,6 mm Abstand zur Kante |
+| `bod` (Books on Demand) | 5 mm | nur über den BoD-Rechner: `spine_mm` | ab 6 mm Rückenbreite |
+| `custom` | `bleed_mm`, Vorgabe 3 mm | `spine_mm` oder `paper_mm_per_page` | ab 6 mm Rückenbreite |
+
+Stand der Werte: November 2026 (KDP-Hilfe „Cover“, BoD-Hinweise zur Umschlaggestaltung); die Anbieter ändern sie gelegentlich, daher vor dem Hochladen mit deren Rechner abgleichen. Die Rückseite trägt Klappentext und Autorentext aus `cover/rueckseite.md` (Vorlage `templates/cover-rueckseite.md`), das Autorenbild, den Preis und die ISBN der Druckausgabe als EAN-13-Strichcode (unten rechts, weiß hinterlegt). Im Probedruck zeigt der Umschlag Schnitt-, Falz- und Sicherheitslinien.
 
 ## Abschnittsdatei – Frontmatter-Beispiel
 

@@ -20,6 +20,8 @@ Geprüft werden:
   ID passt zur Art (mat-widmung …), Datei unter matter/, jede Art höchstens einmal;
   Verfasser und Ort/Datum nur bei Vorwort und Nachwort; Glossar ohne doppelte Begriffe
 - publication.isbn_print/isbn_ebook (#68): gültige ISBN-10 bzw. ISBN-13 (Prüfziffer)
+- print/cover (#68): Umschlag nur mit Druckprofil; bei bod/custom Rückenbreite
+  angegeben; Papier nur bei kdp; Bilder des Umschlags vorhanden
 - approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt,
   Art passt zur ID (writing: Abschnitt oder Vor-/Nachspann, section: Abschnitt,
   chapter: Kapitel, matter: Vor-/Nachspann)
@@ -211,6 +213,18 @@ def check_project(project_dir):
             for term in glossary_duplicates(glossary_entries(section_file(base, item)[3])[1]):
                 errors.append(f'{path}: Begriff mehrfach eingetragen: {term}')
 
+    pr, cv = config.get('print') or {}, config.get('cover') or {}
+    formats = (config.get('typesetting') or {}).get('formats') or []
+    if 'cover' in formats and not pr.get('profile'):
+        errors.append(f'{config_path}: typesetting.formats enthält cover, aber print.profile fehlt (kdp, bod oder custom)')
+    if pr.get('profile') in ('bod', 'custom') and pr.get('spine_mm') is None and pr.get('paper_mm_per_page') is None:
+        errors.append(f'{config_path}: print: bei {pr["profile"]} die Rückenbreite angeben (spine_mm aus dem Rechner '
+                      'des Anbieters oder paper_mm_per_page)')
+    if pr.get('paper') and pr.get('profile') != 'kdp':
+        errors.append(f'{config_path}: print.paper gilt nur für das Profil kdp; sonst spine_mm bzw. paper_mm_per_page')
+    for field in ('image', 'author_image'):
+        if cv.get(field) and not (base / cv[field]).is_file():
+            errors.append(f'{config_path}: cover.{field}: {cv[field]} fehlt')
     for field in ('isbn_print', 'isbn_ebook'):
         value = (config.get('publication') or {}).get(field)
         if value and not isbn_ok(value):
