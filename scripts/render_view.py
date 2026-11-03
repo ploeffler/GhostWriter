@@ -601,7 +601,8 @@ def edition_create_view(base, config, args):
     values = {'EDITION_NUMBER': n, 'EDITION_NAME': br['name_pattern'].format(title_short=short, edition=n),
               'EDITION_TAG': br['tag_pattern'].format(title_short_slug=tag_slug(short), edition=n),
               'EDITION_DATE_DEFAULT': datetime.date.today().isoformat(), 'APPROVAL_WARNING_TEXT': warn}
-    formats = [{'FORMAT_LABEL': a.upper()} for a in br['assets']]
+    chosen = (config.get('typesetting') or {}).get('formats') or br['assets']   # Ausgabeoptionen (#68)
+    formats = [{'FORMAT_LABEL': a.upper()} for a in br['assets'] if a in chosen]
     if args.text:
         return '\n'.join([f'### 📚 Neue Auflage erzeugen · Auflage {n}', '', '| | |', '|---|---|', f'| Name | {values["EDITION_NAME"]} |',
                            f'| Tag | `{values["EDITION_TAG"]}` |', f'| Formate | {", ".join(f["FORMAT_LABEL"] for f in formats)} |',
@@ -950,8 +951,32 @@ def providers_edit_view(base, config, args):
                 {'SERVICES': services, 'ROLES': roles})
 
 
+# Buchsatz (typesetting): Vorgaben = Satz bis v0.6; Ausgabeoptionen (#68) ändern nur, was gesetzt ist
 TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'title_page': True,
-                      'imprint': True, 'toc': True, 'toc_depth': 1}
+                      'imprint': True, 'toc': True, 'toc_depth': 1,
+                      'heading_font': 'same', 'margins': 'standard', 'line_spacing': 1.1, 'paragraph': 'indent',
+                      'hyphenation': True, 'chapter_start': 'any', 'running_heads': 'sections',
+                      'page_numbers': 'header', 'initials': False, 'formats': ['pdf', 'docx', 'epub']}
+# Werte → deutsche Bezeichnung (Formular „Ausgabe“, Textfassung)
+OUTPUT_LABELS = {
+    'page_size': ('Seitenformat', {'a5': 'A5 (14,8 × 21 cm)', '12x19': '12 × 19 cm', '13.5x21.5': '13,5 × 21,5 cm', 'a4': 'A4'}),
+    'font': ('Grundschrift', {'serif': 'Serifenschrift (Pagella)', 'sans': 'serifenlos (Heros)', 'pagella': 'Pagella',
+                              'termes': 'Termes', 'bonum': 'Bonum', 'schola': 'Schola', 'heros': 'Heros', 'adventor': 'Adventor'}),
+    'font_size': ('Schriftgröße', None),
+    'heading_font': ('Überschriften', {'same': 'wie Grundschrift', 'serif': 'Serifenschrift', 'sans': 'serifenlos'}),
+    'initials': ('Initialen am Kapitelanfang', None),
+    'margins': ('Ränder', {'standard': 'Standard', 'classic': 'klassisch (breit)', 'modern': 'modern (schmal)'}),
+    'line_spacing': ('Zeilenabstand', None),
+    'paragraph': ('Absätze', {'indent': 'mit Einzug', 'spacing': 'mit Abstand'}),
+    'hyphenation': ('Silbentrennung', None),
+    'chapter_start': ('Kapitelbeginn', {'any': 'nächste Seite', 'right': 'immer rechte Seite'}),
+    'running_heads': ('Kolumnentitel', {'sections': 'Kapitel und Abschnitt', 'chapter': 'Kapiteltitel',
+                                        'book': 'Buch- und Kapiteltitel', 'none': 'keine'}),
+    'page_numbers': ('Seitenzahlen', {'header': 'oben außen', 'footer_center': 'unten Mitte', 'footer_outer': 'unten außen'}),
+    'title_page': ('Titelseite', None), 'imprint': ('Impressum', None), 'toc': ('Inhaltsverzeichnis', None),
+    'toc_depth': ('Verzeichnistiefe', {1: 'nur Kapitel', 2: 'Kapitel und Abschnitte'}),
+    'formats': ('Formate einer Auflage', {'pdf': 'PDF', 'docx': 'DOCX', 'epub': 'EPUB'}),
+}
 FIXED_RULES = [('ai_settings', 'hallucination_policy', 'Halluzinationen'), ('ai_settings', 'source_policy', 'Quellen'),
                ('ai_settings', 'uncertainty_policy', 'Unsicherheiten'), ('ai_settings', 'creativity', 'Kreativität'),
                ('ai_settings', 'web_research', 'Internetrecherche'),
@@ -1062,6 +1087,59 @@ def update_info(base, config):
     return auto, text, hint
 
 
+def output_value(key, value):
+    label, names = OUTPUT_LABELS[key]
+    if isinstance(value, bool):
+        return 'ja' if value else 'nein'
+    if key == 'formats':
+        return ', '.join(names.get(v, v) for v in value)
+    if key in ('font_size',):
+        return str(value).replace('.', ',') + ' pt'
+    if key == 'line_spacing':
+        return str(value).replace('.', ',') + '-fach'
+    return names.get(value, str(value)) if names else str(value)
+
+
+OUTPUT_GROUPS = [('Seite', ['page_size', 'margins', 'chapter_start', 'running_heads', 'page_numbers']),
+                 ('Schrift', ['font', 'font_size', 'heading_font', 'initials']),
+                 ('Absatz', ['line_spacing', 'paragraph', 'hyphenation']),
+                 ('Titelei', ['title_page', 'imprint', 'toc', 'toc_depth']),
+                 ('Formate', ['formats'])]
+PUBLICATION_LABELS = [('publisher', 'Verlag', '„Selbstverlag“ oder Name des Verlags'),
+                      ('isbn_print', 'ISBN Druckausgabe', 'ISBN-13 mit Prüfziffer'),
+                      ('isbn_ebook', 'ISBN E-Book', 'ISBN-13 mit Prüfziffer'),
+                      ('rights', 'Rechtehinweis', 'z. B. „Alle Rechte vorbehalten.“')]
+
+
+def output_view(base, config, args):
+    """Formular „Ausgabeoptionen“ (#68), vorerst Textfassung: typesetting und publication."""
+    ts = dict(TYPESETTING_DEFAULT)
+    ts.update(config.get('typesetting') or {})
+    pub = config.get('publication') or {}
+    lines = ['### 🖨️ Ausgabeoptionen', '', 'Wie Auflagen und Probedrucke aussehen. Geänderte Werte gelten ab dem nächsten '
+             'Probedruck; ohne Angabe bleibt alles wie bisher.', '']
+    for group, keys in OUTPUT_GROUPS:
+        lines += [f'**{group}**', '', '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|']
+        for k in keys:
+            label, names = OUTPUT_LABELS[k]
+            if isinstance(TYPESETTING_DEFAULT[k], bool):
+                options = 'ja, nein'
+            elif k == 'font_size':
+                options = '10, 10,5, 11, 11,5, 12'
+            elif k == 'line_spacing':
+                options = '1,0, 1,1, 1,2, 1,3, 1,5'
+            elif k == 'formats':
+                options = 'PDF, DOCX, EPUB (mehrere, mit Komma)'
+            else:
+                options = ', '.join(names.values())
+            lines.append(f'| {label} | {output_value(k, ts[k])} | {options} |')
+        lines.append('')
+    lines += ['**Angaben im Impressum**', '', '| Feld | Aktueller Wert | Hinweis |', '|---|---|---|']
+    lines += [f'| {label} | {pub.get(k) or "–"} | {hint} |' for k, label, hint in PUBLICATION_LABELS]
+    lines += ['', '<sub>Umschlag, Druckprofile und Beschnitt folgen (#68, Teil 2).</sub>', '', FORM_HINT]
+    return '\n'.join(lines) + '\n'
+
+
 def ai_disc_text(config):
     s = (config.get('ai_disclosure') or {})
     mode = s.get('mode', 'none')
@@ -1102,6 +1180,7 @@ def project_settings_view(base, config, args):
                              f'| Updates automatisch | {jn(upd_auto)} | ja, nein |',
                              f'| Änderungen sofort übernehmen | {jn(auto_merge)} | ja, nein |',
                              f'| KI-Angabe im Buch | {ai_disc_text(config)} | Formular `KI-Angabe` |',
+                             '| Weitere Ausgabeoptionen | Ränder, Zeilenabstand, Kolumnentitel, Formate, ISBN … | Formular `Ausgabe` |',
                              '', f'<sub>{upd_text}</sub>'] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', FORM_HINT]) + '\n'
     def b(v):
         return 'true' if v else 'false'
@@ -1573,7 +1652,7 @@ FORMS = {'choice': choice_view, 'book-create': book_create_view, 'project-edit':
          'approval-section': lambda b, c, a: approval_view(b, c, a, 'section'),
          'approval-chapter': lambda b, c, a: approval_view(b, c, a, 'chapter'),
          'approval-matter': lambda b, c, a: approval_view(b, c, a, 'section'),
-         'ai-disclosure': ai_disclosure_view}
+         'ai-disclosure': ai_disclosure_view, 'output': output_view}
 
 
 def git_head(base):

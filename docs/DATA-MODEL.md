@@ -105,7 +105,8 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `structure.front_matter`, `structure.back_matter` | Vor- und Nachspann (#57, #58): Teile vor Kapitel 1 (Widmung, Vorwort, Prolog) bzw. nach dem letzten Kapitel (Epilog, Nachwort, Glossar, Danksagung), je mit `id`, `kind`, `title`, `path`; fehlen = keine (siehe „Vor- und Nachspann“) |
 
 | `ai_disclosure` | KI-Angabe im Buch (#78): `mode` (`none`, `short`, `detailed`, `custom`), `placement` (`imprint`, `foreword`, `afterword`, `page`), `name_services`, `text` (bestätigter Wortlaut; nur dieser kommt ins Buch); fehlt = keine Angabe (siehe „KI-Angabe im Buch“) |
-| `typesetting` | Buchsatz der Auflagen, in den Projekteinstellungen bearbeitbar (siehe unten) |
+| `typesetting` | Buchsatz der Auflagen, Formular „Ausgabeoptionen“ bzw. Projekteinstellungen (siehe unten) |
+| `publication` | Angaben im Impressum: Verlag, ISBN je Ausgabe, Rechtehinweis (#68; siehe „Buchsatz“) |
 | `updates.auto` | neue GhostWriter-Versionen automatisch einspielen; fehlt = `true` ([UPDATES.md](UPDATES.md)) |
 | `changes.auto_merge` | gespeicherte Änderungen sofort übernehmen statt über „Änderungen übernehmen“; fehlt = `false`. Freigaben und Auflagen brauchen trotzdem ihre eigene Bestätigung (`START.md`, „Schreiben ins Repository“) |
 | `.ghostwriter/update.yml` | von der Update-Action geschrieben: installierte Version, Upstream-Commit, Zeitpunkt, ausgelassene Workflow-Dateien; nicht von Hand ändern |
@@ -124,8 +125,22 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `imprint` | Impressum in der Titelei | `true` |
 | `toc` | Inhaltsverzeichnis | `true` |
 | `toc_depth` | `1` = nur Kapitel, `2` = Kapitel und Abschnitte | `1` |
+| `heading_font` | `same` (wie Grundschrift), `serif`, `sans` | `same` |
+| `margins` | `standard`, `classic` (breite Ränder), `modern` (schmale) | `standard` |
+| `line_spacing` | `1.0`, `1.1`, `1.2`, `1.3`, `1.5` | `1.1` |
+| `paragraph` | `indent` (Einzug), `spacing` (Abstand zwischen Absätzen) | `indent` |
+| `hyphenation` | Silbentrennung | `true` |
+| `chapter_start` | `any` (nächste Seite), `right` (immer rechte Seite) | `any` |
+| `running_heads` | Kolumnentitel: `sections` (Kapitel und Abschnitt), `chapter`, `book` (Buchtitel links, Kapitel rechts), `none` | `sections` |
+| `page_numbers` | `header` (oben außen), `footer_center`, `footer_outer` | `header` |
+| `initials` | Initiale am Anfang jedes nummerierten Kapitels | `false` |
+| `formats` | Formate einer Auflage, Auswahl aus `pdf`, `docx`, `epub` | alle drei |
 
-Seitenformat, Schrift und Titelei wirken nur in PDF und DOCX; EPUB übernimmt Inhaltsverzeichnis und Titelei.
+`font` erlaubt neben `serif` (TeX Gyre Pagella) und `sans` (TeX Gyre Heros) die freien Schriften `pagella`, `termes`, `bonum`, `schola`, `heros`, `adventor` (DOCX nimmt die verbreitete Entsprechung, z. B. Times New Roman für Termes; EPUB nur Serif bzw. serifenlos). Bücher ohne die neuen Felder (#68) sehen aus wie bisher; im DOCX wirken Zeilenabstand und Absätze nur, wenn sie ausdrücklich gesetzt sind. Bearbeitet werden alle Felder im Formular „Ausgabeoptionen“ (Befehl `Ausgabe`).
+
+Seitenformat, Ränder, Kapitelbeginn, Kolumnentitel und Seitenzahlen wirken nur im PDF (DOCX: Seitenformat), Schrift und Absätze in allen Formaten, soweit das Format sie kennt; EPUB übernimmt Inhaltsverzeichnis und Titelei.
+
+**Angaben im Impressum** (`publication`, #68), alle optional: `publisher` (Verlag; „Selbstverlag“ steht so im Impressum), `isbn_print`, `isbn_ebook` (ISBN-10 oder -13, die Prüfung kontrolliert die Prüfziffer; die E-Book-ISBN wird auch Kennung des EPUB), `rights` (Rechtehinweis). Sie stehen in dieser Reihenfolge nach dem ©-Vermerk.
 
 ### Kapitel-README
 
