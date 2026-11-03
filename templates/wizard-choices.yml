@@ -21,7 +21,7 @@
 #     options  2–6 Antworten: value, label (1–5 Wörter), desc (eine Zeile, optional),
 #              recommended: true (höchstens eine je Frage)
 
-steps_total: 13
+steps_total: 14
 
 steps:
   wizard.4:
@@ -123,3 +123,19 @@ steps:
           - {value: fr, label: Französisch}
           - {value: es, label: Spanisch}
           - {value: it, label: Italienisch}
+
+  wizard.14:
+    title: "Neues Buch · Schritt {step} von {steps}"
+    subtitle: KI-Angabe im Buch
+    note: Den Wortlaut schlägt GhostWriter vor der ersten Auflage aus den tatsächlichen Läufen vor; ins Buch kommt er erst, wenn du ihn bestätigst. Ort und Wortlaut später über den Befehl „KI-Angabe“.
+    skippable: true
+    questions:
+      - key: ai_disclosure
+        field: ai_disclosure.mode
+        header: KI-Angabe
+        text: Soll im Buch stehen, wie bei diesem Buch KI genutzt wurde?
+        options:
+          - {value: short, label: Kurz, desc: "Ein Satz, z. B. im Impressum", recommended: true}
+          - {value: detailed, label: Ausführlich, desc: "Je Aufgabe, z. B. Recherche, Textentwürfe"}
+          - {value: custom, label: Eigener Text, desc: "Du schreibst den Wortlaut selbst"}
+          - {value: none, label: Keine Angabe}

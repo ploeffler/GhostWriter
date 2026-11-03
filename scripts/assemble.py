@@ -38,6 +38,12 @@ der Art als Klasse und als EPUB-Rolle (epub:type prologue, epilogue,
 acknowledgments).
 Vorspann vor Kapitel 1, Nachspann nach dem letzten Kapitel.
 
+KI-Angabe (#78, ai_disclosure, scripts/ai_disclosure.py): der bestätigte Wortlaut
+am Ende von Vorwort bzw. Nachwort (Block `::: ki-angabe`) oder als eigene,
+unnummerierte Seite „Hinweis zur KI-Nutzung“ ganz am Ende; im Impressum setzt
+ihn scripts/build_edition.py. Ist eine Angabe gewählt, aber ihr Wortlaut nicht
+bestätigt oder ihr Ort nicht vorhanden, verhindert das die Auflage.
+
 Dieses Skript läuft nur in GitHub Actions oder lokal; den zusammengeführten
 Text gibt der Assistent nie im Chat aus (START.md, „Kein ganzes Buch im Chat“).
 """
@@ -50,6 +56,7 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ai_disclosure  # noqa: E402
 from render_view import (MARKER_TEXT, MATTER, MATTER_SIGNED, german_key, glossary_entries,  # noqa: E402
                          load, matter_items, section_file)
 
@@ -156,10 +163,25 @@ def matter_parts(base, config, proof=False):
     return [(area, item, *matter_markdown(base, item, proof)) for area, item in matter_items(config)]
 
 
-def book_body(parts, matter):
-    """Markdown des Buchs: Vorspann, Kapitel, Nachspann."""
-    front = [m[2] for m in matter if m[0] == 'front' and m[2]]
-    back = [m[2] for m in matter if m[0] == 'back' and m[2]]
+def with_disclosure(md, text):
+    """KI-Angabe (#78) ans Ende eines Teils, vor Verfasser und Ort/Datum."""
+    block = f'::: ki-angabe\n{text}\n:::\n'
+    if '\n::: signatur\n' in md:
+        head, _, tail = md.partition('\n::: signatur\n')
+        return f'{head.rstrip()}\n\n{block}\n::: signatur\n{tail}'
+    return md.rstrip('\n') + '\n\n' + block
+
+
+def book_body(parts, matter, disclosure=None):
+    """Markdown des Buchs: Vorspann, Kapitel, Nachspann; disclosure = (Ort, Wortlaut) der KI-Angabe
+    (#78) für Vorwort, Nachwort oder eigene Seite; das Impressum setzt scripts/build_edition.py."""
+    place, text = disclosure or (None, None)
+    def md(m):
+        return with_disclosure(m[2], text) if place == m[1]['kind'] else m[2]
+    front = [md(m) for m in matter if m[0] == 'front' and m[2]]
+    back = [md(m) for m in matter if m[0] == 'back' and m[2]]
+    if place == 'page':
+        back.append(f'# {ai_disclosure.PAGE_TITLE} {{.unnumbered .ki-angabe-seite}}\n\n{text}\n')
     return '\n'.join(front + [p[2] for p in parts] + back)
 
 
@@ -226,6 +248,7 @@ def problems(parts, config, matter=()):
             for term in re.findall(r'(?m)^(.+)\n:   ', md):
                 seen.setdefault(term.casefold(), []).append(term)
             out += [f'{item["title"]}: Begriff mehrfach eingetragen: {" / ".join(v)}' for v in seen.values() if len(v) > 1]
+    out += ai_disclosure.problems(config, lambda kind: any(m[1]['kind'] == kind and m[3] for m in matter))
     return out
 
 
@@ -268,8 +291,9 @@ def main(argv):
                       + f', etwa {words} Wörter')
             return 1 if found else 0
         meta = metadata(config, edition, args.date)
+        disc = ai_disclosure.for_book(config)
         md = '---\n' + yaml.safe_dump(meta, allow_unicode=True, sort_keys=False) + '---\n\n' + \
-             book_body(parts, matter)
+             book_body(parts, matter, disc if disc and disc[0] != 'imprint' else None)
     if args.output:
         Path(args.output).write_text(md, encoding='utf-8')
         print(f'{args.output}: {len(md.split())} Wörter', file=sys.stderr)

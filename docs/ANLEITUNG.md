@@ -35,6 +35,7 @@ Die **Projektübersicht** zeigt alle Kapitel mit Status und Kosten; ein Klick ö
 - **Recherche:** je Abschnitt („Recherche sofort“) oder für ein ganzes Kapitel (Lupe neben Ziel und Kurzbeschreibung). Ergebnisse kommen mit Quellen und als Vorschlag.
 - **Schreiben:** Ein Abschnitt wird erst geschrieben, wenn du das Schreiben freigibst. Den Text kannst du jederzeit selbst ändern.
 - **Vor- und Nachspann:** Widmung, Vorwort, Prolog, Epilog, Nachwort, Glossar und Danksagung legst du bei Bedarf an (`Vor- und Nachspann` bzw. `Widmung`, `Glossar` …). Sie werden freigegeben wie Abschnitte; Widmung und Danksagung schreibst du selbst. Ins Glossar kommen Begriffe einzeln (`+ Begriff: Erklärung`), im Buch alphabetisch.
+- **KI-Angabe:** Ob im Buch steht, wie du KI genutzt hast, legst du selbst fest (`KI-Angabe`). GhostWriter schlägt einen Satz aus den tatsächlichen Läufen vor; ins Buch kommt er erst, wenn du ihn bestätigst.
 - **Speichern und übernehmen:** Jede Änderung wird zuerst gesammelt; mit **Änderungen übernehmen** steht sie im Buch (oder sofort, wenn du das eingeschaltet hast).
 - **Befehle** gehen immer: `Start`, `Übersicht`, `Kapitel 3`, `Abschnitt 3.2`, `Neues Kapitel`, `Probedruck`, `Auflage`, `Hilfe`.
 

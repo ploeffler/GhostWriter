@@ -41,7 +41,7 @@ class ChoiceTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         d = payload(r.stdout)
         self.assertEqual(d['STEP'], 'wizard.5')
-        self.assertEqual(d['TITLE'], 'Neues Buch · Schritt 5 von 13')
+        self.assertEqual(d['TITLE'], 'Neues Buch · Schritt 5 von 14')
         self.assertEqual([q['Q_KEY'] for q in d['QUESTIONS']], ['book_type', 'length'])
         self.assertEqual(len(d['OPTIONS']), 8)
         self.assertEqual(sum(o['OPT_RECOMMENDED'] == '1' for o in d['OPTIONS'] if o['OPT_Q'] == '2'), 1)
