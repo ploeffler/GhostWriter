@@ -112,6 +112,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `PENDING_COUNT`, `PENDING_TEXT`, `PENDING_PR` | nur bei offenen Änderungen (Arbeits-Branch mit offenem Pull Request, siehe „Offene Änderungen“): Anzahl der Commits, „1 Änderung“ bzw. „N Änderungen“, Nummer des Pull Requests. Ohne offene Änderungen weglassen; dann entfällt der Hinweis mit dem Knopf „Änderungen übernehmen“ |
 | `UPDATE_BEHIND`, `UPDATE_TEXT` | nur wenn der Buch-Branch hinter dem Hauptrepository liegt (siehe „Update-Stand“): Anzahl Commits und Text wie „3 Commits hinter ploeffler/GhostWriter:main · Version 0.3.1 verfügbar (installiert 0.3.0)“. Sonst weglassen; dann entfällt der Hinweis mit dem Knopf „Update einspielen“ |
 | Block `CHAPTERS`: `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_STATUS`, `CHAPTER_COST`, `CHAPTER_COST_HINT`, `CHAPTER_ID` | je Kapitel aus `structure.chapters`, Kosten wie oben; `CHAPTER_ID` ist die stabile Kapitel-ID, ein Klick auf das Kapitel schickt `view.chapter`; ohne Kapitel entfällt der Bereich „Kapitel“ |
+| `CHARACTER_COUNT` | Zahl der Figuren (`characters`, #53); ohne Figuren weglassen, dann entfällt der Knopf „Figuren“ |
 | Blöcke `MATTER_FRONT`, `MATTER_BACK`: `MATTER_ID`, `MATTER_TITLE`, `MATTER_STATUS`, `MATTER_MARKERS` | Vor- und Nachspann (#57, #58) aus `structure.front_matter` (über der Kapitelliste) bzw. `back_matter` (darunter) in Buchreihenfolge: ID (`mat-…`), Titel, Status, Zahl offener Marker; ein Klick schickt `view.matter`. Ein leerer Bereich fehlt |
 
 ### `kapitelansicht.html`
@@ -138,6 +139,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `MARKER_COUNT_TEXT` | Marker des Abschnitts |
 | Block `MARKERS`: `MARKER_TYPE`, `MARKER_LABEL`, `MARKER_TEXT` | je Marker in Reihenfolge; ohne Marker entfällt der Bereich „Offene Marker“ |
 | `PREV_SECTION_ID`, `PREV_SECTION_PROMPT`, `NEXT_SECTION_ID`, `NEXT_SECTION_PROMPT` | Nachbarabschnitte im selben Kapitel, Text „Abschnitt N.M „Titel“ bearbeiten“; am Rand leer |
+| `CHARACTERS_ENABLED`, Block `ALL_CHARACTERS`: `C_ID`, `C_NAME`, `C_ON` | nur wenn das Buch Figuren hat (#53): `1`; je Figur ID, Name und `1`, wenn sie in `characters` des Abschnittskopfs steht |
 
 ### `abschnittssteuerung.html`
 
@@ -222,6 +224,30 @@ Seite „Daten“ (`render_view.py data`, `START.md`, „Daten“). Quellen: `li
 | `B_CHECK`, `B_CHECK_TEXT` | neuester Lauf „Projektdateien prüfen“ auf dem Buch-Branch: `ok`, `fail` oder leer |
 | Block `SECRETS`: `S_NAME`, `S_STATE`, `S_TEXT` | `secret_names` und `secrets` aus `library.json`: `yes` hinterlegt, `no` fehlt, `unknown` noch nicht geprüft |
 | Block `RUNS`: `R_NAME`, `R_STATE`, `R_TEXT`, `R_URL` | je Action der neueste Lauf aus `runs`: Name, `ok`/`fail`/`other`, Ergebnis, Datum, Branch, Link |
+
+### `figuren.html`
+
+Liste der Figuren (`render_view.py characters`, #53).
+
+| Platzhalter | Quelle |
+|---|---|
+| `PROJECT_TITLE_SHORT` | wie in der Projektübersicht |
+| Block `CHARACTERS`: `C_ID`, `C_NAME`, `C_ROLE`, `C_SHORT`, `C_USED` | je Figur aus `characters` und dem Kopf der Figurendatei: ID, Name, Rolle deutsch, `short`, Abschnitte bzw. Teile mit dieser Figur im Kopf (`character_usage`), sonst „–“ |
+
+### `figur-bearbeiten.html`
+
+Formular einer Figur (`render_view.py characters <name|id>`).
+
+| Platzhalter | Quelle |
+|---|---|
+| `PROJECT_TITLE_SHORT` | wie in der Projektübersicht |
+| `CHARACTER_ID`, `CHARACTER_NAME`, `CHARACTER_ROLE` | `id`, `name`, `role` (main, supporting, minor) |
+| `CHARACTER_SHORT`, `CHARACTER_AGE`, `CHARACTER_APPEARANCE`, `CHARACTER_VOICE`, `CHARACTER_VISUAL` | gleichnamige Felder des Kopfs (`short`, `age`, `appearance`, `voice`, `visual`), sonst leer |
+| `CHARACTER_TRAITS` | `traits`, kommagetrennt |
+| `CHARACTER_DESCRIPTION`, `CHARACTER_NOTES` | `## Beschreibung`, `## Notizen` (Platzhalter der Vorlage = leer) |
+| `CHARACTER_USED` | Abschnitte bzw. Teile mit dieser Figur, sonst „noch nirgends“ |
+| Block `RELATIONS`: `R_TO`, `R_NAME`, `R_KIND` | `relations`: ID und Name der anderen Figur, Art |
+| Block `OTHERS`: `O_ID`, `O_NAME` | alle anderen Figuren (Auswahl für Beziehungen) |
 
 ### `vor-nachspann.html`
 
@@ -380,7 +406,8 @@ Gestaltung:
 |---|---|
 | Bücherregal | `1`–`N` Buch öffnen · `N` Neues Buch · `D` Daten |
 | Daten | `Ü` Bücherregal · `U` Update einspielen (nur wenn dahinter) |
-| Projektübersicht | `L` Bücherregal (nur ab zwei Büchern) · `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · Titel eines Teils von Vor- oder Nachspann öffnet ihn (nur vorhandene) · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `V` Vor- und Nachspann · `A` Neue Auflage · `E` Einstellungen |
+| Figuren | Name einer Figur öffnet sie · `+ Name` legt eine Figur an (optional `Rolle: Nebenfigur`) · `Ü` Übersicht |
+| Projektübersicht | `FI` Figuren · `L` Bücherregal (nur ab zwei Büchern) · `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · Titel eines Teils von Vor- oder Nachspann öffnet ihn (nur vorhandene) · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `V` Vor- und Nachspann · `A` Neue Auflage · `E` Einstellungen |
 | Vor- und Nachspann | Titel eines Teils öffnet ihn · `+ Widmung` usw. legt einen fehlenden Teil an · `Ü` Übersicht |
 | Glossar | `+ Begriff: Erklärung` aufnehmen · `Begriff: neue Erklärung` ändern · `- Begriff` entfernen · `VB` Begriffe vorschlagen · `F` Titel, Ziel, Einleitung · `FS`, `FA` Freigaben · `RS` Recherche je Begriff · `Ü` Übersicht |
 | Teil des Vor- oder Nachspanns | `T` Text ändern · `F` Titel und Ziel (Vorwort, Nachwort: dazu Verfasser, Ort und Datum) · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` freigeben bzw. zurücknehmen · `RS`, `GS` Recherche bzw. Ghostwriting sofort (Vorwort, Prolog, Epilog, Nachwort) · `Ü` Übersicht |
@@ -422,6 +449,10 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `view.chapter` | `chapter_id` | Kapitelansicht zeigen | Vorlage `kapitelansicht` (`render_view.py chapter N`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.section` | `section_id` | Abschnittsformular zeigen | Vorlage `abschnitt-bearbeiten` (`render_view.py section N.M`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.matter` | `matter_id` (leer = alle Teile) | Teil von Vor- oder Nachspann zeigen bzw. die Liste „Vor- und Nachspann“ (#57) | Vorlage `teil-bearbeiten` (`render_view.py matter <teil>`) bzw. `vor-nachspann` (`render_view.py matter`) | `GET /v1/projects/{owner}/{repo}` |
+| `view.characters` | – | Liste der Figuren zeigen (#53, Befehl `Figuren`) | Vorlage `figuren` (`render_view.py characters`) | `GET /v1/projects/{owner}/{repo}` |
+| `view.character` | `character_id` | Formular einer Figur zeigen | Vorlage `figur-bearbeiten` (`render_view.py characters <id>`) | `GET /v1/projects/{owner}/{repo}` |
+| `character.create` | `name`, `role`, `expected_head_sha` | Figur anlegen | `python scripts/characters.py . add "<Name>" --role <role>`, Commit nach `START.md`, „Figuren“; danach das Formular der neuen Figur | `POST …/characters` |
+| `character.update` | `character_id`, `name`, `role`, `short`, `age`, `appearance`, `traits` (Liste), `voice`, `visual`, `relations` (Liste `{to, kind}`), `description`, `notes`, `expected_head_sha` | Figur speichern | `python scripts/characters.py . update <id> '<json>'`, ein Commit; danach das Formular | `PATCH …/characters/{character_id}` |
 | `matter.create` | `kind` (`dedication` \| `foreword` \| `prologue` \| `epilogue` \| `afterword` \| `glossary` \| `acknowledgments`), `title` (optional), `expected_head_sha` | Teil anlegen | `python scripts/matter.py . add <art> [--title …]`, Commit nach `START.md`, „Vor- und Nachspann“; danach der neue Teil | `POST …/matter` |
 | `matter.update` | `matter_id`, `title`, `goal`, `manuscript`, bei Vorwort und Nachwort `byline`, `place_date`, `expected_head_sha` (nie `approvals`) | Teil speichern | Datei in `matter/` (und bei neuem Titel `ghostwriter.yml`) schreiben, danach der Teil | `PATCH …/matter/{matter_id}` |
 | `matter.glossary.update` | `matter_id`, `title`, `goal`, `intro`, `set` (Liste `{term, explanation}`), `remove` (Liste von Begriffen), `expected_head_sha` | Glossar-Einträge aufnehmen, ändern, entfernen (#58) | `scripts/matter.py glossary-set` (neue Begriffe mit `--new`) bzw. `glossary-remove`, ein Commit, danach das Glossar | `PATCH …/matter/{matter_id}/glossary` |
@@ -455,7 +486,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `section.create` | `chapter_id`, `title`, `goal`, `summary`, `fact_check`, `position` (Index, 0 = am Anfang), `position_label`, `expected_head_sha` | Abschnitt anlegen | Abschnittsdatei aus `templates/section.md` anlegen und in `structure.chapters` eintragen, danach Abschnittsformular | `POST …/chapters/{chapter_id}/sections` |
 | `section.reorder.open` | `chapter_id` | Abschnittsreihenfolge ändern | Vorlage `reihenfolge` (`render_view.py section-reorder N`) | – |
 | `section.reorder` | `chapter_id`, `order` (alle Abschnitts-IDs des Kapitels in neuer Reihenfolge), `expected_head_sha` | Abschnittsreihenfolge speichern | `sections` des Kapitels umsortieren; IDs und Dateinamen bleiben; danach Kapitelansicht | `POST …/chapters/{chapter_id}/sections/reorder` |
-| `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `manuscript`, `expected_head_sha` (nie `approvals`) | Abschnitt speichern | Abschnittsdatei schreiben, danach Abschnittsformular | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
+| `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `manuscript`, bei Büchern mit Figuren `characters` (Liste von IDs, #53), `expected_head_sha` (nie `approvals`) | Abschnitt speichern | Abschnittsdatei schreiben, danach Abschnittsformular | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
 | `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen und Lauf-Datei, Ergebnis und Statuswechsel speichern (`START.md`, „KI-Lauf „Sofort““); ein Kosteneintrag nur für kostenpflichtige KI-API-Aufrufe über das Backend, nie für Chat-Arbeit | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
 | `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | Vorlage `auflage-erzeugen` (`render_view.py edition-create`) | – |
 | `edition.proof` | – | Probedruck erstellen | Action „Probedruck“ per `workflow_dispatch` starten oder Link *Run workflow* geben; danach Link zum Lauf (Download unter *Artifacts*) | `POST /repos/{owner}/{repo}/actions/workflows/proof.yml/dispatches` |

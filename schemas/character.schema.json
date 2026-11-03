@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/character.schema.json",
+  "title": "Kopf einer Figurendatei (characters/<char-id>.md, #53)",
+  "type": "object",
+  "required": ["id", "name", "role"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^char-[a-z0-9][a-z0-9-]*$"},
+    "name": {"type": "string", "minLength": 1},
+    "role": {"enum": ["main", "supporting", "minor"], "description": "Hauptfigur, Nebenfigur, Randfigur"},
+    "short": {"type": "string", "description": "ein Satz, wer die Figur ist"},
+    "age": {"type": "string"},
+    "appearance": {"type": "string"},
+    "traits": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "voice": {"type": "string", "description": "Sprechweise, typische Wendungen"},
+    "visual": {"type": "string", "description": "feste Bildbeschreibung für Illustrationen (#54)"},
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["to", "kind"],
+        "properties": {
+          "to": {"type": "string", "pattern": "^char-[a-z0-9][a-z0-9-]*$"},
+          "kind": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

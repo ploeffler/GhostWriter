@@ -57,6 +57,8 @@ Die Pfade sind Entwurf und müssen mit dem implementierten Dienst übereinstimme
 | POST | /v1/projects/{owner}/{repo}/sections/{section_id}/writing-approval | Schreibfreigabe nach Zustimmung erteilen |
 | DELETE | /v1/projects/{owner}/{repo}/sections/{section_id}/writing-approval | Schreibfreigabe zurücknehmen |
 | POST | /v1/projects/{owner}/{repo}/matter | Teil von Vor- oder Nachspann anlegen (`kind`, `title`; #57) |
+| POST | /v1/projects/{owner}/{repo}/characters | Figur anlegen (`name`, `role`; #53) |
+| PATCH | /v1/projects/{owner}/{repo}/characters/{character_id} | Figur speichern (alle Felder; die ID bleibt) |
 | PATCH | /v1/projects/{owner}/{repo}/matter/{matter_id} | Titel, Ziel und Text eines Teils speichern, bei Vorwort und Nachwort auch Verfasser und Ort/Datum (nie Freigaben) |
 | PATCH | /v1/projects/{owner}/{repo}/matter/{matter_id}/glossary | Glossar-Einträge aufnehmen, ändern oder entfernen; doppelte Begriffe werden abgelehnt (#58) |
 | POST | /v1/projects/{owner}/{repo}/matter/{matter_id}/writing-approval | Schreibfreigabe eines Teils nach Zustimmung erteilen |

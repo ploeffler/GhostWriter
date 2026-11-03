@@ -19,6 +19,9 @@ Geprüft werden:
   Kopf gegen schemas/matter.schema.json, ID, Art und Titel wie in ghostwriter.yml,
   ID passt zur Art (mat-widmung …), Datei unter matter/, jede Art höchstens einmal;
   Verfasser und Ort/Datum nur bei Vorwort und Nachwort; Glossar ohne doppelte Begriffe
+- Figuren (characters, #53): Datei, Kopf gegen schemas/character.schema.json,
+  ID und Name wie in ghostwriter.yml, Beziehungen und `characters` in Abschnitten
+  bzw. Teilen verweisen auf bekannte Figuren
 - publication.isbn_print/isbn_ebook (#68): gültige ISBN-10 bzw. ISBN-13 (Prüfziffer)
 - print/cover (#68): Umschlag nur mit Druckprofil; bei bod/custom Rückenbreite
   angegeben; Papier nur bei kdp; Bilder des Umschlags vorhanden
@@ -53,6 +56,7 @@ SECTION = validator('section.schema.json')
 COSTS = validator('costs.schema.json')
 APPROVALS = validator('approvals.schema.json')
 MATTER_HEAD = validator('matter.schema.json')
+CHARACTER_HEAD = validator('character.schema.json')
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
 
 
@@ -229,6 +233,54 @@ def check_project(project_dir):
         value = (config.get('publication') or {}).get(field)
         if value and not isbn_ok(value):
             errors.append(f'{config_path}: publication.{field}: {value} ist keine gültige ISBN (Prüfziffer)')
+
+    # Figuren (#53): Datei, Kopf, ID und Name wie in ghostwriter.yml, Beziehungen und Verweise bekannt
+    char_ids, char_heads = set(), {}
+    for item in config.get('characters') or []:
+        cid = item['id']
+        if cid in char_ids:
+            errors.append(f'{config_path}: Figuren-ID doppelt: {cid}')
+        char_ids.add(cid)
+        path = base / item['path']
+        if not path.is_file():
+            errors.append(f'{path}: fehlt')
+            continue
+        m = FRONTMATTER.match(path.read_text(encoding='utf-8'))
+        head = None
+        try:
+            head = yaml.safe_load(m.group(1)) if m else None
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f'{path}: Kopf nicht lesbar: {exc}')
+            continue
+        if head is None:
+            errors.append(f'{path}: Kopf (--- … ---) fehlt')
+            continue
+        errs = schema_errors(CHARACTER_HEAD, head, path)
+        errors += errs
+        if errs:
+            continue
+        if head['id'] != cid:
+            errors.append(f'{path}: ID {head["id"]} statt {cid} wie in ghostwriter.yml')
+        if head['name'] != item['name']:
+            errors.append(f'{path}: Name weicht von ghostwriter.yml ab')
+        char_heads[path] = head
+    for path, head in char_heads.items():
+        for r in head.get('relations') or []:
+            if r['to'] not in char_ids:
+                errors.append(f'{path}: Beziehung zu unbekannter Figur {r["to"]}')
+    refs = [(base / s['path']) for ch in config['structure']['chapters'] for s in ch['sections']] + \
+           [(base / i['path']) for _, i in matter_items(config)]
+    for path in refs:
+        if not path.is_file():
+            continue
+        m = FRONTMATTER.match(path.read_text(encoding='utf-8'))
+        try:
+            head = yaml.safe_load(m.group(1)) if m else {}
+        except Exception:  # noqa: BLE001 - Lesefehler meldet die Abschnittsprüfung
+            continue
+        for cid in (head or {}).get('characters') or []:
+            if cid not in char_ids:
+                errors.append(f'{path}: unbekannte Figur {cid}')
 
     wf = config['workflow']
     if wf['current_chapter_id'] and wf['current_chapter_id'] not in chapter_ids:

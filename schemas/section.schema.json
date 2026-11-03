@@ -10,6 +10,7 @@
     "title": {"type": "string", "minLength": 1},
     "status": {"enum": ["planned", "research", "brainstorming", "ready_to_write", "writing", "revision", "fact_check", "ready_for_approval", "approved"]},
     "fact_check": {"enum": ["disabled", "optional", "requested"]},
+    "characters": {"type": "array", "items": {"type": "string", "pattern": "^char-[a-z0-9][a-z0-9-]*$"}, "uniqueItems": true, "description": "Figuren, die vorkommen (#53)"},
     "approvals": {
       "type": "object",
       "required": ["writing", "section"],

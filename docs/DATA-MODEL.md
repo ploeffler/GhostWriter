@@ -23,6 +23,7 @@ repository/
 │   ├── glossar.md
 │   └── danksagung.md
 ├── cover/                 # Umschlag (#68): Bilder, rueckseite.md (Klappentext, Autorentext)
+├── characters/            # Figuren (#53), je Figur char-<name>.md; nie im Buch
 ├── ghostwriter-index.json # Übersichtsdatei, erzeugt von scripts/build_index.py (nicht von Hand ändern)
 ├── chapters/
 │   ├── 01-einleitung/
@@ -103,6 +104,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `ai_settings` | globale KI-Regeln: `hallucination_policy` (`strict`), `source_policy` (`required`), `uncertainty_policy` (`explicit`), `creativity` (`balanced`), `web_research` (`research`); dürfen nur strenger werden (`START.md`, Abschnitt 3) |
 | `ai_providers` | vorhandene KI-Dienste (`available`), Dienst und Modell je Aufgabe, Einstellungen je Dienst (`services`); siehe [PROVIDERS.md](PROVIDERS.md) |
 | `structure.chapters` | Kapitel in Reihenfolge, je mit `id`, `title`, `path`, `status` und `sections` (je `id`, `title`, `path`) |
+| `characters` | Figuren (#53) in Reihenfolge, je `id` (`char-…`), `name`, `path`; fehlt = keine (siehe „Figuren“) |
 | `structure.front_matter`, `structure.back_matter` | Vor- und Nachspann (#57, #58): Teile vor Kapitel 1 (Widmung, Vorwort, Prolog) bzw. nach dem letzten Kapitel (Epilog, Nachwort, Glossar, Danksagung), je mit `id`, `kind`, `title`, `path`; fehlen = keine (siehe „Vor- und Nachspann“) |
 
 | `ai_disclosure` | KI-Angabe im Buch (#78): `mode` (`none`, `short`, `detailed`, `custom`), `placement` (`imprint`, `foreword`, `afterword`, `page`), `name_services`, `text` (bestätigter Wortlaut; nur dieser kommt ins Buch); fehlt = keine Angabe (siehe „KI-Angabe im Buch“) |
@@ -263,9 +265,32 @@ ai_disclosure:
 
 `scripts/ai_disclosure.py suggest` schlägt den Wortlaut aus den Köpfen der Lauf-Dateien vor (`type` → Aufgabe, `provider` → Dienst aus `providers.yml`; `chat` erscheint als „ein Chat-Assistent“). Ins Buch kommt nur `text`, also ein bestätigter Wortlaut; ändern sich `mode` oder `name_services`, leert `set` ihn wieder. Satz: im Impressum als weitere Zeilen, am Ende von Vorwort bzw. Nachwort vor Verfasser und Ort/Datum (Block `::: ki-angabe`), als eigene Seite „Hinweis zur KI-Nutzung“ unnummeriert am Ende; in allen drei Formaten und im Probedruck. Ist eine Angabe gewählt, verhindern ein fehlender Wortlaut oder ein fehlender Ort (Impressum ausgeschaltet, kein freigegebenes Vorwort bzw. Nachwort) die Auflage.
 
+## Figuren
+
+Optional auf Buch-Ebene (#53), etwa für Romane, Kinderbücher oder Fallbeispiele. Je Figur eine Datei `characters/char-<slug>.md` (Vorlage `templates/character.md`, Schema [`schemas/character.schema.json`](../schemas/character.schema.json)); `characters/` gehört dem Buch.
+
+```yaml
+---
+id: char-opi
+name: Opi
+role: supporting        # main (Hauptfigur) | supporting (Nebenfigur) | minor (Randfigur)
+short: Strolchis Besitzer, lebt am Waldrand
+age: '78'
+appearance: groß, weißer Bart
+traits: [geduldig, brummig]
+voice: bedächtig, sagt oft „na, schau an“
+visual: weißer Bart, grüner Filzhut, karierte Weste   # gleich bleibende Bildmerkmale (#54)
+relations:
+- to: char-strolchi
+  kind: Besitzer          # „Opi ist Besitzer von Strolchi“
+---
+```
+
+Darunter `## Beschreibung` und `## Notizen`. Abschnitte und Teile von Vor- und Nachspann nennen ihre Figuren im Kopf: `characters: [char-strolchi, char-opi]`. Die Prüfung kontrolliert Dateien, IDs, Namen, Beziehungen und diese Verweise. `scripts/characters.py` legt Figuren an (`add`), ordnet sie zu (`assign`), speichert das Formular (`update`) und gibt den Kontext für KI-Läufe aus (`context <abschnitt>`). Figuren kommen nicht ins Buch.
+
 ## Übersichtsdatei
 
-`ghostwriter-index.json` wird von `scripts/build_index.py` erzeugt, im Repository von der Action „Übersichtsdatei aktualisieren“ (`.github/workflows/index.yml`) nach jedem Push, der Buchdateien ändert. Sie enthält je Kapitel und Abschnitt Status, Freigaben, Kosten-Summen (Betrag, Schätzkennzeichen, Text) und Markerzahlen je Art, dazu Projektsumme, Auflage und `workflow.current_*`, bei Vor- und Nachspann unter `matter` je Teil Art, Bereich, Titel, Status, Freigaben und Marker, aber keinen Manuskripttext und keine Zeitstempel. Die Prüf-Action meldet eine veraltete Datei als Hinweis. Ohne Kapitel gibt es keine Übersichtsdatei.
+`ghostwriter-index.json` wird von `scripts/build_index.py` erzeugt, im Repository von der Action „Übersichtsdatei aktualisieren“ (`.github/workflows/index.yml`) nach jedem Push, der Buchdateien ändert. Sie enthält je Kapitel und Abschnitt Status, Freigaben, Kosten-Summen (Betrag, Schätzkennzeichen, Text) und Markerzahlen je Art, dazu Projektsumme, Auflage und `workflow.current_*`, bei Vor- und Nachspann unter `matter` je Teil Art, Bereich, Titel, Status, Freigaben und Marker, bei Figuren unter `characters` je Figur ID, Name, Rolle und wo sie vorkommt, aber keinen Manuskripttext und keine Zeitstempel. Die Prüf-Action meldet eine veraltete Datei als Hinweis. Ohne Kapitel gibt es keine Übersichtsdatei.
 
 ## Freigabe-Protokoll
 

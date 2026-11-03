@@ -159,6 +159,20 @@
       },
       "additionalProperties": false
     },
+    "characters": {
+      "type": "array",
+      "description": "Figuren des Buchs (#53) in Reihenfolge; fehlt = keine",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "path"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^char-[a-z0-9][a-z0-9-]*$"},
+          "name": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "pattern": "^characters/[^/]+\\.md$"}
+        },
+        "additionalProperties": false
+      }
+    },
     "structure": {
       "type": "object",
       "required": ["chapters"],

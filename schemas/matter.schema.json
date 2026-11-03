@@ -12,6 +12,7 @@
     "fact_check": {"enum": ["disabled", "optional", "requested"]},
     "byline": {"type": "string", "description": "Vorwort, Nachwort: Verfasser, wenn nicht der Autor des Buchs; am Ende gesetzt (#58)"},
     "place_date": {"type": "string", "description": "Vorwort, Nachwort: Ort und Datum am Ende, z. B. „Graz, im Oktober 2026“ (#58)"},
+    "characters": {"type": "array", "items": {"type": "string", "pattern": "^char-[a-z0-9][a-z0-9-]*$"}, "uniqueItems": true, "description": "Figuren, die vorkommen (#53)"},
     "approvals": {
       "type": "object",
       "required": ["writing", "section"],
