@@ -13,6 +13,8 @@ Arten (`--kind`, Vorgabe characters; mehrere mit Komma):
   characters  Figuren (#123); übernommen mit scripts/characters.py apply
   summaries   Kurzbeschreibung und Ziel je Abschnitt und Kapitel (#124); übernommen in die Abschnittsdatei
               („## Ziel des Abschnitts“, „## Kurzbeschreibung“) bzw. die README.md des Kapitels
+  style       Stilprofil (Erzählperspektive, Zeitform, Anrede, Sprachebene, Ton, Stilmittel) je Kapitel, dazu
+              Zahlen ohne KI (Wörter je Satz, Anteil wörtlicher Rede); übernommen nach ghostwriter.yml (`style`)
 
 Läuft in der Action „Analyse im Hintergrund“ (analyse.yml), lokal genauso. Ablauf je Art:
   1. Vorbereiten ohne KI: das Buch je Kapitel (Vor- und Nachspann als eigener
@@ -31,7 +33,9 @@ Läuft in der Action „Analyse im Hintergrund“ (analyse.yml), lokal genauso. 
      Aufruf mit `analysis.merge_model` für Spitznamen („Opi“ = „Opa Karl“);
      unterschiedliche Angaben (z. B. Alter) kommen als Widerspruch in die
      Liste, entschieden wird nichts. Kurzbeschreibungen: ohne KI in
-     Buchreihenfolge (Kapitel, dann seine Abschnitte).
+     Buchreihenfolge (Kapitel, dann seine Abschnitte). Stilprofil: ohne KI je
+     Angabe der häufigste Wert (gewichtet nach Wörtern), abweichende Kapitel
+     als Varianten.
   5. Ablage: analysis/<art>/run-NNN.md (Lauf) und run-NNN.json (Vorschläge,
      `kind` und `items`), Kosten je Aufruf in costs/project.yml (source:
      action_api). Nichts wird automatisch übernommen; ausgewählt wird im Chat
@@ -105,6 +109,21 @@ Regeln:
   """ + QUOTE_RULE + """}].
 Antworte nur mit JSON: {"sections": [{"where": "1.2", "short": "", "goal": "", "evidence": []}],
 "chapter": {"short": "", "goal": "", "evidence": []}}"""
+
+
+STYLE_SYSTEM = """Du liest ein Kapitel eines Buchs und beschreibst seinen Stil, nur aus dem Text:
+- "perspective": Erzählperspektive: ich | du | wir | er/sie | auktorial | wechselnd
+- "tense": Zeitform des Erzählens: Präsens | Präteritum | Perfekt | wechselnd
+- "address": Anrede des Lesers: du | Sie | ihr | keine
+- "register": Sprachebene: umgangssprachlich | neutral | gehoben | fachlich
+- "tone": Ton in zwei bis vier Wörtern, mit Komma getrennt (z. B. "nüchtern, warmherzig")
+- "features": bis zu fünf auffällige Stilmittel in wenigen Wörtern (z. B. "kurze Sätze", "Fragen an den Leser")
+Regeln: Nur was der Text zeigt, keine Wertung, keine Verbesserungsvorschläge. Was nicht erkennbar ist, bleibt leer.
+Jede Angabe braucht eine Fundstelle: evidence = [{"field": "perspective|tense|address|register|tone|features",
+"where": "<Abschnitt, z. B. 1.2>", """ + QUOTE_RULE + """}].
+Antworte nur mit JSON: {"perspective": "", "tense": "", "address": "", "register": "", "tone": "", "features": [],
+"evidence": []}"""
+
 
 
 def settings(config):
@@ -443,6 +462,106 @@ def summaries_combine(base, config, results, todo, prev, ask):
     return {'items': items}, body
 
 
+# Stilprofil (#124): Angaben je Kapitel, Zahlen ohne KI
+
+STYLE_FIELDS = ('perspective', 'tense', 'address', 'register', 'tone', 'features')
+STYLE_LISTS = ('tone', 'features')   # mehrere Werte, mit Komma
+
+
+def text_stats(texts):
+    """Zahlen ohne KI: Wörter, Sätze, Wörter in wörtlicher Rede."""
+    words = sentences = dialogue = 0
+    for t in texts.values():
+        t = re.sub(r'\[[^\]]*\]', ' ', t)   # Marker
+        words += len(re.findall(r"[^\W_]+(?:[-’'][^\W_]+)*", t))
+        sentences += len(re.findall(r'[^.!?…]*[^\W_][^.!?…]*[.!?…]+', t)) or 0
+        for q in re.findall(r'„([^“”]*)[“”]|»([^«]*)«|"([^"]*)"', t):
+            dialogue += len(re.findall(r"[^\W_]+", ''.join(q)))
+    return {'words': words, 'sentences': max(sentences, 1), 'dialogue_words': dialogue}
+
+
+def as_list(v):
+    if isinstance(v, list):
+        return [str(x).strip() for x in v if str(x).strip()]
+    return [x.strip() for x in str(v or '').split(',') if x.strip()]
+
+
+def verify_style(answer, texts):
+    """Stil eines Blocks: nur Angaben mit eigener Fundstelle; dazu die Zahlen ohne KI. → (angaben, verworfen)"""
+    ntexts = {k: norm(v) for k, v in texts.items()}
+    answer = answer or {}
+    ok, dropped = [], 0
+    for e in answer.get('evidence') or []:
+        h = check_quote(e, ntexts)
+        if h and h['field'] in STYLE_FIELDS:
+            ok.append(h)
+        else:
+            dropped += 1
+    have = {e['field'] for e in ok}
+    out = {'stats': text_stats(texts), 'evidence': ok}
+    for f in STYLE_FIELDS:
+        v = as_list(answer.get(f)) if f in STYLE_LISTS else str(answer.get(f) or '').strip()
+        if v and f in have:
+            out[f] = v
+        elif v:
+            dropped += 1
+    return out, dropped
+
+
+def block_labels(config):
+    labels = {'matter': 'Vor- und Nachspann'}
+    for ci, ch in enumerate(config['structure']['chapters'], start=1):
+        labels[ch['id']] = f'Kapitel {ci}'
+    return labels
+
+
+def style_combine(base, config, results, todo, prev, ask):
+    """Stilprofil fürs ganze Buch: je Angabe der häufigste Wert (gewichtet nach Wörtern), abweichende Kapitel als
+    Varianten; bei Ton und Stilmitteln die häufigsten Werte. Zahlen über alle Blöcke. → (vorschläge, md)"""
+    labels = block_labels(config)
+    order = [k for k in labels if k in results]
+    total = {'words': 0, 'sentences': 0, 'dialogue_words': 0}
+    for k in order:
+        for x in total:
+            total[x] += (results[k].get('stats') or {}).get(x, 0)
+    items = []
+    for f in STYLE_FIELDS:
+        tally, where, ev = {}, {}, {}
+        for k in order:
+            r = results[k]
+            vals = r.get(f) if f in STYLE_LISTS else ([r[f]] if r.get(f) else [])
+            w = (r.get('stats') or {}).get('words', 1) or 1
+            for v in vals or []:
+                key = v.casefold()
+                tally[key] = tally.get(key, 0) + w
+                where.setdefault(key, (v, []))[1].append(labels[k])
+                ev.setdefault(key, []).extend(e for e in r.get('evidence') or [] if e['field'] == f)
+        if not tally:
+            continue
+        ranked = sorted(tally, key=lambda x: -tally[x])
+        if f in STYLE_LISTS:
+            top = ranked[:4 if f == 'tone' else 6]
+            items.append({'field': f, 'value': ', '.join(where[x][0] for x in top), 'variants': [],
+                          'evidence': [e for x in top for e in ev[x][:1]][:3]})
+        else:
+            items.append({'field': f, 'value': where[ranked[0]][0],
+                          'variants': [{'value': where[x][0], 'where': where[x][1]} for x in ranked[1:]],
+                          'evidence': ev[ranked[0]][:2]})
+    stats = {'words': total['words'],
+             'sentence_length_avg': round(total['words'] / max(total['sentences'], 1), 1) if total['words'] else None,
+             'dialogue_share': round(total['dialogue_words'] / total['words'], 2) if total['words'] else None}
+    body = ['## Vorschläge', '']
+    body += [f'- **{STYLE_DE[it["field"]]}:** {it["value"]}' + (' (abweichend: ' + '; '.join(
+        f'{v["value"]} in {", ".join(v["where"])}' for v in it['variants']) + ')' if it['variants'] else '') for it in items] or ['*keine*']
+    body += ['', '## Zahlen (ohne KI)', '', f'- Wörter: {stats["words"]}',
+             f'- Wörter je Satz im Mittel: {stats["sentence_length_avg"]}', f'- Anteil wörtlicher Rede: {stats["dialogue_share"]}']
+    return {'items': items, 'stats': stats}, body
+
+
+STYLE_DE = {'perspective': 'Erzählperspektive', 'tense': 'Zeitform', 'address': 'Anrede', 'register': 'Sprachebene',
+            'tone': 'Ton', 'features': 'Stilmittel'}
+
+
 # Je Art: label (für Texte), offer (Hinweis in der Übersicht), icon (Tabler-Symbol), system (Auftrag je Block),
 # context (zusätzlicher Text vor dem Kapitel), verify, combine, matter (Vor- und Nachspann lesen), output_tokens
 # (Schätzung je Block), merge_tokens (Schätzung Zusammenführen), merge (Zusammenführen mit merge_model).
@@ -454,6 +573,9 @@ KINDS = {
     'summaries': {'label': 'Kurzbeschreibungen', 'offer': 'Kurzbeschreibungen und Ziele', 'icon': 'file-description',
                   'system': SUMMARIES_SYSTEM, 'context': None, 'verify': verify_summaries, 'combine': summaries_combine,
                   'matter': False, 'output_tokens': 1200, 'merge_tokens': (0, 0), 'merge': False},
+    'style': {'label': 'Stilprofil', 'offer': 'Stilprofil', 'icon': 'feather', 'system': STYLE_SYSTEM, 'context': None,
+              'verify': verify_style, 'combine': style_combine, 'matter': True, 'output_tokens': 500,
+              'merge_tokens': (0, 0), 'merge': False},
 }
 
 
@@ -641,7 +763,41 @@ def apply_summaries(base, config, data, choices):
     return changed
 
 
-APPLY = {'summaries': apply_summaries}
+def set_top_block(text, key, data):
+    """Oberste Ebene `key:` in einer YAML-Datei ersetzen bzw. anhängen; der Rest bleibt Zeichen für Zeichen."""
+    block = yaml.safe_dump({key: data}, allow_unicode=True, sort_keys=False, width=10**6)
+    m = re.search(rf'(?m)^{re.escape(key)}:.*\n(?:(?:[ \t]+.*|[ \t]*)\n)*', text)
+    if m:
+        return text[:m.start()] + block + text[m.end():]
+    return text.rstrip('\n') + '\n' + block
+
+
+def apply_style(base, config, data, choices):
+    """Stilprofil in ghostwriter.yml (`style`): die gewählten Angaben (mit geändertem Wert), dazu die Zahlen ohne KI
+    und der Lauf. choices: [{index, value}]. → [geänderte Dateien]"""
+    items = data.get('items') or []
+    style = {}
+    for c in choices:
+        it = items[int(c['index'])]
+        v = c.get('value', it['value'])
+        v = as_list(v) if it['field'] in STYLE_LISTS else str(v or '').strip()
+        if v:
+            style[it['field']] = v
+    if not style:
+        return []
+    old = dict(config.get('style') or {})
+    old.update(style)
+    stats = data.get('stats') or {}
+    for k in ('sentence_length_avg', 'dialogue_share'):
+        if stats.get(k) is not None:
+            old[k] = stats[k]
+    old['source'] = f'analysis/style/{data.get("run")}'
+    path = Path(base) / 'ghostwriter.yml'
+    path.write_text(set_top_block(path.read_text(encoding='utf-8'), 'style', old), encoding='utf-8')
+    return ['ghostwriter.yml']
+
+
+APPLY = {'summaries': apply_summaries, 'style': apply_style}
 
 
 def apply(base, run_id, kind, choices):

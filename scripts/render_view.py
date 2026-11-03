@@ -639,8 +639,8 @@ def limit_summary(base, config):
 
 
 # Hintergrundläufe (#123, #124): Kürzel und Symbol je Art in der Textfassung der Projektübersicht
-ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA'}
-ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝'}
+ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA', 'style': 'SA'}
+ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝', 'style': '🪶'}
 
 
 def project_view(base, config, args):
@@ -2113,7 +2113,46 @@ def summaries_suggest_view(base, config, args, data, run_text):
     return fill('kurzbeschreibung-vorschlag.html', values, {'SUGGESTIONS': rows})
 
 
-ANALYSIS_VIEWS = {'summaries': summaries_suggest_view}
+def style_suggest_view(base, config, args, data, run_text):
+    """Stilprofil (Vorlage stilprofil-vorschlag): je Angabe Vorschlag, bisheriger Wert aus `style`, abweichende
+    Kapitel, Fundstellen; dazu die Zahlen ohne KI. Vorangehakt: Angaben, die bisher fehlen."""
+    import analyze
+    now = config.get('style') or {}
+    rows = []
+    for i, it in enumerate(data.get('items') or []):
+        cur = now.get(it['field'])
+        cur = ', '.join(cur) if isinstance(cur, list) else str(cur or '')
+        rows.append({'S_IDX': i, 'S_FIELD': it['field'], 'S_LABEL': analyze.STYLE_DE.get(it['field'], it['field']),
+                     'S_VALUE': it['value'], 'S_NOW': cur, 'S_ON': '' if cur else '1',
+                     'S_VARIANTS': '; '.join(f'{v["value"]} in {", ".join(v["where"])}' for v in it.get('variants') or []),
+                     'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in (it.get('evidence') or [])[:2])})
+    st = data.get('stats') or {}
+    parts = []
+    if st.get('sentence_length_avg') is not None:
+        parts.append(f'{str(st["sentence_length_avg"]).replace(".", ",")} Wörter je Satz')
+    if st.get('dialogue_share') is not None:
+        parts.append(f'{round(st["dialogue_share"] * 100)} % wörtliche Rede')
+    if st.get('words'):
+        parts.append(f'{st["words"]} Wörter')
+    values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'style',
+              'STATS_TEXT': ' · '.join(parts), 'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config),
+              'SUGGEST_COUNT_TEXT': plural(len(rows), 'Angabe', 'Angaben')}
+    if args.text:
+        out = [f'### 🪶 Stilprofil · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
+        if rows:
+            out += ['| # | Angabe | Vorschlag | bisher | abweichend |', '|--:|---|---|---|---|']
+            out += [f'| {r["S_IDX"] + 1} | {r["S_LABEL"]} | {r["S_VALUE"]} | {r["S_NOW"] or "–"} | {r["S_VARIANTS"] or "–"} |' for r in rows]
+        else:
+            out += ['*Keine Angaben mit Fundstelle.*']
+        out += ['', f'Gezählt ohne KI: {values["STATS_TEXT"] or "–"}', '',
+                'Das Stilprofil steht in `ghostwriter.yml` (`style`) und ist Vorgabe fürs Ghostwriting. Der Text bleibt unverändert.',
+                '', '---', menu([('Übernehmen: 1, 2', 'diese Angaben übernehmen'), ('Alle', 'alle übernehmen'),
+                                  ('3 = Präteritum', 'Angabe 3 mit anderem Wert'), ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    return fill('stilprofil-vorschlag.html', values, {'SUGGESTIONS': rows})
+
+
+ANALYSIS_VIEWS = {'summaries': summaries_suggest_view, 'style': style_suggest_view}
 
 
 def import_preview_view(base, config, args):

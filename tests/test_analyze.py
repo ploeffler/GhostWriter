@@ -144,6 +144,50 @@ class AnalyzeTest(unittest.TestCase):
         self.assertIsNone(analyze.latest(self.base, 'summaries'))
         self.assertEqual(validate_project.check_project(self.base), [])
 
+    def test_style(self):
+        _, config = load(self.base)
+        chs = config['structure']['chapters']
+        q1 = ' '.join(section_file(self.base, chs[0]['sections'][0])[3].split()[10:16])
+        q2 = ' '.join(section_file(self.base, chs[1]['sections'][0])[3].split()[10:16])
+        data = json.loads(self.fake.read_text(encoding='utf-8'))
+        data['style'] = {'extract': {
+            chs[0]['id']: {'perspective': 'ich', 'tense': 'Präsens', 'tone': 'warm, direkt', 'register': 'gehoben',
+                           'evidence': [{'field': 'perspective', 'where': '1.1', 'quote': q1},
+                                        {'field': 'tense', 'where': '1.1', 'quote': q1},
+                                        {'field': 'tone', 'where': '1.1', 'quote': q1},
+                                        {'field': 'register', 'where': '1.1', 'quote': 'nicht im Text vorhanden'}]},
+            chs[1]['id']: {'perspective': 'ich', 'tense': 'Präteritum', 'tone': 'warm',
+                           'evidence': [{'field': 'perspective', 'where': '2.1', 'quote': q2},
+                                        {'field': 'tense', 'where': '2.1', 'quote': q2},
+                                        {'field': 'tone', 'where': '2.1', 'quote': q2}]}}}
+        self.fake.write_text(json.dumps(data), encoding='utf-8')
+        head = analyze.run(self.base, 'style', now='2026-11-04T01:00:00+01:00')
+        res = json.loads((self.base / 'analysis/style/run-001.json').read_text(encoding='utf-8'))
+        fields = {i['field']: i for i in res['items']}
+        self.assertNotIn('register', fields)                             # ohne gültige Fundstelle
+        self.assertEqual(fields['perspective']['value'], 'ich')
+        self.assertEqual(len(fields['tense']['variants']), 1)            # abweichendes Kapitel
+        self.assertTrue(fields['tone']['value'].startswith('warm'))
+        self.assertGreater(res['stats']['sentence_length_avg'], 0)
+        self.assertGreaterEqual(head['dropped_without_evidence'], 1)
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
+                              '--draft', 'analysis/style/run-001.json'], capture_output=True, text=True, check=True).stdout
+        page = json.loads(re.search(r'GW\.render\("stilprofil-vorschlag",(.*)\)</script>', out).group(1))
+        self.assertIn('Wörter je Satz', page['STATS_TEXT'])
+        self.assertTrue(all(r['S_ON'] == '1' for r in page['SUGGESTIONS']))
+        cfg_before = (self.base / 'ghostwriter.yml').read_text(encoding='utf-8')
+        idx = [i for i, it in enumerate(res['items']) if it['field'] in ('perspective', 'tone')]
+        changed = analyze.apply(self.base, 'run-001', 'style', [{'index': idx[0]}, {'index': idx[1], 'value': 'warm, klar'}])
+        self.assertEqual(changed, ['ghostwriter.yml'])
+        cfg_after = (self.base / 'ghostwriter.yml').read_text(encoding='utf-8')
+        self.assertTrue(cfg_after.startswith(cfg_before.rstrip('\n')))  # Rest bleibt Zeichen für Zeichen
+        _, config = load(self.base)
+        self.assertEqual(config['style']['perspective'], 'ich')
+        self.assertEqual(config['style']['tone'], ['warm', 'klar'])
+        self.assertEqual(config['style']['source'], 'analysis/style/run-001')
+        self.assertEqual(validate_project.check_project(self.base), [])
+        self.assertIsNone(analyze.latest(self.base, 'style'))
+
     def test_set_part(self):
         t = '# T\n\n## Ziel des Abschnitts\n\nOffen.\n\n## Kurzbeschreibung\n\nalt\n\n## Manuskript\n\nText\n'
         t = analyze.set_part(t, 'Kurzbeschreibung', 'neu')

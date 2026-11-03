@@ -172,6 +172,22 @@
       },
       "additionalProperties": false
     },
+    "style": {
+      "type": "object",
+      "description": "Stilprofil des Buchs (#124), übernommen aus der Analyse im Hintergrund (Art style) bzw. von Hand; Vorgabe fürs Ghostwriting",
+      "properties": {
+        "perspective": {"type": "string", "description": "Erzählperspektive, z. B. ich, er/sie, auktorial"},
+        "tense": {"type": "string", "description": "Zeitform, z. B. Präteritum, Präsens"},
+        "address": {"type": "string", "description": "Anrede des Lesers: du, Sie, ihr, keine"},
+        "register": {"type": "string", "description": "Sprachebene: umgangssprachlich, neutral, gehoben, fachlich"},
+        "tone": {"type": "array", "items": {"type": "string"}, "description": "Ton in wenigen Wörtern"},
+        "features": {"type": "array", "items": {"type": "string"}, "description": "auffällige Stilmittel"},
+        "sentence_length_avg": {"type": ["number", "null"], "minimum": 0, "description": "Wörter je Satz im Mittel (ohne KI gezählt)"},
+        "dialogue_share": {"type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Anteil wörtlicher Rede an allen Wörtern (ohne KI gezählt)"},
+        "source": {"type": "string", "description": "Herkunft, z. B. analysis/style/run-001"}
+      },
+      "additionalProperties": false
+    },
     "limits": {
       "type": "object",
       "description": "Grenzen für die Automatik (#62): unter pause_below_percent pausiert, unter warn_below_percent Vorwarnung; fehlt = keine Grenzen",
