@@ -363,6 +363,7 @@ Formular „Neue Serie“ bzw. „Serie bearbeiten“ (#116, `render_view.py ser
 | `SERIES_ID` | leer bei einer neuen Serie, sonst `id` |
 | `SERIES_TITLE`, `SERIES_SUBTITLE`, `SERIES_KIND`, `SERIES_DESCRIPTION` | gesendete Werte (`--draft`), sonst die der Serie; neue Serie: leer bzw. `continuous` |
 | `ERROR_TEXT` | `error` aus `--draft`; sonst leer |
+| `SERIES_ISSN`, `SERIES_ALSO` | `issn` (sonst leer) und `also_in_series` als `true`/`false` (fehlt = `true`) |
 | Block `TAKEN`: `TAKEN_TITLE` | Titel der anderen Serien (das Formular sperrt doppelte Titel) |
 
 ### `auswahl.html`
@@ -537,7 +538,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `view.series` | `series_id` | Seite einer Serie zeigen | Vorlage `serie` (`render_view.py series <ser-id>`) | – |
 | `series.create.open` | – | Formular „Neue Serie“ zeigen | Vorlage `serie-bearbeiten` (`render_view.py series-edit`); im Einzelbuch-Repository stattdessen der Hinweis auf die Umwandlung (#40) | – |
 | `series.edit.open` | `series_id` | Formular „Serie bearbeiten“ zeigen | Vorlage `serie-bearbeiten` (`render_view.py series-edit <ser-id>`) | – |
-| `series.create` | `title`, `subtitle`, `kind`, `description`, `expected_head_sha` | Serie anlegen | `series/<ser-id>/series.yml` auf dem Standard-Branch (`scripts/series.py create`), danach Seite der Serie | `POST /v1/projects/{owner}/{repo}/series` |
+| `series.create` | `title`, `subtitle`, `kind`, `description`, optional `issn`, `also_in_series`, `expected_head_sha` | Serie anlegen | `series/<ser-id>/series.yml` auf dem Standard-Branch (`scripts/series.py create`), danach Seite der Serie | `POST /v1/projects/{owner}/{repo}/series` |
 | `series.update` | `series_id`, `title`, `subtitle`, `kind`, `description`, `expected_head_sha` | Serie speichern | `series.yml` ändern (ID bleibt; `scripts/series.py update`), danach Seite der Serie | `PATCH /v1/projects/{owner}/{repo}/series/{series_id}` |
 | `series.volume.add` | `series_id`, `branch` | Buch als nächsten Band hinzufügen | prüfen (Buch der Bibliothek, noch in keiner Serie), in `volumes` anhängen (`scripts/series.py add`), danach Seite der Serie | `POST /v1/projects/{owner}/{repo}/series/{series_id}/volumes` |
 | `series.volume.remove` | `series_id`, `branch` | Band aus der Serie entfernen | aus `volumes` streichen; das Buch bleibt unverändert (`scripts/series.py remove`), danach Seite der Serie | `DELETE /v1/projects/{owner}/{repo}/series/{series_id}/volumes/{branch}` |

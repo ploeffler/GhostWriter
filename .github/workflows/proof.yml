@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Serie (#116): Standard-Branch, andere Bände und ihre Auflagen-Tags
 
       - uses: actions/setup-python@v5
         with:
@@ -38,6 +40,7 @@ jobs:
       - name: Probedruck bauen
         env:
           FORMATS: ${{ inputs.formats }}
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           python scripts/build_edition.py . --proof --out probedruck --commit "$GITHUB_SHA" --formats "${FORMATS:-pdf}"
           {

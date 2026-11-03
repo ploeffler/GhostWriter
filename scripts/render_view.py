@@ -66,7 +66,12 @@ def attach_series(base, config):
         return
     if not ser:
         return
-    config['_series'] = {'id': ser['id'], 'title': ser.get('title', '')}
+    vols = series.volumes(ser)
+    branch = series.branch_of(base)
+    config['_series'] = {'id': ser['id'], 'title': ser.get('title', ''), 'subtitle': ser.get('subtitle', ''),
+                         'kind': ser.get('kind', ''), 'issn': ser.get('issn', ''), 'volumes': vols,
+                         'volume': vols.index(branch) + 1 if branch in vols else None,
+                         'also_in_series': ser.get('also_in_series', True), 'branch': branch}
     own = {i['id']: i for i in config.get('characters') or []}
     for it in items:
         if it['id'] in own:
@@ -1936,14 +1941,17 @@ def series_edit_view(base, config, args):
     draft = json.loads(args.draft) if args.draft else {}
     v = lambda k, d='': draft.get(k, (s or {}).get(k, d))
     values = {'SERIES_ID': (s or {}).get('id', ''), 'SERIES_TITLE': v('title'), 'SERIES_SUBTITLE': v('subtitle'),
-              'SERIES_KIND': v('kind', 'continuous'), 'SERIES_DESCRIPTION': v('description'), 'ERROR_TEXT': draft.get('error', '')}
+              'SERIES_KIND': v('kind', 'continuous'), 'SERIES_DESCRIPTION': v('description'), 'ERROR_TEXT': draft.get('error', ''),
+              'SERIES_ISSN': v('issn'), 'SERIES_ALSO': 'false' if v('also_in_series', True) is False else 'true'}
     taken = [{'TAKEN_TITLE': x['title']} for x in library_series(base, data) if not s or x['id'] != s['id']]
     if args.text:
         out = [f'### 📚 {"Serie bearbeiten" if s else "Neue Serie"}', '']
         if values['ERROR_TEXT']:
             out += [f'> ✗ {values["ERROR_TEXT"]}', '']
         out += field_table([('Titel der Reihe (Pflicht)', values['SERIES_TITLE']), ('Untertitel', values['SERIES_SUBTITLE']),
-                            ('Art', SERIES_KIND_DE.get(values['SERIES_KIND'], '')), ('Beschreibung', values['SERIES_DESCRIPTION'])])
+                            ('Art', SERIES_KIND_DE.get(values['SERIES_KIND'], '')), ('Beschreibung', values['SERIES_DESCRIPTION']),
+                            ('ISSN der Reihe', values['SERIES_ISSN']),
+                            ('Seite „Ebenfalls in dieser Reihe“', 'nein' if values['SERIES_ALSO'] == 'false' else 'ja')])
         out += ['', 'Art: `durchgehende Handlung` oder `eigenständige Bände`.', '', FORM_HINT]
         return '\n'.join(out) + '\n'
     return fill('serie-bearbeiten.html', values, {'TAKEN': taken})

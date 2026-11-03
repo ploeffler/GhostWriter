@@ -87,6 +87,8 @@ jobs:
 
       - name: PDF, DOCX und EPUB bauen
         if: steps.info.outputs.build == 'true'
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}   # Serie (#116) vom Standard-Branch
         run: |
           python scripts/build_edition.py . --edition "${{ steps.info.outputs.edition }}" \
             --out build --commit "$GITHUB_SHA"
