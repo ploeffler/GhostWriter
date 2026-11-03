@@ -3,7 +3,9 @@ name: Bücherregal aktualisieren
 # Schreibt library.json auf den Standard-Branch (scripts/library.py build, #37):
 # je Buch Titel, Status, Fortschritt, Auflage, Kosten, offene Änderungen. Kein
 # Manuskripttext. Läuft nach Pushes auf Buch- und Arbeits-Branches, wenn ein
-# Branch angelegt oder gelöscht wird, und von Hand. Commits mit GITHUB_TOKEN
+# Branch angelegt oder gelöscht wird, nach jedem Lauf „GhostWriter aktualisieren“
+# (damit u. a. neu hinterlegte Secrets auf der Seite „Daten“ erscheinen, #71) und
+# von Hand. Commits mit GITHUB_TOKEN
 # lösen keine weiteren Workflows aus, es gibt also keine Schleife.
 #
 # Im GhostWriter-Hauptrepository läuft sie nicht: library.json würde sonst mit
@@ -19,6 +21,9 @@ on:
       - 'costs/**'
   create:
   delete:
+  workflow_run:
+    workflows: ['GhostWriter aktualisieren']
+    types: [completed]
   workflow_dispatch:
 
 permissions:
