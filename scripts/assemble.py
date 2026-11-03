@@ -16,6 +16,8 @@ book     Das Buch für eine Auflage: nur freigegebene Kapitel (Kapitelstatus
 check    Prüft, ob eine Auflage gebaut werden kann: mindestens ein freigegebenes
          Kapitel und keine offenen Marker ([QUELLE PRÜFEN …] usw.) im
          freigegebenen Text. Exit-Code 1 mit Liste der Gründe, sonst 0.
+         Nicht freigegebene Teile von Vor- und Nachspann werden als Hinweis
+         genannt (ⓘ), verhindern die Auflage aber nicht; sie fehlen darin.
 
 Was ins Buch kommt: je Kapitel Titel, Untertitel (erste kursive Zeile der
 Kapitel-README), der Text unter „## Manuskript“ jeder freigegebenen
@@ -23,6 +25,14 @@ Abschnittsdatei mit dem Abschnittstitel als Überschrift, und der Abschnitt
 „## Quellen“ der Kapitel-README. Nicht ins Buch kommen „Vorspann“,
 „Kurzbeschreibung“, „Ziel“, „Prüfliste“ und alle Arbeitsdateien (Läufe,
 Kosten). Die Ausgabe ist Markdown für Pandoc (scripts/build_edition.py).
+
+Vor- und Nachspann (#57, structure.front_matter/back_matter): nur freigegebene
+Teile, der Text unter „## Manuskript“ der Datei in matter/. Widmung als Block
+`::: widmung` mit verborgener Überschrift (Klasse dedication, nicht im
+Inhaltsverzeichnis); Prolog, Epilog und Danksagung als unnummerierte Kapitel mit
+der Art als Klasse und als EPUB-Rolle (epub:type prologue, epilogue,
+acknowledgments).
+Vorspann vor Kapitel 1, Nachspann nach dem letzten Kapitel.
 
 Dieses Skript läuft nur in GitHub Actions oder lokal; den zusammengeführten
 Text gibt der Assistent nie im Chat aus (START.md, „Kein ganzes Buch im Chat“).
@@ -36,7 +46,7 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from render_view import MARKER_TEXT, load, section_file  # noqa: E402
+from render_view import MARKER_TEXT, MATTER, load, matter_items, section_file  # noqa: E402
 
 TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'title_page': True,
                        'imprint': True, 'toc': True, 'toc_depth': 1}
@@ -103,6 +113,49 @@ def chapter_markdown(base, chapter, number, proof=False):
     return '\n'.join(out).rstrip() + '\n', skipped, markers
 
 
+def matter_markdown(base, item, proof=False):
+    """(Markdown, freigegeben, Marker) eines Teils von Vor- oder Nachspann (#57).
+    Nicht freigegeben: leeres Markdown, außer im Probedruck (mit Statusvermerk)."""
+    head, _, _, manuscript = section_file(base, item)
+    approved = head.get('status') == 'approved'
+    if not approved and not proof:
+        return '', False, []
+    text = manuscript.strip()
+    if text == 'Noch nicht begonnen.':
+        text = ''
+    markers = [(item['title'], m.group(0)) for m in MARKER_TEXT.finditer(text)]
+    text = shift_headings(text, 2)
+    if proof:
+        text = mark_markers(text) or '*(noch kein Text)*'
+        if not approved:
+            text = f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben]{{.gwstatus}}\n\n' + text
+    kind = item['kind']
+    if kind == 'dedication':
+        md = f'# {item["title"]} {{.unnumbered .unlisted .dedication epub:type=dedication}}\n\n::: widmung\n{text}\n:::\n'
+    else:
+        md = f'# {item["title"]} {{.unnumbered .{kind} epub:type={kind}}}\n\n{text}\n'
+    return md, approved, markers
+
+
+def matter_parts(base, config, proof=False):
+    """Vor- und Nachspann in Buchreihenfolge: [(bereich, eintrag, markdown, freigegeben, marker)].
+    Ohne proof fehlen nicht freigegebene Teile im Markdown (leer), stehen aber in der Liste."""
+    return [(area, item, *matter_markdown(base, item, proof)) for area, item in matter_items(config)]
+
+
+def book_body(parts, matter):
+    """Markdown des Buchs: Vorspann, Kapitel, Nachspann."""
+    front = [m[2] for m in matter if m[0] == 'front' and m[2]]
+    back = [m[2] for m in matter if m[0] == 'back' and m[2]]
+    return '\n'.join(front + [p[2] for p in parts] + back)
+
+
+def matter_notes(matter):
+    """Hinweise (keine Hinderungsgründe): nicht freigegebene Teile fehlen in der Auflage."""
+    return [f'{item["title"]} ist nicht freigegeben und fehlt in der Auflage.'
+            for _, item, _, approved, _ in matter if not approved]
+
+
 def find_chapter(config, key):
     chapters = config['structure']['chapters']
     if key.isdigit():
@@ -138,7 +191,7 @@ def metadata(config, edition, date):
     return {k: v for k, v in meta.items() if v not in ('', None)}
 
 
-def problems(parts, config):
+def problems(parts, config, matter=()):
     out = []
     pr = config['project']
     if not (pr.get('title_short') or pr.get('title') or pr.get('working_title')):
@@ -152,6 +205,9 @@ def problems(parts, config):
                        + '; '.join(skipped))
         for where, marker in markers:
             out.append(f'Offener Marker in {where}: {marker}')
+    for _, item, _, approved, markers in matter:
+        if approved:
+            out += [f'Offener Marker in {where}: {marker}' for where, marker in markers]
     return out
 
 
@@ -178,17 +234,24 @@ def main(argv):
             print(f'{len(markers)} offene Marker im freigegebenen Text', file=sys.stderr)
     else:
         parts = book_parts(base, config)
+        matter = matter_parts(base, config)
         if args.what == 'check':
-            found = problems(parts, config)
+            found = problems(parts, config, matter)
             for line in found:
                 print(f'✗ {line}')
+            for line in matter_notes(matter):
+                print(f'ⓘ {line}')
             if not found:
-                words = sum(len(re.findall(r'\w+', md)) for _, _, md, _, _ in parts)
-                print(f'✓ Auflage {edition} kann gebaut werden: {len(parts)} Kapitel, etwa {words} Wörter')
+                words = sum(len(re.findall(r'\w+', md)) for _, _, md, _, _ in parts) + \
+                    sum(len(re.findall(r'\w+', m[2])) for m in matter)
+                extra = sum(1 for m in matter if m[3])
+                print(f'✓ Auflage {edition} kann gebaut werden: {len(parts)} Kapitel'
+                      + (f', {extra} Teil{"e" if extra != 1 else ""} Vor-/Nachspann' if extra else '')
+                      + f', etwa {words} Wörter')
             return 1 if found else 0
         meta = metadata(config, edition, args.date)
         md = '---\n' + yaml.safe_dump(meta, allow_unicode=True, sort_keys=False) + '---\n\n' + \
-             '\n'.join(part[2] for part in parts)
+             book_body(parts, matter)
     if args.output:
         Path(args.output).write_text(md, encoding='utf-8')
         print(f'{args.output}: {len(md.split())} Wörter', file=sys.stderr)

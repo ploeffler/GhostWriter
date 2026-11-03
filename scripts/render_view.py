@@ -60,6 +60,42 @@ def section_file(base, section):
     return head, ('' if goal == 'Offen.' else goal), ('' if summary == 'Offen.' else summary), manuscript
 
 
+# Vor- und Nachspann (#57): Teile außerhalb der Kapitel, je eine Datei unter matter/.
+# Art → (Bereich, Vorgabetitel, Datei, Befehl). Bereich: front = vor Kapitel 1, back = nach dem letzten Kapitel.
+MATTER = {
+    'dedication': ('front', 'Widmung', 'widmung.md'),
+    'prologue': ('front', 'Prolog', 'prolog.md'),
+    'epilogue': ('back', 'Epilog', 'epilog.md'),
+    'acknowledgments': ('back', 'Danksagung', 'danksagung.md'),
+}
+MATTER_AREAS = {'front': 'front_matter', 'back': 'back_matter'}
+# Ghostwriting nur für Prolog und Epilog; Widmung und Danksagung schreibt der Autor selbst (#57)
+MATTER_GHOSTWRITING = {'prologue', 'epilogue'}
+
+
+def matter_id(kind):
+    return 'mat-' + MATTER[kind][2][:-3]
+
+
+def matter_items(config, area=None):
+    """Teile von Vor- und Nachspann in Buchreihenfolge: [(bereich, eintrag)]; area = 'front' oder 'back'."""
+    st = config.get('structure') or {}
+    out = []
+    for a, key in MATTER_AREAS.items():
+        if area in (None, a):
+            out += [(a, item) for item in st.get(key) or []]
+    return out
+
+
+def find_matter(config, key):
+    """Eintrag nach Art (dedication), ID (mat-widmung), Dateiname (widmung) oder Titel (Widmung)."""
+    k = (key or '').strip().lower()
+    for _, item in matter_items(config):
+        if k in (item['kind'], item['id'], item['id'][4:], item['title'].lower(), MATTER[item['kind']][1].lower()):
+            return item
+    return None
+
+
 def cost_entries(base, path):
     if not path.is_file():
         return []
@@ -175,6 +211,62 @@ def credit():
     return c.get('text', ''), c.get('url', '')
 
 
+def matter_rows(base, config):
+    rows = []
+    for area, item in matter_items(config):
+        head, _, _, ms = section_file(base, item)
+        rows.append({'MATTER_ID': item['id'], 'MATTER_KIND': item['kind'], 'MATTER_AREA': area,
+                     'MATTER_TITLE': item['title'], 'MATTER_STATUS': head['status'],
+                     'MATTER_MARKERS': str(sum(marker_counts(ms).values()))})
+    return rows
+
+
+def matter_view(base, config, args):
+    """Ansicht eines Teils von Vor- oder Nachspann (#57): Textfassung (Vorlage in ghostwriter-ui folgt)."""
+    if not args.where:   # Übersicht „Vor- und Nachspann“: vorhandene Teile und was sich anlegen lässt
+        have = {i['kind']: i for _, i in matter_items(config)}
+        lines = ['### 📜 Vor- und Nachspann', '', '| Teil | Bereich | Stand |', '|---|---|---|']
+        for kind, (area, title, _) in MATTER.items():
+            i = have.get(kind)
+            state = status_text(section_file(base, i)[0]['status']) if i else '*nicht angelegt*'
+            lines.append(f'| {i["title"] if i else title} | {"Vorspann" if area == "front" else "Nachspann"} | {state} |')
+        lines += ['', 'Nur freigegebene Teile kommen in eine Auflage. Widmung und Danksagung schreibst du selbst; '
+                  'für Prolog und Epilog gibt es Recherche und Ghostwriting wie bei Abschnitten.', '', '---']
+        items = [(i['title'], 'öffnen') for _, i in matter_items(config)]
+        items += [(f'+ {title}', 'anlegen') for kind, (_, title, _) in MATTER.items() if kind not in have]
+        items.append(('Ü', 'Zur Übersicht'))
+        return '\n'.join(lines + [menu(items)]) + '\n'
+    item = find_matter(config, args.where)
+    if not item:
+        have = ', '.join(i['title'] for _, i in matter_items(config)) or 'keine'
+        return (f'Im Buch gibt es „{args.where}“ noch nicht (vorhanden: {have}). '
+                f'Anlegen mit `python scripts/matter.py . add <art>` (START.md, „Vor- und Nachspann“).\n')
+    head, goal, _, ms = section_file(base, item)
+    kind = item['kind']
+    area = 'Vorspann' if MATTER[kind][0] == 'front' else 'Nachspann'
+    markers = [(KIND[m.group(1)], (m.group(2) or '').strip() or '–') for m in MARKER_TEXT.finditer(ms)]
+    yn = lambda v: '✅ ja' if v else '— nein'
+    goal_m = re.search(r'(?ms)^## Ziel\n\n(.*?)(?=^## |\Z)', (base / item['path']).read_text(encoding='utf-8'))
+    goal = goal_m.group(1).strip() if goal_m else ''
+    if goal.startswith('<'):
+        goal = ''
+    lines = [f'### 📜 {item["title"]}', f'{area} · {status_text(head["status"])}', '',
+             '| | |', '|---|---|', f'| Ziel | {goal or "*offen*"} |',
+             f'| Schreibfreigabe | {yn(head["approvals"]["writing"])} |',
+             f'| Freigegeben | {yn(head["approvals"]["section"])} |', '']
+    if markers:
+        lines += [f'**Offene Marker ({len(markers)})**'] + [f'- {MARKER_ICON[k]} {MARKER_LABEL[k]}: {v}' for k, v in markers] + ['']
+    lines += ['---', '', ms or '*Noch kein Text.*', '', '---']
+    items = [('T', 'Text ändern (geänderten Text schicken)'), ('F', 'Titel und Ziel'),
+             ('FS', 'Schreibfreigabe zurücknehmen' if head['approvals']['writing'] else 'Schreiben freigeben'),
+             ('FA', 'Freigabe zurücknehmen' if head['approvals']['section'] else f'{item["title"]} freigeben')]
+    if kind in MATTER_GHOSTWRITING:
+        items += [('RS', 'Recherche sofort'), ('GS', 'Ghostwriting sofort')]
+    items.append(('Ü', 'Zur Übersicht'))
+    lines += [menu(items)]
+    return '\n'.join(lines) + '\n'
+
+
 def project_view(base, config, args):
     p = config['project']
     chapters = config['structure']['chapters']
@@ -206,6 +298,11 @@ def project_view(base, config, args):
     upd = load_upstream(args)
     if upd:
         values.update({'UPDATE_BEHIND': upd['behind'], 'UPDATE_TEXT': update_text(upd)})
+    matter = matter_rows(base, config)
+    front = [m for m in matter if m['MATTER_AREA'] == 'front']
+    back = [m for m in matter if m['MATTER_AREA'] == 'back']
+    def matter_line(ms, label):
+        return f'**{label}:** ' + ' · '.join(f'{m["MATTER_TITLE"]} {STATUS_ICON.get(m["MATTER_STATUS"], "")}'.strip() for m in ms)
     if args.text:
         lines = [f'### 📘 {values["PROJECT_TITLE"] or "Noch ohne Titel"}',
                  f'**{values["PROJECT_EDITION_TEXT"]}** · Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · KI-API-Kosten: **{values["PROJECT_COST"]}**', '']
@@ -217,12 +314,16 @@ def project_view(base, config, args):
             lines += [f'> {values["PROJECT_DESCRIPTION_SHORT"]}', '']
         if values['PROJECT_DESCRIPTION']:
             lines += [values['PROJECT_DESCRIPTION'], '']
+        if front:
+            lines += [matter_line(front, 'Vorspann'), '']
         if rows:
             # Letzte Spalte: Kürzel zum Bearbeiten des Kapitels (wie der Bearbeiten-Knopf der Kapitelansicht).
             lines += ['| # | Kapitel | Kosten | Status | |', '|--:|---|--:|---|:-:|']
             lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_COST"]} | {status_text(r["CHAPTER_STATUS"])} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
         else:
             lines += ['*Noch keine Kapitel.*']
+        if back:
+            lines += ['', matter_line(back, 'Nachspann')]
         lines += ['', '---']
         wf = config.get('workflow') or {}
         if rows:
@@ -241,13 +342,14 @@ def project_view(base, config, args):
             items.append(('U', 'Update einspielen'))
         if lib_count >= 2:
             items.append(('L', f'Bücherregal ({lib_count} Bücher)'))
+        items += [(m['MATTER_TITLE'], 'öffnen') for m in front + back]
         items += [('D', 'KI-Dienste'), ('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
-                  ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
+                  ('V', 'Vor- und Nachspann'), ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
         lines += [menu(items)]
         if values.get('CREDIT_TEXT'):
             lines += ['', f'<sub>{values["CREDIT_TEXT"]}</sub>']
         return '\n'.join(lines) + '\n'
-    return fill('projektuebersicht.html', values, {'CHAPTERS': rows})
+    return fill('projektuebersicht.html', values, {'CHAPTERS': rows, **({'MATTER': matter} if matter else {})})
 
 
 def chapter_view(base, config, args, cnum):
@@ -541,19 +643,36 @@ def approval_view(base, config, args, kind):
                              '(erst zusammenführen und durchsehen).')
             effect = 'Das Kapitel wird „freigegeben“. Du bestätigst damit das zusammengeführte Kapitel in diesem Stand.'
     else:
-        c, s_ = (int(x) for x in args.where.split('.'))
-        ch = chapters[c - 1]
-        sec = ch['sections'][s_ - 1]
-        head, goal, summary, ms = section_file(base, sec)
-        target_id, label = sec['id'], f'Abschnitt {c}.{s_} „{sec["title"]}“'
+        item = None if re.fullmatch(r'\d+\.\d+', args.where or '') else find_matter(config, args.where)
+        if item:   # Vor- oder Nachspann (#57): Schreibfreigabe und Freigabe des Teils wie bei einem Abschnitt
+            sec, ch, c, s_ = item, {'status': '', 'path': ''}, 0, 0
+            head, goal, summary, ms = section_file(base, item)
+            target_id, label = item['id'], f'{item["title"]} ({"Vorspann" if MATTER[item["kind"]][0] == "front" else "Nachspann"})'
+            if kind == 'section':
+                kind = 'matter'
+        else:
+            c, s_ = (int(x) for x in args.where.split('.'))
+            ch = chapters[c - 1]
+            sec = ch['sections'][s_ - 1]
+            head, goal, summary, ms = section_file(base, sec)
+            target_id, label = sec['id'], f'Abschnitt {c}.{s_} „{sec["title"]}“'
         ap = head['approvals']
         if kind == 'writing' and revoke:
             title, button = 'Schreibfreigabe zurücknehmen', 'Zurücknehmen'
             if not ap['writing']:
                 add('block', 'Die Schreibfreigabe ist nicht erteilt.')
             if ap['section']:
-                add('block', 'Der Abschnitt ist freigegeben; zuerst die Abschnittsfreigabe zurücknehmen.')
+                add('block', f'{item["title"]} ist freigegeben; zuerst diese Freigabe zurücknehmen.' if item else
+                    'Der Abschnitt ist freigegeben; zuerst die Abschnittsfreigabe zurücknehmen.')
             effect = 'Die Schreibfreigabe wird zurückgenommen; das Manuskript bleibt, wie es ist, darf aber erst nach einer neuen Freigabe weiter geschrieben werden.'
+        elif kind == 'writing' and item:
+            title, button = 'Schreiben freigeben', 'Freigeben'
+            if ap['writing']:
+                add('block', 'Die Schreibfreigabe ist bereits erteilt.')
+            if item['kind'] not in MATTER_GHOSTWRITING:
+                add('ok', f'{MATTER[item["kind"]][1]}: Der Text kommt von dir; Ghostwriting nur auf ausdrücklichen Wunsch.')
+            effect = 'Die Schreibfreigabe wird erteilt; danach darf der Text geschrieben werden.' + \
+                (' Der Teil wechselt zu „Schreiben“.' if head['status'] in ('planned', 'research', 'brainstorming', 'ready_to_write') else '')
         elif kind == 'writing':
             title, button = 'Schreiben freigeben', 'Freigeben'
             if ap['writing']:
@@ -566,6 +685,24 @@ def approval_view(base, config, args, kind):
                     f'Noch kein {name} (laut workflow.yml vor der Schreibfreigabe vorgesehen).')
             effect = 'Die Schreibfreigabe wird erteilt; danach darf das Manuskript geschrieben werden.' + \
                 (' Der Abschnitt wechselt zu „Schreiben“.' if head['status'] in ('planned', 'research', 'brainstorming', 'ready_to_write') else '')
+        elif revoke and item:
+            title, button = 'Freigabe zurücknehmen', 'Zurücknehmen'
+            if not ap['section']:
+                add('block', f'{item["title"]} ist nicht freigegeben.')
+            effect = f'Die Freigabe wird zurückgenommen; {item["title"]} wechselt zu „Überarbeitung“ und fehlt in der nächsten Auflage, bis du wieder freigibst.'
+        elif item:
+            title, button = f'{item["title"]} freigeben', 'Freigeben'
+            if ap['section']:
+                add('block', f'{item["title"]} ist bereits freigegeben.')
+            if not ap['writing']:
+                add('block', 'Die Schreibfreigabe fehlt.')
+            if ms.strip() in EMPTY_MANUSCRIPT:
+                add('block', 'Es gibt noch keinen Text.')
+            else:
+                add('ok', f'Text: {len(ms.split())} Wörter.')
+            n = sum(marker_counts(ms).values())
+            add('warn' if n else 'ok', f'{n} offene{"r" if n == 1 else ""} Marker; sie verhindern die Auflage.' if n else 'Keine offenen Marker.')
+            effect = f'{item["title"]} wird „freigegeben“ und kommt in die nächste Auflage. Du bestätigst damit den Text in diesem Stand.'
         elif revoke:
             title, button = 'Abschnittsfreigabe zurücknehmen', 'Zurücknehmen'
             if not ap['section']:
@@ -1317,7 +1454,8 @@ FORMS = {'choice': choice_view, 'book-create': book_create_view, 'project-edit':
          'changes-merge': changes_merge_view, 'providers-edit': providers_edit_view,
          'approval-writing': lambda b, c, a: approval_view(b, c, a, 'writing'),
          'approval-section': lambda b, c, a: approval_view(b, c, a, 'section'),
-         'approval-chapter': lambda b, c, a: approval_view(b, c, a, 'chapter')}
+         'approval-chapter': lambda b, c, a: approval_view(b, c, a, 'chapter'),
+         'approval-matter': lambda b, c, a: approval_view(b, c, a, 'section')}
 
 
 def git_head(base):
@@ -1331,7 +1469,7 @@ def git_head(base):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section', 'library', 'data'] + list(FORMS))
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'library', 'data'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
@@ -1356,6 +1494,8 @@ def main():
         out = library_view(base, config, args)
     elif args.view == 'data':
         out = data_view(base, config, args)
+    elif args.view == 'matter':
+        out = matter_view(base, config, args)
     elif args.view == 'project':
         out = project_view(base, config, args)
     elif args.view == 'chapter':

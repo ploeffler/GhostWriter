@@ -56,7 +56,7 @@ def ensure_approvals_log(base):
     (base / 'approvals.yml').write_text(
         '# Freigabe-Protokoll: jede erteilte oder zurückgenommene Freigabe als eigener\n'
         '# Eintrag (START.md, „Freigaben“). Nur anhängen, nie ändern oder löschen.\n'
-        '#   kind: writing (Schreibfreigabe) | section (Abschnitt) | chapter (Kapitel)\n'
+        '#   kind: writing (Schreibfreigabe) | section (Abschnitt) | chapter (Kapitel) | matter (Vor-/Nachspann)\n'
         '#   commit: Stand, den der Benutzer bestätigt hat (expected_head_sha)\n'
         'entries: []\n', encoding='utf-8')
     return 'approvals.yml angelegt'

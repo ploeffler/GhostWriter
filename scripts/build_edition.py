@@ -12,6 +12,13 @@ offene Marker farbig hervorgehoben, in der Fußzeile bzw. vorn der Hinweis
 „Probedruck – nicht zur Veröffentlichung“. Kein Tag, kein Release; die Action
 „Probedruck“ stellt die Dateien als Download bereit.
 
+Vor- und Nachspann (#57): freigegebene Teile aus matter/ (scripts/assemble.py).
+Die Widmung steht auf einer eigenen rechten Seite nach der Titelei, zentriert,
+ohne Überschrift und ohne Eintrag im Inhaltsverzeichnis (PDF: vor dem
+Inhaltsverzeichnis; DOCX: eigene Seite; EPUB: eigener Abschnitt mit Rolle
+dedication). Prolog vor Kapitel 1, Epilog und Danksagung nach dem letzten
+Kapitel, unnummeriert und im Inhaltsverzeichnis.
+
 Ablauf: scripts/assemble.py prüft und fügt die freigegebenen Kapitel zusammen,
 danach setzt Pandoc die Dateien. Die Buchsatz-Einstellungen kommen aus
 ghostwriter.yml (`typesetting`, Projekteinstellungen): Seitenformat, Schrift,
@@ -44,7 +51,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 BOOK = ROOT / 'templates' / 'book'
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from assemble import book_parts, metadata, problems  # noqa: E402
+from assemble import book_body, book_parts, matter_notes, matter_parts, metadata, problems  # noqa: E402
 from render_view import load, tag_slug  # noqa: E402
 
 PAGE = {  # Breite, Höhe in mm
@@ -110,6 +117,20 @@ def make_reference_docx(path, ts):
             cs.font.color.rgb, cs.font.bold, cs.font.italic = color, bold, italic
             cs.font.size = Pt(float(ts['font_size']) - 1.5)
     try:
+        doc.styles['Widmung']
+    except KeyError:   # Widmung (#57): eigene Seite, zentriert, kursiv
+        st = doc.styles.add_style('Widmung', WD_STYLE_TYPE.PARAGRAPH)
+        st.base_style = doc.styles['Normal']
+        st.font.italic = True
+        pf = st.paragraph_format
+        pf.alignment = 1   # zentriert
+        pf.space_before = Mm(h / 4)
+        pf.page_break_before = True
+        st2 = doc.styles.add_style('Widmung Text', WD_STYLE_TYPE.PARAGRAPH)   # weitere Absätze
+        st2.base_style = doc.styles['Normal']
+        st2.font.italic = True
+        st2.paragraph_format.alignment = 1
+    try:
         doc.styles['Merkkasten']
     except KeyError:
         st = doc.styles.add_style('Merkkasten', WD_STYLE_TYPE.PARAGRAPH)
@@ -149,7 +170,8 @@ def main(argv):
     if args.proof:
         args.edition = config['project'].get('current_edition') or 0
     parts = book_parts(base, config, proof=args.proof)
-    found = [] if args.proof else problems(parts, config)
+    matter = matter_parts(base, config, proof=args.proof)
+    found = [] if args.proof else problems(parts, config, matter)
     blocking = [p for p in found if not (args.allow_markers and p.startswith('Offener Marker'))]
     if args.proof and not parts:
         print('Probedruck: Das Buch hat noch keine Kapitel.')
@@ -159,6 +181,10 @@ def main(argv):
         for p in blocking:
             print(f'  ✗ {p}')
         return 1
+
+    if not args.proof:
+        for note in matter_notes(matter):
+            print(f'ⓘ {note}')
 
     meta = metadata(config, args.edition, args.date)
     ts = meta['typesetting']
@@ -174,7 +200,10 @@ def main(argv):
                       'Enthält auch nicht freigegebene Abschnitte; offene Marker sind hervorgehoben.')
     out = Path(args.out).resolve()   # Pandoc läuft im Arbeitsordner, daher absolut
     out.mkdir(parents=True, exist_ok=True)
-    body = '\n'.join(p[2] for p in parts)
+    body = book_body(parts, matter)
+    # PDF: Widmung vor dem Inhaltsverzeichnis (include-before), daher dort ohne Widmung im Text
+    dedication = ''.join(m[2] for m in matter if m[1]['kind'] == 'dedication' and m[2])
+    body_pdf = book_body(parts, [m for m in matter if m[1]['kind'] != 'dedication'])
     imprint = imprint_markdown(meta, release_name, args.commit)
     fonts = FONTS.get(ts['font'], FONTS['serif'])
     w, h = PAGE.get(ts['page_size'], PAGE['a5'])
@@ -209,6 +238,12 @@ def main(argv):
                     extra_header = [str(write('imprint.tex', '\\lowertitleback{\\footnotesize\n' + lines + '\n}\n'))]
                 elif ts.get('imprint'):
                     imp = '\\begin{flushleft}\\footnotesize\n' + lines + '\n\\end{flushleft}\\bigskip\n'
+                before = imp
+                if dedication:
+                    before += run(['pandoc', '--from', 'markdown+smart', '--to', 'latex',
+                                   '--lua-filter', str(BOOK / 'merkkasten.lua'), str(write('dedication.md', dedication))])
+                    imp = ''
+                    cmd += ['--include-before-body', str(write('before.tex', before))]
                 m.update({'documentclass': 'scrbook',
                           'classoption': [f'paper={w}mm:{h}mm', f'fontsize={ts["font_size"]}pt', 'DIV=calc', 'BCOR=8mm',
                                           'titlepage=' + ('true' if ts.get('title_page') else 'false'), 'open=any',
@@ -224,7 +259,7 @@ def main(argv):
                         + args.date[8:10] + '.' + args.date[5:7] + '.' + args.date[:4] + ' – nicht zur Veröffentlichung}\n')))
                 for h in extra_header:
                     cmd += ['--include-in-header', h]
-                src = body
+                src = body_pdf
             else:
                 pre = ''
                 if ts.get('imprint'):
@@ -247,7 +282,8 @@ def main(argv):
 
     (out / 'edition.yml').write_text(yaml.safe_dump({
         'edition': args.edition, 'name': release_name, 'tag': tag, 'date': args.date,
-        'chapters': [p[0] for p in parts], 'files': [r.name for r in results]},
+        'chapters': [p[0] for p in parts], 'matter': [m[1]['id'] for m in matter if m[2]],
+        'files': [r.name for r in results]},
         allow_unicode=True, sort_keys=False), encoding='utf-8')
     return 0
 
