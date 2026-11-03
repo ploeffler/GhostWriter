@@ -13,9 +13,18 @@ python scripts/render_view.py <projektordner> providers-edit [--repo owner/name]
 python scripts/render_view.py <projektordner> approval-writing 2.4 | approval-section 2.4 | approval-chapter 2 [--revoke] [--text]
 ```
 
+## Darstellungsmodus (verbindlich)
+
+Es gibt zwei Modi, festgelegt einmal zu Beginn des Chats und dann für jede Ansicht gleich:
+
+- **Widget:** nur bei Anbietern, deren Chat-Oberfläche GhostWriter-Widgets darstellt (`chat_widgets: true` in `providers.yml`, derzeit Claude). Dann ist jede Ansicht ein Widget – Projektübersicht, Bücherregal, Daten, Formulare, Bestätigungen, Auswahlkarten (Ausgabe unten). Eine Startseite, fehlende Daten (etwa ohne `library.json` oder `--github`) oder eine kurze Antwort sind kein Grund für Text.
+- **Nur Text:** bei allen anderen Anbietern (etwa ChatGPT, Gemini, Copilot) und im Zweifel; erscheint ein Widget nicht, ab dann ebenfalls. Dann jede Ansicht als Textfassung (`render_view.py … --text`, siehe „Textfassung ohne Widgets“). **Nie HTML, `GW.render` oder Widget-Code ausgeben**, auch nicht als Codeblock.
+
+Nie beide Fassungen derselben Ansicht und nie den Modus von Ansicht zu Ansicht wechseln. Der Benutzer kann umschalten: `Nur Text` stellt auf Text um; `Widgets` stellt zurück, aber nur bei einem Anbieter mit `chat_widgets: true` – sonst antworte in einem Satz, dass dieser Chat keine Widgets darstellt.
+
 ## Ausgabe im Chat
 
-Der Assistent schreibt keine fertige Ansicht, sondern nur eine Ladezeile und die Daten. Den Darstellungscode lädt der Chat von jsDelivr:
+Im Modus „Widget“ schreibt der Assistent keine fertige Ansicht, sondern nur eine Ladezeile und die Daten. Den Darstellungscode lädt der Chat von jsDelivr:
 
 ```html
 <div id="gw"></div>
@@ -188,7 +197,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 
 ### `buecherregal.html`
 
-Startseite einer Bibliothek, in Chats mit Widgets immer als Widget (nie die Textfassung). Erzeugt mit `render_view.py library --library library.json` aus der Übersicht `library.json` auf dem Standard-Branch (`scripts/library.py build`, Action „Bücherregal aktualisieren“); fehlt sie, live aus den Branches.
+Startseite einer Bibliothek; Widget oder Text nach dem Darstellungsmodus. Erzeugt mit `render_view.py library --library library.json` aus der Übersicht `library.json` auf dem Standard-Branch (`scripts/library.py build`, Action „Bücherregal aktualisieren“); fehlt sie, live aus den Branches.
 
 | Platzhalter | Quelle |
 |---|---|
@@ -408,7 +417,7 @@ Für Kapitel und Abschnitte.
 
 ## Textfassung ohne Widgets
 
-**Kann der Chat Widgets darstellen (etwa Claude), ist jede Ansicht ein Widget** – auch Bücherregal, Daten, Formulare und Bestätigungen, nicht nur die Projektübersicht. Die Textfassung gibt es nur für Chats, die keine Widgets darstellen können; eine Startseite, fehlende Daten (etwa ohne `library.json` oder `--github`) oder eine kurze Antwort sind kein Grund für sie. Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown. **Dort nie HTML, `GW.render` oder Widget-Code ausgeben.** Muster erzeugt `scripts/render_view.py … --text`; jede Ansicht und jedes Formular hat eine Textfassung.
+Im Modus „Nur Text“ (siehe „Darstellungsmodus“) bekommt der Chat dieselben Inhalte als Markdown. **Dort nie HTML, `GW.render` oder Widget-Code ausgeben.** Muster erzeugt `scripts/render_view.py … --text`; jede Ansicht und jedes Formular hat eine Textfassung.
 
 Gestaltung:
 
