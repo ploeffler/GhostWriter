@@ -2,4 +2,4 @@
 # Ändert sich ein Schema, muss DATA_VERSION steigen und eine Migration dazukommen –
 # oder die Änderung ist rückwärtskompatibel (nur neue, optionale Felder); dann nur hier neu schreiben.
 data_version: 1
-schema_sha256: 5bc68cbcbe85353de970407aae7c1d1aa7cfa3e4a1a73399e7d89654daebd415
+schema_sha256: 5241fb941905e5f8e84ccb6fe0bdd98b06fe0478eec6e4564e667ea7af8c52f7

@@ -159,6 +159,17 @@
       },
       "additionalProperties": false
     },
+    "limits": {
+      "type": "object",
+      "description": "Grenzen für die Automatik (#62): unter pause_below_percent pausiert, unter warn_below_percent Vorwarnung; fehlt = keine Grenzen",
+      "properties": {
+        "ai_budget_monthly": {"type": ["number", "null"], "minimum": 0, "description": "KI-Budget je Monat in Projektwährung; leer = kein eigenes Budget"},
+        "actions_minutes_monthly": {"type": ["integer", "null"], "minimum": 0, "description": "Actions-Minuten je Monat (z. B. 2000 bei privaten Repositorys im Free-Plan); leer = nicht prüfen"},
+        "pause_below_percent": {"type": "number", "minimum": 0, "maximum": 100},
+        "warn_below_percent": {"type": "number", "minimum": 0, "maximum": 100}
+      },
+      "additionalProperties": false
+    },
     "images": {
       "type": "object",
       "description": "Illustrationen (#54): Bildstil des Buchs und Bildnachweis; fehlt = Vorgaben",

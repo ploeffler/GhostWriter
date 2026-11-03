@@ -110,6 +110,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `ai_providers` | vorhandene KI-Dienste (`available`), Dienst und Modell je Aufgabe, Einstellungen je Dienst (`services`); siehe [PROVIDERS.md](PROVIDERS.md) |
 | `structure.chapters` | Kapitel in Reihenfolge, je mit `id`, `title`, `path`, `status` und `sections` (je `id`, `title`, `path`) |
 | `images` | Illustrationen (#54): `style` (Bildstil für alle Aufträge), `credit_in_imprint` (KI-erzeugte Bilder im Impressum nennen, Vorgabe `true`), `max_px` (längste Kante beim Ablegen, Vorgabe 3000); siehe „Illustrationen“ |
+| `limits` | Limitwarnung (#62): `ai_budget_monthly` (KI-API-Kosten über das Backend je Monat in Projektwährung), `actions_minutes_monthly` (GitHub-Actions-Minuten je Monat), `warn_below_percent` (Vorgabe 20), `pause_below_percent` (Vorgabe 10); fehlt ein Betrag = keine Prüfung (siehe docs/UPDATES.md, „Limits“) |
 | `characters` | Figuren (#53) in Reihenfolge, je `id` (`char-…`), `name`, `path`; fehlt = keine (siehe „Figuren“) |
 | `structure.front_matter`, `structure.back_matter` | Vor- und Nachspann (#57, #58): Teile vor Kapitel 1 (Widmung, Vorwort, Prolog) bzw. nach dem letzten Kapitel (Epilog, Nachwort, Glossar, Danksagung), je mit `id`, `kind`, `title`, `path`; fehlen = keine (siehe „Vor- und Nachspann“) |
 
