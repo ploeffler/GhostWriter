@@ -188,7 +188,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 
 ### `buecherregal.html`
 
-Startseite einer Bibliothek. Erzeugt mit `render_view.py library --library library.json` aus der Übersicht `library.json` auf dem Standard-Branch (`scripts/library.py build`, Action „Bücherregal aktualisieren“); fehlt sie, live aus den Branches.
+Startseite einer Bibliothek, in Chats mit Widgets immer als Widget (nie die Textfassung). Erzeugt mit `render_view.py library --library library.json` aus der Übersicht `library.json` auf dem Standard-Branch (`scripts/library.py build`, Action „Bücherregal aktualisieren“); fehlt sie, live aus den Branches.
 
 | Platzhalter | Quelle |
 |---|---|
@@ -408,7 +408,7 @@ Für Kapitel und Abschnitte.
 
 ## Textfassung ohne Widgets
 
-Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown. **Dort nie HTML, `GW.render` oder Widget-Code ausgeben.** Muster erzeugt `scripts/render_view.py … --text`; jede Ansicht und jedes Formular hat eine Textfassung.
+**Kann der Chat Widgets darstellen (etwa Claude), ist jede Ansicht ein Widget** – auch Bücherregal, Daten, Formulare und Bestätigungen, nicht nur die Projektübersicht. Die Textfassung gibt es nur für Chats, die keine Widgets darstellen können; eine Startseite, fehlende Daten (etwa ohne `library.json` oder `--github`) oder eine kurze Antwort sind kein Grund für sie. Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown. **Dort nie HTML, `GW.render` oder Widget-Code ausgeben.** Muster erzeugt `scripts/render_view.py … --text`; jede Ansicht und jedes Formular hat eine Textfassung.
 
 Gestaltung:
 
