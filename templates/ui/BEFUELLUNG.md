@@ -353,6 +353,21 @@ Seite einer Serie (#116, `render_view.py series <ser-id|S1|Titel>`, `START.md`, 
 | Block `CANDIDATES`: `C_BRANCH`, `C_TITLE` | Bücher der Bibliothek, die zu keiner Serie gehören; keine = Block weglassen |
 | Block `SERIES_CHARACTERS`: `SC_ID`, `SC_NAME`, `SC_ROLE`, `SC_SHORT` | Figuren der Serie (`series/<ser-id>/characters/`); keine = Block weglassen |
 | Block `SERIES_TERMS`: `ST_TERM`, `ST_TEXT` | Begriffe der Serie (`series/<ser-id>/glossary.yml`); keine = Block weglassen |
+| `OMNIBUS_STATE`, `OMNIBUS_TITLE`, `OMNIBUS_TEXT` | Sammelband (`series/<ser-id>/omnibus.yml`): `status` (`draft`, `approved`), `title`, „N Bände · freigegeben bzw. Entwurf · Auflage N“; ohne Sammelband weglassen |
+
+### `sammelband.html`
+
+Formular „Sammelband“ (#116, Stufe 4, `render_view.py omnibus-edit <ser-id>`).
+
+| Platzhalter | Quelle |
+|---|---|
+| `SERIES_ID`, `SERIES_TITLE` | Serie |
+| `OMNIBUS_TITLE`, `OMNIBUS_SUBTITLE`, `OMNIBUS_FOREWORD`, `OMNIBUS_AFTERWORD` | `omnibus.yml`: `title` (neu: „<Reihe> – Sammelband“), `subtitle`, `foreword`, `afterword` |
+| `OMNIBUS_ISBN_PRINT`, `OMNIBUS_ISBN_EBOOK` | `publication.isbn_print`, `publication.isbn_ebook` |
+| `OMNIBUS_STATE` | `status`; leer, wenn es noch keinen Sammelband gibt |
+| `OMNIBUS_EDITION`, `OMNIBUS_TAG` | `current_edition` (0 = noch keine) und der Tag der nächsten Auflage (`<reihen-slug>-sammelband-auflage-N`) |
+| Block `OVOLUMES`: `OV_NUMBER`, `OV_BRANCH`, `OV_TITLE`, `OV_ON`, `OV_EDITION`, `OV_LAST`, `OV_TEXT` | je Band der Serie: Nummer, Branch, Titel, ob gewählt, gewählte Auflage (leer = neueste), neueste Auflage aus `library.json` (`last_edition`; 0 = keine, dann nicht wählbar) |
+| Block `KEEP`: `K_KIND`, `K_LABEL`, `K_ON` | Teile von Vor- und Nachspann der Bände; `keep_matter` (Vorgabe Prolog und Epilog) |
 
 ### `serie-bearbeiten.html`
 
@@ -528,6 +543,11 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `character.adopt` | `character_id` | Figur des Buchs (Kopie oder eigene) in die Serie übernehmen | `python scripts/characters.py . adopt <id> --series-repo <standard>`: Commit auf dem Standard-Branch (Figur der Serie), dann Commit im Buch (Kopie entfernt) | `POST /v1/projects/{owner}/{repo}/characters/{character_id}/adopt` |
 | `matter.glossary.from_series` | `matter_id`, `term` | Begriff der Serie ins Glossar des Buchs übernehmen bzw. die Kopie angleichen (#116) | `python scripts/matter.py . glossary-from-series "<Begriff>"`, ein Commit im Buch; danach das Glossar | `POST /v1/projects/{owner}/{repo}/matter/{matter_id}/glossary/from-series` |
 | `matter.glossary.to_series` | `matter_id`, `term` | Begriff des Buchs mit seiner Erklärung in die Serie übernehmen | `python scripts/matter.py . glossary-to-series "<Begriff>" --series-repo <standard>`, ein Commit auf dem Standard-Branch | `POST /v1/projects/{owner}/{repo}/series/{series_id}/glossary` |
+| `series.omnibus.edit.open` | `series_id` | Formular „Sammelband“ zeigen | Vorlage `sammelband` (`render_view.py omnibus-edit <ser-id>`) | – |
+| `series.omnibus.update` | `series_id`, `title`, `subtitle`, `volumes` (Liste `{branch, edition?}`), `keep_matter`, `foreword`, `afterword`, `publication` (`isbn_print`, `isbn_ebook`), `expected_head_sha` | Sammelband anlegen bzw. speichern | `scripts/series.py omnibus-update <ser-id> '<json>'` (jede Änderung: wieder Entwurf), ein Commit auf dem Standard-Branch; danach das Formular | `PUT /v1/projects/{owner}/{repo}/series/{series_id}/omnibus` |
+| `series.omnibus.approve` | `series_id` | Sammelband freigeben (ausdrücklich bestätigt im Formular) | `scripts/series.py omnibus-approve <ser-id>`; vorher `scripts/build_omnibus.py <repo> <ser-id> --check`; ein Commit | `POST /v1/projects/{owner}/{repo}/series/{series_id}/omnibus/approve` |
+| `series.omnibus.revoke` | `series_id` | Freigabe des Sammelbands zurücknehmen | `scripts/series.py omnibus-revoke <ser-id>`, ein Commit | `DELETE /v1/projects/{owner}/{repo}/series/{series_id}/omnibus/approve` |
+| `series.omnibus.publish` | `series_id` | Nächste Auflage des Sammelbands veröffentlichen | `scripts/series.py omnibus-publish <ser-id>` (Auflage + 1), ein Commit auf dem Standard-Branch; die Action „Sammelband veröffentlichen“ baut und veröffentlicht sie | `POST /v1/projects/{owner}/{repo}/series/{series_id}/omnibus/editions` |
 | `matter.glossary.update` | `matter_id`, `title`, `goal`, `intro`, `set` (Liste `{term, explanation}`), `remove` (Liste von Begriffen), `expected_head_sha` | Glossar-Einträge aufnehmen, ändern, entfernen (#58) | `scripts/matter.py glossary-set` (neue Begriffe mit `--new`) bzw. `glossary-remove`, ein Commit, danach das Glossar | `PATCH …/matter/{matter_id}/glossary` |
 | `matter.glossary.suggest` | `matter_id` | Begriffe aus dem freigegebenen Text vorschlagen (#58) | Vorschläge mit Fundstelle und Erklärungsentwurf als Auswahl zeigen (`START.md`, „Vor- und Nachspann“, Punkt 4); nichts schreiben | – |
 | `view.library` | – | Bücherregal zeigen | Vorlage `buecherregal` (`render_view.py library --library library.json`) | – |

@@ -71,6 +71,7 @@ FONTS = {'serif': ('TeX Gyre Pagella', 'Palatino Linotype', 'serif'), 'sans': ('
          'pagella': ('TeX Gyre Pagella', 'Palatino Linotype', 'serif'), 'termes': ('TeX Gyre Termes', 'Times New Roman', 'serif'),
          'bonum': ('TeX Gyre Bonum', 'Bookman Old Style', 'serif'), 'schola': ('TeX Gyre Schola', 'Century Schoolbook', 'serif'),
          'heros': ('TeX Gyre Heros', 'Arial', 'sans-serif'), 'adventor': ('TeX Gyre Adventor', 'Century Gothic', 'sans-serif')}
+MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
 DIV = {'standard': 'calc', 'classic': '9', 'modern': '13'}   # KOMA-Script: kleiner = breitere Ränder
 
 
@@ -281,6 +282,143 @@ def make_reference_docx(path, ts):
     doc.save(str(path))
 
 
+def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedication, out, tag, formats, proof=False,
+           proof_note='', date='', series_line='', ser=None, extra_tex='', top_level='chapter'):
+    """Setzt die Formate (pdf, pdf_print, cover, epub, docx) aus fertigem Markdown; gibt die Dateien zurück.
+    Gemeinsam für Auflagen und den Sammelband (scripts/build_omnibus.py, #116)."""
+    fonts = FONTS.get(ts['font'], FONTS['serif'])
+    w, h = PAGE.get(ts['page_size'], PAGE['a5'])
+    results = []
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        def write(name, text):
+            (tmp / name).write_text(text, encoding='utf-8')
+            return tmp / name
+
+        order = ['pdf', 'pdf_print', 'cover', 'epub', 'docx']
+        wanted = [f.strip() for f in formats.split(',') if f.strip()]
+        unknown = [f for f in wanted if f not in order]
+        if unknown:
+            raise SystemExit(f'Unbekannte Formate: {", ".join(unknown)} (möglich: {", ".join(order)})')
+        fmts = sorted(set(wanted), key=order.index)
+        if 'cover' in fmts and not {'pdf', 'pdf_print'} & set(fmts):
+            fmts.insert(0, '_pdf')   # Innenteil nur zum Zählen der Seiten (Rückenbreite), nicht ausgeliefert
+        interior = None
+        for fmt in fmts:
+            if fmt == 'cover':   # Umschlag (#68): braucht die Seitenzahl des Innenteils
+                pages = pdf_pages(interior)
+                target = out / f'{tag}-umschlag.pdf'
+                dim = build_cover.build(base, config, pages, target, guides=proof)
+                results.append(target)
+                print(f'✓ {target} ({target.stat().st_size // 1024} KB) · {build_cover.summary(dim)}')
+                for n in dim['notes']:
+                    print(f'ⓘ {n}')
+                continue
+            hidden = fmt == '_pdf'
+            kind = 'pdf' if fmt in ('pdf', 'pdf_print', '_pdf') else fmt
+            target = (tmp / 'innenteil.pdf') if hidden else \
+                out / (f'{tag}-druck.pdf' if fmt == 'pdf_print' else f'{tag}.{fmt}')
+            cmd = ['pandoc', '--from', 'markdown+smart', '--lua-filter', str(BOOK / 'merkkasten.lua'),
+                   f'--top-level-division={top_level}', '-o', str(target)]
+            if ts.get('toc'):
+                cmd += ['--toc', f'--toc-depth={int(ts.get("toc_depth", 1))}']
+            # Glossar-Verweise (#107): Kennzeichnung; im Druck-PDF ohne Link
+            cmd += ['-M', f'gw-glossary-marks={ts.get("glossary_marks", "arrow")}']
+            if fmt == 'pdf_print':
+                cmd += ['-M', 'gw-print=true']
+            m = dict(common_meta)
+            if kind == 'pdf':
+                lines = '\\\\\n'.join(l.replace('&', '\\&').replace('%', '\\%').replace('#', '\\#') for l in imprint)
+                imp, extra_header = '', []
+                if ts.get('imprint') and ts.get('title_page'):
+                    # Impressum auf die Rückseite der Titelseite (KOMA-Script)
+                    extra_header = [str(write('imprint.tex', '\\lowertitleback{\\footnotesize\n' + lines + '\n}\n'))]
+                elif ts.get('imprint'):
+                    imp = '\\begin{flushleft}\\footnotesize\n' + lines + '\n\\end{flushleft}\\bigskip\n'
+                before = imp
+                if dedication:
+                    before += run(['pandoc', '--from', 'markdown+smart', '--to', 'latex',
+                                   '--lua-filter', str(BOOK / 'merkkasten.lua'), str(write('dedication.md', dedication))])
+                    imp = ''
+                    cmd += ['--include-before-body', str(write('before.tex', before))]
+                m.update({'documentclass': 'scrbook',
+                          'classoption': [f'paper={w}mm:{h}mm', f'fontsize={ts["font_size"]}pt',
+                                          f'DIV={DIV.get(ts.get("margins", "standard"), "calc")}', 'BCOR=8mm',
+                                          'titlepage=' + ('true' if ts.get('title_page') else 'false'),
+                                          'open=' + ('right' if ts.get('chapter_start') == 'right' else 'any'),
+                                          'parskip=' + ('half' if ts.get('paragraph') == 'spacing' else 'false')],
+                          'mainfont': fonts[0], 'sansfont': 'TeX Gyre Heros', 'monofont': 'TeX Gyre Cursor',
+                          'linestretch': float(ts.get('line_spacing', 1.1)), 'colorlinks': False, 'header-includes': '',
+                          'include-before': imp})
+                if ts.get('initials'):
+                    cmd += ['-M', 'gw-initials=true']
+                cmd += ['--pdf-engine=xelatex', '--include-in-header', str(BOOK / 'header.tex')]
+                layout = layout_tex(ts, meta)
+                if layout:
+                    extra_header.append(str(write('layout.tex', layout)))
+                if series_line and ts.get('title_page'):   # Reihe über dem Titel (KOMA \subject)
+                    extra_header.append(str(write('series.tex', '\\subject{' + series_line.replace('&', '\\&') + '}\n')))
+                if proof:
+                    note = ('\\ifoot*{\\footnotesize\\sffamily\\color{red!65!black}Probedruck ' + date[8:10] + '.'
+                            + date[5:7] + '.' + date[:4] + ' – nicht zur Veröffentlichung}\n')
+                    if 'scrlayer-scrpage' in layout:   # eigene Kopf-/Fußzeilen bleiben, nur der Vermerk kommt dazu
+                        extra_header.append(str(write('proof.tex', note)))
+                    else:
+                        extra_header.append(str(write('proof.tex',
+                            '\\usepackage{scrlayer-scrpage}\\pagestyle{scrheadings}\\clearpairofpagestyles\n'
+                            '\\ofoot*{\\pagemark}' + note)))
+                if fmt == 'pdf_print' and (config.get('print') or {}).get('crop_marks'):
+                    # Druck-PDF mit Schnittmarken: Papier ringsum 8 mm größer, Seite mittig
+                    # (crop kennt XeTeX nicht als Treiber; die Papiergröße setzt daher ein eigenes \\special)
+                    m['classoption'] = m['classoption'] + ['pagesize=false']
+                    extra_header.append(str(write('crop.tex', f'\\usepackage[cam,center,noinfo,width={w + 16}mm,height={h + 16}mm]{{crop}}\n'
+                                                              f'\\AtBeginDocument{{\\special{{papersize={w + 16}mm,{h + 16}mm}}}}\n')))
+                for hdr in extra_header:   # nicht h: das ist die Seitenhöhe
+                    cmd += ['--include-in-header', hdr]
+                src = body_pdf
+            else:
+                pre = ''
+                if ts.get('imprint'):
+                    pre = '# Impressum {.unnumbered .unlisted .impressum}\n\n' + '\n\n'.join(imprint) + '\n\n'
+                if proof:
+                    pre = f'::: probedruck\n{proof_note}\n:::\n\n' + pre
+                src = pre + body
+                if fmt == 'epub':
+                    cmd += ['--css', str(BOOK / 'epub.css'),
+                            '--epub-title-page=' + ('true' if ts.get('title_page') else 'false')]
+                    extra_css = epub_css(ts)
+                    if extra_css:
+                        cmd += ['--css', str(write('ausgabe.css', extra_css + '\n'))]
+                    if ts.get('initials'):
+                        cmd += ['-M', 'gw-initials=true']
+                    m['description'] = meta.get('description', '')
+                    if series_line:   # EPUB 3: Reihe und Band (belongs-to-collection, group-position)
+                        m['belongs-to-collection'], m['group-position'] = ser['title'], str(ser['volume'])
+                    isbn = (config.get('publication') or {}).get('isbn_ebook')
+                    if isbn:
+                        m['identifier'] = [{'scheme': 'ISBN-13', 'text': 'urn:isbn:' + re.sub(r'[^0-9Xx]', '', isbn)}]
+                    if config.get('cover') and shutil.which('pdftoppm'):   # EPUB-Cover = Vorderseite des Umschlags
+                        front = tmp / 'cover-vorne.jpg'
+                        build_cover.build(base, build_cover.front_only(config), pdf_pages(interior) if interior else 0,
+                                          tmp / 'cover-epub.pdf', front_jpg=front)
+                        cmd += ['--epub-cover-image', str(front)]
+                elif fmt == 'docx':
+                    ref = tmp / 'reference.docx'
+                    make_reference_docx(ref, ts)
+                    cmd += ['--reference-doc', str(ref)]
+            src_path = write(f'book-{fmt}.md', '---\n' + yaml.safe_dump(m, allow_unicode=True, sort_keys=False) + '---\n\n' + src)
+            run(cmd + [str(src_path)], cwd=tmp)
+            if kind == 'pdf':
+                interior = target
+            if hidden:
+                continue
+            results.append(target)
+            print(f'✓ {target} ({target.stat().st_size // 1024} KB)')
+
+    return results
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
@@ -355,10 +493,7 @@ def main(argv):
         imprint.append(credit)
     disc_lines = [re.sub(r'^\s*[-*]\s+', '– ', line) for line in disc[1].splitlines() if line.strip()] \
         if disc and disc[0] == 'imprint' else []
-    fonts = FONTS.get(ts['font'], FONTS['serif'])
-    w, h = PAGE.get(ts['page_size'], PAGE['a5'])
-    months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
-    shown_date = f'{meta.get("edition_text", "")} · {months[int(meta["date"][5:7]) - 1]} {meta["date"][:4]}'.strip(' ·')
+    shown_date = f'{meta.get("edition_text", "")} · {MONTHS[int(meta["date"][5:7]) - 1]} {meta["date"][:4]}'.strip(' ·')
     common_meta = {k: meta[k] for k in ('title', 'subtitle', 'author', 'lang') if k in meta}
     common_meta['date'] = shown_date
     series_line = f'{ser["title"]} · Band {ser["volume"]}' if ser and ser.get('volume') else ''
@@ -367,133 +502,8 @@ def main(argv):
         meta['edition_text'] = 'Probedruck'
         imprint = [release_name, proof_note] + ([f'Commit {args.commit[:7]}'] if args.commit else [])
     imprint += disc_lines
-    results = []
-
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp = Path(tmp)
-        def write(name, text):
-            (tmp / name).write_text(text, encoding='utf-8')
-            return tmp / name
-
-        order = ['pdf', 'pdf_print', 'cover', 'epub', 'docx']
-        wanted = [f.strip() for f in args.formats.split(',') if f.strip()]
-        unknown = [f for f in wanted if f not in order]
-        if unknown:
-            raise SystemExit(f'Unbekannte Formate: {", ".join(unknown)} (möglich: {", ".join(order)})')
-        fmts = sorted(set(wanted), key=order.index)
-        if 'cover' in fmts and not {'pdf', 'pdf_print'} & set(fmts):
-            fmts.insert(0, '_pdf')   # Innenteil nur zum Zählen der Seiten (Rückenbreite), nicht ausgeliefert
-        interior = None
-        for fmt in fmts:
-            if fmt == 'cover':   # Umschlag (#68): braucht die Seitenzahl des Innenteils
-                pages = pdf_pages(interior)
-                target = out / f'{tag}-umschlag.pdf'
-                dim = build_cover.build(base, config, pages, target, guides=args.proof)
-                results.append(target)
-                print(f'✓ {target} ({target.stat().st_size // 1024} KB) · {build_cover.summary(dim)}')
-                for n in dim['notes']:
-                    print(f'ⓘ {n}')
-                continue
-            hidden = fmt == '_pdf'
-            kind = 'pdf' if fmt in ('pdf', 'pdf_print', '_pdf') else fmt
-            target = (tmp / 'innenteil.pdf') if hidden else \
-                out / (f'{tag}-druck.pdf' if fmt == 'pdf_print' else f'{tag}.{fmt}')
-            cmd = ['pandoc', '--from', 'markdown+smart', '--lua-filter', str(BOOK / 'merkkasten.lua'),
-                   '--top-level-division=chapter', '-o', str(target)]
-            if ts.get('toc'):
-                cmd += ['--toc', f'--toc-depth={int(ts.get("toc_depth", 1))}']
-            # Glossar-Verweise (#107): Kennzeichnung; im Druck-PDF ohne Link
-            cmd += ['-M', f'gw-glossary-marks={ts.get("glossary_marks", "arrow")}']
-            if fmt == 'pdf_print':
-                cmd += ['-M', 'gw-print=true']
-            m = dict(common_meta)
-            if kind == 'pdf':
-                lines = '\\\\\n'.join(l.replace('&', '\\&').replace('%', '\\%').replace('#', '\\#') for l in imprint)
-                imp, extra_header = '', []
-                if ts.get('imprint') and ts.get('title_page'):
-                    # Impressum auf die Rückseite der Titelseite (KOMA-Script)
-                    extra_header = [str(write('imprint.tex', '\\lowertitleback{\\footnotesize\n' + lines + '\n}\n'))]
-                elif ts.get('imprint'):
-                    imp = '\\begin{flushleft}\\footnotesize\n' + lines + '\n\\end{flushleft}\\bigskip\n'
-                before = imp
-                if dedication:
-                    before += run(['pandoc', '--from', 'markdown+smart', '--to', 'latex',
-                                   '--lua-filter', str(BOOK / 'merkkasten.lua'), str(write('dedication.md', dedication))])
-                    imp = ''
-                    cmd += ['--include-before-body', str(write('before.tex', before))]
-                m.update({'documentclass': 'scrbook',
-                          'classoption': [f'paper={w}mm:{h}mm', f'fontsize={ts["font_size"]}pt',
-                                          f'DIV={DIV.get(ts.get("margins", "standard"), "calc")}', 'BCOR=8mm',
-                                          'titlepage=' + ('true' if ts.get('title_page') else 'false'),
-                                          'open=' + ('right' if ts.get('chapter_start') == 'right' else 'any'),
-                                          'parskip=' + ('half' if ts.get('paragraph') == 'spacing' else 'false')],
-                          'mainfont': fonts[0], 'sansfont': 'TeX Gyre Heros', 'monofont': 'TeX Gyre Cursor',
-                          'linestretch': float(ts.get('line_spacing', 1.1)), 'colorlinks': False, 'header-includes': '',
-                          'include-before': imp})
-                if ts.get('initials'):
-                    cmd += ['-M', 'gw-initials=true']
-                cmd += ['--pdf-engine=xelatex', '--include-in-header', str(BOOK / 'header.tex')]
-                layout = layout_tex(ts, meta)
-                if layout:
-                    extra_header.append(str(write('layout.tex', layout)))
-                if series_line and ts.get('title_page'):   # Reihe über dem Titel (KOMA \subject)
-                    extra_header.append(str(write('series.tex', '\\subject{' + series_line.replace('&', '\\&') + '}\n')))
-                if args.proof:
-                    note = ('\\ifoot*{\\footnotesize\\sffamily\\color{red!65!black}Probedruck ' + args.date[8:10] + '.'
-                            + args.date[5:7] + '.' + args.date[:4] + ' – nicht zur Veröffentlichung}\n')
-                    if 'scrlayer-scrpage' in layout:   # eigene Kopf-/Fußzeilen bleiben, nur der Vermerk kommt dazu
-                        extra_header.append(str(write('proof.tex', note)))
-                    else:
-                        extra_header.append(str(write('proof.tex',
-                            '\\usepackage{scrlayer-scrpage}\\pagestyle{scrheadings}\\clearpairofpagestyles\n'
-                            '\\ofoot*{\\pagemark}' + note)))
-                if fmt == 'pdf_print' and (config.get('print') or {}).get('crop_marks'):
-                    # Druck-PDF mit Schnittmarken: Papier ringsum 8 mm größer, Seite mittig
-                    # (crop kennt XeTeX nicht als Treiber; die Papiergröße setzt daher ein eigenes \\special)
-                    m['classoption'] = m['classoption'] + ['pagesize=false']
-                    extra_header.append(str(write('crop.tex', f'\\usepackage[cam,center,noinfo,width={w + 16}mm,height={h + 16}mm]{{crop}}\n'
-                                                              f'\\AtBeginDocument{{\\special{{papersize={w + 16}mm,{h + 16}mm}}}}\n')))
-                for hdr in extra_header:   # nicht h: das ist die Seitenhöhe
-                    cmd += ['--include-in-header', hdr]
-                src = body_pdf
-            else:
-                pre = ''
-                if ts.get('imprint'):
-                    pre = '# Impressum {.unnumbered .unlisted .impressum}\n\n' + '\n\n'.join(imprint) + '\n\n'
-                if args.proof:
-                    pre = f'::: probedruck\n{proof_note}\n:::\n\n' + pre
-                src = pre + body
-                if fmt == 'epub':
-                    cmd += ['--css', str(BOOK / 'epub.css'),
-                            '--epub-title-page=' + ('true' if ts.get('title_page') else 'false')]
-                    extra_css = epub_css(ts)
-                    if extra_css:
-                        cmd += ['--css', str(write('ausgabe.css', extra_css + '\n'))]
-                    if ts.get('initials'):
-                        cmd += ['-M', 'gw-initials=true']
-                    m['description'] = meta.get('description', '')
-                    if series_line:   # EPUB 3: Reihe und Band (belongs-to-collection, group-position)
-                        m['belongs-to-collection'], m['group-position'] = ser['title'], str(ser['volume'])
-                    isbn = (config.get('publication') or {}).get('isbn_ebook')
-                    if isbn:
-                        m['identifier'] = [{'scheme': 'ISBN-13', 'text': 'urn:isbn:' + re.sub(r'[^0-9Xx]', '', isbn)}]
-                    if config.get('cover') and shutil.which('pdftoppm'):   # EPUB-Cover = Vorderseite des Umschlags
-                        front = tmp / 'cover-vorne.jpg'
-                        build_cover.build(base, build_cover.front_only(config), pdf_pages(interior) if interior else 0,
-                                          tmp / 'cover-epub.pdf', front_jpg=front)
-                        cmd += ['--epub-cover-image', str(front)]
-                elif fmt == 'docx':
-                    ref = tmp / 'reference.docx'
-                    make_reference_docx(ref, ts)
-                    cmd += ['--reference-doc', str(ref)]
-            src_path = write(f'book-{fmt}.md', '---\n' + yaml.safe_dump(m, allow_unicode=True, sort_keys=False) + '---\n\n' + src)
-            run(cmd + [str(src_path)], cwd=tmp)
-            if kind == 'pdf':
-                interior = target
-            if hidden:
-                continue
-            results.append(target)
-            print(f'✓ {target} ({target.stat().st_size // 1024} KB)')
+    results = render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedication, out, tag, args.formats,
+                     args.proof, proof_note, args.date, series_line, ser)
 
     (out / 'edition.yml').write_text(yaml.safe_dump({
         'edition': args.edition, 'name': release_name, 'tag': tag, 'date': args.date,

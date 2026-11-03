@@ -90,6 +90,10 @@ Die Pfade sind Entwurf und müssen mit dem implementierten Dienst übereinstimme
 | POST | /v1/projects/{owner}/{repo}/characters/{character_id}/adopt | Figur des Buchs in die Serie übernehmen; zwei Commits (`character.adopt`) |
 | POST | /v1/projects/{owner}/{repo}/matter/{matter_id}/glossary/from-series | Begriff der Serie ins Glossar des Buchs (`matter.glossary.from_series`) |
 | POST | /v1/projects/{owner}/{repo}/series/{series_id}/glossary | Begriff in die Serie aufnehmen bzw. ändern (`matter.glossary.to_series`) |
+| PUT | /v1/projects/{owner}/{repo}/series/{series_id}/omnibus | Sammelband anlegen bzw. ändern (`series.omnibus.update`) |
+| POST | /v1/projects/{owner}/{repo}/series/{series_id}/omnibus/approve | Sammelband freigeben (`series.omnibus.approve`) |
+| DELETE | /v1/projects/{owner}/{repo}/series/{series_id}/omnibus/approve | Freigabe zurücknehmen (`series.omnibus.revoke`) |
+| POST | /v1/projects/{owner}/{repo}/series/{series_id}/omnibus/editions | Nächste Auflage des Sammelbands (`series.omnibus.publish`) |
 | POST | /v1/projects/{owner}/{repo}/changes/merge | Offene Änderungen nach Bestätigung übernehmen (`changes.merge`) |
 
 ## Projektdaten im Lese-Endpunkt

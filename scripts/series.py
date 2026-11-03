@@ -13,6 +13,10 @@ Aufruf (im Standard-Branch der Bibliothek):
   python scripts/series.py <repo> term-set <ser-id> "<Begriff>" "<Erklärung>"   Begriff der Serie (glossary.yml)
   python scripts/series.py <repo> term-remove <ser-id> "<Begriff>"
   python scripts/series.py <buch> context [<buch-branch>]             „Was bisher geschah“ aus den Vorbänden
+  python scripts/series.py <repo> omnibus-update <ser-id> '<json>'     Sammelband anlegen/ändern (series/<ser-id>/omnibus.yml)
+  python scripts/series.py <repo> omnibus-approve | omnibus-revoke <ser-id>   Sammelband freigeben bzw. Freigabe zurücknehmen
+  python scripts/series.py <repo> omnibus-publish <ser-id>             nächste Auflage festlegen (Action baut sie)
+  python scripts/series.py <repo> omnibus-pending                       freigegebene Sammelbände ohne Tag (für die Action)
 
 Gemeinsame Inhalte (Stufe 2): Figuren unter series/<ser-id>/characters/ (wie
 characters/ eines Buchs; bearbeiten mit scripts/characters.py series-add |
@@ -399,6 +403,94 @@ def also_markdown(base, ser):
     return f'# Ebenfalls in dieser Reihe {{.unnumbered .unlisted .ebenfalls}}\n\n**{ser["title"]}**\n\n{items}\n'
 
 
+# ---------- Sammelband (Stufe 4) ----------
+
+OMNIBUS_FIELDS = ['title', 'subtitle', 'status', 'volumes', 'keep_matter', 'foreword', 'afterword', 'publication',
+                  'typesetting', 'formats', 'current_edition']
+
+
+def omnibus_path(base, sid):
+    return Path(base) / SERIES_DIR / sid / 'omnibus.yml'
+
+
+def omnibus(base, sid):
+    p = omnibus_path(base, sid)
+    return (yaml.safe_load(p.read_text(encoding='utf-8')) or {}) if p.is_file() else None
+
+
+def omnibus_save(base, sid, om):
+    data = {k: om[k] for k in OMNIBUS_FIELDS if k in om and om[k] not in (None, '', [], {})}
+    data.setdefault('status', 'draft')
+    omnibus_path(base, sid).write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=10**6), encoding='utf-8')
+    return data
+
+
+def omnibus_update(base, sid, fields):
+    """Sammelband anlegen bzw. ändern; jede inhaltliche Änderung setzt die Freigabe zurück (status: draft)."""
+    require_library(base)
+    s, _ = get(base, sid)
+    om = omnibus(base, s['id']) or {'title': f'{s["title"]} – Sammelband', 'status': 'draft', 'current_edition': 0}
+    before = {k: om.get(k) for k in OMNIBUS_FIELDS if k not in ('status', 'current_edition')}
+    for k in ('title', 'subtitle', 'foreword', 'afterword'):
+        if fields.get(k) is not None:
+            om[k] = str(fields[k]).strip()
+    if fields.get('keep_matter') is not None:
+        om['keep_matter'] = list(fields['keep_matter'])
+    if fields.get('publication') is not None:
+        om['publication'] = {k: str(v).strip() for k, v in fields['publication'].items() if str(v or '').strip()}
+    if fields.get('volumes') is not None:
+        vols = []
+        for v in fields['volumes']:
+            v = v if isinstance(v, dict) else {'branch': v}
+            if v['branch'] not in volumes(s):
+                raise SystemExit(f'„{v["branch"]}“ ist kein Band der Serie')
+            vols.append({'branch': v['branch'], **({'edition': int(v['edition'])} if v.get('edition') else {})})
+        om['volumes'] = sorted(vols, key=lambda v: volumes(s).index(v['branch']))
+    if not om.get('title'):
+        raise SystemExit('Titel des Sammelbands fehlt')
+    if not om.get('volumes'):
+        raise SystemExit('Mindestens ein Band wählen')
+    if {k: om.get(k) for k in before} != before:
+        om['status'] = 'draft'
+    return omnibus_save(base, s['id'], om)
+
+
+def omnibus_approve(base, sid, revoke=False):
+    s, _ = get(base, sid)
+    om = omnibus(base, s['id'])
+    if not om:
+        raise SystemExit('Es gibt noch keinen Sammelband dieser Serie')
+    om['status'] = 'draft' if revoke else 'approved'
+    return omnibus_save(base, s['id'], om)
+
+
+def omnibus_publish(base, sid):
+    """Nächste Auflage des Sammelbands festlegen (current_edition + 1); die Action „Sammelband veröffentlichen“ baut sie."""
+    s, _ = get(base, sid)
+    om = omnibus(base, s['id'])
+    if not om or om.get('status') != 'approved':
+        raise SystemExit('Der Sammelband ist nicht freigegeben')
+    om['current_edition'] = int(om.get('current_edition') or 0) + 1
+    return omnibus_save(base, s['id'], om)
+
+
+def omnibus_tag(s, edition):
+    return f'{library.slug(s["title"])}-sammelband-auflage-{edition}'
+
+
+def omnibus_pending(base):
+    """[(ser-id, auflage, tag)] freigegebener Sammelbände, deren aktuelle Auflage noch keinen Tag hat."""
+    out = []
+    for s in load_all(base).values():
+        om = omnibus(base, s['id']) or {}
+        n = int(om.get('current_edition') or 0)
+        if om.get('status') == 'approved' and n:
+            tag = omnibus_tag(s, n)
+            if not _git(base, 'rev-parse', '-q', '--verify', f'refs/tags/{tag}'):
+                out.append((s['id'], n, tag))
+    return out
+
+
 # ---------- Kontinuität (Stufe 2) ----------
 
 def _branch_file(base, branch, rel):
@@ -487,6 +579,15 @@ def problems(base, all_series=None, books=None):
                 errors.append(f'{cp.relative_to(base)}: {"/".join(map(str, e.absolute_path)) or "(Kopf)"}: {e.message}')
             if head.get('id') != cp.stem:
                 errors.append(f'{cp.relative_to(base)}: ID {head.get("id")} passt nicht zum Dateinamen')
+        op = p.parent / 'omnibus.yml'
+        if op.is_file():   # Sammelband (Stufe 4)
+            om = yaml.safe_load(op.read_text(encoding='utf-8')) or {}
+            oschema = json.loads((ROOT / 'schemas' / 'omnibus.schema.json').read_text(encoding='utf-8'))
+            for e in Draft202012Validator(oschema).iter_errors(om):
+                errors.append(f'{op.relative_to(base)}: {"/".join(map(str, e.absolute_path)) or "(Wurzel)"}: {e.message}')
+            for v in om.get('volumes') or []:
+                if isinstance(v, dict) and v.get('branch') not in vols:
+                    errors.append(f'{op.relative_to(base)}: {v.get("branch")} ist kein Band der Serie')
         gp = p.parent / 'glossary.yml'
         if gp.is_file():
             terms = (yaml.safe_load(gp.read_text(encoding='utf-8')) or {}).get('terms') or []
@@ -508,7 +609,8 @@ def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('repo')
     ap.add_argument('cmd', choices=['list', 'create', 'update', 'add', 'remove', 'reorder', 'of', 'term-set', 'term-remove',
-                                    'context'])
+                                    'context', 'omnibus-update', 'omnibus-approve', 'omnibus-revoke', 'omnibus-publish',
+                                    'omnibus-pending'])
     ap.add_argument('args', nargs='*')
     ap.add_argument('--subtitle')
     ap.add_argument('--kind')
@@ -529,6 +631,10 @@ def main(argv):
             print(f'{s["id"]:<32} {s["title"]}  ({len(volumes(s))} Bände: {", ".join(volumes(s)) or "–"})')
         if not all_s and not a.json:
             print('keine Serien')
+        return 0
+    if a.cmd == 'omnibus-pending':
+        for sid, n, tag in omnibus_pending(base):
+            print(f'{sid} {n} {tag}')
         return 0
     if a.cmd == 'context':
         sys.stdout.write(continuity_context(base, (a.args or [None])[0]) or 'Keine Vorbände.\n')
@@ -559,6 +665,19 @@ def main(argv):
             ap.error('remove braucht Serie und Buch-Branch')
         s = remove(base, sid, a.args[1])
         print(f'✓ {a.args[1]} aus „{s["title"]}“ entfernt\nCommit-Nachricht: Band aus der Serie „{s["title"]}“ entfernt')
+    elif a.cmd == 'omnibus-update':
+        if len(a.args) != 2:
+            ap.error("omnibus-update braucht Serie und JSON")
+        om = omnibus_update(base, sid, json.loads(a.args[1]))
+        print(f'✓ Sammelband „{om["title"]}“ gespeichert (Entwurf)\nCommit-Nachricht: Sammelband „{om["title"]}“ geändert')
+    elif a.cmd in ('omnibus-approve', 'omnibus-revoke'):
+        om = omnibus_approve(base, sid, a.cmd == 'omnibus-revoke')
+        word = 'freigegeben' if om['status'] == 'approved' else 'Freigabe zurückgenommen'
+        print(f'✓ Sammelband „{om["title"]}“: {word}\nCommit-Nachricht: Sammelband „{om["title"]}“ {word}')
+    elif a.cmd == 'omnibus-publish':
+        om = omnibus_publish(base, sid)
+        print(f'✓ Sammelband „{om["title"]}“: Auflage {om["current_edition"]} festgelegt; die Action „Sammelband veröffentlichen“ baut sie\n'
+              f'Commit-Nachricht: Sammelband „{om["title"]}“: Auflage {om["current_edition"]}')
     elif a.cmd == 'term-set':
         if len(a.args) != 3:
             ap.error('term-set braucht Serie, Begriff und Erklärung')
