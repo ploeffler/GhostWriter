@@ -638,6 +638,11 @@ def limit_summary(base, config):
     return ('; '.join(r['text'] for r in rows) + '.') if rows else 'Keine Limits eingestellt.'
 
 
+# Hintergrundläufe (#123, #124): Kürzel und Symbol je Art in der Textfassung der Projektübersicht
+ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA'}
+ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝'}
+
+
 def project_view(base, config, args):
     p = config['project']
     chapters = config['structure']['chapters']
@@ -672,15 +677,14 @@ def project_view(base, config, args):
     upd = load_upstream(args)
     if upd:
         values.update({'UPDATE_BEHIND': upd['behind'], 'UPDATE_TEXT': update_text(upd)})
-    try:   # Figurenvorschläge aus einem Hintergrundlauf (#123)
+    try:   # Vorschläge aus Hintergrundläufen (#123, #124), je Art ein Hinweis
         import analyze
-        run_head = analyze.latest(base, 'characters')
+        open_runs = [(k, h, analyze.KINDS[k]) for k, h in analyze.latest_all(base)]
     except Exception:   # noqa: BLE001
-        run_head = None
-    if run_head:
-        values.update({'ANALYSIS_RUN': run_head['path'][:-3] + '.json',
-                       'ANALYSIS_TEXT': f'Figurenvorschläge vom {de_date(str(run_head.get("created_at")))} liegen bereit '
-                                        f'({run_head.get("suggestions", 0)})'})
+        open_runs = []
+    analyses = [{'A_KIND': k, 'A_RUN': h['path'][:-3] + '.json', 'A_ICON': spec['icon'],
+                 'A_TEXT': f'{spec["offer"]} vom {de_date(str(h.get("created_at")))} liegen bereit ({h.get("suggestions", 0)})'}
+                for k, h, spec in open_runs]
     try:   # Import (#124): Original wird bald entfernt
         import import_book
         imp = import_book.status(base)
@@ -707,8 +711,8 @@ def project_view(base, config, args):
             lines += [f'> ⏳ **{values["PENDING_TEXT"]} noch nicht übernommen** (Pull Request #{changes["pull_request"]}) · `M` übernehmen', '']
         if ser:
             lines += [f'📚 {values["SERIES_TEXT"]} · `S` Serie', '']
-        if run_head:
-            lines += [f'> 👤 **{values["ANALYSIS_TEXT"]}** · `FA` ansehen', '']
+        for a in analyses:
+            lines += [f'> {ANALYSIS_EMOJI.get(a["A_KIND"], "🔎")} **{a["A_TEXT"]}** · `{ANALYSIS_KEY.get(a["A_KIND"], "AN")}` ansehen', '']
         if values.get('IMPORT_TEXT'):
             lines += [f'> 📥 {values["IMPORT_TEXT"]}', '']
         if lim_state != 'ok':
@@ -749,8 +753,7 @@ def project_view(base, config, args):
             items.append(('L', f'Bücherregal ({lib_count} Bücher)'))
         if ser:
             items.append(('S', f'Serie „{ser["title"]}“'))
-        if run_head:
-            items.append(('FA', 'Figurenvorschläge aus dem Hintergrundlauf'))
+        items += [(ANALYSIS_KEY.get(a['A_KIND'], 'AN'), f'{a["A_TEXT"].split(" vom ")[0]} aus dem Hintergrundlauf') for a in analyses]
         items += [(m['MATTER_TITLE'], 'öffnen') for m in front + back]
         items += [('D', 'KI-Dienste'), ('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
                   ('V', 'Vor- und Nachspann'), ('FI', f'Figuren ({n_chars})' if n_chars else 'Figuren'), ('FV', '👤 Figuren aus dem Text vorschlagen'),
@@ -760,6 +763,8 @@ def project_view(base, config, args):
             lines += ['', f'<sub>{values["CREDIT_TEXT"]}</sub>']
         return '\n'.join(lines) + '\n'
     blocks = {'CHAPTERS': rows}
+    if analyses:
+        blocks['ANALYSES'] = analyses
     if front:
         blocks['MATTER_FRONT'] = front
     if back:
@@ -2051,6 +2056,66 @@ def character_suggest_view(base, config, args):
     return fill('figuren-vorschlag.html', values, {'SUGGESTIONS': rows, 'MERGE': merge})
 
 
+def analysis_suggest_view(base, config, args):
+    """Vorschläge eines Hintergrundlaufs (#124) zum Auswählen: --draft = analysis/<art>/run-NNN.json. Figuren gehen an
+    character-suggest, die anderen Arten an ihre eigene Vorlage."""
+    raw = args.draft or args.where or ''
+    path = Path(raw) if Path(raw).is_file() else base / raw
+    data = json.loads(path.read_text(encoding='utf-8'))
+    kind = data.get('kind') or 'characters'
+    if kind == 'characters':
+        args.draft = str(path)
+        return character_suggest_view(base, config, args)
+    run_text = f'Hintergrundlauf {data["run"][4:]} vom {de_date(str(data.get("created_at", "")))}' if data.get('run') else ''
+    return ANALYSIS_VIEWS[kind](base, config, args, data, run_text)
+
+
+def summaries_suggest_view(base, config, args, data, run_text):
+    """Kurzbeschreibung und Ziel je Kapitel und Abschnitt (Vorlage kurzbeschreibung-vorschlag): Vorschlag, bisheriger
+    Text, Fundstellen. Vorangehakt sind nur Felder, die noch leer sind."""
+    rows = []
+    for i, it in enumerate(data.get('items') or []):
+        ch = sec = None
+        for c in config['structure']['chapters']:
+            if it['level'] == 'chapter' and c['id'] == it['target']:
+                ch = c
+            for x in c['sections']:
+                if it['level'] == 'section' and x['id'] == it['target']:
+                    sec = x
+        if it['level'] == 'chapter' and ch:
+            _, cur_short, cur_goal = chapter_readme(base, ch)
+        elif sec:
+            _, cur_goal, cur_short, _ = section_file(base, sec)
+        else:
+            continue   # Kapitel bzw. Abschnitt gibt es nicht mehr
+        clean = lambda v: '' if v.startswith('<') and v.endswith('>') else v   # Platzhalter aus der Vorlage
+        cur_short, cur_goal = clean(cur_short), clean(cur_goal)
+        rows.append({'S_IDX': i, 'S_LEVEL': it['level'], 'S_LABEL': f'Kapitel {it["number"]}' if it['level'] == 'chapter' else it['number'],
+                     'S_TITLE': (ch or sec)['title'], 'S_GOAL': it.get('goal', ''), 'S_SHORT': it.get('short', ''),
+                     'S_GOAL_NOW': cur_goal, 'S_SHORT_NOW': cur_short,
+                     'S_GOAL_ON': '1' if it.get('goal') and not cur_goal else '', 'S_SHORT_ON': '1' if it.get('short') and not cur_short else '',
+                     'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in (it.get('evidence') or [])[:2])})
+    values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'summaries',
+              'SUGGEST_COUNT_TEXT': plural(len(rows), 'Vorschlag', 'Vorschläge'), 'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config)}
+    if args.text:
+        out = [f'### 📝 Kurzbeschreibung und Ziel · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
+        for r in rows:
+            out += [f'**{r["S_IDX"] + 1}. {r["S_LABEL"]} {r["S_TITLE"]}**',
+                    f'- Ziel: {r["S_GOAL"] or "–"}' + (f' *(bisher: {r["S_GOAL_NOW"]})*' if r['S_GOAL_NOW'] else ' *(bisher leer)*'),
+                    f'- Kurz: {r["S_SHORT"] or "–"}' + (f' *(bisher: {r["S_SHORT_NOW"]})*' if r['S_SHORT_NOW'] else ' *(bisher leer)*'),
+                    f'- Fundstellen: {r["S_EVIDENCE"] or "–"}', '']
+        if not rows:
+            out += ['*Keine Vorschläge.*', '']
+        out += ['Nur aus dem Text; der Text selbst bleibt unverändert. Ohne Angabe werden nur leere Felder gefüllt.', '', '---',
+                menu([('Übernehmen: 1, 3', 'diese übernehmen (nur leere Felder)'), ('Alle', 'alle leeren Felder füllen'),
+                      ('Ersetzen: 2', 'auch einen vorhandenen Text ersetzen'), ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    return fill('kurzbeschreibung-vorschlag.html', values, {'SUGGESTIONS': rows})
+
+
+ANALYSIS_VIEWS = {'summaries': summaries_suggest_view}
+
+
 def import_preview_view(base, config, args):
     """Vorschau „Manuskript importieren“ (#124, Vorlage import-vorschau): Gliederung aus import/proposal.json."""
     import import_book
@@ -2453,7 +2518,7 @@ def choice_view(base, config, args):
 
 
 FORMS = {'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view,
-         'character-suggest': character_suggest_view, 'import-preview': import_preview_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
+         'character-suggest': character_suggest_view, 'analysis-suggest': analysis_suggest_view, 'import-preview': import_preview_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
          'changes-merge': changes_merge_view, 'providers-edit': providers_edit_view,

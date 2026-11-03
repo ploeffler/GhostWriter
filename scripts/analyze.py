@@ -1,32 +1,42 @@
 #!/usr/bin/env python3
-"""Analysen über das ganze Buch als Hintergrundlauf (#123): zuerst Figuren.
+"""Analysen über das ganze Buch als Hintergrundlauf (#123, #124): Figuren, Kurzbeschreibungen und mehr.
 
 Aufruf:
-  python scripts/analyze.py <buch> plan [--kind characters] [--scope book|N] [--json]
-  python scripts/analyze.py <buch> run  [--kind characters] [--scope book|N] [--date …]
-  python scripts/analyze.py <buch> latest [--kind characters] [--json]     neuester offener Lauf (für die Übersicht)
-  python scripts/analyze.py <buch> applied <run-id> [--kind characters]  Lauf als übernommen vermerken
+  python scripts/analyze.py <buch> plan [--kind ART[,ART…]] [--scope book|N] [--json]
+  python scripts/analyze.py <buch> run  [--kind ART[,ART…]] [--scope book|N]
+  python scripts/analyze.py <buch> latest [--kind ART] [--json]     neuester offener Lauf (für die Übersicht)
+  python scripts/analyze.py <buch> applied <run-id> [--kind ART]  Lauf als übernommen bzw. verworfen vermerken
+  python scripts/analyze.py <buch> apply <run-id> --kind ART <auswahl.json>   ausgewählte Vorschläge übernehmen
+                                                                              (alle Arten außer characters)
 
-Läuft in der Action „Analyse im Hintergrund“ (analyse.yml), lokal genauso. Ablauf:
+Arten (`--kind`, Vorgabe characters; mehrere mit Komma):
+  characters  Figuren (#123); übernommen mit scripts/characters.py apply
+  summaries   Kurzbeschreibung und Ziel je Abschnitt und Kapitel (#124); übernommen in die Abschnittsdatei
+              („## Ziel des Abschnitts“, „## Kurzbeschreibung“) bzw. die README.md des Kapitels
+
+Läuft in der Action „Analyse im Hintergrund“ (analyse.yml), lokal genauso. Ablauf je Art:
   1. Vorbereiten ohne KI: das Buch je Kapitel (Vor- und Nachspann als eigener
-     Block); je Block ein Fingerabdruck (SHA-256 des Textes). Blöcke, deren
-     Fingerabdruck im Zwischenspeicher analysis/cache/<art>/ steht, werden nicht
-     neu gelesen.
-  2. Je Block ein KI-Aufruf (parallel, `analysis.model`): Figuren nur aus dem
-     Text, jede Angabe mit wörtlicher Fundstelle (`evidence: [{field, where,
-     quote}]`).
+     Block, nicht bei summaries); je Block ein Fingerabdruck (SHA-256 des
+     Textes). Blöcke, deren Fingerabdruck im Zwischenspeicher
+     analysis/cache/<art>/ steht, werden nicht neu gelesen.
+  2. Je Block ein KI-Aufruf (parallel, `analysis.model`): Auftrag nur aus dem
+     Text, die Abschnitte als `### N.M`; jede Angabe mit wörtlicher Fundstelle
+     (`evidence: [{field, where, quote}]`).
   3. Prüfung ohne KI: Eine Fundstelle zählt nur, wenn das Zitat wörtlich im
-     angegebenen Abschnitt steht; Angaben ohne gültige Fundstelle fallen weg,
-     Figuren ohne jede gültige Fundstelle auch. Abschnitte bleiben nur, wenn
-     Name oder ein anderer Name dort vorkommt.
-  4. Zusammenführen: gleiche Namen bzw. andere Namen ohne KI, dann ein Aufruf
-     mit `analysis.merge_model` für Spitznamen („Opi“ = „Opa Karl“).
-     Unterschiedliche Angaben (z. B. Alter) kommen als Widerspruch in die
-     Liste, entschieden wird nichts.
-  5. Ablage: analysis/<art>/run-NNN.md (Lauf) und run-NNN.json (Vorschläge im
-     Format von `render_view.py character-suggest`), Kosten je Aufruf in
-     costs/project.yml (source: action_api). Nichts wird automatisch angelegt;
-     übernommen wird im Chat (START.md, „Figuren“, Schritt 7).
+     angegebenen Abschnitt steht; Angaben ohne gültige Fundstelle fallen weg.
+     Figuren: Abschnitte bleiben nur, wenn Name oder ein anderer Name dort
+     vorkommt. Kurzbeschreibungen: je Abschnitt mindestens eine Fundstelle in
+     diesem Abschnitt, fürs Kapitel eine in einem seiner Abschnitte.
+  4. Zusammenführen: Figuren nach gleichen bzw. anderen Namen ohne KI, dann ein
+     Aufruf mit `analysis.merge_model` für Spitznamen („Opi“ = „Opa Karl“);
+     unterschiedliche Angaben (z. B. Alter) kommen als Widerspruch in die
+     Liste, entschieden wird nichts. Kurzbeschreibungen: ohne KI in
+     Buchreihenfolge (Kapitel, dann seine Abschnitte).
+  5. Ablage: analysis/<art>/run-NNN.md (Lauf) und run-NNN.json (Vorschläge,
+     `kind` und `items`), Kosten je Aufruf in costs/project.yml (source:
+     action_api). Nichts wird automatisch übernommen; ausgewählt wird im Chat
+     (Figuren: `render_view.py character-suggest`, sonst `analysis-suggest`;
+     START.md, „Analysen im Hintergrund“).
 
 Einstellungen in ghostwriter.yml (alle optional), Block `analysis`:
   provider          anthropic | openai (sonst der erste mit hinterlegtem Schlüssel)
@@ -39,7 +49,8 @@ Schlüssel: Umgebungsvariable mit dem Namen aus providers.yml (ANTHROPIC_API_KEY
 OPENAI_API_KEY), in der Action aus den GitHub-Secrets.
 
 Tests: GHOSTWRITER_FAKE_LLM=<datei.json> ersetzt die KI-Aufrufe durch feste
-Antworten ({"extract": {<block>: {...}}, "merge": {...}}).
+Antworten ({"extract": {<block>: {...}}, "merge": {...}} für Figuren, für andere
+Arten dasselbe unter dem Namen der Art: {"summaries": {"extract": {…}}}).
 """
 import argparse
 import concurrent.futures
@@ -58,15 +69,14 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'scripts'))
 from render_view import (character_file, character_items, load, matter_items, section_file)  # noqa: E402
 
-KINDS = {'characters': 'Figuren'}
 PROVIDERS = {
     'anthropic': {'secret': 'ANTHROPIC_API_KEY', 'model': 'claude-haiku-5-5', 'merge_model': 'claude-sonnet-5-5'},
     'openai': {'secret': 'OPENAI_API_KEY', 'model': 'gpt-5-mini', 'merge_model': 'gpt-5'},
 }
 CHARS_PER_TOKEN = 3.5     # grobe Schätzung für deutschen Text
-PROMPT_TOKENS = 900       # Anweisungen und bekannte Figuren je Aufruf (Schätzung)
-OUTPUT_TOKENS = 1500      # Antwort je Block (Schätzung)
+PROMPT_TOKENS = 900       # Anweisungen und bekannte Angaben je Aufruf (Schätzung)
 FIELDS = ('short', 'age', 'appearance', 'traits', 'voice')
+QUOTE_RULE = '"quote": "<kurzes wörtliches Zitat aus dem Text, höchstens 25 Wörter, genau wie im Text>"'
 
 EXTRACT_SYSTEM = """Du liest einen Ausschnitt eines Buchs und nennst die Figuren, die darin handeln, sprechen oder
 beschrieben werden. Regeln:
@@ -82,6 +92,19 @@ Antworte nur mit JSON: {"items": [{"name": "", "aliases": [], "role": "main|supp
 MERGE_SYSTEM = """Du bekommst Figuren, die in verschiedenen Kapiteln eines Buchs gefunden wurden, je mit Namen, anderen
 Namen und einem Satz. Gib an, welche Einträge dieselbe Person sind (z. B. Spitzname und voller Name). Nur wenn der
 Text das klar nahelegt; im Zweifel getrennt lassen. Antworte nur mit JSON: {"groups": [["Name A", "Name B"], …]}"""
+
+SUMMARIES_SYSTEM = """Du liest ein Kapitel eines Buchs. Die Abschnitte stehen unter Überschriften wie "### 1.2".
+Schreibe je Abschnitt und fürs ganze Kapitel:
+- "short": Kurzbeschreibung, worum es geht (ein bis drei Sätze, sachlich, im Präsens);
+- "goal": Ziel, also was der Abschnitt bzw. das Kapitel für das Buch leistet (ein Satz; im Sachbuch: was der Leser
+  danach weiß oder kann; in einer Geschichte: was sich für die Handlung oder die Figuren ändert).
+Regeln:
+- Nur aus dem Text. Nichts erfinden, nichts aus Weltwissen ergänzen, keine Wertung. Was der Text nicht hergibt,
+  bleibt leer.
+- Jede Angabe braucht mindestens eine Fundstelle: evidence = [{"field": "short|goal", "where": "<Abschnitt, z. B. 1.2>",
+  """ + QUOTE_RULE + """}].
+Antworte nur mit JSON: {"sections": [{"where": "1.2", "short": "", "goal": "", "evidence": []}],
+"chapter": {"short": "", "goal": "", "evidence": []}}"""
 
 
 def settings(config):
@@ -105,12 +128,12 @@ def pick_provider(s):
 
 # ---------- 1. Vorbereiten ----------
 
-def blocks(base, config, scope=None):
+def blocks(base, config, scope=None, matter=True):
     """[(schlüssel, titel, {abschnitt: text})] je Kapitel; Vor- und Nachspann als Block „Vor- und Nachspann“."""
     out = []
     chapters = config['structure']['chapters']
     want = None if scope in (None, '', 'book', 'buch') else int(scope)
-    if want is None:
+    if want is None and matter:
         texts = {i['title']: section_file(base, i)[3] for _, i in matter_items(config)}
         texts = {k: v for k, v in texts.items() if v.strip() and v.strip() != 'Noch nicht begonnen.'}
         if texts:
@@ -151,8 +174,9 @@ def cached(base, kind, key, fp):
 
 def plan(base, config, kind='characters', scope=None):
     s = settings(config)
+    spec = KINDS[kind]
     rows, chars_new = [], 0
-    for key, title, texts in blocks(base, config, scope):
+    for key, title, texts in blocks(base, config, scope, spec['matter']):
         fp = fingerprint(texts)
         hit = cached(base, kind, key, fp) is not None
         n = len(block_text(texts))
@@ -160,26 +184,28 @@ def plan(base, config, kind='characters', scope=None):
         if not hit:
             chars_new += n
     todo = [r for r in rows if not r['cached']]
-    tin = int(chars_new / CHARS_PER_TOKEN) + PROMPT_TOKENS * len(todo) + (2000 if todo else 0)
-    tout = OUTPUT_TOKENS * len(todo) + (500 if todo else 0)
+    merge_in, merge_out = spec['merge_tokens']
+    tin = int(chars_new / CHARS_PER_TOKEN) + PROMPT_TOKENS * len(todo) + (merge_in if todo else 0)
+    tout = spec['output_tokens'] * len(todo) + (merge_out if todo else 0)
     cost = None
     if s.get('price_input_per_mtok') is not None and s.get('price_output_per_mtok') is not None:
         cost = round(tin / 1e6 * float(s['price_input_per_mtok']) + tout / 1e6 * float(s['price_output_per_mtok']), 2)
-    return {'kind': kind, 'scope': scope or 'book', 'blocks': rows, 'todo': len(todo), 'cached': len(rows) - len(todo),
-            'input_tokens': tin, 'output_tokens': tout, 'cost_estimate': cost}
+    return {'kind': kind, 'label': spec['label'], 'scope': scope or 'book', 'blocks': rows, 'todo': len(todo),
+            'cached': len(rows) - len(todo), 'input_tokens': tin, 'output_tokens': tout, 'cost_estimate': cost}
 
 
 # ---------- 2. KI-Aufrufe ----------
 
-def call_llm(provider, key, model, system, user):
+def call_llm(provider, key, model, system, user, kind='characters', step='extract'):
     """(antwort-text, input_tokens, output_tokens). GHOSTWRITER_FAKE_LLM: feste Antworten für Tests."""
     fake = os.environ.get('GHOSTWRITER_FAKE_LLM')
     if fake:
         data = json.loads(Path(fake).read_text(encoding='utf-8'))
-        if system is MERGE_SYSTEM:
+        data = data if kind == 'characters' else (data.get(kind) or {})
+        if step == 'merge':
             return json.dumps(data.get('merge') or {'groups': []}), 100, 20
         m = re.search(r'^BLOCK: (\S+)$', user, re.M)
-        return json.dumps((data.get('extract') or {}).get(m.group(1) if m else '', {'items': []})), len(user) // 4, 300
+        return json.dumps((data.get('extract') or {}).get(m.group(1) if m else '', {})), len(user) // 4, 300
     if provider == 'anthropic':
         req = urllib.request.Request('https://api.anthropic.com/v1/messages', method='POST', data=json.dumps({
             'model': model, 'max_tokens': 8000, 'system': system, 'messages': [{'role': 'user', 'content': user}]}).encode(),
@@ -215,10 +241,28 @@ def norm(s):
     return re.sub(r'\s+', ' ', s).strip().casefold()
 
 
+def check_quote(e, ntexts, only=None):
+    """Geprüfte Fundstelle {field, where, quote} oder None. Das Zitat muss wörtlich im genannten Abschnitt stehen;
+    fehlt der Abschnitt bzw. ist er unbekannt, zählt jeder Abschnitt des Blocks (bzw. die aus only)."""
+    if not isinstance(e, dict):
+        return None
+    q = norm(e.get('quote'))
+    where = str(e.get('where') or '')
+    pool = {k: v for k, v in ntexts.items() if only is None or k in only}
+    if len(q) < 3:
+        return None
+    if where in pool:
+        hit = where if q in pool[where] else None
+    elif where in ntexts:   # Abschnitt außerhalb von only
+        hit = None
+    else:
+        hit = next((k for k, v in pool.items() if q in v), None)
+    return {'field': e.get('field') or '', 'where': hit, 'quote': (e.get('quote') or '').strip()} if hit else None
+
+
 def verify(items, texts):
-    """Nur Angaben mit wörtlicher Fundstelle; → (geprüfte Figuren, Zahl verworfener Angaben)."""
+    """Figuren: nur Angaben mit wörtlicher Fundstelle; → (geprüfte Figuren, Zahl verworfener Angaben)."""
     ntexts = {k: norm(v) for k, v in texts.items()}
-    every = ' '.join(ntexts.values())
     out, dropped = [], 0
     for it in items or []:
         name = (it.get('name') or '').strip()
@@ -226,18 +270,17 @@ def verify(items, texts):
             continue
         ok = []
         for e in it.get('evidence') or []:
-            q = norm(e.get('quote'))
-            where = str(e.get('where') or '')
-            if len(q) >= 3 and (q in ntexts.get(where, '') or (where not in ntexts and q in every)):
-                ok.append({'field': e.get('field') or 'name', 'where': where if where in ntexts else
-                           next((k for k, v in ntexts.items() if q in v), where), 'quote': e.get('quote', '').strip()})
+            hit = check_quote(e, ntexts)
+            if hit:
+                hit['field'] = hit['field'] or 'name'
+                ok.append(hit)
             else:
                 dropped += 1
         if not ok:
             dropped += 1
             continue
         names = [name] + [a for a in it.get('aliases') or [] if a]
-        fields = {f for f in (e['field'] for e in ok)}
+        fields = {e['field'] for e in ok}
         clean = {'name': name, 'aliases': [a for a in it.get('aliases') or [] if a and a != name],
                  'role': it.get('role') if it.get('role') in ('main', 'supporting', 'minor') else 'supporting',
                  'evidence': ok}
@@ -256,6 +299,36 @@ def verify(items, texts):
         clean['sections'] = secs
         out.append(clean)
     return out, dropped
+
+
+def verify_summaries(answer, texts):
+    """Kurzbeschreibung und Ziel: je Abschnitt nur mit Fundstelle in diesem Abschnitt, fürs Kapitel mit Fundstelle in
+    einem seiner Abschnitte. Ein Feld ohne eigene Fundstelle zählt, wenn der Eintrag mindestens eine gültige hat
+    (ein Ziel lässt sich selten wörtlich belegen). → ({sections: [...], chapter: {...}|None}, verworfen)"""
+    ntexts = {k: norm(v) for k, v in texts.items()}
+    dropped, sections, seen = 0, [], set()
+    for it in (answer or {}).get('sections') or []:
+        where = str(it.get('where') or '')
+        if where not in ntexts or where in seen:
+            dropped += 1
+            continue
+        ok = [h for h in (check_quote(e, ntexts, only={where}) for e in it.get('evidence') or []) if h]
+        dropped += len(it.get('evidence') or []) - len(ok)
+        vals = {f: (it.get(f) or '').strip() for f in ('short', 'goal')}
+        if not ok or not any(vals.values()):
+            dropped += 1
+            continue
+        seen.add(where)
+        sections.append(dict({f: v for f, v in vals.items() if v}, where=where, evidence=ok[:3]))
+    ch = (answer or {}).get('chapter') or {}
+    chapter = None
+    ok = [h for h in (check_quote(e, ntexts) for e in ch.get('evidence') or []) if h]
+    vals = {f: (ch.get(f) or '').strip() for f in ('short', 'goal')}
+    if ok and any(vals.values()):
+        chapter = dict({f: v for f, v in vals.items() if v}, evidence=ok[:3])
+    elif any(vals.values()):
+        dropped += 1
+    return {'sections': sections, 'chapter': chapter}, dropped
 
 
 # ---------- 4. Zusammenführen ----------
@@ -321,6 +394,69 @@ def merge(found, groups=()):
     return out, conflicts
 
 
+# ---------- Arten ----------
+
+def characters_context(base, config):
+    known = '\n'.join(f'- {c["name"]}' + (': ' + character_file(base, c)[0]['short'] if character_file(base, c)[0].get('short') else '')
+                      for c in character_items(config)) or '- (keine)'
+    return f'Bekannte Figuren:\n{known}'
+
+
+def characters_combine(base, config, results, todo, prev, ask):
+    """Figuren: zusammenführen, Spitznamen über merge_model. → (vorschläge, md-zeilen)"""
+    found = [it for key in results for it in results[key]]
+    groups = ((prev or {}).get('groups') or []) if not todo else []   # nichts Neues gelesen: Zuordnung vom letzten Lauf
+    if len(found) > 1 and todo:   # Spitznamen: ein Aufruf mit dem stärkeren Modell
+        listing = '\n'.join(f'- {it["name"]}' + (f' (auch: {", ".join(it["aliases"])})' if it.get('aliases') else '')
+                            + (f': {it["short"]}' if it.get('short') else '') for it in found)
+        groups = [g for g in parse_json(ask(MERGE_SYSTEM, listing)).get('groups') or [] if isinstance(g, list) and len(g) > 1]
+    items, conflicts = merge(found, groups)
+    body = ['## Vorschläge', '']
+    body += [f'- **{it["name"]}**' + (f' (auch: {", ".join(it["aliases"])})' if it['aliases'] else '') +
+             (f': {it["short"]}' if it.get('short') else '') + (f' – {", ".join(it["sections"])}' if it['sections'] else '')
+             for it in items] or ['*keine*']
+    body += ['', '## Widersprüche', '']
+    body += [f'- {c["name"]}, {c["field"]}: ' + ' / '.join(str(v) for v in c['values']) for c in conflicts] or ['*keine*']
+    return {'items': items, 'conflicts': conflicts, 'groups': groups}, body
+
+
+def summaries_combine(base, config, results, todo, prev, ask):
+    """Kurzbeschreibungen: in Buchreihenfolge, je Kapitel erst das Kapitel, dann seine Abschnitte. → (vorschläge, md)"""
+    items, body = [], ['## Vorschläge', '']
+    for ci, ch in enumerate(config['structure']['chapters'], start=1):
+        res = results.get(ch['id'])
+        if not res:
+            continue
+        if res.get('chapter'):
+            items.append(dict(res['chapter'], level='chapter', target=ch['id'], number=str(ci), title=ch['title']))
+        for e in res.get('sections') or []:
+            si = int(e['where'].split('.')[1])
+            if si <= len(ch['sections']):
+                s = ch['sections'][si - 1]
+                items.append(dict(e, level='section', target=s['id'], number=e['where'], title=s['title']))
+    for it in items:
+        label = f'Kapitel {it["number"]}' if it['level'] == 'chapter' else it['number']
+        body += [f'- **{label} {it["title"]}**' + (f' – Ziel: {it["goal"]}' if it.get('goal') else '')
+                 + (f' – Kurz: {it["short"]}' if it.get('short') else '')]
+    if not items:
+        body.append('*keine*')
+    return {'items': items}, body
+
+
+# Je Art: label (für Texte), offer (Hinweis in der Übersicht), icon (Tabler-Symbol), system (Auftrag je Block),
+# context (zusätzlicher Text vor dem Kapitel), verify, combine, matter (Vor- und Nachspann lesen), output_tokens
+# (Schätzung je Block), merge_tokens (Schätzung Zusammenführen), merge (Zusammenführen mit merge_model).
+KINDS = {
+    'characters': {'label': 'Figuren', 'offer': 'Figurenvorschläge', 'icon': 'user-search', 'system': EXTRACT_SYSTEM,
+                   'context': characters_context, 'verify': lambda answer, texts: verify((answer or {}).get('items'), texts),
+                   'combine': characters_combine, 'matter': True, 'output_tokens': 1500, 'merge_tokens': (2000, 500),
+                   'merge': True},
+    'summaries': {'label': 'Kurzbeschreibungen', 'offer': 'Kurzbeschreibungen und Ziele', 'icon': 'file-description',
+                  'system': SUMMARIES_SYSTEM, 'context': None, 'verify': verify_summaries, 'combine': summaries_combine,
+                  'matter': False, 'output_tokens': 1200, 'merge_tokens': (0, 0), 'merge': False},
+}
+
+
 # ---------- 5. Lauf ----------
 
 def next_run(folder):
@@ -328,7 +464,7 @@ def next_run(folder):
     return f'run-{max(nums, default=0) + 1:03d}'
 
 
-def cost_entry(s, provider, model, run_id, tin, tout, when, n):
+def cost_entry(s, provider, model, run_id, tin, tout, when, n, label='Figuren'):
     price = None
     if s.get('price_input_per_mtok') is not None and s.get('price_output_per_mtok') is not None:
         price = round(tin / 1e6 * float(s['price_input_per_mtok']) + tout / 1e6 * float(s['price_output_per_mtok']), 4)
@@ -337,84 +473,77 @@ def cost_entry(s, provider, model, run_id, tin, tout, when, n):
     return {'activity_id': f'act-{run_id}-{n:03d}', 'occurred_at': when, 'source': 'action_api', 'run_id': run_id,
             'provider': provider, 'model': model, 'activity_type': 'other', 'currency': cur,
             'cost_amount': price, 'cost_status': 'estimated' if price is not None else 'unavailable',
-            'input_tokens': tin, 'output_tokens': tout, 'note': 'Figuren-Analyse (Hintergrundlauf)'}
+            'input_tokens': tin, 'output_tokens': tout, 'note': f'{label}-Analyse (Hintergrundlauf)'}
 
 
 def run(base, kind='characters', scope=None, now=None):
     base = Path(base)
     _, config = load(base)
+    spec = KINDS[kind]
     s = settings(config)
-    provider, key = pick_provider(s)
-    model = s.get('model') or PROVIDERS[provider]['model']
-    merge_model = s.get('merge_model') or PROVIDERS[provider]['merge_model']
     now = now or datetime.datetime.now().astimezone().isoformat(timespec='seconds')
     folder = base / 'analysis' / kind
     folder.mkdir(parents=True, exist_ok=True)
     run_id = next_run(folder)
-    known = '\n'.join(f'- {c["name"]}' + (': ' + character_file(base, c)[0]['short'] if character_file(base, c)[0].get('short') else '')
-                      for c in character_items(config)) or '- (keine)'
     todo, results, calls = [], {}, []
-    for bkey, title, texts in blocks(base, config, scope):
+    for bkey, title, texts in blocks(base, config, scope, spec['matter']):
         fp = fingerprint(texts)
         hit = cached(base, kind, bkey, fp)
         if hit:
-            results[bkey] = (hit['items'], texts, True)
+            results[bkey] = hit['items']
         else:
             todo.append((bkey, title, texts, fp))
+    provider, key = pick_provider(s) if todo else (s.get('provider') or 'anthropic', None)
+    model = s.get('model') or PROVIDERS[provider]['model']
+    merge_model = s.get('merge_model') or PROVIDERS[provider]['merge_model']
+    context = spec['context'](base, config) if spec['context'] else ''
 
     def extract(job):
         bkey, title, texts, fp = job
-        user = f'BLOCK: {bkey}\n\nBekannte Figuren:\n{known}\n\n## {title}\n\n{block_text(texts)}'
-        text, tin, tout = call_llm(provider, key, model, EXTRACT_SYSTEM, user)
-        items, dropped = verify(parse_json(text).get('items'), texts)
-        return bkey, texts, fp, items, dropped, tin, tout
+        user = f'BLOCK: {bkey}\n\n' + (f'{context}\n\n' if context else '') + f'## {title}\n\n{block_text(texts)}'
+        text, tin, tout = call_llm(provider, key, model, spec['system'], user, kind)
+        items, dropped = spec['verify'](parse_json(text), texts)
+        return bkey, fp, items, dropped, tin, tout
 
     dropped_total = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, int(s.get('parallel') or 4))) as pool:
-        for bkey, texts, fp, items, dropped, tin, tout in pool.map(extract, todo):
-            results[bkey] = (items, texts, False)
+        for bkey, fp, items, dropped, tin, tout in pool.map(extract, todo):
+            results[bkey] = items
             dropped_total += dropped
             calls.append((model, tin, tout))
             cdir = cache_dir(base, kind)
             cdir.mkdir(parents=True, exist_ok=True)
             (cdir / f'{bkey}.json').write_text(json.dumps({'fingerprint': fp, 'model': model, 'items': items},
                                                           ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
-    found = [it for key in results for it in results[key][0]]
-    groups = []
     prev = sorted(folder.glob('run-[0-9][0-9][0-9].json'))
-    if prev and not todo:   # nichts Neues gelesen: Zuordnung der Spitznamen vom letzten Lauf
-        groups = json.loads(prev[-1].read_text(encoding='utf-8')).get('groups') or []
-    if len(found) > 1 and todo:   # Spitznamen: ein Aufruf mit dem stärkeren Modell
-        listing = '\n'.join(f'- {it["name"]}' + (f' (auch: {", ".join(it["aliases"])})' if it.get('aliases') else '')
-                            + (f': {it["short"]}' if it.get('short') else '') for it in found)
-        text, tin, tout = call_llm(provider, key, merge_model, MERGE_SYSTEM, listing)
-        groups = [g for g in parse_json(text).get('groups') or [] if isinstance(g, list) and len(g) > 1]
+    prev = json.loads(prev[-1].read_text(encoding='utf-8')) if prev else None
+
+    def ask(system, user):
+        text, tin, tout = call_llm(provider, key, merge_model, system, user, kind, 'merge')
         calls.append((merge_model, tin, tout))
-    items, conflicts = merge(found, groups)
-    suggestions = {'scope': scope or 'book', 'run': run_id, 'created_at': now, 'items': items, 'conflicts': conflicts,
-                   'groups': groups}
+        return text
+
+    result, body = spec['combine'](base, config, results, todo, prev, ask)
+    suggestions = dict({'kind': kind, 'scope': scope or 'book', 'run': run_id, 'created_at': now}, **result)
     (folder / f'{run_id}.json').write_text(json.dumps(suggestions, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
     tin = sum(c[1] for c in calls)
     tout = sum(c[2] for c in calls)
-    entries = [cost_entry(s, provider, m, run_id, a, b, now, i) for i, (m, a, b) in enumerate(calls, start=1)]
+    entries = [cost_entry(s, provider, m, run_id, a, b, now, i, spec['label']) for i, (m, a, b) in enumerate(calls, start=1)]
     cost = sum(e['cost_amount'] or 0 for e in entries) if all(e['cost_amount'] is not None for e in entries) else None
+    n = len(result.get('items') or [])
     head = {'id': run_id, 'type': 'analysis', 'kind': kind, 'scope': scope or 'book', 'created_at': now,
-            'provider': provider, 'model': model, 'merge_model': merge_model,
-            'blocks_analysed': len(todo), 'blocks_cached': len(results) - len(todo), 'suggestions': len(items),
+            'provider': provider, 'model': model, 'merge_model': merge_model if spec['merge'] else None,
+            'blocks_analysed': len(todo), 'blocks_cached': len(results) - len(todo), 'suggestions': n,
             'dropped_without_evidence': dropped_total, 'input_tokens': tin, 'output_tokens': tout,
             'cost': cost, 'result': f'{run_id}.json'}
-    body = [f'# {KINDS[kind]}-Analyse {run_id[4:]}', '',
-            f'{len(items)} Vorschläge aus {len(results)} Blöcken ({len(todo)} neu gelesen, {len(results) - len(todo)} aus dem '
-            f'Zwischenspeicher). {dropped_total} Angaben ohne wörtliche Fundstelle verworfen. Der Buchtext ging an {provider} '
-            f'({model}, Zusammenführen: {merge_model}).', '', '## Vorschläge', '']
-    body += [f'- **{it["name"]}**' + (f' (auch: {", ".join(it["aliases"])})' if it['aliases'] else '') +
-             (f': {it["short"]}' if it.get('short') else '') + (f' – {", ".join(it["sections"])}' if it['sections'] else '')
-             for it in items] or ['*keine*']
-    body += ['', '## Widersprüche', '']
-    body += [f'- {c["name"]}, {c["field"]}: ' + ' / '.join(str(v) for v in c['values']) for c in conflicts] or ['*keine*']
-    body += ['', 'Übernommen wird nichts automatisch: im Chat „Figurenvorschläge … liegen bereit“ öffnen.']
+    used = f'{model}, Zusammenführen: {merge_model}' if spec['merge'] else model
+    lines = [f'# {spec["label"]}-Analyse {run_id[4:]}', '',
+             f'{n} Vorschläge aus {len(results)} Blöcken ({len(todo)} neu gelesen, {len(results) - len(todo)} aus dem '
+             f'Zwischenspeicher). {dropped_total} Angaben ohne wörtliche Fundstelle verworfen.'
+             + (f' Der Buchtext ging an {provider} ({used}).' if todo else ''), '']
+    lines += body + ['', f'Übernommen wird nichts automatisch: im Chat „{spec["offer"]} … liegen bereit“ öffnen.']
     (folder / f'{run_id}.md').write_text('---\n' + yaml.safe_dump(head, allow_unicode=True, sort_keys=False) + '---\n\n'
-                                         + '\n'.join(body) + '\n', encoding='utf-8')
+                                         + '\n'.join(lines) + '\n', encoding='utf-8')
     if entries:
         cpath = base / 'costs' / 'project.yml'
         cpath.parent.mkdir(exist_ok=True)
@@ -430,7 +559,8 @@ def applied_file(base, kind):
 
 
 def latest(base, kind='characters'):
-    """Neuester Lauf, der noch nicht übernommen bzw. verworfen ist: Kopf des Laufs oder None."""
+    """Neuester Lauf, der noch nicht übernommen bzw. verworfen ist: Kopf des Laufs oder None. Läufe anderer Arten ohne
+    Vorschläge zählen nicht."""
     folder = Path(base) / 'analysis' / kind
     runs = sorted(folder.glob('run-[0-9][0-9][0-9].md')) if folder.is_dir() else []
     if not runs:
@@ -439,7 +569,14 @@ def latest(base, kind='characters'):
         if applied_file(base, kind).is_file() else set()
     m = re.match(r'\A---\n(.*?)\n---\n', runs[-1].read_text(encoding='utf-8'), re.S)
     head = yaml.safe_load(m.group(1)) if m else {}
-    return None if head.get('id') in done else dict(head, path=str(runs[-1].relative_to(base)))
+    if head.get('id') in done or (kind != 'characters' and not head.get('suggestions')):
+        return None
+    return dict(head, path=str(runs[-1].relative_to(base)))
+
+
+def latest_all(base):
+    """[(art, kopf)] aller Arten mit offenem Lauf, in der Reihenfolge von KINDS."""
+    return [(k, h) for k, h in ((k, latest(base, k)) for k in KINDS) if h]
 
 
 def mark_applied(base, run_id, kind='characters'):
@@ -450,46 +587,133 @@ def mark_applied(base, run_id, kind='characters'):
     p.write_text(yaml.safe_dump(data, sort_keys=False), encoding='utf-8')
 
 
+# ---------- Übernehmen ----------
+
+def set_part(text, heading, value, before='## Manuskript'):
+    """Inhalt unter „## heading“ ersetzen (bis zur nächsten Überschrift ##); fehlt die Überschrift, vor `before`
+    bzw. am Ende einfügen."""
+    block = f'## {heading}\n\n{value.strip()}\n\n'
+    m = re.search(rf'(?m)^## {re.escape(heading)}\n.*?(?=^## |\Z)', text, re.S)
+    if m:
+        rest = text[m.end():]
+        return text[:m.start()] + (block + rest if rest else block.rstrip('\n') + '\n')
+    i = text.find(f'\n{before}\n') if before else -1
+    if i >= 0:
+        return text[:i + 1] + block + text[i + 1:]
+    return text.rstrip('\n') + '\n\n' + block.rstrip('\n') + '\n'
+
+
+def summary_target(config, item):
+    """(Datei relativ zum Buch, Kapitel bzw. Abschnitt) eines Kurzbeschreibungs-Vorschlags oder (None, None)."""
+    for ch in config['structure']['chapters']:
+        if item['level'] == 'chapter' and ch['id'] == item['target']:
+            return f'{ch["path"]}/README.md', ch
+        for s in ch['sections']:
+            if item['level'] == 'section' and s['id'] == item['target']:
+                return s['path'], s
+    return None, None
+
+
+def apply_summaries(base, config, data, choices):
+    """Ausgewählte Kurzbeschreibungen und Ziele eintragen. choices: [{index, short?, goal?}]; nur die genannten,
+    nicht leeren Felder werden geschrieben (auch über einen vorhandenen Text). → [geänderte Dateien]"""
+    items = data.get('items') or []
+    changed = []
+    for c in choices:
+        it = items[int(c['index'])]
+        rel, obj = summary_target(config, it)
+        if not rel:
+            raise SystemExit(f'Ziel von Vorschlag {c["index"]} ({it.get("number")}) gibt es nicht mehr')
+        path = Path(base) / rel
+        text = path.read_text(encoding='utf-8') if path.is_file() else f'# Kapitel {it["number"]} – {obj["title"]}\n'
+        if it['level'] == 'chapter':
+            heads, before = {'short': 'Kurzbeschreibung', 'goal': 'Ziel des Kapitels'}, '## Abschnitte'
+        else:
+            heads, before = {'goal': 'Ziel des Abschnitts', 'short': 'Kurzbeschreibung'}, '## Recherche- und Brainstorming-Ergebnisse'
+        new = text
+        for f, h in heads.items():
+            v = (c.get(f) or '').strip()
+            if v:
+                new = set_part(new, h, v, before if f'\n{before}\n' in new else '## Manuskript')
+        if new != text:
+            path.write_text(new, encoding='utf-8')
+            changed.append(rel)
+    return changed
+
+
+APPLY = {'summaries': apply_summaries}
+
+
+def apply(base, run_id, kind, choices):
+    """Ausgewählte Vorschläge eines Laufs übernehmen und den Lauf als erledigt vermerken. → [geänderte Dateien]"""
+    base = Path(base)
+    if kind not in APPLY:
+        raise SystemExit(f'{kind}: übernehmen mit scripts/characters.py apply' if kind == 'characters' else f'unbekannte Art {kind}')
+    data = json.loads((base / 'analysis' / kind / f'{run_id}.json').read_text(encoding='utf-8'))
+    _, config = load(base)
+    changed = APPLY[kind](base, config, data, choices)
+    mark_applied(base, run_id, kind)
+    return changed
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
-    ap.add_argument('cmd', choices=['plan', 'run', 'latest', 'applied'])
+    ap.add_argument('cmd', choices=['plan', 'run', 'latest', 'applied', 'apply'])
     ap.add_argument('args', nargs='*')
-    ap.add_argument('--kind', default='characters', choices=list(KINDS))
+    ap.add_argument('--kind', default='characters', help='Art bzw. mehrere mit Komma: ' + ', '.join(KINDS))
     ap.add_argument('--scope')
     ap.add_argument('--json', action='store_true')
-    a = ap.parse_args(argv[1:])
+    a = ap.parse_intermixed_args(argv[1:])
+    kinds = [k.strip() for k in a.kind.split(',') if k.strip()]
+    for k in kinds:
+        if k not in KINDS:
+            ap.error(f'unbekannte Art {k} (möglich: {", ".join(KINDS)})')
     base = Path(a.project)
     _, config = load(base)
     if a.cmd == 'plan':
-        p = plan(base, config, a.kind, a.scope)
+        plans = [plan(base, config, k, a.scope) for k in kinds]
         if a.json:
-            print(json.dumps(p, ensure_ascii=False, indent=1))
+            print(json.dumps(plans[0] if len(plans) == 1 else plans, ensure_ascii=False, indent=1))
             return 0
-        cost = (f', geschätzt {p["cost_estimate"]:.2f} €'.replace('.', ',')) if p['cost_estimate'] is not None else ', Kosten ohne Preisangabe nicht schätzbar'
-        print(f'{KINDS[a.kind]}-Analyse ({p["scope"]}): {p["todo"]} von {len(p["blocks"])} Blöcken neu zu lesen, '
-              f'{p["cached"]} unverändert · etwa {p["input_tokens"]} Tokens Eingabe, {p["output_tokens"]} Ausgabe{cost}')
+        for p in plans:
+            cost = (f', geschätzt {p["cost_estimate"]:.2f} €'.replace('.', ',')) if p['cost_estimate'] is not None else ', Kosten ohne Preisangabe nicht schätzbar'
+            print(f'{p["label"]}-Analyse ({p["scope"]}): {p["todo"]} von {len(p["blocks"])} Blöcken neu zu lesen, '
+                  f'{p["cached"]} unverändert · etwa {p["input_tokens"]} Tokens Eingabe, {p["output_tokens"]} Ausgabe{cost}')
         return 0
     if a.cmd == 'latest':
-        head = latest(base, a.kind)
+        head = latest(base, kinds[0])
         print(json.dumps(head, ensure_ascii=False, default=str) if a.json else
               (f'{head["id"]}: {head["suggestions"]} Vorschläge vom {str(head["created_at"])[:10]} ({head["path"]})' if head else 'keiner offen'))
         return 0
     if a.cmd == 'applied':
         if not a.args:
             ap.error('applied braucht die Lauf-ID')
-        mark_applied(base, a.args[0], a.kind)
+        mark_applied(base, a.args[0], kinds[0])
         print(f'✓ {a.args[0]} als erledigt vermerkt')
         return 0
-    head = run(base, a.kind, a.scope)
-    print(f'✓ {KINDS[a.kind]}-Analyse {head["id"]}: {head["suggestions"]} Vorschläge, {head["blocks_analysed"]} Blöcke gelesen, '
-          f'{head["blocks_cached"]} aus dem Zwischenspeicher, {head["dropped_without_evidence"]} Angaben ohne Fundstelle verworfen')
-    summary = os.environ.get('GITHUB_STEP_SUMMARY')
-    if summary:
-        with open(summary, 'a', encoding='utf-8') as f:
-            f.write(f'## {KINDS[a.kind]}-Analyse {head["id"]}\n\n{head["suggestions"]} Vorschläge · {head["blocks_analysed"]} Blöcke gelesen · '
-                    f'{head["input_tokens"]} / {head["output_tokens"]} Tokens · Kosten: '
-                    f'{"nicht bekannt (keine Preise in analysis)" if head["cost"] is None else head["cost"]}\n')
+    if a.cmd == 'apply':
+        if len(a.args) < 2:
+            ap.error('apply braucht die Lauf-ID und die Auswahl (JSON-Datei oder JSON-Text)')
+        raw = a.args[1]
+        choices = json.loads(Path(raw).read_text(encoding='utf-8') if Path(raw).is_file() else raw)
+        choices = choices.get('choices', []) if isinstance(choices, dict) else choices
+        changed = apply(base, a.args[0], kinds[0], choices)
+        print(f'✓ {KINDS[kinds[0]]["label"]}: {len(changed)} Dateien geändert, {a.args[0]} als erledigt vermerkt')
+        for c in changed:
+            print(f'  {c}')
+        return 0
+    for k in kinds:
+        head = run(base, k, a.scope)
+        label = KINDS[k]['label']
+        print(f'✓ {label}-Analyse {head["id"]}: {head["suggestions"]} Vorschläge, {head["blocks_analysed"]} Blöcke gelesen, '
+              f'{head["blocks_cached"]} aus dem Zwischenspeicher, {head["dropped_without_evidence"]} Angaben ohne Fundstelle verworfen')
+        summary = os.environ.get('GITHUB_STEP_SUMMARY')
+        if summary:
+            with open(summary, 'a', encoding='utf-8') as f:
+                f.write(f'## {label}-Analyse {head["id"]}\n\n{head["suggestions"]} Vorschläge · {head["blocks_analysed"]} Blöcke gelesen · '
+                        f'{head["input_tokens"]} / {head["output_tokens"]} Tokens · Kosten: '
+                        f'{"nicht bekannt (keine Preise in analysis)" if head["cost"] is None else head["cost"]}\n\n')
     return 0
 
 

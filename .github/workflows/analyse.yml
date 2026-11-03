@@ -1,11 +1,11 @@
 name: Analyse im Hintergrund
 
 # Liest ein ganzes Buch (oder ein Kapitel) mit einer KI über deren API und legt
-# Vorschläge ab (#123, scripts/analyze.py): zuerst Figuren. Nichts am Buchtext
-# und an den Figuren wird geändert; übernommen wird im Chat. Nur geänderte
-# Kapitel werden neu gelesen (Zwischenspeicher analysis/cache/).
+# Vorschläge ab (#123, #124, scripts/analyze.py): Figuren, Kurzbeschreibungen
+# und Ziele … Nichts am Buch wird geändert; übernommen wird im Chat. Nur
+# geänderte Kapitel werden neu gelesen (Zwischenspeicher analysis/cache/).
 # Start von Hand (Run workflow, auf dem Buch-Branch) oder aus dem Chat
-# (START.md, „Figuren“, Schritt 7). Braucht das Secret ANTHROPIC_API_KEY bzw.
+# (START.md, „Analysen im Hintergrund“). Braucht das Secret ANTHROPIC_API_KEY bzw.
 # OPENAI_API_KEY. Kosten kommen nach costs/project.yml (source: action_api)
 # und zählen zum KI-Budget; unter 10 % Rest startet der Lauf nur mit
 # confirm_low_budget (#62).
@@ -14,9 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       kind:
-        description: 'Analyse'
-        type: choice
-        options: [characters]
+        description: 'Analyse: characters, summaries (mehrere mit Komma)'
         default: characters
       scope:
         description: 'Bereich: book (ganzes Buch) oder Nummer eines Kapitels'
@@ -80,10 +78,20 @@ jobs:
         run: |
           git config user.name GhostWriter
           git config user.email ghostwriter@users.noreply.github.com
-          git add analysis costs/project.yml
+          git add analysis
+          if [ -f costs/project.yml ]; then git add costs/project.yml; fi
           if git diff --cached --quiet; then echo "Nichts abzulegen"; exit 0; fi
-          run=$(python scripts/analyze.py . latest --kind "${{ inputs.kind }}" --json | python -c "import json,sys;d=json.load(sys.stdin) or {};print(d.get('id',''),d.get('suggestions',0))")
-          git commit -q \
-            -m "Figuren-Analyse im Hintergrund: ${run#* } Vorschläge (${run%% *})" -m "GhostWriter-Aktion: analysis.start"
+          msg=$(python - "${{ inputs.kind }}" <<'PY'
+          import sys
+          sys.path.insert(0, 'scripts')
+          import analyze
+          parts = []
+          for k in [x.strip() for x in sys.argv[1].split(',') if x.strip()]:
+              h = analyze.latest('.', k) or {}
+              parts.append(f'{analyze.KINDS[k]["label"]} {h.get("suggestions", 0)} ({h.get("id", "–")})')
+          print('Analyse im Hintergrund: ' + ', '.join(parts))
+          PY
+          )
+          git commit -q -m "$msg" -m "GhostWriter-Aktion: analysis.start"
           git pull -q --rebase origin "$GITHUB_REF_NAME"
           git push -q origin "HEAD:$GITHUB_REF_NAME"
