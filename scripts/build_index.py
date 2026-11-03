@@ -14,11 +14,11 @@ weiter die Abschnittsdatei.
 
 Ohne Kapitel (Starter vor dem Einrichten) wird keine Datei geschrieben.
 
-API-Schlüssel: Ist die Umgebungsvariable SECRETS_JSON gesetzt (in der Action:
-toJSON(secrets)), steht unter "secrets" für jedes Secret, das die eigenen
-KI-Dienste brauchen, ob es im Repository hinterlegt ist (true/false). Nur die
-Namen werden gelesen, nie die Werte. Ohne SECRETS_JSON bleibt der bisherige
-Eintrag stehen.
+API-Schlüssel: Ist die Umgebungsvariable SECRETS_PRESENT gesetzt (in der Action:
+je bekanntem Namen true/false, scripts/secret_check.py), steht unter "secrets"
+für jedes Secret, das die eigenen KI-Dienste brauchen, ob es hinterlegt ist
+(true, false, null = eigener Name, nicht prüfbar). Werte gelangen nie in die
+Action. Ohne SECRETS_PRESENT bleibt der bisherige Eintrag stehen.
 """
 import json
 import os
@@ -116,17 +116,16 @@ def secret_names(config):
 
 
 def secrets_presence(config, current_text):
-    raw = os.environ.get('SECRETS_JSON')
-    if raw is None:
+    """{Secret: True|False|None} für die eigenen KI-Dienste aus SECRETS_PRESENT (scripts/secret_check.py);
+    ohne SECRETS_PRESENT der bisherige Eintrag. None = Name nicht prüfbar (eigener Name)."""
+    import secret_check
+    previous = None
+    if current_text:
         try:
-            return json.loads(current_text).get('secrets') if current_text else None
+            previous = json.loads(current_text).get('secrets')
         except ValueError:
-            return None
-    try:
-        have = set(json.loads(raw))
-    except ValueError:
-        have = set()
-    return {n: n in have for n in secret_names(config)}
+            previous = None
+    return secret_check.state(secret_names(config), previous)
 
 
 def main(argv):

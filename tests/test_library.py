@@ -296,7 +296,7 @@ class DataPageTest(unittest.TestCase):
         g('tag', 'adhs-im-erwachsenenleben-auflage-1')
         g('tag', 'adhs-im-erwachsenenleben-auflage-2')
         g('checkout', '-q', 'main')
-        env = dict(os.environ, SECRETS_JSON=json.dumps({'GHOSTWRITER_UPDATE_TOKEN': '***', 'OTHER': '***'}))
+        env = dict(os.environ, SECRETS_PRESENT=json.dumps({'GHOSTWRITER_UPDATE_TOKEN': True, 'OTHER': False}))
         cls.lib = Path(d, 'library.json')
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/library.py'), 'build', '--namespace', 'refs/heads',
                             '--repo', d, '--out', str(cls.lib)], capture_output=True, text=True, env=env)
@@ -333,7 +333,7 @@ class DataPageTest(unittest.TestCase):
 
     def test_secrets_kept_without_secrets_json(self):
         import os
-        env = {k: v for k, v in os.environ.items() if k != 'SECRETS_JSON'}
+        env = {k: v for k, v in os.environ.items() if k != 'SECRETS_PRESENT'}
         subprocess.run([sys.executable, str(ROOT / 'scripts/library.py'), 'build', '--namespace', 'refs/heads',
                         '--repo', self.d, '--out', str(self.lib)], capture_output=True, env=env, check=True)
         self.assertEqual(json.loads(self.lib.read_text(encoding='utf-8'))['secrets'], {'GHOSTWRITER_UPDATE_TOKEN': True})
@@ -386,3 +386,26 @@ class ProgramRepoTest(unittest.TestCase):
     def test_main_repo_is_clean(self):
         errors, _ = library.program_problems(ROOT, 'refs/heads', MANIFEST)
         self.assertEqual(errors, [])
+
+
+class SecretCheckTest(unittest.TestCase):
+    """Workflows prüfen Secrets nur einzeln nach Namen, nie mit toJSON(secrets)."""
+
+    def test_workflows_list_all_known_names(self):
+        import secret_check
+        self.assertEqual(secret_check.check(), [])
+        self.assertIn('GHOSTWRITER_UPDATE_TOKEN', secret_check.known_names())
+
+    def test_state(self):
+        import os
+        import secret_check
+        old = os.environ.get('SECRETS_PRESENT')
+        try:
+            os.environ['SECRETS_PRESENT'] = '{"OPENAI_API_KEY": true, "GEMINI_API_KEY": false}'
+            self.assertEqual(secret_check.state(['OPENAI_API_KEY', 'GEMINI_API_KEY', 'MEIN_KEY']),
+                             {'OPENAI_API_KEY': True, 'GEMINI_API_KEY': False, 'MEIN_KEY': None})
+            del os.environ['SECRETS_PRESENT']
+            self.assertEqual(secret_check.state(['X'], {'X': True}), {'X': True})
+        finally:
+            if old is not None:
+                os.environ['SECRETS_PRESENT'] = old

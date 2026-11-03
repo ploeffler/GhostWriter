@@ -648,7 +648,7 @@ def service_settings(s, group, cfg, present=None):
     secret = cfg.get('api_key_secret') or secret_default(s)
     alt = s.get('api_key_alt') or ''
     present = present or {}
-    state = 'ok' if present.get(secret) else 'alt' if alt and present.get(alt) else ('missing' if secret in present else '')
+    state = 'ok' if present.get(secret) else 'alt' if alt and present.get(alt) else ('missing' if present.get(secret) is False else '')
     return {'SERVICE_ACCESS_OPTIONS': ','.join(opts), 'SERVICE_ACCESS': access,
             'SERVICE_SECRET': secret, 'SERVICE_SECRET_DEFAULT': secret_default(s), 'SERVICE_SECRET_ALT': alt,
             'SERVICE_KEY_URL': s.get('api_key_url') or s.get('url', ''), 'SERVICE_SECRET_STATE': state,
@@ -1186,7 +1186,8 @@ def data_view(base, config, args):
     secrets = lib.get('secrets')
     srows = []
     for n in lib.get('secret_names') or []:
-        state = '' if secrets is None else ('yes' if secrets.get(n) else 'no')
+        v = None if secrets is None else secrets.get(n)
+        state = '' if v is None else ('yes' if v else 'no')
         srows.append({'S_NAME': n, 'S_STATE': state or 'unknown',
                       'S_TEXT': {'yes': 'hinterlegt', 'no': 'fehlt', 'unknown': 'unbekannt'}[state or 'unknown']})
     rrows = []
