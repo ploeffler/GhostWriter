@@ -251,8 +251,8 @@ def section_costs(base, chapter, section):
 
 
 def counted(entries):
-    """Nur KI-API-Kosten über das Backend zählen (#13); alte Chat-Schätzungen nicht."""
-    return [e for e in entries if e.get('source', 'backend_api') == 'backend_api']
+    """Nur KI-API-Kosten zählen: über das Backend (#13) und aus Actions (#123); alte Chat-Schätzungen nicht."""
+    return [e for e in entries if e.get('source', 'backend_api') in ('backend_api', 'action_api')]
 
 
 def total(entries):
@@ -672,6 +672,15 @@ def project_view(base, config, args):
     upd = load_upstream(args)
     if upd:
         values.update({'UPDATE_BEHIND': upd['behind'], 'UPDATE_TEXT': update_text(upd)})
+    try:   # Figurenvorschläge aus einem Hintergrundlauf (#123)
+        import analyze
+        run_head = analyze.latest(base, 'characters')
+    except Exception:   # noqa: BLE001
+        run_head = None
+    if run_head:
+        values.update({'ANALYSIS_RUN': run_head['path'][:-3] + '.json',
+                       'ANALYSIS_TEXT': f'Figurenvorschläge vom {de_date(str(run_head.get("created_at")))} liegen bereit '
+                                        f'({run_head.get("suggestions", 0)})'})
     ser, vol = book_series(base, args)
     if ser:   # Serie (#116): „Band 2 der Serie …“ mit Link
         values.update({'SERIES_ID': ser['id'], 'SERIES_TEXT': f'Band {vol} der Serie „{ser["title"]}“'})
@@ -690,6 +699,8 @@ def project_view(base, config, args):
             lines += [f'> ⏳ **{values["PENDING_TEXT"]} noch nicht übernommen** (Pull Request #{changes["pull_request"]}) · `M` übernehmen', '']
         if ser:
             lines += [f'📚 {values["SERIES_TEXT"]} · `S` Serie', '']
+        if run_head:
+            lines += [f'> 👤 **{values["ANALYSIS_TEXT"]}** · `FA` ansehen', '']
         if lim_state != 'ok':
             lines += [f'> {"⏸" if lim_state == "pause" else "⚠️"} **{lim_text}** · `E` Einstellungen', '']
         if upd:
@@ -728,6 +739,8 @@ def project_view(base, config, args):
             items.append(('L', f'Bücherregal ({lib_count} Bücher)'))
         if ser:
             items.append(('S', f'Serie „{ser["title"]}“'))
+        if run_head:
+            items.append(('FA', 'Figurenvorschläge aus dem Hintergrundlauf'))
         items += [(m['MATTER_TITLE'], 'öffnen') for m in front + back]
         items += [('D', 'KI-Dienste'), ('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
                   ('V', 'Vor- und Nachspann'), ('FI', f'Figuren ({n_chars})' if n_chars else 'Figuren'), ('FV', '👤 Figuren aus dem Text vorschlagen'),
@@ -1964,6 +1977,9 @@ def scope_text(scope, config=None):
     return item['title'] if item else scope
 
 
+FIELD_DE = {'age': 'Alter', 'appearance': 'Aussehen', 'voice': 'Sprechweise', 'short': 'Kurz', 'traits': 'Eigenschaften'}
+
+
 def character_suggest_view(base, config, args):
     """Vorschläge „Figuren aus dem Text“ (#53, Vorlage figuren-vorschlag). --draft: JSON (Datei oder Text) des
     Assistenten mit scope und items [{name, aliases, role, short, age, appearance, traits, voice, relations,
@@ -1998,12 +2014,18 @@ def character_suggest_view(base, config, args):
                      'S_STATE': state, 'S_EXISTING': hit['name'] if hit else '',
                      'S_STATE_TEXT': {'new': 'neu', 'existing': f'schon da: {hit["name"]}' if hit else '',
                                       'series': f'Figur der Serie: {hit["name"]}' if hit else ''}[state]})
-    values = {'SCOPE': str(scope), 'SCOPE_TEXT': scope_text(str(scope), config), 'SERIES_ID': ser.get('id', ''),
+    conflicts = '; '.join(f'{c["name"]}, {FIELD_DE.get(c["field"], c["field"])}: ' + ' / '.join(str(v) for v in c['values'])
+                          for c in data.get('conflicts') or [])
+    values = {'RUN_TEXT': f'Hintergrundlauf {data["run"][4:]} vom {de_date(str(data.get("created_at", "")))}' if data.get('run') else '',
+              'RUN_ID': data.get('run', ''), 'CONFLICTS_TEXT': conflicts,
+              'SCOPE': str(scope), 'SCOPE_TEXT': scope_text(str(scope), config), 'SERIES_ID': ser.get('id', ''),
               'SERIES_TITLE': ser.get('title', ''), 'SERIES_LEVEL': '1' if is_series else '',
               'SUGGEST_COUNT_TEXT': plural(len(rows), 'Vorschlag', 'Vorschläge')}
     if args.text:
         out = [f'### 👤 Figuren aus dem Text · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] +
-               (f' · Serie „{ser["title"]}“' if ser else ''), '']
+               (f' · Serie „{ser["title"]}“' if ser else '') + (f' · {values["RUN_TEXT"]}' if values['RUN_TEXT'] else ''), '']
+        if conflicts:
+            out += [f'> ⚠️ Widersprüche im Text: {conflicts}', '']
         if rows:
             out += ['| # | Figur | Rolle | Kurz | Angaben | Abschnitte | Stand |', '|--:|---|---|---|---|---|---|']
             out += [f'| {r["S_IDX"] + 1} | **{r["S_NAME"]}**{" (" + r["S_ALIASES"] + ")" if r["S_ALIASES"] else ""} | {ROLE_DE[r["S_ROLE"]]} | '

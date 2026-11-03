@@ -458,6 +458,7 @@ def main(argv):
     ap.add_argument('cmd', choices=['list', 'add', 'assign', 'context', 'update', 'detach', 'align', 'adopt',
                                     'series-add', 'series-update', 'scan', 'apply'])
     ap.add_argument('--part', type=int, help='bei scan: Teil (bei langen Bereichen)')
+    ap.add_argument('--run', help='bei apply: Lauf der Analyse im Hintergrund (run-NNN), danach als erledigt vermerkt')
     ap.add_argument('--series-repo', help='bei adopt, series-add, series-update: Ordner mit dem Standard-Branch (series/)')
     ap.add_argument('args', nargs='*')
     ap.add_argument('--role', default='main', choices=list(ROLE_DE))
@@ -488,6 +489,9 @@ def main(argv):
         if len(a.args) != 1:
             ap.error('apply braucht die Datei mit den Vorschlägen (JSON)')
         r = apply_suggestions(base, json.loads(Path(a.args[0]).read_text(encoding='utf-8')), a.series_repo)
+        if a.run:   # Hintergrundlauf (#123): Hinweis in der Übersicht entfällt
+            import analyze
+            analyze.mark_applied(base, a.run)
         n = len(r['created']) + len(r['series_created'])
         print(f'✓ {n} Figuren angelegt, {len(r["updated"])} ergänzt, {len(r["assigned"])} Abschnitte zugeordnet')
         print(f'Commit-Nachricht: Figuren aus dem Text übernommen ({n} neu, {len(r["updated"])} ergänzt)')
