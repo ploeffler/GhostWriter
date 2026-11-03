@@ -34,9 +34,18 @@ jobs:
           raise SystemExit(1 if errors else 0)
           EOF
 
+      - name: Programm oder Buch?
+        # Tests und Testbücher gehören zum Programm (tests/ wird nicht mit dem Update
+        # verteilt); in Buch-Repositorys würden veraltete Kopien sonst fehlschlagen.
+        id: kind
+        run: |
+          upstream=$(python -c "import yaml;print((yaml.safe_load(open('ghostwriter-manifest.yml')).get('upstream') or {}).get('repo',''))" 2>/dev/null || true)
+          if [ "$upstream" = "$GITHUB_REPOSITORY" ] || [ ! -f ghostwriter-manifest.yml ]; then echo "program=1" >> "$GITHUB_OUTPUT"; fi
+
       - name: Buchprojekte prüfen
         run: |
           projects="."
+          [ "${{ steps.kind.outputs.program }}" = "1" ] || { python scripts/validate_project.py .; exit 0; }
           for dir in tests/fixtures/*/; do
             [ -f "$dir/ghostwriter.yml" ] && projects="$projects ${dir%/}"
           done
@@ -75,6 +84,7 @@ jobs:
           fi
 
       - name: Tests (Kontextplanung, Zusammenführung)
+        if: steps.kind.outputs.program == '1'
         run: |
           if [ -d tests ]; then python -m unittest discover -s tests -p "test_*.py"; fi
 
