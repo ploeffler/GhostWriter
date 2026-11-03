@@ -512,6 +512,23 @@ def characters_view(base, config, args):
     return fill('figur-bearbeiten.html', values, {'RELATIONS': rel, 'OTHERS': others})
 
 
+def current_branch(base, args):
+    """Buch-Branch: --branch, sonst der ausgecheckte Branch des Projektordners."""
+    if getattr(args, 'branch', None) and args.branch != 'main':
+        return args.branch
+    r = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], cwd=base, capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() != 'HEAD' else args.branch
+
+
+def book_series(base, args):
+    """(serie, band) des Buchs vom Standard-Branch (#116) oder (None, None)."""
+    import series
+    try:
+        return series.of(series.load_all(base), current_branch(base, args))
+    except Exception:   # noqa: BLE001 – ohne Git bzw. Bibliothek keine Serie
+        return None, None
+
+
 def limit_state(base, config, args):
     """(state, text) aus --limits (JSON von limits.py check --json) bzw. ohne Angabe aus den Kosten des Monats (#62)."""
     path = getattr(args, 'limits', None)
@@ -562,6 +579,9 @@ def project_view(base, config, args):
     upd = load_upstream(args)
     if upd:
         values.update({'UPDATE_BEHIND': upd['behind'], 'UPDATE_TEXT': update_text(upd)})
+    ser, vol = book_series(base, args)
+    if ser:   # Serie (#116): „Band 2 der Serie …“ mit Link
+        values.update({'SERIES_ID': ser['id'], 'SERIES_TEXT': f'Band {vol} der Serie „{ser["title"]}“'})
     lim_state, lim_text = limit_state(base, config, args)
     if lim_state != 'ok':   # Limitwarnung (#62)
         values.update({'LIMIT_STATE': lim_state, 'LIMIT_TEXT': lim_text})
@@ -575,6 +595,8 @@ def project_view(base, config, args):
                  f'**{values["PROJECT_EDITION_TEXT"]}** · Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · KI-API-Kosten: **{values["PROJECT_COST"]}**', '']
         if changes:
             lines += [f'> ⏳ **{values["PENDING_TEXT"]} noch nicht übernommen** (Pull Request #{changes["pull_request"]}) · `M` übernehmen', '']
+        if ser:
+            lines += [f'📚 {values["SERIES_TEXT"]} · `S` Serie', '']
         if lim_state != 'ok':
             lines += [f'> {"⏸" if lim_state == "pause" else "⚠️"} **{lim_text}** · `E` Einstellungen', '']
         if upd:
@@ -611,6 +633,8 @@ def project_view(base, config, args):
             items.append(('U', 'Update einspielen'))
         if lib_count >= 2:
             items.append(('L', f'Bücherregal ({lib_count} Bücher)'))
+        if ser:
+            items.append(('S', f'Serie „{ser["title"]}“'))
         items += [(m['MATTER_TITLE'], 'öffnen') for m in front + back]
         items += [('D', 'KI-Dienste'), ('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
                   ('V', 'Vor- und Nachspann'), ('FI', f'Figuren ({n_chars})' if n_chars else 'Figuren'),
@@ -1671,40 +1695,153 @@ def plural(n, one, many):
     return f'{n} {one if n == 1 else many}'
 
 
+def book_row(b):
+    ready = b['status'] == 'ready'
+    st, sa = b.get('sections_total', 0), b.get('sections_approved', 0)
+    progress = (f'{sa} von {plural(st, "Abschnitt", "Abschnitten")} freigegeben · '
+                f'{b.get("chapters_approved", 0)} von {plural(b.get("chapters_total", 0), "Kapitel", "Kapiteln")}') if ready else 'Gliederung noch offen'
+    ed = b.get('current_edition') or 0
+    return {'BOOK_BRANCH': b['branch'], 'BOOK_TITLE': b['title'] or b['title_short'] or 'Ohne Titel',
+            'BOOK_TITLE_SHORT': b['title_short'] or b['branch'].split('/')[-1],
+            'BOOK_AUTHOR_TEXT': f'von {b["author"]}' if b.get('author') else '',
+            'BOOK_STATE': 'ready' if ready else 'setup', 'BOOK_STATE_TEXT': 'eingerichtet' if ready else 'im Aufbau',
+            'BOOK_PROGRESS': round(100 * sa / st) if st else 0, 'BOOK_PROGRESS_TEXT': progress,
+            'BOOK_EDITION_TEXT': f'Auflage {ed}' if ed else 'noch keine Auflage',
+            'BOOK_COST': (b.get('cost') or {}).get('text') or money(0, False),
+            'BOOK_PENDING_TEXT': f'{plural(b["pending"], "Änderung", "Änderungen")} offen' if b.get('pending') else '',
+            'BOOK_UPDATED_TEXT': f'{"zuletzt geändert" if ready else "angelegt"} am {de_date(b.get("updated_at"))}' if b.get('updated_at') else ''}
+
+
+def library_series(base, data):
+    """Serien (#116) aus library.json bzw. vom Standard-Branch: [{id, title, …, volumes: [branch]}]."""
+    if 'series' in data:
+        return data['series'] or []
+    import series
+    return [dict(s, volumes=series.volumes(s)) for s in series.load_all(base).values()]
+
+
 def library_view(base, config, args):
     data = library_data(base, args)
-    rows = []
-    for b in data.get('books') or []:
-        ready = b['status'] == 'ready'
-        st, sa = b.get('sections_total', 0), b.get('sections_approved', 0)
-        progress = (f'{sa} von {plural(st, "Abschnitt", "Abschnitten")} freigegeben · '
-                    f'{b.get("chapters_approved", 0)} von {plural(b.get("chapters_total", 0), "Kapitel", "Kapiteln")}') if ready else 'Gliederung noch offen'
-        ed = b.get('current_edition') or 0
-        rows.append({'BOOK_BRANCH': b['branch'], 'BOOK_TITLE': b['title'] or b['title_short'] or 'Ohne Titel',
-                     'BOOK_TITLE_SHORT': b['title_short'] or b['branch'].split('/')[-1],
-                     'BOOK_AUTHOR_TEXT': f'von {b["author"]}' if b.get('author') else '',
-                     'BOOK_STATE': 'ready' if ready else 'setup', 'BOOK_STATE_TEXT': 'eingerichtet' if ready else 'im Aufbau',
-                     'BOOK_PROGRESS': round(100 * sa / st) if st else 0, 'BOOK_PROGRESS_TEXT': progress,
-                     'BOOK_EDITION_TEXT': f'Auflage {ed}' if ed else 'noch keine Auflage',
-                     'BOOK_COST': (b.get('cost') or {}).get('text') or money(0, False),
-                     'BOOK_PENDING_TEXT': f'{plural(b["pending"], "Änderung", "Änderungen")} offen' if b.get('pending') else '',
-                     'BOOK_UPDATED_TEXT': f'{"zuletzt geändert" if ready else "angelegt"} am {de_date(b.get("updated_at"))}' if b.get('updated_at') else ''})
-    count = plural(len(rows), 'Buch', 'Bücher')
+    books = data.get('books') or []
+    by_branch = {b['branch']: b for b in books}
+    ser = library_series(base, data)
+    rows, seen = [], set()
+    # Bücher einer Serie zuerst, gruppiert und in Bandreihenfolge (#116); danach die übrigen
+    for si, s in enumerate(ser, start=1):
+        for n, br in enumerate(s['volumes'], start=1):
+            if br in by_branch:
+                r = book_row(by_branch[br])
+                r.update({'BOOK_SERIES': s['id'], 'BOOK_SERIES_TITLE': s['title'], 'BOOK_SERIES_KEY': f'S{si}',
+                          'BOOK_VOLUME_TEXT': f'Band {n}'})
+                rows.append(r)
+                seen.add(br)
+    for b in books:
+        if b['branch'] not in seen:
+            rows.append(dict(book_row(b), BOOK_SERIES='', BOOK_SERIES_TITLE='', BOOK_SERIES_KEY='', BOOK_VOLUME_TEXT=''))
+    empty_series = [{'S_ID': s['id'], 'S_TITLE': s['title'], 'S_KEY': f'S{i}'} for i, s in enumerate(ser, start=1)
+                    if not any(br in by_branch for br in s['volumes'])]
+    count = plural(len(rows), 'Buch', 'Bücher') + (f' · {plural(len(ser), "Serie", "Serien")}' if ser else '')
     if args.text:
         out = [f'### 📚 Bücherregal', f'{args.repo} · {count}', '']
         if rows:
             out += ['| # | Buch | Status | Fortschritt | Auflage | Kosten |', '|--:|---|---|---|---|--:|']
+            group = None
             for i, r in enumerate(rows, 1):
-                out.append(f'| {i} | **{r["BOOK_TITLE"]}** ({r["BOOK_TITLE_SHORT"]}){" · ⏳ " + r["BOOK_PENDING_TEXT"] if r["BOOK_PENDING_TEXT"] else ""} | '
+                if r['BOOK_SERIES'] != group:
+                    group = r['BOOK_SERIES']
+                    label = f'📚 **Serie „{r["BOOK_SERIES_TITLE"]}“** (`{r["BOOK_SERIES_KEY"]}`)' if group else '**Einzelne Bücher**'
+                    out.append(f'| | {label} | | | | |')
+                vol = f'{r["BOOK_VOLUME_TEXT"]}: ' if r['BOOK_VOLUME_TEXT'] else ''
+                out.append(f'| {i} | {vol}**{r["BOOK_TITLE"]}** ({r["BOOK_TITLE_SHORT"]}){" · ⏳ " + r["BOOK_PENDING_TEXT"] if r["BOOK_PENDING_TEXT"] else ""} | '
                            f'{"✅ eingerichtet" if r["BOOK_STATE"] == "ready" else "🚧 im Aufbau"} | {r["BOOK_PROGRESS_TEXT"]} | {r["BOOK_EDITION_TEXT"]} | {r["BOOK_COST"]} |')
         else:
             out += ['*Hier steht noch kein Buch.*']
-        items = ([('1' if len(rows) == 1 else f'1–{len(rows)}', 'Buch öffnen')] if rows else []) + [('N', 'Neues Buch'), ('D', 'Daten')]
+        if empty_series:
+            out += ['', 'Serien ohne Band: ' + ', '.join(f'„{s["S_TITLE"]}“ (`{s["S_KEY"]}`)' for s in empty_series)]
+        items = ([('1' if len(rows) == 1 else f'1–{len(rows)}', 'Buch öffnen')] if rows else [])
+        if ser:
+            items.append(('S1' if len(ser) == 1 else f'S1–S{len(ser)}', 'Serie öffnen'))
+        items += [('N', 'Neues Buch'), ('NS', 'Neue Serie'), ('D', 'Daten')]
         out += ['', '---', menu(items)]
         return '\n'.join(out) + '\n'
+    blocks = {'BOOKS': rows}
+    if empty_series:
+        blocks['EMPTY_SERIES'] = empty_series
     return fill('buecherregal.html', {'LIBRARY_NAME': args.repo, 'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
-                                      'UPDATED_TEXT': ''}, {'BOOKS': rows})
+                                      'UPDATED_TEXT': ''}, blocks)
 
+
+SERIES_KIND_DE = {'continuous': 'durchgehende Handlung', 'standalone': 'eigenständige Bände'}
+
+
+def find_series(base, data, key):
+    ser = library_series(base, data)
+    for i, s in enumerate(ser, start=1):
+        if key in (s['id'], f'S{i}', f's{i}') or (key or '').lower() == s.get('title', '').lower():
+            return s
+    raise SystemExit(f'Serie „{key}“ nicht gefunden')
+
+
+def series_view(base, config, args):
+    """Seite „Serie“ (#116, Vorlage serie): Bände in Reihenfolge, Bücher ohne Serie zum Hinzufügen."""
+    data = library_data(base, args)
+    s = find_series(base, data, args.where)
+    by_branch = {b['branch']: b for b in data.get('books') or []}
+    in_any = {br for x in library_series(base, data) for br in x['volumes']}
+    vols = []
+    for n, br in enumerate(s['volumes'], start=1):
+        b = by_branch.get(br)
+        r = book_row(b) if b else {'BOOK_BRANCH': br, 'BOOK_TITLE': br, 'BOOK_TITLE_SHORT': br.split('/')[-1], 'BOOK_STATE': 'setup',
+                                   'BOOK_STATE_TEXT': 'nicht gefunden', 'BOOK_PROGRESS': 0, 'BOOK_PROGRESS_TEXT': '', 'BOOK_EDITION_TEXT': ''}
+        vols.append({'V_NUMBER': n, 'V_BRANCH': br, 'V_TITLE': r['BOOK_TITLE'], 'V_TITLE_SHORT': r['BOOK_TITLE_SHORT'],
+                     'V_STATE': r['BOOK_STATE'], 'V_STATE_TEXT': r['BOOK_STATE_TEXT'], 'V_PROGRESS': r['BOOK_PROGRESS'],
+                     'V_PROGRESS_TEXT': r['BOOK_PROGRESS_TEXT'], 'V_EDITION_TEXT': r['BOOK_EDITION_TEXT']})
+    cands = [{'C_BRANCH': b['branch'], 'C_TITLE': b['title'] or b['title_short'] or b['branch']}
+             for b in data.get('books') or [] if b['branch'] not in in_any]
+    values = {'SERIES_ID': s['id'], 'SERIES_TITLE': s['title'], 'SERIES_SUBTITLE': s.get('subtitle') or '',
+              'SERIES_KIND_TEXT': SERIES_KIND_DE.get(s.get('kind'), ''), 'SERIES_DESCRIPTION': s.get('description') or '',
+              'VOLUME_COUNT_TEXT': plural(len(vols), 'Band', 'Bände'), 'LIBRARY_NAME': args.repo}
+    if args.text:
+        out = [f'### 📚 Serie „{s["title"]}“', ' · '.join(x for x in (values['SERIES_SUBTITLE'], values['SERIES_KIND_TEXT'],
+                                                                  values['VOLUME_COUNT_TEXT']) if x), '']
+        if values['SERIES_DESCRIPTION']:
+            out += [f'> {values["SERIES_DESCRIPTION"]}', '']
+        if vols:
+            out += ['| Band | Buch | Status | Fortschritt | Auflage |', '|--:|---|---|---|---|']
+            out += [f'| {v["V_NUMBER"]} | **{v["V_TITLE"]}** (`{v["V_BRANCH"]}`) | {v["V_STATE_TEXT"]} | {v["V_PROGRESS_TEXT"] or "–"} | {v["V_EDITION_TEXT"] or "–"} |' for v in vols]
+        else:
+            out += ['*Noch kein Band.*']
+        if cands:
+            out += ['', 'Ohne Serie: ' + ', '.join(f'{c["C_TITLE"]} (`{c["C_BRANCH"]}`)' for c in cands)]
+        items = ([('1' if len(vols) == 1 else f'1–{len(vols)}', 'Band öffnen')] if vols else [])
+        items += ([('H', 'Band hinzufügen')] if cands else []) + ([('R', 'Reihenfolge ändern'), ('ENT', 'Band entfernen')] if vols else [])
+        items += [('NB', 'Neues Buch in dieser Serie'), ('B', 'Serie bearbeiten'), ('Ü', 'Bücherregal')]
+        out += ['', '---', menu(items)]
+        return '\n'.join(out) + '\n'
+    blocks = {'VOLUMES': vols}
+    if cands:
+        blocks['CANDIDATES'] = cands
+    return fill('serie.html', values, blocks)
+
+
+def series_edit_view(base, config, args):
+    """Formular „Neue Serie“ bzw. „Serie bearbeiten“ (#116, Vorlage serie-bearbeiten); --draft: gesendete Werte und error."""
+    data = library_data(base, args)
+    s = find_series(base, data, args.where) if args.where else None
+    draft = json.loads(args.draft) if args.draft else {}
+    v = lambda k, d='': draft.get(k, (s or {}).get(k, d))
+    values = {'SERIES_ID': (s or {}).get('id', ''), 'SERIES_TITLE': v('title'), 'SERIES_SUBTITLE': v('subtitle'),
+              'SERIES_KIND': v('kind', 'continuous'), 'SERIES_DESCRIPTION': v('description'), 'ERROR_TEXT': draft.get('error', '')}
+    taken = [{'TAKEN_TITLE': x['title']} for x in library_series(base, data) if not s or x['id'] != s['id']]
+    if args.text:
+        out = [f'### 📚 {"Serie bearbeiten" if s else "Neue Serie"}', '']
+        if values['ERROR_TEXT']:
+            out += [f'> ✗ {values["ERROR_TEXT"]}', '']
+        out += field_table([('Titel der Reihe (Pflicht)', values['SERIES_TITLE']), ('Untertitel', values['SERIES_SUBTITLE']),
+                            ('Art', SERIES_KIND_DE.get(values['SERIES_KIND'], '')), ('Beschreibung', values['SERIES_DESCRIPTION'])])
+        out += ['', 'Art: `durchgehende Handlung` oder `eigenständige Bände`.', '', FORM_HINT]
+        return '\n'.join(out) + '\n'
+    return fill('serie-bearbeiten.html', values, {'TAKEN': taken})
 
 
 def book_create_view(base, config, args):
@@ -1714,10 +1851,18 @@ def book_create_view(base, config, args):
     books = data.get('books') or []
     draft = json.loads(args.draft) if args.draft else {}
     latest = sorted((b for b in books if b.get('author')), key=lambda b: b.get('updated_at') or '')
+    ser, series_text = None, ''
+    if draft.get('series_id'):   # Neues Buch in einer Serie (#116): nächster Band, Autor vom letzten Band
+        ser = find_series(base, data, draft['series_id'])
+        series_text = f'Band {len(ser["volumes"]) + 1} der Serie „{ser["title"]}“'
+        in_ser = [b for b in latest if b['branch'] in ser['volumes']]
+        latest = in_ser or latest
     author = draft.get('author', latest[-1]['author'] if latest else '')
     prefix = library.settings(library.load_manifest())['book_prefix']
     if args.text:
         out = ['### 📗 Neues Buch', '', 'Das Buch bekommt einen eigenen Bereich in dieser Bibliothek; danach folgt der Einstiegsdialog.', '']
+        if series_text:
+            out += [f'📚 {series_text}', '']
         if draft.get('error'):
             out += [f'> ✗ {draft["error"]}', '']
         out += field_table([('Titel (Arbeitstitel, Pflicht)', draft.get('working_title', '')),
@@ -1728,7 +1873,8 @@ def book_create_view(base, config, args):
         return '\n'.join(out) + '\n'
     return fill('buch-anlegen.html', {'BRANCH_PREFIX': prefix, 'WORKING_TITLE': draft.get('working_title', ''),
                                       'TITLE_SHORT': draft.get('title_short', ''), 'AUTHOR': author,
-                                      'ERROR_TEXT': draft.get('error', '')},
+                                      'ERROR_TEXT': draft.get('error', ''),
+                                      'SERIES_ID': ser['id'] if ser else '', 'SERIES_TEXT': series_text},
                 {'TAKEN': [{'TAKEN_SLUG': b.get('slug') or '', 'TAKEN_BRANCH': b['branch']} for b in books]})
 
 
@@ -1984,7 +2130,7 @@ def choice_view(base, config, args):
                 {'QUESTIONS': questions, 'OPTIONS': options})
 
 
-FORMS = {'choice': choice_view, 'book-create': book_create_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
+FORMS = {'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
          'changes-merge': changes_merge_view, 'providers-edit': providers_edit_view,
@@ -2007,7 +2153,7 @@ def git_head(base):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data'] + list(FORMS))
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
@@ -2039,6 +2185,8 @@ def main():
         out = characters_view(base, config, args)
     elif args.view == 'images':
         out = images_view(base, config, args)
+    elif args.view == 'series':
+        out = series_view(base, config, args)
     elif args.view == 'project':
         out = project_view(base, config, args)
     elif args.view == 'chapter':

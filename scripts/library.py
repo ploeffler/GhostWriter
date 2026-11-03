@@ -213,7 +213,26 @@ def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None):
         entry['last_edition'] = last_edition(entry['slug'], cwd)
         out.append(entry)
     names = sorted({'GHOSTWRITER_UPDATE_TOKEN'} | {n for b in out for n in b.pop('secret_names', [])})
-    return {'format': 1, 'program': program_info(cwd, manifest), 'secret_names': names, 'books': out}
+    data = {'format': 1, 'program': program_info(cwd, manifest), 'secret_names': names, 'books': out}
+    ser = series_entries(cwd, out)
+    if ser:
+        data['series'] = ser
+    return data
+
+
+def series_entries(cwd, book_list):
+    """Serien vom Standard-Branch (#116) für library.json; trägt bei den Büchern series und volume ein."""
+    import series
+    all_s = series.load_all(cwd)
+    by_branch = {b['branch']: b for b in book_list}
+    out = []
+    for s in all_s.values():
+        vols = series.volumes(s)
+        for n, br in enumerate(vols, start=1):
+            if br in by_branch:
+                by_branch[br]['series'], by_branch[br]['volume'] = s['id'], n
+        out.append({k: s.get(k, '') for k in ('id', 'title', 'subtitle', 'kind', 'description')} | {'volumes': vols})
+    return out
 
 
 def last_edition(slug, cwd=ROOT):
@@ -277,16 +296,24 @@ def new_book(title, short='', author='', found=(), manifest=None):
     return r
 
 
-def create_book(title, short='', author='', cwd=ROOT, namespace='refs/remotes/origin', manifest=None, base='HEAD'):
-    """Lokal: Branch buch/<slug> von base anlegen, ghostwriter.yml setzen, ein Commit. Gibt das Ergebnis von new_book zurück."""
+def create_book(title, short='', author='', cwd=ROOT, namespace='refs/remotes/origin', manifest=None, base='HEAD', series_id=''):
+    """Lokal: Branch buch/<slug> von base anlegen, ghostwriter.yml setzen, ein Commit. Gibt das Ergebnis von new_book zurück.
+    Mit series_id (#116) zusätzlich ein Commit auf base (Standard-Branch): das Buch als nächster Band der Serie."""
     import datetime
     manifest = manifest or load_manifest()
     found = books(branch_configs(namespace, cwd), manifest, default_branch(cwd))
     found += [b for b in books(branch_configs('refs/heads', cwd), manifest, default_branch(cwd)) if b['branch'] not in {x['branch'] for x in found}]
     r = new_book(title, short, author, found, manifest)
+    if series_id:
+        import series
+        try:
+            series.get(cwd, series_id)
+        except SystemExit as e:
+            r['taken'].append(str(e))
     if r['taken']:
         return r
     run = lambda *a: subprocess.run(['git', *a], cwd=cwd, check=True, capture_output=True, text=True)
+    start = run('rev-parse', '--abbrev-ref', base).stdout.strip()
     run('switch', '-q', '-c', r['branch'], base)
     cfg = Path(cwd, 'ghostwriter.yml')
     cfg.write_text(set_project_fields(cfg.read_text(encoding='utf-8'), r['fields']), encoding='utf-8')
@@ -302,8 +329,18 @@ def create_book(title, short='', author='', cwd=ROOT, namespace='refs/remotes/or
             'skipped_workflows': []}, sort_keys=False), encoding='utf-8')
         paths.append('.ghostwriter/update.yml')
     run('add', *paths)
+    run('rm', '-r', '-q', '--ignore-unmatch', 'series')   # Serien bleiben auf dem Standard-Branch (#116)
     run('-c', 'user.name=GhostWriter', '-c', 'user.email=ghostwriter@users.noreply.github.com', 'commit', '-q',
         '-m', f'Neues Buch angelegt: {r["fields"]["working_title"]}', '-m', 'GhostWriter-Aktion: library.book.create')
+    if series_id:
+        import series
+        run('switch', '-q', start)
+        s, n = series.add(cwd, series_id, r['branch'])
+        run('add', str(series.series_file('.', s['id'])))
+        run('-c', 'user.name=GhostWriter', '-c', 'user.email=ghostwriter@users.noreply.github.com', 'commit', '-q',
+            '-m', f'Band {n} zur Serie „{s["title"]}“ hinzugefügt', '-m', 'GhostWriter-Aktion: library.book.create')
+        r['series'], r['volume'] = s['id'], n
+        run('switch', '-q', r['branch'])
     return r
 
 
@@ -315,7 +352,7 @@ def program_problems(cwd=ROOT, namespace='refs/remotes/origin', manifest=None):
     cfg = yaml.safe_load(cfg_path.read_text(encoding='utf-8')) if cfg_path.is_file() else {}
     if has_chapters(cfg):
         errors.append('ghostwriter.yml im Programm-Repository hat Kapitel; Bücher gehören in ein eigenes Repository')
-    for d in ('chapters', 'matter', 'cover', 'characters', 'research', 'costs'):
+    for d in ('chapters', 'matter', 'cover', 'characters', 'research', 'costs', 'series'):
         files = [p for p in Path(cwd, d).rglob('*') if p.is_file() and p.name != '.gitkeep'] if Path(cwd, d).is_dir() else []
         if files:
             errors.append(f'{d}/ enthält Buchdateien ({len(files)})')
@@ -346,6 +383,7 @@ def main(argv):
     ap.add_argument('--author', default='', help='bei new: Autor')
     ap.add_argument('--dir', default='.', help='bei is: Ordner mit ghostwriter.yml')
     ap.add_argument('--create', action='store_true', help='bei new: Branch lokal anlegen und committen')
+    ap.add_argument('--series', default='', help='bei new --create: als nächster Band in diese Serie (ser-…, #116)')
     a = ap.parse_args(argv[1:])
     manifest = load_manifest()
     if a.cmd == 'check-program':
@@ -385,7 +423,7 @@ def main(argv):
         return 0
     if a.cmd == 'new':
         if a.create:
-            r = create_book(a.title or '', a.short, a.author, a.repo, a.namespace, manifest)
+            r = create_book(a.title or '', a.short, a.author, a.repo, a.namespace, manifest, series_id=a.series)
         else:
             r = new_book(a.title or '', a.short, a.author, books(branch_configs(a.namespace, a.repo), manifest, default_branch(a.repo)), manifest)
         if a.json:
@@ -418,7 +456,11 @@ def main(argv):
         print(f'✗ Kurztitel „{s}“ mehrfach: {", ".join(br)} – Auflagen-Tags wären nicht eindeutig')
     if not dup:
         print(f'✓ {len(found)} Bücher, Kurztitel eindeutig')
-    return 1 if dup else 0
+    import series   # Serien: nur vorhandene Bücher, jedes in höchstens einer Serie (#116)
+    ser = series.problems(a.repo, books={b['branch'] for b in found}) if Path(a.repo, 'series').is_dir() else []
+    for e in ser:
+        print(f'✗ {e}')
+    return 1 if dup or ser else 0
 
 
 if __name__ == '__main__':

@@ -120,6 +120,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `CREDIT_TEXT`, `CREDIT_URL` | Hinweis und Link aus `templates/branding.yml` (`credit`), klein unter der Karte bzw. am Ende der Textfassung; nie im Buch |
 | `PENDING_COUNT`, `PENDING_TEXT`, `PENDING_PR` | nur bei offenen Änderungen (Arbeits-Branch mit offenem Pull Request, siehe „Offene Änderungen“): Anzahl der Commits, „1 Änderung“ bzw. „N Änderungen“, Nummer des Pull Requests. Ohne offene Änderungen weglassen; dann entfällt der Hinweis mit dem Knopf „Änderungen übernehmen“ |
 | `LIMIT_STATE`, `LIMIT_TEXT` | Limitwarnung (#62): `warn` (weniger als 20 % übrig) bzw. `pause` (weniger als 10 %, die Update-Automatik ist ausgesetzt) mit Text wie „Automatik pausiert: KI-Budget 8 % übrig (9,20 von 10,00 €)“; Stand aus `scripts/limits.py check --json` (`render_view.py project --limits datei`), ohne Datei nur das KI-Budget aus den Kostendateien. Bei `ok` weglassen; dann entfällt der Hinweis |
+| `SERIES_ID`, `SERIES_TEXT` | Serie des Buchs (#116) aus `series/` auf dem Standard-Branch (`scripts/series.py of <branch>`): ID und „Band N der Serie „…““; ohne Serie weglassen. Dann steht oben ein Link zur Serie (`view.series`) |
 | `UPDATE_BEHIND`, `UPDATE_TEXT` | nur wenn der Buch-Branch hinter dem Hauptrepository liegt (siehe „Update-Stand“): Anzahl Commits und Text wie „3 Commits hinter ploeffler/GhostWriter:main · Version 0.3.1 verfügbar (installiert 0.3.0)“. Sonst weglassen; dann entfällt der Hinweis mit dem Knopf „Update einspielen“ |
 | Block `CHAPTERS`: `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_STATUS`, `CHAPTER_COST`, `CHAPTER_COST_HINT`, `CHAPTER_ID` | je Kapitel aus `structure.chapters`, Kosten wie oben; `CHAPTER_ID` ist die stabile Kapitel-ID, ein Klick auf das Kapitel schickt `view.chapter`; ohne Kapitel entfällt der Bereich „Kapitel“ |
 | `CHARACTER_COUNT` | Zahl der Figuren (`characters`, #53); ohne Figuren weglassen, dann entfällt der Knopf „Figuren“ |
@@ -210,6 +211,8 @@ Startseite einer Bibliothek; Widget oder Text nach dem Darstellungsmodus. Erzeug
 | `BOOK_EDITION_TEXT`, `BOOK_COST` | `current_edition` („Auflage N“ bzw. „noch keine Auflage“), `cost.text` |
 | `BOOK_PENDING_TEXT` | `pending` > 0: „N Änderungen offen“ (Commits im Arbeits-Branch), sonst leer |
 | `BOOK_UPDATED_TEXT` | „zuletzt geändert am TT.MM.JJJJ“ bzw. „angelegt am …“ aus `updated_at` |
+| `BOOK_SERIES`, `BOOK_SERIES_TITLE`, `BOOK_SERIES_KEY`, `BOOK_VOLUME_TEXT` | Serie des Buchs (#116) aus `library.json` (`series`) bzw. `series/` auf dem Standard-Branch: ID, Reihentitel, Kürzel `S1`, `S2` … (Reihenfolge der Serien) und „Band N“; ohne Serie leer. Bücher einer Serie stehen zuerst, je Serie in Bandreihenfolge, danach die übrigen |
+| Block `EMPTY_SERIES`: `S_ID`, `S_TITLE`, `S_KEY` | Serien, zu denen noch kein Buch gehört; sonst Block weglassen |
 
 In der Projektübersicht kommt `LIBRARY_COUNT` (Zahl der Bücher, nur ab 2, sonst leer) aus derselben Datei (`--library`).
 
@@ -329,6 +332,31 @@ Formular „Neues Buch“ (`render_view.py book-create`, `START.md`, „Neues Bu
 | `AUTHOR` | gesendeter Wert, sonst Autor des zuletzt geänderten Buchs aus `library.json` |
 | `ERROR_TEXT` | `error` aus `--draft` (z. B. Name inzwischen vergeben); sonst leer |
 | Block `TAKEN`: `TAKEN_SLUG`, `TAKEN_BRANCH` | alle Bücher der Bibliothek: `slug` und `branch` |
+| `SERIES_ID`, `SERIES_TEXT` | nur bei „Neues Buch in dieser Serie“ (`--draft '{"series_id":"ser-…"}'`, #116): ID und „Band N der Serie „…““ (nächste Bandnummer); der Autor ist dann der des letzten Bandes. Sonst leer |
+
+### `serie.html`
+
+Seite einer Serie (#116, `render_view.py series <ser-id|S1|Titel>`, `START.md`, „Serien“).
+
+| Platzhalter | Quelle |
+|---|---|
+| `LIBRARY_NAME` | `owner/repo` (`--repo`) |
+| `SERIES_ID`, `SERIES_TITLE`, `SERIES_SUBTITLE`, `SERIES_DESCRIPTION` | `series/<ser-id>/series.yml`: `id`, `title`, `subtitle`, `description` |
+| `SERIES_KIND_TEXT` | `kind`: `continuous` „durchgehende Handlung“, `standalone` „eigenständige Bände“ |
+| `VOLUME_COUNT_TEXT` | „1 Band“, „N Bände“ |
+| Block `VOLUMES`: `V_NUMBER`, `V_BRANCH`, `V_TITLE`, `V_TITLE_SHORT`, `V_STATE`, `V_STATE_TEXT`, `V_PROGRESS`, `V_PROGRESS_TEXT`, `V_EDITION_TEXT` | je Band in Reihenfolge (`volumes`) die Werte wie im Bücherregal (`BOOK_…`); ein Branch, den es nicht mehr gibt, mit „nicht gefunden“ |
+| Block `CANDIDATES`: `C_BRANCH`, `C_TITLE` | Bücher der Bibliothek, die zu keiner Serie gehören; keine = Block weglassen |
+
+### `serie-bearbeiten.html`
+
+Formular „Neue Serie“ bzw. „Serie bearbeiten“ (#116, `render_view.py series-edit [<ser-id>]`).
+
+| Platzhalter | Quelle |
+|---|---|
+| `SERIES_ID` | leer bei einer neuen Serie, sonst `id` |
+| `SERIES_TITLE`, `SERIES_SUBTITLE`, `SERIES_KIND`, `SERIES_DESCRIPTION` | gesendete Werte (`--draft`), sonst die der Serie; neue Serie: leer bzw. `continuous` |
+| `ERROR_TEXT` | `error` aus `--draft`; sonst leer |
+| Block `TAKEN`: `TAKEN_TITLE` | Titel der anderen Serien (das Formular sperrt doppelte Titel) |
 
 ### `auswahl.html`
 
@@ -430,10 +458,11 @@ Gestaltung:
 
 | Ansicht | Kürzel |
 |---|---|
-| Bücherregal | `1`–`N` Buch öffnen · `N` Neues Buch · `D` Daten |
+| Bücherregal | `1`–`N` Buch öffnen · `S1`–`SN` Serie öffnen · `N` Neues Buch · `NS` Neue Serie · `D` Daten |
+| Serie | `1`–`N` Band öffnen · `H` Band hinzufügen · `R` Reihenfolge ändern · `ENT` Band entfernen · `NB` Neues Buch in dieser Serie · `B` Serie bearbeiten · `Ü` Bücherregal |
 | Daten | `Ü` Bücherregal · `U` Update einspielen (nur wenn dahinter) |
 | Figuren | Name einer Figur öffnet sie · `+ Name` legt eine Figur an (optional `Rolle: Nebenfigur`) · `Ü` Übersicht |
-| Projektübersicht | `FI` Figuren · `L` Bücherregal (nur ab zwei Büchern) · `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · Titel eines Teils von Vor- oder Nachspann öffnet ihn (nur vorhandene) · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `V` Vor- und Nachspann · `A` Neue Auflage · `E` Einstellungen |
+| Projektübersicht | `FI` Figuren · `L` Bücherregal (nur ab zwei Büchern) · `S` Serie (nur bei einem Band einer Serie) · `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · Titel eines Teils von Vor- oder Nachspann öffnet ihn (nur vorhandene) · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `V` Vor- und Nachspann · `A` Neue Auflage · `E` Einstellungen |
 | Vor- und Nachspann | Titel eines Teils öffnet ihn · `+ Widmung` usw. legt einen fehlenden Teil an · `Ü` Übersicht |
 | Glossar | `+ Begriff: Erklärung` aufnehmen · `Begriff: neue Erklärung` ändern · `- Begriff` entfernen · `VB` Begriffe vorschlagen · `F` Titel, Ziel, Einleitung · `FS`, `FA` Freigaben · `RS` Recherche je Begriff · `Ü` Übersicht |
 | Teil des Vor- oder Nachspanns | `T` Text ändern · `F` Titel und Ziel (Vorwort, Nachwort: dazu Verfasser, Ort und Datum) · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` freigeben bzw. zurücknehmen · `RS`, `GS` Recherche bzw. Ghostwriting sofort (Vorwort, Prolog, Epilog, Nachwort) · `Ü` Übersicht |
@@ -491,7 +520,15 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `view.data` | – | Seite „Daten“ zeigen | Daten sammeln und Vorlage `daten` (`render_view.py data`, `START.md`, „Daten“) | `GET /v1/projects/{owner}/{repo}` |
 | `library.book.open` | `branch` | Buch aus dem Bücherregal öffnen | Branch als Buch-Branch übernehmen, Projektübersicht zeigen; Buch im Aufbau: Einstiegsdialog fortsetzen | `GET /v1/projects/{owner}/{repo}` |
 | `library.book.create.open` | – | Formular „Neues Buch“ zeigen | Vorlage `buch-anlegen` (`render_view.py book-create`) | – |
-| `library.book.create` | `working_title`, `title_short`, `author`, `branch` | Neues Buch anlegen | Namen erneut prüfen, Branch und einen Commit anlegen (`START.md`, „Neues Buch“), dann Einstiegsdialog auf dem neuen Branch | `POST /v1/projects/{owner}/{repo}/books` |
+| `library.book.create` | `working_title`, `title_short`, `author`, `branch`, optional `series_id` | Neues Buch anlegen | Namen erneut prüfen, Branch und einen Commit anlegen (`START.md`, „Neues Buch“); mit `series_id` zusätzlich ein Commit auf dem Standard-Branch: als nächster Band der Serie (`START.md`, „Serien“); dann Einstiegsdialog auf dem neuen Branch | `POST /v1/projects/{owner}/{repo}/books` |
+| `view.series` | `series_id` | Seite einer Serie zeigen | Vorlage `serie` (`render_view.py series <ser-id>`) | – |
+| `series.create.open` | – | Formular „Neue Serie“ zeigen | Vorlage `serie-bearbeiten` (`render_view.py series-edit`); im Einzelbuch-Repository stattdessen der Hinweis auf die Umwandlung (#40) | – |
+| `series.edit.open` | `series_id` | Formular „Serie bearbeiten“ zeigen | Vorlage `serie-bearbeiten` (`render_view.py series-edit <ser-id>`) | – |
+| `series.create` | `title`, `subtitle`, `kind`, `description`, `expected_head_sha` | Serie anlegen | `series/<ser-id>/series.yml` auf dem Standard-Branch (`scripts/series.py create`), danach Seite der Serie | `POST /v1/projects/{owner}/{repo}/series` |
+| `series.update` | `series_id`, `title`, `subtitle`, `kind`, `description`, `expected_head_sha` | Serie speichern | `series.yml` ändern (ID bleibt; `scripts/series.py update`), danach Seite der Serie | `PATCH /v1/projects/{owner}/{repo}/series/{series_id}` |
+| `series.volume.add` | `series_id`, `branch` | Buch als nächsten Band hinzufügen | prüfen (Buch der Bibliothek, noch in keiner Serie), in `volumes` anhängen (`scripts/series.py add`), danach Seite der Serie | `POST /v1/projects/{owner}/{repo}/series/{series_id}/volumes` |
+| `series.volume.remove` | `series_id`, `branch` | Band aus der Serie entfernen | aus `volumes` streichen; das Buch bleibt unverändert (`scripts/series.py remove`), danach Seite der Serie | `DELETE /v1/projects/{owner}/{repo}/series/{series_id}/volumes/{branch}` |
+| `series.reorder` | `series_id`, `order` (alle Buch-Branches), `expected_head_sha` | Bandreihenfolge speichern | `volumes` in neuer Reihenfolge (`scripts/series.py reorder`), danach Seite der Serie | `POST /v1/projects/{owner}/{repo}/series/{series_id}/reorder` |
 | `project.edit` | – | Formular „Projektdaten bearbeiten“ zeigen | Vorlage `projektdaten-bearbeiten` (`render_view.py project-edit`) | – |
 | `project.update` | `title`, `title_short`, `author`, `description_short`, `description`, `expected_head_sha` | Projektdaten speichern | in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH /v1/projects/{owner}/{repo}` |
 | `project.settings.open` | – | Projekteinstellungen zeigen | Vorlage `projekteinstellungen` (`render_view.py project-settings`) | – |
