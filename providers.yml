@@ -19,6 +19,9 @@
 #                  (der Schlüssel selbst steht nie im Repository oder im Chat)
 #   api_key_url:   optional: Seite des Anbieters, auf der man einen API-Schlüssel erstellt
 #   api_key_alt:   optional: alternatives Secret (z. B. Abo-Token statt API-Schlüssel)
+#   chat_widgets:  optional: true = die Chat-Oberfläche des Anbieters stellt GhostWriter-Widgets dar
+#                  (eingebettetes HTML mit Skript, siehe templates/ui/BEFUELLUNG.md, „Darstellungsmodus“);
+#                  fehlt bzw. false = dort nur Text
 #   setup:         optional: eigene GhostWriter-Anleitung (Pfad im Repository, ggf. mit #Anker);
 #                  ohne setup verlinkt das Formular „KI-Dienste“ den passenden Weg in
 #                  docs/DIENSTE-NUTZEN.md (nach kind/access) und zusätzlich die Website `url`
@@ -55,6 +58,7 @@ providers:
     web_research: native
     roles: [research, brainstorming, writing, revision, fact_check, queue_processing]
     queue_agents: [claude_code]
+    chat_widgets: true
     url: https://www.anthropic.com
     api_key_secret: ANTHROPIC_API_KEY
     api_key_url: https://console.anthropic.com/settings/keys
