@@ -1,0 +1,125 @@
+name: Manuskript importieren
+
+# Manuskript als Buch übernehmen (#124, scripts/import_book.py), Teil ohne KI:
+#   convert  Original (schon unter import/original/ im Buch-Branch) umwandeln und
+#            die Gliederung als Vorschlag ablegen (import/proposal.json)
+#   edit     Änderungen am Vorschlag (ops als JSON)
+#   apply    Kapitel, Abschnitte und Teile anlegen (Status revision; Schreibfreigabe
+#            nur mit writing_approval, festgehalten in approvals.yml)
+# Gestartet aus dem Chat (START.md, „Manuskript importieren“) auf dem Buch-Branch.
+# Täglich: Originale nach Ablauf der Aufbewahrung entfernen (import.yml keep).
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: 'Schritt'
+        type: choice
+        options: [convert, edit, apply]
+        default: convert
+      file:
+        description: 'bei convert: Pfad des Originals im Repository (import/original/…)'
+        default: ''
+      keep:
+        description: 'bei convert: Aufbewahrung des Originals'
+        type: choice
+        options: [first_edition, '30', '90', forever]
+        default: first_edition
+      ops:
+        description: 'bei edit: Änderungen als JSON-Liste'
+        default: '[]'
+      writing_approval:
+        description: 'bei apply: Schreibfreigabe für alle importierten Abschnitte erteilen'
+        type: boolean
+        default: false
+      by:
+        description: 'bei apply mit Schreibfreigabe: GitHub-Login'
+        default: ''
+  schedule:
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: import-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Abhängigkeiten
+        run: |
+          pip install pyyaml jsonschema
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends pandoc poppler-utils >/dev/null
+
+      - name: Nur Buch-Branches
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$GITHUB_REF_NAME" = "${{ github.event.repository.default_branch }}" ] || ! python scripts/library.py is "$GITHUB_REF_NAME" --dir .; then
+            echo "::error::$GITHUB_REF_NAME ist kein Buch-Branch. Zuerst „Neues Buch“, dann den Import auf dessen Branch starten."; exit 1
+          fi
+
+      - name: Schritt ausführen
+        env:
+          STEP: ${{ inputs.step }}
+          FILE: ${{ inputs.file }}
+          KEEP: ${{ inputs.keep }}
+          OPS: ${{ inputs.ops }}
+          WA: ${{ inputs.writing_approval }}
+          BY: ${{ inputs.by }}
+        run: |
+          case "$STEP" in
+            convert) python scripts/import_book.py . convert "$FILE" --keep "$KEEP" | tee -a "$GITHUB_STEP_SUMMARY"; msg="Manuskript umgewandelt: Vorschlag für die Gliederung" ;;
+            edit)    python scripts/import_book.py . edit "$OPS" | tee -a "$GITHUB_STEP_SUMMARY"; msg="Import: Gliederung geändert" ;;
+            apply)   args=(); if [ "$WA" = "true" ]; then args=(--writing-approval --by "${BY:-chat}" --commit "$GITHUB_SHA"); fi
+                     python scripts/import_book.py . apply "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
+                     python scripts/validate_project.py .; msg="Manuskript importiert" ;;
+          esac
+          git config user.name GhostWriter
+          git config user.email ghostwriter@users.noreply.github.com
+          git add -A
+          if git diff --cached --quiet; then echo "Nichts zu speichern"; exit 0; fi
+          git commit -q -m "$msg" -m "GhostWriter-Aktion: import.$STEP"
+          git pull -q --rebase origin "$GITHUB_REF_NAME"
+          git push -q origin "HEAD:$GITHUB_REF_NAME"
+
+  expire:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Abgelaufene Originale entfernen
+        run: |
+          pip install pyyaml jsonschema
+          [ -f scripts/import_book.py ] || exit 0
+          git config user.name GhostWriter
+          git config user.email ghostwriter@users.noreply.github.com
+          for ref in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/buch/); do
+            br=${ref#origin/}
+            git checkout -q -B "$br" "$ref"
+            [ -f import/import.yml ] || continue
+            if python scripts/import_book.py . expire | grep -q entfernt; then
+              git add -A import
+              git commit -q -m "Original des Imports entfernt (Aufbewahrung abgelaufen)" -m "GhostWriter-Aktion: import.expire"
+              git push -q origin "HEAD:$br"
+              echo "- $br: Original entfernt" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done

@@ -50,6 +50,7 @@ book:
   - library.json            # Bücherregal einer Bibliothek (Standard-Branch)
   - series/                 # Serien einer Bibliothek (Standard-Branch, #116)
   - analysis/               # Analysen im Hintergrund: Läufe, Vorschläge, Zwischenspeicher (#123)
+  - import/                 # Manuskript-Import: Original, Umwandlung, Vorschlag (#124)
   - editions/
   - .ghostwriter/
 

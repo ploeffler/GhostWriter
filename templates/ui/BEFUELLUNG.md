@@ -119,6 +119,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `PROJECT_EDITION_TEXT` | Auflage |
 | `CREDIT_TEXT`, `CREDIT_URL` | Hinweis und Link aus `templates/branding.yml` (`credit`), klein unter der Karte bzw. am Ende der Textfassung; nie im Buch |
 | `PENDING_COUNT`, `PENDING_TEXT`, `PENDING_PR` | nur bei offenen Änderungen (Arbeits-Branch mit offenem Pull Request, siehe „Offene Änderungen“): Anzahl der Commits, „1 Änderung“ bzw. „N Änderungen“, Nummer des Pull Requests. Ohne offene Änderungen weglassen; dann entfällt der Hinweis mit dem Knopf „Änderungen übernehmen“ |
+| `IMPORT_TEXT` | Import (#124, `import_book.py status`): sieben Tage vor Ablauf der Aufbewahrung „Das Original des Imports (<datei>) wird am TT.MM.JJJJ entfernt (Aufbewahrung …).“; sonst weglassen |
 | `ANALYSIS_TEXT`, `ANALYSIS_RUN` | Hintergrundlauf mit offenen Figurenvorschlägen (#123, `scripts/analyze.py latest`): „Figurenvorschläge vom TT.MM.JJJJ liegen bereit (N)“ und Pfad der Vorschlagsdatei (`analysis/characters/run-NNN.json`); ohne offenen Lauf weglassen |
 | `LIMIT_STATE`, `LIMIT_TEXT` | Limitwarnung (#62): `warn` (weniger als 20 % übrig) bzw. `pause` (weniger als 10 %, die Update-Automatik ist ausgesetzt) mit Text wie „Automatik pausiert: KI-Budget 8 % übrig (9,20 von 10,00 €)“; Stand aus `scripts/limits.py check --json` (`render_view.py project --limits datei`), ohne Datei nur das KI-Budget aus den Kostendateien. Bei `ok` weglassen; dann entfällt der Hinweis |
 | `SERIES_ID`, `SERIES_TEXT` | Serie des Buchs (#116) aus `series/` auf dem Standard-Branch (`scripts/series.py of <branch>`): ID und „Band N der Serie „…““; ohne Serie weglassen. Dann steht oben ein Link zur Serie (`view.series`) |
@@ -294,6 +295,20 @@ Auswahl „Figuren aus dem Text“ (`render_view.py character-suggest --draft vo
 | Block `SUGGESTIONS`: `S_IDX`, `S_NAME`, `S_ALIASES`, `S_ROLE`, `S_SHORT`, `S_DETAILS`, `S_SECTIONS`, `S_EVIDENCE` | je Vorschlag aus der JSON-Datei des Assistenten: Nummer, Name, weitere Namen, Rolle, ein Satz, Alter/Aussehen/Eigenschaften/Sprechweise, Abschnitte, bis zu drei Fundstellen |
 | `S_STATE`, `S_STATE_TEXT`, `S_EXISTING` | `new` (neu), `existing` (Figur des Buchs mit diesem Namen oder Alias), `series` (Figur der Serie); Text und Name der bekannten Figur |
 | Block `MERGE`: `M_ID`, `M_NAME` | bekannte Figuren (Buch und Serie) für „Zusammenlegen mit“ |
+
+### `import-vorschau.html`
+
+Gliederung eines Manuskript-Imports prüfen (#124, `render_view.py import-preview`; Daten aus `import/proposal.json` und `import/import.yml`).
+
+| Platzhalter | Quelle |
+|---|---|
+| `IMPORT_TITLE`, `IMPORT_AUTHOR`, `IMPORT_FORMAT` | `title`, `author` (Dokument-Eigenschaften bzw. einzelne oberste Überschrift), `format` |
+| `STATS_TEXT`, `LOSSLESS` | „N Kapitel, M Abschnitte, K Teile von Vor- und Nachspann · X von Y Wörtern übernommen“; `LOSSLESS` = `1`, wenn die Wortzahl der Umwandlung entspricht |
+| `KEEP_TEXT` | Aufbewahrung des Originals deutsch („bis zur ersten Auflage“, „30 Tage“, „90 Tage“, „dauerhaft“) |
+| `KINDS_TEXT` | Arten von Vor- und Nachspann als `kind=Name`, kommagetrennt (Auswahl „ist Teil …“) |
+| Block `WARNINGS`: `W_TEXT` | Hinweise der Umwandlung (PDF, Tabellen, Fußnoten, Bilder, sehr lange Abschnitte, keine Gliederung) |
+| Block `PARTS`: `P_IDX`, `P_KIND`, `P_AREA`, `P_LABEL`, `P_TITLE`, `P_WORDS` | Teile von Vor- und Nachspann: Nummer im Vorschlag, Art, `front`/`back`, Name der Art, Überschrift, Wörter |
+| Block `ROWS`: `R_TYPE`, `R_CHAPTER`, `R_SECTION`, `R_LABEL`, `R_TITLE`, `R_WORDS`, `R_COUNT`, `R_SCENES`, `R_LONG` | je Kapitel (`chapter`, mit „N Abschnitte“) und darunter je Abschnitt (`section`, Szenen wenn mehr als eine, `R_LONG` = `1` über 4000 Wörter) |
 
 ### `vor-nachspann.html`
 
@@ -554,6 +569,8 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `matter.create` | `kind` (`dedication` \| `foreword` \| `prologue` \| `epilogue` \| `afterword` \| `glossary` \| `acknowledgments`), `title` (optional), `expected_head_sha` | Teil anlegen | `python scripts/matter.py . add <art> [--title …]`, Commit nach `START.md`, „Vor- und Nachspann“; danach der neue Teil | `POST …/matter` |
 | `matter.update` | `matter_id`, `title`, `goal`, `manuscript`, bei Vorwort und Nachwort `byline`, `place_date`, `expected_head_sha` (nie `approvals`) | Teil speichern | Datei in `matter/` (und bei neuem Titel `ghostwriter.yml`) schreiben, danach der Teil | `PATCH …/matter/{matter_id}` |
 | `character.suggest` | `scope` (`book`, Kapitelnummer, `N.M`, `mat-…` bzw. `ser-…`) | Figuren aus dem Text vorschlagen | `python scripts/characters.py . scan <scope>` (Serie: `scripts/series.py . scan <ser-id>`), Teil für Teil lesen, Vorschläge als JSON (`START.md`, „Figuren“, Schritt 6), dann Vorlage `figuren-vorschlag` (`render_view.py character-suggest --draft …`) | – |
+| `import.edit` | `ops` (Liste, siehe `scripts/import_book.py`: `rename_chapter`, `rename_section`, `split_scenes`, `merge_sections`, `merge_chapters`, `split_chapter`, `to_matter`, `to_chapter`) | Gliederung des Import-Vorschlags ändern | Action „Manuskript importieren“ mit `step: edit` und `ops` (bzw. `import_book.py . edit`), danach die Vorschau neu | `PATCH /v1/projects/{owner}/{repo}/import` |
+| `import.apply` | `writing_approval` (nur mit Häkchen) | Buch aus dem Vorschlag anlegen | Action mit `step: apply` (bzw. `import_book.py . apply [--writing-approval]`), danach die Projektübersicht und das Angebot der Analysen | `POST /v1/projects/{owner}/{repo}/import/apply` |
 | `analysis.start` | `kind` (`characters`), `scope` (`book` bzw. Kapitelnummer), optional `confirm_low_budget` | Analyse im Hintergrund starten (#123) | vorher `python scripts/analyze.py . plan --scope …` (Umfang, Tokens, Kosten) und Limits zeigen; nach Bestätigung die Action „Analyse im Hintergrund“ auf dem Buch-Branch starten (`POST /repos/{owner}/{repo}/actions/workflows/analyse.yml/dispatches`, `ref` = Buch-Branch, `inputs`) | `POST /v1/projects/{owner}/{repo}/analyses` |
 | `analysis.open` | `kind`, `run` (Pfad der Vorschlagsdatei) | Vorschläge eines Hintergrundlaufs ansehen | Vorlage `figuren-vorschlag` (`render_view.py character-suggest --draft <run>`); Übernehmen wie `character.suggest.apply` mit `run` | – |
 | `character.suggest.apply` | `scope`, `choices` (Liste `{index, name, role, short, merge_into?, target?}`), optional `run` (Hintergrundlauf; nach dem Übernehmen `characters.py apply … --run run-NNN`, auch beim Verwerfen als erledigt vermerken: `analyze.py applied run-NNN`) | Ausgewählte Vorschläge übernehmen | Auswahl mit der eigenen JSON-Datei zusammenführen (`selected`, geänderte Namen, `merge_into`, `target: series`), dann `python scripts/characters.py . apply <datei>` (bei `target: series` mit `--series-repo`; Serienebene: `scripts/series.py . apply-characters <ser-id> <datei>`); ein Commit im Buch, ggf. einer auf dem Standard-Branch; danach die Figurenliste | `POST /v1/projects/{owner}/{repo}/characters/suggestions` |

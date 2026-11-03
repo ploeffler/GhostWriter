@@ -681,6 +681,14 @@ def project_view(base, config, args):
         values.update({'ANALYSIS_RUN': run_head['path'][:-3] + '.json',
                        'ANALYSIS_TEXT': f'Figurenvorschläge vom {de_date(str(run_head.get("created_at")))} liegen bereit '
                                         f'({run_head.get("suggestions", 0)})'})
+    try:   # Import (#124): Original wird bald entfernt
+        import import_book
+        imp = import_book.status(base)
+    except Exception:   # noqa: BLE001
+        imp = None
+    if imp and imp.get('soon') and not imp.get('removed'):
+        values['IMPORT_TEXT'] = (f'Das Original des Imports ({Path(imp["source"]).name}) wird am '
+                                 f'{de_date(imp["expires"])} entfernt (Aufbewahrung {imp["keep_text"]}).')
     ser, vol = book_series(base, args)
     if ser:   # Serie (#116): „Band 2 der Serie …“ mit Link
         values.update({'SERIES_ID': ser['id'], 'SERIES_TEXT': f'Band {vol} der Serie „{ser["title"]}“'})
@@ -701,6 +709,8 @@ def project_view(base, config, args):
             lines += [f'📚 {values["SERIES_TEXT"]} · `S` Serie', '']
         if run_head:
             lines += [f'> 👤 **{values["ANALYSIS_TEXT"]}** · `FA` ansehen', '']
+        if values.get('IMPORT_TEXT'):
+            lines += [f'> 📥 {values["IMPORT_TEXT"]}', '']
         if lim_state != 'ok':
             lines += [f'> {"⏸" if lim_state == "pause" else "⚠️"} **{lim_text}** · `E` Einstellungen', '']
         if upd:
@@ -2041,6 +2051,55 @@ def character_suggest_view(base, config, args):
     return fill('figuren-vorschlag.html', values, {'SUGGESTIONS': rows, 'MERGE': merge})
 
 
+def import_preview_view(base, config, args):
+    """Vorschau „Manuskript importieren“ (#124, Vorlage import-vorschau): Gliederung aus import/proposal.json."""
+    import import_book
+    p = import_book.load_proposal(base)
+    st = p['stats']
+    info = import_book.status(base) or {}
+    rows = []
+    for ci, c in enumerate(p['chapters'], start=1):
+        rows.append({'R_TYPE': 'chapter', 'R_CHAPTER': ci, 'R_SECTION': '', 'R_LABEL': f'Kapitel {ci}', 'R_TITLE': c['title'],
+                     'R_WORDS': sum(s['words'] for s in c['sections']), 'R_SCENES': '', 'R_LONG': '',
+                     'R_COUNT': plural(len(c['sections']), 'Abschnitt', 'Abschnitte')})
+        for si, s in enumerate(c['sections'], start=1):
+            rows.append({'R_TYPE': 'section', 'R_CHAPTER': ci, 'R_SECTION': si, 'R_LABEL': f'{ci}.{si}', 'R_TITLE': s['title'],
+                         'R_WORDS': s['words'], 'R_SCENES': s['scenes'] if s['scenes'] > 1 else '',
+                         'R_LONG': '1' if s['words'] > import_book.LONG_WORDS else '', 'R_COUNT': ''})
+    parts = [{'P_IDX': k, 'P_KIND': x['kind'], 'P_AREA': x.get('area') or MATTER[x['kind']][0], 'P_TITLE': x['title'],
+              'P_WORDS': x['words'], 'P_LABEL': MATTER[x['kind']][1]} for k, x in enumerate(p['parts'], start=1)]
+    stats_text = (f'{st["chapters"]} Kapitel, {st["sections"]} Abschnitte, {len(parts)} Teile von Vor- und Nachspann · '
+                  f'{st["words_proposal"]} von {st["words_original"]} Wörtern übernommen')
+    values = {'IMPORT_TITLE': p.get('title') or '', 'IMPORT_AUTHOR': p.get('author') or '', 'IMPORT_FORMAT': (p.get('format') or '').upper(),
+              'STATS_TEXT': stats_text, 'LOSSLESS': '1' if st.get('lossless') else '', 'KEEP_TEXT': info.get('keep_text', ''),
+              'KINDS_TEXT': ', '.join(f'{k}={v[1]}' for k, v in MATTER.items())}
+    warns = [{'W_TEXT': w} for w in p.get('warnings') or []]
+    if args.text:
+        out = [f'### 📥 Manuskript importieren · {values["IMPORT_TITLE"] or "ohne Titel"}',
+               f'{values["IMPORT_FORMAT"]} · Autor: {values["IMPORT_AUTHOR"] or "–"} · {stats_text}'
+               + ('' if values['LOSSLESS'] else ' ⚠️ nicht vollständig'), '']
+        out += [f'> ⚠️ {w["W_TEXT"]}' for w in warns] + ([''] if warns else [])
+        out += ['| | Teil | Wörter | Hinweis |', '|---|---|--:|---|']
+        out += [f'| {x["P_LABEL"]} ({"Vorspann" if x["P_AREA"] == "front" else "Nachspann"}) | {x["P_TITLE"]} | {x["P_WORDS"]} | `T{x["P_IDX"]}` |'
+                for x in parts if x['P_AREA'] == 'front']
+        for r in rows:
+            hint = ('⚠️ sehr lang' if r['R_LONG'] else '') + (f' · {r["R_SCENES"]} Szenen' if r['R_SCENES'] else '')
+            out.append(f'| **{r["R_LABEL"]}** | **{r["R_TITLE"]}** · {r["R_COUNT"]} | {r["R_WORDS"]} | |' if r['R_TYPE'] == 'chapter'
+                       else f'| {r["R_LABEL"]} | {r["R_TITLE"]} | {r["R_WORDS"]} | {hint.strip(" ·")} |')
+        out += [f'| {x["P_LABEL"]} (Nachspann) | {x["P_TITLE"]} | {x["P_WORDS"]} | `T{x["P_IDX"]}` |' for x in parts if x['P_AREA'] != 'front']
+        out += ['', 'Änderungen als Text, z. B. `Kapitel 2: Neuer Titel`, `2.1 teilen` (an Szenen), `2.1 + 2.2` (zusammenlegen), '
+                '`Kapitel 3 + 4`, `Neues Kapitel ab 2.3`, `Kapitel 1 ist Prolog`, `T1 ist ein Kapitel`.', '',
+                '---', menu([('A', 'Buch so anlegen'), ('AS', 'anlegen und Schreibfreigabe für alle Abschnitte erteilen'),
+                             ('X', 'abbrechen')])]
+        return '\n'.join(out) + '\n'
+    blocks = {'ROWS': rows}
+    if parts:
+        blocks['PARTS'] = parts
+    if warns:
+        blocks['WARNINGS'] = warns
+    return fill('import-vorschau.html', values, blocks)
+
+
 def omnibus_edit_view(base, config, args):
     """Formular „Sammelband“ (#116, Vorlage sammelband): Titel, Bände mit Auflage, Teile der Bände, Vor-/Nachwort."""
     import series as series_mod
@@ -2394,7 +2453,7 @@ def choice_view(base, config, args):
 
 
 FORMS = {'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view,
-         'character-suggest': character_suggest_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
+         'character-suggest': character_suggest_view, 'import-preview': import_preview_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
          'changes-merge': changes_merge_view, 'providers-edit': providers_edit_view,
