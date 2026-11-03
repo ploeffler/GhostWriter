@@ -42,7 +42,13 @@ jobs:
           upstream=$(python -c "import yaml;print((yaml.safe_load(open('ghostwriter-manifest.yml')).get('upstream') or {}).get('repo',''))" 2>/dev/null || true)
           if [ "$upstream" = "$GITHUB_REPOSITORY" ] || [ ! -f ghostwriter-manifest.yml ]; then echo "program=1" >> "$GITHUB_OUTPUT"; fi
 
+      - name: Branches holen
+        # Serien (#116): Figuren und Bände stehen auf dem Standard-Branch
+        run: git fetch -q --depth=1 origin '+refs/heads/*:refs/remotes/origin/*' || true
+
       - name: Buchprojekte prüfen
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           projects="."
           [ "${{ steps.kind.outputs.program }}" = "1" ] || { python scripts/validate_project.py .; exit 0; }

@@ -260,6 +260,8 @@ Liste der Figuren (`render_view.py characters`, #53).
 |---|---|
 | `PROJECT_TITLE_SHORT` | wie in der Projektübersicht |
 | Block `CHARACTERS`: `C_ID`, `C_NAME`, `C_ROLE`, `C_SHORT`, `C_USED` | je Figur aus `characters` und dem Kopf der Figurendatei: ID, Name, Rolle deutsch, `short`, Abschnitte bzw. Teile mit dieser Figur im Kopf (`character_usage`), sonst „–“ |
+| `C_SOURCE`, `C_SOURCE_TEXT` | nur in einem Band einer Serie (#116): `series` „aus der Serie“ (Figur unter `series/<ser-id>/characters/`), `copy` bzw. `copy_diff` (Figur des Buchs mit derselben ID: Kopie, gleich bzw. abweichend), `own` „nur in diesem Buch“; ohne Serie leer |
+| `SERIES_TITLE` | Reihentitel des Bandes; ohne Serie leer (dann kein Hinweis) |
 
 ### `figur-bearbeiten.html`
 
@@ -275,6 +277,8 @@ Formular einer Figur (`render_view.py characters <name|id>`).
 | `CHARACTER_USED` | Abschnitte bzw. Teile mit dieser Figur, sonst „noch nirgends“ |
 | Block `RELATIONS`: `R_TO`, `R_NAME`, `R_KIND` | `relations`: ID und Name der anderen Figur, Art |
 | Block `OTHERS`: `O_ID`, `O_NAME` | alle anderen Figuren (Auswahl für Beziehungen) |
+| `CHARACTER_SOURCE`, `CHARACTER_SOURCE_TEXT` | Herkunft wie `C_SOURCE` (#116); bestimmt Speichern (`character.series.update` bei `series`) und die Knöpfe „Kopie nur für dieses Buch“, „An Serie angleichen“, „In die Serie übernehmen“ |
+| `SERIES_ID`, `SERIES_TITLE` | Serie des Bandes; ohne Serie leer |
 
 ### `vor-nachspann.html`
 
@@ -298,6 +302,7 @@ Formular eines Teils von Vor- oder Nachspann (`render_view.py matter <teil>`).
 | `APPROVAL_WRITING`, `APPROVAL_SECTION` | `approvals.writing`, `approvals.section` als `true`/`false` |
 | `SIGNED`, `BYLINE`, `PLACE_DATE` | `1` bei Vorwort und Nachwort; `byline`, `place_date` aus dem Kopf |
 | `GLOSSARY`, `GLOSSARY_INTRO`, Block `GLOSSARY_ENTRIES` (`G_TERM`, `G_TEXT`) | `1` beim Glossar; Einleitung und Einträge (`glossary_entries`), alphabetisch nach DIN 5007-1 |
+| Block `SERIES_TERMS`: `T_TERM`, `T_TEXT`, `T_BOOK_TEXT`, `T_STATE`, `T_STATE_TEXT`; `SERIES_ID`, `SERIES_TITLE` | nur beim Glossar eines Bandes einer Serie mit Begriffen (#116): Vergleich `series/<ser-id>/glossary.yml` mit dem Glossar des Buchs (`series.compare_terms`): `missing` (nur in der Serie), `same`/`differs` (im Buch gleich bzw. abweichend), `own` (nur im Buch); sonst Block weglassen |
 | `RESEARCH`, `GHOSTWRITING` | `1`, wenn Recherche bzw. Ghostwriting für die Art erlaubt ist (`MATTER_RESEARCH`, `MATTER_GHOSTWRITING`) |
 | `PERSONAL_NOTE` | Hinweis bei Widmung und Danksagung, dass der Autor den Text selbst schreibt; sonst leer |
 
@@ -346,6 +351,8 @@ Seite einer Serie (#116, `render_view.py series <ser-id|S1|Titel>`, `START.md`, 
 | `VOLUME_COUNT_TEXT` | „1 Band“, „N Bände“ |
 | Block `VOLUMES`: `V_NUMBER`, `V_BRANCH`, `V_TITLE`, `V_TITLE_SHORT`, `V_STATE`, `V_STATE_TEXT`, `V_PROGRESS`, `V_PROGRESS_TEXT`, `V_EDITION_TEXT` | je Band in Reihenfolge (`volumes`) die Werte wie im Bücherregal (`BOOK_…`); ein Branch, den es nicht mehr gibt, mit „nicht gefunden“ |
 | Block `CANDIDATES`: `C_BRANCH`, `C_TITLE` | Bücher der Bibliothek, die zu keiner Serie gehören; keine = Block weglassen |
+| Block `SERIES_CHARACTERS`: `SC_ID`, `SC_NAME`, `SC_ROLE`, `SC_SHORT` | Figuren der Serie (`series/<ser-id>/characters/`); keine = Block weglassen |
+| Block `SERIES_TERMS`: `ST_TERM`, `ST_TEXT` | Begriffe der Serie (`series/<ser-id>/glossary.yml`); keine = Block weglassen |
 
 ### `serie-bearbeiten.html`
 
@@ -514,6 +521,12 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `character.update` | `character_id`, `name`, `role`, `short`, `age`, `appearance`, `traits` (Liste), `voice`, `visual`, `relations` (Liste `{to, kind}`), `description`, `notes`, `expected_head_sha` | Figur speichern | `python scripts/characters.py . update <id> '<json>'`, ein Commit; danach das Formular | `PATCH …/characters/{character_id}` |
 | `matter.create` | `kind` (`dedication` \| `foreword` \| `prologue` \| `epilogue` \| `afterword` \| `glossary` \| `acknowledgments`), `title` (optional), `expected_head_sha` | Teil anlegen | `python scripts/matter.py . add <art> [--title …]`, Commit nach `START.md`, „Vor- und Nachspann“; danach der neue Teil | `POST …/matter` |
 | `matter.update` | `matter_id`, `title`, `goal`, `manuscript`, bei Vorwort und Nachwort `byline`, `place_date`, `expected_head_sha` (nie `approvals`) | Teil speichern | Datei in `matter/` (und bei neuem Titel `ghostwriter.yml`) schreiben, danach der Teil | `PATCH …/matter/{matter_id}` |
+| `character.series.update` | `series_id`, `character_id` und die Felder wie bei `character.update`, `expected_head_sha` | Figur der Serie speichern (gilt für alle Bände ohne eigene Kopie, #116) | `python scripts/characters.py <standard> series-update <ser-id> <id> '<json>'`, ein Commit auf dem Standard-Branch; danach das Formular | `PATCH /v1/projects/{owner}/{repo}/series/{series_id}/characters/{character_id}` |
+| `character.detach` | `character_id` | Kopie einer Figur der Serie nur für dieses Buch | `python scripts/characters.py . detach <id>`, ein Commit im Buch; danach das Formular | `POST /v1/projects/{owner}/{repo}/characters/{character_id}/detach` |
+| `character.align` | `character_id` | Kopie entfernen, wieder die Figur der Serie | `python scripts/characters.py . align <id>`, ein Commit im Buch | `POST /v1/projects/{owner}/{repo}/characters/{character_id}/align` |
+| `character.adopt` | `character_id` | Figur des Buchs (Kopie oder eigene) in die Serie übernehmen | `python scripts/characters.py . adopt <id> --series-repo <standard>`: Commit auf dem Standard-Branch (Figur der Serie), dann Commit im Buch (Kopie entfernt) | `POST /v1/projects/{owner}/{repo}/characters/{character_id}/adopt` |
+| `matter.glossary.from_series` | `matter_id`, `term` | Begriff der Serie ins Glossar des Buchs übernehmen bzw. die Kopie angleichen (#116) | `python scripts/matter.py . glossary-from-series "<Begriff>"`, ein Commit im Buch; danach das Glossar | `POST /v1/projects/{owner}/{repo}/matter/{matter_id}/glossary/from-series` |
+| `matter.glossary.to_series` | `matter_id`, `term` | Begriff des Buchs mit seiner Erklärung in die Serie übernehmen | `python scripts/matter.py . glossary-to-series "<Begriff>" --series-repo <standard>`, ein Commit auf dem Standard-Branch | `POST /v1/projects/{owner}/{repo}/series/{series_id}/glossary` |
 | `matter.glossary.update` | `matter_id`, `title`, `goal`, `intro`, `set` (Liste `{term, explanation}`), `remove` (Liste von Begriffen), `expected_head_sha` | Glossar-Einträge aufnehmen, ändern, entfernen (#58) | `scripts/matter.py glossary-set` (neue Begriffe mit `--new`) bzw. `glossary-remove`, ein Commit, danach das Glossar | `PATCH …/matter/{matter_id}/glossary` |
 | `matter.glossary.suggest` | `matter_id` | Begriffe aus dem freigegebenen Text vorschlagen (#58) | Vorschläge mit Fundstelle und Erklärungsentwurf als Auswahl zeigen (`START.md`, „Vor- und Nachspann“, Punkt 4); nichts schreiben | – |
 | `view.library` | – | Bücherregal zeigen | Vorlage `buecherregal` (`render_view.py library --library library.json`) | – |

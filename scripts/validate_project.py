@@ -271,6 +271,12 @@ def check_project(project_dir):
         if head['name'] != item['name']:
             errors.append(f'{path}: Name weicht von ghostwriter.yml ab')
         char_heads[path] = head
+    try:   # Figuren der Serie (#116) gelten in jedem Band
+        import series
+        _, sitems = series.book_characters(base)
+    except Exception:   # noqa: BLE001
+        sitems = None
+    char_ids |= {i['id'] for i in sitems or []}
     for path, head in char_heads.items():
         for r in head.get('relations') or []:
             if r['to'] not in char_ids:
