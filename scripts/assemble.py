@@ -34,7 +34,12 @@ Einträge `- Begriff: Erklärung` alphabetisch nach DIN 5007-1 (ä wie a); ein
 doppelter Begriff verhindert die Auflage. Verweise im Text (#107) – `[Begriff]{.glossar}`
 bzw. `[Beugungsform]{.glossar term="Begriff"}` – werden zu Links auf den Eintrag
 (Klasse glossar); ohne Glossar in der Ausgabe bleibt nur der Text, ein Begriff
-ohne Eintrag verhindert die Auflage. Widmung als Block
+ohne Eintrag verhindert die Auflage.
+
+Illustrationen (#54): `![](bild:img-…)` wird zum Bild mit der Bildunterschrift
+aus der Beschreibung (images/…/img-….yml), volle Satzbreite. In eine Auflage
+kommen nur freigegebene Bilder; ein fehlendes oder nicht freigegebenes Bild in
+freigegebenem Text verhindert sie. Der Probedruck zeigt alle mit Vermerk. Widmung als Block
 `::: widmung` mit verborgener Überschrift (Klasse dedication, nicht im
 Inhaltsverzeichnis); Prolog, Epilog und Danksagung als unnummerierte Kapitel mit
 der Art als Klasse und als EPUB-Rolle (epub:type prologue, epilogue,
@@ -229,7 +234,7 @@ def metadata(config, edition, date):
     return {k: v for k, v in meta.items() if v not in ('', None)}
 
 
-def problems(parts, config, matter=()):
+def problems(parts, config, matter=(), base=None):
     out = []
     pr = config['project']
     if not (pr.get('title_short') or pr.get('title') or pr.get('working_title')):
@@ -252,6 +257,8 @@ def problems(parts, config, matter=()):
                 seen.setdefault(term.casefold(), []).append(term)
             out += [f'{item["title"]}: Begriff mehrfach eingetragen: {" / ".join(v)}' for v in seen.values() if len(v) > 1]
     out += ai_disclosure.problems(config, lambda kind: any(m[1]['kind'] == kind and m[3] for m in matter))
+    if base is not None:
+        out += image_problems(base, config, parts, matter)
     terms = glossary_terms(matter)
     if terms is not None:   # Verweise aufs Glossar (#107): jeder Begriff muss im freigegebenen Glossar stehen
         texts = [(f'Kapitel {num}', md) for num, _, md, _, _ in parts] + \
@@ -260,6 +267,44 @@ def problems(parts, config, matter=()):
             for m in GLOSSARY_REF.finditer(md):
                 if glossary_ref_term(m).casefold() not in terms:
                     out.append(f'Glossar-Verweis ohne Eintrag in {where}: „{glossary_ref_term(m)}“')
+    return out
+
+
+def resolve_images(base, config, md, proof=False):
+    """Bild-Verweise ![…](bild:img-…) auflösen (#54): (Markdown, [Beschreibungen der gesetzten Bilder]).
+    Auflage: nur freigegebene Bilder; Probedruck: alle, nicht freigegebene mit Vermerk."""
+    import images
+    known = images.all_images(base, config)
+    used = []
+    def sub(m):
+        alt, iid = m.group(1), m.group(2)
+        hit = known.get(iid)
+        if not hit or not hit[1].is_file():
+            return f'[Bild {iid} fehlt]{{.gwmarker}}' if proof else ''
+        meta, path = hit[0], hit[1]
+        if meta.get('status') != 'approved' and not proof:
+            return ''
+        used.append(meta)
+        caption = alt or meta.get('caption', '')
+        note = '' if meta.get('status') == 'approved' else '\n\n[Bild: Entwurf, nicht freigegeben]{.gwstatus}'
+        return f'![{caption}]({path.resolve().as_posix()}){{#{iid} width=100%}}{note}'
+    return images.IMAGE_REF.sub(sub, md), used
+
+
+def image_problems(base, config, parts, matter):
+    """Bilder in freigegebenem Text: vorhanden und freigegeben (#54)."""
+    import images
+    known = images.all_images(base, config)
+    out = []
+    texts = [(f'Kapitel {num}', md) for num, _, md, _, _ in parts] + \
+            [(item['title'], md) for _, item, md, approved, _ in matter if approved]
+    for where, md in texts:
+        for iid in images.refs_in(md):
+            hit = known.get(iid)
+            if not hit or not hit[1].is_file():
+                out.append(f'Bild {iid} in {where} fehlt')
+            elif hit[0].get('status') != 'approved':
+                out.append(f'Bild „{hit[0].get("caption") or iid}“ in {where} ist nicht freigegeben')
     return out
 
 
@@ -304,7 +349,7 @@ def main(argv):
         parts = book_parts(base, config)
         matter = matter_parts(base, config)
         if args.what == 'check':
-            found = problems(parts, config, matter)
+            found = problems(parts, config, matter, base)
             for line in found:
                 print(f'✗ {line}')
             for line in matter_notes(matter):
@@ -320,7 +365,7 @@ def main(argv):
         meta = metadata(config, edition, args.date)
         disc = ai_disclosure.for_book(config)
         md = '---\n' + yaml.safe_dump(meta, allow_unicode=True, sort_keys=False) + '---\n\n' + \
-             book_body(parts, matter, disc if disc and disc[0] != 'imprint' else None)
+             resolve_images(base, config, book_body(parts, matter, disc if disc and disc[0] != 'imprint' else None))[0]
     if args.output:
         Path(args.output).write_text(md, encoding='utf-8')
         print(f'{args.output}: {len(md.split())} Wörter', file=sys.stderr)

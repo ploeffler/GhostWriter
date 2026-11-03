@@ -22,6 +22,9 @@ Geprüft werden:
 - Figuren (characters, #53): Datei, Kopf gegen schemas/character.schema.json,
   ID und Name wie in ghostwriter.yml, Beziehungen und `characters` in Abschnitten
   bzw. Teilen verweisen auf bekannte Figuren
+- Illustrationen (images/…/img-*.yml, #54): Beschreibung gegen
+  schemas/image.schema.json, Bilddatei vorhanden, IDs eindeutig, Abschnitt passt
+  zum Ordner, Figuren bekannt; Verweise ![](bild:img-…) im Text zeigen auf Bilder
 - publication.isbn_print/isbn_ebook (#68): gültige ISBN-10 bzw. ISBN-13 (Prüfziffer)
 - print/cover (#68): Umschlag nur mit Druckprofil; bei bod/custom Rückenbreite
   angegeben; Papier nur bei kdp; Bilder des Umschlags vorhanden
@@ -57,6 +60,7 @@ COSTS = validator('costs.schema.json')
 APPROVALS = validator('approvals.schema.json')
 MATTER_HEAD = validator('matter.schema.json')
 CHARACTER_HEAD = validator('character.schema.json')
+IMAGE_META = validator('image.schema.json')
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
 
 
@@ -282,6 +286,39 @@ def check_project(project_dir):
             if cid not in char_ids:
                 errors.append(f'{path}: unbekannte Figur {cid}')
 
+    # Illustrationen (#54): Beschreibung gegen das Schema, Datei da, IDs eindeutig, Abschnitt passt, Verweise bekannt
+    import images
+    image_ids = set()
+    for target, folder in images.image_folders(config):
+        d = base / folder
+        if not d.is_dir():
+            continue
+        for meta_path in sorted(d.glob('img-*.yml')):
+            meta = load_yaml(meta_path, errors)
+            if meta is None:
+                continue
+            errs = schema_errors(IMAGE_META, meta, meta_path)
+            errors += errs
+            if errs:
+                continue
+            if meta['id'] in image_ids:
+                errors.append(f'{meta_path}: Bild-ID doppelt: {meta["id"]}')
+            image_ids.add(meta['id'])
+            if meta_path.stem != meta['id']:
+                errors.append(f'{meta_path}: Dateiname passt nicht zur ID {meta["id"]}')
+            if meta['section_id'] != target['id']:
+                errors.append(f'{meta_path}: section_id {meta["section_id"]} statt {target["id"]} (Ordner)')
+            if not (d / meta['file']).is_file():
+                errors.append(f'{d / meta["file"]}: fehlt')
+            for cid in meta.get('characters') or []:
+                if cid not in char_ids:
+                    errors.append(f'{meta_path}: unbekannte Figur {cid}')
+    for path in refs:
+        if path.is_file():
+            for iid in images.refs_in(path.read_text(encoding='utf-8')):
+                if iid not in image_ids:
+                    errors.append(f'{path}: Bild {iid} gibt es nicht')
+
     wf = config['workflow']
     if wf['current_chapter_id'] and wf['current_chapter_id'] not in chapter_ids:
         errors.append(f'{config_path}: workflow.current_chapter_id unbekannt: {wf["current_chapter_id"]}')
@@ -322,7 +359,8 @@ def check_project(project_dir):
             if not errs:
                 known_by_kind = {'chapter': (chapter_ids, 'Kapitel'), 'section': (section_ids, 'Abschnitt'),
                                  'matter': (matter_ids, 'Teil des Vor-/Nachspanns'),
-                                 'writing': (section_ids | matter_ids, 'Abschnitt bzw. Teil')}
+                                 'writing': (section_ids | matter_ids, 'Abschnitt bzw. Teil'),
+                                 'image': (image_ids, 'Bild')}
                 for i, entry in enumerate(data['entries'], start=1):
                     known, art = known_by_kind[entry['kind']]
                     if entry['id'] not in known:

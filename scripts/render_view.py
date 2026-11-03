@@ -426,6 +426,39 @@ def matter_view(base, config, args):
     return '\n'.join(lines) + '\n'
 
 
+def images_view(base, config, args):
+    """Illustrationen eines Abschnitts bzw. Teils (#54): Liste mit Status; Textfassung bzw. Vorlage bilder."""
+    import images
+    target, folder = images.find_target(config, args.where)
+    imgs = [(iid, v) for iid, v in images.all_images(base, config).items() if v[0].get('section_id') == target['id']]
+    head = section_file(base, target)[0]
+    used = set(images.refs_in(section_file(base, target)[3]))
+    names = {c['id']: c['name'] for c in character_items(config)}
+    style = images.settings(config)['style']
+    rows = [{'I_ID': iid, 'I_CAPTION': v[0].get('caption', ''), 'I_STATE': v[0].get('status', 'draft'),
+             'I_SOURCE': {'chat': 'im Chat erzeugt', 'copy': 'Auftrag kopiert', 'own': 'eigenes Bild'}.get(v[0].get('source'), ''),
+             'I_SIZE': f'{v[0]["width_px"]} × {v[0]["height_px"]} px' if v[0].get('width_px') else '',
+             'I_IN_TEXT': '1' if iid in used else ''} for iid, v in imgs]
+    chars = [names.get(c, c) for c in head.get('characters') or []]
+    if args.text:
+        lines = [f'### 🖼️ Bilder · {target["title"]}', '',
+                 f'Bildstil des Buchs: {style or "*noch keiner (images.style)*"} · Figuren im Abschnitt: {", ".join(chars) or "–"}', '']
+        if rows:
+            lines += ['| Bild | Bildunterschrift | Stand | Herkunft | im Text |', '|---|---|---|---|---|']
+            lines += [f'| `{r["I_ID"]}` | {r["I_CAPTION"] or "–"} | {"✅ freigegeben" if r["I_STATE"] == "approved" else "✏️ Entwurf"} | '
+                      f'{r["I_SOURCE"]} | {"ja" if r["I_IN_TEXT"] else "nein"} |' for r in rows]
+        else:
+            lines += ['*Noch keine Bilder.*']
+        lines += ['', '---', menu([('BI', 'Bild-Auftrag: Szene beschreiben (`Szene: …`)'), ('BH', 'Bild hochladen (Datei anhängen)')]
+                                 + [(f'FB {r["I_ID"]}', 'freigeben' if r['I_STATE'] != 'approved' else 'Freigabe zurücknehmen') for r in rows]
+                                 + [('Ü', 'Zur Übersicht')])]
+        return '\n'.join(lines) + '\n'
+    p = config['project']
+    values = {'PROJECT_TITLE_SHORT': p.get('title_short') or p.get('title') or '', 'TARGET_ID': target['id'],
+              'TARGET_TITLE': target['title'], 'IMAGE_STYLE': style, 'TARGET_CHARACTERS': ', '.join(chars)}
+    return fill('bilder.html', values, {'IMAGES': rows})
+
+
 def characters_view(base, config, args):
     """Figuren (#53): ohne Angabe die Liste (Vorlage figuren), sonst eine Figur (Vorlage figur-bearbeiten)."""
     p = config['project']
@@ -680,7 +713,7 @@ def section_view(base, config, args, cnum, snum):
                                                                   + (', Figuren' if chars else '')),
                  ('FS', 'Schreibfreigabe zurücknehmen' if head['approvals']['writing'] else 'Schreiben freigeben'),
                  ('FA', 'Abschnittsfreigabe zurücknehmen' if head['approvals']['section'] else 'Abschnitt freigeben'),
-                 ('RS', 'Recherche sofort'), ('GS', 'Ghostwriting sofort')]
+                 ('RS', 'Recherche sofort'), ('GS', 'Ghostwriting sofort'), ('BI', 'Bilder')]
         if prev_id:
             items.append((f'{cnum}.{snum - 1}', '← vorheriger'))
         if next_id:
@@ -856,7 +889,34 @@ def approval_view(base, config, args, kind):
     checks = []
     def add(state, text):
         checks.append({'CHECK_STATE': state, 'CHECK_TEXT': text})
-    if kind == 'chapter':
+    if kind == 'image':   # Illustration (#54): Freigabe des Bilds
+        import images
+        hit = images.all_images(base, config).get(args.where or '')
+        if not hit:
+            raise SystemExit(f'Bild {args.where} nicht gefunden')
+        meta = hit[0]
+        target_id, label = meta['id'], f'Bild „{meta.get("caption") or meta["id"]}“'
+        approved = meta.get('status') == 'approved'
+        if revoke:
+            title, button = 'Bildfreigabe zurücknehmen', 'Zurücknehmen'
+            if not approved:
+                add('block', 'Das Bild ist nicht freigegeben.')
+            effect = 'Das Bild wird wieder Entwurf; steht es in freigegebenem Text, verhindert das die nächste Auflage.'
+        else:
+            title, button = 'Bild freigeben', 'Freigeben'
+            if approved:
+                add('block', 'Das Bild ist bereits freigegeben.')
+            if not hit[1].is_file():
+                add('block', 'Die Bilddatei fehlt.')
+            w = meta.get('width_px')
+            add('ok' if w and w >= 1500 else 'warn', f'{w} px breit.' if w else 'Größe unbekannt.')
+            add('ok' if meta.get('caption') else 'warn', 'Bildunterschrift vorhanden.' if meta.get('caption') else 'Keine Bildunterschrift.')
+            add('ok' if meta.get('alt') else 'warn', 'Alternativtext vorhanden.' if meta.get('alt') else 'Kein Alternativtext (EPUB).')
+            if meta.get('ai_generated'):
+                add('ok', 'KI-erzeugt; der Bildnachweis im Impressum nennt das.' if (config.get('images') or {}).get('credit_in_imprint', True)
+                    else 'KI-erzeugt; der Bildnachweis im Impressum ist ausgeschaltet.')
+            effect = 'Das Bild wird „freigegeben“ und kommt an seiner Stelle im Text in die nächste Auflage.'
+    elif kind == 'chapter':
         cnum, ch = chapter_number(config, args.where)
         target_id, label = ch['id'], f'Kapitel {cnum} „{ch["title"]}“'
         heads = [section_file(base, s)[0] for s in ch['sections']]
@@ -1868,6 +1928,7 @@ FORMS = {'choice': choice_view, 'book-create': book_create_view, 'project-edit':
          'approval-section': lambda b, c, a: approval_view(b, c, a, 'section'),
          'approval-chapter': lambda b, c, a: approval_view(b, c, a, 'chapter'),
          'approval-matter': lambda b, c, a: approval_view(b, c, a, 'section'),
+         'approval-image': lambda b, c, a: approval_view(b, c, a, 'image'),
          'ai-disclosure': ai_disclosure_view, 'output': output_view}
 
 
@@ -1882,7 +1943,7 @@ def git_head(base):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'library', 'data'] + list(FORMS))
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
@@ -1911,6 +1972,8 @@ def main():
         out = matter_view(base, config, args)
     elif args.view == 'characters':
         out = characters_view(base, config, args)
+    elif args.view == 'images':
+        out = images_view(base, config, args)
     elif args.view == 'project':
         out = project_view(base, config, args)
     elif args.view == 'chapter':

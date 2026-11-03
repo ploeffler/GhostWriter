@@ -98,6 +98,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Kapitel 3`, `Abschnitt 3.2` | Kapitel- bzw. Abschnittsansicht |
 | `Widmung`, `Vorwort`, `Prolog`, `Epilog`, `Nachwort`, `Glossar`, `Danksagung` | der Teil des Vor- oder Nachspanns; fehlt er, die Liste „Vor- und Nachspann“ mit dem Angebot, ihn anzulegen (Abschnitt 0, „Vor- und Nachspann“) |
 | `Vor- und Nachspann` | Liste aller Teile, vorhandene und anlegbare |
+| `Bilder 3.2` | Bilder eines Abschnitts: Liste, neuer Bild-Auftrag, Freigaben (Abschnitt 0, „Illustrationen“) |
 | `Figuren`, `Figur <Name>` | Liste der Figuren bzw. das Formular einer Figur (Abschnitt 0, „Figuren“) |
 | `Neues Kapitel` | Formular „Neues Kapitel“ |
 | `Probedruck` | Probedruck starten (wie `edition.proof`) |
@@ -158,6 +159,7 @@ Was jedes Formular schreibt:
 | Neuer Abschnitt | `section.create` | Abschnittsdatei aus `templates/section.md`, `ghostwriter.yml`, Abschnittsliste der Kapitel-README | `Abschnitt N.M „Titel“ angelegt` | – | `POST …/chapters/{chapter_id}/sections` |
 | Abschnittsreihenfolge | `section.reorder` | `ghostwriter.yml` (Reihenfolge; IDs und Dateinamen bleiben), Abschnittsliste der Kapitel-README | `Abschnittsreihenfolge in Kapitel N geändert` | – | `POST …/chapters/{chapter_id}/sections/reorder` |
 | Abschnitt bearbeiten | `section.update` | Abschnittsdatei (Ziel, Kurzbeschreibung, Faktencheck, Manuskript, Status, Figuren `characters`; nie `approvals`), Status in der Abschnittsliste der Kapitel-README | `Abschnitt N.M gespeichert` | Manuskript nur mit Schreibfreigabe (`approvals.writing`); Freigaben nie über dieses Formular, sondern über „Freigabe bestätigen“ | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
+| Bild ablegen | `image.add` | Bild, Beschreibung `img-….yml` und Lauf `run-NNN.md` unter `…/images/<abschnitt>/`, über `scripts/images.py add` | `Bild „Bildunterschrift“ abgelegt` | – | `POST …/sections/{section_id}/images` |
 | Figur anlegen | `character.create` | `characters/char-<slug>.md` aus `templates/character.md`, `ghostwriter.yml` (`characters`), über `scripts/characters.py add` | `Figur „Name“ angelegt` | – | `POST …/characters` |
 | Figur bearbeiten | `character.update` | Figurendatei, bei neuem Namen auch `ghostwriter.yml`, über `scripts/characters.py update` | `Figur „Name“ gespeichert` | – | `PATCH …/characters/{character_id}` |
 | Teil von Vor- oder Nachspann anlegen | `matter.create` | `matter/<datei>.md` aus `templates/matter.md`, `ghostwriter.yml` (`structure.front_matter` bzw. `back_matter`), über `scripts/matter.py` | `Widmung angelegt` (mit eigenem Titel `Widmung „Titel“ angelegt`) | – | `POST …/matter` |
@@ -225,6 +227,18 @@ Figuren sind optional (`characters`, `docs/DATA-MODEL.md`, „Figuren“) und Ar
 4. **Kontext für KI-Läufe:** Vor Brainstorming, Ghostwriting, Überarbeiten und Faktencheck eines Abschnitts bzw. Teils mit Figuren `python scripts/characters.py . context <N.M|sec-…|mat-…>` ausführen und den Block als Vorgabe nutzen: Namen, Alter, Aussehen, Eigenschaften, Sprechweise und Beziehungen bleiben stimmig. In der Lauf-Datei unter „Grundlage“ die beteiligten Figuren nennen. Hat ein Abschnitt keine Figuren, aber der Text nennt welche, darauf hinweisen und `assign` anbieten.
 5. **Faktencheck:** Widersprüche zur Figurenbeschreibung (Alter, Aussehen, Beziehung, Name) als Prüfpunkte melden; der Text wird nicht stillschweigend angepasst.
 
+### Illustrationen (verbindlich, #54)
+
+Bilder zu Abschnitten entstehen im Chat oder bei einem anderen Dienst; der Weg über die API mit Kosten über das Backend kommt mit #19 (dann mit Budget-Sperre, #62).
+
+1. **Zeigen:** `Bilder 3.2` bzw. „Bilder“ im Abschnittsformular (`view.images`) → `python scripts/render_view.py . images 3.2` (Vorlage `bilder`, Textfassung `--text`). Ein neuer Auftrag aus dem Widget kommt als `image.prompt` mit der Szene (leer = Szene aus dem Text vorschlagen).
+2. **Auftrag:** Der Benutzer beschreibt die Szene (oder bittet um einen Vorschlag aus dem Abschnittstext). `python scripts/images.py . prompt 3.2 --scene "…"` setzt Bildstil, Szene und die festen Bildmerkmale der Figuren zusammen. Den Prompt vor dem Erzeugen zeigen; der Benutzer darf ihn ändern.
+3. **Erzeugen:** Kann der Chat selbst Bilder erzeugen und der Benutzer will das, dort erzeugen (Herkunft `chat`). Sonst „Auftrag kopieren“: den Prompt als Codeblock zum Kopieren ausgeben, der Benutzer erzeugt das Bild bei seinem Dienst und lädt es hoch (Herkunft `copy`, Dienst nachfragen). Eigene Fotos oder Zeichnungen: Herkunft `own` (nicht KI-erzeugt). Bei mehreren Varianten wählt der Benutzer eine aus.
+4. **Ablegen** (`image.add`): `python scripts/images.py . add 3.2 <datei> --caption "…" --source … --provider … --prompt "…" --variants N`; ein Commit `Bild „…“ abgelegt`. Die Datei kommt nie über den Chattext, sondern als Anhang bzw. aus dem Dienst.
+5. **Platzieren** (`image.place`, Knopf „In den Text setzen“): Die Zeile `![](bild:img-…)` setzt der Assistent nur mit Schreibfreigabe des Abschnitts in den Text, an die vom Benutzer gewünschte Stelle (eigener Absatz), Commit wie „Abschnitt bearbeiten“.
+6. **Freigeben:** über „Freigabe bestätigen“ (`render_view.py approval-image <img-id>`, `--revoke`); setzt `status: approved` in der Beschreibung und einen Eintrag `kind: image` in `approvals.yml`. Commit `Bild „…“ freigegeben`.
+7. **Kennzeichnung:** KI-erzeugte Bilder nennt das Impressum (abschaltbar mit `images.credit_in_imprint: false`); die KI-Angabe (#78) zählt Bildaufträge nicht mit, sie steht für den Text.
+
 ### KI-Angabe im Buch (verbindlich, #78)
 
 Ob und wie im Buch steht, wie bei diesem Buch KI genutzt wurde, entscheidet allein der Autor (`ai_disclosure` in `ghostwriter.yml`, `docs/DATA-MODEL.md`). Davon getrennt und nie im Buch: der Hinweis auf die Entwicklung von GhostWriter (`templates/branding.yml`).
@@ -261,7 +275,7 @@ Eine Freigabe entsteht nur durch eine eigene Bestätigung, nie beim Speichern ei
    - Kapitelfreigabe: Kapitelstatus `approved` in `ghostwriter.yml` und in der Kapitel-README. Zurücknehmen: `in_progress`.
    - Teil von Vor- oder Nachspann (#57): wie ein Abschnitt (`approvals.writing`, `approvals.section`, Status `approved` bzw. `revision`), ohne Kapitel und ohne README.
    - Den Status des Abschnitts in der Abschnittsliste der Kapitel-README nachziehen.
-5. **Festhalten:** Jede erteilte oder zurückgenommene Freigabe bekommt im selben Commit einen neuen Eintrag am Ende von `approvals.yml` (Schema `schemas/approvals.schema.json`): `kind` (`writing`, `section`, `chapter`, `matter` für einen Teil von Vor- oder Nachspann; die Schreibfreigabe eines Teils ist `writing` mit seiner `mat-…`-ID), `id`, `action` (`granted`, `revoked`), `at` (Zeitpunkt mit Zeitzone), `by` (GitHub-Login, sonst `chat`), `commit` (der bestätigte Stand, also `expected_head_sha`). Einträge werden nie geändert oder gelöscht.
+5. **Festhalten:** Jede erteilte oder zurückgenommene Freigabe bekommt im selben Commit einen neuen Eintrag am Ende von `approvals.yml` (Schema `schemas/approvals.schema.json`): `kind` (`writing`, `section`, `chapter`, `matter` für einen Teil von Vor- oder Nachspann, `image` für ein Bild; die Schreibfreigabe eines Teils ist `writing` mit seiner `mat-…`-ID), `id`, `action` (`granted`, `revoked`), `at` (Zeitpunkt mit Zeitzone), `by` (GitHub-Login, sonst `chat`), `commit` (der bestätigte Stand, also `expected_head_sha`). Einträge werden nie geändert oder gelöscht.
 
 ## 1. Start und GitHub-Onboarding (verbindlich)
 
