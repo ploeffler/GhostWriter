@@ -56,6 +56,17 @@ Ein Repository kann mehrere Bücher enthalten, je Buch ein Branch `buch/<slug>` 
 
 Auch ein Branch `buch/<slug>`, den der Benutzer selbst in GitHub anlegt, ist ein Buch: Startet ein Chat mit seinem Link, beginnt dort der Einstiegsdialog. Ein Buch wird aus dem Chat nie gelöscht; wer eins nicht mehr braucht, kann den Branch in GitHub selbst archivieren oder löschen (Hinweis geben, nichts tun).
 
+### Serien (verbindlich, #116)
+
+Mehrere Bücher einer Bibliothek bilden eine **Serie** (Reihe mit Bänden). Serien gibt es **nur in Bibliotheken**: Ist der Standard-Branch selbst ein Buch (Einzelbuch), zeige statt „Neue Serie“ den Hinweis auf die Umwandlung (Abschnitt „Einzelbuch in eine Bibliothek umwandeln“). **Ein Buch gehört zu höchstens einer Serie.**
+
+- **Daten:** `series/<ser-id>/series.yml` auf dem Standard-Branch (Schema `schemas/series.schema.json`): `id`, `title`, `subtitle`, `kind` (`continuous` = durchgehende Handlung, `standalone` = eigenständige Bände), `description`, `volumes` (Buch-Branches in Bandreihenfolge; Band 1 = erster Eintrag). Das Buch selbst speichert keine Zugehörigkeit. `library.json` enthält die Serien (`series`) und je Buch `series` und `volume`.
+- **Zeigen:** Bücherregal gruppiert nach Serien (Kürzel `S1`, `S2` … öffnen die Serie); Seite der Serie mit `python scripts/render_view.py . series <ser-id>` (Befehl `Serie <Titel>`, Aktion `view.series`); Formular „Neue Serie“ bzw. „Serie bearbeiten“ mit `… series-edit [<ser-id>]` (Befehl `Neue Serie`). Die Projektübersicht eines Bandes zeigt „Band N der Serie „…““ mit Link (Kürzel `S`).
+- **Schreiben:** Serien-Aktionen ändern nur `series/` und gehen **direkt auf den Standard-Branch** (dort liegt kein Buchtext; kein Arbeits-Branch, kein Pull Request), je Aktion ein Commit mit der Nachricht aus der Tabelle oben und darunter `GhostWriter-Aktion: <aktion>`. `expected_head_sha` bezieht sich hier auf den Standard-Branch. Lokal bzw. in einer Action: `scripts/series.py create | update | add | remove | reorder`; das Skript prüft die Regeln (nur Bücher der Bibliothek, höchstens eine Serie je Buch, nur in Bibliotheken).
+- **Neues Buch in einer Serie:** „Neues Buch in dieser Serie“ öffnet das Formular „Neues Buch“ mit `--draft '{"series_id":"ser-…"}'` (nächste Bandnummer, Autor des letzten Bandes vorbelegt). `library.book.create` mit `series_id` legt das Buch wie unter „Neues Buch“ an und trägt es danach mit einem zweiten Commit auf dem Standard-Branch als nächsten Band ein (`scripts/library.py new … --create --series ser-…`).
+- **Buch-Branches enthalten `series/` nicht:** Wird ein Buch vom Standard-Branch abgezweigt, entfernt der Commit „Neues Buch angelegt“ den Ordner `series/` (so bleibt es eine Quelle). Gelesen wird die Serie eines Buchs immer vom Standard-Branch (`scripts/series.py of <branch>`).
+- **Entfernen** eines Bandes ändert das Buch nicht. Gemeinsame Figuren, Begriffe und Gestaltung, Reihentitel in Auflagen und der Sammelband folgen (#116, weitere Stufen).
+
 ### Neuer Chat statt langem Verlauf
 
 Ein Chat lässt sich nicht leeren; jede Ansicht bleibt im Verlauf stehen. Der Projektstand liegt aber vollständig im Repository. Deshalb:
@@ -109,6 +120,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `KI-Angabe` | Formular „KI-Angabe im Buch“ (Abschnitt 0, „KI-Angabe im Buch“) |
 | `Ausgabe`, `Ausgabeoptionen`, `Umschlag` | Formular „Ausgabeoptionen“: Satzspiegel, Schrift, Absätze, Titelei, Formate, Angaben im Impressum, Druck und Umschlag (Vorlage `ausgabeoptionen`, `render_view.py output`, Textfassung mit `--text`; #68) |
 | `Nur Text`, `Widgets` | Darstellungsmodus umschalten; `Widgets` nur bei Anbietern, die sie darstellen (`templates/ui/BEFUELLUNG.md`, „Darstellungsmodus“) |
+| `Serie <Titel>`, `Neue Serie` | Seite der Serie bzw. Formular „Neue Serie“ (Abschnitt 0, „Serien“) |
 | `Hilfe` | diese Befehle und die Kürzel der zuletzt gezeigten Ansicht (`templates/ui/BEFUELLUNG.md`, „Textfassung“) |
 
 Befehle haben Vorrang vor Kürzeln nur, wenn sie ausgeschrieben sind (`Auflage`, nicht `A`). `Neues Buch` öffnet das Formular „Neues Buch“ (Abschnitt 0, „Neues Buch“); `Neues Buch: <Titel>` öffnet es mit dem Titel vorbelegt.
@@ -167,6 +179,11 @@ Was jedes Formular schreibt:
 | Teil von Vor- oder Nachspann bearbeiten | `matter.update` | Datei in `matter/` (Titel, Ziel, Manuskript, Status, bei Vorwort und Nachwort `byline`, `place_date`; nie `approvals`), bei neuem Titel auch `ghostwriter.yml` | `<Titel> gespeichert` | Text nur mit Schreibfreigabe; Freigaben nur über „Freigabe bestätigen“ | `PATCH …/matter/{matter_id}` |
 | Glossar: Begriffe | `matter.glossary.update` | `matter/glossar.md` (Manuskript, sortiert), über `scripts/matter.py glossary-set` bzw. `glossary-remove` | `Glossar: „Begriff“ eingetragen` / `… entfernt` / `Glossar: N Begriffe geändert` | Schreibfreigabe des Glossars | `PATCH …/matter/{matter_id}/glossary` |
 | Freigabe bestätigen | `approval.confirm` | Abschnittsdatei bzw. Datei in `matter/` (`approvals`, Status) bzw. `ghostwriter.yml` (Kapitelstatus), Status in der Kapitel-README, neuer Eintrag in `approvals.yml` | `Abschnitt N.M freigegeben`, `Schreiben für Abschnitt N.M freigegeben`, `Kapitel N freigegeben`, `Widmung freigegeben`, `Schreiben für Prolog freigegeben`; beim Zurücknehmen `Freigabe … zurückgenommen` | ausdrückliche Bestätigung (siehe „Freigaben“) | `POST`/`DELETE …/sections/{section_id}/writing-approval`, `…/sections/{section_id}/approve`, `…/chapters/{chapter_id}/approve` |
+| Serie anlegen | `series.create` | `series/<ser-id>/series.yml` auf dem **Standard-Branch** (siehe „Serien“) | `Serie „Titel“ angelegt` | – | `POST …/series` |
+| Serie bearbeiten | `series.update` | `series/<ser-id>/series.yml` (Standard-Branch) | `Serie „Titel“ geändert` | – | `PATCH …/series/{series_id}` |
+| Band hinzufügen | `series.volume.add` | `series/<ser-id>/series.yml` (Standard-Branch) | `Band N zur Serie „Titel“ hinzugefügt` | – | `POST …/series/{series_id}/volumes` |
+| Band entfernen | `series.volume.remove` | `series/<ser-id>/series.yml` (Standard-Branch) | `Band aus der Serie „Titel“ entfernt` | – | `DELETE …/series/{series_id}/volumes/{branch}` |
+| Bandreihenfolge | `series.reorder` | `series/<ser-id>/series.yml` (Standard-Branch) | `Bandreihenfolge der Serie „Titel“ geändert` | – | `POST …/series/{series_id}/reorder` |
 | Änderungen übernehmen | `changes.merge` | – (Merge des Pull Requests) | Merge-Commit `GhostWriter: N Änderungen übernommen` | ausdrückliche Bestätigung | `POST …/changes/merge` |
 
 Ausnahmen: KI-Läufe (`run.start`, ab v0.4) schreiben Lauf-Datei und Abschnittsstatus nach denselben Regeln in den Arbeits-Branch (Ablauf: „KI-Lauf „Sofort““); einen Kosteneintrag nur, wenn der Lauf kostenpflichtige KI-API-Aufrufe über das Backend gemacht hat. Eine neue Auflage (`edition.create`) bekommt einen eigenen Pull Request, nicht den Arbeits-Branch. Kein Formular und keine Schreibregel gibt mehr als den Text eines Abschnitts im Chat aus.

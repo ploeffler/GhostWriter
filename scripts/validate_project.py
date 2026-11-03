@@ -139,6 +139,9 @@ def check_project(project_dir):
     errors += schema_errors(GHOSTWRITER, config, config_path)
     if errors:
         return errors
+    if (base / 'series').is_dir():   # Serien auf dem Standard-Branch einer Bibliothek (#116)
+        import series
+        errors += [f'{base}/{e}' for e in series.problems(base)]
 
     chapter_ids, section_ids = set(), set()
     for ci, chapter in enumerate(config['structure']['chapters'], start=1):

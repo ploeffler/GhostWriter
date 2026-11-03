@@ -79,6 +79,11 @@ Die Pfade sind Entwurf und müssen mit dem implementierten Dienst übereinstimme
 | POST | /v1/projects/{owner}/{repo}/chapters/{chapter_id}/sections | auch mehrere vorgeschlagene Abschnitte am Ende in einem Commit (`chapter.sections.add`) |
 | GET | /v1/projects/{owner}/{repo}/changes | Offene Änderungen: Arbeits-Branch, Pull Request, Commits |
 | POST | /v1/projects/{owner}/{repo}/books | Neues Buch in einer Bibliothek anlegen: Branch `buch/<slug>` vom Standard-Branch, ein Commit „Neues Buch angelegt“ (`library.book.create`, #38) |
+| POST | /v1/projects/{owner}/{repo}/series | Serie anlegen: `series/<ser-id>/series.yml` auf dem Standard-Branch (`series.create`, #116) |
+| PATCH | /v1/projects/{owner}/{repo}/series/{series_id} | Serie ändern; die ID bleibt (`series.update`) |
+| POST | /v1/projects/{owner}/{repo}/series/{series_id}/volumes | Buch als nächsten Band hinzufügen (`series.volume.add`); ein Buch gehört zu höchstens einer Serie |
+| DELETE | /v1/projects/{owner}/{repo}/series/{series_id}/volumes/{branch} | Band entfernen, das Buch bleibt (`series.volume.remove`) |
+| POST | /v1/projects/{owner}/{repo}/series/{series_id}/reorder | Bandreihenfolge ändern (`series.reorder`) |
 | POST | /v1/projects/{owner}/{repo}/changes/merge | Offene Änderungen nach Bestätigung übernehmen (`changes.merge`) |
 
 ## Projektdaten im Lese-Endpunkt

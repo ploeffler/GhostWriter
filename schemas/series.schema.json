@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/series.schema.json",
+  "title": "Serie (series/<ser-id>/series.yml auf dem Standard-Branch einer Bibliothek, #116)",
+  "type": "object",
+  "required": ["id", "title", "kind", "volumes"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^ser-[a-z0-9][a-z0-9-]*$", "description": "bleibt beim Umbenennen gleich"},
+    "title": {"type": "string", "minLength": 1, "description": "Reihentitel"},
+    "subtitle": {"type": "string"},
+    "kind": {"enum": ["continuous", "standalone"], "description": "continuous: durchgehende Handlung; standalone: eigenständige Bände"},
+    "description": {"type": "string"},
+    "volumes": {
+      "type": "array",
+      "description": "Buch-Branches in Bandreihenfolge (erster Eintrag = Band 1); ein Buch gehört zu höchstens einer Serie",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": true
+}

@@ -48,6 +48,7 @@ book:
   - research/
   - ghostwriter-index.json
   - library.json            # Bücherregal einer Bibliothek (Standard-Branch)
+  - series/                 # Serien einer Bibliothek (Standard-Branch, #116)
   - editions/
   - .ghostwriter/
 
