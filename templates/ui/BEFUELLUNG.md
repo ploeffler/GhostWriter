@@ -112,7 +112,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `PENDING_COUNT`, `PENDING_TEXT`, `PENDING_PR` | nur bei offenen Änderungen (Arbeits-Branch mit offenem Pull Request, siehe „Offene Änderungen“): Anzahl der Commits, „1 Änderung“ bzw. „N Änderungen“, Nummer des Pull Requests. Ohne offene Änderungen weglassen; dann entfällt der Hinweis mit dem Knopf „Änderungen übernehmen“ |
 | `UPDATE_BEHIND`, `UPDATE_TEXT` | nur wenn der Buch-Branch hinter dem Hauptrepository liegt (siehe „Update-Stand“): Anzahl Commits und Text wie „3 Commits hinter ploeffler/GhostWriter:main · Version 0.3.1 verfügbar (installiert 0.3.0)“. Sonst weglassen; dann entfällt der Hinweis mit dem Knopf „Update einspielen“ |
 | Block `CHAPTERS`: `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_STATUS`, `CHAPTER_COST`, `CHAPTER_COST_HINT`, `CHAPTER_ID` | je Kapitel aus `structure.chapters`, Kosten wie oben; `CHAPTER_ID` ist die stabile Kapitel-ID, ein Klick auf das Kapitel schickt `view.chapter`; ohne Kapitel entfällt der Bereich „Kapitel“ |
-| Block `MATTER`: `MATTER_ID`, `MATTER_KIND`, `MATTER_AREA`, `MATTER_TITLE`, `MATTER_STATUS`, `MATTER_MARKERS` | Vor- und Nachspann (#57) aus `structure.front_matter` und `back_matter` in Buchreihenfolge: ID (`mat-…`), Art, `front` (über der Kapitelliste) bzw. `back` (darunter), Titel, Status, Zahl offener Marker; ein Klick schickt `view.matter`. Fehlt ohne Vor- und Nachspann. Die Vorlage zeigt den Block, sobald ghostwriter-ui ihn kennt; bis dahin steht er nur in der Textfassung |
+| Blöcke `MATTER_FRONT`, `MATTER_BACK`: `MATTER_ID`, `MATTER_TITLE`, `MATTER_STATUS`, `MATTER_MARKERS` | Vor- und Nachspann (#57, #58) aus `structure.front_matter` (über der Kapitelliste) bzw. `back_matter` (darunter) in Buchreihenfolge: ID (`mat-…`), Titel, Status, Zahl offener Marker; ein Klick schickt `view.matter`. Ein leerer Bereich fehlt |
 
 ### `kapitelansicht.html`
 
@@ -223,6 +223,51 @@ Seite „Daten“ (`render_view.py data`, `START.md`, „Daten“). Quellen: `li
 | Block `SECRETS`: `S_NAME`, `S_STATE`, `S_TEXT` | `secret_names` und `secrets` aus `library.json`: `yes` hinterlegt, `no` fehlt, `unknown` noch nicht geprüft |
 | Block `RUNS`: `R_NAME`, `R_STATE`, `R_TEXT`, `R_URL` | je Action der neueste Lauf aus `runs`: Name, `ok`/`fail`/`other`, Ergebnis, Datum, Branch, Link |
 
+### `vor-nachspann.html`
+
+Liste „Vor- und Nachspann“ (`render_view.py matter`, #57, #58).
+
+| Platzhalter | Quelle |
+|---|---|
+| `PROJECT_TITLE_SHORT` | wie in der Projektübersicht |
+| Block `PARTS`: `PART_KIND`, `PART_TITLE`, `PART_AREA`, `PART_ID`, `PART_STATUS`, `PART_HINT` | je mögliche Art in Buchreihenfolge (`MATTER` in `scripts/render_view.py`): Art, Titel des vorhandenen Teils bzw. Vorgabetitel, `front`/`back`, ID (leer = nicht angelegt), Status (leer = nicht angelegt), kurze Beschreibung |
+
+### `teil-bearbeiten.html`
+
+Formular eines Teils von Vor- oder Nachspann (`render_view.py matter <teil>`).
+
+| Platzhalter | Quelle |
+|---|---|
+| `PROJECT_TITLE_SHORT` | wie in der Projektübersicht |
+| `MATTER_ID`, `MATTER_KIND`, `MATTER_TITLE`, `MATTER_AREA_TEXT`, `MATTER_STATUS` | Eintrag in `structure.front_matter`/`back_matter` und Kopf der Datei; „Vorspann“ bzw. „Nachspann“ |
+| `MATTER_GOAL`, `MATTER_MANUSCRIPT` | `## Ziel` (Platzhalter der Vorlage = leer) und `## Manuskript` („Noch nicht begonnen.“ und beim Glossar leer) |
+| `MARKER_COUNT_TEXT`, Block `MARKERS` (`MARKER_TYPE`, `MARKER_LABEL`, `MARKER_TEXT`) | offene Marker im Text wie im Abschnittsformular |
+| `APPROVAL_WRITING`, `APPROVAL_SECTION` | `approvals.writing`, `approvals.section` als `true`/`false` |
+| `SIGNED`, `BYLINE`, `PLACE_DATE` | `1` bei Vorwort und Nachwort; `byline`, `place_date` aus dem Kopf |
+| `GLOSSARY`, `GLOSSARY_INTRO`, Block `GLOSSARY_ENTRIES` (`G_TERM`, `G_TEXT`) | `1` beim Glossar; Einleitung und Einträge (`glossary_entries`), alphabetisch nach DIN 5007-1 |
+| `RESEARCH`, `GHOSTWRITING` | `1`, wenn Recherche bzw. Ghostwriting für die Art erlaubt ist (`MATTER_RESEARCH`, `MATTER_GHOSTWRITING`) |
+| `PERSONAL_NOTE` | Hinweis bei Widmung und Danksagung, dass der Autor den Text selbst schreibt; sonst leer |
+
+### `ki-angabe.html`
+
+Formular „KI-Angabe im Buch“ (`render_view.py ai-disclosure`, #78; `scripts/ai_disclosure.py`).
+
+| Platzhalter | Quelle |
+|---|---|
+| `AI_MODE`, `AI_PLACEMENT`, `AI_NAME_SERVICES`, `AI_TEXT` | `ai_disclosure.mode`, `.placement`, `.name_services` (`true`/`false`), `.text` (Vorgaben: none, imprint, false, leer) |
+| `AI_USED_TEXT` | laut Lauf-Dateien genutzte Aufgaben und Dienste (`usage`), z. B. „Recherche: Perplexity · Textentwürfe: Anthropic Claude“; leer = keine Läufe |
+| `AI_PROPOSAL_SHORT`, `AI_PROPOSAL_SHORT_NAMED`, `AI_PROPOSAL_DETAILED`, `AI_PROPOSAL_DETAILED_NAMED` | `suggest` für kurz/ausführlich ohne bzw. mit Dienstnamen; leer = keine Läufe |
+| `AI_PLACES_MISSING` | Orte ohne Grundlage, kommagetrennt: `foreword`/`afterword` ohne Vorwort bzw. Nachwort, `imprint` bei ausgeschaltetem Impressum |
+| `AI_LEGAL_HINT` | `LEGAL_HINT` aus `scripts/ai_disclosure.py` |
+
+### `ausgabeoptionen.html`
+
+Formular „Ausgabeoptionen“ (`render_view.py output`, #68).
+
+| Platzhalter | Quelle |
+|---|---|
+| `OUTPUT_JSON` | JSON-Text: `typesetting` (alle Felder, Vorgaben ergänzt), `publication`, `print`, `cover` (wie in `ghostwriter.yml`, fehlend = `{}`), `blurb` und `author_bio` (aus `cover/rueckseite.md`, `## Klappentext` bzw. `## Über …`) |
+
 ### `buch-anlegen.html`
 
 Formular „Neues Buch“ (`render_view.py book-create`, `START.md`, „Neues Buch“).
@@ -314,6 +359,7 @@ Für Kapitel und Abschnitte.
 | Block `FIXED`: `FIXED_LABEL`, `FIXED_VALUE` | KI-Grundeinstellungen (`ai_settings`) und Freigabepflichten (`workflow.require_…`), nur zur Anzeige |
 | `UPDATES_AUTO` | `updates.auto` als `true`/`false`; fehlt der Block, `true` |
 | `CHANGES_AUTO_MERGE` | `changes.auto_merge` als `true`/`false`; fehlt der Block, `false` |
+| `AI_DISCLOSURE_TEXT` | KI-Angabe kurz, z. B. „kurz, im Impressum“, „keine“ (`ai_disc_text`) |
 | `GW_VERSION_TEXT` | „Installiert: GhostWriter <version>“ aus `ghostwriter-manifest.yml`, dazu „ · zuletzt aktualisiert am TT.MM.JJJJ“ aus `.ghostwriter/update.yml` (`updated_at`), falls vorhanden |
 | `GW_UPDATE_HINT` | nur wenn `.ghostwriter/update.yml` `skipped_workflows` enthält: Hinweis auf das Secret `GHOSTWRITER_UPDATE_TOKEN` (`docs/UPDATES.md`); sonst leer |
 
@@ -375,10 +421,11 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `view.project` | – | Projektübersicht zeigen | Vorlage `projektuebersicht` (`render_view.py project`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.chapter` | `chapter_id` | Kapitelansicht zeigen | Vorlage `kapitelansicht` (`render_view.py chapter N`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.section` | `section_id` | Abschnittsformular zeigen | Vorlage `abschnitt-bearbeiten` (`render_view.py section N.M`) | `GET /v1/projects/{owner}/{repo}` |
-| `view.matter` | `matter_id` (leer = alle Teile) | Teil von Vor- oder Nachspann zeigen bzw. die Liste „Vor- und Nachspann“ (#57) | `render_view.py matter <teil>` bzw. `matter` (vorerst Textfassung; Vorlage in ghostwriter-ui folgt) | `GET /v1/projects/{owner}/{repo}` |
+| `view.matter` | `matter_id` (leer = alle Teile) | Teil von Vor- oder Nachspann zeigen bzw. die Liste „Vor- und Nachspann“ (#57) | Vorlage `teil-bearbeiten` (`render_view.py matter <teil>`) bzw. `vor-nachspann` (`render_view.py matter`) | `GET /v1/projects/{owner}/{repo}` |
 | `matter.create` | `kind` (`dedication` \| `foreword` \| `prologue` \| `epilogue` \| `afterword` \| `glossary` \| `acknowledgments`), `title` (optional), `expected_head_sha` | Teil anlegen | `python scripts/matter.py . add <art> [--title …]`, Commit nach `START.md`, „Vor- und Nachspann“; danach der neue Teil | `POST …/matter` |
 | `matter.update` | `matter_id`, `title`, `goal`, `manuscript`, bei Vorwort und Nachwort `byline`, `place_date`, `expected_head_sha` (nie `approvals`) | Teil speichern | Datei in `matter/` (und bei neuem Titel `ghostwriter.yml`) schreiben, danach der Teil | `PATCH …/matter/{matter_id}` |
-| `matter.glossary.update` | `set` (Liste `{term, explanation}`), `remove` (Liste von Begriffen), `expected_head_sha` | Glossar-Einträge aufnehmen, ändern, entfernen (#58) | `scripts/matter.py glossary-set` (neue Begriffe mit `--new`) bzw. `glossary-remove`, ein Commit, danach das Glossar | `PATCH …/matter/{matter_id}/glossary` |
+| `matter.glossary.update` | `matter_id`, `title`, `goal`, `intro`, `set` (Liste `{term, explanation}`), `remove` (Liste von Begriffen), `expected_head_sha` | Glossar-Einträge aufnehmen, ändern, entfernen (#58) | `scripts/matter.py glossary-set` (neue Begriffe mit `--new`) bzw. `glossary-remove`, ein Commit, danach das Glossar | `PATCH …/matter/{matter_id}/glossary` |
+| `matter.glossary.suggest` | `matter_id` | Begriffe aus dem freigegebenen Text vorschlagen (#58) | Vorschläge mit Fundstelle und Erklärungsentwurf als Auswahl zeigen (`START.md`, „Vor- und Nachspann“, Punkt 4); nichts schreiben | – |
 | `view.library` | – | Bücherregal zeigen | Vorlage `buecherregal` (`render_view.py library --library library.json`) | – |
 | `view.data` | – | Seite „Daten“ zeigen | Daten sammeln und Vorlage `daten` (`render_view.py data`, `START.md`, „Daten“) | `GET /v1/projects/{owner}/{repo}` |
 | `library.book.open` | `branch` | Buch aus dem Bücherregal öffnen | Branch als Buch-Branch übernehmen, Projektübersicht zeigen; Buch im Aufbau: Einstiegsdialog fortsetzen | `GET /v1/projects/{owner}/{repo}` |
@@ -388,9 +435,9 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `project.update` | `title`, `title_short`, `author`, `description_short`, `description`, `expected_head_sha` | Projektdaten speichern | in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH /v1/projects/{owner}/{repo}` |
 | `project.settings.open` | – | Projekteinstellungen zeigen | Vorlage `projekteinstellungen` (`render_view.py project-settings`) | – |
 | `project.settings.update` | `fact_checking_default`, `typesetting` (`page_size`, `font`, `font_size`, `title_page`, `imprint`, `toc`, `toc_depth`), `updates` (`auto`), `changes` (`auto_merge`), `expected_head_sha` | Einstellungen speichern | `workflow.fact_checking_default`, `typesetting`, `updates` und `changes` in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH …/settings` |
-| `project.ai_disclosure.open` | – | Formular „KI-Angabe im Buch“ zeigen (Befehl `KI-Angabe`, #78) | `render_view.py ai-disclosure` (vorerst Textfassung) | – |
+| `project.ai_disclosure.open` | – | Formular „KI-Angabe im Buch“ zeigen (Befehl `KI-Angabe`, Knopf in den Projekteinstellungen, #78) | Vorlage `ki-angabe` (`render_view.py ai-disclosure`) | – |
 | `project.ai_disclosure.update` | `mode`, `placement`, `name_services`, `text` bzw. `use_suggestion`, `expected_head_sha` | KI-Angabe speichern | `scripts/ai_disclosure.py set`, ein Commit (`START.md`, „KI-Angabe im Buch“), danach das Formular | `PATCH …/settings` |
-| `project.output.open` | – | Formular „Ausgabeoptionen“ zeigen (Befehl `Ausgabe`, #68) | `render_view.py output` (vorerst Textfassung) | – |
+| `project.output.open` | – | Formular „Ausgabeoptionen“ zeigen (Befehl `Ausgabe`, Knopf in Projektübersicht und Projekteinstellungen, #68) | Vorlage `ausgabeoptionen` (`render_view.py output`) | – |
 | `project.output.update` | `typesetting` (Felder wie in `docs/DATA-MODEL.md`, „Buchsatz“), `publication` (`publisher`, `isbn_print`, `isbn_ebook`, `rights`), `print`, `cover`, Texte der Rückseite (`blurb`, `author_bio`), `expected_head_sha` | Ausgabeoptionen speichern | in `ghostwriter.yml` schreiben (nur geänderte Felder), prüfen, danach das Formular | `PATCH …/settings` |
 | `project.providers.open` | – | Formular „KI-Dienste“ zeigen | Vorlage `ki-dienste` (`render_view.py providers-edit`) | – |
 | `project.providers.update` | `available`, `services` (je eigenem Dienst `access`, `model`, `github_connected`, `plan`, `monthly_cost`, `note`, bei `access: api` zusätzlich `api_key_secret`), `roles` (`default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`: Dienst-ID, `chat` oder leer), `queue_agent`, `search_tools`, `expected_head_sha` | KI-Dienste speichern | `ai_providers` in `ghostwriter.yml` schreiben: `available`, `services` (nur eigene Dienste; leere Felder weglassen), `provider` je Aufgabe, `research.search_tools`, `queue_processing.agent`; Modellnamen nicht ändern. Danach Projektübersicht | `PATCH …/settings` |

@@ -336,3 +336,38 @@ class MatterTypesettingTest(MatterBase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class MatterWidgetTest(MatterBase):
+    """Widget-Ausgabe (ghostwriter-ui ab 0.25.0): Vorlagen und Daten."""
+
+    def widget(self, *args):
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), *args],
+                             capture_output=True, text=True, check=True).stdout
+        m = re.search(r'GW\.render\("([^"]+)",(.*)\)</script>', out)
+        return m.group(1), json.loads(m.group(2).replace('<\\/', '</'))
+
+    def test_overview_list_and_part(self):
+        matter.add(self.base, 'glossary')
+        matter.add(self.base, 'foreword')
+        matter.glossary_set(self.base, 'Zeit', 'Dauer')
+        matter.glossary_set(self.base, 'Ärger', 'Gefühl')
+        name, data = self.widget('project')
+        self.assertEqual(name, 'projektuebersicht')
+        self.assertEqual([m['MATTER_ID'] for m in data['MATTER_FRONT']], ['mat-vorwort'])
+        self.assertEqual([m['MATTER_ID'] for m in data['MATTER_BACK']], ['mat-glossar'])
+        name, data = self.widget('matter')
+        self.assertEqual(name, 'vor-nachspann')
+        self.assertEqual(len(data['PARTS']), 7)
+        self.assertEqual({p['PART_KIND']: p['PART_ID'] for p in data['PARTS']}['dedication'], '')
+        name, data = self.widget('matter', 'glossar')
+        self.assertEqual(name, 'teil-bearbeiten')
+        self.assertEqual((data['GLOSSARY'], data['GHOSTWRITING'], data['RESEARCH']), ('1', '', '1'))
+        self.assertEqual([e['G_TERM'] for e in data['GLOSSARY_ENTRIES']], ['Ärger', 'Zeit'])
+        _, data = self.widget('matter', 'vorwort')
+        self.assertEqual((data['SIGNED'], data['GHOSTWRITING'], data['MATTER_MANUSCRIPT']), ('1', '1', ''))
+
+    def test_no_matter_blocks_without_parts(self):
+        _, data = self.widget('project')
+        self.assertNotIn('MATTER_FRONT', data)
+        self.assertNotIn('MATTER_BACK', data)

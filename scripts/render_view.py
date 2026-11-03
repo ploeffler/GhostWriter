@@ -73,6 +73,13 @@ MATTER = {
     'acknowledgments': ('back', 'Danksagung', 'danksagung.md'),
 }
 MATTER_AREAS = {'front': 'front_matter', 'back': 'back_matter'}
+MATTER_HINTS = {'dedication': 'eigene Seite nach der Titelei, ohne Überschrift',
+                'foreword': 'vor dem Prolog bzw. Kapitel 1; optional von einer anderen Person',
+                'prologue': 'erzählerischer Einstieg vor Kapitel 1',
+                'epilogue': 'Ausklang nach dem letzten Kapitel',
+                'afterword': 'Nachbetrachtung nach dem Epilog',
+                'glossary': 'Begriffe zum Nachschlagen, alphabetisch',
+                'acknowledgments': 'Dank am Ende des Buchs'}
 # Ghostwriting für Prolog, Epilog, Vorwort und Nachwort; Widmung und Danksagung schreibt der Autor
 # selbst, das Glossar besteht aus Einträgen, die er aufnimmt (Vorschläge und Recherche je Begriff erlaubt)
 MATTER_GHOSTWRITING = {'prologue', 'epilogue', 'foreword', 'afterword'}
@@ -266,9 +273,20 @@ def matter_rows(base, config):
 
 
 def matter_view(base, config, args):
-    """Ansicht eines Teils von Vor- oder Nachspann (#57): Textfassung (Vorlage in ghostwriter-ui folgt)."""
+    """Vor- und Nachspann (#57, #58): ohne Teil die Liste (Vorlage vor-nachspann), sonst das Formular
+    eines Teils (Vorlage teil-bearbeiten); mit --text die Textfassung."""
+    p = config['project']
+    short = p.get('title_short') or p.get('title') or p.get('working_title') or ''
     if not args.where:   # Übersicht „Vor- und Nachspann“: vorhandene Teile und was sich anlegen lässt
         have = {i['kind']: i for _, i in matter_items(config)}
+        if not args.text:
+            parts = []
+            for kind, (area, title, _) in MATTER.items():
+                i = have.get(kind)
+                parts.append({'PART_KIND': kind, 'PART_TITLE': i['title'] if i else title, 'PART_AREA': area,
+                              'PART_ID': i['id'] if i else '', 'PART_STATUS': section_file(base, i)[0]['status'] if i else '',
+                              'PART_HINT': MATTER_HINTS[kind]})
+            return fill('vor-nachspann.html', {'PROJECT_TITLE_SHORT': short}, {'PARTS': parts})
         lines = ['### 📜 Vor- und Nachspann', '', '| Teil | Bereich | Stand |', '|---|---|---|']
         for kind, (area, title, _) in MATTER.items():
             i = have.get(kind)
@@ -295,6 +313,24 @@ def matter_view(base, config, args):
     goal = goal_m.group(1).strip() if goal_m else ''
     if goal.startswith('<'):
         goal = ''
+    if not args.text:
+        n = len(markers)
+        intro, entries = glossary_entries('' if ms in EMPTY_MANUSCRIPT else ms) if kind == 'glossary' else ('', [])
+        values = {'PROJECT_TITLE_SHORT': short, 'MATTER_ID': item['id'], 'MATTER_KIND': kind, 'MATTER_TITLE': item['title'],
+                  'MATTER_AREA_TEXT': area, 'MATTER_STATUS': head['status'], 'MATTER_GOAL': goal,
+                  'MATTER_MANUSCRIPT': '' if kind == 'glossary' or ms in EMPTY_MANUSCRIPT else ms,
+                  'MARKER_COUNT_TEXT': 'keine offenen Marker' if not n else f'{n} offene{"r" if n == 1 else ""} Marker',
+                  'APPROVAL_WRITING': str(bool(head['approvals']['writing'])).lower(),
+                  'APPROVAL_SECTION': str(bool(head['approvals']['section'])).lower(),
+                  'SIGNED': '1' if kind in MATTER_SIGNED else '', 'BYLINE': head.get('byline') or '',
+                  'PLACE_DATE': head.get('place_date') or '', 'GLOSSARY': '1' if kind == 'glossary' else '',
+                  'GLOSSARY_INTRO': intro, 'RESEARCH': '1' if kind in MATTER_RESEARCH else '',
+                  'GHOSTWRITING': '1' if kind in MATTER_GHOSTWRITING else '',
+                  'PERSONAL_NOTE': ('Persönlicher Teil: Den Text schreibst du selbst; Vorschläge gibt es nur, wenn du '
+                                    'ausdrücklich darum bittest.') if kind in ('dedication', 'acknowledgments') else ''}
+        blocks = {'MARKERS': [{'MARKER_TYPE': k, 'MARKER_LABEL': MARKER_LABEL[k], 'MARKER_TEXT': v} for k, v in markers],
+                  'GLOSSARY_ENTRIES': [{'G_TERM': t, 'G_TEXT': e} for t, e in sorted(entries, key=lambda x: german_key(x[0]))]}
+        return fill('teil-bearbeiten.html', values, blocks)
     lines = [f'### 📜 {item["title"]}', f'{area} · {status_text(head["status"])}', '',
              '| | |', '|---|---|', f'| Ziel | {goal or "*offen*"} |',
              f'| Schreibfreigabe | {yn(head["approvals"]["writing"])} |',
@@ -417,7 +453,12 @@ def project_view(base, config, args):
         if values.get('CREDIT_TEXT'):
             lines += ['', f'<sub>{values["CREDIT_TEXT"]}</sub>']
         return '\n'.join(lines) + '\n'
-    return fill('projektuebersicht.html', values, {'CHAPTERS': rows, **({'MATTER': matter} if matter else {})})
+    blocks = {'CHAPTERS': rows}
+    if front:
+        blocks['MATTER_FRONT'] = front
+    if back:
+        blocks['MATTER_BACK'] = back
+    return fill('projektuebersicht.html', values, blocks)
 
 
 def chapter_view(base, config, args, cnum):
@@ -1117,10 +1158,16 @@ TEMPLATE_DE = {'classic': 'klassisch', 'modern': 'modern', 'plain': 'schlicht'}
 
 
 def output_view(base, config, args):
-    """Formular „Ausgabeoptionen“ (#68), vorerst Textfassung: typesetting und publication."""
+    """Formular „Ausgabeoptionen“ (#68): Vorlage ausgabeoptionen bzw. Textfassung."""
     ts = dict(TYPESETTING_DEFAULT)
     ts.update(config.get('typesetting') or {})
     pub = config.get('publication') or {}
+    if not args.text:
+        import build_cover
+        blurb, bio = build_cover.back_texts(base)
+        data = {'typesetting': ts, 'publication': pub, 'print': config.get('print') or {}, 'cover': config.get('cover') or {},
+                'blurb': blurb, 'author_bio': bio}
+        return fill('ausgabeoptionen.html', {'OUTPUT_JSON': json.dumps(data, ensure_ascii=False)})
     lines = ['### 🖨️ Ausgabeoptionen', '', 'Wie Auflagen und Probedrucke aussehen. Geänderte Werte gelten ab dem nächsten '
              'Probedruck; ohne Angabe bleibt alles wie bisher.', '']
     for group, keys in OUTPUT_GROUPS:
@@ -1215,16 +1262,31 @@ def project_settings_view(base, config, args):
                                               'FONT_SIZE': str(ts['font_size']).rstrip('0').rstrip('.') if isinstance(ts['font_size'], float) else str(ts['font_size']),
                                               'TITLE_PAGE': b(ts['title_page']), 'IMPRINT': b(ts['imprint']), 'TOC': b(ts['toc']),
                                               'TOC_DEPTH': str(ts['toc_depth']), 'UPDATES_AUTO': b(upd_auto), 'CHANGES_AUTO_MERGE': b(auto_merge),
-                                              'GW_VERSION_TEXT': upd_text, 'GW_UPDATE_HINT': upd_hint}, {'FIXED': fixed})
+                                              'GW_VERSION_TEXT': upd_text, 'GW_UPDATE_HINT': upd_hint,
+                                              'AI_DISCLOSURE_TEXT': ai_disc_text(config)}, {'FIXED': fixed})
 
 
 def ai_disclosure_view(base, config, args):
-    """Formular „KI-Angabe im Buch“ (#78), vorerst Textfassung: Einstellung, Vorschlag aus den Läufen, Hinweis."""
+    """Formular „KI-Angabe im Buch“ (#78), Vorlage ki-angabe bzw. Textfassung: Einstellung, Vorschlag, Hinweis."""
     import ai_disclosure as ad
     s = ad.settings(config)
     proposal = ad.suggest(base, config) if s['mode'] in ('none', 'short', 'detailed') else ''
     used = ad.usage(base)
     names = ad.provider_names()
+    if not args.text:
+        kinds = {i['kind'] for _, i in matter_items(config)}
+        missing = [k for k in ('foreword', 'afterword') if k not in kinds]
+        if not (config.get('typesetting') or {}).get('imprint', True):
+            missing.append('imprint')
+        values = {'AI_MODE': s['mode'], 'AI_PLACEMENT': s['placement'], 'AI_NAME_SERVICES': str(bool(s['name_services'])).lower(),
+                  'AI_TEXT': s.get('text') or '',
+                  'AI_USED_TEXT': ' · '.join(f'{t}: {ad.service_text(ids, names)}' for t, ids in used.items()),
+                  'AI_PROPOSAL_SHORT': ad.suggest(base, config, 'short', False),
+                  'AI_PROPOSAL_SHORT_NAMED': ad.suggest(base, config, 'short', True),
+                  'AI_PROPOSAL_DETAILED': ad.suggest(base, config, 'detailed', False),
+                  'AI_PROPOSAL_DETAILED_NAMED': ad.suggest(base, config, 'detailed', True),
+                  'AI_PLACES_MISSING': ','.join(missing), 'AI_LEGAL_HINT': ad.LEGAL_HINT}
+        return fill('ki-angabe.html', values)
     mode_de = {'none': 'keine', 'short': 'kurz (ein Satz)', 'detailed': 'ausführlich (je Aufgabe)', 'custom': 'eigener Text'}
     place_de = {'imprint': 'Impressum', 'foreword': 'Vorwort (am Ende)', 'afterword': 'Nachwort (am Ende)', 'page': 'eigene Seite am Ende'}
     lines = ['### 🤖 KI-Angabe im Buch', '',
