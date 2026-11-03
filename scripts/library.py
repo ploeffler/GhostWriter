@@ -20,7 +20,7 @@ library.json (Action „Bücherregal aktualisieren“, auf dem Standard-Branch):
 Titel, Kurztitel, Branch, Status, Auflage, freigegebene Kapitel und Abschnitte,
 KI-API-Kosten, offene Änderungen im Arbeits-Branch, letzter Commit, Datenversion,
 „sofort übernehmen“, letzte Auflage (Tag); dazu Programmstand und, mit
-SECRETS_JSON, welche Secrets hinterlegt sind (nur Namen, nie Werte; #71). Kein
+SECRETS_PRESENT, welche Secrets hinterlegt sind (nur Namen, nie Werte; #71). Kein
 Manuskripttext und kein Zeitstempel des Laufs, damit sich die Datei nur ändert,
 wenn sich ein Buch ändert.
 
@@ -244,16 +244,9 @@ def program_info(cwd=ROOT, manifest=None):
 
 
 def secrets_presence(names, previous=None):
-    """{name: vorhanden} aus SECRETS_JSON (Action, nur Namen werden gelesen); ohne SECRETS_JSON der bisherige Stand."""
-    import os
-    raw = os.environ.get('SECRETS_JSON')
-    if raw is None:
-        return previous
-    try:
-        have = set(json.loads(raw))
-    except ValueError:
-        have = set()
-    return {n: n in have for n in names}
+    """{name: True|False|None} aus SECRETS_PRESENT (scripts/secret_check.py); ohne SECRETS_PRESENT der bisherige Stand."""
+    import secret_check
+    return secret_check.state(names, previous)
 
 
 # ---------- Neues Buch (#38) ----------

@@ -54,12 +54,42 @@ jobs:
 
       - name: library.json erzeugen
         if: steps.gate.outputs.skip != '1'
-        # SECRETS_JSON: nur damit library.py prüfen kann, ob GHOSTWRITER_UPDATE_TOKEN und die
-        # Schlüssel der KI-Dienste hinterlegt sind (Seite „Daten“, #71). Es liest ausschließlich
-        # die Namen; Werte werden nie ausgegeben oder gespeichert.
+        # SECRETS_PRESENT: je bekanntem Namen nur, ob das Secret hinterlegt ist (true/false;
+        # Seite „Daten“, #71); Werte gelangen nie in den Lauf. Nicht toJSON(secrets): Das lässt
+        # GitHub Läufe in öffentlichen Repositorys anhalten. Block: scripts/secret_check.py block
         env:
           GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          SECRETS_JSON: ${{ toJSON(secrets) }}
+          SECRETS_PRESENT: >-
+            {"ANTHROPIC_API_KEY": ${{ secrets.ANTHROPIC_API_KEY != '' }},
+             "AWS_BEDROCK_API_KEY": ${{ secrets.AWS_BEDROCK_API_KEY != '' }},
+             "AZURE_AI_FOUNDRY_API_KEY": ${{ secrets.AZURE_AI_FOUNDRY_API_KEY != '' }},
+             "BRAVE_API_KEY": ${{ secrets.BRAVE_API_KEY != '' }},
+             "CLAUDE_CODE_OAUTH_TOKEN": ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }},
+             "COHERE_API_KEY": ${{ secrets.COHERE_API_KEY != '' }},
+             "DASHSCOPE_API_KEY": ${{ secrets.DASHSCOPE_API_KEY != '' }},
+             "DEEPSEEK_API_KEY": ${{ secrets.DEEPSEEK_API_KEY != '' }},
+             "EXA_API_KEY": ${{ secrets.EXA_API_KEY != '' }},
+             "GEMINI_API_KEY": ${{ secrets.GEMINI_API_KEY != '' }},
+             "GHOSTWRITER_UPDATE_TOKEN": ${{ secrets.GHOSTWRITER_UPDATE_TOKEN != '' }},
+             "GITHUB_COPILOT_AGENT_API_KEY": ${{ secrets.GITHUB_COPILOT_AGENT_API_KEY != '' }},
+             "GOOGLE_JULES_API_KEY": ${{ secrets.GOOGLE_JULES_API_KEY != '' }},
+             "GOOGLE_VERTEX_API_KEY": ${{ secrets.GOOGLE_VERTEX_API_KEY != '' }},
+             "LOCAL_LMSTUDIO_API_KEY": ${{ secrets.LOCAL_LMSTUDIO_API_KEY != '' }},
+             "LOCAL_OLLAMA_API_KEY": ${{ secrets.LOCAL_OLLAMA_API_KEY != '' }},
+             "MANUAL_API_KEY": ${{ secrets.MANUAL_API_KEY != '' }},
+             "META_LLAMA_API_KEY": ${{ secrets.META_LLAMA_API_KEY != '' }},
+             "MICROSOFT_COPILOT_API_KEY": ${{ secrets.MICROSOFT_COPILOT_API_KEY != '' }},
+             "MISTRAL_API_KEY": ${{ secrets.MISTRAL_API_KEY != '' }},
+             "MOONSHOT_API_KEY": ${{ secrets.MOONSHOT_API_KEY != '' }},
+             "OPENAI_API_KEY": ${{ secrets.OPENAI_API_KEY != '' }},
+             "OPENALEX_API_KEY": ${{ secrets.OPENALEX_API_KEY != '' }},
+             "OPENROUTER_API_KEY": ${{ secrets.OPENROUTER_API_KEY != '' }},
+             "PARALLEL_API_KEY": ${{ secrets.PARALLEL_API_KEY != '' }},
+             "PERPLEXITY_API_KEY": ${{ secrets.PERPLEXITY_API_KEY != '' }},
+             "SEMANTIC_SCHOLAR_API_KEY": ${{ secrets.SEMANTIC_SCHOLAR_API_KEY != '' }},
+             "SERPAPI_API_KEY": ${{ secrets.SERPAPI_API_KEY != '' }},
+             "TAVILY_API_KEY": ${{ secrets.TAVILY_API_KEY != '' }},
+             "XAI_API_KEY": ${{ secrets.XAI_API_KEY != '' }}}
         run: |
           git fetch -q --tags origin '+refs/heads/*:refs/remotes/origin/*'
           python scripts/library.py list
