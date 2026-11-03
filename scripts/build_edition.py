@@ -57,7 +57,62 @@ import ai_disclosure  # noqa: E402
 
 PAGE = {  # Breite, Höhe in mm
     'a5': (148, 210), '12x19': (120, 190), '13.5x21.5': (135, 215), 'a4': (210, 297)}
-FONTS = {'serif': ('TeX Gyre Pagella', 'Palatino Linotype'), 'sans': ('TeX Gyre Heros', 'Arial')}
+# Schrift → (PDF: TeX-Gyre-Schrift, DOCX: verbreitete Entsprechung, EPUB: Familie); nur freie Schriften (#68)
+FONTS = {'serif': ('TeX Gyre Pagella', 'Palatino Linotype', 'serif'), 'sans': ('TeX Gyre Heros', 'Arial', 'sans-serif'),
+         'pagella': ('TeX Gyre Pagella', 'Palatino Linotype', 'serif'), 'termes': ('TeX Gyre Termes', 'Times New Roman', 'serif'),
+         'bonum': ('TeX Gyre Bonum', 'Bookman Old Style', 'serif'), 'schola': ('TeX Gyre Schola', 'Century Schoolbook', 'serif'),
+         'heros': ('TeX Gyre Heros', 'Arial', 'sans-serif'), 'adventor': ('TeX Gyre Adventor', 'Century Gothic', 'sans-serif')}
+DIV = {'standard': 'calc', 'classic': '9', 'modern': '13'}   # KOMA-Script: kleiner = breitere Ränder
+
+
+def is_sans(font):
+    return FONTS.get(font, FONTS['serif'])[2] == 'sans-serif'
+
+
+def layout_tex(ts, meta):
+    """Zusätze für den PDF-Satz aus den Ausgabeoptionen (#68); leer bei den Vorgaben (Satz wie bisher)."""
+    out = []
+    hf = ts.get('heading_font', 'same')
+    if hf == 'sans' or (hf == 'same' and is_sans(ts['font'])):
+        out.append('\\setkomafont{disposition}{\\sffamily\\bfseries}\\setkomafont{chapter}{\\sffamily\\Large\\bfseries}')
+    elif hf == 'serif' and is_sans(ts['font']):
+        out.append('\\setkomafont{disposition}{\\rmfamily\\bfseries}\\setkomafont{chapter}{\\rmfamily\\Large\\bfseries}')
+    if not ts.get('hyphenation', True):
+        out.append('\\hyphenpenalty=10000\\exhyphenpenalty=10000\\emergencystretch=3em')
+    if ts.get('initials'):
+        out.append('\\usepackage{lettrine}\\setcounter{DefaultLines}{2}')
+    heads, numbers = ts.get('running_heads', 'sections'), ts.get('page_numbers', 'header')
+    if (heads, numbers) != ('sections', 'header'):
+        title = meta['title'].replace('&', '\\&').replace('%', '\\%').replace('#', '\\#')
+        cfg = ['\\usepackage[automark]{scrlayer-scrpage}', '\\clearpairofpagestyles']
+        if heads == 'sections':
+            cfg.append('\\automark[section]{chapter}\\ihead{\\headmark}')
+        elif heads == 'chapter':
+            cfg.append('\\automark[chapter]{chapter}\\ihead{\\headmark}')
+        elif heads == 'book':
+            cfg.append('\\automark[chapter]{chapter}\\lehead{' + title + '}\\rohead{\\leftmark}')
+        cfg.append({'header': '\\ohead*{\\pagemark}', 'footer_center': '\\cfoot*{\\pagemark}',
+                    'footer_outer': '\\ofoot*{\\pagemark}'}[numbers])
+        cfg.append('\\pagestyle{scrheadings}')
+        out += cfg
+    return '\n'.join(out) + ('\n' if out else '')
+
+
+def epub_css(ts):
+    """Zusätzliches EPUB-CSS aus den Ausgabeoptionen; leer bei den Vorgaben."""
+    out = []
+    if is_sans(ts['font']):
+        out.append('body { font-family: sans-serif; }')
+    hf = ts.get('heading_font', 'same')
+    if hf in ('serif', 'sans'):
+        out.append(f'h1, h2, h3 {{ font-family: {"sans-serif" if hf == "sans" else "serif"}; }}')
+    if ts.get('paragraph') == 'spacing':
+        out.append('p { text-indent: 0; margin-bottom: 0.7em; }')
+    if not ts.get('hyphenation', True):
+        out.append('body { hyphens: manual; -epub-hyphens: manual; }')
+    if ts.get('line_spacing', 1.1) != 1.1:
+        out.append(f'body {{ line-height: {round(1.45 * float(ts["line_spacing"]) / 1.1, 2)}; }}')
+    return '\n'.join(out)
 
 
 def run(cmd, cwd=None):
@@ -67,11 +122,21 @@ def run(cmd, cwd=None):
     return r.stdout
 
 
-def imprint_markdown(meta, release_name, commit):
+def imprint_markdown(meta, release_name, commit, publication=None):
     year = meta['date'][:4]
     lines = [f'{meta["title"]}' + (f' – {meta["subtitle"]}' if meta.get('subtitle') else ''),
              f'{meta.get("edition_text", "")}, {meta["date"][8:10]}.{meta["date"][5:7]}.{year}',
              f'© {year} {meta.get("author", "")}'.rstrip()]
+    pub = publication or {}   # Angaben im Impressum (#68)
+    if pub.get('rights'):
+        lines.append(pub['rights'].strip())
+    if pub.get('publisher'):
+        lines.append(pub['publisher'].strip() if pub['publisher'].strip().lower() == 'selbstverlag'
+                     else f'Verlag: {pub["publisher"].strip()}')
+    if pub.get('isbn_print'):
+        lines.append(f'ISBN {pub["isbn_print"].strip()} (Druckausgabe)')
+    if pub.get('isbn_ebook'):
+        lines.append(f'ISBN {pub["isbn_ebook"].strip()} (E-Book)')
     if commit:
         lines.append(f'Stand: {release_name}, Commit {commit[:7]}')
     return lines
@@ -94,6 +159,9 @@ def make_reference_docx(path, ts):
         s.left_margin = s.right_margin = Mm(margin)
         s.top_margin, s.bottom_margin = Mm(margin + 3), Mm(margin + 5)
     font = FONTS.get(ts['font'], FONTS['serif'])[1]
+    hf = ts.get('heading_font', 'same')
+    head_font = font if hf == 'same' else FONTS['sans' if hf == 'sans' else 'serif'][1]
+    explicit = ts.get('_explicit', set())   # nur ausdrücklich gesetzte Optionen ändern das bisherige DOCX
     for name in ('Normal', 'Body Text', 'First Paragraph', 'Compact'):
         try:
             st = doc.styles[name]
@@ -101,10 +169,17 @@ def make_reference_docx(path, ts):
             continue
         st.font.name = font
         st.font.size = Pt(float(ts['font_size']))
+        if 'line_spacing' in explicit:
+            st.paragraph_format.line_spacing = float(ts['line_spacing'])
+        if 'paragraph' in explicit and name in ('Body Text', 'First Paragraph'):
+            indent = ts['paragraph'] == 'indent'
+            st.paragraph_format.space_before = Pt(0)
+            st.paragraph_format.space_after = Pt(0 if indent else 6)
+            st.paragraph_format.first_line_indent = Mm(5) if indent and name == 'Body Text' else Mm(0)
     from docx.shared import RGBColor
     for name in ('Heading 1', 'Heading 2', 'Heading 3', 'Heading 4', 'Title', 'Subtitle'):
         try:
-            doc.styles[name].font.name = font
+            doc.styles[name].font.name = head_font
             doc.styles[name].font.color.rgb = RGBColor(0x22, 0x22, 0x22)
         except KeyError:
             pass
@@ -168,7 +243,7 @@ def main(argv):
     ap.add_argument('--proof', action='store_true', help='Probedruck des aktuellen Stands (keine Auflage)')
     ap.add_argument('--out', default='build')
     ap.add_argument('--date', default=datetime.date.today().isoformat())
-    ap.add_argument('--formats', default='pdf,docx,epub')
+    ap.add_argument('--formats', help='Formate, Komma-getrennt; ohne Angabe typesetting.formats (Vorgabe pdf,docx,epub)')
     ap.add_argument('--commit', default='')
     ap.add_argument('--allow-markers', action='store_true')
     args = ap.parse_args(argv[1:])
@@ -197,6 +272,9 @@ def main(argv):
 
     meta = metadata(config, args.edition, args.date)
     ts = meta['typesetting']
+    ts['_explicit'] = set((config.get('typesetting') or {}).keys())
+    if not args.formats:
+        args.formats = ','.join(ts.get('formats') or ['pdf', 'docx', 'epub'])
     wf = yaml.safe_load((ROOT / 'workflow.yml').read_text(encoding='utf-8'))['book_releases']
     short = config['project'].get('title_short') or meta['title']
     release_name = wf['name_pattern'].format(title_short=short, edition=args.edition)
@@ -215,7 +293,7 @@ def main(argv):
     # PDF: Widmung vor dem Inhaltsverzeichnis (include-before), daher dort ohne Widmung im Text
     dedication = ''.join(m[2] for m in matter if m[1]['kind'] == 'dedication' and m[2])
     body_pdf = book_body(parts, [m for m in matter if m[1]['kind'] != 'dedication'], in_body)
-    imprint = imprint_markdown(meta, release_name, args.commit)
+    imprint = imprint_markdown(meta, release_name, args.commit, config.get('publication'))
     disc_lines = [re.sub(r'^\s*[-*]\s+', '– ', line) for line in disc[1].splitlines() if line.strip()] \
         if disc and disc[0] == 'imprint' else []
     fonts = FONTS.get(ts['font'], FONTS['serif'])
@@ -259,18 +337,29 @@ def main(argv):
                     imp = ''
                     cmd += ['--include-before-body', str(write('before.tex', before))]
                 m.update({'documentclass': 'scrbook',
-                          'classoption': [f'paper={w}mm:{h}mm', f'fontsize={ts["font_size"]}pt', 'DIV=calc', 'BCOR=8mm',
-                                          'titlepage=' + ('true' if ts.get('title_page') else 'false'), 'open=any',
-                                          'parskip=false'],
+                          'classoption': [f'paper={w}mm:{h}mm', f'fontsize={ts["font_size"]}pt',
+                                          f'DIV={DIV.get(ts.get("margins", "standard"), "calc")}', 'BCOR=8mm',
+                                          'titlepage=' + ('true' if ts.get('title_page') else 'false'),
+                                          'open=' + ('right' if ts.get('chapter_start') == 'right' else 'any'),
+                                          'parskip=' + ('half' if ts.get('paragraph') == 'spacing' else 'false')],
                           'mainfont': fonts[0], 'sansfont': 'TeX Gyre Heros', 'monofont': 'TeX Gyre Cursor',
-                          'linestretch': 1.1, 'colorlinks': False, 'header-includes': '',
+                          'linestretch': float(ts.get('line_spacing', 1.1)), 'colorlinks': False, 'header-includes': '',
                           'include-before': imp})
+                if ts.get('initials'):
+                    cmd += ['-M', 'gw-initials=true']
                 cmd += ['--pdf-engine=xelatex', '--include-in-header', str(BOOK / 'header.tex')]
+                layout = layout_tex(ts, meta)
+                if layout:
+                    extra_header.append(str(write('layout.tex', layout)))
                 if args.proof:
-                    extra_header.append(str(write('proof.tex',
-                        '\\usepackage{scrlayer-scrpage}\\pagestyle{scrheadings}\\clearpairofpagestyles\n'
-                        '\\ofoot*{\\pagemark}\\ifoot*{\\footnotesize\\sffamily\\color{red!65!black}Probedruck '
-                        + args.date[8:10] + '.' + args.date[5:7] + '.' + args.date[:4] + ' – nicht zur Veröffentlichung}\n')))
+                    note = ('\\ifoot*{\\footnotesize\\sffamily\\color{red!65!black}Probedruck ' + args.date[8:10] + '.'
+                            + args.date[5:7] + '.' + args.date[:4] + ' – nicht zur Veröffentlichung}\n')
+                    if 'scrlayer-scrpage' in layout:   # eigene Kopf-/Fußzeilen bleiben, nur der Vermerk kommt dazu
+                        extra_header.append(str(write('proof.tex', note)))
+                    else:
+                        extra_header.append(str(write('proof.tex',
+                            '\\usepackage{scrlayer-scrpage}\\pagestyle{scrheadings}\\clearpairofpagestyles\n'
+                            '\\ofoot*{\\pagemark}' + note)))
                 for h in extra_header:
                     cmd += ['--include-in-header', h]
                 src = body_pdf
@@ -284,7 +373,15 @@ def main(argv):
                 if fmt == 'epub':
                     cmd += ['--css', str(BOOK / 'epub.css'),
                             '--epub-title-page=' + ('true' if ts.get('title_page') else 'false')]
+                    extra_css = epub_css(ts)
+                    if extra_css:
+                        cmd += ['--css', str(write('ausgabe.css', extra_css + '\n'))]
+                    if ts.get('initials'):
+                        cmd += ['-M', 'gw-initials=true']
                     m['description'] = meta.get('description', '')
+                    isbn = (config.get('publication') or {}).get('isbn_ebook')
+                    if isbn:
+                        m['identifier'] = [{'scheme': 'ISBN-13', 'text': 'urn:isbn:' + re.sub(r'[^0-9Xx]', '', isbn)}]
                 elif fmt == 'docx':
                     ref = tmp / 'reference.docx'
                     make_reference_docx(ref, ts)

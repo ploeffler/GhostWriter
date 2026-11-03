@@ -27,3 +27,6 @@ section.glossary dd p { text-indent: 0; }
 /* KI-Angabe (#78) am Ende von Vorwort bzw. Nachwort */
 .ki-angabe { margin-top: 1.2em; font-size: 0.9em; }
 .ki-angabe p { text-indent: 0; }
+/* Initialen am Kapitelanfang (#68, typesetting.initials) */
+.initial > p:first-child::first-letter { float: left; font-size: 3.1em; line-height: 0.85; padding: 0.05em 0.08em 0 0; }
+.initial > p { text-indent: 0; }

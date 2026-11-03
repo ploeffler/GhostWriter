@@ -57,11 +57,8 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ai_disclosure  # noqa: E402
-from render_view import (MARKER_TEXT, MATTER, MATTER_SIGNED, german_key, glossary_entries,  # noqa: E402
-                         load, matter_items, section_file)
-
-TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'title_page': True,
-                       'imprint': True, 'toc': True, 'toc_depth': 1}
+from render_view import (MARKER_TEXT, MATTER, MATTER_SIGNED, TYPESETTING_DEFAULT, german_key,  # noqa: E402
+                         glossary_entries, load, matter_items, section_file)
 
 
 def readme_parts(base, chapter):

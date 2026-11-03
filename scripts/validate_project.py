@@ -19,6 +19,7 @@ Geprüft werden:
   Kopf gegen schemas/matter.schema.json, ID, Art und Titel wie in ghostwriter.yml,
   ID passt zur Art (mat-widmung …), Datei unter matter/, jede Art höchstens einmal;
   Verfasser und Ort/Datum nur bei Vorwort und Nachwort; Glossar ohne doppelte Begriffe
+- publication.isbn_print/isbn_ebook (#68): gültige ISBN-10 bzw. ISBN-13 (Prüfziffer)
 - approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt,
   Art passt zur ID (writing: Abschnitt oder Vor-/Nachspann, section: Abschnitt,
   chapter: Kapitel, matter: Vor-/Nachspann)
@@ -64,6 +65,16 @@ def load_yaml(path, errors):
     except Exception as exc:  # noqa: BLE001 - jede Lesefehlermeldung ist ein Befund
         errors.append(f'{path}: nicht lesbar: {exc}')
         return None
+
+
+def isbn_ok(value):
+    """ISBN-10 oder ISBN-13 mit gültiger Prüfziffer (Bindestriche und Leerzeichen erlaubt)."""
+    d = re.sub(r'[ -]', '', value or '').upper()
+    if re.fullmatch(r'\d{13}', d):
+        return sum(int(c) * (1 if i % 2 == 0 else 3) for i, c in enumerate(d)) % 10 == 0
+    if re.fullmatch(r'\d{9}[\dX]', d):
+        return sum((10 - i) * (10 if c == 'X' else int(c)) for i, c in enumerate(d)) % 11 == 0
+    return False
 
 
 def known_services():
@@ -199,6 +210,11 @@ def check_project(project_dir):
         if kind == 'glossary':
             for term in glossary_duplicates(glossary_entries(section_file(base, item)[3])[1]):
                 errors.append(f'{path}: Begriff mehrfach eingetragen: {term}')
+
+    for field in ('isbn_print', 'isbn_ebook'):
+        value = (config.get('publication') or {}).get(field)
+        if value and not isbn_ok(value):
+            errors.append(f'{config_path}: publication.{field}: {value} ist keine gültige ISBN (Prüfziffer)')
 
     wf = config['workflow']
     if wf['current_chapter_id'] and wf['current_chapter_id'] not in chapter_ids:

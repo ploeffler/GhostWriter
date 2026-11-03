@@ -112,3 +112,43 @@ function Div(el)
   end
   return DivMatter(el)
 end
+
+-- Initialen am Kapitelanfang (#68, typesetting.initials; build_edition setzt -M gw-initials=true)
+--   Erster Absatz nach jeder Kapitelüberschrift (Ebene 1, nicht unnummeriert):
+--   LaTeX/PDF: \lettrine{E}{rstes} … · EPUB/HTML: <div class="initial"> (CSS ::first-letter) · DOCX: unverändert
+local function initial_para(para)
+  local first = para.content[1]
+  if not first or first.t ~= 'Str' then return nil end
+  local s = first.text
+  local n = utf8.offset(s, 2) or (#s + 1)
+  local letter, rest = s:sub(1, n - 1), s:sub(n)
+  if not letter:match('%w') and not letter:match('[\128-\255]') then return nil end
+  if FORMAT:match('latex') then
+    local out = { pandoc.RawInline('latex', '\\lettrine{' .. letter .. '}{' .. rest .. '}') }
+    for i = 2, #para.content do table.insert(out, para.content[i]) end
+    return pandoc.Para(out)
+  elseif FORMAT:match('html') or FORMAT:match('epub') then
+    return pandoc.Div({ para }, pandoc.Attr('', { 'initial' }, {}))
+  end
+  return nil
+end
+
+function Pandoc(doc)
+  local flag = doc.meta['gw-initials']
+  if not flag or pandoc.utils.stringify(flag) ~= 'true' then return nil end
+  local want = false
+  for i, b in ipairs(doc.blocks) do
+    if b.t == 'Header' and b.level == 1 then
+      want = not b.classes:includes('unnumbered')
+    elseif want and b.t == 'Para' then
+      local first = b.content[1]
+      -- Untertitel (*…*) und Statusvermerke im Probedruck überspringen, dann der erste echte Absatz
+      if first and first.t ~= 'Emph' and first.t ~= 'Span' then
+        local repl = initial_para(b)
+        if repl then doc.blocks[i] = repl end
+        want = false
+      end
+    end
+  end
+  return doc
+end
