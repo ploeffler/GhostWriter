@@ -7,6 +7,14 @@ Aufruf:
   python scripts/characters.py <projektordner> assign <abschnitt N.M|sec-…|mat-…> [<figur> …]
   python scripts/characters.py <projektordner> context <abschnitt N.M|sec-…|mat-…>
   python scripts/characters.py <projektordner> update <figur> '<json>'
+Figuren aus dem Text vorschlagen:
+  python scripts/characters.py <buch> scan [book|<kapitel N>|<abschnitt N.M>|<teil>] [--part K]
+  python scripts/characters.py <buch> apply vorschlaege.json [--series-repo <standard>]
+scan gibt die bekannten Figuren und die Texte des Bereichs aus (lange Bereiche in
+Teilen); daraus schlägt der Assistent Figuren vor (nur aus dem Text, mit
+Fundstellen; Aufbau der JSON-Datei in START.md, „Figuren“). apply legt die
+ausgewählten an, füllt bei bekannten Figuren nur leere Felder, ergänzt
+Beziehungen und ordnet sie den Abschnitten zu; der Text bleibt unverändert.
 Serien (#116; <projektordner> = Buch, --series-repo = Ordner mit dem Standard-Branch):
   python scripts/characters.py <buch> detach <figur>       Kopie einer Figur der Serie nur für dieses Buch
   python scripts/characters.py <buch> align <figur>        Kopie entfernen, wieder die Figur der Serie
@@ -297,11 +305,159 @@ def series_update(main_dir, sid, key, data):
     return dict(item, name=ordered['name'])
 
 
+# ---------- Figuren aus dem Text vorschlagen (#53) ----------
+
+EMPTY_MS = ('', 'Noch nicht begonnen.')
+
+
+def scope_targets(base, config, scope):
+    """[(schlüssel, titel, eintrag)] der Texte eines Bereichs: book, Kapitel N, Abschnitt N.M, Teil (mat-…/Name)."""
+    chapters = config['structure']['chapters']
+    out = []
+    def chapter(ci):
+        return [(f'{ci}.{si}', s['title'], s) for si, s in enumerate(chapters[ci - 1]['sections'], start=1)]
+    if scope in (None, '', 'book', 'buch'):
+        from render_view import matter_items
+        fronts = [(i['title'], i['title'], i) for a, i in matter_items(config) if a == 'front']
+        backs = [(i['title'], i['title'], i) for a, i in matter_items(config) if a == 'back']
+        out = fronts + [x for ci in range(1, len(chapters) + 1) for x in chapter(ci)] + backs
+    elif re.fullmatch(r'\d+', scope):
+        out = chapter(int(scope))
+    elif re.fullmatch(r'\d+\.\d+', scope):
+        c, s = (int(x) for x in scope.split('.'))
+        out = [(scope, chapters[c - 1]['sections'][s - 1]['title'], chapters[c - 1]['sections'][s - 1])]
+    else:
+        item = find_matter(config, scope)
+        if not item:
+            raise SystemExit(f'Bereich „{scope}“ nicht gefunden (book, Kapitel N, Abschnitt N.M oder ein Teil)')
+        out = [(item['title'], item['title'], item)]
+    return out
+
+
+def scan(base, scope=None, part=None, size=40000):
+    """Text für den Vorschlag: bekannte Figuren und die Manuskripte des Bereichs (Markdown), in Teilen zu höchstens
+    `size` Zeichen. Gibt (text, teil, teile) zurück; der Assistent liest Teil für Teil und schlägt danach vor."""
+    _, config = load(base)
+    known = []
+    for i in character_items(config):
+        src = 'Serie' if '_series' in i else ('Kopie der Serie' if i.get('_copy_of') else 'Buch')
+        known.append(f'- {i["name"]} (`{i["id"]}`, {src})')
+    chunks, cur = [], []
+    for key, title, item in scope_targets(base, config, scope):
+        ms = section_file(base, item)[3].strip()
+        if ms in EMPTY_MS:
+            continue
+        block = f'### {key} {title}\n\n{ms}\n' if key != title else f'### {title}\n\n{ms}\n'
+        if cur and sum(len(x) for x in cur) + len(block) > size:
+            chunks.append(cur)
+            cur = []
+        cur.append(block)
+    if cur:
+        chunks.append(cur)
+    n = max(1, len(chunks))
+    k = min(max(1, int(part or 1)), n)
+    head = ['## Figuren aus dem Text vorschlagen', '',
+            f'Bereich: {scope or "ganzes Buch"} · Teil {k} von {n}', '',
+            'Nur aus dem Text: Namen, Rolle, ein Satz, Alter, Aussehen, Eigenschaften, Sprechweise, Beziehungen, '
+            'Abschnitte – je Angabe mit Fundstelle. Was der Text nicht sagt, bleibt leer. Gleiche Person unter '
+            'mehreren Namen zusammenführen (aliases).', '', '**Bekannte Figuren**', ''] + (known or ['*keine*']) + ['']
+    body = '\n'.join(chunks[k - 1]) if chunks else '*Kein Text in diesem Bereich.*\n'
+    return '\n'.join(head) + '\n' + body, k, n
+
+
+SUGGEST_FIELDS = ('role', 'short', 'age', 'appearance', 'traits', 'voice')
+
+
+def match_existing(config, item):
+    """Bekannte Figur zum Vorschlag (Name oder einer der aliases) oder None."""
+    names = [item.get('name', '')] + list(item.get('aliases') or [])
+    for n in names:
+        c = find_character(config, n)
+        if c:
+            return c
+    return None
+
+
+def apply_suggestions(base, data, main_dir=None):
+    """Übernimmt ausgewählte Vorschläge: neue Figuren anlegen (im Buch bzw. mit target series in der Serie),
+    bei bekannten Figuren nur leere Felder füllen (Figuren der Serie bleiben unverändert), Beziehungen
+    eintragen und die Figuren ihren Abschnitten zuordnen (bestehende Zuordnungen bleiben). Text bleibt unverändert.
+    → {created: [...], updated: [...], assigned: {abschnitt: [ids]}, series_created: [...]}"""
+    _, config = load(base)
+    result = {'created': [], 'updated': [], 'assigned': {}, 'series_created': []}
+    picked = [i for i in data.get('items') or [] if i.get('selected', True) and (i.get('name') or '').strip()]
+    ids = {}
+    for it in picked:
+        _, config = load(base)
+        hit = find_character(config, it['merge_into']) if it.get('merge_into') else match_existing(config, it)
+        if hit:
+            ids[it['name']] = hit['id']
+            if '_series' in hit:
+                continue
+            head, desc, notes = character_file(base, hit)
+            fill = {k: it[k] for k in SUGGEST_FIELDS if it.get(k) and not head.get(k)}
+            if fill:
+                update(base, hit['id'], fill)
+                result['updated'].append(hit['name'])
+            continue
+        role = it.get('role') if it.get('role') in ROLE_DE else 'supporting'
+        if it.get('target') == 'series':
+            ser = config.get('_series')
+            if not ser or not main_dir:
+                raise SystemExit('Figuren der Serie anlegen braucht ein Buch einer Serie und --series-repo')
+            new = series_add(main_dir, ser['id'], it['name'], role, it.get('short', ''))
+            fields = {k: it[k] for k in SUGGEST_FIELDS[2:] if it.get(k)}
+            if fields:
+                series_update(main_dir, ser['id'], new['id'], fields)
+            result['series_created'].append(new['name'])
+            ids[it['name']] = new['id']
+            continue
+        new = add(base, it['name'], role, it.get('short', ''))
+        fields = {k: it[k] for k in SUGGEST_FIELDS[2:] if it.get(k)}
+        if fields:
+            update(base, new['id'], fields)
+        result['created'].append(new['name'])
+        ids[it['name']] = new['id']
+    # Beziehungen (nur bei Figuren des Buchs, nur neue Einträge)
+    _, config = load(base)
+    for it in picked:
+        rels = [r for r in it.get('relations') or [] if r.get('to') and r.get('kind')]
+        cid = ids.get(it['name'])
+        item = next((c for c in character_items(config) if c['id'] == cid and '_series' not in c), None)
+        if not rels or not item:
+            continue
+        head = character_file(base, item)[0]
+        have = {(r['to'], r['kind']) for r in head.get('relations') or []}
+        new_rels = list(head.get('relations') or [])
+        for r in rels:
+            other = find_character(config, ids.get(r['to'], r['to']))
+            if other and other['id'] != cid and (other['id'], r['kind']) not in have:
+                new_rels.append({'to': other['id'], 'kind': r['kind']})
+        if len(new_rels) != len(head.get('relations') or []):
+            update(base, cid, {'relations': new_rels})
+    # Zuordnung zu Abschnitten bzw. Teilen: ergänzen, nichts entfernen
+    by_key = {}
+    for it in picked:
+        for key in it.get('sections') or []:
+            by_key.setdefault(str(key), []).append(ids[it['name']])
+    for key, new_ids in by_key.items():
+        _, config = load(base)
+        target = find_target(config, key)
+        have = section_file(base, target)[0].get('characters') or []
+        merged = have + [i for i in new_ids if i not in have]
+        if merged != have:
+            names = {c['id']: c['name'] for c in character_items(config)}
+            assign(base, key, [names.get(i, i) for i in merged])
+            result['assigned'][key] = merged
+    return result
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
     ap.add_argument('cmd', choices=['list', 'add', 'assign', 'context', 'update', 'detach', 'align', 'adopt',
-                                    'series-add', 'series-update'])
+                                    'series-add', 'series-update', 'scan', 'apply'])
+    ap.add_argument('--part', type=int, help='bei scan: Teil (bei langen Bereichen)')
     ap.add_argument('--series-repo', help='bei adopt, series-add, series-update: Ordner mit dem Standard-Branch (series/)')
     ap.add_argument('args', nargs='*')
     ap.add_argument('--role', default='main', choices=list(ROLE_DE))
@@ -320,6 +476,23 @@ def main(argv):
         item = add(base, a.args[0], a.role, a.short)
         print(f'✓ Figur „{item["name"]}“ angelegt: {item["path"]}')
         print(f'Commit-Nachricht: Figur „{item["name"]}“ angelegt')
+        return 0
+    if a.cmd == 'scan':
+        text, k, n = scan(base, a.args[0] if a.args else None, a.part)
+        sys.stdout.write(text)
+        if k < n:
+            print(f'\n---\nWeiter mit: python scripts/characters.py {a.project} scan {a.args[0] if a.args else "book"} --part {k + 1}')
+        return 0
+    if a.cmd == 'apply':
+        import json
+        if len(a.args) != 1:
+            ap.error('apply braucht die Datei mit den Vorschlägen (JSON)')
+        r = apply_suggestions(base, json.loads(Path(a.args[0]).read_text(encoding='utf-8')), a.series_repo)
+        n = len(r['created']) + len(r['series_created'])
+        print(f'✓ {n} Figuren angelegt, {len(r["updated"])} ergänzt, {len(r["assigned"])} Abschnitte zugeordnet')
+        print(f'Commit-Nachricht: Figuren aus dem Text übernommen ({n} neu, {len(r["updated"])} ergänzt)')
+        if r['series_created']:
+            print(f'Commit-Nachricht (Standard-Branch): {len(r["series_created"])} Figuren in der Serie angelegt')
         return 0
     if a.cmd in ('detach', 'align', 'adopt'):
         if len(a.args) != 1:

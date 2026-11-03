@@ -115,5 +115,65 @@ class CharacterTest(unittest.TestCase):
         self.assertIn('| Wolf | Randfigur | – | – |', self.run_view('characters', '--text'))
 
 
+class SuggestTest(unittest.TestCase):
+    """Figuren aus dem Text vorschlagen: lesen, zeigen, übernehmen (nur leere Felder, Zuordnung ergänzen)."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.tmp = Path(tmp.name)
+        self.base = self.tmp / 'buch'
+        shutil.copytree(ROOT / 'tests/fixtures/adhs', self.base)
+        characters.add(self.base, 'Opi', 'supporting', 'Strolchis Opa')
+        characters.assign(self.base, '1.2', ['Opi'])
+
+    def suggestions(self):
+        return {'scope': '1', 'items': [
+            {'name': 'Strolchi', 'role': 'main', 'short': 'Ein kleiner Hund', 'age': '3', 'traits': ['neugierig'],
+             'relations': [{'to': 'Opi', 'kind': 'Hund'}], 'sections': ['1.1', '1.2'],
+             'evidence': [{'where': '1.1', 'quote': 'Strolchi bellte.'}]},
+            {'name': 'Opa Karl', 'aliases': ['Opi'], 'role': 'supporting', 'short': 'anders', 'age': '78', 'sections': ['1.1']},
+            {'name': 'Frau Meier', 'role': 'minor', 'sections': ['1.3'], 'selected': False}]}
+
+    def test_scan(self):
+        text, k, n = characters.scan(self.base, '1')
+        self.assertIn('- Opi (`char-opi`, Buch)', text)
+        self.assertIn('### 1.1 ', text)
+        self.assertEqual((k, n), (1, 1))
+        text, k, n = characters.scan(self.base, 'book', size=2000)
+        self.assertGreater(n, 1)
+        self.assertIn(f'Teil 1 von {n}', text)
+
+    def test_view_and_apply(self):
+        f = self.tmp / 'v.json'
+        f.write_text(json.dumps(self.suggestions()), encoding='utf-8')
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'character-suggest',
+                              '--draft', str(f)], capture_output=True, text=True, check=True).stdout
+        data = json.loads(re.search(r'GW\.render\("figuren-vorschlag",(.*)\)</script>', out).group(1).replace('<\\/', '</'))
+        self.assertEqual([(s['S_NAME'], s['S_STATE']) for s in data['SUGGESTIONS']],
+                         [('Strolchi', 'new'), ('Opa Karl', 'existing'), ('Frau Meier', 'new')])
+        self.assertEqual(data['SCOPE_TEXT'], 'Kapitel 1')
+        text = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'character-suggest',
+                               '--draft', str(f), '--text'], capture_output=True, text=True, check=True).stdout
+        self.assertIn('| 2 | **Opa Karl** (Opi) | Nebenfigur |', text)
+        r = characters.apply_suggestions(self.base, self.suggestions())
+        self.assertEqual((r['created'], r['updated']), (['Strolchi'], ['Opi']))
+        _, config = load(self.base)
+        self.assertEqual([c['name'] for c in config['characters']], ['Opi', 'Strolchi'])
+        opi = (self.base / 'characters/char-opi.md').read_text(encoding='utf-8')
+        self.assertIn("age: '78'", opi)                       # leeres Feld gefüllt
+        self.assertIn('short: Strolchis Opa', opi)            # vorhandenes bleibt
+        strolchi = (self.base / 'characters/char-strolchi.md').read_text(encoding='utf-8')
+        self.assertIn('- to: char-opi', strolchi)
+        self.assertIn('kind: Hund', strolchi)
+        heads = {k: characters.section_file(self.base, characters.find_target(config, k))[0].get('characters')
+                 for k in ('1.1', '1.2', '1.3')}
+        self.assertEqual(heads, {'1.1': ['char-strolchi', 'char-opi'], '1.2': ['char-opi', 'char-strolchi'], '1.3': None})
+        self.assertEqual(validate_project.check_project(self.base), [])
+        # zweites Mal: nichts doppelt
+        r = characters.apply_suggestions(self.base, self.suggestions())
+        self.assertEqual((r['created'], r['assigned']), ([], {}))
+
+
 if __name__ == '__main__':
     unittest.main()
