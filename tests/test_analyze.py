@@ -73,20 +73,84 @@ class AnalyzeTest(unittest.TestCase):
             [sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'project'],
             capture_output=True, text=True, check=True).stdout).group(1))
         ov = view()
-        self.assertEqual(ov['ANALYSIS_RUN'], 'analysis/characters/run-002.json')
-        self.assertIn('liegen bereit (1)', ov['ANALYSIS_TEXT'])
-        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'character-suggest',
-                              '--draft', str(self.base / ov['ANALYSIS_RUN'])], capture_output=True, text=True, check=True).stdout
+        self.assertEqual([a['A_RUN'] for a in ov['ANALYSES']], ['analysis/characters/run-002.json'])
+        self.assertIn('liegen bereit (1)', ov['ANALYSES'][0]['A_TEXT'])
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
+                              '--draft', ov['ANALYSES'][0]['A_RUN']], capture_output=True, text=True, cwd=self.base); self.assertEqual(out.returncode, 0, out.stderr); out = out.stdout
         page = json.loads(re.search(r'GW\.render\("figuren-vorschlag",(.*)\)</script>', out).group(1))
         self.assertEqual(page['RUN_ID'], 'run-002')
         self.assertIn('Alter: 78 / 80', page['CONFLICTS_TEXT'])
         analyze.mark_applied(self.base, 'run-002')
-        self.assertNotIn('ANALYSIS_TEXT', view())
+        self.assertNotIn('ANALYSES', view())
         # nach einer Änderung im Text: nur dieses Kapitel neu
         _, config = load(self.base)
         sec = self.base / config['structure']['chapters'][1]['sections'][0]['path']
         sec.write_text(sec.read_text(encoding='utf-8') + '\nNoch ein Satz.\n', encoding='utf-8')
         self.assertEqual(analyze.plan(self.base, config)['todo'], 1)
+
+    def test_summaries(self):
+        _, config = load(self.base)
+        chs = config['structure']['chapters']
+        s11 = section_file(self.base, chs[0]['sections'][0])[3]
+        s12 = section_file(self.base, chs[0]['sections'][1])[3]
+        q11 = ' '.join(s11.split()[10:18])
+        q12 = ' '.join(s12.split()[10:18])
+        data = json.loads(self.fake.read_text(encoding='utf-8'))
+        data['summaries'] = {'extract': {chs[0]['id']: {
+            'sections': [{'where': '1.1', 'short': 'Ein Brief bleibt liegen.', 'goal': 'Der Leser erkennt sich wieder.',
+                          'evidence': [{'field': 'short', 'where': '1.1', 'quote': q11}]},
+                         {'where': '1.2', 'short': 'Erfunden.', 'evidence': [{'where': '1.2', 'quote': 'steht so nirgends im Text'}]},
+                         {'where': '1.3', 'short': 'Zitat aus dem falschen Abschnitt.', 'evidence': [{'where': '1.3', 'quote': q12}]},
+                         {'where': '9.9', 'short': 'Gibt es nicht.', 'evidence': [{'quote': q11}]}],
+            'chapter': {'short': 'Die Diagnose kommt.', 'goal': 'Etiketten verstehen.', 'evidence': [{'where': '1.2', 'quote': q12}]}}}}
+        self.fake.write_text(json.dumps(data), encoding='utf-8')
+        plans = analyze.plan(self.base, config, 'summaries')
+        self.assertNotIn('matter', [b['key'] for b in plans['blocks']])     # Vor- und Nachspann nicht
+        head = analyze.run(self.base, 'summaries', now='2026-11-04T01:00:00+01:00')
+        self.assertIsNone(head['merge_model'])
+        self.assertEqual(head['blocks_analysed'], len(plans['blocks']))
+        res = json.loads((self.base / 'analysis/summaries/run-001.json').read_text(encoding='utf-8'))
+        self.assertEqual(res['kind'], 'summaries')
+        self.assertEqual([(i['level'], i['number']) for i in res['items']], [('chapter', '1'), ('section', '1.1')])
+        self.assertGreaterEqual(head['dropped_without_evidence'], 3)
+        self.assertEqual(validate_project.check_project(self.base), [])
+        # Übersicht: Hinweis für Kurzbeschreibungen, Vorlage mit bisherigem Text
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'project'],
+                             capture_output=True, text=True, check=True).stdout
+        ov = json.loads(re.search(r'GW\.render\("projektuebersicht",(.*)\)</script>', out).group(1))
+        self.assertEqual([a['A_KIND'] for a in ov['ANALYSES']], ['summaries'])
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
+                              '--draft', 'analysis/summaries/run-001.json'], capture_output=True, text=True, check=True).stdout
+        page = json.loads(re.search(r'GW\.render\("kurzbeschreibung-vorschlag",(.*)\)</script>', out).group(1))
+        sec = page['SUGGESTIONS'][1]
+        _, goal_now, short_now, _ = section_file(self.base, chs[0]['sections'][0])
+        self.assertEqual(sec['S_GOAL_NOW'], goal_now)
+        self.assertEqual(sec['S_GOAL_ON'], '' if goal_now else '1')
+        txt = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
+                              '--draft', 'analysis/summaries/run-001.json', '--text'], capture_output=True, text=True, check=True).stdout
+        self.assertIn('Kurzbeschreibung und Ziel', txt)
+        # Übernehmen: nur gewählte Felder, Text bleibt
+        before = section_file(self.base, chs[0]['sections'][0])[3]
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/analyze.py'), str(self.base), 'apply', 'run-001', '--kind', 'summaries',
+                            json.dumps({'choices': [{'index': 0, 'goal': 'Kapitelziel neu.'}, {'index': 1, 'short': 'Kurz neu.', 'goal': ''}]})],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        head1, goal1, short1, ms1 = section_file(self.base, chs[0]['sections'][0])
+        self.assertEqual((goal1, short1, ms1), (goal_now, 'Kurz neu.', before))
+        from render_view import chapter_readme
+        _, ch_short, ch_goal = chapter_readme(self.base, chs[0])
+        self.assertEqual(ch_goal, 'Kapitelziel neu.')
+        self.assertIn('## Abschnitte', (self.base / chs[0]['path'] / 'README.md').read_text(encoding='utf-8'))
+        self.assertIsNone(analyze.latest(self.base, 'summaries'))
+        self.assertEqual(validate_project.check_project(self.base), [])
+
+    def test_set_part(self):
+        t = '# T\n\n## Ziel des Abschnitts\n\nOffen.\n\n## Kurzbeschreibung\n\nalt\n\n## Manuskript\n\nText\n'
+        t = analyze.set_part(t, 'Kurzbeschreibung', 'neu')
+        self.assertIn('## Kurzbeschreibung\n\nneu\n\n## Manuskript\n\nText\n', t)
+        t = analyze.set_part(t, 'Neu', 'x')
+        self.assertIn('## Neu\n\nx\n\n## Manuskript', t)
+        self.assertTrue(analyze.set_part('# K\n\n## Ziel des Kapitels\n\nOffen.\n', 'Ziel des Kapitels', 'z').endswith('## Ziel des Kapitels\n\nz\n'))
 
     def test_no_key(self):
         os.environ.pop('GHOSTWRITER_FAKE_LLM')

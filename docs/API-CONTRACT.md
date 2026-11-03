@@ -97,6 +97,7 @@ Die Pfade sind Entwurf und müssen mit dem implementierten Dienst übereinstimme
 | PATCH | /v1/projects/{owner}/{repo}/import | Gliederung des Import-Vorschlags ändern (`import.edit`, #124) |
 | POST | /v1/projects/{owner}/{repo}/import/apply | Buch aus dem Import-Vorschlag anlegen (`import.apply`) |
 | POST | /v1/projects/{owner}/{repo}/analyses | Analyse im Hintergrund starten (`analysis.start`, #123); Ergebnis unter `analysis/` im Buch-Branch |
+| POST | /v1/projects/{owner}/{repo}/analyses/{kind}/{run}/apply | Ausgewählte Vorschläge eines Hintergrundlaufs übernehmen (`analysis.apply`, #124); Body `choices` je Art |
 | POST | /v1/projects/{owner}/{repo}/characters/suggestions | Ausgewählte Figuren aus dem Text übernehmen: anlegen, leere Felder ergänzen, Abschnitten zuordnen (`character.suggest.apply`) |
 | POST | /v1/projects/{owner}/{repo}/changes/merge | Offene Änderungen nach Bestätigung übernehmen (`changes.merge`) |
 
