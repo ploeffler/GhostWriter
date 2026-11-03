@@ -17,6 +17,11 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 import convert_to_library  # noqa: E402
 import library  # noqa: E402
 
+_ROOT_CFG = yaml.safe_load((ROOT / 'ghostwriter.yml').read_text(encoding='utf-8')) or {}
+# Buch-Repository: dort steht in ghostwriter.yml das Buch, nicht der Starter
+IN_BOOK_REPO = bool((_ROOT_CFG.get('structure') or {}).get('chapters')
+                    or (_ROOT_CFG.get('project') or {}).get('title'))
+
 PROGRAM = ['scripts', 'schemas', 'templates', 'ghostwriter-manifest.yml', 'workflow.yml', 'providers.yml']
 
 
@@ -106,6 +111,7 @@ class ConvertTest(unittest.TestCase):
         self.g('revert', '--no-edit', 'HEAD')
         self.assertEqual(self.g('diff', old_head, 'HEAD', '--stat'), '')
 
+    @unittest.skipIf(IN_BOOK_REPO, 'nur im Programm-Repository: in einem Buch-Repository steht in ghostwriter.yml das Buch')
     def test_starter_matches_template(self):
         self.assertEqual((ROOT / 'templates/ghostwriter-starter.yml').read_text(encoding='utf-8'),
                          (ROOT / 'ghostwriter.yml').read_text(encoding='utf-8'),

@@ -13,6 +13,14 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 import library  # noqa: E402
 
 MANIFEST = yaml.safe_load((ROOT / 'ghostwriter-manifest.yml').read_text(encoding='utf-8'))
+# Leere Starter-Konfiguration für Testrepositorys. Nicht ROOT/ghostwriter.yml: In einem
+# Buch-Repository steht dort das Buch, nicht der Starter.
+STARTER_FILE = ROOT / 'templates/ghostwriter-starter.yml'
+_ROOT_CFG = yaml.safe_load((ROOT / 'ghostwriter.yml').read_text(encoding='utf-8')) or {}
+# Buch-Repository (Fork oder Template mit eigenem Buch): Prüfungen, die nur für das
+# Programm-Repository gelten, werden dort übersprungen.
+IN_BOOK_REPO = bool((_ROOT_CFG.get('structure') or {}).get('chapters')
+                    or (_ROOT_CFG.get('project') or {}).get('title'))
 STARTER = {'project': {'title': '', 'title_short': ''}, 'structure': {'chapters': []}}
 
 
@@ -108,7 +116,7 @@ class ShelfTest(unittest.TestCase):
         def g(*a):
             subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=d, check=True, capture_output=True)
         g('init', '-q', '-b', 'main')
-        Path(d, 'ghostwriter.yml').write_text((ROOT / 'ghostwriter.yml').read_text(encoding='utf-8'), encoding='utf-8')
+        Path(d, 'ghostwriter.yml').write_text(STARTER_FILE.read_text(encoding='utf-8'), encoding='utf-8')
         g('add', '.')
         g('commit', '-qm', 'Starter')
         g('checkout', '-q', '-b', 'buch/adhs')
@@ -170,7 +178,7 @@ class NewBookTest(unittest.TestCase):
         self.g = lambda *a: subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=d, check=True,
                                            capture_output=True, text=True).stdout
         self.g('init', '-q', '-b', 'main')
-        Path(d, 'ghostwriter.yml').write_text((ROOT / 'ghostwriter.yml').read_text(encoding='utf-8'), encoding='utf-8')
+        Path(d, 'ghostwriter.yml').write_text(STARTER_FILE.read_text(encoding='utf-8'), encoding='utf-8')
         self.g('add', '.')
         self.g('commit', '-qm', 'Starter')
 
@@ -178,7 +186,7 @@ class NewBookTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_set_fields_keeps_comments(self):
-        text = (ROOT / 'ghostwriter.yml').read_text(encoding='utf-8')
+        text = STARTER_FILE.read_text(encoding='utf-8')
         new = library.set_project_fields(text, {'working_title': 'Mein "Garten"jahr', 'title_short': 'Garten', 'author': 'A'})
         cfg = yaml.safe_load(new)
         self.assertEqual(cfg['project']['working_title'], 'Mein "Garten"jahr')
@@ -285,7 +293,7 @@ class DataPageTest(unittest.TestCase):
         d = cls.d = cls.tmp.name
         g = lambda *a: subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=d, check=True, capture_output=True)
         g('init', '-q', '-b', 'main')
-        Path(d, 'ghostwriter.yml').write_text((ROOT / 'ghostwriter.yml').read_text(encoding='utf-8'), encoding='utf-8')
+        Path(d, 'ghostwriter.yml').write_text(STARTER_FILE.read_text(encoding='utf-8'), encoding='utf-8')
         shutil.copytree(ROOT / 'templates/ui', Path(d, 'templates/ui'))
         g('add', '.')
         g('commit', '-qm', 'Starter')
@@ -364,7 +372,7 @@ class ProgramRepoTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             g = lambda *a: subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=d, check=True, capture_output=True)
             g('init', '-q', '-b', 'main')
-            shutil.copyfile(ROOT / 'ghostwriter.yml', Path(d, 'ghostwriter.yml'))
+            shutil.copyfile(STARTER_FILE, Path(d, 'ghostwriter.yml'))
             g('add', '.')
             g('commit', '-qm', 'Programm')
             env, os.environ['GHOSTWRITER_DEFAULT_BRANCH'] = dict(os.environ), 'main'
@@ -383,6 +391,7 @@ class ProgramRepoTest(unittest.TestCase):
                 os.environ.clear()
                 os.environ.update(env)
 
+    @unittest.skipIf(IN_BOOK_REPO, 'nur im Programm-Repository: ein Buch-Repository hat Kapitel')
     def test_main_repo_is_clean(self):
         errors, _ = library.program_problems(ROOT, 'refs/heads', MANIFEST)
         self.assertEqual(errors, [])
@@ -393,6 +402,10 @@ class SecretCheckTest(unittest.TestCase):
 
     def test_workflows_list_all_known_names(self):
         import secret_check
+        missing = [w for w in secret_check.WORKFLOWS if not (ROOT / w).exists()]
+        if IN_BOOK_REPO and missing:
+            # Ohne GHOSTWRITER_UPDATE_TOKEN spielt das Update keine Workflow-Dateien ein (docs/UPDATES.md)
+            self.skipTest('Workflow-Dateien fehlen im Buch-Repository: ' + ', '.join(missing))
         self.assertEqual(secret_check.check(), [])
         self.assertIn('GHOSTWRITER_UPDATE_TOKEN', secret_check.known_names())
 
