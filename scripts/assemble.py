@@ -31,7 +31,10 @@ Teile, der Text unter „## Manuskript“ der Datei in matter/. Vorwort und Nach
 enden mit Verfasser und Ort/Datum, wenn im Kopf angegeben (byline, place_date;
 Block `::: signatur`, rechtsbündig). Das Glossar wird zur Beschreibungsliste,
 Einträge `- Begriff: Erklärung` alphabetisch nach DIN 5007-1 (ä wie a); ein
-doppelter Begriff verhindert die Auflage. Widmung als Block
+doppelter Begriff verhindert die Auflage. Verweise im Text (#107) – `[Begriff]{.glossar}`
+bzw. `[Beugungsform]{.glossar term="Begriff"}` – werden zu Links auf den Eintrag
+(Klasse glossar); ohne Glossar in der Ausgabe bleibt nur der Text, ein Begriff
+ohne Eintrag verhindert die Auflage. Widmung als Block
 `::: widmung` mit verborgener Überschrift (Klasse dedication, nicht im
 Inhaltsverzeichnis); Prolog, Epilog und Danksagung als unnummerierte Kapitel mit
 der Art als Klasse und als EPUB-Rolle (epub:type prologue, epilogue,
@@ -57,8 +60,9 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ai_disclosure  # noqa: E402
-from render_view import (MARKER_TEXT, MATTER, MATTER_SIGNED, TYPESETTING_DEFAULT, german_key,  # noqa: E402
-                         glossary_entries, load, matter_items, section_file)
+from render_view import (GLOSSARY_REF, MARKER_TEXT, MATTER, MATTER_SIGNED, TYPESETTING_DEFAULT,  # noqa: E402
+                         german_key, glossary_anchor, glossary_entries, glossary_ref_term, load, matter_items,
+                         section_file)
 
 
 def readme_parts(base, chapter):
@@ -136,7 +140,8 @@ def matter_markdown(base, item, proof=False):
     kind = item['kind']
     if kind == 'glossary':   # Einträge alphabetisch (DIN 5007-1) als Beschreibungsliste
         intro, entries = glossary_entries(text)
-        dl = '\n'.join(f'{term}\n:   {expl}\n' for term, expl in sorted(entries, key=lambda e: german_key(e[0])))
+        dl = '\n'.join(f'[{term}]{{#{glossary_anchor(term)}}}\n:   {expl}\n'   # Anker für Verweise (#107)
+                       for term, expl in sorted(entries, key=lambda e: german_key(e[0])))
         text = '\n\n'.join(x for x in (shift_headings(intro, 2), dl) if x)
     else:
         text = shift_headings(text, 2)
@@ -179,7 +184,8 @@ def book_body(parts, matter, disclosure=None):
     back = [md(m) for m in matter if m[0] == 'back' and m[2]]
     if place == 'page':
         back.append(f'# {ai_disclosure.PAGE_TITLE} {{.unnumbered .ki-angabe-seite}}\n\n{text}\n')
-    return '\n'.join(front + [p[2] for p in parts] + back)
+    terms = glossary_terms(matter)
+    return link_glossary('\n'.join(front + [p[2] for p in parts] + back), terms)
 
 
 def matter_notes(matter):
@@ -242,11 +248,35 @@ def problems(parts, config, matter=()):
             out += [f'Offener Marker in {where}: {marker}' for where, marker in markers]
         if approved and item['kind'] == 'glossary':
             seen = {}
-            for term in re.findall(r'(?m)^(.+)\n:   ', md):
+            for term in re.findall(r'(?m)^\[(.+?)\]\{#gl-[^}]*\}\n:   ', md):
                 seen.setdefault(term.casefold(), []).append(term)
             out += [f'{item["title"]}: Begriff mehrfach eingetragen: {" / ".join(v)}' for v in seen.values() if len(v) > 1]
     out += ai_disclosure.problems(config, lambda kind: any(m[1]['kind'] == kind and m[3] for m in matter))
+    terms = glossary_terms(matter)
+    if terms is not None:   # Verweise aufs Glossar (#107): jeder Begriff muss im freigegebenen Glossar stehen
+        texts = [(f'Kapitel {num}', md) for num, _, md, _, _ in parts] + \
+                [(item['title'], md) for _, item, md, approved, _ in matter if approved and item['kind'] != 'glossary']
+        for where, md in texts:
+            for m in GLOSSARY_REF.finditer(md):
+                if glossary_ref_term(m).casefold() not in terms:
+                    out.append(f'Glossar-Verweis ohne Eintrag in {where}: „{glossary_ref_term(m)}“')
     return out
+
+
+def glossary_terms(matter):
+    """{begriff.casefold(): begriff} des Glossars, das in die Ausgabe kommt; None ohne Glossar."""
+    for _, item, md, _, _ in matter:
+        if item['kind'] == 'glossary' and md:
+            return {t.casefold(): t for t in re.findall(r'(?m)^\[(.+?)\]\{#gl-[^}]*\}\n:   ', md)}
+    return None
+
+
+def link_glossary(md, terms):
+    """Verweise aufs Glossar zu Links machen; ohne Glossar bzw. bei unbekanntem Begriff bleibt nur der Text."""
+    def sub(m):
+        term = (terms or {}).get(glossary_ref_term(m).casefold())
+        return f'[{m.group(1)}](#{glossary_anchor(term)}){{.glossar}}' if term else m.group(1)
+    return GLOSSARY_REF.sub(sub, md)
 
 
 def main(argv):

@@ -137,6 +137,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `running_heads` | Kolumnentitel: `sections` (Kapitel und Abschnitt), `chapter`, `book` (Buchtitel links, Kapitel rechts), `none` | `sections` |
 | `page_numbers` | `header` (oben außen), `footer_center`, `footer_outer` | `header` |
 | `initials` | Initiale am Anfang jedes nummerierten Kapitels | `false` |
+| `glossary_marks` | Kennzeichnung der Glossar-Verweise im Text: `arrow` (→ Begriff), `italic`, `none` | `arrow` |
 | `formats` | Formate einer Auflage: `pdf` (Bildschirm), `pdf_print` (Druck-PDF des Innenteils, `…-druck.pdf`), `cover` (Umschlag, `…-umschlag.pdf`), `docx`, `epub` | `pdf`, `docx`, `epub` |
 
 `font` erlaubt neben `serif` (TeX Gyre Pagella) und `sans` (TeX Gyre Heros) die freien Schriften `pagella`, `termes`, `bonum`, `schola`, `heros`, `adventor` (DOCX nimmt die verbreitete Entsprechung, z. B. Times New Roman für Termes; EPUB nur Serif bzw. serifenlos). Bücher ohne die neuen Felder (#68) sehen aus wie bisher; im DOCX wirken Zeilenabstand und Absätze nur, wenn sie ausdrücklich gesetzt sind. Bearbeitet werden alle Felder im Formular „Ausgabeoptionen“ (Befehl `Ausgabe`).
@@ -243,6 +244,8 @@ approvals:
 ```
 
 **Glossar:** Unter `## Manuskript` optional ein einleitender Absatz, dann je Begriff ein Listeneintrag `- Begriff: Erklärung` (Folgezeilen eingerückt). Beim Satz werden die Einträge alphabetisch nach DIN 5007-1 sortiert (Umlaute wie die Grundbuchstaben, ß wie ss, Groß/klein egal) und als Beschreibungsliste gesetzt (PDF `description`, DOCX-Formate „Definition Term“/„Definition“, EPUB `dl` im Abschnitt mit Rolle `glossary`). Ein Begriff darf nur einmal vorkommen (Groß/klein egal); Prüfung, Freigabe und Auflage melden Doppelungen. `scripts/matter.py glossary-set|glossary-remove` ändert einzelne Einträge und schreibt sie sortiert zurück.
+
+**Verweise aufs Glossar** (#107): Im Manuskript eines Abschnitts oder Teils markiert `[Begriff]{.glossar}` einen Begriff, `[Beugungsform]{.glossar term="Begriff"}` eine gebeugte Form (Groß/klein egal). In EPUB, Bildschirm-PDF und DOCX wird daraus ein Link zum Eintrag (Anker `gl-<slug>`), im Druck-PDF nur die Kennzeichnung nach `typesetting.glossary_marks`. Steht kein freigegebenes Glossar in der Ausgabe, bleibt nur der Text; fehlt ein verwiesener Begriff im Glossar, verhindert das die Auflage.
 
 Darunter `## Ziel` und `## Manuskript` (der Text fürs Buch). Jede Art gibt es höchstens einmal; `scripts/matter.py add` legt Datei und Eintrag an, in der Reihenfolge der Tabelle. Nur freigegebene Teile kommen in eine Auflage; ein nicht freigegebener Teil fehlt darin und wird bei der Prüfung genannt, offene Marker in einem freigegebenen Teil verhindern die Auflage. Der Probedruck zeigt alle Teile mit Statusvermerk. Ghostwriting und Recherche gibt es für Vorwort, Prolog, Epilog und Nachwort wie bei Abschnitten, fürs Glossar Vorschläge und Recherche je Begriff (Lauf-Dateien unter `matter/research/<mat-id>/run-NNN.md` bzw. `matter/writing/<mat-id>/run-NNN.md`); Widmung und Danksagung schreibt der Autor selbst (Ghostwriting nur auf ausdrücklichen Wunsch). EPUB: eigene Abschnitte mit den Rollen `dedication`, `foreword`, `prologue`, `epilogue`, `afterword`, `glossary`, `acknowledgments`.
 
