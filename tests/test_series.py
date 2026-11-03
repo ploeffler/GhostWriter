@@ -277,5 +277,69 @@ class EditionTest(SharedBase):
         self.assertIn('Strolchi und Opi', opf)
 
 
+class OmnibusTest(SharedBase):
+    """Stufe 4: Sammelband aus beiden Bänden."""
+
+    def test_omnibus(self):
+        import shutil
+        sys.path.insert(0, str(ROOT / 'tests'))
+        from test_matter import approve_chapter_1
+        for br, tag in (('buch/eins', 'eins-auflage-1'), ('buch/zwei', 'zwei-auflage-1')):
+            self.g('checkout', '-q', br)
+            approve_chapter_1(self.d)
+            from render_view import load
+            _, config = load(self.d)
+            sec = self.d / config['structure']['chapters'][0]['sections'][0]['path']
+            sec.write_text(sec.read_text(encoding='utf-8').replace('Der Brief lag dort sechs Monate.',
+                                                                  'Der Brief lag in der [Waldhütte]{.glossar}.', 1), encoding='utf-8')
+            self.g('add', '-A')
+            self.g('commit', '-qm', 'Kapitel 1 freigegeben')
+            self.g('tag', tag)
+        om = series.omnibus_update(self.main, 'ser-strolchi-und-opi', {'title': 'Strolchi und Opi – Band 1 und 2',
+                                                                       'volumes': ['buch/zwei', 'buch/eins'],
+                                                                       'foreword': 'Zwei Geschichten in einem Band.'})
+        self.assertEqual([v['branch'] for v in om['volumes']], ['buch/eins', 'buch/zwei'])   # Bandreihenfolge
+        self.assertEqual(om['status'], 'draft')
+        self.assertEqual(series.problems(self.main), [])
+        run = lambda *a: subprocess.run([sys.executable, str(ROOT / 'scripts/build_omnibus.py'), str(self.main),
+                                         'ser-strolchi-und-opi', *a], capture_output=True, text=True)
+        r = run('--edition', '1', '--out', str(Path(self.tmp.name, 'o')))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn('nicht freigegeben', r.stdout)
+        self.assertEqual(run('--check').returncode, 0, run('--check').stdout)
+        series.omnibus_approve(self.main, 'ser-strolchi-und-opi')
+        om = series.omnibus_publish(self.main, 'ser-strolchi-und-opi')
+        self.assertEqual(series.omnibus_pending(self.main), [('ser-strolchi-und-opi', 1, 'strolchi-und-opi-sammelband-auflage-1')])
+        # eine Änderung setzt die Freigabe zurück
+        self.assertEqual(series.omnibus_update(self.main, 'ser-strolchi-und-opi', {'subtitle': 'Neu'})['status'], 'draft')
+        series.omnibus_approve(self.main, 'ser-strolchi-und-opi')
+        view = lambda *a: subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.main), *a],
+                                         capture_output=True, text=True, check=True).stdout
+        w = view('omnibus-edit', 'ser-strolchi-und-opi')
+        data = json.loads(re.search(r'GW\.render\("sammelband",(.*)\)</script>', w).group(1).replace('<\\/', '</'))
+        self.assertEqual([(v['OV_BRANCH'], v['OV_ON'], v['OV_LAST']) for v in data['OVOLUMES']],
+                         [('buch/eins', '1', 1), ('buch/zwei', '1', 1)])
+        self.assertEqual((data['OMNIBUS_STATE'], data['OMNIBUS_TAG']), ('approved', 'strolchi-und-opi-sammelband-auflage-2'))
+        self.assertIn('**Sammelband:** „Strolchi und Opi – Band 1 und 2“ · 2 Bände · freigegeben · Auflage 1',
+                      view('series', 'ser-strolchi-und-opi', '--text'))
+        if not (shutil.which('pandoc') and shutil.which('xelatex') and shutil.which('pdftotext')):
+            self.skipTest('pandoc, xelatex oder poppler-utils fehlen')
+        out = Path(self.tmp.name, 'out')
+        r = run('--edition', '1', '--out', str(out), '--formats', 'pdf,epub')
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        ed = yaml.safe_load((out / 'edition.yml').read_text(encoding='utf-8'))
+        self.assertEqual(ed['tag'], 'strolchi-und-opi-sammelband-auflage-1')
+        self.assertEqual([v['tag'] for v in ed['volumes']], ['eins-auflage-1', 'zwei-auflage-1'])
+        text = subprocess.run(['pdftotext', str(out / f'{ed["tag"]}.pdf'), '-'], capture_output=True, text=True).stdout
+        self.assertIn('Strolchi und Opi – Band 1 und 2', text)
+        self.assertIn('Enthält: Band 1 „ADHS im Erwachsenenleben“ (Auflage 1); Band 2', text)
+        self.assertIn('Band 1: ADHS im Erwachsenenleben', text)
+        self.assertIn('Band 2: ADHS im Erwachsenenleben', text)
+        self.assertIn('Zwei Geschichten in einem Band.', text)
+        self.assertIn('Opis Hütte am Waldrand', text)       # zusammengeführtes Glossar, Fassung der Serie
+        self.assertTrue((out / f'{ed["tag"]}.epub').is_file())
+        self.assertEqual(subprocess.run(['git', 'worktree', 'list'], cwd=self.d, capture_output=True, text=True).stdout.count('\n'), 2)
+
+
 if __name__ == '__main__':
     unittest.main()

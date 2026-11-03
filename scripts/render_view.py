@@ -1777,7 +1777,10 @@ def library_data(base, args):
     if path.is_file():
         return json.loads(path.read_text(encoding='utf-8'))
     import library
-    return library.build_library(cwd=base)
+    data = library.build_library(cwd=base)
+    if not data.get('books'):   # ohne Remote (lokale Bibliothek): die lokalen Branches
+        data = library.build_library('refs/heads', base)
+    return data
 
 
 def de_date(iso):
@@ -1901,6 +1904,13 @@ def series_view(base, config, args):
         h = character_file(base, c)[0]
         schars.append({'SC_ID': c['id'], 'SC_NAME': c['name'], 'SC_ROLE': ROLE_DE.get(h.get('role'), ''), 'SC_SHORT': h.get('short', '')})
     sterms = [{'ST_TERM': x['term'], 'ST_TEXT': x['text']} for x in series_mod.glossary(base, s['id'])]
+    om = series_mod.omnibus(base, s['id'])   # Sammelband (Stufe 4)
+    if om:
+        n = int(om.get('current_edition') or 0)
+        values.update({'OMNIBUS_STATE': om.get('status', 'draft'), 'OMNIBUS_TITLE': om.get('title', ''),
+                       'OMNIBUS_TEXT': f'{plural(len(om.get("volumes") or []), "Band", "Bände")} · '
+                                       + ('freigegeben' if om.get('status') == 'approved' else 'Entwurf, nicht freigegeben')
+                                       + (f' · Auflage {n}' if n else ' · noch keine Auflage')})
     if args.text:
         out = [f'### 📚 Serie „{s["title"]}“', ' · '.join(x for x in (values['SERIES_SUBTITLE'], values['SERIES_KIND_TEXT'],
                                                                   values['VOLUME_COUNT_TEXT']) if x), '']
@@ -1919,6 +1929,8 @@ def series_view(base, config, args):
         out += [f'- {x["ST_TERM"]}: {x["ST_TEXT"]}' for x in sterms] or ['*keine*']
         out += ['', 'Gelten in allen Bänden; ein Band kann eine eigene Kopie führen. `+ Figur: Name` bzw. `+ Begriff: Erklärung` '
                 'nimmt etwas in die Serie auf.']
+        out += ['', f'**Sammelband:** „{values["OMNIBUS_TITLE"]}“ · {values["OMNIBUS_TEXT"]} · `SB` bearbeiten'
+                if om else '**Sammelband:** noch keiner · `SB` anlegen']
         items = ([('1' if len(vols) == 1 else f'1–{len(vols)}', 'Band öffnen')] if vols else [])
         items += ([('H', 'Band hinzufügen')] if cands else []) + ([('R', 'Reihenfolge ändern'), ('ENT', 'Band entfernen')] if vols else [])
         items += [('NB', 'Neues Buch in dieser Serie'), ('B', 'Serie bearbeiten'), ('Ü', 'Bücherregal')]
@@ -1932,6 +1944,53 @@ def series_view(base, config, args):
     if sterms:
         blocks['SERIES_TERMS'] = sterms
     return fill('serie.html', values, blocks)
+
+
+KEEP_DE = {'dedication': 'Widmung', 'foreword': 'Vorwort', 'prologue': 'Prolog', 'epilogue': 'Epilog',
+           'afterword': 'Nachwort', 'acknowledgments': 'Danksagung'}
+
+
+def omnibus_edit_view(base, config, args):
+    """Formular „Sammelband“ (#116, Vorlage sammelband): Titel, Bände mit Auflage, Teile der Bände, Vor-/Nachwort."""
+    import series as series_mod
+    data = library_data(base, args)
+    s = find_series(base, data, args.where)
+    om = series_mod.omnibus(base, s['id']) or {}
+    picked = {v['branch']: v.get('edition') for v in om.get('volumes') or []}
+    by_branch = {b['branch']: b for b in data.get('books') or []}
+    published = {v['branch']: v for v in series_mod.published_volumes(base, s)}   # Auflagen aus den Tags
+    vols = []
+    for n, br in enumerate(s['volumes'], start=1):
+        b = by_branch.get(br) or {}
+        last = (published.get(br) or {}).get('edition') or (b.get('last_edition') or {}).get('number') or 0
+        title = (published.get(br) or {}).get('title') or b.get('title') or br
+        vols.append({'OV_NUMBER': n, 'OV_BRANCH': br, 'OV_TITLE': title, 'OV_LAST': last,
+                     'OV_ON': '1' if br in picked else '', 'OV_EDITION': picked.get(br) or '',
+                     'OV_TEXT': f'neueste Auflage {last}' if last else 'noch keine Auflage'})
+    keep = om.get('keep_matter', ['prologue', 'epilogue'])
+    pub = om.get('publication') or {}
+    values = {'SERIES_ID': s['id'], 'SERIES_TITLE': s['title'], 'OMNIBUS_TITLE': om.get('title') or f'{s["title"]} – Sammelband',
+              'OMNIBUS_SUBTITLE': om.get('subtitle', ''), 'OMNIBUS_STATE': om.get('status', '') if om else '',
+              'OMNIBUS_FOREWORD': om.get('foreword', ''), 'OMNIBUS_AFTERWORD': om.get('afterword', ''),
+              'OMNIBUS_ISBN_PRINT': pub.get('isbn_print', ''), 'OMNIBUS_ISBN_EBOOK': pub.get('isbn_ebook', ''),
+              'OMNIBUS_EDITION': str(int(om.get('current_edition') or 0)),
+              'OMNIBUS_TAG': series_mod.omnibus_tag(s, int(om.get('current_edition') or 0) + 1)}
+    keeps = [{'K_KIND': k, 'K_LABEL': v, 'K_ON': '1' if k in keep else ''} for k, v in KEEP_DE.items()]
+    if args.text:
+        out = [f'### 📚 Sammelband „{values["OMNIBUS_TITLE"]}“', f'Serie „{s["title"]}“ · ' +
+               ({'approved': 'freigegeben', 'draft': 'Entwurf'}.get(values['OMNIBUS_STATE'], 'noch nicht angelegt')), '']
+        out += ['| Band | Buch | im Sammelband | Auflage |', '|--:|---|---|---|']
+        out += [f'| {v["OV_NUMBER"]} | {v["OV_TITLE"]} | {"✅" if v["OV_ON"] else "—"} | {v["OV_EDITION"] or v["OV_TEXT"]} |' for v in vols]
+        out += ['', 'Teile der Bände, die bleiben: ' + (', '.join(KEEP_DE[k] for k in keep) or 'keine'), '']
+        out += field_table([('Titel', values['OMNIBUS_TITLE']), ('Untertitel', values['OMNIBUS_SUBTITLE']),
+                            ('Vorwort zum Sammelband', values['OMNIBUS_FOREWORD']), ('Nachwort', values['OMNIBUS_AFTERWORD']),
+                            ('ISBN Druck', values['OMNIBUS_ISBN_PRINT']), ('ISBN E-Book', values['OMNIBUS_ISBN_EBOOK'])])
+        items = [('Bände: 1, 2', 'Auswahl setzen'), ('FA', 'Freigabe zurücknehmen' if values['OMNIBUS_STATE'] == 'approved' else 'Sammelband freigeben')]
+        if values['OMNIBUS_STATE'] == 'approved':
+            items.append(('V', f'Auflage {int(values["OMNIBUS_EDITION"]) + 1} veröffentlichen'))
+        out += ['', FORM_HINT, '', menu(items)]
+        return '\n'.join(out) + '\n'
+    return fill('sammelband.html', values, {'OVOLUMES': vols, 'KEEP': keeps})
 
 
 def series_edit_view(base, config, args):
@@ -2243,7 +2302,7 @@ def choice_view(base, config, args):
                 {'QUESTIONS': questions, 'OPTIONS': options})
 
 
-FORMS = {'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
+FORMS = {'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
          'changes-merge': changes_merge_view, 'providers-edit': providers_edit_view,

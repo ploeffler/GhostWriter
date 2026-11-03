@@ -1,0 +1,74 @@
+name: Sammelband veröffentlichen
+
+# Baut den Sammelband einer Serie (#116, scripts/build_omnibus.py) und legt Tag
+# und Release an. Ausgelöst, wenn auf dem Standard-Branch eine Datei
+# series/<ser-id>/omnibus.yml geändert wird und dort ein freigegebener
+# Sammelband eine neue Auflage hat (current_edition ohne Tag), oder von Hand.
+# Veröffentlichte Sammelbände bleiben unverändert: Gibt es den Tag schon, wird
+# nichts überschrieben. Im GhostWriter-Hauptrepository läuft sie nicht.
+
+on:
+  push:
+    paths:
+      - 'series/*/omnibus.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: omnibus
+  cancel-in-progress: false
+
+jobs:
+  omnibus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # alle Bände (Branches) und ihre Auflagen (Tags)
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python-Abhängigkeiten
+        run: pip install pyyaml jsonschema python-docx
+
+      - name: Was ist zu bauen?
+        id: todo
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          upstream=$(python -c "import yaml;print((yaml.safe_load(open('ghostwriter-manifest.yml')).get('upstream') or {}).get('repo',''))")
+          if [ "$upstream" = "$GITHUB_REPOSITORY" ] || [ "$GITHUB_REF_NAME" != "${{ github.event.repository.default_branch }}" ] || [ ! -f scripts/build_omnibus.py ]; then
+            echo "Kein Sammelband: Hauptrepository, anderer Branch oder ältere Version"; exit 0
+          fi
+          python scripts/series.py . omnibus-pending > pending.txt
+          cat pending.txt
+          [ -s pending.txt ] && echo "build=true" >> "$GITHUB_OUTPUT" || true
+
+      - name: Satzwerkzeuge installieren
+        if: steps.todo.outputs.build == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends pandoc texlive-xetex texlive-latex-recommended \
+            texlive-latex-extra texlive-lang-german texlive-fonts-recommended fonts-texgyre lmodern poppler-utils >/dev/null
+
+      - name: Bauen, Tag und Release anlegen
+        if: steps.todo.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          while read -r sid edition tag; do
+            [ -n "$sid" ] || continue
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+              echo "::warning::$tag gibt es schon; veröffentlichte Sammelbände bleiben unverändert."; continue
+            fi
+            python scripts/build_omnibus.py . "$sid" --edition "$edition" --out "build-$sid" --commit "$GITHUB_SHA"
+            name=$(python -c "import yaml;print(yaml.safe_load(open('build-$sid/edition.yml'))['name'])")
+            mapfile -t files < <(python -c "import yaml; d = yaml.safe_load(open('build-$sid/edition.yml')); print('\n'.join('build-$sid/' + f for f in d['files']))")
+            gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" --title "$name" --notes "Sammelband der Serie $sid, Auflage $edition."
+            echo "## $name veröffentlicht" >> "$GITHUB_STEP_SUMMARY"
+          done < pending.txt

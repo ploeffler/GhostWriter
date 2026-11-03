@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/omnibus.schema.json",
+  "title": "Sammelband einer Serie (series/<ser-id>/omnibus.yml auf dem Standard-Branch, #116)",
+  "type": "object",
+  "required": ["title", "status", "volumes"],
+  "properties": {
+    "title": {"type": "string", "minLength": 1},
+    "subtitle": {"type": "string"},
+    "status": {"enum": ["draft", "approved"], "description": "approved = ausdrücklich freigegeben; erst dann wird gebaut"},
+    "volumes": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["branch"],
+        "properties": {
+          "branch": {"type": "string", "minLength": 1},
+          "edition": {"type": "integer", "minimum": 1, "description": "Auflage des Bandes; fehlt = die neueste"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "keep_matter": {
+      "type": "array", "description": "Teile von Vor- und Nachspann der Bände, die im Sammelband bleiben (Vorgabe prologue, epilogue)",
+      "items": {"enum": ["dedication", "foreword", "prologue", "epilogue", "afterword", "acknowledgments"]}
+    },
+    "foreword": {"type": "string", "description": "Vorwort zum Sammelband (Markdown)"},
+    "afterword": {"type": "string", "description": "Nachwort zum Sammelband (Markdown)"},
+    "publication": {"type": "object", "description": "wie publication in ghostwriter.yml (isbn_print, isbn_ebook, publisher, rights)"},
+    "typesetting": {"type": "object", "description": "abweichender Satz; sonst wie Band 1"},
+    "formats": {"type": "array", "items": {"enum": ["pdf", "pdf_print", "cover", "epub", "docx"]}},
+    "current_edition": {"type": "integer", "minimum": 0}
+  },
+  "additionalProperties": false
+}
