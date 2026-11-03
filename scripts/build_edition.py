@@ -342,6 +342,14 @@ def main(argv):
     for note in image_notes(used_images, ts):
         print(f'ⓘ {note}')
     imprint = imprint_markdown(meta, release_name, args.commit, config.get('publication'))
+    ser = config.get('_series')   # Serie (#116): Reihe und Band im Impressum, „Ebenfalls in dieser Reihe“ am Ende
+    if ser and ser.get('volume'):
+        import series
+        imprint[1:1] = series.edition_lines(ser)
+        also = series.also_markdown(base, ser)
+        if also:
+            body = body.rstrip('\n') + '\n\n' + also
+            body_pdf = body_pdf.rstrip('\n') + '\n\n' + also
     credit = image_credit(used_images, config)
     if credit:
         imprint.append(credit)
@@ -353,6 +361,7 @@ def main(argv):
     shown_date = f'{meta.get("edition_text", "")} · {months[int(meta["date"][5:7]) - 1]} {meta["date"][:4]}'.strip(' ·')
     common_meta = {k: meta[k] for k in ('title', 'subtitle', 'author', 'lang') if k in meta}
     common_meta['date'] = shown_date
+    series_line = f'{ser["title"]} · Band {ser["volume"]}' if ser and ser.get('volume') else ''
     if args.proof:
         common_meta['date'] = f'Probedruck · {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]}'
         meta['edition_text'] = 'Probedruck'
@@ -427,6 +436,8 @@ def main(argv):
                 layout = layout_tex(ts, meta)
                 if layout:
                     extra_header.append(str(write('layout.tex', layout)))
+                if series_line and ts.get('title_page'):   # Reihe über dem Titel (KOMA \subject)
+                    extra_header.append(str(write('series.tex', '\\subject{' + series_line.replace('&', '\\&') + '}\n')))
                 if args.proof:
                     note = ('\\ifoot*{\\footnotesize\\sffamily\\color{red!65!black}Probedruck ' + args.date[8:10] + '.'
                             + args.date[5:7] + '.' + args.date[:4] + ' – nicht zur Veröffentlichung}\n')
@@ -461,6 +472,8 @@ def main(argv):
                     if ts.get('initials'):
                         cmd += ['-M', 'gw-initials=true']
                     m['description'] = meta.get('description', '')
+                    if series_line:   # EPUB 3: Reihe und Band (belongs-to-collection, group-position)
+                        m['belongs-to-collection'], m['group-position'] = ser['title'], str(ser['volume'])
                     isbn = (config.get('publication') or {}).get('isbn_ebook')
                     if isbn:
                         m['identifier'] = [{'scheme': 'ISBN-13', 'text': 'urn:isbn:' + re.sub(r'[^0-9Xx]', '', isbn)}]

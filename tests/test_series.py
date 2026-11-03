@@ -135,8 +135,8 @@ class SeriesTest(unittest.TestCase):
         self.assertNotIn('SERIES_ID', ov)
 
 
-class SharedTest(unittest.TestCase):
-    """Stufe 2: gemeinsame Figuren und Begriffe, Kopie je Band, Kontinuität."""
+class SharedBase(unittest.TestCase):
+    """Bibliothek mit zwei Bänden (Testbuch) in der Serie „Strolchi und Opi“, Figur und Begriff der Serie."""
 
     def setUp(self):
         import shutil
@@ -175,6 +175,11 @@ class SharedTest(unittest.TestCase):
                              capture_output=True, text=True, check=True).stdout
         m = re.search(r'GW\.render\("([^"]+)",(.*)\)</script>', out)
         return json.loads(m.group(2).replace('<\\/', '</'))
+
+
+
+class SharedTest(SharedBase):
+    """Stufe 2: gemeinsame Figuren und Begriffe, Kopie je Band, Kontinuität."""
 
     def test_series_character_in_book(self):
         import characters
@@ -230,6 +235,46 @@ class SharedTest(unittest.TestCase):
         self.assertIn('[KONTINUITÄT PRÜFEN: …]', ctx)
         from render_view import marker_counts
         self.assertEqual(marker_counts('Text [KONTINUITÄT PRÜFEN: In Band 1 war Opi 78] weiter')['kontinuitaet'], 1)
+
+
+class EditionTest(SharedBase):
+    """Stufe 3: Reihe und Band in der Auflage, „Ebenfalls in dieser Reihe“, Begriffe der Serie per Verweis."""
+
+    def test_series_in_edition(self):
+        import shutil
+        if not (shutil.which('pandoc') and shutil.which('xelatex') and shutil.which('pdftotext')):
+            self.skipTest('pandoc, xelatex oder poppler-utils fehlen')
+        import matter
+        sys.path.insert(0, str(ROOT / 'tests'))
+        from test_matter import approve_chapter_1
+        self.g('tag', 'eins-auflage-1', 'buch/eins')   # Band 1 ist erschienen
+        self.g('checkout', '-q', 'buch/zwei')
+        approve_chapter_1(self.d)
+        from render_view import load
+        _, config = load(self.d)
+        sec = self.d / config['structure']['chapters'][0]['sections'][0]['path']
+        sec.write_text(sec.read_text(encoding='utf-8').replace('Der Brief lag dort sechs Monate.',
+                                                              'Der Brief lag in der [Waldhütte]{.glossar}.', 1), encoding='utf-8')
+        item = matter.add(self.d, 'glossary')
+        matter.glossary_set(self.d, 'Leine', 'Was Strolchi nicht mag')
+        gp = self.d / item['path']
+        gp.write_text(re.sub(r'(?m)^status: \w+', 'status: approved', gp.read_text(encoding='utf-8'), count=1), encoding='utf-8')
+        out = Path(self.tmp.name, 'out')
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.d), '--edition', '1',
+                            '--out', str(out), '--formats', 'pdf,epub'], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        tag = yaml.safe_load((out / 'edition.yml').read_text(encoding='utf-8'))['tag']
+        text = subprocess.run(['pdftotext', str(out / f'{tag}.pdf'), '-'], capture_output=True, text=True).stdout
+        self.assertIn('Strolchi und Opi · Band 2', text)            # über dem Titel
+        self.assertIn('Reihe „Strolchi und Opi“, Band 2', text)     # Impressum
+        self.assertIn('Ebenfalls in dieser Reihe', text)
+        self.assertIn('Band 1: ADHS im Erwachsenenleben', text)
+        self.assertIn('Opis Hütte am Waldrand', text)               # Begriff der Serie per Verweis im Glossar
+        import zipfile
+        with zipfile.ZipFile(out / f'{tag}.epub') as z:
+            opf = next(z.read(n).decode() for n in z.namelist() if n.endswith('.opf'))
+        self.assertIn('belongs-to-collection', opf)
+        self.assertIn('Strolchi und Opi', opf)
 
 
 if __name__ == '__main__':

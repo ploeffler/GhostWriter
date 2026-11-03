@@ -286,6 +286,9 @@ def cover_tex(base, config, dim, guides=False):
     if dim['spine_text']:
         size = max(6, min(11, (sp - 2 * dim['spine_margin']) * 2.2))
         text = f'{author}\\quad{{\\bfseries {title}}}' if author else f'\\bfseries {title}'
+        ser = config.get('_series') or {}
+        if ser.get('volume'):   # Serie (#116): Bandnummer ans Ende des Rückens
+            text += f'\\quad{{\\small {ser["volume"]}}}'
         rot = 90 if cv.get('spine_direction') == 'up' else -90   # up: von unten nach oben (deutsche Tradition)
         L.append(f'\\node[rotate={rot},text=gwfg,inner sep=0] at ({spine_x + sp / 2:.2f}mm,{y0 + h / 2:.2f}mm) '
                  f'{{\\headfont\\fontsize{{{size:.1f}}}{{{size * 1.2:.1f}}}\\selectfont {text}}};')

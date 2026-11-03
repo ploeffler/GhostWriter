@@ -10,6 +10,8 @@
     "subtitle": {"type": "string"},
     "kind": {"enum": ["continuous", "standalone"], "description": "continuous: durchgehende Handlung; standalone: eigenständige Bände"},
     "description": {"type": "string"},
+    "issn": {"type": "string", "description": "ISSN der Reihe (optional, im Impressum jedes Bandes)"},
+    "also_in_series": {"type": "boolean", "description": "Seite „Ebenfalls in dieser Reihe“ am Ende jedes Bandes (Vorgabe true)"},
     "volumes": {
       "type": "array",
       "description": "Buch-Branches in Bandreihenfolge (erster Eintrag = Band 1); ein Buch gehört zu höchstens einer Serie",

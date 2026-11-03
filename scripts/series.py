@@ -180,8 +180,8 @@ def of(all_series, branch):
 def save(base, s):
     p = series_file(base, s['id'])
     p.parent.mkdir(parents=True, exist_ok=True)
-    keys = ['id', 'title', 'subtitle', 'kind', 'description', 'volumes']
-    data = {k: s[k] for k in keys if k in s and (s[k] or k in ('id', 'title', 'kind', 'volumes'))}
+    keys = ['id', 'title', 'subtitle', 'kind', 'description', 'issn', 'also_in_series', 'volumes']
+    data = {k: s[k] for k in keys if k in s and (s[k] or k in ('id', 'title', 'kind', 'volumes') or s[k] is False)}
     data.update({k: v for k, v in s.items() if k not in keys})
     p.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=10**6), encoding='utf-8')
     return p
@@ -254,6 +254,16 @@ def update(base, sid, fields):
     for k in ('title', 'subtitle', 'description'):
         if fields.get(k) is not None:
             s[k] = str(fields[k]).strip()
+    if fields.get('issn') is not None:
+        if str(fields['issn']).strip():
+            s['issn'] = str(fields['issn']).strip()
+        else:
+            s.pop('issn', None)
+    if fields.get('also_in_series') is not None:
+        if fields['also_in_series'] in (False, 'false', 'nein'):
+            s['also_in_series'] = False
+        else:
+            s.pop('also_in_series', None)   # Vorgabe: an
     if fields.get('kind'):
         if fields['kind'] not in KINDS:
             raise SystemExit(f'Art: {", ".join(KINDS)}')
@@ -350,6 +360,43 @@ def compare_terms(book_entries, series_terms):
                         'state': 'same' if hit[1].strip() == st['text'].strip() else 'differs'})
     out += [{'term': t, 'text': '', 'book_text': x, 'state': 'own'} for t, x in book.values()]
     return out
+
+
+# ---------- Auflagen (Stufe 3) ----------
+
+def published_volumes(base, ser):
+    """Bände der Serie mit mindestens einer Auflage: [{volume, branch, title, subtitle, edition}] (Tags <slug>-auflage-N)."""
+    out = []
+    for i, br in enumerate(ser.get('volumes') or [], start=1):
+        cfg = yaml.safe_load(_branch_file(base, br, 'ghostwriter.yml') or '') or {}
+        p = cfg.get('project') or {}
+        short = p.get('title_short') or p.get('title') or ''
+        ed = library.last_edition(library.slug(short), base) if short else None
+        if ed:
+            out.append({'volume': i, 'branch': br, 'title': p.get('title') or p.get('working_title') or short,
+                        'subtitle': p.get('subtitle') or '', 'edition': ed['number']})
+    return out
+
+
+def edition_lines(ser):
+    """Zeilen fürs Impressum eines Bandes: Reihe und Band, ggf. ISSN."""
+    if not ser or not ser.get('volume'):
+        return []
+    lines = [f'Reihe „{ser["title"]}“, Band {ser["volume"]}']
+    if ser.get('issn'):
+        lines.append(f'ISSN {ser["issn"].strip()}')
+    return lines
+
+
+def also_markdown(base, ser):
+    """Seite „Ebenfalls in dieser Reihe“: die anderen Bände mit Auflage; leer, wenn es keine gibt oder abgeschaltet."""
+    if not ser or not ser.get('also_in_series', True):
+        return ''
+    others = [v for v in published_volumes(base, ser) if v['branch'] != ser.get('branch')]
+    if not others:
+        return ''
+    items = '\n'.join(f'- Band {v["volume"]}: *{v["title"]}*' + (f' – {v["subtitle"]}' if v['subtitle'] else '') for v in others)
+    return f'# Ebenfalls in dieser Reihe {{.unnumbered .unlisted .ebenfalls}}\n\n**{ser["title"]}**\n\n{items}\n'
 
 
 # ---------- Kontinuität (Stufe 2) ----------
@@ -467,6 +514,8 @@ def main(argv):
     ap.add_argument('--kind')
     ap.add_argument('--description')
     ap.add_argument('--title')
+    ap.add_argument('--issn')
+    ap.add_argument('--also', choices=['ja', 'nein'], help='Seite „Ebenfalls in dieser Reihe“ (Vorgabe ja)')
     ap.add_argument('--books', nargs='*', default=[])
     ap.add_argument('--position', type=int)
     ap.add_argument('--json', action='store_true')
@@ -497,7 +546,8 @@ def main(argv):
         ap.error('Serie fehlt')
     sid = a.args[0]
     if a.cmd == 'update':
-        s = update(base, sid, {'title': a.title, 'subtitle': a.subtitle, 'kind': a.kind, 'description': a.description})
+        s = update(base, sid, {'title': a.title, 'subtitle': a.subtitle, 'kind': a.kind, 'description': a.description,
+                               'issn': a.issn, 'also_in_series': None if a.also is None else a.also == 'ja'})
         print(f'✓ Serie „{s["title"]}“ geändert\nCommit-Nachricht: Serie „{s["title"]}“ geändert')
     elif a.cmd == 'add':
         if len(a.args) < 2:

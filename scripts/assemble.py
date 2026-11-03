@@ -131,7 +131,26 @@ def chapter_markdown(base, chapter, number, proof=False):
     return '\n'.join(out).rstrip() + '\n', skipped, markers
 
 
-def matter_markdown(base, item, proof=False):
+def series_glossary_extra(base, config, entries):
+    """Begriffe der Serie (#116), die im Buch verwiesen werden ([…]{.glossar}), aber nicht im Glossar des Bandes
+    stehen: gelten per Verweis und kommen mit der Erklärung der Serie ins Glossar."""
+    ser = (config or {}).get('_series')
+    if not ser:
+        return []
+    import series
+    terms = series.glossary(base, ser['id'])
+    if not terms:
+        return []
+    have = {t.casefold() for t, _ in entries}
+    refs = set()
+    paths = [s['path'] for ch in config['structure']['chapters'] for s in ch['sections']] + [i['path'] for _, i in matter_items(config)]
+    for p in paths:
+        if (base / p).is_file():
+            refs |= {glossary_ref_term(m).casefold() for m in GLOSSARY_REF.finditer((base / p).read_text(encoding='utf-8'))}
+    return [(x['term'], x['text']) for x in terms if x['term'].casefold() in refs and x['term'].casefold() not in have]
+
+
+def matter_markdown(base, item, proof=False, config=None):
     """(Markdown, freigegeben, Marker) eines Teils von Vor- oder Nachspann (#57).
     Nicht freigegeben: leeres Markdown, außer im Probedruck (mit Statusvermerk)."""
     head, _, _, manuscript = section_file(base, item)
@@ -145,6 +164,7 @@ def matter_markdown(base, item, proof=False):
     kind = item['kind']
     if kind == 'glossary':   # Einträge alphabetisch (DIN 5007-1) als Beschreibungsliste
         intro, entries = glossary_entries(text)
+        entries = list(entries) + series_glossary_extra(base, config, entries)
         dl = '\n'.join(f'[{term}]{{#{glossary_anchor(term)}}}\n:   {expl}\n'   # Anker für Verweise (#107)
                        for term, expl in sorted(entries, key=lambda e: german_key(e[0])))
         text = '\n\n'.join(x for x in (shift_headings(intro, 2), dl) if x)
@@ -167,7 +187,7 @@ def matter_markdown(base, item, proof=False):
 def matter_parts(base, config, proof=False):
     """Vor- und Nachspann in Buchreihenfolge: [(bereich, eintrag, markdown, freigegeben, marker)].
     Ohne proof fehlen nicht freigegebene Teile im Markdown (leer), stehen aber in der Liste."""
-    return [(area, item, *matter_markdown(base, item, proof)) for area, item in matter_items(config)]
+    return [(area, item, *matter_markdown(base, item, proof, config)) for area, item in matter_items(config)]
 
 
 def with_disclosure(md, text):
