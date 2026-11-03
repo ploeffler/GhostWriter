@@ -133,9 +133,32 @@ local function initial_para(para)
   return nil
 end
 
+-- Verweise aufs Glossar (#107, scripts/assemble.py): [Text](#gl-…){.glossar}
+--   Kennzeichnung nach gw-glossary-marks: arrow (→ vor dem Wort, Vorgabe) | italic | none
+--   Druck-PDF (gw-print=true): kein Link, nur die Kennzeichnung; sonst Link zum Eintrag
+local function glossary_links(doc)
+  local marks = doc.meta['gw-glossary-marks'] and pandoc.utils.stringify(doc.meta['gw-glossary-marks']) or 'arrow'
+  local print_ = doc.meta['gw-print'] and pandoc.utils.stringify(doc.meta['gw-print']) == 'true'
+  return doc:walk({ Link = function(el)
+    if not el.classes:includes('glossar') then return nil end
+    local content = el.content
+    if marks == 'italic' then
+      content = { pandoc.Emph(content) }
+    elseif marks == 'arrow' then
+      local c = { pandoc.Str('→\u{202F}') }
+      for _, i in ipairs(content) do table.insert(c, i) end
+      content = c
+    end
+    if print_ then return pandoc.Span(content, pandoc.Attr('', { 'glossar' }, {})) end
+    el.content = content
+    return el
+  end })
+end
+
 function Pandoc(doc)
+  doc = glossary_links(doc)
   local flag = doc.meta['gw-initials']
-  if not flag or pandoc.utils.stringify(flag) ~= 'true' then return nil end
+  if not flag or pandoc.utils.stringify(flag) ~= 'true' then return doc end
   local want = false
   for i, b in ipairs(doc.blocks) do
     if b.t == 'Header' and b.level == 1 then

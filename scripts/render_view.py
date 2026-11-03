@@ -105,6 +105,19 @@ def glossary_entries(text):
     return '\n'.join(intro).strip(), [tuple(e) for e in entries]
 
 
+# Verweis aufs Glossar im Manuskript (#107): [Begriff]{.glossar} oder [Beugungsform]{.glossar term="Begriff"}
+GLOSSARY_REF = re.compile(r'\[([^\]\[]+)\]\{\.glossar(?:\s+term="([^"]+)")?\}')
+
+
+def glossary_ref_term(m):
+    """Begriff eines Verweises: term="…" oder der Text selbst."""
+    return (m.group(2) or m.group(1)).strip()
+
+
+def glossary_anchor(term):
+    return 'gl-' + tag_slug(term)
+
+
 def german_key(term):
     """Sortierschlüssel nach DIN 5007-1: Umlaute wie Grundbuchstaben (ä = a), ß = ss,
     Groß/klein egal; bei Gleichstand ohne Umlaut vor mit Umlaut, dann klein vor groß."""
@@ -998,7 +1011,8 @@ TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'tit
                       'imprint': True, 'toc': True, 'toc_depth': 1,
                       'heading_font': 'same', 'margins': 'standard', 'line_spacing': 1.1, 'paragraph': 'indent',
                       'hyphenation': True, 'chapter_start': 'any', 'running_heads': 'sections',
-                      'page_numbers': 'header', 'initials': False, 'formats': ['pdf', 'docx', 'epub']}
+                      'page_numbers': 'header', 'initials': False, 'formats': ['pdf', 'docx', 'epub'],
+                      'glossary_marks': 'arrow'}
 # Werte → deutsche Bezeichnung (Formular „Ausgabe“, Textfassung)
 OUTPUT_LABELS = {
     'page_size': ('Seitenformat', {'a5': 'A5 (14,8 × 21 cm)', '12x19': '12 × 19 cm', '13.5x21.5': '13,5 × 21,5 cm', 'a4': 'A4'}),
@@ -1007,6 +1021,7 @@ OUTPUT_LABELS = {
     'font_size': ('Schriftgröße', None),
     'heading_font': ('Überschriften', {'same': 'wie Grundschrift', 'serif': 'Serifenschrift', 'sans': 'serifenlos'}),
     'initials': ('Initialen am Kapitelanfang', None),
+    'glossary_marks': ('Glossar-Verweise im Text', {'arrow': 'mit Pfeil (→ Begriff)', 'italic': 'kursiv', 'none': 'ohne Kennzeichnung'}),
     'margins': ('Ränder', {'standard': 'Standard', 'classic': 'klassisch (breit)', 'modern': 'modern (schmal)'}),
     'line_spacing': ('Zeilenabstand', None),
     'paragraph': ('Absätze', {'indent': 'mit Einzug', 'spacing': 'mit Abstand'}),
@@ -1144,7 +1159,7 @@ def output_value(key, value):
 
 
 OUTPUT_GROUPS = [('Seite', ['page_size', 'margins', 'chapter_start', 'running_heads', 'page_numbers']),
-                 ('Schrift', ['font', 'font_size', 'heading_font', 'initials']),
+                 ('Schrift', ['font', 'font_size', 'heading_font', 'initials', 'glossary_marks']),
                  ('Absatz', ['line_spacing', 'paragraph', 'hyphenation']),
                  ('Titelei', ['title_page', 'imprint', 'toc', 'toc_depth']),
                  ('Formate', ['formats'])]

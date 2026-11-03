@@ -245,7 +245,7 @@ class ForewordGlossaryTest(MatterBase):
         self.add_seven()
         _, config = load(self.base)
         md = next(m[2] for m in assemble.matter_parts(self.base, config) if m[1]['kind'] == 'glossary')
-        terms = re.findall(r'(?m)^(.+)\n:   ', md)
+        terms = re.findall(r'(?m)^\[(.+?)\]\{#gl-[^}]*\}\n:   ', md)
         self.assertEqual(terms, ['ADHS', 'Apfel', 'Ärger', 'Ober', 'Ödem', 'Zeitblindheit'])
         # in der Datei ebenfalls sortiert, als Liste
         text = (self.base / 'matter/glossar.md').read_text(encoding='utf-8')
@@ -371,3 +371,75 @@ class MatterWidgetTest(MatterBase):
         _, data = self.widget('project')
         self.assertNotIn('MATTER_FRONT', data)
         self.assertNotIn('MATTER_BACK', data)
+
+
+class GlossaryReferenceTest(MatterBase):
+    """#107: Verweise aus dem Text aufs Glossar."""
+
+    def setUp(self):
+        super().setUp()
+        approve_chapter_1(self.base)
+        _, config = load(self.base)
+        self.section = self.base / config['structure']['chapters'][0]['sections'][0]['path']
+        t = self.section.read_text(encoding='utf-8')
+        head, _, ms = t.partition('## Manuskript\n')
+        self.section.write_text(head + '## Manuskript\n\nWer [ADHS]{.glossar} hat, kennt [Ärgernisse]{.glossar term="Ärger"}.\n'
+                                + ms, encoding='utf-8')
+
+    def body(self):
+        _, config = load(self.base)
+        parts, mparts = assemble.book_parts(self.base, config), assemble.matter_parts(self.base, config)
+        return assemble.problems(parts, config, mparts), assemble.book_body(parts, mparts)
+
+    def test_without_glossary_plain_text(self):
+        found, body = self.body()
+        self.assertEqual(found, [])
+        self.assertIn('Wer ADHS hat, kennt Ärgernisse.', body)
+
+    def test_links_and_missing_term(self):
+        matter.add(self.base, 'glossary')
+        matter.glossary_set(self.base, 'ADHS', 'Störung')
+        set_part(self.base, 'glossary')
+        found, body = self.body()
+        self.assertEqual(found, ['Glossar-Verweis ohne Eintrag in Kapitel 1: „Ärger“'])
+        matter.glossary_set(self.base, 'Ärger', 'Gefühl')
+        found, body = self.body()
+        self.assertEqual(found, [])
+        self.assertIn('Wer [ADHS](#gl-adhs){.glossar} hat, kennt [Ärgernisse](#gl-aerger){.glossar}.', body)
+        self.assertIn('[Ärger]{#gl-aerger}\n:   Gefühl', body)
+        # Glossar nicht freigegeben: kein Link, kein Hindernis
+        set_part(self.base, 'glossary', approved=False)
+        found, body = self.body()
+        self.assertEqual(found, [])
+        self.assertIn('Wer ADHS hat', body)
+
+    @unittest.skipUnless(shutil.which('pandoc') and shutil.which('xelatex') and shutil.which('pdftotext'),
+                         'pandoc, xelatex oder pdftotext fehlen')
+    def test_marks_in_formats(self):
+        matter.add(self.base, 'glossary')
+        matter.glossary_set(self.base, 'ADHS', 'Störung')
+        matter.glossary_set(self.base, 'Ärger', 'Gefühl')
+        set_part(self.base, 'glossary')
+        cfg = self.base / 'ghostwriter.yml'
+        cfg.write_text(cfg.read_text(encoding='utf-8') + 'typesetting:\n  glossary_marks: italic\n', encoding='utf-8')
+        out = Path(self.base.parent) / 'out'
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--edition', '1',
+                            '--out', str(out), '--formats', 'pdf,pdf_print,epub'], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        tag = yaml.safe_load((out / 'edition.yml').read_text(encoding='utf-8'))['tag']
+        import zipfile
+        with zipfile.ZipFile(out / f'{tag}.epub') as z:
+            xhtml = ''.join(z.read(n).decode('utf-8') for n in z.namelist() if n.endswith('.xhtml'))
+        self.assertRegex(xhtml, r'<a href="[^"]*#gl-adhs" class="glossar"><em>ADHS</em></a>')
+        self.assertNotIn('→', xhtml)
+        dests = lambda f: subprocess.run(['pdfinfo', '-dests', str(out / f)], capture_output=True, text=True).stdout
+        self.assertIn('gl-adhs', dests(f'{tag}.pdf'))
+        raw = (out / f'{tag}-druck.pdf').read_bytes()
+        import zlib
+        links = 0
+        for m in re.finditer(rb'stream\r?\n(.*?)\r?\nendstream', raw, re.S):
+            try:
+                links += zlib.decompress(m.group(1)).count(b'/D(gl-adhs)')
+            except zlib.error:
+                pass
+        self.assertEqual(links + raw.count(b'/D(gl-adhs)'), 0)   # Druck-PDF: Anker ja, Link nein

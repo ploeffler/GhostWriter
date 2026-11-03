@@ -363,6 +363,10 @@ def main(argv):
                    '--top-level-division=chapter', '-o', str(target)]
             if ts.get('toc'):
                 cmd += ['--toc', f'--toc-depth={int(ts.get("toc_depth", 1))}']
+            # Glossar-Verweise (#107): Kennzeichnung; im Druck-PDF ohne Link
+            cmd += ['-M', f'gw-glossary-marks={ts.get("glossary_marks", "arrow")}']
+            if fmt == 'pdf_print':
+                cmd += ['-M', 'gw-print=true']
             m = dict(common_meta)
             if kind == 'pdf':
                 lines = '\\\\\n'.join(l.replace('&', '\\&').replace('%', '\\%').replace('#', '\\#') for l in imprint)
