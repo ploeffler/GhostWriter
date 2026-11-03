@@ -153,3 +153,23 @@ class AiDisclosureTypesettingTest(Base):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class AiDisclosureWidgetTest(Base):
+    def test_widget_data(self):
+        import json
+        import re
+        ai_disclosure.apply(self.base, mode='short', placement='foreword', name_services=True)
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'ai-disclosure'],
+                             capture_output=True, text=True, check=True).stdout
+        m = re.search(r'GW\.render\("([^"]+)",(.*)\)</script>', out)
+        self.assertEqual(m.group(1), 'ki-angabe')
+        data = json.loads(m.group(2).replace('<\\/', '</'))
+        self.assertEqual((data['AI_MODE'], data['AI_PLACEMENT'], data['AI_NAME_SERVICES']), ('short', 'foreword', 'true'))
+        self.assertIn('Perplexity', data['AI_PROPOSAL_SHORT_NAMED'])
+        self.assertNotIn('Perplexity', data['AI_PROPOSAL_SHORT'])
+        self.assertTrue(data['AI_PROPOSAL_DETAILED'].startswith('Bei der Entstehung dieses Buchs wurden KI-Werkzeuge eingesetzt:'))
+        self.assertEqual(data['AI_PLACES_MISSING'], 'foreword,afterword')
+        settings = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'project-settings'],
+                                  capture_output=True, text=True, check=True).stdout
+        self.assertIn('"AI_DISCLOSURE_TEXT":"kurz, im Vorwort (Wortlaut offen)"', settings)

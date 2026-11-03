@@ -148,3 +148,20 @@ class OutputTypesettingTest(Base):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class OutputWidgetTest(Base):
+    def test_widget_json(self):
+        import json
+        import re
+        self.set_options(OPTIONS + 'print:\n  profile: kdp\n')
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'output'],
+                             capture_output=True, text=True, check=True).stdout
+        m = re.search(r'GW\.render\("([^"]+)",(.*)\)</script>', out)
+        self.assertEqual(m.group(1), 'ausgabeoptionen')
+        data = json.loads(json.loads(m.group(2).replace('<\\/', '</'))['OUTPUT_JSON'])
+        self.assertEqual(data['typesetting']['margins'], 'classic')
+        self.assertEqual(data['typesetting']['toc_depth'], 1)          # Vorgaben ergänzt
+        self.assertEqual(data['publication']['publisher'], 'Selbstverlag')
+        self.assertEqual(data['print'], {'profile': 'kdp'})
+        self.assertEqual((data['cover'], data['blurb'], data['author_bio']), ({}, '', ''))
