@@ -93,3 +93,22 @@ function Div(el)
   end
   return nil
 end
+
+-- Vorwort, Nachwort (#58): ::: signatur … ::: mit Verfasser und Ort/Datum, rechtsbündig
+--   LaTeX/PDF: flushright · DOCX: Absatzformat „Signatur“ · EPUB/HTML: <div class="signatur">
+local DivMatter = Div
+function Div(el)
+  if el.classes:includes('signatur') then
+    if FORMAT:match('latex') then
+      local out = { pandoc.RawBlock('latex', '\\begin{flushright}\\itshape') }
+      for _, b in ipairs(el.content) do table.insert(out, b) end
+      table.insert(out, pandoc.RawBlock('latex', '\\end{flushright}'))
+      return out
+    elseif FORMAT:match('docx') then
+      el.attributes['custom-style'] = 'Signatur'
+      return el
+    end
+    return nil
+  end
+  return DivMatter(el)
+end

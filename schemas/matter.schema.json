@@ -1,15 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ploeffler/GhostWriter/schemas/matter.schema.json",
-  "title": "Kopf einer Datei aus Vor- oder Nachspann (matter/<teil>.md, #57)",
+  "title": "Kopf einer Datei aus Vor- oder Nachspann (matter/<teil>.md, #57, #58)",
   "type": "object",
   "required": ["id", "kind", "title", "status", "approvals"],
   "properties": {
     "id": {"type": "string", "pattern": "^mat-[a-z0-9][a-z0-9-]*$"},
-    "kind": {"enum": ["dedication", "prologue", "epilogue", "acknowledgments"]},
+    "kind": {"enum": ["dedication", "foreword", "prologue", "epilogue", "afterword", "glossary", "acknowledgments"]},
     "title": {"type": "string", "minLength": 1},
     "status": {"enum": ["planned", "research", "brainstorming", "ready_to_write", "writing", "revision", "fact_check", "ready_for_approval", "approved"]},
     "fact_check": {"enum": ["disabled", "optional", "requested"]},
+    "byline": {"type": "string", "description": "Vorwort, Nachwort: Verfasser, wenn nicht der Autor des Buchs; am Ende gesetzt (#58)"},
+    "place_date": {"type": "string", "description": "Vorwort, Nachwort: Ort und Datum am Ende, z. B. „Graz, im Oktober 2026“ (#58)"},
     "approvals": {
       "type": "object",
       "required": ["writing", "section"],

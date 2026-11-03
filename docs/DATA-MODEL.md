@@ -16,8 +16,11 @@ repository/
 ├── approvals.yml          # Freigabe-Protokoll, nur anhängen
 ├── matter/                # Vor- und Nachspann (#57), nur vorhandene Teile
 │   ├── widmung.md
+│   ├── vorwort.md
 │   ├── prolog.md
 │   ├── epilog.md
+│   ├── nachwort.md
+│   ├── glossar.md
 │   └── danksagung.md
 ├── ghostwriter-index.json # Übersichtsdatei, erzeugt von scripts/build_index.py (nicht von Hand ändern)
 ├── chapters/
@@ -99,7 +102,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `ai_settings` | globale KI-Regeln: `hallucination_policy` (`strict`), `source_policy` (`required`), `uncertainty_policy` (`explicit`), `creativity` (`balanced`), `web_research` (`research`); dürfen nur strenger werden (`START.md`, Abschnitt 3) |
 | `ai_providers` | vorhandene KI-Dienste (`available`), Dienst und Modell je Aufgabe, Einstellungen je Dienst (`services`); siehe [PROVIDERS.md](PROVIDERS.md) |
 | `structure.chapters` | Kapitel in Reihenfolge, je mit `id`, `title`, `path`, `status` und `sections` (je `id`, `title`, `path`) |
-| `structure.front_matter`, `structure.back_matter` | Vor- und Nachspann (#57): Teile vor Kapitel 1 (Widmung, Prolog) bzw. nach dem letzten Kapitel (Epilog, Danksagung), je mit `id`, `kind`, `title`, `path`; fehlen = keine (siehe „Vor- und Nachspann“) |
+| `structure.front_matter`, `structure.back_matter` | Vor- und Nachspann (#57, #58): Teile vor Kapitel 1 (Widmung, Vorwort, Prolog) bzw. nach dem letzten Kapitel (Epilog, Nachwort, Glossar, Danksagung), je mit `id`, `kind`, `title`, `path`; fehlen = keine (siehe „Vor- und Nachspann“) |
 
 | `typesetting` | Buchsatz der Auflagen, in den Projekteinstellungen bearbeitbar (siehe unten) |
 | `updates.auto` | neue GhostWriter-Versionen automatisch einspielen; fehlt = `true` ([UPDATES.md](UPDATES.md)) |
@@ -148,13 +151,16 @@ Der Kopf jeder Abschnittsdatei folgt [`schemas/section.schema.json`](../schemas/
 
 ## Vor- und Nachspann
 
-Teile außerhalb der Kapitel (#57), jeweils optional. Sie gehören dem Buch (`matter/` steht unter `book` im Manifest) und haben je eine Datei mit Kopf wie ein Abschnitt, Schema [`schemas/matter.schema.json`](../schemas/matter.schema.json), Vorlage `templates/matter.md`:
+Teile außerhalb der Kapitel (#57, #58), jeweils optional, in dieser Reihenfolge im Buch. Sie gehören dem Buch (`matter/` steht unter `book` im Manifest) und haben je eine Datei mit Kopf wie ein Abschnitt, Schema [`schemas/matter.schema.json`](../schemas/matter.schema.json), Vorlage `templates/matter.md`:
 
 | Art (`kind`) | Bereich | Vorgabetitel | ID | Datei | Im Buch |
 |---|---|---|---|---|---|
 | `dedication` | `front_matter` | Widmung | `mat-widmung` | `matter/widmung.md` | eigene rechte Seite nach der Titelei, zentriert, ohne Überschrift, nicht im Inhaltsverzeichnis |
+| `foreword` | `front_matter` | Vorwort | `mat-vorwort` | `matter/vorwort.md` | nach der Widmung, unnummeriert, im Inhaltsverzeichnis; am Ende optional Verfasser und Ort/Datum |
 | `prologue` | `front_matter` | Prolog | `mat-prolog` | `matter/prolog.md` | vor Kapitel 1, unnummeriert, im Inhaltsverzeichnis |
 | `epilogue` | `back_matter` | Epilog | `mat-epilog` | `matter/epilog.md` | nach dem letzten Kapitel, unnummeriert, im Inhaltsverzeichnis |
+| `afterword` | `back_matter` | Nachwort | `mat-nachwort` | `matter/nachwort.md` | nach dem Epilog, unnummeriert, im Inhaltsverzeichnis; optional Verfasser und Ort/Datum |
+| `glossary` | `back_matter` | Glossar | `mat-glossar` | `matter/glossar.md` | vor der Danksagung, unnummeriert, im Inhaltsverzeichnis; Begriffe alphabetisch als Beschreibungsliste |
 | `acknowledgments` | `back_matter` | Danksagung | `mat-danksagung` | `matter/danksagung.md` | am Ende, unnummeriert, im Inhaltsverzeichnis |
 
 ```yaml
@@ -181,10 +187,15 @@ status: planned          # wie bei Abschnitten
 approvals:
   writing: false
   section: false         # Freigabe des Teils
+# nur Vorwort und Nachwort (#58), beide optional, am Ende rechtsbündig gesetzt:
+# byline: Dr. Maria Muster          # Verfasser, wenn nicht der Autor des Buchs
+# place_date: Graz, im Oktober 2026
 ---
 ```
 
-Darunter `## Ziel` und `## Manuskript` (der Text fürs Buch). Jede Art gibt es höchstens einmal; `scripts/matter.py add` legt Datei und Eintrag an (Widmung vor Prolog, Epilog vor Danksagung). Nur freigegebene Teile kommen in eine Auflage; ein nicht freigegebener Teil fehlt darin und wird bei der Prüfung genannt, offene Marker in einem freigegebenen Teil verhindern die Auflage. Der Probedruck zeigt alle Teile mit Statusvermerk. Ghostwriting und Recherche gibt es für Prolog und Epilog wie bei Abschnitten (Lauf-Dateien unter `matter/research/<mat-id>/run-NNN.md` bzw. `matter/writing/<mat-id>/run-NNN.md`); Widmung und Danksagung schreibt der Autor selbst (Ghostwriting nur auf ausdrücklichen Wunsch). EPUB: eigene Abschnitte mit den Rollen `dedication`, `prologue`, `epilogue`, `acknowledgments`.
+**Glossar:** Unter `## Manuskript` optional ein einleitender Absatz, dann je Begriff ein Listeneintrag `- Begriff: Erklärung` (Folgezeilen eingerückt). Beim Satz werden die Einträge alphabetisch nach DIN 5007-1 sortiert (Umlaute wie die Grundbuchstaben, ß wie ss, Groß/klein egal) und als Beschreibungsliste gesetzt (PDF `description`, DOCX-Formate „Definition Term“/„Definition“, EPUB `dl` im Abschnitt mit Rolle `glossary`). Ein Begriff darf nur einmal vorkommen (Groß/klein egal); Prüfung, Freigabe und Auflage melden Doppelungen. `scripts/matter.py glossary-set|glossary-remove` ändert einzelne Einträge und schreibt sie sortiert zurück.
+
+Darunter `## Ziel` und `## Manuskript` (der Text fürs Buch). Jede Art gibt es höchstens einmal; `scripts/matter.py add` legt Datei und Eintrag an, in der Reihenfolge der Tabelle. Nur freigegebene Teile kommen in eine Auflage; ein nicht freigegebener Teil fehlt darin und wird bei der Prüfung genannt, offene Marker in einem freigegebenen Teil verhindern die Auflage. Der Probedruck zeigt alle Teile mit Statusvermerk. Ghostwriting und Recherche gibt es für Vorwort, Prolog, Epilog und Nachwort wie bei Abschnitten, fürs Glossar Vorschläge und Recherche je Begriff (Lauf-Dateien unter `matter/research/<mat-id>/run-NNN.md` bzw. `matter/writing/<mat-id>/run-NNN.md`); Widmung und Danksagung schreibt der Autor selbst (Ghostwriting nur auf ausdrücklichen Wunsch). EPUB: eigene Abschnitte mit den Rollen `dedication`, `foreword`, `prologue`, `epilogue`, `afterword`, `glossary`, `acknowledgments`.
 
 ## Übersichtsdatei
 

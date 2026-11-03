@@ -1,4 +1,4 @@
-"""Tests für Vor- und Nachspann (#57): Anlegen, Prüfung, Zusammenführen, Übersicht, Satz.
+"""Tests für Vor- und Nachspann (#57, #58): Anlegen, Prüfung, Zusammenführen, Übersicht, Satz.
 
 Ein Buch mit allen vier Teilen (Widmung, Prolog, Epilog, Danksagung) und eines ohne
 (tests/fixtures/adhs unverändert). Der Satz (PDF, DOCX, EPUB) läuft nur, wenn pandoc
@@ -21,7 +21,7 @@ import assemble  # noqa: E402
 import build_index  # noqa: E402
 import matter  # noqa: E402
 import validate_project  # noqa: E402
-from render_view import load  # noqa: E402
+from render_view import MATTER, german_key, load  # noqa: E402
 
 TEXTS = {'dedication': 'Für Anna,\n\ndie immer an mich geglaubt hat.',
          'prologue': 'Es war ein Dienstag, als alles begann.\n\n# Rückblick\n\nDamals wusste ich nichts.',
@@ -31,8 +31,7 @@ TEXTS = {'dedication': 'Für Anna,\n\ndie immer an mich geglaubt hat.',
 
 def set_part(base, kind, text=None, approved=True):
     """Text und Freigabe eines Teils setzen."""
-    path = base / 'matter' / {'dedication': 'widmung.md', 'prologue': 'prolog.md', 'epilogue': 'epilog.md',
-                              'acknowledgments': 'danksagung.md'}[kind]
+    path = base / 'matter' / MATTER[kind][2]
     t = path.read_text(encoding='utf-8')
     if text is not None:
         t = t.split('## Manuskript\n', 1)[0] + '## Manuskript\n\n' + text + '\n'
@@ -207,36 +206,130 @@ class MatterEmptyTest(unittest.TestCase):
             self.assertIn(f'`+ {title}` anlegen', out)
 
 
+class ForewordGlossaryTest(MatterBase):
+    """#58: Vorwort, Nachwort, Glossar."""
+
+    def add_seven(self):
+        for kind in ('glossary', 'afterword', 'foreword'):
+            matter.add(self.base, kind)
+        self.add_all()
+        set_part(self.base, 'foreword', 'Ein Wort vorab.')
+        set_part(self.base, 'afterword', 'Ein Wort danach.')
+        path = self.base / 'matter/vorwort.md'
+        path.write_text(path.read_text(encoding='utf-8').replace(
+            'approvals:', 'byline: Dr. Maria Muster\nplace_date: Graz, im Oktober 2026\napprovals:'), encoding='utf-8')
+        for term, expl in (('Zeitblindheit', 'Zeit schlecht schätzen'), ('Ärger', 'ein Gefühl'), ('ADHS', 'Störung'),
+                           ('Ödem', 'Schwellung'), ('Ober', 'Kellner'), ('Apfel', 'Obst')):
+            matter.glossary_set(self.base, term, expl)
+        set_part(self.base, 'glossary')
+
+    def test_order_of_all_seven(self):
+        self.add_seven()
+        cfg = yaml.safe_load((self.base / 'ghostwriter.yml').read_text(encoding='utf-8'))
+        self.assertEqual([i['kind'] for i in cfg['structure']['front_matter']], ['dedication', 'foreword', 'prologue'])
+        self.assertEqual([i['kind'] for i in cfg['structure']['back_matter']],
+                         ['epilogue', 'afterword', 'glossary', 'acknowledgments'])
+        self.assertEqual(validate_project.check_project(self.base), [])
+        approve_chapter_1(self.base)
+        _, config = load(self.base)
+        mparts = assemble.matter_parts(self.base, config)
+        body = assemble.book_body(assemble.book_parts(self.base, config), mparts)
+        heads = [h.split(' {')[0] for h in re.findall(r'(?m)^# (.+)$', body)]
+        self.assertEqual(heads[:3], ['Widmung', 'Vorwort', 'Prolog'])
+        self.assertEqual(heads[-4:], ['Epilog', 'Nachwort', 'Glossar', 'Danksagung'])
+        self.assertIn('epub:type=foreword', body)
+        self.assertIn('epub:type=glossary', body)
+        self.assertIn('::: signatur\n| Dr. Maria Muster\n| Graz, im Oktober 2026\n:::', body)
+
+    def test_glossary_sorted_with_umlauts(self):
+        self.add_seven()
+        _, config = load(self.base)
+        md = next(m[2] for m in assemble.matter_parts(self.base, config) if m[1]['kind'] == 'glossary')
+        terms = re.findall(r'(?m)^(.+)\n:   ', md)
+        self.assertEqual(terms, ['ADHS', 'Apfel', 'Ärger', 'Ober', 'Ödem', 'Zeitblindheit'])
+        # in der Datei ebenfalls sortiert, als Liste
+        text = (self.base / 'matter/glossar.md').read_text(encoding='utf-8')
+        self.assertIn('- ADHS: Störung\n- Apfel: Obst\n- Ärger: ein Gefühl\n', text)
+        self.assertEqual(sorted(['Zebra', 'äußerst', 'Affe', 'Straße', 'Stall'], key=german_key),
+                         ['Affe', 'äußerst', 'Stall', 'Straße', 'Zebra'])
+
+    def test_glossary_edit_and_duplicates(self):
+        self.add_seven()
+        with self.assertRaises(SystemExit):
+            matter.glossary_set(self.base, 'adhs', 'nochmal', new=True)
+        matter.glossary_set(self.base, 'adhs', 'Aufmerksamkeitsdefizit')   # ändert, legt nicht doppelt an
+        matter.glossary_remove(self.base, 'ödem')
+        _, entries = __import__('render_view').glossary_entries(
+            (self.base / 'matter/glossar.md').read_text(encoding='utf-8').split('## Manuskript\n')[1])
+        self.assertEqual(len(entries), 5)
+        self.assertIn(('adhs', 'Aufmerksamkeitsdefizit'), entries)
+        # von Hand doppelt eingetragen: Prüfung, Auflage und Freigabe schlagen an
+        path = self.base / 'matter/glossar.md'
+        path.write_text(path.read_text(encoding='utf-8') + '- Apfel: nochmal\n', encoding='utf-8')
+        self.assertTrue(any('Begriff mehrfach eingetragen: Apfel' in e for e in validate_project.check_project(self.base)))
+        approve_chapter_1(self.base)
+        _, config = load(self.base)
+        found = assemble.problems(assemble.book_parts(self.base, config), config, assemble.matter_parts(self.base, config))
+        self.assertEqual(found, ['Glossar: Begriff mehrfach eingetragen: Apfel / Apfel'])
+        set_part(self.base, 'glossary', approved=False)
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'approval-matter',
+                              'glossar', '--text'], capture_output=True, text=True, check=True).stdout
+        self.assertIn('⛔ Begriffe mehrfach eingetragen: Apfel', out)
+
+    def test_signature_only_for_foreword_and_afterword(self):
+        matter.add(self.base, 'dedication')
+        path = self.base / 'matter/widmung.md'
+        path.write_text(path.read_text(encoding='utf-8').replace('approvals:', 'byline: X\napprovals:'), encoding='utf-8')
+        self.assertTrue(any('byline gibt es nur bei Vorwort und Nachwort' in e
+                            for e in validate_project.check_project(self.base)))
+
+    def test_glossary_view(self):
+        self.add_seven()
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'matter', 'Glossar',
+                              '--text'], capture_output=True, text=True, check=True).stdout
+        self.assertIn('**6 Begriffe**', out)
+        self.assertIn('| Ärger | ein Gefühl |', out)
+        self.assertIn('`+ Begriff: Erklärung` aufnehmen', out)
+        self.assertNotIn('Ghostwriting', out)
+        vorwort = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'matter',
+                                  'vorwort', '--text'], capture_output=True, text=True, check=True).stdout
+        self.assertIn('| Verfasser | Dr. Maria Muster |', vorwort)
+
+
 @unittest.skipUnless(shutil.which('pandoc') and shutil.which('xelatex') and shutil.which('pdftotext'),
                      'pandoc, xelatex oder pdftotext fehlen')
 class MatterTypesettingTest(MatterBase):
-    """Satz in allen drei Formaten mit allen vier Teilen."""
+    """Satz in allen drei Formaten mit allen sieben Teilen."""
 
     def test_edition_formats(self):
-        self.add_all()
+        ForewordGlossaryTest.add_seven(self)
         approve_chapter_1(self.base)
         out = Path(self.base.parent) / 'out'
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--edition', '1',
                             '--out', str(out), '--date', '2026-11-03'], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         ed = yaml.safe_load((out / 'edition.yml').read_text(encoding='utf-8'))
-        self.assertEqual(ed['matter'], ['mat-widmung', 'mat-prolog', 'mat-epilog', 'mat-danksagung'])
+        self.assertEqual(ed['matter'], ['mat-widmung', 'mat-vorwort', 'mat-prolog', 'mat-epilog', 'mat-nachwort',
+                                        'mat-glossar', 'mat-danksagung'])
         pdf = subprocess.run(['pdftotext', str(out / f'{ed["tag"]}.pdf'), '-'], capture_output=True, text=True).stdout
         # Widmung vor dem Inhaltsverzeichnis, ohne Überschrift und ohne Eintrag darin
         self.assertLess(pdf.index('Für Anna'), pdf.index('Inhaltsverzeichnis'))
-        toc = pdf[pdf.index('Inhaltsverzeichnis'):pdf.index('Es war ein Dienstag')]
+        toc = pdf[pdf.index('Inhaltsverzeichnis'):pdf.index('Ein Wort vorab')]
         self.assertNotIn('Widmung', pdf)
-        for title in ('Prolog', 'Epilog', 'Danksagung'):
-            self.assertIn(title, toc)
+        self.assertEqual(re.findall(r'(?m)^(Vorwort|Prolog|Epilog|Nachwort|Glossar|Danksagung)\s', toc),
+                         ['Vorwort', 'Prolog', 'Epilog', 'Nachwort', 'Glossar', 'Danksagung'])
+        self.assertLess(pdf.index('Dr. Maria Muster'), pdf.index('Es war ein Dienstag'))
         from docx import Document
         styles = [p.style.name for p in Document(str(out / f'{ed["tag"]}.docx')).paragraphs]
         self.assertIn('Widmung', styles)
         self.assertIn('Widmung Text', styles)
+        self.assertIn('Signatur', styles)
+        self.assertIn('Definition Term', styles)
         import zipfile
         with zipfile.ZipFile(out / f'{ed["tag"]}.epub') as z:
             xhtml = ''.join(z.read(n).decode('utf-8') for n in z.namelist() if n.endswith('.xhtml'))
             nav = z.read('EPUB/nav.xhtml').decode('utf-8')
-        for role in ('dedication', 'prologue', 'epilogue', 'acknowledgments'):
+        for role in ('dedication', 'foreword', 'prologue', 'epilogue', 'afterword', 'glossary', 'acknowledgments'):
             self.assertIn(f'epub:type="{role}"', xhtml)
         self.assertNotIn('Widmung', nav)
 

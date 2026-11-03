@@ -18,3 +18,9 @@ th, td { border-bottom: 1px solid #bbb; padding: 0.25em 0.5em; text-align: left;
 section.dedication > h1, h1.dedication { display: none; }
 .widmung { margin-top: 30%; text-align: center; font-style: italic; }
 .widmung p { text-indent: 0; margin-bottom: 0.6em; }
+/* Vorwort, Nachwort (#58): Verfasser und Ort/Datum; Glossar als Beschreibungsliste */
+.signatur { text-align: right; font-style: italic; margin-top: 1.2em; }
+.signatur p, .signatur div { text-indent: 0; }
+section.glossary dt { font-weight: bold; margin-top: 0.6em; }
+section.glossary dd { margin: 0 0 0 1.2em; }
+section.glossary dd p { text-indent: 0; }
