@@ -42,6 +42,7 @@ book:
   - approvals.yml
   - chapters/
   - matter/                 # Vor- und Nachspann: Widmung, Prolog, Epilog, Danksagung (#57)
+  - cover/                  # Umschlag: Bilder und Rückseitentexte (#68)
   - costs/
   - research/
   - ghostwriter-index.json

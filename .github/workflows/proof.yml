@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       formats:
-        description: 'Formate, kommagetrennt (pdf, docx, epub)'
+        description: 'Formate, kommagetrennt (pdf, pdf_print, cover, docx, epub); cover = Umschlag mit Hilfslinien'
         required: false
         default: 'pdf'
 
@@ -33,7 +33,7 @@ jobs:
           pip install pyyaml jsonschema python-docx
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends pandoc texlive-xetex texlive-latex-recommended \
-            texlive-latex-extra texlive-lang-german texlive-fonts-recommended fonts-texgyre lmodern >/dev/null
+            texlive-latex-extra texlive-lang-german texlive-fonts-recommended fonts-texgyre lmodern poppler-utils >/dev/null
 
       - name: Probedruck bauen
         env:

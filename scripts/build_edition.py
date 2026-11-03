@@ -6,6 +6,12 @@ Aufruf:
                                    [--formats pdf,docx,epub] [--allow-markers]
   python scripts/build_edition.py <projektordner> --proof [--out ordner] [--formats pdf]
 
+Formate (--formats, sonst typesetting.formats): pdf (Bildschirm), pdf_print
+(Druck-PDF des Innenteils, <tag>-druck.pdf, mit print.crop_marks Schnittmarken),
+cover (Umschlag, <tag>-umschlag.pdf, scripts/build_cover.py; Rückenbreite aus
+der Seitenzahl des Innenteils), docx, epub (mit Cover aus der Vorderseite,
+wenn es `cover` gibt).
+
 --proof baut einen Probedruck des aktuellen Stands: alle Kapitel und Abschnitte,
 auch nicht freigegebene (mit Vermerk „Stand: Entwurf, nicht freigegeben“),
 offene Marker farbig hervorgehoben, in der Fußzeile bzw. vorn der Hinweis
@@ -41,6 +47,7 @@ texlive-fonts-recommended, fonts-texgyre), python-docx, pyyaml.
 import argparse
 import datetime
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -54,6 +61,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from assemble import book_body, book_parts, matter_notes, matter_parts, metadata, problems  # noqa: E402
 from render_view import load, tag_slug  # noqa: E402
 import ai_disclosure  # noqa: E402
+import build_cover  # noqa: E402
 
 PAGE = {  # Breite, Höhe in mm
     'a5': (148, 210), '12x19': (120, 190), '13.5x21.5': (135, 215), 'a4': (210, 297)}
@@ -113,6 +121,19 @@ def epub_css(ts):
     if ts.get('line_spacing', 1.1) != 1.1:
         out.append(f'body {{ line-height: {round(1.45 * float(ts["line_spacing"]) / 1.1, 2)}; }}')
     return '\n'.join(out)
+
+
+def pdf_pages(path):
+    """Seitenzahl eines PDF (pdfinfo, sonst aus dem Seitenbaum gelesen)."""
+    if path is None:
+        return 0
+    if shutil.which('pdfinfo'):
+        out = subprocess.run(['pdfinfo', str(path)], capture_output=True, text=True).stdout
+        m = re.search(r'(?m)^Pages:\s+(\d+)', out)
+        if m:
+            return int(m.group(1))
+    counts = [int(c) for c in re.findall(rb'/Type\s*/Pages\b[^>]*?/Count\s+(\d+)', Path(path).read_bytes())]
+    return max(counts) if counts else 0
 
 
 def run(cmd, cwd=None):
@@ -315,14 +336,35 @@ def main(argv):
             (tmp / name).write_text(text, encoding='utf-8')
             return tmp / name
 
-        for fmt in [f.strip() for f in args.formats.split(',') if f.strip()]:
-            target = out / f'{tag}.{fmt}'
+        order = ['pdf', 'pdf_print', 'cover', 'epub', 'docx']
+        wanted = [f.strip() for f in args.formats.split(',') if f.strip()]
+        unknown = [f for f in wanted if f not in order]
+        if unknown:
+            raise SystemExit(f'Unbekannte Formate: {", ".join(unknown)} (möglich: {", ".join(order)})')
+        fmts = sorted(set(wanted), key=order.index)
+        if 'cover' in fmts and not {'pdf', 'pdf_print'} & set(fmts):
+            fmts.insert(0, '_pdf')   # Innenteil nur zum Zählen der Seiten (Rückenbreite), nicht ausgeliefert
+        interior = None
+        for fmt in fmts:
+            if fmt == 'cover':   # Umschlag (#68): braucht die Seitenzahl des Innenteils
+                pages = pdf_pages(interior)
+                target = out / f'{tag}-umschlag.pdf'
+                dim = build_cover.build(base, config, pages, target, guides=args.proof)
+                results.append(target)
+                print(f'✓ {target} ({target.stat().st_size // 1024} KB) · {build_cover.summary(dim)}')
+                for n in dim['notes']:
+                    print(f'ⓘ {n}')
+                continue
+            hidden = fmt == '_pdf'
+            kind = 'pdf' if fmt in ('pdf', 'pdf_print', '_pdf') else fmt
+            target = (tmp / 'innenteil.pdf') if hidden else \
+                out / (f'{tag}-druck.pdf' if fmt == 'pdf_print' else f'{tag}.{fmt}')
             cmd = ['pandoc', '--from', 'markdown+smart', '--lua-filter', str(BOOK / 'merkkasten.lua'),
                    '--top-level-division=chapter', '-o', str(target)]
             if ts.get('toc'):
                 cmd += ['--toc', f'--toc-depth={int(ts.get("toc_depth", 1))}']
             m = dict(common_meta)
-            if fmt == 'pdf':
+            if kind == 'pdf':
                 lines = '\\\\\n'.join(l.replace('&', '\\&').replace('%', '\\%').replace('#', '\\#') for l in imprint)
                 imp, extra_header = '', []
                 if ts.get('imprint') and ts.get('title_page'):
@@ -360,8 +402,14 @@ def main(argv):
                         extra_header.append(str(write('proof.tex',
                             '\\usepackage{scrlayer-scrpage}\\pagestyle{scrheadings}\\clearpairofpagestyles\n'
                             '\\ofoot*{\\pagemark}' + note)))
-                for h in extra_header:
-                    cmd += ['--include-in-header', h]
+                if fmt == 'pdf_print' and (config.get('print') or {}).get('crop_marks'):
+                    # Druck-PDF mit Schnittmarken: Papier ringsum 8 mm größer, Seite mittig
+                    # (crop kennt XeTeX nicht als Treiber; die Papiergröße setzt daher ein eigenes \\special)
+                    m['classoption'] = m['classoption'] + ['pagesize=false']
+                    extra_header.append(str(write('crop.tex', f'\\usepackage[cam,center,noinfo,width={w + 16}mm,height={h + 16}mm]{{crop}}\n'
+                                                              f'\\AtBeginDocument{{\\special{{papersize={w + 16}mm,{h + 16}mm}}}}\n')))
+                for hdr in extra_header:   # nicht h: das ist die Seitenhöhe
+                    cmd += ['--include-in-header', hdr]
                 src = body_pdf
             else:
                 pre = ''
@@ -382,12 +430,21 @@ def main(argv):
                     isbn = (config.get('publication') or {}).get('isbn_ebook')
                     if isbn:
                         m['identifier'] = [{'scheme': 'ISBN-13', 'text': 'urn:isbn:' + re.sub(r'[^0-9Xx]', '', isbn)}]
+                    if config.get('cover') and shutil.which('pdftoppm'):   # EPUB-Cover = Vorderseite des Umschlags
+                        front = tmp / 'cover-vorne.jpg'
+                        build_cover.build(base, build_cover.front_only(config), pdf_pages(interior) if interior else 0,
+                                          tmp / 'cover-epub.pdf', front_jpg=front)
+                        cmd += ['--epub-cover-image', str(front)]
                 elif fmt == 'docx':
                     ref = tmp / 'reference.docx'
                     make_reference_docx(ref, ts)
                     cmd += ['--reference-doc', str(ref)]
             src_path = write(f'book-{fmt}.md', '---\n' + yaml.safe_dump(m, allow_unicode=True, sort_keys=False) + '---\n\n' + src)
             run(cmd + [str(src_path)], cwd=tmp)
+            if kind == 'pdf':
+                interior = target
+            if hidden:
+                continue
             results.append(target)
             print(f'✓ {target} ({target.stat().st_size // 1024} KB)')
 

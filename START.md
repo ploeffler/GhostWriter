@@ -105,7 +105,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Update` | Update-Stand zeigen; ist das Buch hinter dem Hauptrepository, „Update einspielen“ anbieten |
 | `Daten` | Seite „Daten“: Stand von Programm, Büchern und Repository (Abschnitt 0, „Daten“) |
 | `KI-Angabe` | Formular „KI-Angabe im Buch“ (Abschnitt 0, „KI-Angabe im Buch“) |
-| `Ausgabe`, `Ausgabeoptionen` | Formular „Ausgabeoptionen“: Satzspiegel, Schrift, Absätze, Titelei, Formate, Angaben im Impressum (`render_view.py output --text`, vorerst nur Textfassung; #68) |
+| `Ausgabe`, `Ausgabeoptionen`, `Umschlag` | Formular „Ausgabeoptionen“: Satzspiegel, Schrift, Absätze, Titelei, Formate, Angaben im Impressum, Druck und Umschlag (`render_view.py output --text`, vorerst nur Textfassung; #68) |
 | `Hilfe` | diese Befehle und die Kürzel der zuletzt gezeigten Ansicht (`templates/ui/BEFUELLUNG.md`, „Textfassung“) |
 
 Befehle haben Vorrang vor Kürzeln nur, wenn sie ausgeschrieben sind (`Auflage`, nicht `A`). `Neues Buch` öffnet das Formular „Neues Buch“ (Abschnitt 0, „Neues Buch“); `Neues Buch: <Titel>` öffnet es mit dem Titel vorbelegt.
@@ -145,7 +145,7 @@ Was jedes Formular schreibt:
 |---|---|---|---|---|---|
 | Projektdaten bearbeiten | `project.update` | `ghostwriter.yml` (`project.*`) | `Projektdaten geändert` | – | `PATCH /v1/projects/{owner}/{repo}` |
 | KI-Angabe im Buch | `project.ai_disclosure.update` | `ghostwriter.yml` (`ai_disclosure`), über `scripts/ai_disclosure.py set` | `KI-Angabe geändert` | – | `PATCH …/settings` |
-| Ausgabeoptionen | `project.output.update` | `ghostwriter.yml` (`typesetting`, `publication`); nur geänderte Felder eintragen, Vorgaben nicht ausschreiben; danach `scripts/validate_project.py` (ISBN-Prüfziffer) | `Ausgabeoptionen geändert` | – | `PATCH …/settings` |
+| Ausgabeoptionen | `project.output.update` | `ghostwriter.yml` (`typesetting`, `publication`, `print`, `cover`), Texte der Rückseite in `cover/rueckseite.md` (aus `templates/cover-rueckseite.md`), hochgeladene Bilder unter `cover/`; nur geänderte Felder eintragen, Vorgaben nicht ausschreiben; danach `scripts/validate_project.py` (ISBN-Prüfziffer, Druckprofil, Bilder) | `Ausgabeoptionen geändert` | – | `PATCH …/settings` |
 | Projekteinstellungen | `project.settings.update` | `ghostwriter.yml` (`workflow.fact_checking_default`, `typesetting`, `updates`, `changes`) | `Projekteinstellungen geändert` | – | `PATCH …/settings` |
 | KI-Dienste | `project.providers.update` | `ghostwriter.yml` (`ai_providers`: `available`, `services`, Anbieter je Aufgabe, `search_tools`, `queue_processing.agent`; Modellnamen bleiben) | `KI-Dienste geändert` | – | `PATCH …/settings` |
 | Neues Kapitel | `chapter.create` | `ghostwriter.yml` (`structure.chapters`), `chapters/<nn-slug>/README.md` aus `templates/chapter-README.md`, erste Abschnittsdatei aus `templates/section.md` (jedes Kapitel braucht mindestens einen Abschnitt) | `Kapitel N „Titel“ angelegt` | – | `POST …/chapters` |

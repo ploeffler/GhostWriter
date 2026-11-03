@@ -107,6 +107,33 @@
       },
       "additionalProperties": false
     },
+    "print": {
+      "type": "object",
+      "description": "Druck (#68): Profil des Anbieters, Papier, Rückenbreite, Beschnitt, Schnittmarken; fehlt = kein Umschlag",
+      "properties": {
+        "profile": {"enum": ["kdp", "bod", "custom"]},
+        "paper": {"enum": ["white", "cream", "premium_color"]},
+        "spine_mm": {"type": "number", "minimum": 0, "maximum": 100},
+        "paper_mm_per_page": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "bleed_mm": {"type": "number", "minimum": 0, "maximum": 20},
+        "crop_marks": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "cover": {
+      "type": "object",
+      "description": "Umschlag (#68): Vorlage, Farben, Bilder, Preis; Texte der Rückseite in cover/rueckseite.md",
+      "properties": {
+        "template": {"enum": ["classic", "modern", "plain"]},
+        "background": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "text_color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "image": {"type": "string", "pattern": "^cover/[^/]+\\.(jpe?g|png)$"},
+        "author_image": {"type": "string", "pattern": "^cover/[^/]+\\.(jpe?g|png)$"},
+        "price": {"type": "string"},
+        "spine_direction": {"enum": ["down", "up"]}
+      },
+      "additionalProperties": false
+    },
     "typesetting": {
       "type": "object",
       "description": "Buchsatz für die Auflagen; fehlt der Block, gelten die Vorgaben aus docs/DATA-MODEL.md",
@@ -127,7 +154,7 @@
         "running_heads": {"enum": ["sections", "chapter", "book", "none"]},
         "page_numbers": {"enum": ["header", "footer_center", "footer_outer"]},
         "initials": {"type": "boolean"},
-        "formats": {"type": "array", "items": {"enum": ["pdf", "docx", "epub"]}, "minItems": 1, "uniqueItems": true}
+        "formats": {"type": "array", "items": {"enum": ["pdf", "pdf_print", "cover", "docx", "epub"]}, "minItems": 1, "uniqueItems": true}
       },
       "additionalProperties": false
     },
