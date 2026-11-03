@@ -61,6 +61,8 @@ Legende: ✅ bestanden · ⏳ offen · — nicht anwendbar
 | Programmstand, je Buch Stand, Auflage, Probedruck, Datenversion, Prüfung richtig (Abgleich mit GitHub von Hand) | ⏳ | ⏳ | Chat |
 | Secrets nur mit Namen; nach Hinterlegen „hinterlegt“ | ⏳ | ⏳ | Chat |
 | Ohne GitHub-Abfrage „unbekannt“ statt geratener Werte | ⏳ | ⏳ | Chat |
+| Befehl `Daten` öffnet die Seite aus jeder Ansicht | ⏳ | ⏳ | Chat |
+| Eigener, umbenannter Schlüssel-Name: „unbekannt“ statt „fehlt“ (#97) | ⏳ | ⏳ | Chat, KI-Dienste-Formular |
 
 ## 6. Programm-Repository und Doku (#46, #48)
 
@@ -69,6 +71,20 @@ Legende: ✅ bestanden · ⏳ offen · — nicht anwendbar
 | README eine Bildschirmseite; Anleitung, Grundsätze, Dialoge verlinkt und richtig | ⏳ | GitHub |
 | Testbuch läuft im eigenen privaten Repository und bekommt Updates | ⏳ | Testbuch-Repository |
 | Hauptrepository ohne Buch-Branches, Auflagen-Tags und Releases; Prüfung ohne Hinweise | ⏳ | validate.yml |
+| Läufe in öffentlichen Repositorys werden nicht angehalten (Secrets einzeln nach Namen, #97) | ⏳ | Actions → Übersichtsdatei / Bücherregal aktualisieren |
+| „Projektdateien prüfen“ im Buch-Repository grün; Programm-Prüfungen dort übersprungen (#98) | ⏳ | Actions im Fork |
+
+## 7. Funktionen vom 01.11.2026 (Nachträge aus #41)
+
+| Prüfung | Fork | Testbuch | Wo |
+|---|---|---|---|
+| **Änderungen sofort übernehmen** (#50): Wizard-Schritt 12 fragt; mit Ja wird nach dem Speichern gemergt; Freigaben und Auflagen weiter mit eigener Bestätigung; Häkchen in den Projekteinstellungen | ⏳ | ⏳ | Chat |
+| **Befehle** (#52): `Start`, `Übersicht`, `Kapitel 3`, `Abschnitt 3.2`, `Neues Kapitel`, `Probedruck`, `Auflage`, `Einstellungen`, `KI-Dienste`, `Update`, `Hilfe` in jeder Ansicht, auch in der Textfassung; Hinweis nach dem Anlegen der Buchstruktur | ⏳ | ⏳ | Chat |
+| **Kapitelansicht** zeigt Ziel und Kurzbeschreibung, Knopf zur Kapitelrecherche (#55) | ⏳ | ⏳ | Chat |
+| **Kapitelrecherche** (#55, #56): je Aufgabe Ziel, Kurzbeschreibung, Abschnitte; Gewichtung der Nachbarkapitel wirkt; Lauf-Datei korrekt | — | ⏳ | Chat, `research/` |
+| Kapitelrecherche: „Vorschlag übernehmen“ und „Speichern“; „Ausgewählte Abschnitte anlegen“ hängt nur neue Abschnitte in einem Commit ans Ende, freigegebenes Kapitel wird `in_progress` | — | ⏳ | Chat, GitHub |
+| **Doku-Prüfung** (#60) schlägt bei einer absichtlich fehlenden Doku-Zeile an | ⏳ | — | validate.yml (Probe-Branch) |
+| **Erststart:** ein Commit, deutsche Nachrichten (#63) | ⏳ | — | Neues Repository aus der Vorlage |
 
 ---
 
