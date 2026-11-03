@@ -18,6 +18,7 @@ Abschnittsdatei, nicht hier (kein zweites Exemplar des Buchtexts).
 
 - Recherche: run-… (Pfade der verwendeten Recherche- und Brainstorming-Läufe)
 - Ziel und Kurzbeschreibung des Abschnitts
+- Figuren: … (Namen; Beschreibungen aus `scripts/characters.py context`, falls der Abschnitt Figuren hat)
 - Schreibfreigabe vom: YYYY-MM-DD (approvals.yml)
 
 ## Ergebnis

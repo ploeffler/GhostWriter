@@ -11,6 +11,7 @@ on:
       - 'ghostwriter.yml'
       - 'chapters/**'
       - 'matter/**'
+      - 'characters/**'
       - 'costs/**'
       - 'scripts/build_index.py'
       - 'scripts/render_view.py'

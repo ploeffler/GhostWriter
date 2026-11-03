@@ -8,7 +8,8 @@ Aufruf:
 Die Datei fasst je Kapitel und Abschnitt Status, Freigaben, Kosten-Summen und
 Markerzahlen zusammen, dazu Projektsumme und Auflage. Gibt es Vor- oder
 Nachspann (#57), steht unter "matter" je Teil Art, Bereich, Titel, Status,
-Freigaben und Marker; ohne Vor- und Nachspann fehlt der Eintrag. Sie enthält keinen
+Freigaben und Marker; ohne Vor- und Nachspann fehlt der Eintrag. Ebenso
+"characters" (#53): je Figur ID, Name, Rolle und wo sie vorkommt. Sie enthält keinen
 Manuskripttext und keine Zeitstempel, damit sie sich nur ändert, wenn sich
 der Inhalt ändert. Projektübersicht und Kapitelansicht werden daraus befüllt
 (templates/ui/BEFUELLUNG.md, „Übersichtsdatei“); das Abschnittsformular liest
@@ -31,8 +32,8 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from render_view import (combine, cost_entries, load, marker_counts, matter_items, money,  # noqa: E402
-                         section_costs, section_file, total)
+from render_view import (character_file, character_usage, combine, cost_entries, load,  # noqa: E402
+                         marker_counts, matter_items, money, section_costs, section_file, total)
 
 INDEX_NAME = 'ghostwriter-index.json'
 FORMAT = 1
@@ -82,6 +83,10 @@ def build(base, config):
                                      'section': bool(head['approvals']['section'])},
                        'markers': marker_counts(ms)})
     extra = {'matter': matter} if matter else {}
+    if config.get('characters'):   # Figuren (#53): nur wenn vorhanden, damit bestehende Dateien gleich bleiben
+        used = character_usage(base, config)
+        extra['characters'] = [{'id': c['id'], 'name': c['name'], 'role': character_file(base, c)[0].get('role', ''),
+                                'appears_in': used.get(c['id'], [])} for c in config['characters']]
     return {'format': FORMAT,
             'project': {'title': p.get('title') or p.get('working_title') or '', 'title_short': p.get('title_short') or '',
                         'author': p.get('author') or '', 'current_edition': p.get('current_edition') or 0,
@@ -95,11 +100,15 @@ def build(base, config):
 def render(data):
     """JSON mit einem Abschnitt je Zeile: kurz zum Lesen im Chat, gut lesbar in Diffs."""
     one = lambda v: json.dumps(v, ensure_ascii=False, separators=(',', ':'))
-    head = {k: v for k, v in data.items() if k not in ('chapters', 'matter')}
+    head = {k: v for k, v in data.items() if k not in ('chapters', 'matter', 'characters')}
     out = ['{' + one(head)[1:-1] + ',']
     if data.get('matter'):
         out.append('"matter":[')
         out += [one(m) + (',' if j < len(data['matter']) - 1 else '') for j, m in enumerate(data['matter'])]
+        out.append('],')
+    if data.get('characters'):
+        out.append('"characters":[')
+        out += [one(c) + (',' if j < len(data['characters']) - 1 else '') for j, c in enumerate(data['characters'])]
         out.append('],')
     out.append('"chapters":[')
     for i, ch in enumerate(data['chapters']):

@@ -43,6 +43,7 @@ book:
   - chapters/
   - matter/                 # Vor- und Nachspann: Widmung, Prolog, Epilog, Danksagung (#57)
   - cover/                  # Umschlag: Bilder und Rückseitentexte (#68)
+  - characters/             # Figuren (#53)
   - costs/
   - research/
   - ghostwriter-index.json

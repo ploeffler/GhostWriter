@@ -160,6 +160,48 @@ def find_matter(config, key):
     return None
 
 
+# Figuren (#53): characters/<char-id>.md, Liste in ghostwriter.yml → characters
+ROLE_DE = {'main': 'Hauptfigur', 'supporting': 'Nebenfigur', 'minor': 'Randfigur'}
+
+
+def character_items(config):
+    return list((config or {}).get('characters') or [])
+
+
+def character_file(base, item):
+    """(Kopf, Beschreibung, Notizen) einer Figurendatei; Platzhalter der Vorlage = leer."""
+    text = (base / item['path']).read_text(encoding='utf-8')
+    m = FRONTMATTER.match(text)
+    head = yaml.safe_load(m.group(1)) if m else {}
+    body = text[m.end():] if m else text
+    def part(name):
+        mm = re.search(rf'(?ms)^## {name}\n(.*?)(?=^## |\Z)', body)
+        v = mm.group(1).strip() if mm else ''
+        return '' if v.startswith('<') else v
+    return head or {}, part('Beschreibung'), part('Notizen')
+
+
+def find_character(config, key):
+    k = (key or '').strip().casefold()
+    for item in character_items(config):
+        if k in (item['id'], item['id'][5:], item['name'].casefold()):
+            return item
+    return None
+
+
+def character_usage(base, config):
+    """{char-id: ['1.2', 'Prolog', …]} – wo die Figuren laut Abschnitts- bzw. Teilkopf vorkommen."""
+    out = {}
+    for ci, ch in enumerate(config['structure']['chapters'], start=1):
+        for si, s in enumerate(ch['sections'], start=1):
+            for cid in section_file(base, s)[0].get('characters') or []:
+                out.setdefault(cid, []).append(f'{ci}.{si}')
+    for _, item in matter_items(config):
+        for cid in section_file(base, item)[0].get('characters') or []:
+            out.setdefault(cid, []).append(item['title'])
+    return out
+
+
 def cost_entries(base, path):
     if not path.is_file():
         return []
@@ -384,6 +426,59 @@ def matter_view(base, config, args):
     return '\n'.join(lines) + '\n'
 
 
+def characters_view(base, config, args):
+    """Figuren (#53): ohne Angabe die Liste (Vorlage figuren), sonst eine Figur (Vorlage figur-bearbeiten)."""
+    p = config['project']
+    short = p.get('title_short') or p.get('title') or p.get('working_title') or ''
+    items = character_items(config)
+    used = character_usage(base, config)
+    names = {i['id']: i['name'] for i in items}
+    if not args.where:
+        rows = []
+        for i in items:
+            head = character_file(base, i)[0]
+            rows.append({'C_ID': i['id'], 'C_NAME': i['name'], 'C_ROLE': ROLE_DE.get(head.get('role'), ''),
+                         'C_SHORT': head.get('short', ''), 'C_USED': ', '.join(used.get(i['id'], [])) or '–'})
+        if args.text:
+            lines = ['### 🎭 Figuren', '']
+            if rows:
+                lines += ['| Figur | Rolle | Kurz | kommt vor in |', '|---|---|---|---|']
+                lines += [f'| {r["C_NAME"]} | {r["C_ROLE"]} | {r["C_SHORT"] or "–"} | {r["C_USED"]} |' for r in rows]
+            else:
+                lines += ['*Noch keine Figuren.*']
+            lines += ['', 'Figuren sind Arbeitsgrundlage für Brainstorming und Ghostwriting; sie kommen nicht ins Buch.', '', '---']
+            lines += [menu([(r['C_NAME'], 'öffnen') for r in rows] + [('+ Name', 'neue Figur anlegen (optional `Rolle: Nebenfigur`)'),
+                                                                     ('Ü', 'Zur Übersicht')])]
+            return '\n'.join(lines) + '\n'
+        return fill('figuren.html', {'PROJECT_TITLE_SHORT': short}, {'CHARACTERS': rows})
+    item = find_character(config, args.where)
+    if not item:
+        return f'Eine Figur „{args.where}“ gibt es nicht (vorhanden: {", ".join(names.values()) or "keine"}).\n'
+    head, desc, notes = character_file(base, item)
+    rel = [{'R_TO': r['to'], 'R_NAME': names.get(r['to'], r['to']), 'R_KIND': r['kind']} for r in head.get('relations') or []]
+    if args.text:
+        rows = [('Rolle', ROLE_DE.get(head.get('role'), '')), ('Kurz', head.get('short')), ('Alter', head.get('age')),
+                ('Aussehen', head.get('appearance')), ('Eigenschaften', ', '.join(head.get('traits') or [])),
+                ('Sprechweise', head.get('voice')), ('Bildbeschreibung', head.get('visual')),
+                ('Beziehungen', '; '.join(f'{r["R_KIND"]} von {r["R_NAME"]}' for r in rel)),
+                ('kommt vor in', ', '.join(used.get(item['id'], [])))]
+        lines = [f'### 🎭 {item["name"]}', '', '| | |', '|---|---|'] + [f'| {k} | {v or "–"} |' for k, v in rows]
+        lines += ['', '**Beschreibung**', '', desc or '*offen*']
+        if notes:
+            lines += ['', '**Notizen**', '', notes]
+        lines += ['', '---', 'Antworte mit `Feld: neuer Wert` (z. B. `Alter: 78`, `Eigenschaften: geduldig, brummig`, '
+                  '`Beziehung: Besitzer von Strolchi`, `Beschreibung: …`). `X` bricht ab, `FI` zeigt alle Figuren.']
+        return '\n'.join(lines) + '\n'
+    values = {'PROJECT_TITLE_SHORT': short, 'CHARACTER_ID': item['id'], 'CHARACTER_NAME': item['name'],
+              'CHARACTER_ROLE': head.get('role', 'main'), 'CHARACTER_SHORT': head.get('short', ''),
+              'CHARACTER_AGE': head.get('age', ''), 'CHARACTER_APPEARANCE': head.get('appearance', ''),
+              'CHARACTER_TRAITS': ', '.join(head.get('traits') or []), 'CHARACTER_VOICE': head.get('voice', ''),
+              'CHARACTER_VISUAL': head.get('visual', ''), 'CHARACTER_DESCRIPTION': desc, 'CHARACTER_NOTES': notes,
+              'CHARACTER_USED': ', '.join(used.get(item['id'], [])) or 'noch nirgends'}
+    others = [{'O_ID': i['id'], 'O_NAME': i['name']} for i in items if i['id'] != item['id']]
+    return fill('figur-bearbeiten.html', values, {'RELATIONS': rel, 'OTHERS': others})
+
+
 def project_view(base, config, args):
     p = config['project']
     chapters = config['structure']['chapters']
@@ -412,6 +507,9 @@ def project_view(base, config, args):
     lib_count = len((json.loads(Path(args.library).read_text(encoding='utf-8')).get('books') or [])) if getattr(args, 'library', None) else 0
     if lib_count >= 2:
         values['LIBRARY_COUNT'] = lib_count
+    n_chars = len(character_items(config))
+    if n_chars:   # Figuren (#53): Knopf „Figuren (n)“
+        values['CHARACTER_COUNT'] = n_chars
     upd = load_upstream(args)
     if upd:
         values.update({'UPDATE_BEHIND': upd['behind'], 'UPDATE_TEXT': update_text(upd)})
@@ -461,7 +559,8 @@ def project_view(base, config, args):
             items.append(('L', f'Bücherregal ({lib_count} Bücher)'))
         items += [(m['MATTER_TITLE'], 'öffnen') for m in front + back]
         items += [('D', 'KI-Dienste'), ('P', 'Projektdaten bearbeiten'), ('N', 'Neues Kapitel'), ('R', 'Kapitelreihenfolge'),
-                  ('V', 'Vor- und Nachspann'), ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
+                  ('V', 'Vor- und Nachspann'), ('FI', f'Figuren ({n_chars})' if n_chars else 'Figuren'),
+                  ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
         lines += [menu(items)]
         if values.get('CREDIT_TEXT'):
             lines += ['', f'<sub>{values["CREDIT_TEXT"]}</sub>']
@@ -556,6 +655,10 @@ def section_view(base, config, args, cnum, snum):
               'APPROVAL_SECTION': str(head['approvals']['section']).lower(),
               'PREV_SECTION_ID': prev_id, 'PREV_SECTION_PROMPT': prev_text,
               'NEXT_SECTION_ID': next_id, 'NEXT_SECTION_PROMPT': next_text}
+    chars = character_items(config)
+    in_section = head.get('characters') or []
+    if chars:   # Figuren (#53): Auswahl im Abschnittsformular
+        values['CHARACTERS_ENABLED'] = '1'
     if args.text:
         yn = lambda v: '✅ ja' if v else '— nein'
         lines = [f'### ✏️ {cnum}.{snum} · {s["title"]}',
@@ -563,13 +666,18 @@ def section_view(base, config, args, cnum, snum):
                  '| | |', '|---|---|',
                  f'| Ziel | {goal or "*offen*"} |', f'| Kurzbeschreibung | {summary or "*offen*"} |',
                  f'| Faktencheck | {FC_TEXT.get(head["fact_check"], head["fact_check"])} |',
-                 f'| Schreibfreigabe | {yn(head["approvals"]["writing"])} |', f'| Abschnitt freigegeben | {yn(head["approvals"]["section"])} |', '']
+                 f'| Schreibfreigabe | {yn(head["approvals"]["writing"])} |', f'| Abschnitt freigegeben | {yn(head["approvals"]["section"])} |']
+        if chars:
+            names = {c['id']: c['name'] for c in chars}
+            lines.append(f'| Figuren | {", ".join(names.get(c, c) for c in in_section) or "–"} |')
+        lines.append('')
         if markers:
             lines += [f'**Offene Marker ({n})**'] + [f'- {MARKER_ICON[m["MARKER_TYPE"]]} {m["MARKER_LABEL"]}: {m["MARKER_TEXT"]}' for m in markers] + ['']
         else:
             lines += ['Keine offenen Marker.', '']
         lines += ['---', '', ms, '', '---']
-        items = [('T', 'Text ändern (geänderten Text schicken)'), ('F', 'Ziel, Kurzbeschreibung, Faktencheck'),
+        items = [('T', 'Text ändern (geänderten Text schicken)'), ('F', 'Ziel, Kurzbeschreibung, Faktencheck'
+                                                                  + (', Figuren' if chars else '')),
                  ('FS', 'Schreibfreigabe zurücknehmen' if head['approvals']['writing'] else 'Schreiben freigeben'),
                  ('FA', 'Abschnittsfreigabe zurücknehmen' if head['approvals']['section'] else 'Abschnitt freigeben'),
                  ('RS', 'Recherche sofort'), ('GS', 'Ghostwriting sofort')]
@@ -580,7 +688,11 @@ def section_view(base, config, args, cnum, snum):
         items.append(('K', 'Zum Kapitel'))
         lines += [menu(items)]
         return '\n'.join(lines) + '\n'
-    return fill('abschnitt-bearbeiten.html', values, {'MARKERS': markers})
+    blocks = {'MARKERS': markers}
+    if chars:
+        blocks['ALL_CHARACTERS'] = [{'C_ID': c['id'], 'C_NAME': c['name'], 'C_ON': '1' if c['id'] in in_section else ''}
+                                    for c in chars]
+    return fill('abschnitt-bearbeiten.html', values, blocks)
 
 
 def project_values(config):
@@ -1770,7 +1882,7 @@ def git_head(base):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'library', 'data'] + list(FORMS))
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'library', 'data'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--repo', default='ploeffler/GhostWriter')
@@ -1797,6 +1909,8 @@ def main():
         out = data_view(base, config, args)
     elif args.view == 'matter':
         out = matter_view(base, config, args)
+    elif args.view == 'characters':
+        out = characters_view(base, config, args)
     elif args.view == 'project':
         out = project_view(base, config, args)
     elif args.view == 'chapter':
