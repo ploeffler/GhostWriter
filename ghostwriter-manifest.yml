@@ -41,6 +41,7 @@ book:
   - ghostwriter.yml
   - approvals.yml
   - chapters/
+  - matter/                 # Vor- und Nachspann: Widmung, Prolog, Epilog, Danksagung (#57)
   - costs/
   - research/
   - ghostwriter-index.json

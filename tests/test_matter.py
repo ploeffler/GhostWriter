@@ -1,0 +1,245 @@
+"""Tests für Vor- und Nachspann (#57): Anlegen, Prüfung, Zusammenführen, Übersicht, Satz.
+
+Ein Buch mit allen vier Teilen (Widmung, Prolog, Epilog, Danksagung) und eines ohne
+(tests/fixtures/adhs unverändert). Der Satz (PDF, DOCX, EPUB) läuft nur, wenn pandoc
+und xelatex installiert sind; in validate.yml fehlen sie, dort entfällt dieser Teil.
+"""
+import json
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'scripts'))
+import assemble  # noqa: E402
+import build_index  # noqa: E402
+import matter  # noqa: E402
+import validate_project  # noqa: E402
+from render_view import load  # noqa: E402
+
+TEXTS = {'dedication': 'Für Anna,\n\ndie immer an mich geglaubt hat.',
+         'prologue': 'Es war ein Dienstag, als alles begann.\n\n# Rückblick\n\nDamals wusste ich nichts.',
+         'epilogue': 'Heute sehe ich vieles anders.',
+         'acknowledgments': 'Ich danke allen, die mitgelesen haben.'}
+
+
+def set_part(base, kind, text=None, approved=True):
+    """Text und Freigabe eines Teils setzen."""
+    path = base / 'matter' / {'dedication': 'widmung.md', 'prologue': 'prolog.md', 'epilogue': 'epilog.md',
+                              'acknowledgments': 'danksagung.md'}[kind]
+    t = path.read_text(encoding='utf-8')
+    if text is not None:
+        t = t.split('## Manuskript\n', 1)[0] + '## Manuskript\n\n' + text + '\n'
+    t = re.sub(r'(?m)^status: \w+', f'status: {"approved" if approved else "writing"}', t, count=1)
+    t = re.sub(r'(?m)^  writing: \w+', '  writing: true', t, count=1)
+    t = re.sub(r'(?m)^  section: \w+', f'  section: {"true" if approved else "false"}', t, count=1)
+    path.write_text(t, encoding='utf-8')
+
+
+def approve_chapter_1(base):
+    cfg_path = base / 'ghostwriter.yml'
+    text = cfg_path.read_text(encoding='utf-8')
+    cfg = yaml.safe_load(text)
+    ch = cfg['structure']['chapters'][0]
+    text = re.sub(rf'(?ms)(- id: {ch["id"]}\n.*?status: )\w+', r'\1approved', text, count=1)
+    cfg_path.write_text(text, encoding='utf-8')
+    for s in ch['sections']:
+        p = base / s['path']
+        t = re.sub(r'(?m)^status: \w+', 'status: approved', p.read_text(encoding='utf-8'), count=1)
+        p.write_text(re.sub(r'\*?\[(PLATZHALTER-ANEKDOTE|QUELLE PRÜFEN|MEDIZIN PRÜFEN|RECHT PRÜFEN)[^\]]*\]\*?', '', t),
+                     encoding='utf-8')
+    readme = base / ch['path'] / 'README.md'
+    readme.write_text(re.sub(r'\[(QUELLE PRÜFEN|MEDIZIN PRÜFEN)[^\]]*\]', '', readme.read_text(encoding='utf-8')),
+                      encoding='utf-8')
+
+
+class MatterBase(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.base = Path(tmp.name) / 'buch'
+        shutil.copytree(ROOT / 'tests/fixtures/adhs', self.base)
+        self.original = (self.base / 'ghostwriter.yml').read_text(encoding='utf-8')
+
+    def add_all(self):
+        # absichtlich durcheinander: die Reihenfolge im Buch bestimmt das Skript
+        for kind in ('acknowledgments', 'prologue', 'epilogue', 'dedication'):
+            matter.add(self.base, kind)
+        for kind, text in TEXTS.items():
+            set_part(self.base, kind, text)
+
+
+class MatterTest(MatterBase):
+    # ---------- Anlegen und Prüfen ----------
+
+    def test_add_keeps_file_and_orders_parts(self):
+        self.add_all()
+        text = (self.base / 'ghostwriter.yml').read_text(encoding='utf-8')
+        cfg = yaml.safe_load(text)
+        self.assertEqual([i['kind'] for i in cfg['structure']['front_matter']], ['dedication', 'prologue'])
+        self.assertEqual([i['kind'] for i in cfg['structure']['back_matter']], ['epilogue', 'acknowledgments'])
+        # Alles außer den neuen Blöcken bleibt Zeichen für Zeichen gleich
+        stripped = re.sub(r'(?ms)^  (front|back)_matter:\n.*?(?=^  [a-z])', '', text)
+        self.assertEqual(stripped, self.original)
+        self.assertEqual(validate_project.check_project(self.base), [])
+        with self.assertRaises(SystemExit):
+            matter.add(self.base, 'prologue')
+        self.assertEqual(matter.kind_of('Widmung'), 'dedication')
+
+    def test_validation_finds_problems(self):
+        matter.add(self.base, 'dedication')
+        path = self.base / 'matter/widmung.md'
+        path.write_text(path.read_text(encoding='utf-8').replace('kind: dedication', 'kind: prologue'), encoding='utf-8')
+        errors = validate_project.check_project(self.base)
+        self.assertTrue(any('Art prologue statt dedication' in e for e in errors), errors)
+        path.unlink()
+        self.assertTrue(any(e.endswith('widmung.md: fehlt') for e in validate_project.check_project(self.base)))
+
+    def test_approvals_log_knows_matter(self):
+        matter.add(self.base, 'epilogue')
+        (self.base / 'approvals.yml').write_text(yaml.safe_dump({'entries': [
+            {'kind': 'matter', 'id': 'mat-epilog', 'action': 'granted', 'at': '2026-11-03T10:00:00+01:00',
+             'by': 'ploeffler', 'commit': 'abc1234'},
+            {'kind': 'writing', 'id': 'mat-epilog', 'action': 'granted', 'at': '2026-11-03T10:00:00+01:00',
+             'by': 'ploeffler', 'commit': 'abc1234'},
+            {'kind': 'matter', 'id': 'mat-prolog', 'action': 'granted', 'at': '2026-11-03T10:00:00+01:00',
+             'by': 'ploeffler', 'commit': 'abc1234'}]}), encoding='utf-8')
+        errors = validate_project.check_project(self.base)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn('mat-prolog unbekannt', errors[0])
+
+    # ---------- Zusammenführen ----------
+
+    def test_book_order_and_headings(self):
+        self.add_all()
+        approve_chapter_1(self.base)
+        _, config = load(self.base)
+        parts, mparts = assemble.book_parts(self.base, config), assemble.matter_parts(self.base, config)
+        self.assertEqual(assemble.problems(parts, config, mparts), [])
+        body = assemble.book_body(parts, mparts)
+        heads = re.findall(r'(?m)^# (.+)$', body)
+        self.assertEqual(heads[0], 'Widmung {.unnumbered .unlisted .dedication epub:type=dedication}')
+        self.assertEqual(heads[1], 'Prolog {.unnumbered .prologue epub:type=prologue}')
+        self.assertEqual(heads[2], config['structure']['chapters'][0]['title'])
+        self.assertEqual(heads[-2:], ['Epilog {.unnumbered .epilogue epub:type=epilogue}',
+                                      'Danksagung {.unnumbered .acknowledgments epub:type=acknowledgments}'])
+        self.assertIn('::: widmung\nFür Anna,', body)
+        self.assertIn('## Rückblick', body)   # Überschriften im Text eine Ebene unter dem Teil
+        self.assertNotIn('## Manuskript', body)
+
+    def test_unapproved_part_is_left_out_with_note(self):
+        self.add_all()
+        approve_chapter_1(self.base)
+        set_part(self.base, 'epilogue', approved=False)
+        _, config = load(self.base)
+        mparts = assemble.matter_parts(self.base, config)
+        self.assertEqual(assemble.problems(assemble.book_parts(self.base, config), config, mparts), [])
+        self.assertNotIn('# Epilog', assemble.book_body(assemble.book_parts(self.base, config), mparts))
+        self.assertEqual(assemble.matter_notes(mparts), ['Epilog ist nicht freigegeben und fehlt in der Auflage.'])
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/assemble.py'), str(self.base), 'check'],
+                             capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0, out.stdout)
+        self.assertIn('ⓘ Epilog ist nicht freigegeben', out.stdout)
+        self.assertIn('3 Teile Vor-/Nachspann', out.stdout)
+        # Probedruck: auch der nicht freigegebene Teil, mit Vermerk
+        proof = assemble.book_body(assemble.book_parts(self.base, config, proof=True),
+                                   assemble.matter_parts(self.base, config, proof=True))
+        self.assertIn('# Epilog', proof)
+        self.assertRegex(proof, r'Stand: \w+, nicht freigegeben')
+
+    def test_marker_in_approved_part_blocks(self):
+        self.add_all()
+        approve_chapter_1(self.base)
+        set_part(self.base, 'prologue', 'Es war 1998 [QUELLE PRÜFEN: Jahr].')
+        _, config = load(self.base)
+        found = assemble.problems(assemble.book_parts(self.base, config), config, assemble.matter_parts(self.base, config))
+        self.assertEqual(found, ['Offener Marker in Prolog: [QUELLE PRÜFEN: Jahr]'])
+
+    # ---------- Übersichtsdatei und Ansichten ----------
+
+    def test_index_only_lists_matter_when_present(self):
+        _, config = load(self.base)
+        self.assertNotIn('matter', build_index.build(self.base, config))   # Buch ohne Vor-/Nachspann: unverändert
+        self.add_all()
+        _, config = load(self.base)
+        data = build_index.build(self.base, config)
+        self.assertEqual([(m['id'], m['area'], m['status']) for m in data['matter']],
+                         [('mat-widmung', 'front', 'approved'), ('mat-prolog', 'front', 'approved'),
+                          ('mat-epilog', 'back', 'approved'), ('mat-danksagung', 'back', 'approved')])
+        self.assertEqual(json.loads(build_index.render(data)), data)
+
+    def view(self, *args):
+        return subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), *args, '--text'],
+                              capture_output=True, text=True, check=True).stdout
+
+    def test_text_views(self):
+        self.assertNotIn('Vorspann:', self.view('project'))
+        self.add_all()
+        set_part(self.base, 'epilogue', approved=False)
+        overview = self.view('project')
+        self.assertIn('**Vorspann:** Widmung', overview)
+        self.assertIn('**Nachspann:** Epilog', overview)
+        self.assertIn('`V` Vor- und Nachspann', overview)
+        part = self.view('matter', 'epilog')
+        self.assertIn('### 📜 Epilog', part)
+        self.assertIn('Heute sehe ich vieles anders.', part)
+        self.assertIn('`GS` Ghostwriting sofort', part)
+        self.assertNotIn('Ghostwriting', self.view('matter', 'Widmung'))
+        listing = self.view('matter')
+        self.assertIn('| Danksagung | Nachspann |', listing)
+        confirm = self.view('approval-matter', 'epilog')
+        self.assertIn('Epilog freigeben', confirm)
+        self.assertIn('`OK` bestätigt', confirm)
+        self.assertIn('⛔', self.view('approval-matter', 'widmung'))   # schon freigegeben
+
+
+class MatterEmptyTest(unittest.TestCase):
+    def test_listing_offers_all_parts(self):
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(ROOT / 'tests/fixtures/adhs'),
+                              'matter', '--text'], capture_output=True, text=True, check=True).stdout
+        for title in ('Widmung', 'Prolog', 'Epilog', 'Danksagung'):
+            self.assertIn(f'`+ {title}` anlegen', out)
+
+
+@unittest.skipUnless(shutil.which('pandoc') and shutil.which('xelatex') and shutil.which('pdftotext'),
+                     'pandoc, xelatex oder pdftotext fehlen')
+class MatterTypesettingTest(MatterBase):
+    """Satz in allen drei Formaten mit allen vier Teilen."""
+
+    def test_edition_formats(self):
+        self.add_all()
+        approve_chapter_1(self.base)
+        out = Path(self.base.parent) / 'out'
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--edition', '1',
+                            '--out', str(out), '--date', '2026-11-03'], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        ed = yaml.safe_load((out / 'edition.yml').read_text(encoding='utf-8'))
+        self.assertEqual(ed['matter'], ['mat-widmung', 'mat-prolog', 'mat-epilog', 'mat-danksagung'])
+        pdf = subprocess.run(['pdftotext', str(out / f'{ed["tag"]}.pdf'), '-'], capture_output=True, text=True).stdout
+        # Widmung vor dem Inhaltsverzeichnis, ohne Überschrift und ohne Eintrag darin
+        self.assertLess(pdf.index('Für Anna'), pdf.index('Inhaltsverzeichnis'))
+        toc = pdf[pdf.index('Inhaltsverzeichnis'):pdf.index('Es war ein Dienstag')]
+        self.assertNotIn('Widmung', pdf)
+        for title in ('Prolog', 'Epilog', 'Danksagung'):
+            self.assertIn(title, toc)
+        from docx import Document
+        styles = [p.style.name for p in Document(str(out / f'{ed["tag"]}.docx')).paragraphs]
+        self.assertIn('Widmung', styles)
+        self.assertIn('Widmung Text', styles)
+        import zipfile
+        with zipfile.ZipFile(out / f'{ed["tag"]}.epub') as z:
+            xhtml = ''.join(z.read(n).decode('utf-8') for n in z.namelist() if n.endswith('.xhtml'))
+            nav = z.read('EPUB/nav.xhtml').decode('utf-8')
+        for role in ('dedication', 'prologue', 'epilogue', 'acknowledgments'):
+            self.assertIn(f'epub:type="{role}"', xhtml)
+        self.assertNotIn('Widmung', nav)
+
+
+if __name__ == '__main__':
+    unittest.main()

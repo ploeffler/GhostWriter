@@ -6,7 +6,9 @@ Aufruf:
   python scripts/build_index.py <projektordner> --check   meldet nur, ob sie fehlt oder veraltet ist
 
 Die Datei fasst je Kapitel und Abschnitt Status, Freigaben, Kosten-Summen und
-Markerzahlen zusammen, dazu Projektsumme und Auflage. Sie enthält keinen
+Markerzahlen zusammen, dazu Projektsumme und Auflage. Gibt es Vor- oder
+Nachspann (#57), steht unter "matter" je Teil Art, Bereich, Titel, Status,
+Freigaben und Marker; ohne Vor- und Nachspann fehlt der Eintrag. Sie enthält keinen
 Manuskripttext und keine Zeitstempel, damit sie sich nur ändert, wenn sich
 der Inhalt ändert. Projektübersicht und Kapitelansicht werden daraus befüllt
 (templates/ui/BEFUELLUNG.md, „Übersichtsdatei“); das Abschnittsformular liest
@@ -29,8 +31,8 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from render_view import (combine, cost_entries, load, marker_counts, money, section_costs,  # noqa: E402
-                         section_file, total)
+from render_view import (combine, cost_entries, load, marker_counts, matter_items, money,  # noqa: E402
+                         section_costs, section_file, total)
 
 INDEX_NAME = 'ghostwriter-index.json'
 FORMAT = 1
@@ -71,20 +73,35 @@ def build(base, config):
     parts.append(total(cost_entries(base, base / 'costs' / 'project.yml')))
     a, e = combine(parts)
     wf = config.get('workflow') or {}
+    matter = []
+    for area, item in matter_items(config):
+        head, _, _, ms = section_file(base, item)
+        matter.append({'id': item['id'], 'kind': item['kind'], 'area': area, 'title': item['title'], 'path': item['path'],
+                       'status': head['status'],
+                       'approvals': {'writing': bool(head['approvals']['writing']),
+                                     'section': bool(head['approvals']['section'])},
+                       'markers': marker_counts(ms)})
+    extra = {'matter': matter} if matter else {}
     return {'format': FORMAT,
             'project': {'title': p.get('title') or p.get('working_title') or '', 'title_short': p.get('title_short') or '',
                         'author': p.get('author') or '', 'current_edition': p.get('current_edition') or 0,
                         'cost': cost(a, e)},
             'workflow': {'current_chapter_id': wf.get('current_chapter_id') or '',
                          'current_section_id': wf.get('current_section_id') or ''},
+            **extra,
             'chapters': chapters}
 
 
 def render(data):
     """JSON mit einem Abschnitt je Zeile: kurz zum Lesen im Chat, gut lesbar in Diffs."""
     one = lambda v: json.dumps(v, ensure_ascii=False, separators=(',', ':'))
-    head = {k: v for k, v in data.items() if k != 'chapters'}
-    out = ['{' + one(head)[1:-1] + ',', '"chapters":[']
+    head = {k: v for k, v in data.items() if k not in ('chapters', 'matter')}
+    out = ['{' + one(head)[1:-1] + ',']
+    if data.get('matter'):
+        out.append('"matter":[')
+        out += [one(m) + (',' if j < len(data['matter']) - 1 else '') for j, m in enumerate(data['matter'])]
+        out.append('],')
+    out.append('"chapters":[')
     for i, ch in enumerate(data['chapters']):
         meta = {k: v for k, v in ch.items() if k != 'sections'}
         out.append('{' + one(meta)[1:-1] + ',"sections":[')

@@ -15,8 +15,12 @@ Geprüft werden:
 - ai_providers: Dienste in `available` stehen in providers.yml; ist `available`
   gesetzt, verwenden die Aufgaben nur diese Dienste (oder chat bzw. manual);
   Einstellungen unter `services` nur für Dienste aus `available`
+- Vor- und Nachspann (structure.front_matter/back_matter, #57): Datei vorhanden,
+  Kopf gegen schemas/matter.schema.json, ID, Art und Titel wie in ghostwriter.yml,
+  ID passt zur Art (mat-widmung …), Datei unter matter/, jede Art höchstens einmal
 - approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt,
-  Art passt zur ID (writing/section: Abschnitt, chapter: Kapitel)
+  Art passt zur ID (writing: Abschnitt oder Vor-/Nachspann, section: Abschnitt,
+  chapter: Kapitel, matter: Vor-/Nachspann)
 
 Endet mit Code 1, sobald ein Fehler gefunden wurde.
 """
@@ -29,6 +33,8 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / 'scripts'))
+from render_view import MATTER, matter_id, matter_items  # noqa: E402
 SCHEMAS = ROOT / 'schemas'
 
 
@@ -41,6 +47,7 @@ GHOSTWRITER = validator('ghostwriter.schema.json')
 SECTION = validator('section.schema.json')
 COSTS = validator('costs.schema.json')
 APPROVALS = validator('approvals.schema.json')
+MATTER_HEAD = validator('matter.schema.json')
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
 
 
@@ -149,6 +156,42 @@ def check_project(project_dir):
             if head['number'] != f'{ci}.{si}':
                 errors.append(f'{path}: Nummer {head["number"]} statt {ci}.{si} laut Reihenfolge')
 
+    matter_ids = set()
+    seen_kinds = set()
+    for _, item in matter_items(config):
+        mid, kind = item['id'], item['kind']
+        if mid in matter_ids:
+            errors.append(f'{config_path}: Vor-/Nachspann-ID doppelt: {mid}')
+        matter_ids.add(mid)
+        if kind in seen_kinds:
+            errors.append(f'{config_path}: {MATTER[kind][1]} steht mehrfach im Vor-/Nachspann')
+        seen_kinds.add(kind)
+        if mid != matter_id(kind):
+            errors.append(f'{config_path}: {mid}: ID passt nicht zur Art {kind} (erwartet {matter_id(kind)})')
+        path = base / item['path']
+        if not path.is_file():
+            errors.append(f'{path}: fehlt')
+            continue
+        m = FRONTMATTER.match(path.read_text(encoding='utf-8'))
+        if not m:
+            errors.append(f'{path}: Kopf (--- … ---) fehlt')
+            continue
+        try:
+            head = yaml.safe_load(m.group(1))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f'{path}: Kopf nicht lesbar: {exc}')
+            continue
+        errs = schema_errors(MATTER_HEAD, head, path)
+        errors += errs
+        if errs:
+            continue
+        if head['id'] != mid:
+            errors.append(f'{path}: ID {head["id"]} statt {mid} wie in ghostwriter.yml')
+        if head['kind'] != kind:
+            errors.append(f'{path}: Art {head["kind"]} statt {kind} wie in ghostwriter.yml')
+        if head['title'] != item['title']:
+            errors.append(f'{path}: Titel weicht von ghostwriter.yml ab')
+
     wf = config['workflow']
     if wf['current_chapter_id'] and wf['current_chapter_id'] not in chapter_ids:
         errors.append(f'{config_path}: workflow.current_chapter_id unbekannt: {wf["current_chapter_id"]}')
@@ -187,10 +230,12 @@ def check_project(project_dir):
             errs = schema_errors(APPROVALS, data, approvals_path)
             errors += errs
             if not errs:
+                known_by_kind = {'chapter': (chapter_ids, 'Kapitel'), 'section': (section_ids, 'Abschnitt'),
+                                 'matter': (matter_ids, 'Teil des Vor-/Nachspanns'),
+                                 'writing': (section_ids | matter_ids, 'Abschnitt bzw. Teil')}
                 for i, entry in enumerate(data['entries'], start=1):
-                    known = chapter_ids if entry['kind'] == 'chapter' else section_ids
+                    known, art = known_by_kind[entry['kind']]
                     if entry['id'] not in known:
-                        art = 'Kapitel' if entry['kind'] == 'chapter' else 'Abschnitt'
                         errors.append(f'{approvals_path}: Eintrag {i}: {art} {entry["id"]} unbekannt')
     return errors
 

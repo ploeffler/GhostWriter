@@ -14,6 +14,11 @@ repository/
 ├── costs/
 │   └── project.yml        # projektweite Kosteneinträge
 ├── approvals.yml          # Freigabe-Protokoll, nur anhängen
+├── matter/                # Vor- und Nachspann (#57), nur vorhandene Teile
+│   ├── widmung.md
+│   ├── prolog.md
+│   ├── epilog.md
+│   └── danksagung.md
 ├── ghostwriter-index.json # Übersichtsdatei, erzeugt von scripts/build_index.py (nicht von Hand ändern)
 ├── chapters/
 │   ├── 01-einleitung/
@@ -94,6 +99,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `ai_settings` | globale KI-Regeln: `hallucination_policy` (`strict`), `source_policy` (`required`), `uncertainty_policy` (`explicit`), `creativity` (`balanced`), `web_research` (`research`); dürfen nur strenger werden (`START.md`, Abschnitt 3) |
 | `ai_providers` | vorhandene KI-Dienste (`available`), Dienst und Modell je Aufgabe, Einstellungen je Dienst (`services`); siehe [PROVIDERS.md](PROVIDERS.md) |
 | `structure.chapters` | Kapitel in Reihenfolge, je mit `id`, `title`, `path`, `status` und `sections` (je `id`, `title`, `path`) |
+| `structure.front_matter`, `structure.back_matter` | Vor- und Nachspann (#57): Teile vor Kapitel 1 (Widmung, Prolog) bzw. nach dem letzten Kapitel (Epilog, Danksagung), je mit `id`, `kind`, `title`, `path`; fehlen = keine (siehe „Vor- und Nachspann“) |
 
 | `typesetting` | Buchsatz der Auflagen, in den Projekteinstellungen bearbeitbar (siehe unten) |
 | `updates.auto` | neue GhostWriter-Versionen automatisch einspielen; fehlt = `true` ([UPDATES.md](UPDATES.md)) |
@@ -140,9 +146,49 @@ approvals:
 
 Der Kopf jeder Abschnittsdatei folgt [`schemas/section.schema.json`](../schemas/section.schema.json). `fact_check` übernimmt die Werte aus `workflow.yml` (`entities.section.fact_check`).
 
+## Vor- und Nachspann
+
+Teile außerhalb der Kapitel (#57), jeweils optional. Sie gehören dem Buch (`matter/` steht unter `book` im Manifest) und haben je eine Datei mit Kopf wie ein Abschnitt, Schema [`schemas/matter.schema.json`](../schemas/matter.schema.json), Vorlage `templates/matter.md`:
+
+| Art (`kind`) | Bereich | Vorgabetitel | ID | Datei | Im Buch |
+|---|---|---|---|---|---|
+| `dedication` | `front_matter` | Widmung | `mat-widmung` | `matter/widmung.md` | eigene rechte Seite nach der Titelei, zentriert, ohne Überschrift, nicht im Inhaltsverzeichnis |
+| `prologue` | `front_matter` | Prolog | `mat-prolog` | `matter/prolog.md` | vor Kapitel 1, unnummeriert, im Inhaltsverzeichnis |
+| `epilogue` | `back_matter` | Epilog | `mat-epilog` | `matter/epilog.md` | nach dem letzten Kapitel, unnummeriert, im Inhaltsverzeichnis |
+| `acknowledgments` | `back_matter` | Danksagung | `mat-danksagung` | `matter/danksagung.md` | am Ende, unnummeriert, im Inhaltsverzeichnis |
+
+```yaml
+structure:
+  front_matter:
+  - id: mat-widmung
+    kind: dedication
+    title: Widmung          # frei wählbar; die ID bleibt
+    path: matter/widmung.md
+  back_matter:
+  - id: mat-danksagung
+    kind: acknowledgments
+    title: Danksagung
+    path: matter/danksagung.md
+  chapters: [...]
+```
+
+```yaml
+---
+id: mat-widmung
+kind: dedication
+title: Widmung
+status: planned          # wie bei Abschnitten
+approvals:
+  writing: false
+  section: false         # Freigabe des Teils
+---
+```
+
+Darunter `## Ziel` und `## Manuskript` (der Text fürs Buch). Jede Art gibt es höchstens einmal; `scripts/matter.py add` legt Datei und Eintrag an (Widmung vor Prolog, Epilog vor Danksagung). Nur freigegebene Teile kommen in eine Auflage; ein nicht freigegebener Teil fehlt darin und wird bei der Prüfung genannt, offene Marker in einem freigegebenen Teil verhindern die Auflage. Der Probedruck zeigt alle Teile mit Statusvermerk. Ghostwriting und Recherche gibt es für Prolog und Epilog wie bei Abschnitten (Lauf-Dateien unter `matter/research/<mat-id>/run-NNN.md` bzw. `matter/writing/<mat-id>/run-NNN.md`); Widmung und Danksagung schreibt der Autor selbst (Ghostwriting nur auf ausdrücklichen Wunsch). EPUB: eigene Abschnitte mit den Rollen `dedication`, `prologue`, `epilogue`, `acknowledgments`.
+
 ## Übersichtsdatei
 
-`ghostwriter-index.json` wird von `scripts/build_index.py` erzeugt, im Repository von der Action „Übersichtsdatei aktualisieren“ (`.github/workflows/index.yml`) nach jedem Push, der Buchdateien ändert. Sie enthält je Kapitel und Abschnitt Status, Freigaben, Kosten-Summen (Betrag, Schätzkennzeichen, Text) und Markerzahlen je Art, dazu Projektsumme, Auflage und `workflow.current_*`, aber keinen Manuskripttext und keine Zeitstempel. Die Prüf-Action meldet eine veraltete Datei als Hinweis. Ohne Kapitel gibt es keine Übersichtsdatei.
+`ghostwriter-index.json` wird von `scripts/build_index.py` erzeugt, im Repository von der Action „Übersichtsdatei aktualisieren“ (`.github/workflows/index.yml`) nach jedem Push, der Buchdateien ändert. Sie enthält je Kapitel und Abschnitt Status, Freigaben, Kosten-Summen (Betrag, Schätzkennzeichen, Text) und Markerzahlen je Art, dazu Projektsumme, Auflage und `workflow.current_*`, bei Vor- und Nachspann unter `matter` je Teil Art, Bereich, Titel, Status, Freigaben und Marker, aber keinen Manuskripttext und keine Zeitstempel. Die Prüf-Action meldet eine veraltete Datei als Hinweis. Ohne Kapitel gibt es keine Übersichtsdatei.
 
 ## Freigabe-Protokoll
 
@@ -150,7 +196,7 @@ Der Kopf jeder Abschnittsdatei folgt [`schemas/section.schema.json`](../schemas/
 
 ```yaml
 entries:
-- kind: section          # writing | section | chapter
+- kind: section          # writing | section | chapter | matter (Vor-/Nachspann)
   id: sec-02-04-die-scham-die-wir-mitbringen
   action: granted        # granted | revoked
   at: '2026-10-31T23:30:00+01:00'
@@ -259,7 +305,7 @@ Bei Abweichungen gilt:
 
 ## Auflagen
 
-Eine Auflage ist ein Pull Request, der `project.current_edition` auf N erhöht und die Release Notes in `editions/auflage-N.md` ablegt (`START.md`, „Neue Auflage“). Nach dem Merge baut die Action „Auflage veröffentlichen“ (`.github/workflows/edition.yml`) aus den freigegebenen Kapiteln PDF, DOCX und EPUB (`scripts/assemble.py`, `scripts/build_edition.py`, Vorlagen in `templates/book/`), legt den Tag `<kurztitel-slug>-auflage-N` an und hängt die Dateien an das Release. Der Buchsatz folgt `typesetting`. Was ins Buch kommt: Kapiteltitel, Untertitel, der Text unter `## Manuskript` jedes freigegebenen Abschnitts und die Quellen der Kapitel-README; nicht Vorspann, Ziele, Prüflisten oder Arbeitsdateien. Zitatblöcke, die mit **Merkkasten** beginnen, werden als Kasten gesetzt.
+Eine Auflage ist ein Pull Request, der `project.current_edition` auf N erhöht und die Release Notes in `editions/auflage-N.md` ablegt (`START.md`, „Neue Auflage“). Nach dem Merge baut die Action „Auflage veröffentlichen“ (`.github/workflows/edition.yml`) aus den freigegebenen Kapiteln PDF, DOCX und EPUB (`scripts/assemble.py`, `scripts/build_edition.py`, Vorlagen in `templates/book/`), legt den Tag `<kurztitel-slug>-auflage-N` an und hängt die Dateien an das Release. Der Buchsatz folgt `typesetting`. Was ins Buch kommt: Kapiteltitel, Untertitel, der Text unter `## Manuskript` jedes freigegebenen Abschnitts und die Quellen der Kapitel-README, dazu die freigegebenen Teile von Vor- und Nachspann aus `matter/` (siehe „Vor- und Nachspann“); nicht der Abschnitt „Vorspann“ einer Kapitel-README, Ziele, Prüflisten oder Arbeitsdateien. `edition.yml` im Ausgabeordner nennt neben den Kapiteln die gesetzten Teile (`matter`). Zitatblöcke, die mit **Merkkasten** beginnen, werden als Kasten gesetzt.
 
 Offene Marker im freigegebenen Text verhindern eine Auflage (entschieden am 01.11.2026). Für Zwischenstände gibt es den **Probedruck** (`scripts/build_edition.py --proof`, Action „Probedruck“): alle Kapitel und Abschnitte mit Statusvermerk, Marker hervorgehoben, „Probedruck – nicht zur Veröffentlichung“ in der Fußzeile, ohne Tag und Release; die Dateien stehen 14 Tage am Lauf der Action zum Download.
 

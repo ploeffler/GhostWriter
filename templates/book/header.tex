@@ -18,3 +18,5 @@
 % Probedruck: Marker und Statusvermerke (Span-Klassen gwmarker, gwstatus)
 \newcommand{\gwmarker}[1]{{\sffamily\small\bfseries\color{red!65!black}#1}}
 \newcommand{\gwstatus}[1]{{\sffamily\small\itshape\color{black!55}#1}}
+% Widmung (#57): eigene rechte Seite ohne Kopf und Seitenzahl, zentriert, kursiv
+\newenvironment{gwwidmung}{\cleardoubleemptypage\thispagestyle{empty}\null\vspace{0.22\textheight}\begin{center}\itshape}{\end{center}\cleardoubleemptypage}

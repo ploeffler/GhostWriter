@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/matter.schema.json",
+  "title": "Kopf einer Datei aus Vor- oder Nachspann (matter/<teil>.md, #57)",
+  "type": "object",
+  "required": ["id", "kind", "title", "status", "approvals"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^mat-[a-z0-9][a-z0-9-]*$"},
+    "kind": {"enum": ["dedication", "prologue", "epilogue", "acknowledgments"]},
+    "title": {"type": "string", "minLength": 1},
+    "status": {"enum": ["planned", "research", "brainstorming", "ready_to_write", "writing", "revision", "fact_check", "ready_for_approval", "approved"]},
+    "fact_check": {"enum": ["disabled", "optional", "requested"]},
+    "approvals": {
+      "type": "object",
+      "required": ["writing", "section"],
+      "properties": {
+        "writing": {"type": "boolean"},
+        "section": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

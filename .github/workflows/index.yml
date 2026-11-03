@@ -10,6 +10,7 @@ on:
     paths:
       - 'ghostwriter.yml'
       - 'chapters/**'
+      - 'matter/**'
       - 'costs/**'
       - 'scripts/build_index.py'
       - 'scripts/render_view.py'

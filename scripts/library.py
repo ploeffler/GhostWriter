@@ -315,7 +315,7 @@ def program_problems(cwd=ROOT, namespace='refs/remotes/origin', manifest=None):
     cfg = yaml.safe_load(cfg_path.read_text(encoding='utf-8')) if cfg_path.is_file() else {}
     if has_chapters(cfg):
         errors.append('ghostwriter.yml im Programm-Repository hat Kapitel; Bücher gehören in ein eigenes Repository')
-    for d in ('chapters', 'research', 'costs'):
+    for d in ('chapters', 'matter', 'research', 'costs'):
         files = [p for p in Path(cwd, d).rglob('*') if p.is_file() and p.name != '.gitkeep'] if Path(cwd, d).is_dir() else []
         if files:
             errors.append(f'{d}/ enthält Buchdateien ({len(files)})')

@@ -112,6 +112,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `PENDING_COUNT`, `PENDING_TEXT`, `PENDING_PR` | nur bei offenen Änderungen (Arbeits-Branch mit offenem Pull Request, siehe „Offene Änderungen“): Anzahl der Commits, „1 Änderung“ bzw. „N Änderungen“, Nummer des Pull Requests. Ohne offene Änderungen weglassen; dann entfällt der Hinweis mit dem Knopf „Änderungen übernehmen“ |
 | `UPDATE_BEHIND`, `UPDATE_TEXT` | nur wenn der Buch-Branch hinter dem Hauptrepository liegt (siehe „Update-Stand“): Anzahl Commits und Text wie „3 Commits hinter ploeffler/GhostWriter:main · Version 0.3.1 verfügbar (installiert 0.3.0)“. Sonst weglassen; dann entfällt der Hinweis mit dem Knopf „Update einspielen“ |
 | Block `CHAPTERS`: `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_STATUS`, `CHAPTER_COST`, `CHAPTER_COST_HINT`, `CHAPTER_ID` | je Kapitel aus `structure.chapters`, Kosten wie oben; `CHAPTER_ID` ist die stabile Kapitel-ID, ein Klick auf das Kapitel schickt `view.chapter`; ohne Kapitel entfällt der Bereich „Kapitel“ |
+| Block `MATTER`: `MATTER_ID`, `MATTER_KIND`, `MATTER_AREA`, `MATTER_TITLE`, `MATTER_STATUS`, `MATTER_MARKERS` | Vor- und Nachspann (#57) aus `structure.front_matter` und `back_matter` in Buchreihenfolge: ID (`mat-…`), Art, `front` (über der Kapitelliste) bzw. `back` (darunter), Titel, Status, Zahl offener Marker; ein Klick schickt `view.matter`. Fehlt ohne Vor- und Nachspann. Die Vorlage zeigt den Block, sobald ghostwriter-ui ihn kennt; bis dahin steht er nur in der Textfassung |
 
 ### `kapitelansicht.html`
 
@@ -322,7 +323,7 @@ Chats ohne Widgets (etwa ChatGPT) bekommen dieselben Inhalte als Markdown. **Dor
 
 Gestaltung:
 
-- **Überschrift** `###` mit Symbol: 📘 Projekt, 📖 Kapitel, ✏️ Abschnitt, 📝 Bearbeiten, ➕ Anlegen, ↕️ Reihenfolge, ⚙️ Einstellungen, 📚 Auflage bzw. Bücherregal, 📗 Neues Buch, 🗂️ Daten, 🔀 Änderungen übernehmen, ✅ Freigeben, ↩️ Freigabe zurücknehmen, 🤖 KI-Dienste.
+- **Überschrift** `###` mit Symbol: 📘 Projekt, 📖 Kapitel, ✏️ Abschnitt, 📜 Vor- und Nachspann, 📝 Bearbeiten, ➕ Anlegen, ↕️ Reihenfolge, ⚙️ Einstellungen, 📚 Auflage bzw. Bücherregal, 📗 Neues Buch, 🗂️ Daten, 🔀 Änderungen übernehmen, ✅ Freigeben, ↩️ Freigabe zurücknehmen, 🤖 KI-Dienste.
 - **Status** deutsch mit Symbol: ⚪ geplant, 🔎 Recherche, 💡 Ideensammlung, 🟦 bereit zum Schreiben, ✏️ Schreiben bzw. in Arbeit, 🔁 Überarbeitung, 🔍 Faktencheck bzw. Durchsicht, 🟡 bereit zur Freigabe, ✅ freigegeben.
 - **Marker** als Symbol mit Anzahl: 💬 Anekdote, 📚 Quelle, 🩺 Medizin, ⚖️ Recht; darunter klein die Legende.
 - **Tabellen** für Listen und Felder; Zahlen und Kosten rechtsbündig.
@@ -333,7 +334,9 @@ Gestaltung:
 |---|---|
 | Bücherregal | `1`–`N` Buch öffnen · `N` Neues Buch · `D` Daten |
 | Daten | `Ü` Bücherregal · `U` Update einspielen (nur wenn dahinter) |
-| Projektübersicht | `L` Bücherregal (nur ab zwei Büchern) · `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `A` Neue Auflage · `E` Einstellungen |
+| Projektübersicht | `L` Bücherregal (nur ab zwei Büchern) · `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · `Widmung`, `Prolog`, `Epilog`, `Danksagung` öffnen (nur vorhandene) · `M` Änderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `V` Vor- und Nachspann · `A` Neue Auflage · `E` Einstellungen |
+| Vor- und Nachspann | Titel eines Teils öffnet ihn · `+ Widmung` usw. legt einen fehlenden Teil an · `Ü` Übersicht |
+| Teil des Vor- oder Nachspanns | `T` Text ändern · `F` Titel und Ziel · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` freigeben bzw. zurücknehmen · `RS`, `GS` Recherche bzw. Ghostwriting sofort (nur Prolog und Epilog) · `Ü` Übersicht |
 | Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `B` Kapitel bearbeiten · `Z` Ziel, Kurzbeschreibung, Kapitelrecherche · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `FK` Kapitel freigeben (nur wenn möglich) · `Ü` Übersicht |
 | Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` Abschnitt freigeben bzw. zurücknehmen · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
 | Formulare | `Feld: Wert` je Zeile · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Änderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · Neues Buch: `Titel: …`, `Kurztitel: …`, `Autor: …` · Auswahl: `1b, 2a` (Frage und Buchstabe; bei Mehrfachauswahl `2a c`), eigene Antwort `1: Text`, `S` überspringt (nur wenn angeboten) · Kapitelrecherche: `Ziel: …`, `Kurzbeschreibung: …`, `Frage: …`, `Schwerpunkte: …`, `Aufgabe: Ziel|Abschnitte|Kurzbeschreibung|keine`, `Vorher: 0–3`, `Nachher: 0–3`, `VZ`/`VK` Vorschlag übernehmen, `AS 1, 3` vorgeschlagene Abschnitte anlegen · KI-Dienste: `+ id`, `- id`, `Aufgabe: id` · `X` bricht ab |
@@ -371,6 +374,9 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `view.project` | – | Projektübersicht zeigen | Vorlage `projektuebersicht` (`render_view.py project`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.chapter` | `chapter_id` | Kapitelansicht zeigen | Vorlage `kapitelansicht` (`render_view.py chapter N`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.section` | `section_id` | Abschnittsformular zeigen | Vorlage `abschnitt-bearbeiten` (`render_view.py section N.M`) | `GET /v1/projects/{owner}/{repo}` |
+| `view.matter` | `matter_id` (leer = alle Teile) | Teil von Vor- oder Nachspann zeigen bzw. die Liste „Vor- und Nachspann“ (#57) | `render_view.py matter <teil>` bzw. `matter` (vorerst Textfassung; Vorlage in ghostwriter-ui folgt) | `GET /v1/projects/{owner}/{repo}` |
+| `matter.create` | `kind` (`dedication` \| `prologue` \| `epilogue` \| `acknowledgments`), `title` (optional), `expected_head_sha` | Teil anlegen | `python scripts/matter.py . add <art> [--title …]`, Commit nach `START.md`, „Vor- und Nachspann“; danach der neue Teil | `POST …/matter` |
+| `matter.update` | `matter_id`, `title`, `goal`, `manuscript`, `expected_head_sha` (nie `approvals`) | Teil speichern | Datei in `matter/` (und bei neuem Titel `ghostwriter.yml`) schreiben, danach der Teil | `PATCH …/matter/{matter_id}` |
 | `view.library` | – | Bücherregal zeigen | Vorlage `buecherregal` (`render_view.py library --library library.json`) | – |
 | `view.data` | – | Seite „Daten“ zeigen | Daten sammeln und Vorlage `daten` (`render_view.py data`, `START.md`, „Daten“) | `GET /v1/projects/{owner}/{repo}` |
 | `library.book.open` | `branch` | Buch aus dem Bücherregal öffnen | Branch als Buch-Branch übernehmen, Projektübersicht zeigen; Buch im Aufbau: Einstiegsdialog fortsetzen | `GET /v1/projects/{owner}/{repo}` |
@@ -403,8 +409,8 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | prüfen, Release Notes zeigen, Auflagen-Pull-Request anlegen (`START.md`, „Neue Auflage“); nach dem Merge baut die Action „Auflage veröffentlichen“ | `POST /repos/{owner}/{repo}/actions/workflows/edition.yml/dispatches` (Bau), Pull Request wie Weg A |
 | `changes.merge.open` | – | Bestätigung „Änderungen übernehmen“ zeigen (Knopf im Hinweis der Projektübersicht, Textfassung `M`) | offene Änderungen aus GitHub lesen, Vorlage `aenderungen-uebernehmen` (`render_view.py changes-merge`) | `GET …/changes` |
 | `changes.merge` | `pull_request`, `expected_head_sha` | Offene Änderungen übernehmen; der Klick auf „Übernehmen“ bzw. `OK` ist die ausdrückliche Bestätigung | prüfen, dass der Arbeits-Branch noch auf `expected_head_sha` steht (sonst Bestätigung neu zeigen), Pull Request mit Merge-Commit mergen, Arbeits-Branch löschen, danach Projektübersicht | `POST …/changes/merge` |
-| `approval.open` | `kind` (`writing` \| `section` \| `chapter`), `section_id` bzw. `chapter_id`, `revoke` (nur beim Zurücknehmen) | Bestätigung „Freigabe“ zeigen | Vorlage `freigabe-bestaetigen` (`render_view.py approval-<kind> N.M` bzw. `N`, `--revoke`) | – |
-| `approval.confirm` | wie `approval.open`, dazu `expected_head_sha` | Freigabe erteilen bzw. zurücknehmen; der Klick ist die ausdrückliche Bestätigung | Hindernisse erneut prüfen, dann nach `START.md`, „Freigaben“, schreiben; danach die Ausgangsansicht | `POST`/`DELETE …/sections/{section_id}/writing-approval`, `…/sections/{section_id}/approve`, `…/chapters/{chapter_id}/approve` |
+| `approval.open` | `kind` (`writing` \| `section` \| `chapter` \| `matter`), `section_id` bzw. `chapter_id`, `revoke` (nur beim Zurücknehmen); bei Vor- und Nachspann steht die `mat-…`-ID in `section_id` (#57) | Bestätigung „Freigabe“ zeigen | Vorlage `freigabe-bestaetigen` (`render_view.py approval-<kind> N.M` bzw. `N`, für einen Teil `approval-writing\|approval-matter <teil>`, `--revoke`) | – |
+| `approval.confirm` | wie `approval.open`, dazu `expected_head_sha` | Freigabe erteilen bzw. zurücknehmen; der Klick ist die ausdrückliche Bestätigung | Hindernisse erneut prüfen, dann nach `START.md`, „Freigaben“, schreiben; danach die Ausgangsansicht | `POST`/`DELETE …/sections/{section_id}/writing-approval`, `…/sections/{section_id}/approve`, `…/chapters/{chapter_id}/approve`, `…/matter/{matter_id}/writing-approval`, `…/matter/{matter_id}/approve` |
 | `update.apply` | – | GhostWriter-Update einspielen | Action „GhostWriter aktualisieren“ per `workflow_dispatch` starten oder Link *Run workflow* geben (`START.md`, „Programmdateien und Updates“); nie selbst mergen | `POST /repos/{owner}/{repo}/actions/workflows/update.yml/dispatches` |
 | `wizard.answer` | `step`, `answers` (je `key` der Frage: Wert, Liste von Werten bei Mehrfachauswahl, `{"other": "Text"}` für eine eigene Antwort, auch als Listeneintrag) | Antworten auf Auswahlkarten | Antworten übernehmen (`START.md`, Abschnitt 4, „Auswahlkarten“), noch nichts schreiben; mit dem nächsten Wizard-Schritt weitermachen | – |
 | `wizard.skip` | `step` | Schritt überspringen | Angabe bleibt vorerst offen, nächster Wizard-Schritt | – |
@@ -426,7 +432,8 @@ Nach Speichern, Abbrechen oder „nichts geändert“ zeigt der Assistent sofort
 | Abschnittsreihenfolge | Kapitelansicht |
 | Neuer Abschnitt | gespeichert: Abschnittsformular des neuen Abschnitts; abgebrochen: Kapitelansicht |
 | Abschnitt bearbeiten | Abschnittsformular mit dem neuen Stand; „Zum Kapitel“ führt zurück |
-| Freigabe bestätigen | Abschnittsfreigaben: Abschnittsformular; Kapitelfreigabe: Kapitelansicht |
+| Freigabe bestätigen | Abschnittsfreigaben: Abschnittsformular; Kapitelfreigabe: Kapitelansicht; Vor- und Nachspann: der Teil |
+| Teil von Vor- oder Nachspann anlegen bzw. bearbeiten | der Teil (abgebrochen: Liste „Vor- und Nachspann“) |
 
 Ausnahme: Schlägt das Speichern fehl (✗), bleibt es beim Formular; der Assistent zeigt es mit den gesendeten Werten erneut, damit keine Eingabe verloren geht.
 
