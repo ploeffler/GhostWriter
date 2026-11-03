@@ -33,7 +33,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from render_view import (character_file, character_usage, combine, cost_entries, load,  # noqa: E402
-                         marker_counts, matter_items, money, section_costs, section_file, total)
+                         MARKERS, marker_counts, matter_items, money, section_costs, section_file, total)
 
 INDEX_NAME = 'ghostwriter-index.json'
 FORMAT = 1
@@ -48,7 +48,7 @@ def build(base, config):
     p = config['project']
     chapters, parts = [], []
     for ci, ch in enumerate(config['structure']['chapters'], start=1):
-        sections, ch_parts, ch_markers, approved = [], [], dict.fromkeys(('anekdote', 'quelle', 'medizin', 'recht'), 0), 0
+        sections, ch_parts, ch_markers, approved = [], [], dict.fromkeys(MARKERS, 0), 0
         for si, s in enumerate(ch['sections'], start=1):
             head, goal, summary, ms = section_file(base, s)
             a, e = total(section_costs(base, ch, s))

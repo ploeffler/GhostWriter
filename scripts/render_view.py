@@ -32,11 +32,13 @@ MARKERS = {
     'quelle': re.compile(r'\[QUELLE PRÜFEN\b'),
     'medizin': re.compile(r'\[MEDIZIN PRÜFEN\b'),
     'recht': re.compile(r'\[RECHT PRÜFEN\b'),
+    'kontinuitaet': re.compile(r'\[KONTINUITÄT PRÜFEN\b'),   # Widerspruch zu einem Vorband (#116)
 }
 MARKER_LABEL = {'anekdote': 'Platzhalter-Anekdote', 'quelle': 'Quelle prüfen',
-                'medizin': 'Medizin prüfen', 'recht': 'Recht prüfen'}
-MARKER_TEXT = re.compile(r'\[(PLATZHALTER-ANEKDOTE|QUELLE PRÜFEN|MEDIZIN PRÜFEN|RECHT PRÜFEN)(?::\s*([^\]]*))?\]')
-KIND = {'PLATZHALTER-ANEKDOTE': 'anekdote', 'QUELLE PRÜFEN': 'quelle', 'MEDIZIN PRÜFEN': 'medizin', 'RECHT PRÜFEN': 'recht'}
+                'medizin': 'Medizin prüfen', 'recht': 'Recht prüfen', 'kontinuitaet': 'Kontinuität prüfen'}
+MARKER_TEXT = re.compile(r'\[(PLATZHALTER-ANEKDOTE|QUELLE PRÜFEN|MEDIZIN PRÜFEN|RECHT PRÜFEN|KONTINUITÄT PRÜFEN)(?::\s*([^\]]*))?\]')
+KIND = {'PLATZHALTER-ANEKDOTE': 'anekdote', 'QUELLE PRÜFEN': 'quelle', 'MEDIZIN PRÜFEN': 'medizin', 'RECHT PRÜFEN': 'recht',
+        'KONTINUITÄT PRÜFEN': 'kontinuitaet'}
 
 
 # ---------- Daten lesen ----------
@@ -44,7 +46,38 @@ KIND = {'PLATZHALTER-ANEKDOTE': 'anekdote', 'QUELLE PRÜFEN': 'quelle', 'MEDIZIN
 def load(project):
     base = Path(project)
     config = yaml.safe_load((base / 'ghostwriter.yml').read_text(encoding='utf-8'))
+    attach_series(base, config)
     return base, config
+
+
+def attach_series(base, config):
+    """Serie des Buchs (#116): Figuren der Serie kommen zu den Figuren des Buchs (`_series`, Text in `_text`).
+    Eine Figur des Buchs mit derselben ID ist eine Kopie (`_copy_of`, `_differs`); sie gilt für dieses Buch.
+    Gespeichert wird davon nichts im Buch (characters.write_list lässt `_…`-Einträge weg)."""
+    if not isinstance(config, dict) or not ((config.get('structure') or {}).get('chapters') or
+                                            str(((config.get('project') or {}).get('title_short')) or '')):
+        return
+    if (base / 'series').is_dir():   # Standard-Branch selbst: kein Band
+        return
+    try:
+        import series
+        ser, items = series.book_characters(base)
+    except Exception:   # noqa: BLE001 – ohne Git bzw. Bibliothek keine Serie
+        return
+    if not ser:
+        return
+    config['_series'] = {'id': ser['id'], 'title': ser.get('title', '')}
+    own = {i['id']: i for i in config.get('characters') or []}
+    for it in items:
+        if it['id'] in own:
+            local = base / own[it['id']]['path']
+            text = local.read_text(encoding='utf-8') if local.is_file() else ''
+            own[it['id']]['_copy_of'] = ser['id']
+            own[it['id']]['_differs'] = text.strip() != it['_text'].strip()
+        else:
+            if not config.get('characters'):
+                config['characters'] = []
+            config['characters'].append(it)
 
 
 def section_file(base, section):
@@ -169,8 +202,8 @@ def character_items(config):
 
 
 def character_file(base, item):
-    """(Kopf, Beschreibung, Notizen) einer Figurendatei; Platzhalter der Vorlage = leer."""
-    text = (base / item['path']).read_text(encoding='utf-8')
+    """(Kopf, Beschreibung, Notizen) einer Figurendatei; Platzhalter der Vorlage = leer. Figuren der Serie: `_text`."""
+    text = item['_text'] if '_text' in item else (base / item['path']).read_text(encoding='utf-8')
     m = FRONTMATTER.match(text)
     head = yaml.safe_load(m.group(1)) if m else {}
     body = text[m.end():] if m else text
@@ -282,8 +315,8 @@ STATUS_DE = {'planned': 'geplant', 'in_progress': 'in Arbeit', 'ready_for_assemb
 STATUS_ICON = {'planned': '⚪', 'research': '🔎', 'brainstorming': '💡', 'ready_to_write': '🟦', 'writing': '✏️',
                'in_progress': '✏️', 'revision': '🔁', 'fact_check': '🔍', 'review': '🔍', 'ready_for_assembly': '🟡',
                'assembly': '🧩', 'ready_for_approval': '🟡', 'approved': '✅'}
-MARKER_ICON = {'anekdote': '💬', 'quelle': '📚', 'medizin': '🩺', 'recht': '⚖️'}
-MARKER_LEGEND = 'Marker: 💬 Anekdote · 📚 Quelle prüfen · 🩺 Medizin prüfen · ⚖️ Recht prüfen'
+MARKER_ICON = {'anekdote': '💬', 'quelle': '📚', 'medizin': '🩺', 'recht': '⚖️', 'kontinuitaet': '🔗'}
+MARKER_LEGEND = 'Marker: 💬 Anekdote · 📚 Quelle prüfen · 🩺 Medizin prüfen · ⚖️ Recht prüfen · 🔗 Kontinuität prüfen'
 
 
 def status_text(st):
@@ -385,6 +418,11 @@ def matter_view(base, config, args):
                                     'ausdrücklich darum bittest.') if kind in ('dedication', 'acknowledgments') else ''}
         blocks = {'MARKERS': [{'MARKER_TYPE': k, 'MARKER_LABEL': MARKER_LABEL[k], 'MARKER_TEXT': v} for k, v in markers],
                   'GLOSSARY_ENTRIES': [{'G_TERM': t, 'G_TEXT': e} for t, e in sorted(entries, key=lambda x: german_key(x[0]))]}
+        st = series_terms(base, config, entries) if kind == 'glossary' else []
+        if st:   # Begriffe der Serie (#116)
+            values.update({'SERIES_ID': config['_series']['id'], 'SERIES_TITLE': config['_series']['title']})
+            blocks['SERIES_TERMS'] = [{'T_TERM': x['term'], 'T_TEXT': x['text'] or x['book_text'], 'T_BOOK_TEXT': x['book_text'],
+                                       'T_STATE': x['state'], 'T_STATE_TEXT': TERM_STATE_DE[x['state']]} for x in st]
         return fill('teil-bearbeiten.html', values, blocks)
     lines = [f'### 📜 {item["title"]}', f'{area} · {status_text(head["status"])}', '',
              '| | |', '|---|---|', f'| Ziel | {goal or "*offen*"} |',
@@ -408,6 +446,12 @@ def matter_view(base, config, args):
             lines += [f'| {t}{" ⚠️ doppelt" if t in dup else ""} | {e} |' for t, e in sorted(entries, key=lambda x: german_key(x[0]))]
         else:
             lines += ['*Noch keine Begriffe.*']
+        st = series_terms(base, config, entries)
+        if st:
+            lines += ['', f'**Begriffe der Serie „{config["_series"]["title"]}“**', '', '| Begriff | Stand | Erklärung der Serie |', '|---|---|---|']
+            lines += [f'| {x["term"]} | {"⚠️ " if x["state"] == "differs" else ""}{TERM_STATE_DE[x["state"]]} | {x["text"] or "–"} |' for x in st]
+            lines += ['', '`ÜB Begriff` aus der Serie ins Buch übernehmen (Kopie) · `IS Begriff` in die Serie übernehmen · '
+                      '`AN Begriff` an die Serie angleichen']
         lines += ['', '---']
         items = [('+ Begriff: Erklärung', 'aufnehmen'), ('Begriff: neue Erklärung', 'ändern'), ('- Begriff', 'entfernen'),
                  ('VB', 'Begriffe aus dem freigegebenen Text vorschlagen'), ('F', 'Titel, Ziel und Einleitung')]
@@ -424,6 +468,20 @@ def matter_view(base, config, args):
     items.append(('Ü', 'Zur Übersicht'))
     lines += [menu(items)]
     return '\n'.join(lines) + '\n'
+
+
+TERM_STATE_DE = {'missing': 'nur in der Serie (gilt per Verweis)', 'same': 'im Buch, gleich wie Serie',
+                 'differs': 'im Buch, weicht von der Serie ab', 'own': 'nur in diesem Buch'}
+
+
+def series_terms(base, config, entries):
+    """Begriffe der Serie im Vergleich zum Glossar dieses Bandes (#116); ohne Serie leer."""
+    ser = config.get('_series')
+    if not ser:
+        return []
+    import series
+    terms = series.glossary(base, ser['id'])
+    return series.compare_terms(entries, terms) if terms else []
 
 
 def images_view(base, config, args):
@@ -459,9 +517,25 @@ def images_view(base, config, args):
     return fill('bilder.html', values, {'IMAGES': rows})
 
 
+SOURCE_DE = {'series': 'aus der Serie', 'copy': 'Kopie der Serie (gleich)', 'copy_diff': 'Kopie, weicht von der Serie ab',
+             'own': 'nur in diesem Buch'}
+
+
+def character_source(config, item):
+    """Herkunft einer Figur in einem Band einer Serie (#116): series | copy | copy_diff | own; ohne Serie leer."""
+    if not config.get('_series'):
+        return ''
+    if '_series' in item:
+        return 'series'
+    if item.get('_copy_of'):
+        return 'copy_diff' if item.get('_differs') else 'copy'
+    return 'own'
+
+
 def characters_view(base, config, args):
     """Figuren (#53): ohne Angabe die Liste (Vorlage figuren), sonst eine Figur (Vorlage figur-bearbeiten)."""
     p = config['project']
+    ser = config.get('_series') or {}
     short = p.get('title_short') or p.get('title') or p.get('working_title') or ''
     items = character_items(config)
     used = character_usage(base, config)
@@ -470,20 +544,24 @@ def characters_view(base, config, args):
         rows = []
         for i in items:
             head = character_file(base, i)[0]
+            src = character_source(config, i)
             rows.append({'C_ID': i['id'], 'C_NAME': i['name'], 'C_ROLE': ROLE_DE.get(head.get('role'), ''),
-                         'C_SHORT': head.get('short', ''), 'C_USED': ', '.join(used.get(i['id'], [])) or '–'})
+                         'C_SHORT': head.get('short', ''), 'C_USED': ', '.join(used.get(i['id'], [])) or '–',
+                         'C_SOURCE': src, 'C_SOURCE_TEXT': SOURCE_DE.get(src, '')})
         if args.text:
-            lines = ['### 🎭 Figuren', '']
+            lines = ['### 🎭 Figuren', ''] + ([f'Band der Serie „{ser["title"]}“: Figuren der Serie gelten in allen Bänden.', ''] if ser else [])
             if rows:
-                lines += ['| Figur | Rolle | Kurz | kommt vor in |', '|---|---|---|---|']
-                lines += [f'| {r["C_NAME"]} | {r["C_ROLE"]} | {r["C_SHORT"] or "–"} | {r["C_USED"]} |' for r in rows]
+                lines += ['| Figur | Rolle | Kurz | kommt vor in |' + (' Herkunft |' if ser else ''),
+                          '|---|---|---|---|' + ('---|' if ser else '')]
+                lines += [f'| {r["C_NAME"]} | {r["C_ROLE"]} | {r["C_SHORT"] or "–"} | {r["C_USED"]} |'
+                          + (f' {"⚠️ " if r["C_SOURCE"] == "copy_diff" else ""}{r["C_SOURCE_TEXT"]} |' if ser else '') for r in rows]
             else:
                 lines += ['*Noch keine Figuren.*']
             lines += ['', 'Figuren sind Arbeitsgrundlage für Brainstorming und Ghostwriting; sie kommen nicht ins Buch.', '', '---']
             lines += [menu([(r['C_NAME'], 'öffnen') for r in rows] + [('+ Name', 'neue Figur anlegen (optional `Rolle: Nebenfigur`)'),
                                                                      ('Ü', 'Zur Übersicht')])]
             return '\n'.join(lines) + '\n'
-        return fill('figuren.html', {'PROJECT_TITLE_SHORT': short}, {'CHARACTERS': rows})
+        return fill('figuren.html', {'PROJECT_TITLE_SHORT': short, 'SERIES_TITLE': ser.get('title', '')}, {'CHARACTERS': rows})
     item = find_character(config, args.where)
     if not item:
         return f'Eine Figur „{args.where}“ gibt es nicht (vorhanden: {", ".join(names.values()) or "keine"}).\n'
@@ -495,12 +573,19 @@ def characters_view(base, config, args):
                 ('Sprechweise', head.get('voice')), ('Bildbeschreibung', head.get('visual')),
                 ('Beziehungen', '; '.join(f'{r["R_KIND"]} von {r["R_NAME"]}' for r in rel)),
                 ('kommt vor in', ', '.join(used.get(item['id'], [])))]
+        src = character_source(config, item)
+        if src:
+            rows.append(('Herkunft', SOURCE_DE[src] + f' (Serie „{ser["title"]}“)'))
         lines = [f'### 🎭 {item["name"]}', '', '| | |', '|---|---|'] + [f'| {k} | {v or "–"} |' for k, v in rows]
         lines += ['', '**Beschreibung**', '', desc or '*offen*']
         if notes:
             lines += ['', '**Notizen**', '', notes]
         lines += ['', '---', 'Antworte mit `Feld: neuer Wert` (z. B. `Alter: 78`, `Eigenschaften: geduldig, brummig`, '
                   '`Beziehung: Besitzer von Strolchi`, `Beschreibung: …`). `X` bricht ab, `FI` zeigt alle Figuren.']
+        extra = {'series': [('KO', 'Kopie nur für dieses Buch')], 'copy': [('AN', 'an die Serie angleichen'), ('IS', 'in die Serie übernehmen')],
+                 'copy_diff': [('AN', 'an die Serie angleichen'), ('IS', 'in die Serie übernehmen')], 'own': [('IS', 'in die Serie übernehmen')]}.get(src)
+        if extra:
+            lines += ['', ('Änderungen gelten für alle Bände der Serie. ' if src == 'series' else '') + menu(extra, 'Serie')]
         return '\n'.join(lines) + '\n'
     values = {'PROJECT_TITLE_SHORT': short, 'CHARACTER_ID': item['id'], 'CHARACTER_NAME': item['name'],
               'CHARACTER_ROLE': head.get('role', 'main'), 'CHARACTER_SHORT': head.get('short', ''),
@@ -508,6 +593,9 @@ def characters_view(base, config, args):
               'CHARACTER_TRAITS': ', '.join(head.get('traits') or []), 'CHARACTER_VOICE': head.get('voice', ''),
               'CHARACTER_VISUAL': head.get('visual', ''), 'CHARACTER_DESCRIPTION': desc, 'CHARACTER_NOTES': notes,
               'CHARACTER_USED': ', '.join(used.get(item['id'], [])) or 'noch nirgends'}
+    src = character_source(config, item)
+    values.update({'CHARACTER_SOURCE': src, 'CHARACTER_SOURCE_TEXT': SOURCE_DE.get(src, ''),
+                   'SERIES_ID': ser.get('id', ''), 'SERIES_TITLE': ser.get('title', '')})
     others = [{'O_ID': i['id'], 'O_NAME': i['name']} for i in items if i['id'] != item['id']]
     return fill('figur-bearbeiten.html', values, {'RELATIONS': rel, 'OTHERS': others})
 
@@ -667,7 +755,8 @@ def chapter_view(base, config, args, cnum):
         rows.append({'SECTION_ID': s['id'], 'SECTION_NUMBER': f'{cnum}.{si}', 'SECTION_TITLE': s['title'],
                      'SECTION_STATUS': head['status'], 'SECTION_COST': money(a, e),
                      'MARKERS_ANEKDOTE': counts['anekdote'], 'MARKERS_QUELLE': counts['quelle'],
-                     'MARKERS_MEDIZIN': counts['medizin'], 'MARKERS_RECHT': counts['recht']})
+                     'MARKERS_MEDIZIN': counts['medizin'], 'MARKERS_RECHT': counts['recht'],
+                     'MARKERS_KONTINUITAET': counts['kontinuitaet']})
     amount, est = combine(parts)
     n = len(ch['sections'])
     _, ch_summary, ch_goal = chapter_readme(base, ch)
@@ -1801,6 +1890,12 @@ def series_view(base, config, args):
     values = {'SERIES_ID': s['id'], 'SERIES_TITLE': s['title'], 'SERIES_SUBTITLE': s.get('subtitle') or '',
               'SERIES_KIND_TEXT': SERIES_KIND_DE.get(s.get('kind'), ''), 'SERIES_DESCRIPTION': s.get('description') or '',
               'VOLUME_COUNT_TEXT': plural(len(vols), 'Band', 'Bände'), 'LIBRARY_NAME': args.repo}
+    import series as series_mod   # gemeinsame Figuren und Begriffe (Stufe 2)
+    schars = []
+    for c in series_mod.characters(base, s['id']):
+        h = character_file(base, c)[0]
+        schars.append({'SC_ID': c['id'], 'SC_NAME': c['name'], 'SC_ROLE': ROLE_DE.get(h.get('role'), ''), 'SC_SHORT': h.get('short', '')})
+    sterms = [{'ST_TERM': x['term'], 'ST_TEXT': x['text']} for x in series_mod.glossary(base, s['id'])]
     if args.text:
         out = [f'### 📚 Serie „{s["title"]}“', ' · '.join(x for x in (values['SERIES_SUBTITLE'], values['SERIES_KIND_TEXT'],
                                                                   values['VOLUME_COUNT_TEXT']) if x), '']
@@ -1813,6 +1908,12 @@ def series_view(base, config, args):
             out += ['*Noch kein Band.*']
         if cands:
             out += ['', 'Ohne Serie: ' + ', '.join(f'{c["C_TITLE"]} (`{c["C_BRANCH"]}`)' for c in cands)]
+        out += ['', f'**Figuren der Serie ({len(schars)})**', '']
+        out += [f'- {c["SC_NAME"]} ({c["SC_ROLE"]}){": " + c["SC_SHORT"] if c["SC_SHORT"] else ""}' for c in schars] or ['*keine*']
+        out += ['', f'**Begriffe der Serie ({len(sterms)})**', '']
+        out += [f'- {x["ST_TERM"]}: {x["ST_TEXT"]}' for x in sterms] or ['*keine*']
+        out += ['', 'Gelten in allen Bänden; ein Band kann eine eigene Kopie führen. `+ Figur: Name` bzw. `+ Begriff: Erklärung` '
+                'nimmt etwas in die Serie auf.']
         items = ([('1' if len(vols) == 1 else f'1–{len(vols)}', 'Band öffnen')] if vols else [])
         items += ([('H', 'Band hinzufügen')] if cands else []) + ([('R', 'Reihenfolge ändern'), ('ENT', 'Band entfernen')] if vols else [])
         items += [('NB', 'Neues Buch in dieser Serie'), ('B', 'Serie bearbeiten'), ('Ü', 'Bücherregal')]
@@ -1821,6 +1922,10 @@ def series_view(base, config, args):
     blocks = {'VOLUMES': vols}
     if cands:
         blocks['CANDIDATES'] = cands
+    if schars:
+        blocks['SERIES_CHARACTERS'] = schars
+    if sterms:
+        blocks['SERIES_TERMS'] = sterms
     return fill('serie.html', values, blocks)
 
 

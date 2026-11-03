@@ -135,5 +135,102 @@ class SeriesTest(unittest.TestCase):
         self.assertNotIn('SERIES_ID', ov)
 
 
+class SharedTest(unittest.TestCase):
+    """Stufe 2: gemeinsame Figuren und Begriffe, Kopie je Band, Kontinuität."""
+
+    def setUp(self):
+        import shutil
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.d = Path(self.tmp.name, 'repo')
+        self.d.mkdir()
+        self.g('init', '-q', '-b', 'main')
+        (self.d / 'ghostwriter.yml').write_text(STARTER_FILE.read_text(encoding='utf-8'), encoding='utf-8')
+        self.g('add', '.')
+        self.g('commit', '-qm', 'Starter')
+        for br, short in (('buch/eins', 'Eins'), ('buch/zwei', 'Zwei')):
+            self.g('checkout', '-q', '-b', br, 'main')
+            shutil.copytree(ROOT / 'tests/fixtures/adhs', self.d, dirs_exist_ok=True)
+            cfg = self.d / 'ghostwriter.yml'
+            cfg.write_text(re.sub(r'(?m)^(  title_short:).*$', rf'\1 "{short}"', cfg.read_text(encoding='utf-8')), encoding='utf-8')
+            self.g('add', '-A')
+            self.g('commit', '-qm', f'Buch {short}')
+        self.g('checkout', '-q', 'main')
+        import characters
+        series.create(self.d, 'Strolchi und Opi', books=['buch/eins', 'buch/zwei'])
+        characters.series_add(self.d, 'ser-strolchi-und-opi', 'Strolchi', 'main', 'Ein neugieriger Hund')
+        series.term_set(self.d, 'ser-strolchi-und-opi', 'Waldhütte', 'Opis Hütte am Waldrand')
+        self.g('add', '-A')
+        self.g('commit', '-qm', 'Serie')
+        self.g('checkout', '-q', 'buch/eins')
+        self.main = Path(self.tmp.name, 'main')
+        self.g('worktree', 'add', '-q', str(self.main), 'main')   # Standard-Branch zum Schreiben
+
+    def g(self, *a):
+        return subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=self.d,
+                              check=True, capture_output=True, text=True).stdout
+
+    def widget(self, *a):
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.d), *a],
+                             capture_output=True, text=True, check=True).stdout
+        m = re.search(r'GW\.render\("([^"]+)",(.*)\)</script>', out)
+        return json.loads(m.group(2).replace('<\\/', '</'))
+
+    def test_series_character_in_book(self):
+        import characters
+        from render_view import load
+        _, config = load(self.d)
+        self.assertEqual(config['_series']['id'], 'ser-strolchi-und-opi')
+        self.assertIn('char-strolchi', [c['id'] for c in config['characters']])
+        characters.assign(self.d, '1.1', ['Strolchi'])
+        self.assertNotIn('characters:', (self.d / 'ghostwriter.yml').read_text(encoding='utf-8'))   # Buch speichert sie nicht
+        self.assertEqual(validate_project.check_project(self.d), [])
+        self.assertIn('### Strolchi (Hauptfigur)', characters.context(self.d, '1.1'))
+        with self.assertRaisesRegex(SystemExit, 'gehört zur Serie'):
+            characters.update(self.d, 'Strolchi', {'age': '3'})
+        self.assertEqual(self.widget('characters')['CHARACTERS'][0]['C_SOURCE'], 'series')
+        # Kopie nur für dieses Buch, dann abweichend
+        characters.detach(self.d, 'Strolchi')
+        characters.update(self.d, 'Strolchi', {'age': '3'})
+        row = self.widget('characters')['CHARACTERS'][0]
+        self.assertEqual((row['C_SOURCE'], row['C_SOURCE_TEXT']), ('copy_diff', 'Kopie, weicht von der Serie ab'))
+        self.assertEqual(self.widget('characters', 'Strolchi')['CHARACTER_SOURCE'], 'copy_diff')
+        self.assertEqual(validate_project.check_project(self.d), [])
+        # angleichen: Kopie weg, wieder die Figur der Serie
+        characters.align(self.d, 'Strolchi')
+        self.assertFalse((self.d / 'characters/char-strolchi.md').exists())
+        self.assertEqual(self.widget('characters')['CHARACTERS'][0]['C_SOURCE'], 'series')
+        # eigene Figur in die Serie übernehmen
+        characters.add(self.d, 'Opi', 'supporting')
+        self.assertEqual(self.widget('characters', 'Opi')['CHARACTER_SOURCE'], 'own')
+        characters.adopt(self.d, self.main, 'Opi')
+        self.assertTrue((self.main / 'series/ser-strolchi-und-opi/characters/char-opi.md').is_file())
+        self.assertEqual(series.problems(self.main), [])
+        # Figur der Serie bearbeiten (Standard-Branch)
+        characters.series_update(self.main, 'ser-strolchi-und-opi', 'Strolchi', {'age': '4'})
+        self.assertIn("age: '4'", (self.main / 'series/ser-strolchi-und-opi/characters/char-strolchi.md').read_text(encoding='utf-8'))
+
+    def test_terms_and_continuity(self):
+        import matter
+        matter.add(self.d, 'glossary')
+        matter.glossary_set(self.d, 'Waldhütte', 'Eine kleine Hütte')
+        matter.glossary_set(self.d, 'Leine', 'Was Strolchi nicht mag')
+        st = {x['T_TERM']: x['T_STATE'] for x in self.widget('matter', 'Glossar')['SERIES_TERMS']}
+        self.assertEqual(st, {'Waldhütte': 'differs', 'Leine': 'own'})
+        matter.glossary_from_series(self.d, 'Waldhütte')   # angleichen
+        st = {x['T_TERM']: x['T_STATE'] for x in self.widget('matter', 'Glossar')['SERIES_TERMS']}
+        self.assertEqual(st['Waldhütte'], 'same')
+        matter.glossary_to_series(self.d, self.main, 'Leine')
+        self.assertEqual([x['term'] for x in series.glossary(self.main, 'ser-strolchi-und-opi')], ['Leine', 'Waldhütte'])
+        # Kontinuität: Band 2 bekommt die Kurzfassung von Band 1
+        self.assertEqual(series.continuity_context(self.d, 'buch/eins'), '')
+        ctx = series.continuity_context(self.d, 'buch/zwei')
+        self.assertIn('## Was bisher geschah – Serie „Strolchi und Opi“', ctx)
+        self.assertIn('### Band 1: ADHS im Erwachsenenleben', ctx)
+        self.assertIn('[KONTINUITÄT PRÜFEN: …]', ctx)
+        from render_view import marker_counts
+        self.assertEqual(marker_counts('Text [KONTINUITÄT PRÜFEN: In Band 1 war Opi 78] weiter')['kontinuitaet'], 1)
+
+
 if __name__ == '__main__':
     unittest.main()

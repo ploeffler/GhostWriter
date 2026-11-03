@@ -84,6 +84,12 @@ Die Pfade sind Entwurf und müssen mit dem implementierten Dienst übereinstimme
 | POST | /v1/projects/{owner}/{repo}/series/{series_id}/volumes | Buch als nächsten Band hinzufügen (`series.volume.add`); ein Buch gehört zu höchstens einer Serie |
 | DELETE | /v1/projects/{owner}/{repo}/series/{series_id}/volumes/{branch} | Band entfernen, das Buch bleibt (`series.volume.remove`) |
 | POST | /v1/projects/{owner}/{repo}/series/{series_id}/reorder | Bandreihenfolge ändern (`series.reorder`) |
+| PATCH | /v1/projects/{owner}/{repo}/series/{series_id}/characters/{character_id} | Figur der Serie ändern (`character.series.update`) |
+| POST | /v1/projects/{owner}/{repo}/characters/{character_id}/detach | Kopie einer Figur der Serie im Buch anlegen (`character.detach`) |
+| POST | /v1/projects/{owner}/{repo}/characters/{character_id}/align | Kopie entfernen, wieder die Figur der Serie (`character.align`) |
+| POST | /v1/projects/{owner}/{repo}/characters/{character_id}/adopt | Figur des Buchs in die Serie übernehmen; zwei Commits (`character.adopt`) |
+| POST | /v1/projects/{owner}/{repo}/matter/{matter_id}/glossary/from-series | Begriff der Serie ins Glossar des Buchs (`matter.glossary.from_series`) |
+| POST | /v1/projects/{owner}/{repo}/series/{series_id}/glossary | Begriff in die Serie aufnehmen bzw. ändern (`matter.glossary.to_series`) |
 | POST | /v1/projects/{owner}/{repo}/changes/merge | Offene Änderungen nach Bestätigung übernehmen (`changes.merge`) |
 
 ## Projektdaten im Lese-Endpunkt

@@ -6,6 +6,8 @@ Aufruf:
   python scripts/matter.py <projektordner> list
   python scripts/matter.py <projektordner> glossary-set "Begriff" "Erklärung" [--new]
   python scripts/matter.py <projektordner> glossary-remove "Begriff"
+  python scripts/matter.py <buch> glossary-from-series "Begriff"     Begriff der Serie ins Buch (Kopie) bzw. angleichen (#116)
+  python scripts/matter.py <buch> glossary-to-series "Begriff" --series-repo <standard>   Begriff des Buchs in die Serie
 
 Arten: dedication (Widmung), foreword (Vorwort), prologue (Prolog), epilogue
 (Epilog), afterword (Nachwort), glossary (Glossar), acknowledgments (Danksagung);
@@ -143,10 +145,49 @@ def glossary_remove(base, term):
     return glossary_write(base, change)
 
 
+def series_term(base, term):
+    """(serie, begriff der Serie) für ein Buch einer Serie (#116)."""
+    from render_view import load
+    import series
+    _, config = load(base)
+    ser = config.get('_series')
+    if not ser:
+        raise SystemExit('Dieses Buch gehört zu keiner Serie')
+    hit = [x for x in series.glossary(base, ser['id']) if series.term_key(x['term']) == series.term_key(term)]
+    return ser, (hit[0] if hit else None)
+
+
+def glossary_from_series(base, term):
+    """Begriff der Serie ins Glossar des Buchs übernehmen bzw. die Kopie angleichen (Erklärung der Serie)."""
+    ser, hit = series_term(base, term)
+    if not hit:
+        raise SystemExit(f'„{term}“ gibt es in der Serie „{ser["title"]}“ nicht')
+    glossary_set(base, hit['term'], hit['text'])
+    return hit
+
+
+def glossary_to_series(base, main_dir, term):
+    """Begriff des Buchs mit seiner Erklärung in die Serie übernehmen (Standard-Branch, main_dir)."""
+    import series
+    from render_view import load
+    _, config = load(base)
+    ser = config.get('_series')
+    if not ser:
+        raise SystemExit('Dieses Buch gehört zu keiner Serie')
+    item = next((i for _, i in matter_items(config) if i['kind'] == 'glossary'), None)
+    entries = glossary_entries(section_file(base, item)[3])[1] if item else []
+    hit = [(t, e) for t, e in entries if t.casefold() == term.strip().casefold()]
+    if not hit:
+        raise SystemExit(f'„{term}“ steht nicht im Glossar dieses Buchs')
+    series.term_set(main_dir, ser['id'], *hit[0])
+    return ser, hit[0]
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
-    ap.add_argument('cmd', choices=['add', 'list', 'glossary-set', 'glossary-remove'])
+    ap.add_argument('cmd', choices=['add', 'list', 'glossary-set', 'glossary-remove', 'glossary-from-series', 'glossary-to-series'])
+    ap.add_argument('--series-repo', help='bei glossary-to-series: Ordner mit dem Standard-Branch (series/)')
     ap.add_argument('kind', nargs='?', help='bei add: Art; bei glossary-*: Begriff')
     ap.add_argument('explanation', nargs='?', help='bei glossary-set: Erklärung')
     ap.add_argument('--title')
@@ -162,6 +203,16 @@ def main(argv):
         glossary_set(base, a.kind or '', a.explanation or '', a.new)
         print(f'✓ Glossar: „{a.kind.strip()}“ eingetragen')
         print(f'Commit-Nachricht: Glossar: „{a.kind.strip()}“ eingetragen')
+        return 0
+    if a.cmd == 'glossary-from-series':
+        hit = glossary_from_series(base, a.kind or '')
+        print(f'✓ Glossar: „{hit["term"]}“ aus der Serie übernommen\nCommit-Nachricht: Glossar: „{hit["term"]}“ aus der Serie übernommen')
+        return 0
+    if a.cmd == 'glossary-to-series':
+        if not a.series_repo:
+            ap.error('glossary-to-series braucht --series-repo (Standard-Branch)')
+        ser, (t, _) = glossary_to_series(base, a.series_repo, a.kind or '')
+        print(f'✓ „{t}“ in die Serie „{ser["title"]}“ übernommen\nCommit-Nachricht (Standard-Branch): Serie „{ser["title"]}“: Begriff „{t}“ eingetragen')
         return 0
     if a.cmd == 'glossary-remove':
         glossary_remove(base, a.kind or '')
