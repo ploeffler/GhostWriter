@@ -110,6 +110,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `ai_providers` | vorhandene KI-Dienste (`available`), Dienst und Modell je Aufgabe, Einstellungen je Dienst (`services`); siehe [PROVIDERS.md](PROVIDERS.md) |
 | `structure.chapters` | Kapitel in Reihenfolge, je mit `id`, `title`, `path`, `status` und `sections` (je `id`, `title`, `path`) |
 | `images` | Illustrationen (#54): `style` (Bildstil für alle Aufträge), `credit_in_imprint` (KI-erzeugte Bilder im Impressum nennen, Vorgabe `true`), `max_px` (längste Kante beim Ablegen, Vorgabe 3000); siehe „Illustrationen“ |
+| `analysis` | Analyse im Hintergrund (#123): `provider` (`anthropic` | `openai`; sonst der erste mit hinterlegtem Schlüssel), `model` (je Kapitel), `merge_model` (Zusammenführen), `price_input_per_mtok`, `price_output_per_mtok` (Preise je 1 Mio. Tokens in Projektwährung; ohne Preise Kosten „unavailable“), `parallel` (gleichzeitige Aufrufe, Vorgabe 4); fehlt = Vorgaben (siehe „Analyse im Hintergrund“) |
 | `limits` | Limitwarnung (#62): `ai_budget_monthly` (KI-API-Kosten über das Backend je Monat in Projektwährung), `actions_minutes_monthly` (GitHub-Actions-Minuten je Monat), `warn_below_percent` (Vorgabe 20), `pause_below_percent` (Vorgabe 10); fehlt ein Betrag = keine Prüfung (siehe docs/UPDATES.md, „Limits“) |
 | `characters` | Figuren (#53) in Reihenfolge, je `id` (`char-…`), `name`, `path`; fehlt = keine (siehe „Figuren“) |
 | `structure.front_matter`, `structure.back_matter` | Vor- und Nachspann (#57, #58): Teile vor Kapitel 1 (Widmung, Vorwort, Prolog) bzw. nach dem letzten Kapitel (Epilog, Nachwort, Glossar, Danksagung), je mit `id`, `kind`, `title`, `path`; fehlen = keine (siehe „Vor- und Nachspann“) |
@@ -449,6 +450,10 @@ Erfasst werden nur zusätzliche KI-API-Kosten für Anbieteraufrufe über das Gho
 
 Die Abschnittssumme wird aus den Einträgen berechnet. Die Kapitelsumme ist die Summe seiner Abschnittssummen; die Projektsumme addiert die Kapitelsummen und separat ausgewiesene projektweite Kosten. Es gibt keine manuell duplizierten Kapitel- oder Projektbuchungen. Tatsächliche, geschätzte und manuell erfasste Kosten sind unterscheidbar. Originalwährung und Umrechnungsdaten bleiben nachvollziehbar.
 
+### Analyse im Hintergrund (#123)
+
+`scripts/analyze.py` (Action „Analyse im Hintergrund“) legt im Buch-Branch ab: den Lauf `analysis/{kind}/run-{sequence}.md` (Kopf: `id`, `type: analysis`, `kind`, `scope`, `created_at`, `provider`, `model`, `merge_model`, `blocks_analysed`, `blocks_cached`, `suggestions`, `dropped_without_evidence`, `input_tokens`, `output_tokens`, `cost`, `result`), daneben `run-NNN.json` mit den Vorschlägen (`items` im Format von `render_view.py character-suggest`, `conflicts`, `groups`), den Zwischenspeicher `analysis/cache/{kind}/<block>.json` (je Kapitel bzw. „matter“ ein Fingerabdruck des Textes und die geprüften Figuren) und `analysis/{kind}/applied.yml` (`runs`: übernommene bzw. verworfene Läufe). Kosten je Aufruf in `costs/project.yml` mit `source: action_api`, `run_id`, Tokens; sie zählen wie Backend-Kosten zum KI-Budget (#62). Nichts davon kommt ins Buch.
+
 ### Ablage
 
 Die Einträge liegen als YAML, eine Datei pro Abschnitt unter `chapters/<kapitel-id>/costs/<abschnitts-id>.yml`; projektweite Kosten, die keinem Abschnitt gehören, in `costs/project.yml`. Neue Einträge werden nur angehängt, bestehende nie verändert. Kapitel- und Projektsummen werden nicht gespeichert, sondern beim Anzeigen berechnet.
@@ -459,7 +464,7 @@ section_id: sec-01-04-die-uhr
 entries:
   - activity_id: act-2026-10-31-001
     occurred_at: "2026-10-31T16:45:00+01:00"
-    source: backend_api         # backend_api | legacy_chat_estimate (vor v0.4, zählt nicht)
+    source: backend_api         # backend_api | action_api (Aufruf aus einer Action, #123) | legacy_chat_estimate (vor v0.4, zählt nicht)
     run_id: run-003             # optional: zugehöriger Lauf
     request_id: req_abc123      # optional: Kennung beim Anbieter
     provider: anthropic

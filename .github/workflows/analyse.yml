@@ -1,0 +1,89 @@
+name: Analyse im Hintergrund
+
+# Liest ein ganzes Buch (oder ein Kapitel) mit einer KI über deren API und legt
+# Vorschläge ab (#123, scripts/analyze.py): zuerst Figuren. Nichts am Buchtext
+# und an den Figuren wird geändert; übernommen wird im Chat. Nur geänderte
+# Kapitel werden neu gelesen (Zwischenspeicher analysis/cache/).
+# Start von Hand (Run workflow, auf dem Buch-Branch) oder aus dem Chat
+# (START.md, „Figuren“, Schritt 7). Braucht das Secret ANTHROPIC_API_KEY bzw.
+# OPENAI_API_KEY. Kosten kommen nach costs/project.yml (source: action_api)
+# und zählen zum KI-Budget; unter 10 % Rest startet der Lauf nur mit
+# confirm_low_budget (#62).
+
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: 'Analyse'
+        type: choice
+        options: [characters]
+        default: characters
+      scope:
+        description: 'Bereich: book (ganzes Buch) oder Nummer eines Kapitels'
+        default: book
+      confirm_low_budget:
+        description: 'Auch starten, wenn weniger als 10 % des KI-Budgets übrig sind'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analyse-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Serie (#116): Figuren der Serie vom Standard-Branch
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python-Abhängigkeiten
+        run: pip install pyyaml jsonschema
+
+      - name: Nur Buch-Branches
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if ! python scripts/library.py is "$GITHUB_REF_NAME" --dir .; then
+            echo "::error::$GITHUB_REF_NAME ist kein Buch. Den Lauf auf dem Buch-Branch starten."; exit 1
+          fi
+
+      - name: Umfang und Limits
+        env:
+          CONFIRM: ${{ inputs.confirm_low_budget }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/analyze.py . plan --kind "${{ inputs.kind }}" --scope "${{ inputs.scope }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          if ! python scripts/limits.py . check; then
+            if [ "$CONFIRM" != "true" ]; then
+              echo "::error::Weniger als 10 % des KI-Budgets übrig. Mit confirm_low_budget trotzdem starten."; exit 1
+            fi
+          fi
+
+      - name: Analysieren
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/analyze.py . run --kind "${{ inputs.kind }}" --scope "${{ inputs.scope }}"
+
+      - name: Vorschläge ablegen
+        # Nur Daten (analysis/, costs/project.yml), kein Buchtext: direkt auf den Buch-Branch
+        run: |
+          git config user.name GhostWriter
+          git config user.email ghostwriter@users.noreply.github.com
+          git add analysis costs/project.yml
+          if git diff --cached --quiet; then echo "Nichts abzulegen"; exit 0; fi
+          run=$(python scripts/analyze.py . latest --kind "${{ inputs.kind }}" --json | python -c "import json,sys;d=json.load(sys.stdin) or {};print(d.get('id',''),d.get('suggestions',0))")
+          git commit -q \
+            -m "Figuren-Analyse im Hintergrund: ${run#* } Vorschläge (${run%% *})" -m "GhostWriter-Aktion: analysis.start"
+          git pull -q --rebase origin "$GITHUB_REF_NAME"
+          git push -q origin "HEAD:$GITHUB_REF_NAME"
