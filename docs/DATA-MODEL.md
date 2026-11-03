@@ -104,6 +104,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `structure.chapters` | Kapitel in Reihenfolge, je mit `id`, `title`, `path`, `status` und `sections` (je `id`, `title`, `path`) |
 | `structure.front_matter`, `structure.back_matter` | Vor- und Nachspann (#57, #58): Teile vor Kapitel 1 (Widmung, Vorwort, Prolog) bzw. nach dem letzten Kapitel (Epilog, Nachwort, Glossar, Danksagung), je mit `id`, `kind`, `title`, `path`; fehlen = keine (siehe „Vor- und Nachspann“) |
 
+| `ai_disclosure` | KI-Angabe im Buch (#78): `mode` (`none`, `short`, `detailed`, `custom`), `placement` (`imprint`, `foreword`, `afterword`, `page`), `name_services`, `text` (bestätigter Wortlaut; nur dieser kommt ins Buch); fehlt = keine Angabe (siehe „KI-Angabe im Buch“) |
 | `typesetting` | Buchsatz der Auflagen, in den Projekteinstellungen bearbeitbar (siehe unten) |
 | `updates.auto` | neue GhostWriter-Versionen automatisch einspielen; fehlt = `true` ([UPDATES.md](UPDATES.md)) |
 | `changes.auto_merge` | gespeicherte Änderungen sofort übernehmen statt über „Änderungen übernehmen“; fehlt = `false`. Freigaben und Auflagen brauchen trotzdem ihre eigene Bestätigung (`START.md`, „Schreiben ins Repository“) |
@@ -196,6 +197,20 @@ approvals:
 **Glossar:** Unter `## Manuskript` optional ein einleitender Absatz, dann je Begriff ein Listeneintrag `- Begriff: Erklärung` (Folgezeilen eingerückt). Beim Satz werden die Einträge alphabetisch nach DIN 5007-1 sortiert (Umlaute wie die Grundbuchstaben, ß wie ss, Groß/klein egal) und als Beschreibungsliste gesetzt (PDF `description`, DOCX-Formate „Definition Term“/„Definition“, EPUB `dl` im Abschnitt mit Rolle `glossary`). Ein Begriff darf nur einmal vorkommen (Groß/klein egal); Prüfung, Freigabe und Auflage melden Doppelungen. `scripts/matter.py glossary-set|glossary-remove` ändert einzelne Einträge und schreibt sie sortiert zurück.
 
 Darunter `## Ziel` und `## Manuskript` (der Text fürs Buch). Jede Art gibt es höchstens einmal; `scripts/matter.py add` legt Datei und Eintrag an, in der Reihenfolge der Tabelle. Nur freigegebene Teile kommen in eine Auflage; ein nicht freigegebener Teil fehlt darin und wird bei der Prüfung genannt, offene Marker in einem freigegebenen Teil verhindern die Auflage. Der Probedruck zeigt alle Teile mit Statusvermerk. Ghostwriting und Recherche gibt es für Vorwort, Prolog, Epilog und Nachwort wie bei Abschnitten, fürs Glossar Vorschläge und Recherche je Begriff (Lauf-Dateien unter `matter/research/<mat-id>/run-NNN.md` bzw. `matter/writing/<mat-id>/run-NNN.md`); Widmung und Danksagung schreibt der Autor selbst (Ghostwriting nur auf ausdrücklichen Wunsch). EPUB: eigene Abschnitte mit den Rollen `dedication`, `foreword`, `prologue`, `epilogue`, `afterword`, `glossary`, `acknowledgments`.
+
+## KI-Angabe im Buch
+
+Ob und wie das Buch angibt, wie bei ihm KI genutzt wurde, ist eine Einstellung des Autors je Buch (#78). Getrennt davon und nie im Buch: der Hinweis auf die Entwicklung von GhostWriter (`templates/branding.yml`).
+
+```yaml
+ai_disclosure:
+  mode: short            # none | short (ein Satz) | detailed (je Aufgabe) | custom (eigener Text)
+  placement: imprint     # imprint | foreword (Ende des Vorworts) | afterword (Ende des Nachworts) | page (eigene Seite am Ende)
+  name_services: true    # Dienste namentlich nennen
+  text: "Bei der Entstehung dieses Buchs wurden KI-Werkzeuge für Recherche und Textentwürfe eingesetzt (Perplexity). …"
+```
+
+`scripts/ai_disclosure.py suggest` schlägt den Wortlaut aus den Köpfen der Lauf-Dateien vor (`type` → Aufgabe, `provider` → Dienst aus `providers.yml`; `chat` erscheint als „ein Chat-Assistent“). Ins Buch kommt nur `text`, also ein bestätigter Wortlaut; ändern sich `mode` oder `name_services`, leert `set` ihn wieder. Satz: im Impressum als weitere Zeilen, am Ende von Vorwort bzw. Nachwort vor Verfasser und Ort/Datum (Block `::: ki-angabe`), als eigene Seite „Hinweis zur KI-Nutzung“ unnummeriert am Ende; in allen drei Formaten und im Probedruck. Ist eine Angabe gewählt, verhindern ein fehlender Wortlaut oder ein fehlender Ort (Impressum ausgeschaltet, kein freigegebenes Vorwort bzw. Nachwort) die Auflage.
 
 ## Übersichtsdatei
 

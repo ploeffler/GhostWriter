@@ -1062,6 +1062,16 @@ def update_info(base, config):
     return auto, text, hint
 
 
+def ai_disc_text(config):
+    s = (config.get('ai_disclosure') or {})
+    mode = s.get('mode', 'none')
+    if mode == 'none':
+        return 'keine'
+    place = {'imprint': 'im Impressum', 'foreword': 'im Vorwort', 'afterword': 'im Nachwort', 'page': 'eigene Seite'}
+    return {'short': 'kurz', 'detailed': 'ausführlich', 'custom': 'eigener Text'}[mode] + ', ' + \
+        place.get(s.get('placement', 'imprint'), '') + ('' if s.get('text') else ' (Wortlaut offen)')
+
+
 def project_settings_view(base, config, args):
     ts = dict(TYPESETTING_DEFAULT)
     ts.update(config.get('typesetting') or {})
@@ -1091,6 +1101,7 @@ def project_settings_view(base, config, args):
                              f'| Verzeichnistiefe | {"nur Kapitel" if ts["toc_depth"] == 1 else "Kapitel und Abschnitte"} | Kapitel, Abschnitte |',
                              f'| Updates automatisch | {jn(upd_auto)} | ja, nein |',
                              f'| Änderungen sofort übernehmen | {jn(auto_merge)} | ja, nein |',
+                             f'| KI-Angabe im Buch | {ai_disc_text(config)} | Formular `KI-Angabe` |',
                              '', f'<sub>{upd_text}</sub>'] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', FORM_HINT]) + '\n'
     def b(v):
         return 'true' if v else 'false'
@@ -1099,6 +1110,39 @@ def project_settings_view(base, config, args):
                                               'TITLE_PAGE': b(ts['title_page']), 'IMPRINT': b(ts['imprint']), 'TOC': b(ts['toc']),
                                               'TOC_DEPTH': str(ts['toc_depth']), 'UPDATES_AUTO': b(upd_auto), 'CHANGES_AUTO_MERGE': b(auto_merge),
                                               'GW_VERSION_TEXT': upd_text, 'GW_UPDATE_HINT': upd_hint}, {'FIXED': fixed})
+
+
+def ai_disclosure_view(base, config, args):
+    """Formular „KI-Angabe im Buch“ (#78), vorerst Textfassung: Einstellung, Vorschlag aus den Läufen, Hinweis."""
+    import ai_disclosure as ad
+    s = ad.settings(config)
+    proposal = ad.suggest(base, config) if s['mode'] in ('none', 'short', 'detailed') else ''
+    used = ad.usage(base)
+    names = ad.provider_names()
+    mode_de = {'none': 'keine', 'short': 'kurz (ein Satz)', 'detailed': 'ausführlich (je Aufgabe)', 'custom': 'eigener Text'}
+    place_de = {'imprint': 'Impressum', 'foreword': 'Vorwort (am Ende)', 'afterword': 'Nachwort (am Ende)', 'page': 'eigene Seite am Ende'}
+    lines = ['### 🤖 KI-Angabe im Buch', '',
+             'Ob und wie im Buch steht, wie bei diesem Buch KI genutzt wurde. Der Hinweis auf die Entwicklung von '
+             'GhostWriter kommt nie ins Buch.', '',
+             '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|',
+             f'| Angabe | {mode_de[s["mode"]]} | keine, kurz, ausführlich, eigener Text |',
+             f'| Ort | {place_de[s["placement"]]} | Impressum, Vorwort, Nachwort, eigene Seite |',
+             f'| Dienste nennen | {"ja" if s["name_services"] else "nein"} | ja, nein |', '']
+    if used:
+        lines += ['**Laut den Läufen genutzt:** ' + ' · '.join(
+            f'{t}: {ad.service_text(ids, names)}' for t, ids in used.items()), '']
+    else:
+        lines += ['*Bisher sind keine KI-Läufe protokolliert.*', '']
+    if s['mode'] != 'none':
+        lines += ['**Wortlaut im Buch' + (' (bestätigt)' if s['text'] else ' – noch nicht bestätigt') + ':**', '']
+        lines += ['> ' + l if l else '>' for l in (s['text'] or '*(leer)*').splitlines()] + ['']
+    if proposal and proposal != s['text'] and s['mode'] in ('short', 'detailed'):
+        lines += ['**Vorschlag aus den Läufen:**', ''] + ['> ' + l if l else '>' for l in proposal.splitlines()] + ['']
+    lines += [f'<sub>⚖️ {ad.LEGAL_HINT}</sub>', '', '---',
+              'Antworte mit `Angabe: …`, `Ort: …`, `Dienste nennen: ja|nein` oder `Text: …` (eigener Wortlaut)'
+              + (' · `OK` übernimmt den Vorschlag' if proposal and s['mode'] in ('short', 'detailed') else '')
+              + ' · `X` bricht ab']
+    return '\n'.join(lines) + '\n'
 
 
 CHAPTER_RESEARCH_DIR = 'research/kapitel'   # workflow.yml, runs.chapter_research
@@ -1528,7 +1572,8 @@ FORMS = {'choice': choice_view, 'book-create': book_create_view, 'project-edit':
          'approval-writing': lambda b, c, a: approval_view(b, c, a, 'writing'),
          'approval-section': lambda b, c, a: approval_view(b, c, a, 'section'),
          'approval-chapter': lambda b, c, a: approval_view(b, c, a, 'chapter'),
-         'approval-matter': lambda b, c, a: approval_view(b, c, a, 'section')}
+         'approval-matter': lambda b, c, a: approval_view(b, c, a, 'section'),
+         'ai-disclosure': ai_disclosure_view}
 
 
 def git_head(base):

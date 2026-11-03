@@ -85,6 +85,17 @@
       "properties": {"auto_merge": {"type": "boolean"}},
       "additionalProperties": false
     },
+    "ai_disclosure": {
+      "type": "object",
+      "description": "KI-Angabe im Buch (#78): ob und wie angegeben wird, wie bei diesem Buch KI genutzt wurde; fehlt = keine Angabe",
+      "properties": {
+        "mode": {"enum": ["none", "short", "detailed", "custom"]},
+        "placement": {"enum": ["imprint", "foreword", "afterword", "page"]},
+        "name_services": {"type": "boolean"},
+        "text": {"type": "string", "description": "vom Autor bestätigter Wortlaut; nur dieser kommt ins Buch"}
+      },
+      "additionalProperties": false
+    },
     "typesetting": {
       "type": "object",
       "description": "Buchsatz für die Auflagen; fehlt der Block, gelten die Vorgaben aus docs/DATA-MODEL.md",

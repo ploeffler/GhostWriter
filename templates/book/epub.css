@@ -24,3 +24,6 @@ section.dedication > h1, h1.dedication { display: none; }
 section.glossary dt { font-weight: bold; margin-top: 0.6em; }
 section.glossary dd { margin: 0 0 0 1.2em; }
 section.glossary dd p { text-indent: 0; }
+/* KI-Angabe (#78) am Ende von Vorwort bzw. Nachwort */
+.ki-angabe { margin-top: 1.2em; font-size: 0.9em; }
+.ki-angabe p { text-indent: 0; }

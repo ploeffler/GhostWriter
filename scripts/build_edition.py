@@ -53,6 +53,7 @@ BOOK = ROOT / 'templates' / 'book'
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from assemble import book_body, book_parts, matter_notes, matter_parts, metadata, problems  # noqa: E402
 from render_view import load, tag_slug  # noqa: E402
+import ai_disclosure  # noqa: E402
 
 PAGE = {  # Breite, Höhe in mm
     'a5': (148, 210), '12x19': (120, 190), '13.5x21.5': (135, 215), 'a4': (210, 297)}
@@ -208,11 +209,15 @@ def main(argv):
                       'Enthält auch nicht freigegebene Abschnitte; offene Marker sind hervorgehoben.')
     out = Path(args.out).resolve()   # Pandoc läuft im Arbeitsordner, daher absolut
     out.mkdir(parents=True, exist_ok=True)
-    body = book_body(parts, matter)
+    disc = ai_disclosure.for_book(config)   # KI-Angabe (#78): (Ort, Wortlaut) oder None
+    in_body = disc if disc and disc[0] != 'imprint' else None
+    body = book_body(parts, matter, in_body)
     # PDF: Widmung vor dem Inhaltsverzeichnis (include-before), daher dort ohne Widmung im Text
     dedication = ''.join(m[2] for m in matter if m[1]['kind'] == 'dedication' and m[2])
-    body_pdf = book_body(parts, [m for m in matter if m[1]['kind'] != 'dedication'])
+    body_pdf = book_body(parts, [m for m in matter if m[1]['kind'] != 'dedication'], in_body)
     imprint = imprint_markdown(meta, release_name, args.commit)
+    disc_lines = [re.sub(r'^\s*[-*]\s+', '– ', line) for line in disc[1].splitlines() if line.strip()] \
+        if disc and disc[0] == 'imprint' else []
     fonts = FONTS.get(ts['font'], FONTS['serif'])
     w, h = PAGE.get(ts['page_size'], PAGE['a5'])
     months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
@@ -223,6 +228,7 @@ def main(argv):
         common_meta['date'] = f'Probedruck · {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]}'
         meta['edition_text'] = 'Probedruck'
         imprint = [release_name, proof_note] + ([f'Commit {args.commit[:7]}'] if args.commit else [])
+    imprint += disc_lines
     results = []
 
     with tempfile.TemporaryDirectory() as tmp:
