@@ -368,6 +368,16 @@ class DataPageTest(unittest.TestCase):
         self.assertIn('Prüfung: unbekannt', self.view('--text'))
 
 
+class PushErrorTest(unittest.TestCase):
+    def test_workflow_scope_hint(self):
+        import update_from_upstream as u
+        err = ' ! [remote rejected] HEAD -> main (refusing to allow a Personal Access Token to create or update workflow `.github/workflows/edition.yml` without `workflow` scope)'
+        text = u.push_error('main', err)
+        self.assertTrue(text.startswith('Push nach main abgelehnt: Token ohne Workflow-Recht.'))
+        self.assertIn('Workflows: Read and write', text)
+        self.assertIn('der nächste Lauf versucht es erneut', u.push_error('main', 'non-fast-forward'))
+
+
 class ProgramRepoTest(unittest.TestCase):
     """#48: Das Programm-Repository enthält keine Buchinhalte."""
 

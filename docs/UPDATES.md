@@ -115,6 +115,7 @@ So legst du es an:
 1. GitHub → *Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token*.
 2. **Repository access:** dein Buch-Repository und, falls privat, das Hauptrepository.
 3. **Permissions:** *Contents: Read and write* und *Workflows: Read and write* für dein Buch-Repository; *Contents: Read-only* für das Hauptrepository.
+   Mit einem klassischen Token stattdessen die Scopes `repo` und `workflow` anhaken. Fehlt das Workflow-Recht, lehnt GitHub den Push ab („refusing to allow a Personal Access Token to create or update workflow … without `workflow` scope“); das Update meldet dann genau das. Ein bestehender Fine-grained Token lässt sich nachträglich unter *Edit* um *Workflows* erweitern, ohne ihn neu einzutragen.
 4. Ablaufdatum setzen, Token erzeugen und kopieren.
 5. In deinem Buch-Repository unter *Settings → Secrets and variables → Actions → New repository secret* als `GHOSTWRITER_UPDATE_TOKEN` hinterlegen.
 
