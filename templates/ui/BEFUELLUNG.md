@@ -214,6 +214,8 @@ Seite „Daten“ (`render_view.py data`, `START.md`, „Daten“). Quellen: `li
 | `PROGRAM_VERSION_TEXT`, `UI_TEXT` | `program.version`, `program.upstream`, `program.ui_version`, `program.ui_commit` aus `library.json` |
 | `PROGRAM_UPDATE_TEXT`, `PROGRAM_BEHIND` | Update-Stand aus `--upstream` („aktuell“ bzw. Commits dahinter); ohne Angabe „nicht abgefragt“; `PROGRAM_BEHIND` nur, wenn dahinter |
 | `PROGRAM_LAST_UPDATE_TEXT`, `PROGRAM_SKIPPED_TEXT` | `program.last_update`, `program.skipped_workflows` (aus `.ghostwriter/update.yml` des Standard-Branchs) |
+| Block `LIMITS`: `L_LABEL`, `L_STATE`, `L_TEXT` | Nutzungsgrenzen (#62): je geprüfter Grenze Name, Ampel `ok` / `warn` (unter 20 %) / `pause` (unter 10 %) und Stand wie „62 % übrig (3,80 von 10,00 €)“; aus `--limits` (`scripts/limits.py check --json`) bzw. aus den Kostendateien des Buchs und `rate_limit` in `github.json`. Keine Grenze eingestellt bzw. prüfbar = Block weglassen |
+| `LIMITS_TEXT` | nur bei `pause`: „Update-Automatik pausiert: …“ mit dem Grund; sonst leer |
 | `GITHUB_KNOWN` | `1`, wenn `--github` übergeben wurde; sonst leer (Hinweis erscheint) |
 | `REPO_TEXT` | `repo.private`, `repo.size` (KB), Zahl der `branches`; ohne `--github` „unbekannt“ |
 | `CLEANUP_URL`, `TASKS_URL` | Action „Branches aufräumen“, Suche nach dem Issue „Löschaufgaben“ |
