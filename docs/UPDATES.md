@@ -85,6 +85,22 @@ updates:
 
 Ein Update von Hand: in GitHub unter *Actions → GhostWriter aktualisieren → Run workflow*. Mit **Probelauf** siehst du nur, was sich ändern würde.
 
+## Limits: Automatik pausiert
+
+Vor dem Einspielen prüft die Action `scripts/limits.py check --live --automation`: das KI-Budget des Monats (`limits.ai_budget_monthly` gegen die Backend-API-Kosten in `costs/`), die GitHub-Actions-Minuten des Repositorys (`limits.actions_minutes_monthly`, etwa 2000 im Free-Plan bei privaten Repositorys) und das API-Rate-Limit des Tokens. Ist bei einem davon **weniger als 10 %** übrig, läuft die tägliche Prüfung nicht weiter: Der Schritt „Updates einspielen“ wird übersprungen, und die Action legt das Issue **„GhostWriter-Automatik pausiert“** an (bzw. aktualisiert es) mit dem Grund. Unter **20 %** steht eine Vorwarnung in der Zusammenfassung des Laufs und in der Projektübersicht.
+
+Weiter geht es von selbst, sobald wieder genug übrig ist – meist mit dem neuen Monat; dann schließt der nächste Lauf das Issue. Von Hand gestartete Läufe (*Run workflow*) laufen immer. Die Beträge stehen in **Projekteinstellungen → Limits**:
+
+```yaml
+limits:
+  ai_budget_monthly: 10          # € je Monat; fehlt = keine Prüfung
+  actions_minutes_monthly: 2000  # fehlt = keine Prüfung
+  warn_below_percent: 20
+  pause_below_percent: 10
+```
+
+Kontingente bei den KI-Anbietern selbst kommen mit dem Backend (#19, #66).
+
 ## Token für private Hauptrepositorys und Workflow-Dateien
 
 (Für ein fremdes privates Hauptrepository gilt der klassische Token aus „Eigenes Buch anlegen“, Schritt 3.)

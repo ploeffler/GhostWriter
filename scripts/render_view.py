@@ -512,6 +512,22 @@ def characters_view(base, config, args):
     return fill('figur-bearbeiten.html', values, {'RELATIONS': rel, 'OTHERS': others})
 
 
+def limit_state(base, config, args):
+    """(state, text) aus --limits (JSON von limits.py check --json) bzw. ohne Angabe aus den Kosten des Monats (#62)."""
+    path = getattr(args, 'limits', None)
+    if path:
+        data = json.loads(Path(path).read_text(encoding='utf-8'))
+        return data.get('state') or 'ok', data.get('text') or ''
+    import limits
+    return limits.summary(limits.evaluate(base, config))
+
+
+def limit_summary(base, config):
+    import limits
+    rows = limits.evaluate(base, config)
+    return ('; '.join(r['text'] for r in rows) + '.') if rows else 'Keine Limits eingestellt.'
+
+
 def project_view(base, config, args):
     p = config['project']
     chapters = config['structure']['chapters']
@@ -546,6 +562,9 @@ def project_view(base, config, args):
     upd = load_upstream(args)
     if upd:
         values.update({'UPDATE_BEHIND': upd['behind'], 'UPDATE_TEXT': update_text(upd)})
+    lim_state, lim_text = limit_state(base, config, args)
+    if lim_state != 'ok':   # Limitwarnung (#62)
+        values.update({'LIMIT_STATE': lim_state, 'LIMIT_TEXT': lim_text})
     matter = matter_rows(base, config)
     front = [m for m in matter if m['MATTER_AREA'] == 'front']
     back = [m for m in matter if m['MATTER_AREA'] == 'back']
@@ -556,6 +575,8 @@ def project_view(base, config, args):
                  f'**{values["PROJECT_EDITION_TEXT"]}** · Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · KI-API-Kosten: **{values["PROJECT_COST"]}**', '']
         if changes:
             lines += [f'> ⏳ **{values["PENDING_TEXT"]} noch nicht übernommen** (Pull Request #{changes["pull_request"]}) · `M` übernehmen', '']
+        if lim_state != 'ok':
+            lines += [f'> {"⏸" if lim_state == "pause" else "⚠️"} **{lim_text}** · `E` Einstellungen', '']
         if upd:
             lines += [f'> 🔄 **GhostWriter-Update:** {values["UPDATE_TEXT"]} · `U` einspielen', '']
         if values['PROJECT_DESCRIPTION_SHORT']:
@@ -1425,6 +1446,8 @@ def project_settings_view(base, config, args):
     fc = wf.get('fact_checking_default') or 'optional'
     upd_auto, upd_text, upd_hint = update_info(base, config)
     auto_merge = (config.get('changes') or {}).get('auto_merge') is True
+    lim = config.get('limits') or {}
+    lim_sum = limit_summary(base, config)
     if args.text:
         page = {'a5': 'A5 (14,8 × 21 cm)', '12x19': '12 × 19 cm', '13.5x21.5': '13,5 × 21,5 cm', 'a4': 'A4'}
         jn = lambda v: 'ja' if v else 'nein'
@@ -1440,9 +1463,11 @@ def project_settings_view(base, config, args):
                              f'| Verzeichnistiefe | {"nur Kapitel" if ts["toc_depth"] == 1 else "Kapitel und Abschnitte"} | Kapitel, Abschnitte |',
                              f'| Updates automatisch | {jn(upd_auto)} | ja, nein |',
                              f'| Änderungen sofort übernehmen | {jn(auto_merge)} | ja, nein |',
+                             f'| KI-Budget je Monat | {lim.get("ai_budget_monthly") or "–"} | Betrag in Projektwährung, leer = keins |',
+                             f'| Actions-Minuten je Monat | {lim.get("actions_minutes_monthly") or "–"} | Minuten, leer = nicht prüfen |',
                              f'| KI-Angabe im Buch | {ai_disc_text(config)} | Formular `KI-Angabe` |',
                              '| Weitere Ausgabeoptionen | Ränder, Zeilenabstand, Kolumnentitel, Formate, ISBN … | Formular `Ausgabe` |',
-                             '', f'<sub>{upd_text}</sub>'] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', FORM_HINT]) + '\n'
+                             '', f'<sub>{upd_text} · Limits: {lim_sum}</sub>'] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', FORM_HINT]) + '\n'
     def b(v):
         return 'true' if v else 'false'
     return fill('projekteinstellungen.html', {'FACT_CHECK_DEFAULT': fc, 'PAGE_SIZE': ts['page_size'], 'FONT': ts['font'],
@@ -1450,7 +1475,16 @@ def project_settings_view(base, config, args):
                                               'TITLE_PAGE': b(ts['title_page']), 'IMPRINT': b(ts['imprint']), 'TOC': b(ts['toc']),
                                               'TOC_DEPTH': str(ts['toc_depth']), 'UPDATES_AUTO': b(upd_auto), 'CHANGES_AUTO_MERGE': b(auto_merge),
                                               'GW_VERSION_TEXT': upd_text, 'GW_UPDATE_HINT': upd_hint,
-                                              'AI_DISCLOSURE_TEXT': ai_disc_text(config)}, {'FIXED': fixed})
+                                              'AI_DISCLOSURE_TEXT': ai_disc_text(config),
+                                              'LIMIT_BUDGET': num_text(lim.get('ai_budget_monthly')),
+                                              'LIMIT_MINUTES': num_text(lim.get('actions_minutes_monthly')),
+                                              'LIMIT_SUMMARY': lim_sum}, {'FIXED': fixed})
+
+
+def num_text(v):
+    if v in (None, ''):
+        return ''
+    return str(int(v)) if float(v).is_integer() else str(v)
 
 
 def ai_disclosure_view(base, config, args):
@@ -1950,6 +1984,7 @@ def main():
     ap.add_argument('--branch', default='main')
     ap.add_argument('--revoke', action='store_true', help='bei approval-*: Freigabe zurücknehmen statt erteilen')
     ap.add_argument('--upstream', help='JSON-Datei mit dem Update-Stand (behind, upstream, version, installed) für die Projektübersicht')
+    ap.add_argument('--limits', help='JSON-Datei von limits.py check --json (Projektübersicht: Hinweis Vorwarnung bzw. Automatik pausiert); ohne Angabe nur das KI-Budget aus costs/')
     ap.add_argument('--changes', help='JSON-Datei mit den offenen Änderungen (Pull Request, Branches, Commits) für Projektübersicht und changes-merge')
     ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
     ap.add_argument('--draft', help='bei chapter-research bzw. book-create: JSON mit noch nicht gespeicherten Werten (goal, summary, question, scope bzw. working_title, title_short, author, error)')

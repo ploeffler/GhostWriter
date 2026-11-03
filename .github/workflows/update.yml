@@ -48,7 +48,34 @@ jobs:
       - name: Abhängigkeiten installieren
         run: pip install pyyaml jsonschema
 
+      - name: Limits prüfen
+        # #62: unter limits.pause_below_percent (Vorgabe 10 %) läuft die Automatik nicht; kein Fehlerlauf.
+        # Ein von Hand gestarteter Lauf (workflow_dispatch) ist eine manuelle Aktion und läuft trotzdem.
+        id: limits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -f scripts/limits.py ] || { echo "paused=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          python scripts/limits.py . check --automation --live
+
+      - name: Hinweis-Issue „GhostWriter-Automatik pausiert“
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAUSED: ${{ steps.limits.outputs.paused }}
+          TEXT: ${{ steps.limits.outputs.text }}
+        run: |
+          title="GhostWriter-Automatik pausiert"
+          num=$(gh issue list --state open --search "\"$title\" in:title" --json number,title --jq ".[] | select(.title==\"$title\") | .number" | head -1)
+          if [ "$PAUSED" = "true" ]; then
+            body="$TEXT"$'\n\n'"Stand: $(date -u +%Y-%m-%dT%H:%MZ). Die tägliche Update-Prüfung ist ausgesetzt, bis wieder genug übrig ist (neuer Monat, höheres Budget oder Grenze in den Projekteinstellungen). Manuelle Läufe gehen weiter. Siehe docs/UPDATES.md."
+            if [ -n "$num" ]; then gh issue edit "$num" --body "$body"; else gh issue create --title "$title" --body "$body"; fi
+          elif [ -n "$num" ]; then
+            gh issue close "$num" --comment "Wieder genug übrig; die Automatik läuft wieder."
+          fi
+
       - name: Updates einspielen
+        if: steps.limits.outputs.paused != 'true' || github.event_name == 'workflow_dispatch'
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GHOSTWRITER_UPDATE_TOKEN: ${{ secrets.GHOSTWRITER_UPDATE_TOKEN }}

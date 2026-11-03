@@ -148,7 +148,7 @@ Was jedes Formular schreibt:
 | Projektdaten bearbeiten | `project.update` | `ghostwriter.yml` (`project.*`) | `Projektdaten geändert` | – | `PATCH /v1/projects/{owner}/{repo}` |
 | KI-Angabe im Buch | `project.ai_disclosure.update` | `ghostwriter.yml` (`ai_disclosure`), über `scripts/ai_disclosure.py set` | `KI-Angabe geändert` | – | `PATCH …/settings` |
 | Ausgabeoptionen | `project.output.update` | `ghostwriter.yml` (`typesetting`, `publication`, `print`, `cover`), Texte der Rückseite in `cover/rueckseite.md` (aus `templates/cover-rueckseite.md`), hochgeladene Bilder unter `cover/`; nur geänderte Felder eintragen, Vorgaben nicht ausschreiben; danach `scripts/validate_project.py` (ISBN-Prüfziffer, Druckprofil, Bilder) | `Ausgabeoptionen geändert` | – | `PATCH …/settings` |
-| Projekteinstellungen | `project.settings.update` | `ghostwriter.yml` (`workflow.fact_checking_default`, `typesetting`, `updates`, `changes`) | `Projekteinstellungen geändert` | – | `PATCH …/settings` |
+| Projekteinstellungen | `project.settings.update` | `ghostwriter.yml` (`workflow.fact_checking_default`, `typesetting`, `updates`, `changes`, `limits`) | `Projekteinstellungen geändert` | – | `PATCH …/settings` |
 | KI-Dienste | `project.providers.update` | `ghostwriter.yml` (`ai_providers`: `available`, `services`, Anbieter je Aufgabe, `search_tools`, `queue_processing.agent`; Modellnamen bleiben) | `KI-Dienste geändert` | – | `PATCH …/settings` |
 | Neues Kapitel | `chapter.create` | `ghostwriter.yml` (`structure.chapters`), `chapters/<nn-slug>/README.md` aus `templates/chapter-README.md`, erste Abschnittsdatei aus `templates/section.md` (jedes Kapitel braucht mindestens einen Abschnitt) | `Kapitel N „Titel“ angelegt` | – | `POST …/chapters` |
 | Kapitel bearbeiten | `chapter.update` | `ghostwriter.yml` (Kapiteltitel), Kapitel-README (Überschrift, Untertitel, Kurzbeschreibung, Ziel) | `Kapitel N „Titel“ geändert` | – | `PATCH …/chapters/{chapter_id}` |
@@ -188,6 +188,10 @@ Die Knöpfe „Recherche · Sofort“ und „Ghostwriting · Sofort“ im Abschn
    
    Commit-Nachricht: `Recherche für Abschnitt N.M` bzw. `Entwurf für Abschnitt N.M`, darunter `GhostWriter-Aktion: run.start`.
 6. **Ergebniszeile** wie in `templates/ui/BEFUELLUNG.md`, „Statustexte“, danach wieder das Abschnittsformular mit dem neuen Stand. Freigaben erteilt ein Lauf nie; die Abschnittsfreigabe bleibt ein eigener, ausdrücklicher Schritt.
+
+### Limits (verbindlich, #62)
+
+Vor einem Schritt, der Kosten oder Kontingente verbraucht (ein KI-Lauf über das Backend, eine Auflage, ein Probedruck), prüfe den Stand mit `python scripts/limits.py <projektordner> check` (ohne Netz nur das KI-Budget aus `costs/`). Ist weniger als 20 % übrig, nenne das in einem Satz vor dem Schritt. Ist weniger als 10 % übrig oder ein Budget aufgebraucht, frag vorher ausdrücklich nach („Das KI-Budget ist fast aufgebraucht (8 % übrig). Trotzdem starten?“) und starte erst nach einem Ja. Arbeit im Chat ohne Backend kostet nichts und braucht keine Rückfrage. Die tägliche Update-Automatik pausiert unter 10 % von selbst (Issue „GhostWriter-Automatik pausiert“, `docs/UPDATES.md`, „Limits“). Beträge stellt der Autor in den Projekteinstellungen ein (`limits`).
 
 ### Kapitelrecherche (verbindlich)
 
@@ -229,7 +233,7 @@ Figuren sind optional (`characters`, `docs/DATA-MODEL.md`, „Figuren“) und Ar
 
 ### Illustrationen (verbindlich, #54)
 
-Bilder zu Abschnitten entstehen im Chat oder bei einem anderen Dienst; der Weg über die API mit Kosten über das Backend kommt mit #19 (dann mit Budget-Sperre, #62).
+Bilder zu Abschnitten entstehen im Chat oder bei einem anderen Dienst; der Weg über die API mit Kosten über das Backend kommt mit #19 (dann mit Budget-Sperre, siehe „Limits“).
 
 1. **Zeigen:** `Bilder 3.2` bzw. „Bilder“ im Abschnittsformular (`view.images`) → `python scripts/render_view.py . images 3.2` (Vorlage `bilder`, Textfassung `--text`). Ein neuer Auftrag aus dem Widget kommt als `image.prompt` mit der Szene (leer = Szene aus dem Text vorschlagen).
 2. **Auftrag:** Der Benutzer beschreibt die Szene (oder bittet um einen Vorschlag aus dem Abschnittstext). `python scripts/images.py . prompt 3.2 --scene "…"` setzt Bildstil, Szene und die festen Bildmerkmale der Figuren zusammen. Den Prompt vor dem Erzeugen zeigen; der Benutzer darf ihn ändern.
