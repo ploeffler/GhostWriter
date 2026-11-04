@@ -161,6 +161,21 @@ def add(base, key, file, caption, alt='', prompt='', source='chat', provider='',
     ext = EXT.get(src.suffix.lower())
     if not ext:
         raise SystemExit('Nur PNG oder JPEG.')
+    reference_records = []
+    if reference_ids:
+        if source == 'own':
+            raise SystemExit('Eigene, nicht KI-erzeugte Bilder können keine KI-Referenzen protokollieren.')
+        from reference_images import select as select_reference_images
+        for ref in select_reference_images(base, reference_ids):
+            ref_path = Path(ref['file'])
+            if not ref_path.is_file():
+                raise SystemExit(f'Referenzdatei fehlt: {ref_path}')
+            reference_records.append({
+                'id': ref['id'],
+                'file': ref_path.name,
+                'sha256': hashlib.sha256(ref_path.read_bytes()).hexdigest(),
+                'caption': ref['caption']
+            })
     folder = base / folder_rel
     folder.mkdir(parents=True, exist_ok=True)
     taken = set(all_images(base, config))
@@ -186,21 +201,6 @@ def add(base, key, file, caption, alt='', prompt='', source='chat', provider='',
         c = find_character(config, nme)
         if c:
             ids.append(c['id'])
-    reference_records = []
-    if reference_ids:
-        if source == 'own':
-            raise SystemExit('Eigene, nicht KI-erzeugte Bilder können keine KI-Referenzen protokollieren.')
-        from reference_images import select as select_reference_images
-        for ref in select_reference_images(base, reference_ids):
-            ref_path = Path(ref['file'])
-            if not ref_path.is_file():
-                raise SystemExit(f'Referenzdatei fehlt: {ref_path}')
-            reference_records.append({
-                'id': ref['id'],
-                'file': ref_path.name,
-                'sha256': hashlib.sha256(ref_path.read_bytes()).hexdigest(),
-                'caption': ref['caption']
-            })
     run = next_run(folder)
     meta = {'id': iid, 'section_id': target['id'], 'file': dest.name, 'caption': caption.strip(), 'alt': (alt or caption).strip(),
             'status': 'draft', 'ai_generated': source != 'own', 'source': source}
