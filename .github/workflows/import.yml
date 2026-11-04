@@ -3,7 +3,11 @@ name: Manuskript importieren
 # Manuskript als Buch übernehmen (#124, scripts/import_book.py), Teil ohne KI:
 #   convert  Original (schon unter import/original/ im Buch-Branch) umwandeln und
 #            die Gliederung als Vorschlag ablegen (import/proposal.json)
-#   edit     Änderungen am Vorschlag (ops als JSON)
+#   edit     Änderungen am Vorschlag (ops als JSON), auch: KI-Vorschlag übernehmen
+#   outline  nur ohne Gliederung: KI-Vorschlag für Kapitel und Abschnitte
+#            (import/outline.json; Anfänge ohne KI gegen den Text geprüft);
+#            braucht ANTHROPIC_API_KEY bzw. OPENAI_API_KEY, Kosten nach
+#            costs/project.yml; unter 10 % Budget nur mit confirm_low_budget
 #   apply    Kapitel, Abschnitte und Teile anlegen (Status revision; Schreibfreigabe
 #            nur mit writing_approval, festgehalten in approvals.yml)
 # Gestartet aus dem Chat (START.md, „Manuskript importieren“) auf dem Buch-Branch.
@@ -15,7 +19,7 @@ on:
       step:
         description: 'Schritt'
         type: choice
-        options: [convert, edit, apply]
+        options: [convert, edit, outline, apply]
         default: convert
       file:
         description: 'bei convert: Pfad des Originals im Repository (import/original/…)'
@@ -35,6 +39,10 @@ on:
       by:
         description: 'bei apply mit Schreibfreigabe: GitHub-Login'
         default: ''
+      confirm_low_budget:
+        description: 'bei outline: auch starten, wenn weniger als 10 % des KI-Budgets übrig sind'
+        type: boolean
+        default: false
   schedule:
     - cron: '17 3 * * *'
 
@@ -78,10 +86,19 @@ jobs:
           OPS: ${{ inputs.ops }}
           WA: ${{ inputs.writing_approval }}
           BY: ${{ inputs.by }}
+          CONFIRM: ${{ inputs.confirm_low_budget }}
+          GH_TOKEN: ${{ github.token }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           case "$STEP" in
             convert) python scripts/import_book.py . convert "$FILE" --keep "$KEEP" | tee -a "$GITHUB_STEP_SUMMARY"; msg="Manuskript umgewandelt: Vorschlag für die Gliederung" ;;
             edit)    python scripts/import_book.py . edit "$OPS" | tee -a "$GITHUB_STEP_SUMMARY"; msg="Import: Gliederung geändert" ;;
+            outline) python scripts/import_book.py . outline --plan | tee -a "$GITHUB_STEP_SUMMARY"
+                     if ! python scripts/limits.py . check && [ "$CONFIRM" != "true" ]; then
+                       echo "::error::Weniger als 10 % des KI-Budgets übrig. Mit confirm_low_budget trotzdem starten."; exit 1
+                     fi
+                     python scripts/import_book.py . outline | tee -a "$GITHUB_STEP_SUMMARY"; msg="Import: KI-Vorschlag für die Gliederung" ;;
             apply)   args=(); if [ "$WA" = "true" ]; then args=(--writing-approval --by "${BY:-chat}" --commit "$GITHUB_SHA"); fi
                      python scripts/import_book.py . apply "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
                      python scripts/validate_project.py .; msg="Manuskript importiert" ;;

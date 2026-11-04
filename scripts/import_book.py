@@ -4,6 +4,7 @@
 Aufruf (im Buch-Branch eines neuen Buchs, noch ohne Kapitel):
   python scripts/import_book.py <buch> convert <datei> [--keep first_edition|30|90|forever]
   python scripts/import_book.py <buch> edit '<json-liste von änderungen>'
+  python scripts/import_book.py <buch> outline [--plan] [--json]   KI-Vorschlag für eine Gliederung (nur ohne Gliederung)
   python scripts/import_book.py <buch> apply [--writing-approval]
   python scripts/import_book.py <buch> status [--json]          Stand des Imports (Aufbewahrung des Originals)
   python scripts/import_book.py <buch> expire [--today JJJJ-MM-TT]  Original nach Ablauf entfernen
@@ -24,11 +25,25 @@ import/manuscript.md; Bilder nach import/media/. Danach die Gliederung:
 Ergebnis: import/proposal.json (Vorschlag) und import/import.yml (Quelle, Format,
 Aufbewahrung). Am Buch ändert sich noch nichts.
 
+outline (nur wenn das Dokument keine Gliederung hat, Action „Manuskript
+importieren“, step: outline): der Text in nummerierten Absätzen geht an die KI
+(`analysis.merge_model`, Schlüssel wie bei scripts/analyze.py). Zurück kommen
+nur Anfänge von Kapiteln und Abschnitten (Absatznummer und die ersten Wörter
+des Absatzes, wörtlich), je mit Titel und Begründung. Prüfung ohne KI: Der
+Anfang muss wörtlich am genannten Absatz stehen, die Reihenfolge stimmen;
+ungültige Anfänge fallen weg. Getrennt wird nur an Absatzgrenzen, der Text
+bleibt also vollständig. Ergebnis: import/outline.json (Vorschlag, am
+Vorschlag der Gliederung ändert sich nichts); Kosten in costs/project.yml.
+Übernommen wird mit edit {op: outline, chapters: [{title, start, sections:
+[{title, start}]}]} (Absatznummern aus outline.json, ab 1), verworfen mit
+{op: discard_outline}. --plan zeigt nur Umfang, Tokens und Kosten.
+
 edit: Änderungen am Vorschlag, je {op, …} (Nummern ab 1): rename_chapter
 {chapter, title} · rename_section {chapter, section, title} · split_scenes
 {chapter, section} · merge_sections {chapter, section} (mit dem folgenden) ·
 merge_chapters {chapter} (mit dem folgenden) · split_chapter {chapter, section}
-(neues Kapitel ab diesem Abschnitt) · to_matter {chapter, kind} · to_chapter {part}.
+(neues Kapitel ab diesem Abschnitt) · to_matter {chapter, kind} · to_chapter {part} ·
+outline {chapters} (KI-Vorschlag übernehmen, siehe oben) · discard_outline.
 
 apply: legt Kapitel, Abschnitte und Teile an (Status revision; Schreibfreigabe nur
 mit --writing-approval, Abschnitts- und Kapitelfreigaben nie), trägt Titel und
@@ -66,6 +81,8 @@ SCENE = re.compile(r'(?m)^(?:[ \t]*(?:\*[ \t]*\*[ \t]*\*|\\\*[ \t]*\\\*[ \t]*\\\
 HEADING = re.compile(r'(?m)^(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*(?:\{[^}]*\})?[ \t]*$')
 CHAPTER_LINE = re.compile(r'(?im)^[ \t]*((?:kapitel|chapter)[ \t]+[\w.]+.*)$')
 LONG_WORDS = 4000
+NO_STRUCTURE = ('Keine Gliederung erkannt: das Manuskript ist ein Kapitel. Kapitel lassen sich in der Vorschau teilen '
+                'oder mit KI vorschlagen.')
 KEEP = {'first_edition': 'bis zur ersten Auflage', '30': '30 Tage', '90': '90 Tage', 'forever': 'dauerhaft'}
 PDF_WARNING = ('PDF: Absätze, Hervorhebungen, Fußnoten und Bilder können verloren gehen; Kopf- und Fußzeilen, '
                'Seitenzahlen und Silbentrennung wurden entfernt, so gut es ging. DOCX oder ODT ist zuverlässiger.')
@@ -189,8 +206,7 @@ def detect(md, title='', author='', fmt=''):
     parts, chapters = [], []
     chap_heads = [h for h in heads if h[0] == chap_level] if chap_level else []
     if not chap_heads:
-        warnings.append('Keine Gliederung erkannt: das Manuskript ist ein Kapitel. Kapitel lassen sich in der Vorschau teilen '
-                        'oder mit KI vorschlagen.')
+        warnings.append(NO_STRUCTURE)
         chapters.append({'title': title or 'Kapitel 1', 'sections': [section_from(f'Abschnitt {i}', t) for i, t in
                                                                       enumerate(scenes(md), start=1) if t.strip()] or
                          [section_from('Abschnitt 1', md)]})
@@ -245,7 +261,7 @@ def detect(md, title='', author='', fmt=''):
                 warnings.append(f'Abschnitt {ci}.{si} ist sehr lang ({s["words"]} Wörter): teilen?'
                                 + (f' ({s["scenes"]} Szenen)' if s['scenes'] > 1 else ''))
     p = {'title': title, 'author': author, 'format': fmt, 'parts': parts, 'chapters': chapters, 'warnings': warnings,
-         'images': images}
+         'images': images, 'structure': 'headings' if chap_heads else 'none'}
     p['stats'] = stats(p, md)
     return p
 
@@ -276,6 +292,205 @@ def save_proposal(base, p):
     p['stats'] = stats(p)
     proposal_path(base).parent.mkdir(parents=True, exist_ok=True)
     proposal_path(base).write_text(json.dumps(p, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
+
+
+# ---------- KI-Vorschlag für die Gliederung ----------
+
+OUTLINE_SYSTEM = """Du bekommst ein Manuskript ohne Gliederung, geteilt in nummerierte Absätze ("[P12] …"). Schlage eine
+Gliederung in Kapitel und Abschnitte vor, nur aus dem Text: ein neues Kapitel, wo ein neuer Teil der Handlung bzw. ein
+neues Thema beginnt; neue Abschnitte innerhalb eines Kapitels an Szenenwechseln bzw. Unterthemen. Regeln:
+- Jedes Kapitel und jeder Abschnitt beginnt an einem Absatz: "start" = Nummer des Absatzes, "quote" = die ersten Wörter
+  dieses Absatzes, wörtlich (höchstens 12 Wörter).
+- Das erste Kapitel und sein erster Abschnitt beginnen bei Absatz 1. Reihenfolge wie im Text; nichts wird ausgelassen
+  oder umgestellt.
+- "title": kurzer Titel aus dem Inhalt, ohne "Kapitel N"; Wörter aus dem Text bevorzugen, nichts dazuerfinden.
+- "reason": ein Satz, warum hier ein neues Kapitel bzw. ein neuer Abschnitt beginnt.
+- Richtwert: Kapitel mit 2000 bis 6000 Wörtern, Abschnitte mit 500 bis 2500 Wörtern; ein kurzes Manuskript darf
+  wenige Kapitel haben.
+Antworte nur mit JSON: {"chapters": [{"title": "", "start": 1, "quote": "", "reason": "", "sections": [{"title": "",
+"start": 1, "quote": "", "reason": ""}]}]}"""
+OUTLINE_FULL_CHARS = 600000      # darüber je Absatz nur der Anfang
+OUTLINE_HEAD_WORDS = 60
+
+
+def outline_path(base):
+    return Path(base) / 'import' / 'outline.json'
+
+
+def paragraphs(p):
+    """Absätze des Vorschlags in Buchreihenfolge (nur Kapitel, nicht Vor- und Nachspann)."""
+    out = []
+    for c in p['chapters']:
+        for s in c['sections']:
+            out += [x.strip('\n') for x in re.split(r'\n[ \t]*\n', s['text']) if x.strip()]
+    return out
+
+
+def para_fingerprint(paras):
+    import hashlib
+    return hashlib.sha256('\n\n'.join(paras).encode('utf-8')).hexdigest()
+
+
+def outline_prompt(paras):
+    full = sum(len(x) for x in paras) <= OUTLINE_FULL_CHARS
+    rows = []
+    for i, x in enumerate(paras, start=1):
+        t = ' '.join(x.split())
+        if not full:
+            w = t.split()
+            t = ' '.join(w[:OUTLINE_HEAD_WORDS]) + (' …' if len(w) > OUTLINE_HEAD_WORDS else '')
+        rows.append(f'[P{i}] ({words(x)} Wörter) {t}')
+    return f'{len(paras)} Absätze, {sum(words(x) for x in paras)} Wörter.\n\n' + '\n\n'.join(rows)
+
+
+def starts_at(paras, n, quote):
+    """Steht das Zitat wörtlich am Anfang (erste 40 Wörter) von Absatz n?"""
+    import analyze
+    if not isinstance(n, int) or not 1 <= n <= len(paras):
+        return False
+    q = analyze.norm(quote)
+    return len(q) >= 3 and q in analyze.norm(' '.join(paras[n - 1].split()[:40]))
+
+
+def verify_outline(answer, paras):
+    """Gliederung ohne KI prüfen: Anfänge wörtlich am genannten Absatz, Reihenfolge aufsteigend; ungültige fallen weg.
+    Das erste Kapitel beginnt immer bei Absatz 1, ein Kapitel immer mit einem Abschnitt an seinem Anfang.
+    → (kapitel, verworfen)"""
+    def num(x):
+        try:
+            return int(x)
+        except (TypeError, ValueError):
+            return None
+    dropped, chapters = 0, []
+    for c in (answer or {}).get('chapters') or []:
+        n = num(c.get('start'))
+        if not starts_at(paras, n, c.get('quote')) or (chapters and n <= chapters[-1]['start']):
+            dropped += 1
+            continue
+        chapters.append({'title': ' '.join(str(c.get('title') or '').split()), 'start': n, 'quote': c.get('quote', '').strip(),
+                         'reason': ' '.join(str(c.get('reason') or '').split()), 'raw_sections': c.get('sections') or []})
+    if not chapters:
+        return [], dropped
+    if chapters[0]['start'] != 1:
+        chapters[0]['start'] = 1
+        chapters[0]['quote'] = ' '.join(paras[0].split()[:8])
+    for k, c in enumerate(chapters):
+        end = chapters[k + 1]['start'] if k + 1 < len(chapters) else len(paras) + 1
+        secs = []
+        for s in c.pop('raw_sections'):
+            n = num(s.get('start'))
+            if not (c['start'] <= (n or 0) < end) or not starts_at(paras, n, s.get('quote')) or (secs and n <= secs[-1]['start']):
+                dropped += 1
+                continue
+            secs.append({'title': ' '.join(str(s.get('title') or '').split()), 'start': n, 'quote': s.get('quote', '').strip(),
+                         'reason': ' '.join(str(s.get('reason') or '').split())})
+        if not secs or secs[0]['start'] != c['start']:
+            secs.insert(0, {'title': c['title'], 'start': c['start'], 'quote': c['quote'], 'reason': ''})
+        for j, s in enumerate(secs):
+            e = secs[j + 1]['start'] if j + 1 < len(secs) else end
+            s['words'] = sum(words(x) for x in paras[s['start'] - 1:e - 1])
+            s['title'] = s['title'] or f'Abschnitt {j + 1}'
+        c['title'] = c['title'] or f'Kapitel {k + 1}'
+        c['words'] = sum(s['words'] for s in secs)
+        c['sections'] = secs
+    return chapters, dropped
+
+
+def outline_plan(base):
+    import analyze
+    p = load_proposal(base)
+    if p.get('structure', 'headings') != 'none' and len(p['chapters']) > 1:
+        raise SystemExit('Das Dokument hat schon eine Gliederung; ein KI-Vorschlag ist nur ohne Gliederung vorgesehen.')
+    paras = paragraphs(p)
+    _, config = analyze.load(base)
+    s = analyze.settings(config)
+    tin = int(len(outline_prompt(paras)) / analyze.CHARS_PER_TOKEN) + 800
+    tout = 300 + 120 * max(1, sum(words(x) for x in paras) // 1500)
+    cost = None
+    if s.get('price_input_per_mtok') is not None and s.get('price_output_per_mtok') is not None:
+        cost = round(tin / 1e6 * float(s['price_input_per_mtok']) + tout / 1e6 * float(s['price_output_per_mtok']), 2)
+    return {'paragraphs': len(paras), 'words': sum(words(x) for x in paras), 'input_tokens': tin, 'output_tokens': tout,
+            'cost_estimate': cost, 'full_text': sum(len(x) for x in paras) <= OUTLINE_FULL_CHARS}
+
+
+def outline(base, now=None):
+    """KI-Vorschlag für die Gliederung nach import/outline.json; Kosten nach costs/project.yml. → Vorschlag"""
+    import analyze
+    base = Path(base)
+    plan = outline_plan(base)
+    p = load_proposal(base)
+    paras = paragraphs(p)
+    _, config = analyze.load(base)
+    s = analyze.settings(config)
+    provider, key = analyze.pick_provider(s)
+    model = s.get('merge_model') or analyze.PROVIDERS[provider]['merge_model']
+    now = now or datetime.datetime.now().astimezone().isoformat(timespec='seconds')
+    text, tin, tout = analyze.call_llm(provider, key, model, OUTLINE_SYSTEM, outline_prompt(paras), 'outline')
+    chapters, dropped = verify_outline(analyze.parse_json(text), paras)
+    old = json.loads(outline_path(base).read_text(encoding='utf-8')) if outline_path(base).is_file() else {}
+    run_id = f'outline-{int(old.get("run", "outline-000")[8:]) + 1:03d}'
+    entry = analyze.cost_entry(s, provider, model, run_id, tin, tout, now, 1, 'Gliederung')
+    entry['note'] = 'Gliederung beim Import (KI-Vorschlag)'
+    result = {'run': run_id, 'created_at': now, 'provider': provider, 'model': model, 'paragraphs': len(paras),
+              'fingerprint': para_fingerprint(paras), 'chapters': chapters, 'dropped': dropped,
+              'input_tokens': tin, 'output_tokens': tout, 'cost': entry['cost_amount'], 'full_text': plan['full_text'],
+              'status': 'open' if len(chapters) > 1 or (chapters and len(chapters[0]['sections']) > 1) else 'empty'}
+    outline_path(base).write_text(json.dumps(result, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
+    cpath = base / 'costs' / 'project.yml'
+    cpath.parent.mkdir(exist_ok=True)
+    data = (yaml.safe_load(cpath.read_text(encoding='utf-8')) or {}) if cpath.is_file() else {'scope': 'project'}
+    data['entries'] = (data.get('entries') or []) + [entry]
+    cpath.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=10**6), encoding='utf-8')
+    return result
+
+
+def apply_outline(p, base, chapters):
+    """Gliederung (vom Benutzer bestätigt, Absatznummern aus outline.json) auf den Vorschlag anwenden; getrennt wird
+    nur an Absatzgrenzen, kein Wort geht verloren."""
+    o = json.loads(outline_path(base).read_text(encoding='utf-8')) if outline_path(base).is_file() else None
+    if not o or o.get('status') != 'open':
+        raise SystemExit('Es gibt keinen offenen KI-Vorschlag für die Gliederung (zuerst outline)')
+    paras = paragraphs(p)
+    if para_fingerprint(paras) != o['fingerprint']:
+        raise SystemExit('Die Gliederung wurde seit dem KI-Vorschlag geändert; bitte den Vorschlag neu erstellen.')
+    flat = []
+    for c in chapters or []:
+        secs = c.get('sections') or [{'title': c.get('title'), 'start': c.get('start')}]
+        if int(secs[0].get('start') or 0) != int(c.get('start') or 0):
+            secs = [{'title': c.get('title'), 'start': c.get('start')}] + list(secs)
+        for j, s in enumerate(secs):
+            flat.append((j == 0, ' '.join(str(c.get('title') or '').split()), ' '.join(str(s.get('title') or '').split()),
+                         int(s.get('start') or 0)))
+    starts = [f[3] for f in flat]
+    if not flat or starts[0] != 1 or any(b <= a for a, b in zip(starts, starts[1:])) or starts[-1] > len(paras):
+        raise SystemExit('Gliederung ungültig: Anfänge aufsteigend ab Absatz 1 angeben')
+    new = []
+    for k, (first, ctitle, stitle, start) in enumerate(flat):
+        end = flat[k + 1][3] if k + 1 < len(flat) else len(paras) + 1
+        if first:
+            new.append({'title': ctitle or f'Kapitel {len(new) + 1}', 'sections': []})
+        sec = section_from(stitle or f'Abschnitt {len(new[-1]["sections"]) + 1}', '\n\n'.join(paras[start - 1:end - 1]))
+        new[-1]['sections'].append(sec)
+    p['chapters'] = new
+    p['structure'] = 'ai'
+    p['warnings'] = [w for w in p.get('warnings') or [] if w != NO_STRUCTURE]
+    o['status'] = 'applied'
+    outline_path(base).write_text(json.dumps(o, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
+
+
+def discard_outline(base):
+    if outline_path(base).is_file():
+        o = json.loads(outline_path(base).read_text(encoding='utf-8'))
+        o['status'] = 'discarded'
+        outline_path(base).write_text(json.dumps(o, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
+
+
+def open_outline(base):
+    """Offener KI-Vorschlag für die Gliederung oder None."""
+    if not outline_path(base).is_file():
+        return None
+    o = json.loads(outline_path(base).read_text(encoding='utf-8'))
+    return o if o.get('status') == 'open' else None
 
 
 # ---------- Änderungen am Vorschlag ----------
@@ -337,6 +552,11 @@ def edit(base, ops):
             part = p['parts'].pop(k)
             sec = section_from(part['title'], part['text'])
             ch.insert(0 if part.get('area') == 'front' else len(ch), {'title': part['title'], 'sections': [sec]})
+        elif kind == 'outline':
+            apply_outline(p, base, op.get('chapters'))
+            ch = p['chapters']
+        elif kind == 'discard_outline':
+            discard_outline(base)
         else:
             raise SystemExit(f'Unbekannte Änderung: {kind}')
     save_proposal(base, p)
@@ -485,7 +705,8 @@ def expire(base, today=None):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
-    ap.add_argument('cmd', choices=['convert', 'edit', 'apply', 'status', 'expire'])
+    ap.add_argument('cmd', choices=['convert', 'edit', 'outline', 'apply', 'status', 'expire'])
+    ap.add_argument('--plan', action='store_true', help='bei outline: nur Umfang, Tokens und Kosten')
     ap.add_argument('args', nargs='*')
     ap.add_argument('--keep', default='first_edition', choices=list(KEEP))
     ap.add_argument('--writing-approval', action='store_true')
@@ -512,6 +733,22 @@ def main(argv):
             ap.error('edit braucht die Änderungen als JSON')
         p = edit(base, json.loads(a.args[0]))
         print(f'✓ Vorschlag geändert: {p["stats"]["chapters"]} Kapitel, {p["stats"]["sections"]} Abschnitte')
+        return 0
+    if a.cmd == 'outline':
+        if a.plan:
+            pl = outline_plan(base)
+            if a.json:
+                print(json.dumps(pl, ensure_ascii=False))
+                return 0
+            cost = (f', geschätzt {pl["cost_estimate"]:.2f} €'.replace('.', ',')) if pl['cost_estimate'] is not None else ', Kosten ohne Preisangabe nicht schätzbar'
+            print(f'Gliederung mit KI: {pl["paragraphs"]} Absätze, {pl["words"]} Wörter · etwa {pl["input_tokens"]} Tokens '
+                  f'Eingabe, {pl["output_tokens"]} Ausgabe{cost}' + ('' if pl['full_text'] else ' · sehr lang: je Absatz nur der Anfang'))
+            return 0
+        o = outline(base)
+        n = sum(len(c['sections']) for c in o['chapters'])
+        print(f'✓ KI-Vorschlag für die Gliederung: {len(o["chapters"])} Kapitel, {n} Abschnitte · {o["dropped"]} Anfänge ohne '
+              f'wörtliche Fundstelle verworfen' if o['status'] == 'open' else '✓ Die KI hat keine brauchbare Gliederung gefunden')
+        print('Commit-Nachricht: Import: KI-Vorschlag für die Gliederung')
         return 0
     if a.cmd == 'apply':
         info = apply(base, a.writing_approval, a.by, a.commit)

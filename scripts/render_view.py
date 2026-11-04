@@ -2317,6 +2317,12 @@ def import_preview_view(base, config, args):
     values = {'IMPORT_TITLE': p.get('title') or '', 'IMPORT_AUTHOR': p.get('author') or '', 'IMPORT_FORMAT': (p.get('format') or '').upper(),
               'STATS_TEXT': stats_text, 'LOSSLESS': '1' if st.get('lossless') else '', 'KEEP_TEXT': info.get('keep_text', ''),
               'KINDS_TEXT': ', '.join(f'{k}={v[1]}' for k, v in MATTER.items())}
+    outline = import_book.open_outline(base)
+    if outline:   # KI-Vorschlag für die Gliederung liegt bereit
+        values['OUTLINE_TEXT'] = (f'KI-Vorschlag für die Gliederung liegt bereit: {len(outline["chapters"])} Kapitel, '
+                                  f'{sum(len(c["sections"]) for c in outline["chapters"])} Abschnitte')
+    elif p.get('structure') == 'none' and len(p['chapters']) == 1:
+        values['NO_STRUCTURE'] = '1'
     warns = [{'W_TEXT': w} for w in p.get('warnings') or []]
     if args.text:
         out = [f'### 📥 Manuskript importieren · {values["IMPORT_TITLE"] or "ohne Titel"}',
@@ -2331,6 +2337,10 @@ def import_preview_view(base, config, args):
             out.append(f'| **{r["R_LABEL"]}** | **{r["R_TITLE"]}** · {r["R_COUNT"]} | {r["R_WORDS"]} | |' if r['R_TYPE'] == 'chapter'
                        else f'| {r["R_LABEL"]} | {r["R_TITLE"]} | {r["R_WORDS"]} | {hint.strip(" ·")} |')
         out += [f'| {x["P_LABEL"]} (Nachspann) | {x["P_TITLE"]} | {x["P_WORDS"]} | `T{x["P_IDX"]}` |' for x in parts if x['P_AREA'] != 'front']
+        if values.get('OUTLINE_TEXT'):
+            out += ['', f'> 🧭 **{values["OUTLINE_TEXT"]}** · `GV` ansehen']
+        elif values.get('NO_STRUCTURE'):
+            out += ['', '> 🧭 Keine Gliederung erkannt · `GK` Gliederung mit KI vorschlagen (Hintergrundlauf, Kosten werden vorher gezeigt)']
         out += ['', 'Änderungen als Text, z. B. `Kapitel 2: Neuer Titel`, `2.1 teilen` (an Szenen), `2.1 + 2.2` (zusammenlegen), '
                 '`Kapitel 3 + 4`, `Neues Kapitel ab 2.3`, `Kapitel 1 ist Prolog`, `T1 ist ein Kapitel`.', '',
                 '---', menu([('A', 'Buch so anlegen'), ('AS', 'anlegen und Schreibfreigabe für alle Abschnitte erteilen'),
@@ -2342,6 +2352,44 @@ def import_preview_view(base, config, args):
     if warns:
         blocks['WARNINGS'] = warns
     return fill('import-vorschau.html', values, blocks)
+
+
+def import_outline_view(base, config, args):
+    """KI-Vorschlag für die Gliederung beim Import (#124, Vorlage gliederung-vorschlag) aus import/outline.json:
+    Kapitel und Abschnitte mit Titel, Wortzahl, Anfang (wörtlich) und Begründung."""
+    import import_book
+    o = import_book.open_outline(base)
+    if not o:
+        raise SystemExit('Es gibt keinen offenen KI-Vorschlag für die Gliederung')
+    rows = []
+    for ci, c in enumerate(o['chapters'], start=1):
+        rows.append({'O_TYPE': 'chapter', 'O_CHAPTER': ci, 'O_SECTION': '', 'O_LABEL': f'Kapitel {ci}', 'O_TITLE': c['title'],
+                     'O_START': c['start'], 'O_WORDS': c['words'], 'O_QUOTE': c['quote'], 'O_REASON': c.get('reason', ''),
+                     'O_COUNT': plural(len(c['sections']), 'Abschnitt', 'Abschnitte')})
+        for si, sec in enumerate(c['sections'], start=1):
+            rows.append({'O_TYPE': 'section', 'O_CHAPTER': ci, 'O_SECTION': si, 'O_LABEL': f'{ci}.{si}', 'O_TITLE': sec['title'],
+                         'O_START': sec['start'], 'O_WORDS': sec['words'], 'O_QUOTE': sec['quote'],
+                         'O_REASON': sec.get('reason', '') if si > 1 else '', 'O_COUNT': ''})
+    n_secs = sum(len(c['sections']) for c in o['chapters'])
+    values = {'RUN_ID': o['run'], 'RUN_TEXT': f'Vorschlag {o["run"][8:]} vom {de_date(str(o.get("created_at", "")))} ({o.get("model", "")})',
+              'STATS_TEXT': f'{len(o["chapters"])} Kapitel, {n_secs} Abschnitte aus {o["paragraphs"]} Absätzen · '
+                            f'{o["dropped"]} Anfänge ohne wörtliche Fundstelle verworfen',
+              'PARTIAL_TEXT': '' if o.get('full_text', True) else 'Sehr langes Manuskript: die KI hat je Absatz nur den Anfang gelesen.'}
+    if args.text:
+        out = ['### 🧭 Gliederung mit KI (Vorschlag)', f'{values["STATS_TEXT"]} · {values["RUN_TEXT"]}', '']
+        if values['PARTIAL_TEXT']:
+            out += [f'> ⚠️ {values["PARTIAL_TEXT"]}', '']
+        out += ['| | Titel | Wörter | beginnt mit | Begründung |', '|---|---|--:|---|---|']
+        out += [f'| **{r["O_LABEL"]}** | **{r["O_TITLE"]}** · {r["O_COUNT"]} | {r["O_WORDS"]} | „{r["O_QUOTE"]}“ | {r["O_REASON"]} |'
+                if r['O_TYPE'] == 'chapter' else f'| {r["O_LABEL"]} | {r["O_TITLE"]} | {r["O_WORDS"]} | „{r["O_QUOTE"]}“ | {r["O_REASON"]} |'
+                for r in rows]
+        out += ['', 'Getrennt wird nur an Absatzgrenzen; kein Wort geht verloren. Übernommen wird erst nach Bestätigung, '
+                'danach lässt sich die Gliederung in der Vorschau weiter ändern.', '', '---',
+                menu([('Übernehmen', 'Gliederung so übernehmen'), ('2.3 – Kapitel', 'ab 2.3 ein neues Kapitel'),
+                      ('Kapitel 3 – ohne', 'Kapitel 3 mit dem vorigen zusammenlegen'), ('2.1: Titel', 'Titel ändern'),
+                      ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    return fill('gliederung-vorschlag.html', values, {'ROWS': rows})
 
 
 def omnibus_edit_view(base, config, args):
@@ -2697,7 +2745,7 @@ def choice_view(base, config, args):
 
 
 FORMS = {'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view,
-         'character-suggest': character_suggest_view, 'analysis-suggest': analysis_suggest_view, 'import-preview': import_preview_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
+         'character-suggest': character_suggest_view, 'analysis-suggest': analysis_suggest_view, 'import-preview': import_preview_view, 'import-outline': import_outline_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
          'changes-merge': changes_merge_view, 'providers-edit': providers_edit_view,

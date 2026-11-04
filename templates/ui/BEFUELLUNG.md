@@ -378,8 +378,21 @@ Gliederung eines Manuskript-Imports prüfen (#124, `render_view.py import-previe
 | `KEEP_TEXT` | Aufbewahrung des Originals deutsch („bis zur ersten Auflage“, „30 Tage“, „90 Tage“, „dauerhaft“) |
 | `KINDS_TEXT` | Arten von Vor- und Nachspann als `kind=Name`, kommagetrennt (Auswahl „ist Teil …“) |
 | Block `WARNINGS`: `W_TEXT` | Hinweise der Umwandlung (PDF, Tabellen, Fußnoten, Bilder, sehr lange Abschnitte, keine Gliederung) |
+| `NO_STRUCTURE` | `1`, wenn das Dokument keine Gliederung hat (`structure: none`, ein Kapitel) und kein offener KI-Vorschlag da ist; dann der Knopf „Gliederung mit KI vorschlagen“ (`import.outline.start`) |
+| `OUTLINE_TEXT` | offener KI-Vorschlag in `import/outline.json`: „KI-Vorschlag für die Gliederung liegt bereit: N Kapitel, M Abschnitte“ mit „Ansehen“ (`import.outline.open`); sonst weglassen |
 | Block `PARTS`: `P_IDX`, `P_KIND`, `P_AREA`, `P_LABEL`, `P_TITLE`, `P_WORDS` | Teile von Vor- und Nachspann: Nummer im Vorschlag, Art, `front`/`back`, Name der Art, Überschrift, Wörter |
 | Block `ROWS`: `R_TYPE`, `R_CHAPTER`, `R_SECTION`, `R_LABEL`, `R_TITLE`, `R_WORDS`, `R_COUNT`, `R_SCENES`, `R_LONG` | je Kapitel (`chapter`, mit „N Abschnitte“) und darunter je Abschnitt (`section`, Szenen wenn mehr als eine, `R_LONG` = `1` über 4000 Wörter) |
+
+### `gliederung-vorschlag.html`
+
+KI-Vorschlag für die Gliederung beim Import (#124, `render_view.py import-outline`; Daten aus `import/outline.json`). Nur für Manuskripte ohne Gliederung.
+
+| Platzhalter | Quelle |
+|---|---|
+| `RUN_ID`, `RUN_TEXT` | `run` (`outline-NNN`) und „Vorschlag NNN vom TT.MM.JJJJ (Modell)“ |
+| `STATS_TEXT` | „N Kapitel, M Abschnitte aus K Absätzen · D Anfänge ohne wörtliche Fundstelle verworfen“ |
+| `PARTIAL_TEXT` | nur bei sehr langen Manuskripten (`full_text: false`): „… die KI hat je Absatz nur den Anfang gelesen.“ |
+| Block `ROWS`: `O_TYPE`, `O_CHAPTER`, `O_SECTION`, `O_LABEL`, `O_TITLE`, `O_START`, `O_WORDS`, `O_COUNT`, `O_QUOTE`, `O_REASON` | je Kapitel (`chapter`, mit „N Abschnitte“) und darunter je Abschnitt (`section`): Nummern, „Kapitel N“ bzw. „N.M“, Titel, erster Absatz (ab 1), Wörter, Anfang (wörtlich geprüft), Begründung der KI (beim ersten Abschnitt eines Kapitels leer) |
 
 ### `vor-nachspann.html`
 
@@ -640,7 +653,10 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `matter.create` | `kind` (`dedication` \| `foreword` \| `prologue` \| `epilogue` \| `afterword` \| `glossary` \| `acknowledgments`), `title` (optional), `expected_head_sha` | Teil anlegen | `python scripts/matter.py . add <art> [--title …]`, Commit nach `START.md`, „Vor- und Nachspann“; danach der neue Teil | `POST …/matter` |
 | `matter.update` | `matter_id`, `title`, `goal`, `manuscript`, bei Vorwort und Nachwort `byline`, `place_date`, `expected_head_sha` (nie `approvals`) | Teil speichern | Datei in `matter/` (und bei neuem Titel `ghostwriter.yml`) schreiben, danach der Teil | `PATCH …/matter/{matter_id}` |
 | `character.suggest` | `scope` (`book`, Kapitelnummer, `N.M`, `mat-…` bzw. `ser-…`) | Figuren aus dem Text vorschlagen | `python scripts/characters.py . scan <scope>` (Serie: `scripts/series.py . scan <ser-id>`), Teil für Teil lesen, Vorschläge als JSON (`START.md`, „Figuren“, Schritt 6), dann Vorlage `figuren-vorschlag` (`render_view.py character-suggest --draft …`) | – |
-| `import.edit` | `ops` (Liste, siehe `scripts/import_book.py`: `rename_chapter`, `rename_section`, `split_scenes`, `merge_sections`, `merge_chapters`, `split_chapter`, `to_matter`, `to_chapter`) | Gliederung des Import-Vorschlags ändern | Action „Manuskript importieren“ mit `step: edit` und `ops` (bzw. `import_book.py . edit`), danach die Vorschau neu | `PATCH /v1/projects/{owner}/{repo}/import` |
+| `import.edit` | `ops` (Liste, siehe `scripts/import_book.py`: `rename_chapter`, `rename_section`, `split_scenes`, `merge_sections`, `merge_chapters`, `split_chapter`, `to_matter`, `to_chapter`, `outline`, `discard_outline`) | Gliederung des Import-Vorschlags ändern | Action „Manuskript importieren“ mit `step: edit` und `ops` (bzw. `import_book.py . edit`), danach die Vorschau neu | `PATCH /v1/projects/{owner}/{repo}/import` |
+| `import.outline.start` | – | Gliederung mit KI vorschlagen (nur ohne Gliederung) | zuerst `python scripts/import_book.py . outline --plan` zeigen (Absätze, Tokens, Kosten) und die Limits; in einem Satz sagen, dass der Text an den KI-Anbieter geht. Nach einem Ja die Action „Manuskript importieren“ mit `step: outline` (unter 10 % Budget nur mit `confirm_low_budget`); danach die Vorschau mit dem Hinweis | `POST /v1/projects/{owner}/{repo}/import/outline` |
+| `import.outline.open` | – | KI-Vorschlag für die Gliederung ansehen | Vorlage `gliederung-vorschlag` (`render_view.py import-outline`) | – |
+| `import.outline.apply` | `chapters` (Liste `{title, start, sections: [{title, start}]}`, Absatznummern ab 1) | KI-Vorschlag (mit den Änderungen) übernehmen | Action mit `step: edit` und `ops` = `[{"op": "outline", "chapters": …}]` (bzw. `import_book.py . edit`), danach die Vorschau neu. „Verwerfen“ (`form.cancel` mit `form: import.outline.apply`): `ops` = `[{"op": "discard_outline"}]` | `PATCH /v1/projects/{owner}/{repo}/import` |
 | `import.apply` | `writing_approval` (nur mit Häkchen) | Buch aus dem Vorschlag anlegen | Action mit `step: apply` (bzw. `import_book.py . apply [--writing-approval]`), danach die Projektübersicht und das Angebot der Analysen | `POST /v1/projects/{owner}/{repo}/import/apply` |
 | `analysis.start` | `kind` (`characters`, `summaries`, `style`, `places`, `timeline`, `continuity`, `language`; mehrere mit Komma), `scope` (`book` bzw. Kapitelnummer), optional `confirm_low_budget` | Analyse im Hintergrund starten (#123) | vorher `python scripts/analyze.py . plan --scope …` (Umfang, Tokens, Kosten) und Limits zeigen; nach Bestätigung die Action „Analyse im Hintergrund“ auf dem Buch-Branch starten (`POST /repos/{owner}/{repo}/actions/workflows/analyse.yml/dispatches`, `ref` = Buch-Branch, `inputs`) | `POST /v1/projects/{owner}/{repo}/analyses` |
 | `analysis.open` | `kind`, `run` (Pfad der Vorschlagsdatei) | Vorschläge eines Hintergrundlaufs ansehen | `render_view.py analysis-suggest --draft <run>`: Figuren in `figuren-vorschlag` (Übernehmen wie `character.suggest.apply` mit `run`), Kurzbeschreibungen in `kurzbeschreibung-vorschlag`, Stilprofil in `stilprofil-vorschlag`, Schauplätze in `orte-vorschlag`, Zeitleiste in `zeitleiste-vorschlag`, Widersprüche in `widerspruch-vorschlag`, Sprache in `sprache-vorschlag` (Übernehmen mit `analysis.apply`) | – |

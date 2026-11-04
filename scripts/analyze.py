@@ -291,7 +291,8 @@ def call_llm(provider, key, model, system, user, kind='characters', step='extrac
         if step == 'merge':
             return json.dumps(data.get('merge') or {'groups': []}), 100, 20
         m = re.search(r'^BLOCK: (\S+)$', user, re.M)
-        return json.dumps((data.get('extract') or {}).get(m.group(1) if m else '', {})), len(user) // 4, 300
+        answer = (data.get('extract') or {}).get(m.group(1), {}) if m else data.get('answer', {})   # answer: ohne Kapitel
+        return json.dumps(answer), len(user) // 4, 300
     if provider == 'anthropic':
         req = urllib.request.Request('https://api.anthropic.com/v1/messages', method='POST', data=json.dumps({
             'model': model, 'max_tokens': 8000, 'system': system, 'messages': [{'role': 'user', 'content': user}]}).encode(),
