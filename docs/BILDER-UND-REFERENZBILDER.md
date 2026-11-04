@@ -94,3 +94,7 @@ Insbesondere darf die technische Umsetzung nicht einfach jedes hochgeladene Refe
 - [ ] Zurückgezogene Referenzen werden nicht in neuen Aufträgen verwendet; die Historie bleibt erhalten.
 - [ ] Referenzbilder gelangen nicht ohne separate Freigabe in Manuskript oder Buchausgabe.
 - [ ] Die Funktion gilt einheitlich für alle Bücher und ist nicht an ein einzelnes Buchprojekt gebunden.
+
+---
+
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
