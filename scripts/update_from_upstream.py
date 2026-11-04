@@ -238,9 +238,9 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
     if related and ahead == 0 and (can_workflows or not workflows_differ):
         if args.dry_run:
             return {**res, 'status': 'updated', 'text': f'(Probelauf) Fast-Forward um {commits(behind)} auf {up_label}'}
-        push = subprocess.run(['git', 'push', 'origin', f'{up_sha}:refs/heads/{branch}'], text=True, capture_output=True)
-        if push.returncode:
-            return {**res, 'status': 'failed', 'text': f'Push nach {branch} abgelehnt.\n\n```\n{push.stderr.strip()[-2000:]}\n```'}
+        code, err = push(f'{up_sha}:refs/heads/{branch}')
+        if code:
+            return {**res, 'status': 'failed', 'stale': push_kind(err) == 'stale', 'text': push_error(branch, err)}
         return {**res, 'status': 'updated', 'text': f'{commits(behind)} von {up_label} übernommen (Fast-Forward)'}
 
     wt = tempfile.mkdtemp(prefix='gw-update-')
@@ -293,9 +293,9 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
         if args.dry_run:
             return {**res, 'status': 'updated', 'text': f'(Probelauf) {body[0]}: ' + ', '.join(files[:15]) + (' …' if len(files) > 15 else '')}
         git(*BOT, 'commit', '-q', '-m', msg, '-m', '\n'.join(body), '-m', TRAILER, cwd=wt)
-        push = subprocess.run(['git', 'push', 'origin', f'HEAD:refs/heads/{branch}'], cwd=wt, text=True, capture_output=True)
-        if push.returncode:
-            return {**res, 'status': 'failed', 'text': push_error(branch, push.stderr)}
+        code, err = push(f'HEAD:refs/heads/{branch}', cwd=wt)
+        if code:
+            return {**res, 'status': 'failed', 'stale': push_kind(err) == 'stale', 'text': push_error(branch, err)}
         text = (f'{commits(behind)} von {up_label} eingespielt (GhostWriter {version})' if behind else
                 f'Programmdateien an {up_label} angeglichen: ' + ', '.join(drift[:5]) + (' …' if len(drift) > 5 else ''))
         if migration:
@@ -351,11 +351,40 @@ WORKFLOW_SCOPE_HINT = ('Das Secret GHOSTWRITER_UPDATE_TOKEN darf keine Workflow-
                        'Hauptrepositorys und Workflow-Dateien“).')
 
 
+TRANSIENT = re.compile(r'Internal Server Error|HTTP 5\d\d|\b50[0-4]\b|remote end hung up|RPC failed|Connection reset|'
+                       r'early EOF|timed out|Could not resolve host', re.I)
+STALE = re.compile(r'non-fast-forward|fetch first|\(stale info\)|cannot lock ref', re.I)
+
+
+def push_kind(stderr):
+    """Art eines abgelehnten Pushs: 'transient' (Serverfehler, nochmal versuchen), 'stale' (Branch ist inzwischen
+    weiter, neu einspielen) oder 'other' (z. B. fehlendes Workflow-Recht)."""
+    if STALE.search(stderr or ''):
+        return 'stale'
+    if TRANSIENT.search(stderr or ''):
+        return 'transient'
+    return 'other'
+
+
+def push(refspec, cwd=None, tries=3, wait=5):
+    """git push mit Wiederholung bei vorübergehenden Serverfehlern. Gibt (returncode, stderr) zurück."""
+    import time
+    for n in range(tries):
+        r = subprocess.run(['git', 'push', 'origin', refspec], cwd=cwd, text=True, capture_output=True)
+        if not r.returncode or push_kind(r.stderr) != 'transient' or n == tries - 1:
+            return r.returncode, r.stderr
+        time.sleep(wait * (n + 1))
+    return r.returncode, r.stderr
+
+
 def push_error(branch, stderr):
     """Text für einen abgelehnten Push; erkennt den fehlenden Workflow-Scope des Tokens."""
     tail = f'\n\n```\n{stderr.strip()[-2000:]}\n```'
     if 'without `workflow` scope' in stderr or 'without workflow scope' in stderr:
         return f'Push nach {branch} abgelehnt: Token ohne Workflow-Recht. {WORKFLOW_SCOPE_HINT}' + tail
+    if push_kind(stderr) == 'transient':
+        return (f'Push nach {branch} abgelehnt: GitHub-Serverfehler, auch nach mehreren Versuchen; '
+                'der nächste Lauf versucht es erneut (oder von Hand neu starten).' + tail)
     return f'Push nach {branch} abgelehnt; der nächste Lauf versucht es erneut.' + tail
 
 
@@ -410,6 +439,12 @@ def main(argv):
         up_manifest = yaml.safe_load(show(up_rev, MANIFEST) or '{}') or {}
         try:
             res = update_branch(branch, up_rev, up_label, up_manifest, args, bool(token))
+            if res.pop('stale', False):
+                # Branch ist während des Laufs weitergewandert (z. B. „Bücherregal aktualisieren“):
+                # neuen Stand holen und das Update für diesen Branch einmal neu einspielen
+                git('fetch', '-q', 'origin', f'+refs/heads/{branch}:refs/remotes/origin/{branch}')
+                res = update_branch(branch, up_rev, up_label, up_manifest, args, bool(token))
+                res.pop('stale', None)
         except RuntimeError as e:
             res = {'branch': branch, 'upstream': up_label, 'status': 'failed', 'text': str(e)}
         results.append(res)
