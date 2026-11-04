@@ -92,6 +92,37 @@ Das Profil muss vom Autor bestätigt werden. Änderungen daran sind nachvollzieh
 
 Das Projektprofil enthält nur Informationen des jeweiligen Buches. Es gehört in das Buch-Repository und darf nicht in die globale GhostWriter-Produktdokumentation oder in andere Buchprojekte übernommen werden.
 
+## Bildmaterial und visuelle Referenzen
+
+Bilder können zu jedem Zeitpunkt des Buchprojekts ergänzt werden – auch nachträglich, wenn Text oder Figuren bereits angelegt sind. Die Bildverwaltung ist Teil des Buchmaterials und muss vom eigentlichen Manuskript getrennt nachvollziehbar bleiben.
+
+### Bilder nachträglich hinzufügen
+
+- Autorinnen und Autoren können Bilddateien nachträglich hochladen und dem passenden Buch, Kapitel, Abschnitt, Ort oder einer Person zuordnen.
+- Eine Zuordnung zu einer Person oder einem anderen wiederkehrenden Element soll projektweit möglich sein, damit das Bild nicht nur an einer einzelnen Textstelle hängt.
+- Zu jedem Bild werden mindestens Herkunft bzw. Urheber, Bildtyp (vom Autor bereitgestellt, KI-generiert oder extern bezogen), Beschreibung und Nutzungs-/Rechtehinweise festgehalten, soweit bekannt.
+- Hochgeladene und ausdrücklich übernommene Bilder werden als Projektmaterial gespeichert. Ein Bild, das nur im Chat angezeigt oder recherchiert wurde, gilt noch nicht als dauerhaft übernommen.
+- Externe Bilder dürfen nur unter Beachtung der Nutzungsrechte und Lizenzbedingungen übernommen und verwendet werden.
+
+### Bild als Referenz im Erstellungspfad
+
+- Für jedes geeignete Bild kann der Benutzer ausdrücklich festlegen, ob es nur als Buchabbildung gespeichert oder zusätzlich als visuelle Referenz für die Erstellung verwendet werden soll.
+- Eine Referenz kann beispielsweise das Aussehen einer Figur, Kleidung, einen Gegenstand, einen Schauplatz, eine Stimmung oder einen wiederkehrenden visuellen Stil beschreiben.
+- Im Erstellungspfad muss erkennbar sein, welche Referenzbilder für eine konkrete Bildgenerierung oder Überarbeitung berücksichtigt werden. Die Referenzen werden dem jeweiligen Auftrag bzw. Arbeitsschritt zugeordnet.
+- Die Verwendung als Referenz ist optional und erfolgt nicht automatisch durch das Hochladen. Der Benutzer kann sie aktivieren, ändern oder zurücknehmen.
+- Referenzbilder dienen als visuelle Orientierung. Sie dürfen nicht ungeprüft als Beleg für erzählerische oder historische Tatsachen behandelt werden.
+- Bei mehreren Referenzen muss klar sein, welche Eigenschaften aus welcher Referenz übernommen werden sollen; widersprüchliche Referenzen sind vor der Erstellung kenntlich zu machen.
+- Bei Personenbildern ist besonders auf Rechte, Einwilligung und den vom Benutzer gewünschten Verwendungszweck zu achten.
+
+### Qualitätsprüfung
+
+Vor einer Veröffentlichung oder Buchausgabe prüfen:
+- Ist das Bild dauerhaft im Projekt gespeichert und korrekt zugeordnet?
+- Sind Herkunft, Urheber und Rechte-/Lizenzstatus dokumentiert oder als ungeklärt markiert?
+- Ist klar, ob es sich um eine Buchabbildung, eine Erstellungsreferenz oder beides handelt?
+- Wurden die vorgesehenen Referenzbilder im jeweiligen Erstellungsschritt tatsächlich berücksichtigt?
+- Passt das Ergebnis zu den verbindlichen Figuren-, Orts- und Stilvorgaben des Buches?
+
 ## Kontinuierliche Prozessverbesserung und Zuständigkeiten
 
 GhostWriter prüft nicht nur die Qualität des Manuskripts, sondern ordnet auch neue Anforderungen und erkannte Verbesserungsmöglichkeiten der richtigen Projektebene zu.
