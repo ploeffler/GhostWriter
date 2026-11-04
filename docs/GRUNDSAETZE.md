@@ -32,6 +32,17 @@ Die globalen KI-Einstellungen stehen in `ghostwriter.yml` und gelten für Recher
 
 Welcher KI-Dienst welche Aufgabe übernimmt, ist je Buch wählbar (`ghostwriter.yml` → `ai_providers`, Formular „KI-Dienste“). Die möglichen Dienste stehen in [`providers.yml`](../providers.yml) und [PROVIDERS.md](PROVIDERS.md); wie man sie nutzt, in [DIENSTE-NUTZEN.md](DIENSTE-NUTZEN.md).
 
+## Bilder und visuelle Referenzen
+
+Bilder gehören zum Buchmaterial und können jederzeit nachträglich hochgeladen werden. Sie lassen sich beispielsweise einer Person, einem Ort, einem Gegenstand, einem Kapitel oder einem Abschnitt zuordnen.
+
+Dabei wird unterschieden zwischen:
+- **Buchbild:** Das Bild soll im Buch bzw. in einer späteren Ausgabe erscheinen.
+- **Erstellungsreferenz:** Das Bild soll bei späteren Bild-Erstellungen als visuelle Vorlage berücksichtigt werden.
+- **Beides:** Das Bild wird gespeichert und zusätzlich als Referenz im Erstellungspfad verwendet.
+
+Das Hochladen allein aktiviert keine Referenzfunktion. Die Autorin oder der Autor entscheidet ausdrücklich, ob und wofür ein Bild als Referenz dienen soll. Herkunft, Urheber und bekannte Nutzungsrechte werden mit dem Bild dokumentiert. Nur dauerhaft gespeicherte und ausdrücklich übernommene Bilder können zuverlässig in späteren Ausgaben verwendet werden.
+
 ## Grundprinzip
 
 **Buch → Kapitel → Abschnitte → Recherche- und Brainstormingläufe → Manuskript → Abschnittsfreigabe → Kapitelzusammenführung → Kapitelfreigabe → Auflage.**
@@ -53,6 +64,7 @@ GhostWriter wurde mit Unterstützung von Claude (Anthropic) entwickelt; dieser H
 
 - [Anleitung](ANLEITUNG.md): Schritt für Schritt vom leeren Repository zur ersten Auflage
 - [So sieht es aus](DIALOGE.md): die Dialoge im Chat
+- [Qualitätssicherung](QUALITAETSSICHERUNG.md): allgemeine redaktionelle Prüfung und individuelles Buchprofil
 - [START.md](../START.md): verbindliche Arbeitsanweisung für den Assistenten
 - [Automatische Updates](UPDATES.md), auch „Von v0.5 auf v0.6“
 - [KI-Dienste nutzen](DIENSTE-NUTZEN.md) · [KI-Anbieter](PROVIDERS.md) · [Chat-Apps](CHAT-APPS.md) · [Connector einrichten](CONNECTOR-SETUP.md)

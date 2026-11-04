@@ -5,11 +5,14 @@ Dieses Repository ist ein GhostWriter-Repository: ein einzelnes Buch, eine **Bib
 ## Immer
 
 1. **Zuerst `START.md`:** Vor der ersten Antwort `START.md` lesen und Abschnitt 0 (Wiedereinstieg) befolgen.
-2. **Darstellungsmodus vor der ersten Ansicht:** nach `providers.yml`. Stellt dieser Chat GhostWriter-Widgets dar (`chat_widgets: true`), `scripts/render_view.py` ohne `--text` aufrufen; sonst und im Zweifel **nur Text** mit `--text` und nie HTML- oder Widget-Code (`templates/ui/BEFUELLUNG.md`, „Darstellungsmodus“).
+2. **Darstellungsmodus vor der ersten Ansicht:** nach `providers.yml`. Claude: GhostWriter-Widget gemäß `templates/ui/BEFUELLUNG.md`. ChatGPT: native strukturierte Chat-Ausgaben verwenden, sofern unterstützt (z. B. Karten, Tabellen, Status- und Fortschrittsanzeigen); keine Claude-Widgets oder HTML als ChatGPT-Widget voraussetzen. Bei anderen oder unklaren Clients auf Text zurückfallen. Die Umschaltung „Darstellung: einfach/übersichtlich/erweitert“ und „Nur Text“ beachten.
 3. **Repository-Name:** `render_view.py` immer mit `--repo <owner>/<repo>` dieses Repositorys aufrufen.
 4. **Profil der Bibliothek:** Gibt es `assistant.yml` auf dem Standard-Branch, gelten seine Angaben: Git-Benutzer für Commits, Autor, Standard-Erzählstimme. Fehlt das Profil, beim Wiedereinstieg einmal anbieten (`START.md`, „Assistenten-Profil“).
 5. **Fehler und Wünsche zum Programm** als Issue im Hauptrepository (`upstream.repo` in `ghostwriter-manifest.yml`), nicht im Buch-Repository; vorher nach einem gleichen Issue suchen.
-6. **Grenzen:** Nie Secret-Werte lesen oder ausgeben, kein ganzes Buch im Chat, Freigaben nur mit ausdrücklicher Bestätigung (`START.md`).
+6. **Redaktionelle Qualitätssicherung:** Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe die vollständige betroffene Einheit prüfen, bei kapitelweiten Auswirkungen das ganze Kapitel und bei buchweiten Auswirkungen die relevanten Kapitel. Die Prüfschritte, Korrekturschleife und Ergebnisstufen stehen in [`docs/QUALITAETSSICHERUNG.md`](docs/QUALITAETSSICHERUNG.md). Projektindividuelle Fakten und Stilvorgaben ausschließlich aus dem Buchprofil und freigegebenen Projektunterlagen übernehmen.
+7. **Darstellungsmodus:** Die Darstellung ist unabhängig vom Antwortmodus. „Darstellung: einfach“, „Darstellung: übersichtlich“, „Darstellung: erweitert“ und „Nur Text“ gelten im laufenden Chat bis zur nächsten Änderung. ChatGPT-Ausgaben mit nativen Chat-Elementen gestalten, soweit unterstützt; keine nicht unterstützten Widgets vortäuschen. Details siehe `docs/QUALITAETSSICHERUNG.md`.
+8. **Verständliche Chat-Ausgaben:** Standardmäßig im einfachen Modus antworten: Alltagssprache statt unnötiger Git-Fachbegriffe, kurze Ergebnis- und Handlungserklärungen. Der Benutzer kann mit „Erweiterte Antworten an“ bzw. „Debugger-Modus an“ technische Details einschalten und mit „Erweiterte Antworten aus“ bzw. „Einfacher Modus“ wieder ausschalten. Fehler, Risiken und ausstehende Freigaben niemals verschweigen. Details siehe `docs/QUALITAETSSICHERUNG.md`.
+9. **Grenzen:** Nie Secret-Werte lesen oder ausgeben, kein ganzes Buch im Chat, Freigaben nur mit ausdrücklicher Bestätigung (`START.md`).
 
 ## Im Programm-Repository selbst
 
