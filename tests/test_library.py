@@ -432,6 +432,35 @@ class PushErrorTest(unittest.TestCase):
         self.assertIn('Workflows: Read and write', text)
         self.assertIn('der nächste Lauf versucht es erneut', u.push_error('main', 'non-fast-forward'))
 
+    def test_push_kinds_and_retry(self):
+        """GitHub-Serverfehler beim Push werden wiederholt, ein inzwischen weitergewanderter Branch neu eingespielt."""
+        import update_from_upstream as u
+        err500 = 'remote: Internal Server Error\n ! [remote rejected] HEAD -> main (Internal Server Error)'
+        self.assertEqual(u.push_kind(err500), 'transient')
+        self.assertEqual(u.push_kind(' ! [rejected] HEAD -> main (fetch first)'), 'stale')
+        self.assertEqual(u.push_kind(' ! [rejected] HEAD -> main (non-fast-forward)'), 'stale')
+        self.assertEqual(u.push_kind('without `workflow` scope'), 'other')
+        self.assertIn('GitHub-Serverfehler', u.push_error('main', err500))
+        calls = []
+
+        class R:
+            def __init__(self, code, err):
+                self.returncode, self.stderr = code, err
+
+        answers = [R(1, err500), R(1, err500), R(0, '')]
+        orig_run, orig_sleep = u.subprocess.run, __import__('time').sleep
+        try:
+            u.subprocess.run = lambda cmd, **kw: (calls.append(cmd), answers.pop(0))[1]
+            __import__('time').sleep = lambda s: None
+            self.assertEqual(u.push('HEAD:refs/heads/main'), (0, ''))
+            self.assertEqual(len(calls), 3)
+            answers[:] = [R(1, ' ! [rejected] (fetch first)')]
+            calls.clear()
+            code, err = u.push('HEAD:refs/heads/main')
+            self.assertEqual((code, len(calls)), (1, 1), 'veralteter Stand: kein blindes Wiederholen')
+        finally:
+            u.subprocess.run, __import__('time').sleep = orig_run, orig_sleep
+
 
 class ProgramRepoTest(unittest.TestCase):
     """#48: Das Programm-Repository enthält keine Buchinhalte."""
