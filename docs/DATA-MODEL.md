@@ -298,6 +298,14 @@ height_px: 2100
 
 Jeder Bildauftrag ist ein unveränderlicher Lauf `run-NNN.md` daneben (`runs.illustration` in `workflow.yml`, Pfad `chapters/{chapter_id}/images/{section_id}/run-{sequence}.md`): Prompt, Dienst, Herkunft, Figuren, Zahl der Varianten, Auswahl. Im Manuskript steht das Bild als `![](bild:img-…)` an seiner Stelle (eigener Absatz); die Bildunterschrift kommt aus der Beschreibung, ein Text in den eckigen Klammern ersetzt sie. Im Buch: volle Satzbreite mit Bildunterschrift in PDF, DOCX und EPUB. Nur freigegebene Bilder (Freigabe-Art `image` in `approvals.yml`) kommen in eine Auflage; ein fehlendes oder nicht freigegebenes Bild in freigegebenem Text verhindert sie, der Probedruck zeigt alle mit Vermerk. Unter etwa 300 dpi bei voller Satzbreite gibt der Bau einen Hinweis. KI-erzeugte Bilder nennt das Impressum („Die Abbildung ist mit KI erzeugt (Dienst).“), außer `images.credit_in_imprint: false`. `scripts/images.py` setzt den Bild-Auftrag zusammen (`prompt`: Bildstil, Szene und die festen Bildmerkmale `visual` der Figuren aus #53), legt Bilder ab (`add`, verkleinert auf `max_px`) und listet sie.
 
+## Projektweite visuelle Referenzen
+
+Referenzbilder sind keine Illustrationen und werden nicht automatisch in Manuskript oder Ausgabe übernommen. Sie liegen getrennt unter `reference-images/ref-img-<slug>.png|jpg` mit einer gleichnamigen YAML-Beschreibung nach [`schemas/reference-image.schema.json`](../schemas/reference-image.schema.json). Ein Bild kann mehrere Rollen (`visual_reference`, `book_image`) und mehrere Zuordnungen (Projekt, Person/Figur, Ort, Gegenstand, Szene, Kapitel, Abschnitt) haben.
+
+Der Status beginnt immer mit `stored`. Nur eine ausdrückliche Freigabe setzt `approved`; ein Rückzug setzt `withdrawn`, löscht aber weder Bild noch Historie. Nur `approved`-Bilder mit Rolle `visual_reference` dürfen für einen neuen Erstellungsauftrag ausgewählt werden. Die Auswahl erfolgt je Auftrag explizit über `scripts/reference_images.py select` bzw. `scripts/images.py prompt --references …`. Vergangene Aufträge behalten ihre Auswahl unabhängig von späteren Statusänderungen.
+
+Die aktuelle CLI verwaltet die Dateien und erzwingt Freigabe und Auswahl. Die Übergabe der Bildbytes an den Bilddienst und ein authentifizierter API-Upload sind noch nicht implementiert; ein Dateipfad oder eine Textbeschreibung ist keine tatsächliche Bildreferenzübergabe.
+
 ## Figuren
 
 Optional auf Buch-Ebene (#53), etwa für Romane, Kinderbücher oder Fallbeispiele. Je Figur eine Datei `characters/char-<slug>.md` (Vorlage `templates/character.md`, Schema [`schemas/character.schema.json`](../schemas/character.schema.json)); `characters/` gehört dem Buch.
