@@ -7,8 +7,8 @@ Aufruf (im Repository, braucht alle Branches: git fetch origin '+refs/heads/*:re
   python scripts/library.py check               Kurztitel bzw. Tag-Slugs eindeutig? (Exit 1 bei Doppelten)
   python scripts/library.py build [--out library.json]   Übersicht der Bibliothek schreiben (#37)
   python scripts/library.py check-program      Hauptrepository: keine Buchinhalte (#48); Fehler bei
-                                                Kapiteln/Auflagen auf dem Standard-Branch, Warnung
-                                                bei Buch-Branches und Auflagen-Tags
+                                                Kapiteln/Auflagen auf dem Standard-Branch, bei
+                                                Buch-Branches und bei Auflagen-Tags
   python scripts/library.py is <branch> [--dir .]  Ist dieser Branch ein Buch? (Exit 0 ja, 1 nein; liest
                                                 ghostwriter.yml aus --dir, z. B. in einer Action)
   python scripts/library.py new "<Arbeitstitel>" [--short K] [--author A] [--create]
@@ -345,7 +345,8 @@ def create_book(title, short='', author='', cwd=ROOT, namespace='refs/remotes/or
 
 
 def program_problems(cwd=ROOT, namespace='refs/remotes/origin', manifest=None):
-    """Hauptrepository ohne Buchinhalte (#48): (fehler, warnungen)."""
+    """Hauptrepository ohne Buchinhalte (#48): (fehler, warnungen).
+    Buch-Branches und Auflagen-Tags sind seit dem Umzug des Testbuchs Fehler; warnungen bleibt für spätere Hinweise."""
     manifest = manifest or load_manifest()
     errors, warnings = [], []
     cfg_path = Path(cwd, 'ghostwriter.yml')
@@ -361,9 +362,9 @@ def program_problems(cwd=ROOT, namespace='refs/remotes/origin', manifest=None):
         errors.append(f'editions/ enthält Auflagen ({len(eds)})')
     default = default_branch(cwd)
     for b in books(branch_configs(namespace, cwd), manifest, default):
-        warnings.append(f'Buch-Branch {b["branch"]} im Programm-Repository (#48: in ein eigenes privates Repository umziehen)')
+        errors.append(f'Buch-Branch {b["branch"]} im Programm-Repository (#48: in ein eigenes privates Repository umziehen)')
     for tag in git('tag', '--list', '*-auflage-*', cwd=cwd).split():
-        warnings.append(f'Auflagen-Tag {tag} im Programm-Repository (#48)')
+        errors.append(f'Auflagen-Tag {tag} im Programm-Repository (#48)')
     return errors, warnings
 
 
