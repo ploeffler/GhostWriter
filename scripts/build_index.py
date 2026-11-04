@@ -168,7 +168,14 @@ def main(argv):
         print(f'{base}: keine Kapitel, keine Übersichtsdatei')
         return 0
     current = path.read_text(encoding='utf-8') if path.is_file() else None
-    data = build(base, config)
+    try:
+        data = build(base, config)
+    except FileNotFoundError as exc:
+        missing = exc.filename or str(exc)
+        print(f'✗ {base}: benötigte Projektdatei fehlt: {missing}')
+        print('  Bitte ghostwriter.yml und die Dateistruktur abgleichen; zuerst prüfen mit '
+              f'python scripts/validate_project.py {base}')
+        return 1
     secrets = secrets_presence(config, current)
     if secrets:
         data['secrets'] = secrets
