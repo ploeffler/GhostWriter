@@ -82,7 +82,7 @@ class ImageTest(unittest.TestCase):
                                         reference_ids=[ref['id']])
         self.assertIn('Ausdrücklich ausgewählte visuelle Referenzen', prompt)
         self.assertIn('Weißer Bart, grüner Hut', prompt)
-        self.assertIn('Bilddateien müssen dem Bilddienst zusätzlich als Referenzbilder übergeben werden', prompt)
+        self.assertIn('Bilddateien zusätzlich an den Bilddienst übergeben', prompt)
 
     def test_add_writes_meta_and_run(self):
         meta, folder = self.add(names=['Opi'])
