@@ -133,6 +133,14 @@ def build_prompt(base, config, key, scene, names=None, reference_ids=None):
     chars = character_lines(base, config, ids)
     if chars:
         parts.append('Figuren (immer genau so darstellen):\n' + '\n'.join(chars))
+    if reference_ids:
+        from reference_images import select as select_reference_images
+        refs = select_reference_images(base, reference_ids)
+        lines = []
+        for ref in refs:
+            detail = ref.get('description') or ref.get('purpose') or ref['caption']
+            lines.append(f'- {ref["id"]} ({ref["caption"]}): {detail}')
+        parts.append('Ausdrücklich ausgewählte visuelle Referenzen (Bilddateien zusätzlich an den Bilddienst übergeben):\\n' + '\\n'.join(lines))
     parts.append('Ohne Schrift, Buchstaben oder Logos im Bild. Hochformat oder Querformat passend zur Szene.')
     return '\n\n'.join(parts), ids
 
