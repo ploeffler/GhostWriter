@@ -46,11 +46,11 @@ class LimitTest(unittest.TestCase):
         return limits.summary(limits.evaluate(self.base, config, month))
 
     def test_levels(self):
-        self.assertEqual(self.state(9.1), ('pause', 'Automatik pausiert: KI-Budget 9 % übrig (9,10 von 10,00 €)'))
+        self.assertEqual(self.state(9.1), ('pause', 'Automatik pausiert: KI-Budget 9 % übrig (9,10 von 10,00 € verbraucht)'))
         self.assertEqual(validate_project.check_project(self.base), [])
 
     def test_warn(self):
-        self.assertEqual(self.state(8.5), ('warn', 'Vorwarnung: KI-Budget 15 % übrig (8,50 von 10,00 €)'))
+        self.assertEqual(self.state(8.5), ('warn', 'Vorwarnung: KI-Budget 15 % übrig (8,50 von 10,00 € verbraucht)'))
 
     def test_ok(self):
         self.assertEqual(self.state(5), ('ok', ''))
@@ -68,7 +68,7 @@ class LimitTest(unittest.TestCase):
         rows = limits.evaluate(self.base, config, '2026-11', {'actions_minutes_used': 1850, 'api_rate': (4900, 5000)})
         self.assertEqual([(r['key'], r['state']) for r in rows],
                          [('ai_budget', 'ok'), ('actions_minutes', 'pause'), ('api_rate', 'pause')])
-        self.assertEqual(rows[1]['text'], 'Actions-Minuten 8 % übrig (1850 von 2000 min)')
+        self.assertEqual(rows[1]['text'], 'Actions-Minuten 8 % übrig (1850 von 2000 min verbraucht)')
 
     def test_automation_output(self):
         self.setup(9.5)
