@@ -58,6 +58,7 @@ GhostWriter wurde mit Unterstützung von Claude (Anthropic) entwickelt; dieser H
 - [Automatische Updates](UPDATES.md), auch „Von v0.5 auf v0.6“
 - [KI-Dienste nutzen](DIENSTE-NUTZEN.md) · [KI-Anbieter](PROVIDERS.md) · [Chat-Apps](CHAT-APPS.md) · [Connector einrichten](CONNECTOR-SETUP.md)
 - [Datei- und Statusmodell](DATA-MODEL.md) · [Architektur](ARCHITECTURE.md) · [Workflow-Modell](WORKFLOW-MODEL.md) · [Integration](INTEGRATION.md) · [Buchkontext](CONTEXT.md)
+- [Produktclip](../media/produktclip/README.md)
 
 ---
 
