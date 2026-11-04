@@ -30,6 +30,18 @@ Keiner der Wege legt verlässlich Tags und Releases an. Vorschlag: Eine Auflage 
 
 Welcher Weg für v0.5 gilt, wird am Ende von v0.2 entschieden.
 
+## Automatisch geladene Hinweise (#136)
+
+Jedes GhostWriter-Repository bringt drei Einstiegsdateien mit, die mit jedem Update aus dem Hauptrepository kommen:
+
+- `CLAUDE.md` – liest Claude von selbst, sobald das Repository in einer Sitzung mit Repository-Zugriff eingebunden ist (Claude Code, auch in claude.ai).
+- `AGENTS.md` – dieselben Regeln für andere Assistenten, die diese Datei lesen.
+- `.claude/skills/ghostwriter/SKILL.md` – allgemeiner Skill für den Wiedereinstieg.
+
+Dazu kommt je Repository das **Assistenten-Profil** `assistant.yml` mit dem daraus erzeugten persönlichen Skill `.claude/skills/<autor>-auf-<repo>/SKILL.md` (Git-Benutzer, Autor, Standard-Erzählstimme; `START.md`, „Assistenten-Profil“). Beides gehört dem Buch und wird von Updates nie überschrieben.
+
+**Grenzen:** Automatisch geladen wird das nur von Assistenten mit Zugriff auf das Repository, die diese Dateien auch lesen. In reinen Chat-Apps (ChatGPT, Gemini, Copilot, Claude ohne eingebundenes Repository) bleibt der Hinweis in `README.md` der Einstieg; der Assistent liest `START.md` und `assistant.yml` dann beim Wiedereinstieg selbst. In diese Dateien gehören keine Secrets und keine Manuskripttexte.
+
 ## Darstellung
 
 - **Claude** zeigt die Vorlagen als Inline-Widgets. Der Assistent gibt nur eine Ladezeile für `ghostwriter-ui` (fester Commit, über jsDelivr) und die Daten aus; das ist deutlich kürzer als die ganze Ansicht. Ein Klick schickt die festgelegte Nachricht in den Chat.

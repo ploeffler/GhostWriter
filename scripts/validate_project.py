@@ -30,6 +30,8 @@ Geprüft werden:
   angegeben; Papier nur bei kdp; Bilder des Umschlags vorhanden
 - Schauplätze, Zeitleiste und Hinweise (story/places.yml, story/timeline.yml, story/hints.yml, #124;
   falls vorhanden) gegen ihr Schema, IDs eindeutig, Abschnitte bekannt
+- assistant.yml (falls vorhanden, #136) gegen schemas/assistant.schema.json; der
+  persönliche Skill .claude/skills/<skill>/SKILL.md passt dazu (scripts/assistant.py check)
 - approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt,
   Art passt zur ID (writing: Abschnitt oder Vor-/Nachspann, section: Abschnitt,
   chapter: Kapitel, matter: Vor-/Nachspann)
@@ -175,6 +177,9 @@ def check_project(project_dir):
     if (base / 'series').is_dir():   # Serien auf dem Standard-Branch einer Bibliothek (#116)
         import series
         errors += [f'{base}/{e}' for e in series.problems(base)]
+    if (base / 'assistant.yml').is_file():   # Assistenten-Profil und persönlicher Skill (#136)
+        import assistant
+        errors += [f'{base}/{e}' for e in assistant.check(base)]
 
     chapter_ids, section_ids = set(), set()
     for ci, chapter in enumerate(config['structure']['chapters'], start=1):

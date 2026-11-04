@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/assistant.schema.json",
+  "title": "Assistenten-Profil (assistant.yml auf dem Standard-Branch, #136)",
+  "description": "Was für dieses Repository gilt, damit der Assistent es nicht in jeder Sitzung neu herausfinden muss. Daraus entsteht der persönliche Skill unter .claude/skills/<skill>/SKILL.md (scripts/assistant.py). Keine Secrets, keine Manuskripttexte.",
+  "type": "object",
+  "required": ["format", "repo", "skill"],
+  "properties": {
+    "format": {"const": 1},
+    "repo": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "description": "owner/name dieses Repositorys (Wert für render_view.py --repo)"
+    },
+    "skill": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+      "description": "Name des persönlichen Skills: <autor>-auf-<repo> (ohne claude/anthropic im Namen)"
+    },
+    "git": {
+      "type": "object",
+      "description": "Git-Benutzer für Commits des Assistenten in diesem Repository (git config user.name/user.email); fehlt = beim Wiedereinstieg fragen",
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 100, "pattern": "^[^\\n\\r<>]+$"},
+        "email": {"type": "string", "pattern": "^[^@\\s<>]+@[^@\\s<>]+\\.[^@\\s<>]+$", "description": "am besten die GitHub-Adresse <id>+<login>@users.noreply.github.com"}
+      },
+      "required": ["name", "email"],
+      "additionalProperties": false
+    },
+    "author": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Autorenname für neue Bücher (Vorbelegung bei „Neues Buch“); das Buch selbst hat project.author"
+    },
+    "voice": {
+      "type": "object",
+      "description": "Standard-Erzählstimme für alle Bücher; das Stilprofil eines Buchs (style in ghostwriter.yml) und Vorgaben im Abschnitt gehen vor",
+      "properties": {
+        "text": {"type": "string", "maxLength": 2000, "description": "Beschreibung der Stimme in wenigen Sätzen (kein Manuskripttext)"},
+        "perspective": {"type": "string", "description": "Erzählperspektive, z. B. ich, er/sie, auktorial"},
+        "tense": {"type": "string", "description": "Zeitform, z. B. Präteritum, Präsens"},
+        "address": {"type": "string", "description": "Anrede des Lesers: du, Sie, ihr, keine"},
+        "register": {"type": "string", "description": "Sprachebene: umgangssprachlich, neutral, gehoben, fachlich"},
+        "tone": {"type": "array", "items": {"type": "string"}, "description": "Ton in wenigen Wörtern"},
+        "features": {"type": "array", "items": {"type": "string"}, "description": "Stilmittel und Eigenheiten"}
+      },
+      "additionalProperties": false
+    },
+    "upstream": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "description": "Hauptrepository für Fehler und Wünsche; fehlt = upstream.repo aus ghostwriter-manifest.yml"
+    }
+  },
+  "additionalProperties": false
+}
