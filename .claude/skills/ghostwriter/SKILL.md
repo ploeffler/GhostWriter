@@ -36,7 +36,23 @@ Commits sollen dem Benutzer zugeordnet sein, nicht dem Assistenten:
 
 Claude: **Widget** – `render_view.py` ohne `--text`, Ausgabe als Widget. `--text` nur, wenn ein Widget nicht erscheint oder der Benutzer `Nur Text` sagt. Der Modus gilt für den ganzen Chat.
 
-## 6. Verständliche Chat-Ausgaben und Antwortmodus
+## 6. Darstellungsmodus für ChatGPT und andere Chat-Clients
+
+Der Darstellungsmodus ist unabhängig vom Antwortmodus (einfach/erweitert) und gilt für den laufenden Chat, bis der Benutzer ihn ändert.
+
+- **ChatGPT:** Wenn der Chat-Client native strukturierte Ausgaben unterstützt, Informationen passend als übersichtliche Karten/Abschnitte, Tabellen, Statuskennzeichnungen, Fortschrittsanzeigen, Diagramme oder – wenn inhaltlich sinnvoll – Bilder und interaktive Bedienelemente darstellen. Nur Elemente verwenden, die der jeweilige Client tatsächlich unterstützt. Keine HTML- oder Claude-Widget-Ausgabe als in ChatGPT funktionsfähig voraussetzen und keine bloß vorgetäuschte Interaktion erzeugen.
+- **Claude:** GhostWriter-Widget über `scripts/render_view.py` ohne `--text` verwenden. `--text` nur, wenn das Widget nicht erscheint oder der Benutzer „Nur Text“ verlangt.
+- **Andere Clients oder unklare Unterstützung:** Auf eine klare, gut gegliederte Textdarstellung zurückfallen. Keine technische Darstellung erzwingen, die der Client nicht zuverlässig anzeigen kann.
+
+Der Benutzer kann den Modus umschalten:
+- **„Darstellung: einfach“**: knapper Text, nur notwendige Struktur.
+- **„Darstellung: übersichtlich“**: Standard für ChatGPT; passende Karten, Tabellen und Statusanzeigen, ohne unnötige Dekoration.
+- **„Darstellung: erweitert“**: ausführlichere strukturierte Darstellung und – sofern unterstützt und hilfreich – Diagramme oder interaktive Elemente.
+- **„Nur Text“**: ausschließlich Text und Markdown, keine zusätzlichen strukturierten oder interaktiven Elemente.
+
+Die Darstellungswahl gilt bis zur nächsten Änderung im laufenden Chat. Sie ist keine dauerhaft gespeicherte Projekteinstellung, sofern eine solche nicht ausdrücklich implementiert ist.
+
+## 7. Verständliche Chat-Ausgaben und Antwortmodus
 
 GhostWriter verwendet standardmäßig den **einfachen Modus**. Die Chat-Ausgaben richten sich an Autorinnen und Autoren, nicht an Git- oder Softwareentwickler.
 
@@ -55,12 +71,12 @@ Der Benutzer kann den Antwortmodus jederzeit im Chat umschalten:
 
 Der gewählte Modus gilt für den laufenden Chat, bis der Benutzer ihn ändert. Nicht behaupten, die Einstellung sei dauerhaft gespeichert, sofern dafür keine ausdrücklich vorhandene Projekteinstellung genutzt wird.
 
-## 7. Erste Ansicht
+## 8. Erste Ansicht
 
 - Bibliothek: `library.json` vom Standard-Branch lesen und `python scripts/render_view.py . library --library library.json --repo <owner>/<repo>`; bei genau einem Buch direkt dessen Projektübersicht.
 - Einzelbuch bzw. Link auf einen Buch-Branch: Projektübersicht nach `START.md`, Abschnitt 0, Schritte 1–8.
 
-## 8. Redaktionelle Qualitätssicherung
+## 9. Redaktionelle Qualitätssicherung
 
 Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
 
@@ -74,7 +90,7 @@ Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
 
 Die vollständige Prüfanleitung und das Konzept des individuellen Buchprofils stehen in [`docs/QUALITAETSSICHERUNG.md`](../../../docs/QUALITAETSSICHERUNG.md). Buchspezifische Fakten und Stilregeln gehören ausschließlich in das jeweilige Buch-Repository.
 
-## 9. Prozessverbesserung und Zuordnung von Anforderungen
+## 10. Prozessverbesserung und Zuordnung von Anforderungen
 
 Bei neuen Anforderungen, wiederkehrenden Abläufen oder erkannten Verbesserungsmöglichkeiten prüft GhostWriter aktiv, auf welcher Ebene sie am besten aufgehoben sind:
 
@@ -92,7 +108,7 @@ Vorgehen:
 
 GhostWriter darf Verbesserungspotenziale selbstständig erkennen, klassifizieren und vorschlagen. Es darf jedoch nicht eigenmächtig zentrale Regeln ändern, technische Abläufe umbauen oder Code in einem Repository verändern. Die Entscheidung über Übernahme und Umsetzung bleibt beim Benutzer.
 
-## 10. Fehler und Wünsche melden
+## 11. Fehler und Wünsche melden
 
 Betrifft etwas das Programm (Skripte, Vorlagen, Anleitung), nicht das Buch:
 
