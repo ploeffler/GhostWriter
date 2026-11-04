@@ -3,6 +3,7 @@
 
 Aufruf:
   python scripts/render_view.py <projektordner> project            [--text] [--repo owner/name] [--branch main]
+                                     (--repo ohne Angabe: GITHUB_REPOSITORY bzw. git remote origin)
   python scripts/render_view.py <projektordner> chapter <kapitel>  [--text] ...
   python scripts/render_view.py <projektordner> section <kapitel>.<abschnitt> [--text] ...
   python scripts/render_view.py <projektordner> project-edit | project-settings | chapter-create | chapter-reorder | edition-create [--text]
@@ -1884,7 +1885,7 @@ def library_view(base, config, args):
                     if not any(br in by_branch for br in s['volumes'])]
     count = plural(len(rows), 'Buch', 'Bücher') + (f' · {plural(len(ser), "Serie", "Serien")}' if ser else '')
     if args.text:
-        out = [f'### 📚 Bücherregal', f'{args.repo} · {count}', '']
+        out = [f'### 📚 Bücherregal', f'{repo_label(args)} · {count}', '']
         if rows:
             out += ['| # | Buch | Status | Fortschritt | Auflage | Kosten |', '|--:|---|---|---|---|--:|']
             group = None
@@ -1909,7 +1910,7 @@ def library_view(base, config, args):
     blocks = {'BOOKS': rows}
     if empty_series:
         blocks['EMPTY_SERIES'] = empty_series
-    return fill('buecherregal.html', {'LIBRARY_NAME': args.repo, 'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
+    return fill('buecherregal.html', {'LIBRARY_NAME': repo_label(args), 'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
                                       'UPDATED_TEXT': ''}, blocks)
 
 
@@ -1942,7 +1943,7 @@ def series_view(base, config, args):
              for b in data.get('books') or [] if b['branch'] not in in_any]
     values = {'SERIES_ID': s['id'], 'SERIES_TITLE': s['title'], 'SERIES_SUBTITLE': s.get('subtitle') or '',
               'SERIES_KIND_TEXT': SERIES_KIND_DE.get(s.get('kind'), ''), 'SERIES_DESCRIPTION': s.get('description') or '',
-              'VOLUME_COUNT_TEXT': plural(len(vols), 'Band', 'Bände'), 'LIBRARY_NAME': args.repo}
+              'VOLUME_COUNT_TEXT': plural(len(vols), 'Band', 'Bände'), 'LIBRARY_NAME': repo_label(args)}
     import series as series_mod   # gemeinsame Figuren und Begriffe (Stufe 2)
     schars = []
     for c in series_mod.characters(base, s['id']):
@@ -2537,8 +2538,11 @@ def data_view(base, config, args):
         prog_update = 'aktuell'
     else:
         prog_update = 'nicht abgefragt'
+    full = ((gh or {}).get('repo') or {}).get('full_name') or ''
+    if full and not args.repo_known:   # Rohdaten der GitHub-API nennen das Repository (#134)
+        args.repo, args.repo_known = full, True
     values = {
-        'LIBRARY_NAME': args.repo,
+        'LIBRARY_NAME': repo_label(args),
         'PROGRAM_VERSION_TEXT': f'GhostWriter {prog.get("version") or "?"} · Hauptrepository {prog.get("upstream") or "?"}',
         'PROGRAM_UPDATE_TEXT': prog_update, 'PROGRAM_BEHIND': upd['behind'] if upd else '',
         'PROGRAM_LAST_UPDATE_TEXT': f'letzter Update-Lauf am {de_datetime_plus(prog["last_update"])}' if prog.get('last_update') else 'noch kein Update-Lauf',
@@ -2607,7 +2611,7 @@ def data_view(base, config, args):
     lrows, lim_text = limit_rows(base, config, args, gh)
     values['LIMITS_TEXT'] = lim_text
     if args.text:
-        out = ['### 🗂️ Daten', f'{args.repo}', '', '**Programm**', '',
+        out = ['### 🗂️ Daten', f'{repo_label(args)}', '', '**Programm**', '',
                f'- {values["PROGRAM_VERSION_TEXT"]}', f'- Update: {values["PROGRAM_UPDATE_TEXT"]} · {values["PROGRAM_LAST_UPDATE_TEXT"]}',
                f'- {values["UI_TEXT"]}'] + ([f'- ⚠️ {values["PROGRAM_SKIPPED_TEXT"]}'] if values['PROGRAM_SKIPPED_TEXT'] else [])
         out += ['', '**Bücher**', '', '| Buch | Letzter Stand | Änderungen | Auflage | Probedruck | Daten | Prüfung |', '|---|---|---|---|---|---|---|']
@@ -2765,13 +2769,46 @@ def git_head(base):
         return ''
 
 
+REPO_URL = re.compile(r'([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?$')
+UNKNOWN_REPO = 'unbekanntes Repository'
+
+
+def detect_repo(base):
+    """owner/name des Buch-Repositorys ohne --repo (#134): GITHUB_REPOSITORY (Actions), sonst die
+    Adresse von origin im Projektordner. Nie das Hauptrepository als Vorgabe; nichts gefunden = ''."""
+    import os
+    env = os.environ.get('GITHUB_REPOSITORY', '').strip()
+    if REPO_URL.fullmatch(env):
+        return env
+    url = subprocess.run(['git', '-C', str(base), 'remote', 'get-url', 'origin'], capture_output=True, text=True).stdout.strip()
+    m = REPO_URL.search(url.replace(':', '/')) if url and not Path(url).is_dir() else None
+    return f'{m.group(1)}/{m.group(2)}' if m else ''
+
+
+def repo_label(args):
+    """Name des Repositorys für Überschriften (Bücherregal, Serie, Daten)."""
+    return args.repo if getattr(args, 'repo_known', True) else UNKNOWN_REPO
+
+
+def resolve_repo(base, args):
+    """args.repo setzen: --repo, sonst ermittelt. Unbekannt: Anzeige „unbekanntes Repository“, Links auf
+    das Hauptrepository aus dem Manifest (dort liegen dieselben Programmdateien und die Anleitung)."""
+    repo = (args.repo or '').strip() or detect_repo(base)
+    args.repo_known = bool(repo)
+    if not repo:
+        manifest = ROOT / 'ghostwriter-manifest.yml'
+        up = (yaml.safe_load(manifest.read_text(encoding='utf-8')) or {}).get('upstream') or {} if manifest.is_file() else {}
+        repo = up.get('repo') or 'ploeffler/GhostWriter'
+    args.repo = repo
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
     ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
-    ap.add_argument('--repo', default='ploeffler/GhostWriter')
+    ap.add_argument('--repo', help='owner/name des Buch-Repositorys; ohne Angabe aus GITHUB_REPOSITORY bzw. git remote origin (#134)')
     ap.add_argument('--branch', default='main')
     ap.add_argument('--revoke', action='store_true', help='bei approval-*: Freigabe zurücknehmen statt erteilen')
     ap.add_argument('--upstream', help='JSON-Datei mit dem Update-Stand (behind, upstream, version, installed) für die Projektübersicht')
@@ -2787,6 +2824,7 @@ def main():
     ui = yaml.safe_load(UI_CONFIG.read_text(encoding='utf-8'))
     UI['repo'], UI['ref'] = ui['repo'], args.ui_ref or ui['commit']
     base, config = load(args.project)
+    resolve_repo(base, args)
     UI['head'] = args.head_sha or git_head(base)
     if args.view in FORMS:
         out = FORMS[args.view](base, config, args)
