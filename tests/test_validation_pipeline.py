@@ -18,9 +18,9 @@ class MissingSectionFileTest(unittest.TestCase):
         shutil.copytree(FIXTURE, self.project, dirs_exist_ok=True)
         self.config_path = self.project / 'ghostwriter.yml'
         self.config = yaml.safe_load(self.config_path.read_text(encoding='utf-8'))
-        self.missing = self.project / 'chapters' / '01-einleitung' / 'sections' / 'nicht-vorhanden.md'
-        self.config['structure']['chapters'][0]['sections'][0]['path'] = str(
-            self.missing.relative_to(self.project)).replace('\\\\', '/')
+        chapter_path = Path(self.config['structure']['chapters'][0]['path'])
+        self.missing = self.project / chapter_path / 'sections' / 'nicht-vorhanden.md'
+        self.config['structure']['chapters'][0]['sections'][0]['path'] = self.missing.relative_to(self.project).as_posix()
         self.config_path.write_text(yaml.safe_dump(self.config, allow_unicode=True, sort_keys=False),
                                     encoding='utf-8')
 
