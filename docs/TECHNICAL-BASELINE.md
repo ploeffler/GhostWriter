@@ -2,7 +2,7 @@
 
 ## Status
 
-**Hosting und Backend-Laufzeit sind offen.** Cloudflare Workers wurde als technische Basis zurückgenommen. Das frühere Worker-Gerüst wurde aus dem Repository entfernt. Es gibt derzeit keinen produktiven oder lokalen GhostWriter-API-Dienst.
+**Hosting und Backend-Laufzeit sind offen.** Cloudflare Workers wurde als technische Basis zurückgenommen. Die externe Cloudflare-GitHub-Verbindung für dieses Repository wurde am 04.11.2026 deaktiviert. Das frühere Worker-Gerüst wurde aus dem Repository entfernt. Es gibt derzeit keinen produktiven oder lokalen GhostWriter-API-Dienst.
 
 Auth0 bleibt als externer Identity Provider vorgesehen. GitHub bleibt die maßgebliche Datenquelle für Buchprojekte.
 
