@@ -28,6 +28,8 @@ Geprüft werden:
 - publication.isbn_print/isbn_ebook (#68): gültige ISBN-10 bzw. ISBN-13 (Prüfziffer)
 - print/cover (#68): Umschlag nur mit Druckprofil; bei bod/custom Rückenbreite
   angegeben; Papier nur bei kdp; Bilder des Umschlags vorhanden
+- Schauplätze und Zeitleiste (story/places.yml, story/timeline.yml, #124; falls vorhanden)
+  gegen schemas/places.schema.json bzw. timeline.schema.json, IDs eindeutig, Abschnitte bekannt
 - approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt,
   Art passt zur ID (writing: Abschnitt oder Vor-/Nachspann, section: Abschnitt,
   chapter: Kapitel, matter: Vor-/Nachspann)
@@ -61,6 +63,8 @@ APPROVALS = validator('approvals.schema.json')
 MATTER_HEAD = validator('matter.schema.json')
 CHARACTER_HEAD = validator('character.schema.json')
 IMAGE_META = validator('image.schema.json')
+PLACES = validator('places.schema.json')
+TIMELINE = validator('timeline.schema.json')
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
 
 
@@ -124,6 +128,33 @@ def provider_errors(config, config_path):
         for tool in entry.get('search_tools') or []:
             if tool not in available:
                 errors.append(f'{config_path}: ai_providers.{role}.search_tools: {tool} steht nicht in available')
+    return errors
+
+
+def story_errors(base, config):
+    """story/places.yml und story/timeline.yml (#124): Schema, eindeutige IDs, bekannte Abschnitte."""
+    errors = []
+    known = {s['id'] for ch in config['structure']['chapters'] for s in ch['sections']}
+    known |= {i['id'] for _, i in matter_items(config)}
+    for name, v, key, refs in (('places', PLACES, 'places', 'sections'), ('timeline', TIMELINE, 'events', 'section')):
+        path = base / 'story' / f'{name}.yml'
+        if not path.is_file():
+            continue
+        data = load_yaml(path, errors)
+        if data is None:
+            continue
+        errs = schema_errors(v, data, path)
+        errors += errs
+        if errs:
+            continue
+        ids = [x['id'] for x in data[key]]
+        errors += [f'{path}: ID doppelt: {i}' for i in sorted({i for i in ids if ids.count(i) > 1})]
+        for x in data[key]:
+            for sid in ([x[refs]] if isinstance(x.get(refs), str) else x.get(refs) or []):
+                if sid not in known:
+                    errors.append(f'{path}: {x["id"]}: Abschnitt {sid} unbekannt')
+        for n in data.get('notes') or []:
+            errors += [f'{path}: Hinweis verweist auf unbekanntes Ereignis {e}' for e in n.get('events') or [] if e not in ids]
     return errors
 
 
@@ -359,6 +390,7 @@ def check_project(project_dir):
                 errors.append(f'{path}: {entry["activity_id"]}: section_id passt nicht zur Datei')
     errors += provider_errors(config, config_path)
 
+    errors += story_errors(base, config)
     approvals_path = base / 'approvals.yml'
     if approvals_path.is_file():
         data = load_yaml(approvals_path, errors)

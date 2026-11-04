@@ -188,6 +188,63 @@ class AnalyzeTest(unittest.TestCase):
         self.assertEqual(validate_project.check_project(self.base), [])
         self.assertIsNone(analyze.latest(self.base, 'style'))
 
+    def test_places_timeline(self):
+        _, config = load(self.base)
+        chs = config['structure']['chapters']
+        t11 = section_file(self.base, chs[0]['sections'][0])[3]
+        t21 = section_file(self.base, chs[1]['sections'][0])[3]
+        w = re.findall(r'[A-ZÄÖÜ][a-zäöüß]{4,}', t11)[0]   # ein Wort aus dem Text als „Ort“
+        q1 = next(x for x in re.split(r'(?<=[.!?])\s+', t11) if w in x)[:120].strip()
+        q1 = ' '.join(q1.split()[:12])
+        if w not in q1:
+            q1 = w
+        q2 = ' '.join(t21.split()[10:18])
+        data = json.loads(self.fake.read_text(encoding='utf-8'))
+        data['places'] = {'extract': {
+            chs[0]['id']: {'items': [{'name': w, 'kind': 'Raum', 'short': 'erfunden', 'sections': ['1.1', '1.2'],
+                                      'evidence': [{'field': 'name', 'where': '1.1', 'quote': q1}]},
+                                     {'name': 'Atlantis', 'evidence': [{'where': '1.1', 'quote': 'Atlantis liegt am Meer'}]}]}},
+            'merge': {'groups': []}}
+        data['timeline'] = {'extract': {
+            chs[0]['id']: {'events': [{'where': '1.1', 'when': 'eines Morgens', 'what': 'Ein Brief kommt.', 'evidence': [{'where': '1.1', 'quote': q1}]},
+                                      {'where': '1.2', 'when': '', 'what': 'Erfunden.', 'evidence': [{'where': '1.2', 'quote': 'gibt es nicht'}]}]},
+            chs[1]['id']: {'events': [{'where': '2.1', 'when': 'sechs Monate später', 'what': 'Der Termin.', 'evidence': [{'where': '2.1', 'quote': q2}]}]}},
+            'merge': {'issues': [{'kind': 'jump', 'events': [1, 2], 'text': 'Sechs Monate ohne Übergang.'},
+                                 {'kind': 'contradiction', 'events': [99], 'text': 'verweist ins Leere'}]}}
+        self.fake.write_text(json.dumps(data), encoding='utf-8')
+        analyze.run(self.base, 'places', now='2026-11-04T01:00:00+01:00')
+        res = json.loads((self.base / 'analysis/places/run-001.json').read_text(encoding='utf-8'))
+        self.assertEqual([i['name'] for i in res['items']], [w])           # Atlantis ohne Fundstelle
+        self.assertNotIn('short', res['items'][0])                         # Beschreibung ohne eigene Fundstelle
+        self.assertEqual(res['items'][0]['kind'], 'Raum')
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
+                              '--draft', 'analysis/places/run-001.json'], capture_output=True, text=True, check=True).stdout
+        self.assertIn('GW.render("orte-vorschlag"', out)
+        analyze.apply(self.base, 'run-001', 'places', [{'index': 0, 'short': 'Ein Raum im Haus.'}])
+        pl = yaml.safe_load((self.base / 'story/places.yml').read_text(encoding='utf-8'))['places']
+        self.assertEqual((pl[0]['name'], pl[0]['short'], pl[0]['sections']), (w, 'Ein Raum im Haus.', [chs[0]['sections'][0]['id']]))
+        # Zeitleiste
+        head = analyze.run(self.base, 'timeline', now='2026-11-04T01:00:00+01:00')
+        res = json.loads((self.base / 'analysis/timeline/run-001.json').read_text(encoding='utf-8'))
+        self.assertEqual([e['n'] for e in res['items']], [1, 2])
+        self.assertEqual(res['issues'], [{'kind': 'jump', 'events': [1, 2], 'text': 'Sechs Monate ohne Übergang.'}])
+        self.assertEqual(head['blocks_analysed'] + 1, len([e for e in yaml.safe_load(
+            (self.base / 'costs/project.yml').read_text(encoding='utf-8'))['entries'] if e['note'].startswith('Zeitleiste')]))
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
+                              '--draft', 'analysis/timeline/run-001.json'], capture_output=True, text=True, check=True).stdout
+        page = json.loads(re.search(r'GW\.render\("zeitleiste-vorschlag",(.*)\)</script>', out).group(1))
+        self.assertEqual([e['E_FLAG'] for e in page['EVENTS']], ['1', '1'])
+        analyze.apply(self.base, 'run-001', 'timeline', [{'index': 0, 'when': 'eines Morgens', 'what': 'Ein Brief kommt.'},
+                                                          {'index': 1}, {'issue': 0}])
+        tl = yaml.safe_load((self.base / 'story/timeline.yml').read_text(encoding='utf-8'))
+        self.assertEqual([e['id'] for e in tl['events']], ['ev-001', 'ev-002'])
+        self.assertEqual(tl['notes'][0]['events'], ['ev-001', 'ev-002'])
+        self.assertEqual(validate_project.check_project(self.base), [])
+        # ungültige Verweise fallen bei der Prüfung auf
+        tl['events'][0]['section'] = 'sec-gibt-es-nicht'
+        (self.base / 'story/timeline.yml').write_text(yaml.safe_dump(tl, allow_unicode=True), encoding='utf-8')
+        self.assertTrue(any('unbekannt' in e for e in validate_project.check_project(self.base)))
+
     def test_set_part(self):
         t = '# T\n\n## Ziel des Abschnitts\n\nOffen.\n\n## Kurzbeschreibung\n\nalt\n\n## Manuskript\n\nText\n'
         t = analyze.set_part(t, 'Kurzbeschreibung', 'neu')

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/timeline.schema.json",
+  "title": "Zeitleiste eines Buchs (story/timeline.yml, #124)",
+  "type": "object",
+  "required": ["events"],
+  "properties": {
+    "events": {
+      "type": "array",
+      "description": "Ereignisse in Buchreihenfolge",
+      "items": {
+        "type": "object",
+        "required": ["id", "section", "what"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^ev-[0-9]{3,}$"},
+          "section": {"type": "string", "description": "ID des Abschnitts bzw. Teils"},
+          "when": {"type": "string", "description": "Zeitangabe wie im Text; leer = keine"},
+          "what": {"type": "string", "minLength": 1},
+          "quote": {"type": "string", "description": "Fundstelle (wörtlich)"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "notes": {
+      "type": "array",
+      "description": "Auffälligkeiten der zeitlichen Abfolge (Hinweise, nichts ist entschieden)",
+      "items": {
+        "type": "object",
+        "required": ["kind", "text"],
+        "properties": {
+          "kind": {"enum": ["jump", "contradiction", "unclear"]},
+          "text": {"type": "string", "minLength": 1},
+          "events": {"type": "array", "items": {"type": "string"}},
+          "sections": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

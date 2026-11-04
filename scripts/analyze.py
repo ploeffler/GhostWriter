@@ -15,6 +15,11 @@ Arten (`--kind`, Vorgabe characters; mehrere mit Komma):
               („## Ziel des Abschnitts“, „## Kurzbeschreibung“) bzw. die README.md des Kapitels
   style       Stilprofil (Erzählperspektive, Zeitform, Anrede, Sprachebene, Ton, Stilmittel) je Kapitel, dazu
               Zahlen ohne KI (Wörter je Satz, Anteil wörtlicher Rede); übernommen nach ghostwriter.yml (`style`)
+  places      Schauplätze mit Art, Beschreibung und Abschnitten; andere Bezeichnungen desselben Orts über
+              merge_model; übernommen nach story/places.yml
+  timeline    Zeitleiste: Ereignisse je Abschnitt mit Zeitangabe aus dem Text; Zeitsprünge, Widersprüche und
+              Unklares als Hinweisliste (merge_model, nur Verweise auf geprüfte Ereignisse); übernommen nach
+              story/timeline.yml
 
 Läuft in der Action „Analyse im Hintergrund“ (analyse.yml), lokal genauso. Ablauf je Art:
   1. Vorbereiten ohne KI: das Buch je Kapitel (Vor- und Nachspann als eigener
@@ -124,6 +129,43 @@ Jede Angabe braucht eine Fundstelle: evidence = [{"field": "perspective|tense|ad
 Antworte nur mit JSON: {"perspective": "", "tense": "", "address": "", "register": "", "tone": "", "features": [],
 "evidence": []}"""
 
+
+
+PLACES_SYSTEM = """Du liest einen Ausschnitt eines Buchs und nennst die Schauplätze: Orte, an denen etwas geschieht
+oder die beschrieben werden (Städte, Gegenden, Gebäude, Räume, Landschaften, auch erfundene).
+Regeln:
+- Nur was im Text steht. Nichts erfinden, nichts aus Weltwissen ergänzen. Was der Text nicht sagt, bleibt leer.
+- Orte, die nur nebenbei genannt werden (z. B. Herkunft einer Person), nicht aufnehmen.
+- "kind": Art des Orts in einem Wort (Stadt, Gegend, Gebäude, Raum, Landschaft, Fahrzeug …).
+- "short": ein Satz, wie der Text den Ort beschreibt.
+- Andere Namen desselben Orts unter aliases.
+- Jede Angabe braucht eine Fundstelle: evidence = [{"field": "name|kind|short", "where": "<Abschnitt, z. B. 1.2>",
+  """ + QUOTE_RULE + """}].
+Antworte nur mit JSON: {"items": [{"name": "", "aliases": [], "kind": "", "short": "", "sections": [], "evidence": []}]}"""
+
+PLACES_MERGE_SYSTEM = """Du bekommst Schauplätze, die in verschiedenen Kapiteln eines Buchs gefunden wurden, je mit Namen,
+anderen Namen und einem Satz. Gib an, welche Einträge derselbe Ort sind (z. B. "das Haus am See" und "Seehaus"). Nur
+wenn der Text das klar nahelegt; im Zweifel getrennt lassen. Antworte nur mit JSON: {"groups": [["Name A", "Name B"], …]}"""
+
+TIMELINE_SYSTEM = """Du liest ein Kapitel eines Buchs und notierst, wann was geschieht, in der Reihenfolge des Textes.
+Je Ereignis:
+- "where": Abschnitt (z. B. "1.2");
+- "when": die Zeitangabe so, wie sie im Text steht oder sich daraus ergibt (z. B. "Sommer 1989", "drei Tage später",
+  "am nächsten Morgen", "vor zwanzig Jahren" für eine Rückblende); ohne Zeitangabe im Text leer lassen;
+- "what": was geschieht, in einem kurzen Satz;
+- "evidence": [{"where": "<Abschnitt>", """ + QUOTE_RULE + """}], am besten die Stelle mit der Zeitangabe.
+Regeln: Nur aus dem Text, nichts erfinden, keine Daten ausrechnen, die der Text nicht nennt. Nur Ereignisse, die für
+die Handlung bzw. den Ablauf zählen, höchstens acht je Abschnitt.
+Antworte nur mit JSON: {"events": [{"where": "", "when": "", "what": "", "evidence": []}]}"""
+
+TIMELINE_MERGE_SYSTEM = """Du bekommst die Ereignisse eines Buchs in der Reihenfolge des Textes, je mit Nummer, Abschnitt,
+Zeitangabe und einem Satz. Nenne nur auffällige Stellen der zeitlichen Abfolge:
+- "jump": ein großer oder unklarer Sprung (Rückblende, Zeitsprung ohne Hinweis);
+- "contradiction": Zeitangaben, die nicht zusammenpassen (z. B. ein Ereignis "eine Woche später", das vor einem
+  früheren liegt; ein Alter oder Jahr, das sich widerspricht);
+- "unclear": die Abfolge lässt sich aus dem Text nicht bestimmen, obwohl sie für die Handlung zählt.
+Nur was sich aus den genannten Zeitangaben ergibt, nichts vermuten. Jede Stelle nennt die Nummern der beteiligten
+Ereignisse. Antworte nur mit JSON: {"issues": [{"kind": "jump|contradiction|unclear", "events": [1, 2], "text": ""}]}"""
 
 
 def settings(config):
@@ -562,6 +604,129 @@ STYLE_DE = {'perspective': 'Erzählperspektive', 'tense': 'Zeitform', 'address':
             'tone': 'Ton', 'features': 'Stilmittel'}
 
 
+# Schauplätze (#124): wie Figuren, mit Art und Beschreibung
+
+PLACE_FIELDS = ('kind', 'short')
+
+
+def verify_places(answer, texts):
+    """Schauplätze: nur Angaben mit wörtlicher Fundstelle; Abschnitte nur, wo Name oder anderer Name vorkommt.
+    → (orte, verworfen)"""
+    ntexts = {k: norm(v) for k, v in texts.items()}
+    out, dropped = [], 0
+    for it in (answer or {}).get('items') or []:
+        name = ' '.join(str(it.get('name') or '').split())
+        if not name:
+            continue
+        ok = []
+        for e in it.get('evidence') or []:
+            h = check_quote(e, ntexts)
+            if h:
+                h['field'] = h['field'] if h['field'] in PLACE_FIELDS else 'name'
+                ok.append(h)
+            else:
+                dropped += 1
+        names = [name] + [a for a in it.get('aliases') or [] if a and a != name]
+        if not ok or not any(norm(n) in ntexts[e['where']] for e in ok for n in names):
+            dropped += 1
+            continue
+        clean = {'name': name, 'aliases': names[1:], 'evidence': ok[:4]}
+        fields = {e['field'] for e in ok}
+        for f in PLACE_FIELDS:
+            v = ' '.join(str(it.get(f) or '').split())
+            if v and (f in fields or f == 'kind'):   # die Art ergibt sich aus der Fundstelle des Namens
+                clean[f] = v
+            elif v:
+                dropped += 1
+        secs = []
+        for k in [str(x) for x in it.get('sections') or []] + [e['where'] for e in ok]:
+            if k in ntexts and k not in secs and any(norm(n) in ntexts[k] for n in names):
+                secs.append(k)
+        clean['sections'] = secs
+        out.append(clean)
+    return out, dropped
+
+
+def places_combine(base, config, results, todo, prev, ask):
+    """Schauplätze aller Blöcke nach Namen zusammen, dazu groups aus merge_model (andere Bezeichnungen).
+    → (vorschläge, md)"""
+    found = [dict(it, role='supporting') for k in results for it in results[k]]
+    groups = ((prev or {}).get('groups') or []) if not todo else []
+    if len(found) > 1 and todo:
+        listing = '\n'.join(f'- {it["name"]}' + (f' (auch: {", ".join(it["aliases"])})' if it.get('aliases') else '')
+                            + (f': {it["short"]}' if it.get('short') else '') for it in found)
+        groups = [g for g in parse_json(ask(PLACES_MERGE_SYSTEM, listing)).get('groups') or [] if isinstance(g, list) and len(g) > 1]
+    merged, _ = merge(found, groups)
+    items = []
+    for m in merged:
+        members = [it for it in found if norm(it['name']) in {norm(x) for x in [m['name']] + m['aliases']}]
+        out = {'name': m['name'], 'aliases': m['aliases'], 'sections': m['sections'], 'evidence': m['evidence']}
+        for f in PLACE_FIELDS:
+            v = next((x.get(f) for x in members if x.get(f)), '')
+            if v:
+                out[f] = v
+        items.append(out)
+    items.sort(key=lambda x: (-len(x['sections']), x['name'].casefold()))
+    body = ['## Vorschläge', '']
+    body += [f'- **{it["name"]}**' + (f' ({it["kind"]})' if it.get('kind') else '') + (f': {it["short"]}' if it.get('short') else '')
+             + (f' – {", ".join(it["sections"])}' if it['sections'] else '') for it in items] or ['*keine*']
+    return {'items': items, 'groups': groups}, body
+
+
+# Zeitleiste (#124): Ereignisse je Abschnitt, Auffälligkeiten über das ganze Buch
+
+def verify_timeline(answer, texts):
+    """Ereignisse: nur mit wörtlicher Fundstelle im genannten Abschnitt, in der Reihenfolge der Abschnitte.
+    → (ereignisse, verworfen)"""
+    ntexts = {k: norm(v) for k, v in texts.items()}
+    order = list(texts)
+    out, dropped = [], 0
+    for ev in (answer or {}).get('events') or []:
+        where = str(ev.get('where') or '')
+        what = ' '.join(str(ev.get('what') or '').split())
+        if where not in ntexts or not what:
+            dropped += 1
+            continue
+        ok = [h for h in (check_quote(e, ntexts, only={where}) for e in ev.get('evidence') or []) if h]
+        if not ok:
+            dropped += 1
+            continue
+        out.append({'where': where, 'when': ' '.join(str(ev.get('when') or '').split()), 'what': what, 'evidence': ok[:2]})
+    out.sort(key=lambda e: order.index(e['where']))   # stabil: Reihenfolge im Abschnitt bleibt
+    return out, dropped
+
+
+def timeline_combine(base, config, results, todo, prev, ask):
+    """Zeitleiste: Ereignisse in Buchreihenfolge (Nummer 1 …), dazu Auffälligkeiten über merge_model; jede
+    Auffälligkeit verweist nur auf Ereignisse mit geprüfter Fundstelle. → (vorschläge, md)"""
+    labels = block_labels(config)
+    events = []
+    for k in [x for x in labels if x in results]:
+        for e in results[k]:
+            events.append(dict(e, n=len(events) + 1))
+    issues = []
+    if len(events) > 1 and todo:
+        listing = '\n'.join(f'{e["n"]}. [{e["where"]}] {e["when"] or "(ohne Zeitangabe)"}: {e["what"]}' for e in events)
+        raw = parse_json(ask(TIMELINE_MERGE_SYSTEM, listing)).get('issues') or []
+        known = {e['n'] for e in events}
+        for x in raw:
+            ids = [int(i) for i in x.get('events') or [] if str(i).isdigit() and int(i) in known]
+            text = ' '.join(str(x.get('text') or '').split())
+            if ids and text:
+                issues.append({'kind': x.get('kind') if x.get('kind') in ('jump', 'contradiction', 'unclear') else 'unclear',
+                               'events': sorted(set(ids)), 'text': text})
+    elif not todo and prev:
+        issues = prev.get('issues') or []
+    body = ['## Ereignisse', '']
+    body += [f'{e["n"]}. {e["where"]} – {e["when"] or "ohne Zeitangabe"}: {e["what"]}' for e in events] or ['*keine*']
+    body += ['', '## Auffälligkeiten', '']
+    body += [f'- {TIMELINE_KIND_DE[i["kind"]]} (Ereignisse {", ".join(map(str, i["events"]))}): {i["text"]}' for i in issues] or ['*keine*']
+    return {'items': events, 'issues': issues}, body
+
+
+TIMELINE_KIND_DE = {'jump': 'Zeitsprung', 'contradiction': 'Widerspruch', 'unclear': 'unklar'}
+
+
 # Je Art: label (für Texte), offer (Hinweis in der Übersicht), icon (Tabler-Symbol), system (Auftrag je Block),
 # context (zusätzlicher Text vor dem Kapitel), verify, combine, matter (Vor- und Nachspann lesen), output_tokens
 # (Schätzung je Block), merge_tokens (Schätzung Zusammenführen), merge (Zusammenführen mit merge_model).
@@ -576,6 +741,12 @@ KINDS = {
     'style': {'label': 'Stilprofil', 'offer': 'Stilprofil', 'icon': 'feather', 'system': STYLE_SYSTEM, 'context': None,
               'verify': verify_style, 'combine': style_combine, 'matter': True, 'output_tokens': 500,
               'merge_tokens': (0, 0), 'merge': False},
+    'places': {'label': 'Schauplätze', 'offer': 'Schauplätze', 'icon': 'map-pin', 'system': PLACES_SYSTEM, 'context': None,
+               'verify': verify_places, 'combine': places_combine, 'matter': True, 'output_tokens': 1000,
+               'merge_tokens': (1500, 300), 'merge': True},
+    'timeline': {'label': 'Zeitleiste', 'offer': 'Zeitleiste', 'icon': 'timeline', 'system': TIMELINE_SYSTEM, 'context': None,
+                 'verify': verify_timeline, 'combine': timeline_combine, 'matter': True, 'output_tokens': 1500,
+                 'merge_tokens': (3000, 800), 'merge': True},
 }
 
 
@@ -586,13 +757,14 @@ def next_run(folder):
     return f'run-{max(nums, default=0) + 1:03d}'
 
 
-def cost_entry(s, provider, model, run_id, tin, tout, when, n, label='Figuren'):
+def cost_entry(s, provider, model, run_id, tin, tout, when, n, label='Figuren', kind='characters'):
     price = None
     if s.get('price_input_per_mtok') is not None and s.get('price_output_per_mtok') is not None:
         price = round(tin / 1e6 * float(s['price_input_per_mtok']) + tout / 1e6 * float(s['price_output_per_mtok']), 4)
     wf = yaml.safe_load((ROOT / 'workflow.yml').read_text(encoding='utf-8'))
     cur = ((wf.get('cost_tracking') or {}).get('project_currency') or 'EUR')
-    return {'activity_id': f'act-{run_id}-{n:03d}', 'occurred_at': when, 'source': 'action_api', 'run_id': run_id,
+    act = f'act-{run_id}-{n:03d}' if kind == 'characters' else f'act-{kind}-{run_id}-{n:03d}'   # Läufe je Art zählen getrennt
+    return {'activity_id': act, 'occurred_at': when, 'source': 'action_api', 'run_id': f'{kind}/{run_id}' if kind != 'characters' else run_id,
             'provider': provider, 'model': model, 'activity_type': 'other', 'currency': cur,
             'cost_amount': price, 'cost_status': 'estimated' if price is not None else 'unavailable',
             'input_tokens': tin, 'output_tokens': tout, 'note': f'{label}-Analyse (Hintergrundlauf)'}
@@ -650,7 +822,7 @@ def run(base, kind='characters', scope=None, now=None):
     (folder / f'{run_id}.json').write_text(json.dumps(suggestions, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
     tin = sum(c[1] for c in calls)
     tout = sum(c[2] for c in calls)
-    entries = [cost_entry(s, provider, m, run_id, a, b, now, i, spec['label']) for i, (m, a, b) in enumerate(calls, start=1)]
+    entries = [cost_entry(s, provider, m, run_id, a, b, now, i, spec['label'], kind) for i, (m, a, b) in enumerate(calls, start=1)]
     cost = sum(e['cost_amount'] or 0 for e in entries) if all(e['cost_amount'] is not None for e in entries) else None
     n = len(result.get('items') or [])
     head = {'id': run_id, 'type': 'analysis', 'kind': kind, 'scope': scope or 'book', 'created_at': now,
@@ -797,7 +969,104 @@ def apply_style(base, config, data, choices):
     return ['ghostwriter.yml']
 
 
-APPLY = {'summaries': apply_summaries, 'style': apply_style}
+def story_file(base, name):
+    return Path(base) / 'story' / f'{name}.yml'
+
+
+def section_ids(config):
+    """{„N.M“ bzw. Titel eines Teils: ID} für Abschnitte und Teile von Vor- und Nachspann."""
+    out = {i['title']: i['id'] for _, i in matter_items(config)}
+    for ci, ch in enumerate(config['structure']['chapters'], start=1):
+        for si, sec in enumerate(ch['sections'], start=1):
+            out[f'{ci}.{si}'] = sec['id']
+    return out
+
+
+def apply_places(base, config, data, choices):
+    """Schauplätze nach story/places.yml. choices: [{index, name?, kind?, short?, merge_into?}]; merge_into = ID
+    eines vorhandenen Orts: dort werden nur leere Felder gefüllt, Namen und Abschnitte ergänzt. → [geänderte Dateien]"""
+    from render_view import tag_slug
+    items = data.get('items') or []
+    ids = section_ids(config)
+    path = story_file(base, 'places')
+    have = (yaml.safe_load(path.read_text(encoding='utf-8')) or {}) if path.is_file() else {}
+    places = have.get('places') or []
+    n0 = json.dumps(places, sort_keys=True)
+    for c in choices:
+        it = items[int(c['index'])]
+        name = ' '.join(str(c.get('name') or it['name']).split())
+        secs = [ids[s] for s in it.get('sections') or [] if s in ids]
+        target = next((p for p in places if p['id'] == c.get('merge_into')), None) or \
+            next((p for p in places if norm(p['name']) in {norm(x) for x in [name] + it.get('aliases', [])}), None)
+        if target:
+            for f in PLACE_FIELDS:
+                v = str(c[f] if f in c else it.get(f) or '').strip()
+                if v and not target.get(f):
+                    target[f] = v
+            target['aliases'] = list(dict.fromkeys((target.get('aliases') or []) +
+                                                   [x for x in [name] + it.get('aliases', []) if x != target['name']]))
+            target['sections'] = list(dict.fromkeys((target.get('sections') or []) + secs))
+            continue
+        pid, n = 'pl-' + (tag_slug(name) or 'ort'), 2
+        while any(p['id'] == pid for p in places):
+            pid, n = f'pl-{tag_slug(name) or "ort"}-{n}', n + 1
+        new = {'id': pid, 'name': name, 'aliases': [a for a in it.get('aliases') or [] if a != name]}
+        for f in PLACE_FIELDS:
+            v = str(c[f] if f in c else it.get(f) or '').strip()
+            if v:
+                new[f] = v
+        new['sections'] = secs
+        places.append(new)
+    if json.dumps(places, sort_keys=True) == n0:
+        return []
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(yaml.safe_dump({'places': places}, allow_unicode=True, sort_keys=False, width=10**6), encoding='utf-8')
+    return [str(path.relative_to(base))]
+
+
+def apply_timeline(base, config, data, choices):
+    """Zeitleiste nach story/timeline.yml: gewählte Ereignisse (choices [{index, when?, what?}]) und Auffälligkeiten
+    ({issue, text?}); ersetzt die bisherige Zeitleiste der betroffenen Abschnitte nicht, sondern ergänzt sie
+    (gleiche Abschnitt-Zeit-Beschreibung nur einmal). → [geänderte Dateien]"""
+    items = data.get('items') or []
+    issues = data.get('issues') or []
+    ids = section_ids(config)
+    path = story_file(base, 'timeline')
+    have = (yaml.safe_load(path.read_text(encoding='utf-8')) or {}) if path.is_file() else {}
+    events, notes = have.get('events') or [], have.get('notes') or []
+    n0 = json.dumps([events, notes], sort_keys=True)
+    num = {}
+    for c in [c for c in choices if 'index' in c]:
+        it = items[int(c['index'])]
+        ev = {'section': ids.get(it['where'], it['where']), 'when': ' '.join(str(c.get('when', it['when'])).split()),
+              'what': ' '.join(str(c.get('what') or it['what']).split()), 'quote': it['evidence'][0]['quote']}
+        same = next((e for e in events if (e['section'], e['what']) == (ev['section'], ev['what'])), None)
+        if same:
+            num[it['n']] = same['id']
+            continue
+        ev = dict({'id': f'ev-{max([int(e["id"][3:]) for e in events] + [0]) + 1:03d}'}, **ev)
+        events.append(ev)
+        num[it['n']] = ev['id']
+    for c in [c for c in choices if 'issue' in c]:
+        x = issues[int(c['issue'])]
+        refs = [num[n] for n in x['events'] if n in num]
+        note = {'kind': x['kind'], 'text': ' '.join(str(c.get('text') or x['text']).split()), 'events': refs,
+                'sections': list(dict.fromkeys(ids.get(e['where'], e['where']) for e in items if e['n'] in x['events']))}
+        if note not in notes:
+            notes.append(note)
+    order = {sid: i for i, sid in enumerate(ids.values())}
+    events.sort(key=lambda e: order.get(e['section'], 10**6))   # Buchreihenfolge, stabil
+    if json.dumps([events, notes], sort_keys=True) == n0:
+        return []
+    path.parent.mkdir(exist_ok=True)
+    out = {'events': events}
+    if notes:
+        out['notes'] = notes
+    path.write_text(yaml.safe_dump(out, allow_unicode=True, sort_keys=False, width=10**6), encoding='utf-8')
+    return [str(path.relative_to(base))]
+
+
+APPLY = {'summaries': apply_summaries, 'style': apply_style, 'places': apply_places, 'timeline': apply_timeline}
 
 
 def apply(base, run_id, kind, choices):

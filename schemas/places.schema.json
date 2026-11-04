@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/places.schema.json",
+  "title": "Schauplätze eines Buchs (story/places.yml, #124)",
+  "type": "object",
+  "required": ["places"],
+  "properties": {
+    "places": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^pl-[a-z0-9][a-z0-9-]*$"},
+          "name": {"type": "string", "minLength": 1},
+          "aliases": {"type": "array", "items": {"type": "string"}, "description": "andere Bezeichnungen im Text"},
+          "kind": {"type": "string", "description": "Art des Orts, z. B. Stadt, Gebäude, Raum"},
+          "short": {"type": "string", "description": "ein Satz, wie der Text den Ort beschreibt"},
+          "sections": {"type": "array", "items": {"type": "string"}, "description": "IDs der Abschnitte bzw. Teile, in denen der Ort vorkommt"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

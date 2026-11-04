@@ -639,8 +639,8 @@ def limit_summary(base, config):
 
 
 # Hintergrundläufe (#123, #124): Kürzel und Symbol je Art in der Textfassung der Projektübersicht
-ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA', 'style': 'SA'}
-ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝', 'style': '🪶'}
+ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA', 'style': 'SA', 'places': 'OA', 'timeline': 'ZA'}
+ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝', 'style': '🪶', 'places': '📍', 'timeline': '🕰️'}
 
 
 def project_view(base, config, args):
@@ -2152,7 +2152,76 @@ def style_suggest_view(base, config, args, data, run_text):
     return fill('stilprofil-vorschlag.html', values, {'SUGGESTIONS': rows})
 
 
-ANALYSIS_VIEWS = {'summaries': summaries_suggest_view, 'style': style_suggest_view}
+def places_suggest_view(base, config, args, data, run_text):
+    """Schauplätze (Vorlage orte-vorschlag): Name, Art, ein Satz, Abschnitte, Fundstellen, Stand gegenüber
+    story/places.yml; „Zusammenlegen mit“ einem vorhandenen Ort."""
+    import analyze
+    p = analyze.story_file(base, 'places')
+    known = ((yaml.safe_load(p.read_text(encoding='utf-8')) or {}).get('places') or []) if p.is_file() else []
+    rows = []
+    for i, it in enumerate(data.get('items') or []):
+        names = {analyze.norm(x) for x in [it['name']] + list(it.get('aliases') or [])}
+        hit = next((k for k in known if names & {analyze.norm(x) for x in [k['name']] + list(k.get('aliases') or [])}), None)
+        rows.append({'S_IDX': i, 'S_NAME': it['name'], 'S_ALIASES': ', '.join(it.get('aliases') or []), 'S_KIND': it.get('kind', ''),
+                     'S_SHORT': it.get('short', ''), 'S_SECTIONS': ', '.join(it.get('sections') or []),
+                     'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in (it.get('evidence') or [])[:2]),
+                     'S_STATE': 'existing' if hit else 'new', 'S_STATE_TEXT': f'schon da: {hit["name"]}' if hit else 'neu',
+                     'S_EXISTING': hit['id'] if hit else ''})
+    values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'places',
+              'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config), 'SUGGEST_COUNT_TEXT': plural(len(rows), 'Ort', 'Orte')}
+    if args.text:
+        out = [f'### 📍 Schauplätze aus dem Text · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
+        if rows:
+            out += ['| # | Ort | Art | Beschreibung | Abschnitte | Stand |', '|--:|---|---|---|---|---|']
+            out += [f'| {r["S_IDX"] + 1} | **{r["S_NAME"]}**{" (" + r["S_ALIASES"] + ")" if r["S_ALIASES"] else ""} | {r["S_KIND"] or "–"} | '
+                    f'{r["S_SHORT"] or "–"} | {r["S_SECTIONS"] or "–"} | {r["S_STATE_TEXT"]} |' for r in rows]
+        else:
+            out += ['*Keine Schauplätze mit Fundstelle.*']
+        out += ['', 'Nur aus dem Text. Übernommen wird nach `story/places.yml`; bekannte Orte werden nur ergänzt. Der Text bleibt unverändert.',
+                '', '---', menu([('Übernehmen: 1, 3', 'diese übernehmen'), ('Alle', 'alle übernehmen'),
+                                  ('2 = Seehaus', 'Vorschlag 2 mit einem bekannten Ort zusammenlegen'), ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    merge = [{'M_ID': k['id'], 'M_NAME': k['name']} for k in known]
+    return fill('orte-vorschlag.html', values, {'SUGGESTIONS': rows, 'MERGE': merge})
+
+
+def timeline_suggest_view(base, config, args, data, run_text):
+    """Zeitleiste (Vorlage zeitleiste-vorschlag): Ereignisse in Buchreihenfolge mit Zeitangabe und Fundstelle, dazu
+    die Auffälligkeiten (Zeitsprung, Widerspruch, unklar) mit Verweis auf die Ereignisse."""
+    import analyze
+    issues = data.get('issues') or []
+    flagged = {n for x in issues for n in x['events']}
+    events = [{'E_IDX': i, 'E_N': e['n'], 'E_WHERE': e['where'], 'E_WHEN': e.get('when', ''), 'E_WHAT': e['what'],
+               'E_FLAG': '1' if e['n'] in flagged else '',
+               'E_EVIDENCE': ' · '.join(f'„{x.get("quote", "")}“' for x in (e.get('evidence') or [])[:1])}
+              for i, e in enumerate(data.get('items') or [])]
+    rows = [{'I_IDX': i, 'I_KIND': x['kind'], 'I_KIND_TEXT': analyze.TIMELINE_KIND_DE.get(x['kind'], x['kind']),
+             'I_EVENTS': ', '.join(map(str, x['events'])), 'I_TEXT': x['text']} for i, x in enumerate(issues)]
+    values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'timeline',
+              'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config),
+              'SUGGEST_COUNT_TEXT': plural(len(events), 'Ereignis', 'Ereignisse') + ' · ' + plural(len(rows), 'Auffälligkeit', 'Auffälligkeiten')}
+    if args.text:
+        out = [f'### 🕰️ Zeitleiste · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
+        if rows:
+            out += [f'> ⚠️ **{r["I_KIND_TEXT"]}** (Ereignisse {r["I_EVENTS"]}): {r["I_TEXT"]}' for r in rows] + ['']
+        if events:
+            out += ['| # | Abschnitt | Wann | Was |', '|--:|---|---|---|']
+            out += [f'| {e["E_N"]}{" ⚠️" if e["E_FLAG"] else ""} | {e["E_WHERE"]} | {e["E_WHEN"] or "–"} | {e["E_WHAT"]} |' for e in events]
+        else:
+            out += ['*Keine Ereignisse mit Fundstelle.*']
+        out += ['', 'Nur aus dem Text; Auffälligkeiten sind Hinweise, entschieden wird nichts. Übernommen wird nach '
+                '`story/timeline.yml`; der Text bleibt unverändert.', '', '---',
+                menu([('Alle', 'alle Ereignisse und Hinweise übernehmen'), ('Ohne: 4, 7', 'alle außer diesen Ereignissen'),
+                      ('Hinweise ohne: 2', 'diesen Hinweis weglassen'), ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    blocks = {'EVENTS': events}
+    if rows:
+        blocks['ISSUES'] = rows
+    return fill('zeitleiste-vorschlag.html', values, blocks)
+
+
+ANALYSIS_VIEWS = {'summaries': summaries_suggest_view, 'style': style_suggest_view, 'places': places_suggest_view,
+                  'timeline': timeline_suggest_view}
 
 
 def import_preview_view(base, config, args):
