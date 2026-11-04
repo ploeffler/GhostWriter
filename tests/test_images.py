@@ -94,7 +94,7 @@ class ImageTest(unittest.TestCase):
         reference_images.set_status(self.base, ref['id'], 'approved')
         meta, folder = self.add(reference_ids=[ref['id']])
         run = (self.base / folder / 'run-001.md').read_text(encoding='utf-8')
-        frontmatter = run.split('---\\n', 2)[1]
+        frontmatter = run.split('---\n', 2)[1]
         record = yaml.safe_load(frontmatter)['visual_references'][0]
         self.assertEqual(record['id'], ref['id'])
         self.assertEqual(record['file'], ref['file'])
