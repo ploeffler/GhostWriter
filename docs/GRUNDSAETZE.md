@@ -53,11 +53,11 @@ GhostWriter wurde mit Unterstützung von Claude (Anthropic) entwickelt; dieser H
 
 - [Anleitung](ANLEITUNG.md): Schritt für Schritt vom leeren Repository zur ersten Auflage
 - [So sieht es aus](DIALOGE.md): die Dialoge im Chat
+- [Qualitätssicherung](QUALITAETSSICHERUNG.md): allgemeine redaktionelle Prüfung und individuelles Buchprofil
 - [START.md](../START.md): verbindliche Arbeitsanweisung für den Assistenten
 - [Automatische Updates](UPDATES.md), auch „Von v0.5 auf v0.6“
 - [KI-Dienste nutzen](DIENSTE-NUTZEN.md) · [KI-Anbieter](PROVIDERS.md) · [Chat-Apps](CHAT-APPS.md) · [Connector einrichten](CONNECTOR-SETUP.md)
 - [Datei- und Statusmodell](DATA-MODEL.md) · [Architektur](ARCHITECTURE.md) · [Workflow-Modell](WORKFLOW-MODEL.md) · [Integration](INTEGRATION.md) · [Buchkontext](CONTEXT.md)
-- [Produktclip](../media/produktclip/README.md)
 
 ---
 
