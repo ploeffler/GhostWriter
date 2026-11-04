@@ -32,7 +32,8 @@ Geprüft werden:
   falls vorhanden) gegen ihr Schema, IDs eindeutig, Abschnitte bekannt
 - assistant.yml (falls vorhanden, #136) gegen schemas/assistant.schema.json; der
   persönliche Skill .claude/skills/<skill>/SKILL.md passt dazu (scripts/assistant.py check)
-- approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt,
+- approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt
+  oder einzelne historische Verweise ausdrücklich dokumentiert,
   Art passt zur ID (writing: Abschnitt oder Vor-/Nachspann, section: Abschnitt,
   chapter: Kapitel, matter: Vor-/Nachspann)
 
@@ -437,9 +438,23 @@ def check_project(project_dir):
                                  'matter': (matter_ids, 'Teil des Vor-/Nachspanns'),
                                  'writing': (section_ids | matter_ids, 'Abschnitt bzw. Teil'),
                                  'image': (image_ids, 'Bild')}
+                historical = {}
+                for ref in data.get('historical_references', []):
+                    number = ref['entry']
+                    if number in historical:
+                        errors.append(f'{approvals_path}: historische Referenz für Eintrag {number} doppelt')
+                    elif number > len(data['entries']):
+                        errors.append(f'{approvals_path}: historischer Eintrag {number} existiert nicht')
+                    else:
+                        historical[number] = ref
+                        entry = data['entries'][number - 1]
+                        if (entry['kind'], entry['id']) != (ref['kind'], ref['id']):
+                            errors.append(f'{approvals_path}: historische Referenz für Eintrag {number} passt nicht')
                 for i, entry in enumerate(data['entries'], start=1):
                     known, art = known_by_kind[entry['kind']]
-                    if entry['id'] not in known:
+                    ref = historical.get(i)
+                    documented = ref and (entry['kind'], entry['id']) == (ref['kind'], ref['id'])
+                    if entry['id'] not in known and not documented:
                         errors.append(f'{approvals_path}: Eintrag {i}: {art} {entry["id"]} unbekannt')
     return errors
 

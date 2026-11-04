@@ -337,6 +337,8 @@ Darunter `## Beschreibung` und `## Notizen`. Abschnitte und Teile von Vor- und N
 
 `approvals.yml` hält jede erteilte oder zurückgenommene Freigabe als eigenen Eintrag fest (`workflow.yml`: `record_approval_actor_and_timestamp`, `user_approval_record`). Einträge werden nur angehängt. Die Felder `approvals.writing` und `approvals.section` im Kopf der Abschnittsdatei und der Kapitelstatus zeigen den aktuellen Stand; das Protokoll zeigt, wer wann welchen Stand bestätigt hat. Schema: [`schemas/approvals.schema.json`](../schemas/approvals.schema.json); Ablauf: `START.md`, „Freigaben“.
 
+Verweist ein historischer Eintrag auf ein nicht mehr vorhandenes Ziel, kann er unter `historical_references` mit seiner **einbasierten** `entry`-Nummer, unverändertem `kind` und `id` sowie einer `reason` dokumentiert werden. Der Eintrag selbst bleibt unverändert. Die Markierung gilt nur für diesen konkreten Protokolleintrag und erteilt keine Freigabe; unbekannte, nicht dokumentierte Verweise bleiben Validierungsfehler. Vor dem Eintrag den Sachverhalt anhand der Historie prüfen; keine Zuordnung zu einem neuen Abschnitt erfinden.
+
 ```yaml
 entries:
 - kind: section          # writing | section | chapter | matter (Vor-/Nachspann) | image (Illustration)
