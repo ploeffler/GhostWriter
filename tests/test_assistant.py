@@ -39,8 +39,13 @@ class ProfileTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.d = Path(self.tmp.name)
         shutil.copyfile(STARTER_FILE, self.d / 'ghostwriter.yml')
+        import os
+        self.env = dict(os.environ)
 
     def tearDown(self):
+        import os
+        os.environ.clear()
+        os.environ.update(self.env)
         self.tmp.cleanup()
 
     def test_set_creates_profile_and_skill(self):
@@ -106,6 +111,8 @@ class ProfileTest(unittest.TestCase):
         shutil.copyfile(ROOT / 'tests/fixtures/adhs/ghostwriter.yml', self.d / 'ghostwriter.yml')
         self.assertIn('(Buch)', assistant.render(self.d, assistant.load(self.d)))
         (self.d / 'assistant.yml').unlink()
+        import os
+        os.environ.pop('GITHUB_REPOSITORY', None)   # in Actions gesetzt; hier zählt die Remote-Adresse
         subprocess.run(['git', 'init', '-q', str(self.d)], check=True)
         subprocess.run(['git', '-C', str(self.d), 'remote', 'add', 'origin', 'git@github.com:anna/romane.git'], check=True)
         cfg = yaml.safe_load((self.d / 'ghostwriter.yml').read_text(encoding='utf-8'))
