@@ -774,6 +774,7 @@ def project_view(base, config, args):
 
 
 def chapter_view(base, config, args, cnum):
+    from chapter_revision import readiness
     p = config['project']
     ch = config['structure']['chapters'][cnum - 1]
     readme = (base / ch['path'] / 'README.md').read_text(encoding='utf-8')
@@ -823,6 +824,8 @@ def chapter_view(base, config, args, cnum):
         items = [(f'{cnum}.1' + (f'–{cnum}.{n}' if n > 1 else ''), 'Abschnitt öffnen')] if rows else []
         if values['CHAPTER_APPROVABLE']:
             items.append(('FK', 'Kapitel freigeben'))
+        if readiness(base, ch)['ready']:
+            items.append(('KU', 'Kapitel überarbeiten'))
         items += [('B', 'Kapitel bearbeiten'), ('Z', 'Ziel, Kurzbeschreibung, Kapitelrecherche'), ('N', 'Neuer Abschnitt'),
                   ('R', 'Reihenfolge'), ('FV', '👤 Figuren aus dem Text vorschlagen'), ('Ü', 'Übersicht')]
         lines += [menu(items)]
