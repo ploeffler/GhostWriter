@@ -175,6 +175,8 @@ Ein Widget kann nach dem Erscheinen keinen Fortschritt mehr anzeigen; die Status
 
 ### Schreiben ins Repository (verbindlich)
 
+Für gebündelte Abschnitts-, Überarbeitungs-, Abgleich- und Übernahmedialoge gelten zusätzlich die konkreten Schritte in [`docs/ARBEITSABLAEUFE.md`](docs/ARBEITSABLAEUFE.md).
+
 Nach dem Einrichten ändert der Assistent das Buch nie direkt. Jede Änderung aus einem Formular wird zuerst ein Commit in einem Arbeits-Branch; übernommen wird sie erst, wenn der Benutzer in der Projektübersicht „Änderungen übernehmen“ bestätigt.
 
 - **Buch-Branch:** der Branch aus dem Link des Benutzers, sonst `main`. In einer Bibliothek (mehrere Bücher in einem Repository, #36) heißt jedes Buch `buch/<slug>`, der Slug kommt aus dem Kurztitel. Ob ein Branch ein Buch ist, entscheidet die Erkennungsregel in `scripts/library.py`: jeder `buch/*`-Branch, auch ohne Kapitel (Wizard läuft noch), sonst jeder Branch mit Kapiteln, nie Branches aus `update.skip_branches`. Bücher werden nie in den Standard-Branch gemergt.
@@ -535,6 +537,18 @@ Nach der Initialisierung wird jedes Kapitel abschnittsweise bearbeitet. Für jed
 7. Optionales Fact-Checking gemäß Abschnittseinstellung.
 8. Korrekturen abstimmen und einarbeiten.
 9. Ausdrückliche Abschnittsfreigabe.
+
+**Kapitelüberarbeitung (KU):** Vor dem Anbieten und vor jeder Durchführung
+`python scripts/chapter_revision.py <projektordner> <kapitelnummer-oder-id> --json`
+auf dem aktuellen Lese-Stand ausführen. Sie ist nur verfügbar, wenn mindestens ein
+Abschnitt existiert und jeder Abschnitt tatsächlichen Manuskripttext enthält sowie
+den Status `writing`, `revision`, `fact_check`, `ready_for_approval` oder `approved`
+hat. Leerer Text, `Noch nicht begonnen.`, fehlende oder unlesbare Dateien und
+frühere oder unbekannte Zustände sperren die Aktion. Der Assistent nennt die
+betroffenen Abschnitte und führt keine Kapitelüberarbeitung durch. Bei Erfolg
+das vollständige Kapitel gemäß `docs/QUALITAETSSICHERUNG.md` prüfen und die
+Vorschläge zeigen; keine formale Freigabe erteilen. Nach Änderungen vor dem
+Ausführen erneut prüfen. Eine Abschnittsprüfung bleibt unabhängig davon möglich.
 
 Erst wenn alle Abschnitte eines Kapitels freigegeben sind:
 1. Kapitel zusammenführen.
