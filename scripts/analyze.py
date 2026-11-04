@@ -20,6 +20,10 @@ Arten (`--kind`, Vorgabe characters; mehrere mit Komma):
   timeline    Zeitleiste: Ereignisse je Abschnitt mit Zeitangabe aus dem Text; Zeitsprünge, Widersprüche und
               Unklares als Hinweisliste (merge_model, nur Verweise auf geprüfte Ereignisse); übernommen nach
               story/timeline.yml
+  continuity  Widersprüche: je Kapitel Tatsachen mit Fundstelle, über das ganze Buch Widersprüche (merge_model, nur
+              zwischen geprüften Tatsachen); übernommen als Marker [KONTINUITÄT PRÜFEN: …] hinter der Fundstelle
+  language    Sprachliche Auffälligkeiten ohne KI (lange Sätze, Wortwiederholungen, gleiche Satzanfänge,
+              Füllwörter); übernommen als Hinweisliste nach story/hints.yml, der Text bleibt unverändert
 
 Läuft in der Action „Analyse im Hintergrund“ (analyse.yml), lokal genauso. Ablauf je Art:
   1. Vorbereiten ohne KI: das Buch je Kapitel (Vor- und Nachspann als eigener
@@ -168,6 +172,25 @@ Nur was sich aus den genannten Zeitangaben ergibt, nichts vermuten. Jede Stelle 
 Ereignisse. Antworte nur mit JSON: {"issues": [{"kind": "jump|contradiction|unclear", "events": [1, 2], "text": ""}]}"""
 
 
+CONTINUITY_SYSTEM = """Du liest ein Kapitel eines Buchs und notierst Tatsachen, die an anderer Stelle des Buchs nicht
+anders dargestellt werden dürfen: Alter, Aussehen, Verwandtschaft und Beziehungen von Personen; Namen; Orte und ihre
+Beschreibung; Daten, Jahreszahlen und Dauern; Zahlen und Mengen; Besitz und Eigenschaften von Dingen; feste
+Behauptungen im Sachbuch (z. B. "die Leitlinie empfiehlt …").
+Je Tatsache:
+- "about": worum es geht (Person, Ort, Ding, Thema), kurz;
+- "fact": die Tatsache in einem kurzen Satz, genau so, wie der Text sie darstellt;
+- "where": Abschnitt (z. B. "1.2"); """ + QUOTE_RULE + """.
+Regeln: Nur was im Text steht, nichts ergänzen, nichts deuten. Höchstens zwölf Tatsachen je Abschnitt.
+Antworte nur mit JSON: {"facts": [{"about": "", "fact": "", "where": "", "quote": ""}]}"""
+
+CONTINUITY_MERGE_SYSTEM = """Du bekommst nummerierte Tatsachen aus einem ganzen Buch in der Reihenfolge des Textes, je mit
+Abschnitt, Gegenstand und Satz. Nenne die Stellen, an denen sich Tatsachen widersprechen (z. B. zwei verschiedene Alter
+derselben Person zur selben Zeit, ein Ort mit zwei verschiedenen Beschreibungen, zwei verschiedene Zahlen für dasselbe).
+Eine Entwicklung über die Zeit ist kein Widerspruch. Nur echte Widersprüche aus den genannten Tatsachen, im Zweifel
+weglassen. Je Widerspruch die Nummern der beteiligten Tatsachen (mindestens zwei) und ein kurzer Satz.
+Antworte nur mit JSON: {"conflicts": [{"facts": [3, 17], "text": ""}]}"""
+
+
 def settings(config):
     s = {'provider': None, 'model': None, 'merge_model': None, 'price_input_per_mtok': None,
          'price_output_per_mtok': None, 'parallel': 4}
@@ -248,6 +271,8 @@ def plan(base, config, kind='characters', scope=None):
     merge_in, merge_out = spec['merge_tokens']
     tin = int(chars_new / CHARS_PER_TOKEN) + PROMPT_TOKENS * len(todo) + (merge_in if todo else 0)
     tout = spec['output_tokens'] * len(todo) + (merge_out if todo else 0)
+    if spec.get('local'):   # ohne KI
+        tin = tout = 0
     cost = None
     if s.get('price_input_per_mtok') is not None and s.get('price_output_per_mtok') is not None:
         cost = round(tin / 1e6 * float(s['price_input_per_mtok']) + tout / 1e6 * float(s['price_output_per_mtok']), 2)
@@ -727,6 +752,151 @@ def timeline_combine(base, config, results, todo, prev, ask):
 TIMELINE_KIND_DE = {'jump': 'Zeitsprung', 'contradiction': 'Widerspruch', 'unclear': 'unklar'}
 
 
+# Widersprüche (#124): Tatsachen je Kapitel mit Fundstelle, Widersprüche über das ganze Buch
+
+def verify_continuity(answer, texts):
+    """Tatsachen: nur mit wörtlicher Fundstelle im genannten Abschnitt. → (tatsachen, verworfen)"""
+    ntexts = {k: norm(v) for k, v in texts.items()}
+    order = list(texts)
+    out, dropped = [], 0
+    for f in (answer or {}).get('facts') or []:
+        about, fact = (' '.join(str(f.get(k) or '').split()) for k in ('about', 'fact'))
+        h = check_quote({'where': f.get('where'), 'quote': f.get('quote')}, ntexts, only={str(f.get('where') or '')}) \
+            if str(f.get('where') or '') in ntexts else None
+        if not h or not fact:
+            dropped += 1
+            continue
+        out.append({'about': about, 'fact': fact, 'where': h['where'], 'quote': h['quote']})
+    out.sort(key=lambda x: order.index(x['where']))
+    return out, dropped
+
+
+def continuity_combine(base, config, results, todo, prev, ask):
+    """Widersprüche: alle Tatsachen in Buchreihenfolge nummeriert an merge_model; nur Widersprüche zwischen
+    mindestens zwei geprüften Tatsachen bleiben. → (vorschläge, md)"""
+    labels = block_labels(config)
+    facts = []
+    for k in [x for x in labels if x in results]:
+        for f in results[k]:
+            facts.append(dict(f, n=len(facts) + 1))
+    items = []
+    if len(facts) > 1 and todo:
+        listing = '\n'.join(f'{f["n"]}. [{f["where"]}] {f["about"]}: {f["fact"]}' for f in facts)
+        raw = parse_json(ask(CONTINUITY_MERGE_SYSTEM, listing)).get('conflicts') or []
+        by_n = {f['n']: f for f in facts}
+        for c in raw:
+            ns = sorted({int(i) for i in c.get('facts') or [] if str(i).isdigit() and int(i) in by_n})
+            text = ' '.join(str(c.get('text') or '').split())
+            if len(ns) >= 2 and text:
+                items.append({'text': text, 'facts': [by_n[n] for n in ns]})
+    elif not todo and prev:
+        items = prev.get('items') or []
+    body = ['## Widersprüche', '']
+    for it in items:
+        body.append(f'- {it["text"]}')
+        body += [f'  - {f["where"]}: „{f["quote"]}“' for f in it['facts']]
+    if not items:
+        body.append('*keine*')
+    body += ['', f'Geprüfte Tatsachen: {len(facts)}.']
+    return {'items': items, 'facts': len(facts)}, body
+
+
+# Sprache (#124): Auffälligkeiten je Abschnitt, ganz ohne KI
+
+LONG_SENTENCE = 40          # Wörter
+REPEAT_WINDOW = 80          # Wörter
+REPEAT_MIN = 3
+HINTS_PER_SECTION = 12
+FILLERS = ('eigentlich', 'irgendwie', 'halt', 'eben', 'wirklich', 'einfach', 'quasi', 'sozusagen', 'gewissermaßen',
+           'ziemlich', 'durchaus', 'natürlich', 'total', 'echt')
+STOPWORDS = set("""aber alle allem allen aller alles also andere anderen anderer anderes auch auf aus außer bei beim
+bevor bin bis bist bleibt damit dann darauf darum dass dein deine deinem deinen deiner dem den denen denn der deren
+des deshalb dessen die dies diese diesem diesen dieser dieses doch dort durch eine einem einen einer eines einige
+einmal etwas euch euer eure für gegen gerade gewesen habe haben hast hatte hatten hier hinter ihre ihrem ihren ihrer
+immer indem jede jedem jeden jeder jedes jetzt kann kannst keine keinem keinen keiner können könnte machen manche
+manchmal mehr meine meinem meinen meiner mich mir mit muss musste nach nicht nichts noch nun oder ohne schon sehr
+sein seine seinem seinen seiner seit selbst sich sie sind soll sollte sondern sowie über unter viel viele vom von vor
+während waren warst was weil weiter welche welchem welchen welcher wenn werden wieder will wird wirst wollen würde
+würden zum zur zwar zwischen dabei davon dazu daher wurde wurden worden sodass einfach""".split())
+
+
+def sentences(text):
+    t = re.sub(r'\[[^\]]*\]', ' ', text)
+    t = re.sub(r'(?m)^\s*(?:#+|[-*>]|\d+\.)\s+', '', t)
+    parts = re.split(r'(?<=[.!?…])["“”»«]?\s+(?=[„"»«(]?[A-ZÄÖÜ0-9])|\n\s*\n', t)
+    return [' '.join(p.split()) for p in parts if re.search(r'[^\W\d_]', p)]
+
+
+def words_of(text):
+    return re.findall(r"[^\W\d_]+(?:[-’'][^\W\d_]+)*", text)
+
+
+def short_quote(sentence, n=14):
+    w = sentence.split()
+    return ' '.join(w[:n])
+
+
+def check_language(texts):
+    """Sprachliche Auffälligkeiten je Abschnitt ohne KI: lange Sätze, Wortwiederholungen auf engem Raum, gleiche
+    Satzanfänge hintereinander, viele Füllwörter. Jede Fundstelle stammt wörtlich aus dem Text. → (hinweise, 0)"""
+    out = []
+    for where, text in texts.items():
+        found = []
+        sents = sentences(text)
+        for snt in sents:
+            n = len(words_of(snt))
+            if n > LONG_SENTENCE:
+                found.append({'kind': 'long_sentence', 'text': f'Satz mit {n} Wörtern', 'quote': short_quote(snt)})
+        run = 1
+        for i in range(1, len(sents) + 1):
+            a = words_of(sents[i - 1])[:1]
+            b = words_of(sents[i])[:1] if i < len(sents) else []
+            if a and b and a[0].casefold() == b[0].casefold():
+                run += 1
+                continue
+            if run >= 3 and a:
+                found.append({'kind': 'same_start', 'text': f'{run} Sätze hintereinander beginnen mit „{a[0]}“',
+                              'quote': short_quote(sents[i - run])})
+            run = 1
+        ws = words_of(text)
+        seen = set()
+        for i, w in enumerate(ws):
+            k = w.casefold()
+            if len(k) < 5 or k in STOPWORDS or k in seen:
+                continue
+            hits = [j for j in range(i, min(len(ws), i + REPEAT_WINDOW)) if ws[j].casefold() == k]
+            if len(hits) >= REPEAT_MIN:
+                seen.add(k)
+                snt = next((x for x in sents if re.search(rf'(?<![^\W\d_]){re.escape(w)}(?![^\W\d_])', x)), w)
+                found.append({'kind': 'repetition', 'text': f'„{w}“ {len(hits)}× innerhalb von {REPEAT_WINDOW} Wörtern',
+                              'quote': short_quote(snt) if w in short_quote(snt) else w})
+        fill = {}
+        for w in ws:
+            if w.casefold() in FILLERS:
+                fill[w.casefold()] = fill.get(w.casefold(), 0) + 1
+        nf = sum(fill.values())
+        if nf >= 5 and ws and nf / len(ws) > 0.01:
+            top = sorted(fill.items(), key=lambda x: -x[1])[:4]
+            first = next(w for w in ws if w.casefold() == top[0][0])
+            found.append({'kind': 'filler', 'text': 'Füllwörter: ' + ', '.join(f'{w} ({n})' for w, n in top), 'quote': first})
+        for h in found[:HINTS_PER_SECTION]:
+            out.append(dict(h, where=where))
+    return out, 0
+
+
+LANGUAGE_DE = {'long_sentence': 'Langer Satz', 'repetition': 'Wortwiederholung', 'same_start': 'Gleiche Satzanfänge',
+               'filler': 'Füllwörter'}
+
+
+def language_combine(base, config, results, todo, prev, ask):
+    """Sprache: Hinweise in Buchreihenfolge. → (vorschläge, md)"""
+    labels = block_labels(config)
+    items = [h for k in labels if k in results for h in results[k]]
+    body = ['## Hinweise (ohne KI)', '']
+    body += [f'- {h["where"]}: {LANGUAGE_DE[h["kind"]]} – {h["text"]} („{h["quote"]}“)' for h in items] or ['*keine*']
+    return {'items': items}, body
+
+
 # Je Art: label (für Texte), offer (Hinweis in der Übersicht), icon (Tabler-Symbol), system (Auftrag je Block),
 # context (zusätzlicher Text vor dem Kapitel), verify, combine, matter (Vor- und Nachspann lesen), output_tokens
 # (Schätzung je Block), merge_tokens (Schätzung Zusammenführen), merge (Zusammenführen mit merge_model).
@@ -747,6 +917,12 @@ KINDS = {
     'timeline': {'label': 'Zeitleiste', 'offer': 'Zeitleiste', 'icon': 'timeline', 'system': TIMELINE_SYSTEM, 'context': None,
                  'verify': verify_timeline, 'combine': timeline_combine, 'matter': True, 'output_tokens': 1500,
                  'merge_tokens': (3000, 800), 'merge': True},
+    'continuity': {'label': 'Widersprüche', 'offer': 'Mögliche Widersprüche', 'icon': 'link', 'system': CONTINUITY_SYSTEM,
+                   'context': None, 'verify': verify_continuity, 'combine': continuity_combine, 'matter': True,
+                   'output_tokens': 2000, 'merge_tokens': (6000, 800), 'merge': True},
+    'language': {'label': 'Sprache', 'offer': 'Sprachliche Hinweise', 'icon': 'text-spellcheck', 'system': None,
+                 'context': None, 'verify': None, 'local': check_language, 'combine': language_combine, 'matter': True,
+                 'output_tokens': 0, 'merge_tokens': (0, 0), 'merge': False},
 }
 
 
@@ -787,13 +963,17 @@ def run(base, kind='characters', scope=None, now=None):
             results[bkey] = hit['items']
         else:
             todo.append((bkey, title, texts, fp))
-    provider, key = pick_provider(s) if todo else (s.get('provider') or 'anthropic', None)
+    local = spec.get('local')   # Art ohne KI (Sprache): kein Schlüssel, keine Kosten
+    provider, key = pick_provider(s) if todo and not local else (s.get('provider') or 'anthropic', None)
     model = s.get('model') or PROVIDERS[provider]['model']
     merge_model = s.get('merge_model') or PROVIDERS[provider]['merge_model']
     context = spec['context'](base, config) if spec['context'] else ''
 
     def extract(job):
         bkey, title, texts, fp = job
+        if local:
+            items, dropped = local(texts)
+            return bkey, fp, items, dropped, 0, 0
         user = f'BLOCK: {bkey}\n\n' + (f'{context}\n\n' if context else '') + f'## {title}\n\n{block_text(texts)}'
         text, tin, tout = call_llm(provider, key, model, spec['system'], user, kind)
         items, dropped = spec['verify'](parse_json(text), texts)
@@ -804,10 +984,11 @@ def run(base, kind='characters', scope=None, now=None):
         for bkey, fp, items, dropped, tin, tout in pool.map(extract, todo):
             results[bkey] = items
             dropped_total += dropped
-            calls.append((model, tin, tout))
+            if not local:
+                calls.append((model, tin, tout))
             cdir = cache_dir(base, kind)
             cdir.mkdir(parents=True, exist_ok=True)
-            (cdir / f'{bkey}.json').write_text(json.dumps({'fingerprint': fp, 'model': model, 'items': items},
+            (cdir / f'{bkey}.json').write_text(json.dumps({'fingerprint': fp, 'model': None if local else model, 'items': items},
                                                           ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
     prev = sorted(folder.glob('run-[0-9][0-9][0-9].json'))
     prev = json.loads(prev[-1].read_text(encoding='utf-8')) if prev else None
@@ -826,7 +1007,8 @@ def run(base, kind='characters', scope=None, now=None):
     cost = sum(e['cost_amount'] or 0 for e in entries) if all(e['cost_amount'] is not None for e in entries) else None
     n = len(result.get('items') or [])
     head = {'id': run_id, 'type': 'analysis', 'kind': kind, 'scope': scope or 'book', 'created_at': now,
-            'provider': provider, 'model': model, 'merge_model': merge_model if spec['merge'] else None,
+            'provider': None if local else provider, 'model': None if local else model,
+            'merge_model': merge_model if spec['merge'] else None,
             'blocks_analysed': len(todo), 'blocks_cached': len(results) - len(todo), 'suggestions': n,
             'dropped_without_evidence': dropped_total, 'input_tokens': tin, 'output_tokens': tout,
             'cost': cost, 'result': f'{run_id}.json'}
@@ -834,7 +1016,7 @@ def run(base, kind='characters', scope=None, now=None):
     lines = [f'# {spec["label"]}-Analyse {run_id[4:]}', '',
              f'{n} Vorschläge aus {len(results)} Blöcken ({len(todo)} neu gelesen, {len(results) - len(todo)} aus dem '
              f'Zwischenspeicher). {dropped_total} Angaben ohne wörtliche Fundstelle verworfen.'
-             + (f' Der Buchtext ging an {provider} ({used}).' if todo else ''), '']
+             + ('' if local else (f' Der Buchtext ging an {provider} ({used}).' if todo else '')), '']
     lines += body + ['', f'Übernommen wird nichts automatisch: im Chat „{spec["offer"]} … liegen bereit“ öffnen.']
     (folder / f'{run_id}.md').write_text('---\n' + yaml.safe_dump(head, allow_unicode=True, sort_keys=False) + '---\n\n'
                                          + '\n'.join(lines) + '\n', encoding='utf-8')
@@ -1066,7 +1248,98 @@ def apply_timeline(base, config, data, choices):
     return [str(path.relative_to(base))]
 
 
-APPLY = {'summaries': apply_summaries, 'style': apply_style, 'places': apply_places, 'timeline': apply_timeline}
+def section_paths(config):
+    """{„N.M“ bzw. Titel eines Teils: Pfad der Datei}."""
+    out = {i['title']: i['path'] for _, i in matter_items(config)}
+    for ci, ch in enumerate(config['structure']['chapters'], start=1):
+        for si, sec in enumerate(ch['sections'], start=1):
+            out[f'{ci}.{si}'] = sec['path']
+    return out
+
+
+def insert_marker(text, quote, marker):
+    """Marker hinter den Satz mit dem Zitat setzen, nur im Manuskript. → neuer Text oder None (Zitat nicht gefunden)."""
+    head, sep, ms = text.partition('\n## Manuskript\n')
+    if not sep:
+        return None
+    words = re.findall(r'[^\W_]+', quote)
+    if not words:
+        return None
+    m = re.search(r'(?<![^\W_])' + r'[\W_]+'.join(map(re.escape, words)) + r'(?![^\W_])', ms)
+    if not m:
+        return None
+    end = re.compile(r'[.!?…]+["“”»«)]*(?=\s|$)|\n\s*\n|$').search(ms, m.end())
+    i = end.end() if end and end.group(0).strip() else (end.start() if end else len(ms))
+    if marker in ms[i:i + len(marker) + 2]:
+        return text   # steht schon da
+    return head + sep + ms[:i] + ' ' + marker + ms[i:]
+
+
+def apply_continuity(base, config, data, choices):
+    """Gewählte Widersprüche als Marker [KONTINUITÄT PRÜFEN: …] in den Text setzen, hinter den Satz der gewählten
+    Fundstelle(n). choices: [{index, text?, mark: [Nummer der Fundstelle im Widerspruch, ab 0]}]; ohne mark die letzte.
+    Sonst ändert sich am Text nichts. → [geänderte Dateien]"""
+    items = data.get('items') or []
+    paths = section_paths(config)
+    changed, missing = [], []
+    for c in choices:
+        it = items[int(c['index'])]
+        text = ' '.join(str(c.get('text') or it['text']).replace('[', '(').replace(']', ')').split())
+        marks = c.get('mark') if c.get('mark') is not None else [len(it['facts']) - 1]
+        for k in marks:
+            f = it['facts'][int(k)]
+            rel = paths.get(f['where'])
+            if not rel:
+                missing.append(f['where'])
+                continue
+            path = Path(base) / rel
+            old = path.read_text(encoding='utf-8')
+            new = insert_marker(old, f['quote'], f'[KONTINUITÄT PRÜFEN: {text}]')
+            if new is None:
+                missing.append(f['where'])
+            elif new != old:
+                path.write_text(new, encoding='utf-8')
+                if rel not in changed:
+                    changed.append(rel)
+    if missing:
+        print(f'Fundstelle nicht mehr im Text, kein Marker gesetzt: {", ".join(missing)}', file=sys.stderr)
+    return changed
+
+
+def apply_language(base, config, data, choices):
+    """Sprachliche Hinweise nach story/hints.yml (der Text bleibt unverändert). Ersetzt die bisherigen Hinweise der
+    Abschnitte, die der Lauf gelesen hat (ganzes Buch bzw. Kapitel). choices: [{index}]. → [geänderte Dateien]"""
+    items = data.get('items') or []
+    ids = section_ids(config)
+    scope = str(data.get('scope') or 'book')
+    if scope in ('book', 'buch', ''):
+        covered = set(ids.values())
+    else:
+        ch = config['structure']['chapters'][int(scope) - 1]
+        covered = {x['id'] for x in ch['sections']}
+    path = story_file(base, 'hints')
+    have = (yaml.safe_load(path.read_text(encoding='utf-8')) or {}) if path.is_file() else {}
+    hints = [h for h in have.get('hints') or [] if h.get('source') != 'language' or h['section'] not in covered]
+    n0 = json.dumps(have.get('hints') or [], sort_keys=True)
+    nxt = max([int(h['id'][3:]) for h in hints] + [0]) + 1
+    for c in choices:
+        it = items[int(c['index'])]
+        if it['where'] not in ids:
+            continue
+        hints.append({'id': f'hi-{nxt:03d}', 'section': ids[it['where']], 'source': 'language', 'kind': it['kind'],
+                      'text': it['text'], 'quote': it['quote']})
+        nxt += 1
+    order = {sid: i for i, sid in enumerate(ids.values())}
+    hints.sort(key=lambda h: order.get(h['section'], 10**6))
+    if json.dumps(hints, sort_keys=True) == n0:
+        return []
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(yaml.safe_dump({'hints': hints}, allow_unicode=True, sort_keys=False, width=10**6), encoding='utf-8')
+    return [str(path.relative_to(base))]
+
+
+APPLY = {'summaries': apply_summaries, 'style': apply_style, 'places': apply_places, 'timeline': apply_timeline,
+         'continuity': apply_continuity, 'language': apply_language}
 
 
 def apply(base, run_id, kind, choices):

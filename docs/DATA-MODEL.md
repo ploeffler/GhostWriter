@@ -24,7 +24,7 @@ repository/
 │   └── danksagung.md
 ├── cover/                 # Umschlag (#68): Bilder, rueckseite.md (Klappentext, Autorentext)
 ├── characters/            # Figuren (#53), je Figur char-<name>.md; nie im Buch
-├── story/                 # Schauplätze (places.yml) und Zeitleiste (timeline.yml), #124; nie im Buch
+├── story/                 # Schauplätze (places.yml), Zeitleiste (timeline.yml), Hinweise (hints.yml), #124; nie im Buch
 ├── ghostwriter-index.json # Übersichtsdatei, erzeugt von scripts/build_index.py (nicht von Hand ändern)
 ├── chapters/
 │   ├── 01-einleitung/
@@ -456,18 +456,21 @@ Die Abschnittssumme wird aus den Einträgen berechnet. Die Kapitelsumme ist die 
 
 `scripts/import_book.py` (Action „Manuskript importieren“) legt im Buch-Branch ab: das Original unverändert unter `import/original/`, die Umwandlung `import/manuscript.md` (Bilder in `import/media/`), den Vorschlag `import/proposal.json` (`title`, `author`, `format`, `parts` – Teile von Vor- und Nachspann mit `kind`, `title`, `text`, `words`, `area` –, `chapters` mit `sections` – `title`, `text`, `words`, `scenes` –, `warnings`, `images`, `stats` mit `words_original`, `words_proposal`, `lossless`) und `import/import.yml` (`source`, `format`, `imported_at`, `keep` – `first_edition`, `30`, `90`, `forever` –, `keep_until`, `words`; nach dem Anlegen `applied_at`, `chapters`, `sections`, `matter`, `writing_approval`, `images`; nach Ablauf `removed_at`). Nichts davon kommt ins Buch.
 
-### Schauplätze und Zeitleiste (#124)
+### Schauplätze, Zeitleiste und Hinweise (#124)
 
-Übernommen aus der Analyse im Hintergrund (Arten `places`, `timeline`), nie im Buch:
+Übernommen aus der Analyse im Hintergrund (Arten `places`, `timeline`, `language`), nie im Buch:
 
 - `story/places.yml` (Schema `schemas/places.schema.json`): `places` = Liste mit `id` (`pl-<slug>`), `name`, `aliases`, `kind` (Art des Orts), `short` (ein Satz aus dem Text), `sections` (IDs der Abschnitte bzw. Teile).
 - `story/timeline.yml` (Schema `schemas/timeline.schema.json`): `events` in Buchreihenfolge mit `id` (`ev-NNN`), `section` (ID), `when` (Zeitangabe wie im Text), `what`, `quote` (Fundstelle); `notes` = Hinweise zur zeitlichen Abfolge mit `kind` (`jump`, `contradiction`, `unclear`), `text`, `events` (IDs), `sections`.
+- `story/hints.yml` (Schema `schemas/hints.schema.json`): `hints` = Hinweise zu Abschnitten mit `id` (`hi-NNN`), `section` (ID), `source` (`language`), `kind` (`long_sentence`, `repetition`, `same_start`, `filler`), `text`, `quote`; ein neuer Lauf ersetzt die Hinweise der Abschnitte, die er gelesen hat. Das Abschnittsformular zeigt sie; am Text ändert sich nichts.
 
-`scripts/validate_project.py` prüft beide gegen ihr Schema, eindeutige IDs und bekannte Abschnitte.
+Die Analyse „Widersprüche“ (`continuity`) schreibt keine eigene Datei, sondern setzt gewählte Marker `[KONTINUITÄT PRÜFEN: …]` ins Manuskript.
+
+`scripts/validate_project.py` prüft alle drei gegen ihr Schema, eindeutige IDs und bekannte Abschnitte.
 
 ### Analyse im Hintergrund (#123)
 
-`scripts/analyze.py` (Action „Analyse im Hintergrund“) legt je Art (`kind`: `characters` Figuren, `summaries` Kurzbeschreibung und Ziel je Abschnitt und Kapitel, `style` Stilprofil, `places` Schauplätze, `timeline` Zeitleiste, #124) im Buch-Branch ab: den Lauf `analysis/{kind}/run-{sequence}.md` (Kopf: `id`, `type: analysis`, `kind`, `scope`, `created_at`, `provider`, `model`, `merge_model` (leer bei Arten ohne Zusammenführen), `blocks_analysed`, `blocks_cached`, `suggestions`, `dropped_without_evidence`, `input_tokens`, `output_tokens`, `cost`, `result`), daneben `run-NNN.json` mit den Vorschlägen (`kind`, `scope`, `run`, `created_at`, `items`; bei Figuren im Format von `render_view.py character-suggest` mit `conflicts`, `groups`; bei Kurzbeschreibungen je Eintrag `level` (`chapter` | `section`), `target` (ID), `number`, `title`, `goal`, `short`, `evidence`; beim Stilprofil je Angabe `field`, `value`, `variants` (`{value, where}`), `evidence`, dazu `stats` mit `words`, `sentence_length_avg`, `dialogue_share`; bei Schauplätzen je Ort `name`, `aliases`, `kind`, `short`, `sections`, `evidence` und `groups`; bei der Zeitleiste je Ereignis `n`, `where`, `when`, `what`, `evidence`, dazu `issues` (`kind` `jump` | `contradiction` | `unclear`, `events` = Nummern, `text`)), den Zwischenspeicher `analysis/cache/{kind}/<block>.json` (je Kapitel bzw. „matter“ ein Fingerabdruck des Textes und die geprüften Angaben) und `analysis/{kind}/applied.yml` (`runs`: übernommene bzw. verworfene Läufe). Kosten je Aufruf in `costs/project.yml` mit `source: action_api`, `run_id` (Figuren `run-NNN`, andere Arten `<art>/run-NNN`), Tokens; sie zählen wie Backend-Kosten zum KI-Budget (#62). Nichts davon kommt ins Buch; übernommen wird nur, was im Chat ausgewählt ist (`analyze.py apply`).
+`scripts/analyze.py` (Action „Analyse im Hintergrund“) legt je Art (`kind`: `characters` Figuren, `summaries` Kurzbeschreibung und Ziel je Abschnitt und Kapitel, `style` Stilprofil, `places` Schauplätze, `timeline` Zeitleiste, `continuity` Widersprüche, `language` Sprache ohne KI, #124) im Buch-Branch ab: den Lauf `analysis/{kind}/run-{sequence}.md` (Kopf: `id`, `type: analysis`, `kind`, `scope`, `created_at`, `provider`, `model`, `merge_model` (leer bei Arten ohne Zusammenführen), `blocks_analysed`, `blocks_cached`, `suggestions`, `dropped_without_evidence`, `input_tokens`, `output_tokens`, `cost`, `result`), daneben `run-NNN.json` mit den Vorschlägen (`kind`, `scope`, `run`, `created_at`, `items`; bei Figuren im Format von `render_view.py character-suggest` mit `conflicts`, `groups`; bei Kurzbeschreibungen je Eintrag `level` (`chapter` | `section`), `target` (ID), `number`, `title`, `goal`, `short`, `evidence`; beim Stilprofil je Angabe `field`, `value`, `variants` (`{value, where}`), `evidence`, dazu `stats` mit `words`, `sentence_length_avg`, `dialogue_share`; bei Schauplätzen je Ort `name`, `aliases`, `kind`, `short`, `sections`, `evidence` und `groups`; bei der Zeitleiste je Ereignis `n`, `where`, `when`, `what`, `evidence`, dazu `issues` (`kind` `jump` | `contradiction` | `unclear`, `events` = Nummern, `text`); bei Widersprüchen je Eintrag `text` und `facts` (`about`, `fact`, `where`, `quote`, `n`), dazu `facts` = Zahl der verglichenen Tatsachen; bei Sprache je Hinweis `where`, `kind`, `text`, `quote`; Läufe ohne KI haben `provider` und `model` leer und keine Kosten), den Zwischenspeicher `analysis/cache/{kind}/<block>.json` (je Kapitel bzw. „matter“ ein Fingerabdruck des Textes und die geprüften Angaben) und `analysis/{kind}/applied.yml` (`runs`: übernommene bzw. verworfene Läufe). Kosten je Aufruf in `costs/project.yml` mit `source: action_api`, `run_id` (Figuren `run-NNN`, andere Arten `<art>/run-NNN`), Tokens; sie zählen wie Backend-Kosten zum KI-Budget (#62). Nichts davon kommt ins Buch; übernommen wird nur, was im Chat ausgewählt ist (`analyze.py apply`).
 
 ### Ablage
 

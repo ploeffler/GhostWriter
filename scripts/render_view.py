@@ -639,8 +639,8 @@ def limit_summary(base, config):
 
 
 # Hintergrundläufe (#123, #124): Kürzel und Symbol je Art in der Textfassung der Projektübersicht
-ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA', 'style': 'SA', 'places': 'OA', 'timeline': 'ZA'}
-ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝', 'style': '🪶', 'places': '📍', 'timeline': '🕰️'}
+ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA', 'style': 'SA', 'places': 'OA', 'timeline': 'ZA', 'continuity': 'WA', 'language': 'SPA'}
+ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝', 'style': '🪶', 'places': '📍', 'timeline': '🕰️', 'continuity': '🔗', 'language': '✍️'}
 
 
 def project_view(base, config, args):
@@ -829,6 +829,17 @@ def chapter_view(base, config, args, cnum):
     return fill('kapitelansicht.html', values, {'SECTIONS': rows})
 
 
+def section_hints(base, sid):
+    """Hinweise zu einem Abschnitt aus story/hints.yml (#124): [{H_KIND_TEXT, H_TEXT, H_QUOTE}]."""
+    path = base / 'story' / 'hints.yml'
+    if not path.is_file():
+        return []
+    import analyze
+    data = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+    return [{'H_KIND_TEXT': analyze.LANGUAGE_DE.get(h['kind'], h['kind']), 'H_TEXT': h['text'], 'H_QUOTE': h.get('quote', '')}
+            for h in data.get('hints') or [] if h.get('section') == sid]
+
+
 def section_view(base, config, args, cnum, snum):
     p = config['project']
     ch = config['structure']['chapters'][cnum - 1]
@@ -838,6 +849,7 @@ def section_view(base, config, args, cnum, snum):
     markers = [{'MARKER_TYPE': KIND[m.group(1)], 'MARKER_LABEL': MARKER_LABEL[KIND[m.group(1)]],
                 'MARKER_TEXT': (m.group(2) or '').strip() or '–'} for m in MARKER_TEXT.finditer(ms)]
     a, e = total(section_costs(base, ch, s))
+    hints = section_hints(base, s['id'])
     def nav(k):
         if 1 <= k <= len(secs):
             return secs[k - 1]['id'], f'Abschnitt {cnum}.{k} „{secs[k - 1]["title"]}“ bearbeiten'
@@ -875,6 +887,9 @@ def section_view(base, config, args, cnum, snum):
             lines += [f'**Offene Marker ({n})**'] + [f'- {MARKER_ICON[m["MARKER_TYPE"]]} {m["MARKER_LABEL"]}: {m["MARKER_TEXT"]}' for m in markers] + ['']
         else:
             lines += ['Keine offenen Marker.', '']
+        if hints:
+            lines += [f'**Sprachliche Hinweise ({len(hints)})** – nur zur Durchsicht, der Text bleibt unverändert'] + \
+                     [f'- {h["H_KIND_TEXT"]}: {h["H_TEXT"]}' + (f' („{h["H_QUOTE"]}“)' if h['H_QUOTE'] else '') for h in hints] + ['']
         lines += ['---', '', ms, '', '---']
         items = [('T', 'Text ändern (geänderten Text schicken)'), ('F', 'Ziel, Kurzbeschreibung, Faktencheck'
                                                                   + (', Figuren' if chars else '')),
@@ -889,6 +904,8 @@ def section_view(base, config, args, cnum, snum):
         lines += [menu(items)]
         return '\n'.join(lines) + '\n'
     blocks = {'MARKERS': markers}
+    if hints:
+        blocks['HINTS'] = hints
     if chars:
         blocks['ALL_CHARACTERS'] = [{'C_ID': c['id'], 'C_NAME': c['name'], 'C_ON': '1' if c['id'] in in_section else ''}
                                     for c in chars]
@@ -2220,8 +2237,62 @@ def timeline_suggest_view(base, config, args, data, run_text):
     return fill('zeitleiste-vorschlag.html', values, blocks)
 
 
+def continuity_suggest_view(base, config, args, data, run_text):
+    """Mögliche Widersprüche (Vorlage widerspruch-vorschlag): je Widerspruch ein Satz und die beteiligten Fundstellen;
+    gewählt wird, hinter welche Fundstellen ein Marker [KONTINUITÄT PRÜFEN: …] kommt (vorgewählt: die letzte)."""
+    rows, facts = [], []
+    for i, it in enumerate(data.get('items') or []):
+        rows.append({'S_IDX': i, 'S_TEXT': it['text'], 'S_COUNT': len(it['facts'])})
+        for k, f in enumerate(it['facts']):
+            facts.append({'F_IDX': i, 'F_K': k, 'F_WHERE': f['where'], 'F_ABOUT': f.get('about', ''), 'F_FACT': f['fact'],
+                          'F_QUOTE': f['quote'], 'F_ON': '1' if k == len(it['facts']) - 1 else ''})
+    values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'continuity',
+              'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config),
+              'SUGGEST_COUNT_TEXT': plural(len(rows), 'möglicher Widerspruch', 'mögliche Widersprüche'),
+              'FACTS_TEXT': f'{data.get("facts", 0)} Tatsachen mit Fundstelle verglichen'}
+    if args.text:
+        out = [f'### 🔗 Mögliche Widersprüche · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + f' · {values["FACTS_TEXT"]}'
+               + (f' · {run_text}' if run_text else ''), '']
+        for r in rows:
+            out += [f'**{r["S_IDX"] + 1}. {r["S_TEXT"]}**']
+            out += [f'- {chr(97 + f["F_K"])}) {f["F_WHERE"]}: „{f["F_QUOTE"]}“' for f in facts if f['F_IDX'] == r['S_IDX']] + ['']
+        if not rows:
+            out += ['*Keine Widersprüche gefunden.*', '']
+        out += ['Übernehmen setzt den Marker `[KONTINUITÄT PRÜFEN: …]` hinter die gewählte Fundstelle (ohne Angabe die letzte); '
+                'sonst bleibt der Text unverändert. Offene Marker verhindern eine Auflage, bis sie geklärt sind.', '', '---',
+                menu([('Übernehmen: 1, 3', 'Marker an der letzten Fundstelle'), ('2: a, b', 'Marker an diesen Fundstellen'),
+                      ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    return fill('widerspruch-vorschlag.html', values, {'SUGGESTIONS': rows, 'FACTS': facts})
+
+
+def language_suggest_view(base, config, args, data, run_text):
+    """Sprachliche Hinweise (Vorlage sprache-vorschlag): je Abschnitt die Auffälligkeiten mit Fundstelle; übernommen
+    wird nur in die Hinweisliste, der Text bleibt unverändert."""
+    import analyze
+    rows = [{'S_IDX': i, 'S_WHERE': h['where'], 'S_KIND': h['kind'], 'S_KIND_TEXT': analyze.LANGUAGE_DE.get(h['kind'], h['kind']),
+             'S_TEXT': h['text'], 'S_QUOTE': h['quote']} for i, h in enumerate(data.get('items') or [])]
+    values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'language',
+              'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config),
+              'SUGGEST_COUNT_TEXT': plural(len(rows), 'Hinweis', 'Hinweise'),
+              'RULES_TEXT': f'Sätze über {analyze.LONG_SENTENCE} Wörter · ein Wort {analyze.REPEAT_MIN}× in {analyze.REPEAT_WINDOW} Wörtern · '
+                            f'3 gleiche Satzanfänge hintereinander · mehr als 1 % Füllwörter'}
+    if args.text:
+        out = [f'### ✍️ Sprachliche Hinweise · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''),
+               f'Gezählt ohne KI: {values["RULES_TEXT"]}', '']
+        if rows:
+            out += ['| # | Abschnitt | Art | Hinweis | Fundstelle |', '|--:|---|---|---|---|']
+            out += [f'| {r["S_IDX"] + 1} | {r["S_WHERE"]} | {r["S_KIND_TEXT"]} | {r["S_TEXT"]} | „{r["S_QUOTE"]}“ |' for r in rows]
+        else:
+            out += ['*Keine Auffälligkeiten.*']
+        out += ['', 'Übernommen wird nur in die Hinweisliste der Abschnitte (`story/hints.yml`); der Text bleibt unverändert.',
+                '', '---', menu([('Alle', 'alle Hinweise übernehmen'), ('Ohne: 2, 5', 'alle außer diesen'), ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    return fill('sprache-vorschlag.html', values, {'SUGGESTIONS': rows})
+
+
 ANALYSIS_VIEWS = {'summaries': summaries_suggest_view, 'style': style_suggest_view, 'places': places_suggest_view,
-                  'timeline': timeline_suggest_view}
+                  'timeline': timeline_suggest_view, 'continuity': continuity_suggest_view, 'language': language_suggest_view}
 
 
 def import_preview_view(base, config, args):
