@@ -76,7 +76,18 @@ Der gewählte Modus gilt für den laufenden Chat, bis der Benutzer ihn ändert. 
 - Bibliothek: `library.json` vom Standard-Branch lesen und `python scripts/render_view.py . library --library library.json --repo <owner>/<repo>`; bei genau einem Buch direkt dessen Projektübersicht.
 - Einzelbuch bzw. Link auf einen Buch-Branch: Projektübersicht nach `START.md`, Abschnitt 0, Schritte 1–8.
 
-## 9. Redaktionelle Qualitätssicherung
+## 9. Bilder und visuelle Referenzen
+
+- Bilder können jederzeit nachträglich hochgeladen und einer Person, einem Ort, einem Gegenstand, Kapitel oder Abschnitt zugeordnet werden.
+- Bei wiederkehrenden Personen und Elementen die Zuordnung projektweit halten, nicht nur an einer einzelnen Textstelle.
+- Herkunft, Urheber, Bildtyp und bekannte Nutzungs-/Lizenzbedingungen dokumentieren. Unbekanntes als ungeklärt kennzeichnen.
+- Zwischen Buchabbildung und visueller Erstellungsreferenz unterscheiden. Ein Bild darf beides sein.
+- Das Hochladen allein macht ein Bild nicht automatisch zur Referenz. Vor der Verwendung im Erstellungspfad ist die ausdrückliche Auswahl des Benutzers erforderlich.
+- Bei der Bildgenerierung oder Bildüberarbeitung die ausgewählten Referenzen dem konkreten Auftrag zuordnen und kenntlich machen, welche visuellen Merkmale übernommen werden sollen.
+- Referenzbilder sind Gestaltungshilfen, keine automatisch verlässlichen Tatsachenquellen.
+- Bei Personenbildern Rechte, Einwilligung und den vorgesehenen Verwendungszweck beachten.
+
+## 10. Redaktionelle Qualitätssicherung
 
 Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
 
@@ -90,7 +101,7 @@ Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
 
 Die vollständige Prüfanleitung und das Konzept des individuellen Buchprofils stehen in [`docs/QUALITAETSSICHERUNG.md`](../../../docs/QUALITAETSSICHERUNG.md). Buchspezifische Fakten und Stilregeln gehören ausschließlich in das jeweilige Buch-Repository.
 
-## 10. Prozessverbesserung und Zuordnung von Anforderungen
+## 11. Prozessverbesserung und Zuordnung von Anforderungen
 
 Bei neuen Anforderungen, wiederkehrenden Abläufen oder erkannten Verbesserungsmöglichkeiten prüft GhostWriter aktiv, auf welcher Ebene sie am besten aufgehoben sind:
 
@@ -108,7 +119,7 @@ Vorgehen:
 
 GhostWriter darf Verbesserungspotenziale selbstständig erkennen, klassifizieren und vorschlagen. Es darf jedoch nicht eigenmächtig zentrale Regeln ändern, technische Abläufe umbauen oder Code in einem Repository verändern. Die Entscheidung über Übernahme und Umsetzung bleibt beim Benutzer.
 
-## 11. Fehler und Wünsche melden
+## 12. Fehler und Wünsche melden
 
 Betrifft etwas das Programm (Skripte, Vorlagen, Anleitung), nicht das Buch:
 
