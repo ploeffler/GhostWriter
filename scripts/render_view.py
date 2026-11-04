@@ -795,6 +795,7 @@ def chapter_view(base, config, args, cnum):
     amount, est = combine(parts)
     n = len(ch['sections'])
     _, ch_summary, ch_goal = chapter_readme(base, ch)
+    revision_ready = readiness(base, ch)['ready']
     values = {'PROJECT_TITLE_SHORT': p['title_short'] or p['title'], 'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': cnum,
               'CHAPTER_GOAL': ch_goal, 'CHAPTER_SUMMARY': ch_summary,
               'CHAPTER_TITLE': ch['title'], 'CHAPTER_SUBTITLE': sub.group(1) if sub else '',
@@ -802,7 +803,8 @@ def chapter_view(base, config, args, cnum):
               'MARKER_COUNT_TEXT': 'keine offenen Marker' if not counts_total else f'{counts_total} offene{"r" if counts_total == 1 else ""} Marker',
               'CHAPTER_COST': money(amount, est), 'CHAPTER_COST_HINT': cost_hint('Summe der Abschnittskosten', amount, est),
               'APPROVED_COUNT_TEXT': f'{approved} von {n}',
-              'CHAPTER_APPROVABLE': 'true' if ch['status'] == 'ready_for_approval' and n and approved == n else ''}
+              'CHAPTER_APPROVABLE': 'true' if ch['status'] == 'ready_for_approval' and n and approved == n else '',
+              'CHAPTER_REVISION_READY': 'true' if revision_ready else ''}
     if args.text:
         def marks(r):
             parts = [f'{MARKER_ICON[k]} {r["MARKERS_" + k.upper()]}' for k in MARKER_ICON if r['MARKERS_' + k.upper()]]
@@ -824,7 +826,7 @@ def chapter_view(base, config, args, cnum):
         items = [(f'{cnum}.1' + (f'–{cnum}.{n}' if n > 1 else ''), 'Abschnitt öffnen')] if rows else []
         if values['CHAPTER_APPROVABLE']:
             items.append(('FK', 'Kapitel freigeben'))
-        if readiness(base, ch)['ready']:
+        if revision_ready:
             items.append(('KU', 'Kapitel überarbeiten'))
         items += [('B', 'Kapitel bearbeiten'), ('Z', 'Ziel, Kurzbeschreibung, Kapitelrecherche'), ('N', 'Neuer Abschnitt'),
                   ('R', 'Reihenfolge'), ('FV', '👤 Figuren aus dem Text vorschlagen'), ('Ü', 'Übersicht')]
