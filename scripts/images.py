@@ -274,7 +274,7 @@ def main(argv):
         print(build_prompt(base, config, a.args[0], a.scene, a.characters, a.references)[0])
         if a.references:
             from reference_images import select as select_reference_images
-            print('\\nDateien für die Referenzübergabe:')
+            print('\nDateien für die Referenzübergabe:')
             for ref in select_reference_images(base, a.references):
                 print(f'- {ref["id"]}: {ref["file"]}')
         return 0
