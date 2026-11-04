@@ -57,11 +57,11 @@ cost_tracking:
   purpose: transparent_ai_activity_cost_accounting
   # Entschieden am 31.10.2026 (#13): Erfasst werden ausschließlich zusätzliche,
   # verbrauchsabhängige KI-API-Kosten für Anbieteraufrufe über das
-  # GhostWriter-Backend (Cloudflare). Chat-Arbeit über bestehende Abos erzeugt
+  # GhostWriter-Backend. Chat-Arbeit über bestehende Abos erzeugt
   # keinen Kosteneintrag und keine Schätzung.
   scope:
     records: backend_ai_api_calls
-    excludes: [chat_work_via_subscription, administrative_backend_requests, cloudflare_operating_costs, chat_subscription_fees]
+    excludes: [chat_work_via_subscription, administrative_backend_requests, ghostwriter_hosting_and_operating_costs, chat_subscription_fees]
     run_history_separate: true
   project_currency: EUR
   currency_is_configurable: true
