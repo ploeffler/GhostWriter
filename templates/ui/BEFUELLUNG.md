@@ -10,6 +10,8 @@ python scripts/render_view.py <projektordner> project-edit | project-settings | 
 python scripts/render_view.py <projektordner> project | changes-merge --changes <offene-aenderungen.json> [--head-sha <commit>] [--text]
 python scripts/render_view.py <projektordner> chapter-edit 2 | chapter-research 2 | section-create 2 | section-reorder 2 [--text]
 python scripts/render_view.py <projektordner> providers-edit [--repo owner/name] [--branch name] [--text]
+python scripts/render_view.py <projektordner> library --library library.json [--repo owner/name] [--text]
+python scripts/render_view.py <projektordner> data --library library.json [--github github.json] [--repo owner/name] [--text]
 python scripts/render_view.py <projektordner> approval-writing 2.4 | approval-section 2.4 | approval-chapter 2 [--revoke] [--text]
 ```
 
@@ -17,7 +19,7 @@ python scripts/render_view.py <projektordner> approval-writing 2.4 | approval-se
 
 Es gibt zwei Modi, festgelegt einmal zu Beginn des Chats und dann für jede Ansicht gleich:
 
-- **Widget:** nur bei Anbietern, deren Chat-Oberfläche GhostWriter-Widgets darstellt (`chat_widgets: true` in `providers.yml`, derzeit Claude). Dann ist jede Ansicht ein Widget – Projektübersicht, Bücherregal, Daten, Formulare, Bestätigungen, Auswahlkarten (Ausgabe unten). Eine Startseite, fehlende Daten (etwa ohne `library.json` oder `--github`) oder eine kurze Antwort sind kein Grund für Text.
+- **Widget:** nur bei Anbietern, deren Chat-Oberfläche GhostWriter-Widgets darstellt (`chat_widgets: true` in `providers.yml`, derzeit Claude). Der Modus wird vor der **ersten** Ansicht festgelegt, also auch vor dem Bücherregal beim Wiedereinstieg in eine Bibliothek (`START.md`, Abschnitt 0, #135). Dann ist jede Ansicht ein Widget – Projektübersicht, Bücherregal, Daten, Formulare, Bestätigungen, Auswahlkarten (Ausgabe unten). Eine Startseite, fehlende Daten (etwa ohne `library.json` oder `--github`) oder eine kurze Antwort sind kein Grund für Text.
 - **Nur Text:** bei allen anderen Anbietern (etwa ChatGPT, Gemini, Copilot) und im Zweifel; erscheint ein Widget nicht, ab dann ebenfalls. Dann jede Ansicht als Textfassung (`render_view.py … --text`, siehe „Textfassung ohne Widgets“). **Nie HTML, `GW.render` oder Widget-Code ausgeben**, auch nicht als Codeblock.
 
 Nie beide Fassungen derselben Ansicht und nie den Modus von Ansicht zu Ansicht wechseln. Der Benutzer kann umschalten: `Nur Text` stellt auf Text um; `Widgets` stellt zurück, aber nur bei einem Anbieter mit `chat_widgets: true` – sonst antworte in einem Satz, dass dieser Chat keine Widgets darstellt.
@@ -201,11 +203,11 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 
 ### `buecherregal.html`
 
-Startseite einer Bibliothek; Widget oder Text nach dem Darstellungsmodus. Erzeugt mit `render_view.py library --library library.json` aus der Übersicht `library.json` auf dem Standard-Branch (`scripts/library.py build`, Action „Bücherregal aktualisieren“); fehlt sie, live aus den Branches.
+Startseite einer Bibliothek; Widget oder Text nach dem Darstellungsmodus. Erzeugt mit `render_view.py library --library library.json --repo <owner>/<repo>` (Widget; `--text` nur im Modus „Nur Text“) aus der Übersicht `library.json` auf dem Standard-Branch (`scripts/library.py build`, Action „Bücherregal aktualisieren“); fehlt sie, live aus den Branches.
 
 | Platzhalter | Quelle |
 |---|---|
-| `LIBRARY_NAME` | `owner/repo` (`--repo`) |
+| `LIBRARY_NAME` | `owner/repo` (`--repo`; ohne Angabe aus `GITHUB_REPOSITORY` bzw. `git remote origin`, bei der Seite „Daten“ auch aus `repo.full_name` in `--github`; sonst „unbekanntes Repository“, nie das Hauptrepository, #134) |
 | `BOOK_COUNT_TEXT`, `EMPTY` | Zahl der Bücher („1 Buch“, „2 Bücher“); `EMPTY` = `1` ohne Buch |
 | `UPDATED_TEXT` | derzeit leer (Bereich entfällt) |
 | Block `BOOKS`: `BOOK_BRANCH`, `BOOK_TITLE`, `BOOK_TITLE_SHORT`, `BOOK_AUTHOR_TEXT` | je Buch aus `library.json`: `branch`, `title`, `title_short`, „von <author>“ |
@@ -225,7 +227,7 @@ Seite „Daten“ (`render_view.py data`, `START.md`, „Daten“). Quellen: `li
 
 | Platzhalter | Quelle |
 |---|---|
-| `LIBRARY_NAME` | `owner/repo` (`--repo`) |
+| `LIBRARY_NAME` | `owner/repo` (`--repo`; ohne Angabe aus `GITHUB_REPOSITORY` bzw. `git remote origin`, bei der Seite „Daten“ auch aus `repo.full_name` in `--github`; sonst „unbekanntes Repository“, nie das Hauptrepository, #134) |
 | `PROGRAM_VERSION_TEXT`, `UI_TEXT` | `program.version`, `program.upstream`, `program.ui_version`, `program.ui_commit` aus `library.json` |
 | `PROGRAM_UPDATE_TEXT`, `PROGRAM_BEHIND` | Update-Stand aus `--upstream` („aktuell“ bzw. Commits dahinter); ohne Angabe „nicht abgefragt“; `PROGRAM_BEHIND` nur, wenn dahinter |
 | `PROGRAM_LAST_UPDATE_TEXT`, `PROGRAM_SKIPPED_TEXT` | `program.last_update`, `program.skipped_workflows` (aus `.ghostwriter/update.yml` des Standard-Branchs) |
@@ -459,7 +461,7 @@ Seite einer Serie (#116, `render_view.py series <ser-id|S1|Titel>`, `START.md`, 
 
 | Platzhalter | Quelle |
 |---|---|
-| `LIBRARY_NAME` | `owner/repo` (`--repo`) |
+| `LIBRARY_NAME` | `owner/repo` (`--repo`; ohne Angabe aus `GITHUB_REPOSITORY` bzw. `git remote origin`, bei der Seite „Daten“ auch aus `repo.full_name` in `--github`; sonst „unbekanntes Repository“, nie das Hauptrepository, #134) |
 | `SERIES_ID`, `SERIES_TITLE`, `SERIES_SUBTITLE`, `SERIES_DESCRIPTION` | `series/<ser-id>/series.yml`: `id`, `title`, `subtitle`, `description` |
 | `SERIES_KIND_TEXT` | `kind`: `continuous` „durchgehende Handlung“, `standalone` „eigenständige Bände“ |
 | `VOLUME_COUNT_TEXT` | „1 Band“, „N Bände“ |

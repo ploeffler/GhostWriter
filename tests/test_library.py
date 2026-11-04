@@ -368,6 +368,59 @@ class DataPageTest(unittest.TestCase):
         self.assertIn('Prüfung: unbekannt', self.view('--text'))
 
 
+class RepoNameTest(unittest.TestCase):
+    """#134: Bücherregal, Serie und Daten zeigen das eigene Repository, nie das Hauptrepository als Vorgabe."""
+
+    def setUp(self):
+        import os
+        import render_view
+        self.rv = render_view
+        self.env = dict(os.environ)
+        os.environ.pop('GITHUB_REPOSITORY', None)
+        self.tmp = tempfile.TemporaryDirectory()
+        self.d = self.tmp.name
+        subprocess.run(['git', 'init', '-q', self.d], check=True)
+
+    def tearDown(self):
+        import os
+        os.environ.clear()
+        os.environ.update(self.env)
+        self.tmp.cleanup()
+
+    def remote(self, url):
+        subprocess.run(['git', '-C', self.d, 'remote', 'add', 'origin', url], check=True)
+
+    def test_detect_from_remote(self):
+        for url in ('https://github.com/someone/YAWA.git', 'git@github.com:someone/YAWA.git',
+                    'http://local_proxy@127.0.0.1:41733/git/someone/YAWA', 'https://github.com/someone/YAWA/'):
+            subprocess.run(['git', '-C', self.d, 'remote', 'remove', 'origin'], capture_output=True)
+            self.remote(url)
+            self.assertEqual(self.rv.detect_repo(self.d), 'someone/YAWA', url)
+
+    def test_env_wins_and_unknown(self):
+        import os
+        self.assertEqual(self.rv.detect_repo(self.d), '')
+        os.environ['GITHUB_REPOSITORY'] = 'other/books'
+        self.assertEqual(self.rv.detect_repo(self.d), 'other/books')
+
+    def render(self, *a):
+        import os
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), self.d, 'library', '--text', *a],
+                           capture_output=True, text=True, env=dict(os.environ))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def test_library_view(self):
+        import shutil
+        shutil.copyfile(STARTER_FILE, Path(self.d, 'ghostwriter.yml'))
+        out = self.render()
+        self.assertNotIn('ploeffler/GhostWriter ·', out)
+        self.assertIn('unbekanntes Repository ·', out)
+        self.remote('https://github.com/someone/YAWA.git')
+        self.assertIn('someone/YAWA ·', self.render())
+        self.assertIn('given/name ·', self.render('--repo', 'given/name'))
+
+
 class PushErrorTest(unittest.TestCase):
     def test_workflow_scope_hint(self):
         import update_from_upstream as u
