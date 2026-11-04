@@ -1,4 +1,5 @@
 """Tests für Illustrationen (#54): Bild-Auftrag, Ablegen, Prüfung, Satz („Strolchi und Opi“)."""
+import hashlib
 import re
 import shutil
 import subprocess
@@ -83,6 +84,29 @@ class ImageTest(unittest.TestCase):
         self.assertIn('Ausdrücklich ausgewählte visuelle Referenzen', prompt)
         self.assertIn('Weißer Bart, grüner Hut', prompt)
         self.assertIn('Bilddateien zusätzlich an den Bilddienst übergeben', prompt)
+
+    def test_add_records_selected_reference_ids_and_exact_file_hash(self):
+        ref = reference_images.add(
+            self.base, self.tmp / 'bild.png', 'Opi Referenz',
+            description='Weißer Bart, grüner Hut',
+            roles=['visual_reference'], origin='provided',
+            links=[{'kind': 'person', 'id': 'char-opi'}])
+        reference_images.set_status(self.base, ref['id'], 'approved')
+        meta, folder = self.add(reference_ids=[ref['id']])
+        run = (self.base / folder / 'run-001.md').read_text(encoding='utf-8')
+        frontmatter = run.split('---\\n', 2)[1]
+        record = yaml.safe_load(frontmatter)['visual_references'][0]
+        self.assertEqual(record['id'], ref['id'])
+        self.assertEqual(record['file'], ref['file'])
+        expected = hashlib.sha256((self.base / 'reference-images' / ref['file']).read_bytes()).hexdigest()
+        self.assertEqual(record['sha256'], expected)
+        self.assertIn('Verwendete visuelle Referenzen', run)
+        self.assertIn(expected, run)
+
+    def test_add_rejects_unapproved_reference(self):
+        ref = reference_images.add(self.base, self.tmp / 'bild.png', 'Nicht freigegeben')
+        with self.assertRaisesRegex(SystemExit, 'nicht als visuelle Referenz freigegeben'):
+            self.add(reference_ids=[ref['id']])
 
     def test_add_writes_meta_and_run(self):
         meta, folder = self.add(names=['Opi'])
