@@ -114,7 +114,7 @@ def character_lines(base, config, ids):
     return lines
 
 
-def build_prompt(base, config, key, scene, names=None):
+def build_prompt(base, config, key, scene, names=None, reference_ids=None):
     target, _ = find_target(config, key)
     if names:
         ids = []
@@ -133,6 +133,14 @@ def build_prompt(base, config, key, scene, names=None):
     chars = character_lines(base, config, ids)
     if chars:
         parts.append('Figuren (immer genau so darstellen):\n' + '\n'.join(chars))
+    if reference_ids:
+        from reference_images import select as select_reference_images
+        refs = select_reference_images(base, reference_ids)
+        lines = []
+        for ref in refs:
+            detail = ref.get('description') or ref.get('purpose') or ref['caption']
+            lines.append(f'- {ref["id"]} ({ref["caption"]}): {detail}')
+        parts.append('Ausdrücklich ausgewählte visuelle Referenzen (Bilddateien zusätzlich an den Bilddienst übergeben):\n' + '\n'.join(lines))
     parts.append('Ohne Schrift, Buchstaben oder Logos im Bild. Hochformat oder Querformat passend zur Szene.')
     return '\n\n'.join(parts), ids
 
@@ -219,6 +227,7 @@ def main(argv):
     ap.add_argument('cmd', choices=['list', 'prompt', 'add', 'ref'])
     ap.add_argument('args', nargs='*')
     ap.add_argument('--scene', default='')
+    ap.add_argument('--references', nargs='*', default=[], help='freigegebene ref-img-IDs für diesen Auftrag')
     ap.add_argument('--characters', nargs='*')
     ap.add_argument('--caption', default='')
     ap.add_argument('--alt', default='')
@@ -242,7 +251,12 @@ def main(argv):
     if a.cmd == 'prompt':
         if not a.args or not a.scene:
             ap.error('prompt braucht Abschnitt und --scene')
-        print(build_prompt(base, config, a.args[0], a.scene, a.characters)[0])
+        print(build_prompt(base, config, a.args[0], a.scene, a.characters, a.references)[0])
+        if a.references:
+            from reference_images import select as select_reference_images
+            print('\\nDateien für die Referenzübergabe:')
+            for ref in select_reference_images(base, a.references):
+                print(f'- {ref["id"]}: {ref["file"]}')
         return 0
     if a.cmd == 'ref':
         if not a.args:

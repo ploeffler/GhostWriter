@@ -165,7 +165,7 @@ def migrate(base):
 def schema_hash():
     h = hashlib.sha256()
     for p in sorted((ROOT / 'schemas').glob('*.schema.json')):
-        if p.name == 'workflow.schema.json':      # beschreibt das Programm, nicht das Buch
+        if p.name in {'workflow.schema.json', 'reference-image.schema.json'}:  # keine Buchstruktur-Schemas
             continue
         h.update(p.name.encode())
         h.update(p.read_bytes())

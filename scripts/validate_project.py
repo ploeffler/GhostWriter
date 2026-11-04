@@ -65,6 +65,7 @@ APPROVALS = validator('approvals.schema.json')
 MATTER_HEAD = validator('matter.schema.json')
 CHARACTER_HEAD = validator('character.schema.json')
 IMAGE_META = validator('image.schema.json')
+REFERENCE_IMAGE_META = validator('reference-image.schema.json')
 PLACES = validator('places.schema.json')
 TIMELINE = validator('timeline.schema.json')
 HINTS = validator('hints.schema.json')
@@ -365,6 +366,33 @@ def check_project(project_dir):
             for iid in images.refs_in(path.read_text(encoding='utf-8')):
                 if iid not in image_ids:
                     errors.append(f'{path}: Bild {iid} gibt es nicht')
+
+    # Projektweite Referenzbilder bleiben von Buchillustrationen getrennt.
+    reference_dir = base / 'reference-images'
+    reference_ids = set()
+    if reference_dir.is_dir():
+        for meta_path in sorted(reference_dir.glob('ref-img-*.yml')):
+            meta = load_yaml(meta_path, errors)
+            if meta is None:
+                continue
+            errs = schema_errors(REFERENCE_IMAGE_META, meta, meta_path)
+            errors += errs
+            if errs:
+                continue
+            if meta['id'] in reference_ids:
+                errors.append(f'{meta_path}: Referenzbild-ID doppelt: {meta["id"]}')
+            reference_ids.add(meta['id'])
+            if meta_path.stem != meta['id']:
+                errors.append(f'{meta_path}: Dateiname passt nicht zur ID {meta["id"]}')
+            if not (reference_dir / meta['file']).is_file():
+                errors.append(f'{reference_dir / meta["file"]}: fehlt')
+            for link in meta.get('links') or []:
+                if link['kind'] == 'person' and link['id'] not in char_ids:
+                    errors.append(f'{meta_path}: unbekannte Figur {link["id"]}')
+                if link['kind'] == 'chapter' and link['id'] not in chapter_ids:
+                    errors.append(f'{meta_path}: unbekanntes Kapitel {link["id"]}')
+                if link['kind'] == 'section' and link['id'] not in section_ids:
+                    errors.append(f'{meta_path}: unbekannter Abschnitt {link["id"]}')
 
     wf = config['workflow']
     if wf['current_chapter_id'] and wf['current_chapter_id'] not in chapter_ids:

@@ -16,6 +16,7 @@ import assemble  # noqa: E402
 import build_edition  # noqa: E402
 import characters  # noqa: E402
 import images  # noqa: E402
+import reference_images  # noqa: E402
 import validate_project  # noqa: E402
 from render_view import load  # noqa: E402
 from test_cover import png  # noqa: E402
@@ -66,6 +67,22 @@ class ImageTest(unittest.TestCase):
         other, _ = images.build_prompt(self.base, config, '1.1', 'Strolchi jagt einen Schmetterling', ['Strolchi'])
         self.assertIn('- Strolchi: rotbrauner Mischling, weißer Fleck am rechten Ohr', other)
         self.assertNotIn('Opi', other)
+
+    def test_prompt_requires_explicitly_approved_visual_references(self):
+        ref = reference_images.add(
+            self.base, self.tmp / 'bild.png', 'Opi Porträt',
+            description='Weißer Bart, grüner Hut',
+            roles=['visual_reference'], origin='provided',
+            links=[{'kind': 'person', 'id': 'char-opi'}])
+        with self.assertRaisesRegex(SystemExit, 'nicht als visuelle Referenz freigegeben'):
+            images.build_prompt(self.base, load(self.base)[1], '1.1', 'Opi am Hafen',
+                                reference_ids=[ref['id']])
+        reference_images.set_status(self.base, ref['id'], 'approved')
+        prompt, _ = images.build_prompt(self.base, load(self.base)[1], '1.1', 'Opi am Hafen',
+                                        reference_ids=[ref['id']])
+        self.assertIn('Ausdrücklich ausgewählte visuelle Referenzen', prompt)
+        self.assertIn('Weißer Bart, grüner Hut', prompt)
+        self.assertIn('Bilddateien zusätzlich an den Bilddienst übergeben', prompt)
 
     def test_add_writes_meta_and_run(self):
         meta, folder = self.add(names=['Opi'])

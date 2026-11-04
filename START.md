@@ -332,7 +332,16 @@ Ganze Bücher liest nie der Chat, sondern die Action „Analyse im Hintergrund�
 8. **Sprache** (`language`): ganz **ohne KI** und ohne Kosten (kein Schlüssel nötig): Sätze über 40 Wörter, ein Wort dreimal in 80 Wörtern, drei gleiche Satzanfänge hintereinander, mehr als 1 % Füllwörter – je Abschnitt mit Fundstelle. `analysis.apply` (`{index}`) schreibt nur die Hinweisliste `story/hints.yml`; sie ersetzt die Hinweise eines früheren Laufs für die gelesenen Abschnitte und erscheint im Abschnittsformular („Sprachliche Hinweise“). Der Text bleibt unverändert. Commit `Analyse übernommen: Sprache (N Hinweise)`.
 9. **Verwerfen** (`form.cancel` mit `form: analysis.apply`): `python scripts/analyze.py . applied run-NNN --kind <art>`; der Hinweis verschwindet.
 
-### Illustrationen (verbindlich, #54)
+### Visuelle Referenzbilder (projektweit)
+
+Referenzmaterial ist von Buchillustrationen getrennt und liegt unter `reference-images/`. Es kann jederzeit nachträglich ergänzt werden. Ein Upload speichert das Bild zunächst nur; die Referenzfreigabe und die Auswahl für jeden einzelnen Auftrag sind getrennte, ausdrückliche Entscheidungen.
+
+1. **Hinzufügen:** `python scripts/reference_images.py . add <datei> --caption "…" --description "…" --purpose "…" --origin provided --role visual_reference --link person:char-… --consent "…"`. Unterstützte Zuordnungen: project, person, place, object, scene, chapter, section. Rollen: `visual_reference`, `book_image` (beide können gemeinsam gesetzt werden). Herkunft und Rechte-/Einwilligungsangaben dokumentieren.
+2. **Prüfen und freigeben:** `python scripts/reference_images.py . list`; erst nach ausdrücklicher Zustimmung `python scripts/reference_images.py . approve ref-img-…`. Zurückziehen: `withdraw ref-img-…`. Zurückgezogene Dateien bleiben für die Historie erhalten und sind für neue Aufträge gesperrt.
+3. **Auftrag auswählen:** `python scripts/images.py . prompt 3.2 --scene "…" --references ref-img-…`. Nur freigegebene Referenzen mit Rolle `visual_reference` werden akzeptiert. Die Auswahl wird im Prompt und mit Dateipfaden ausgegeben; die Bilddateien müssen dem jeweiligen Bilddienst zusätzlich als echte Bildreferenzen übergeben werden.
+4. **Wichtige technische Grenze:** Die Repository-Verwaltung, Metadaten, Freigabe, Rücknahme, Auswahlprüfung und Prompt-Zuordnung sind implementiert. Die aktuelle GhostWriter-API hat noch keinen Upload-Endpunkt und der vorhandene Bildauftrag übergibt die Binärdateien noch nicht automatisch an einen externen Bilddienst. Bis diese Integration fertig ist, darf GhostWriter nicht behaupten, eine Referenzdatei sei dem Bildmodell tatsächlich übergeben worden. Der Chat-Assistent muss die ausgewählten Dateien separat laden und an einen Bilddienst anhängen, der Bildreferenzen unterstützt; andernfalls ist die Einschränkung offenzulegen.
+
+## Illustrationen (verbindlich, #54)
 
 Bilder zu Abschnitten entstehen im Chat oder bei einem anderen Dienst; der Weg über die API mit Kosten über das Backend kommt mit #19 (dann mit Budget-Sperre, siehe „Limits“).
 
