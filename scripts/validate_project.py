@@ -28,8 +28,8 @@ Geprüft werden:
 - publication.isbn_print/isbn_ebook (#68): gültige ISBN-10 bzw. ISBN-13 (Prüfziffer)
 - print/cover (#68): Umschlag nur mit Druckprofil; bei bod/custom Rückenbreite
   angegeben; Papier nur bei kdp; Bilder des Umschlags vorhanden
-- Schauplätze und Zeitleiste (story/places.yml, story/timeline.yml, #124; falls vorhanden)
-  gegen schemas/places.schema.json bzw. timeline.schema.json, IDs eindeutig, Abschnitte bekannt
+- Schauplätze, Zeitleiste und Hinweise (story/places.yml, story/timeline.yml, story/hints.yml, #124;
+  falls vorhanden) gegen ihr Schema, IDs eindeutig, Abschnitte bekannt
 - approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt,
   Art passt zur ID (writing: Abschnitt oder Vor-/Nachspann, section: Abschnitt,
   chapter: Kapitel, matter: Vor-/Nachspann)
@@ -65,6 +65,7 @@ CHARACTER_HEAD = validator('character.schema.json')
 IMAGE_META = validator('image.schema.json')
 PLACES = validator('places.schema.json')
 TIMELINE = validator('timeline.schema.json')
+HINTS = validator('hints.schema.json')
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
 
 
@@ -132,11 +133,12 @@ def provider_errors(config, config_path):
 
 
 def story_errors(base, config):
-    """story/places.yml und story/timeline.yml (#124): Schema, eindeutige IDs, bekannte Abschnitte."""
+    """story/places.yml, timeline.yml, hints.yml (#124): Schema, eindeutige IDs, bekannte Abschnitte."""
     errors = []
     known = {s['id'] for ch in config['structure']['chapters'] for s in ch['sections']}
     known |= {i['id'] for _, i in matter_items(config)}
-    for name, v, key, refs in (('places', PLACES, 'places', 'sections'), ('timeline', TIMELINE, 'events', 'section')):
+    for name, v, key, refs in (('places', PLACES, 'places', 'sections'), ('timeline', TIMELINE, 'events', 'section'),
+                               ('hints', HINTS, 'hints', 'section')):
         path = base / 'story' / f'{name}.yml'
         if not path.is_file():
             continue

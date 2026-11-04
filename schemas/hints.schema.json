@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/hints.schema.json",
+  "title": "Hinweise zu Abschnitten (story/hints.yml, #124); der Text bleibt unverändert",
+  "type": "object",
+  "required": ["hints"],
+  "properties": {
+    "hints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "section", "source", "kind", "text"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^hi-[0-9]{3,}$"},
+          "section": {"type": "string", "description": "ID des Abschnitts bzw. Teils"},
+          "source": {"enum": ["language"], "description": "Analyse, aus der der Hinweis stammt"},
+          "kind": {"enum": ["long_sentence", "repetition", "same_start", "filler"]},
+          "text": {"type": "string", "minLength": 1},
+          "quote": {"type": "string", "description": "Fundstelle (wörtlich)"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

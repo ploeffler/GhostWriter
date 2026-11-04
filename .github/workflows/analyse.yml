@@ -2,7 +2,7 @@ name: Analyse im Hintergrund
 
 # Liest ein ganzes Buch (oder ein Kapitel) mit einer KI über deren API und legt
 # Vorschläge ab (#123, #124, scripts/analyze.py): Figuren, Kurzbeschreibungen
-# und Ziele, Stilprofil, Schauplätze, Zeitleiste … Nichts am Buch wird geändert; übernommen wird im Chat. Nur
+# und Ziele, Stilprofil, Schauplätze, Zeitleiste, Widersprüche, Sprache (ohne KI). Nichts am Buch wird geändert; übernommen wird im Chat. Nur
 # geänderte Kapitel werden neu gelesen (Zwischenspeicher analysis/cache/).
 # Start von Hand (Run workflow, auf dem Buch-Branch) oder aus dem Chat
 # (START.md, „Analysen im Hintergrund“). Braucht das Secret ANTHROPIC_API_KEY bzw.
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       kind:
-        description: 'Analyse: characters, summaries, style, places, timeline (mehrere mit Komma)'
+        description: 'Analyse: characters, summaries, style, places, timeline, continuity, language (mehrere mit Komma)'
         default: characters
       scope:
         description: 'Bereich: book (ganzes Buch) oder Nummer eines Kapitels'

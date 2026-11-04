@@ -245,6 +245,82 @@ class AnalyzeTest(unittest.TestCase):
         (self.base / 'story/timeline.yml').write_text(yaml.safe_dump(tl, allow_unicode=True), encoding='utf-8')
         self.assertTrue(any('unbekannt' in e for e in validate_project.check_project(self.base)))
 
+    def test_continuity(self):
+        _, config = load(self.base)
+        chs = config['structure']['chapters']
+        t11 = section_file(self.base, chs[0]['sections'][0])[3]
+        t21 = section_file(self.base, chs[1]['sections'][0])[3]
+        q1 = ' '.join(t11.split()[10:18])
+        q2 = ' '.join(t21.split()[10:18])
+        data = json.loads(self.fake.read_text(encoding='utf-8'))
+        data['continuity'] = {'extract': {
+            chs[0]['id']: {'facts': [{'about': 'Brief', 'fact': 'lag sechs Monate', 'where': '1.1', 'quote': q1},
+                                     {'about': 'X', 'fact': 'erfunden', 'where': '1.1', 'quote': 'steht nicht im Text'}]},
+            chs[1]['id']: {'facts': [{'about': 'Brief', 'fact': 'lag ein Jahr', 'where': '2.1', 'quote': q2}]}},
+            'merge': {'conflicts': [{'facts': [1, 2], 'text': 'Wie lange lag der Brief?'}, {'facts': [2], 'text': 'nur eine'},
+                                    {'facts': [1, 7], 'text': 'ins Leere'}]}}
+        self.fake.write_text(json.dumps(data), encoding='utf-8')
+        head = analyze.run(self.base, 'continuity', now='2026-11-04T01:00:00+01:00')
+        res = json.loads((self.base / 'analysis/continuity/run-001.json').read_text(encoding='utf-8'))
+        self.assertEqual([c['text'] for c in res['items']], ['Wie lange lag der Brief?'])
+        self.assertEqual(res['facts'], 2)
+        self.assertEqual(head['dropped_without_evidence'], 1)
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
+                              '--draft', 'analysis/continuity/run-001.json'], capture_output=True, text=True, check=True).stdout
+        page = json.loads(re.search(r'GW\.render\("widerspruch-vorschlag",(.*)\)</script>', out).group(1))
+        self.assertEqual([f['F_ON'] for f in page['FACTS']], ['', '1'])   # vorgewählt: die letzte Fundstelle
+        sec = self.base / chs[1]['sections'][0]['path']
+        before = sec.read_text(encoding='utf-8')
+        changed = analyze.apply(self.base, 'run-001', 'continuity', [{'index': 0, 'text': 'Wie lange [lag] der Brief?'}])
+        after = sec.read_text(encoding='utf-8')
+        self.assertEqual(changed, [chs[1]['sections'][0]['path']])
+        self.assertIn('[KONTINUITÄT PRÜFEN: Wie lange (lag) der Brief?]', after)
+        self.assertEqual(after.replace(' [KONTINUITÄT PRÜFEN: Wie lange (lag) der Brief?]', ''), before)   # sonst nichts geändert
+        self.assertEqual(validate_project.check_project(self.base), [])
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'section', '2.1', '--text'],
+                             capture_output=True, text=True, check=True).stdout
+        self.assertIn('Kontinuität', out)
+
+    def test_language(self):
+        os.environ.pop('GHOSTWRITER_FAKE_LLM')                         # ohne KI: kein Schlüssel nötig
+        env = {k: v for k, v in os.environ.items() if k not in ('ANTHROPIC_API_KEY', 'OPENAI_API_KEY')}
+        _, config = load(self.base)
+        sec = self.base / config['structure']['chapters'][0]['sections'][0]['path']
+        long = ' '.join(['wort'] * 45)
+        sec.write_text(sec.read_text(encoding='utf-8').rstrip('\n') + f'\n\nDer Garten war groß. Der Garten war still. '
+                       f'Der Garten war leer. Ein {long} Ende.\n', encoding='utf-8')
+        p = analyze.plan(self.base, config, 'language')
+        self.assertEqual((p['input_tokens'], p['output_tokens']), (0, 0))
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/analyze.py'), str(self.base), 'run', '--kind', 'language'],
+                           capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        res = json.loads((self.base / 'analysis/language/run-001.json').read_text(encoding='utf-8'))
+        mine = [h for h in res['items'] if h['where'] == '1.1']
+        kinds = {h['kind'] for h in mine}
+        self.assertTrue({'long_sentence', 'same_start', 'repetition'} <= kinds, kinds)
+        texts = {k: section_file(self.base, x)[3] for k, x in [('1.1', config['structure']['chapters'][0]['sections'][0])]}
+        for h in mine:                                                  # Fundstellen stehen wörtlich im Text
+            self.assertIn(analyze.norm(h['quote']), analyze.norm(texts['1.1']))
+        head = yaml.safe_load(re.match(r'---\n(.*?)\n---', (self.base / 'analysis/language/run-001.md').read_text(encoding='utf-8'), re.S).group(1))
+        self.assertIsNone(head['model'])
+        self.assertFalse((self.base / 'costs/project.yml').is_file() and any(
+            'Sprache' in (e.get('note') or '') for e in yaml.safe_load((self.base / 'costs/project.yml').read_text(encoding='utf-8'))['entries']))
+        before = sec.read_text(encoding='utf-8')
+        idx = [i for i, h in enumerate(res['items']) if h['where'] == '1.1']
+        analyze.apply(self.base, 'run-001', 'language', [{'index': i} for i in idx])
+        self.assertEqual(sec.read_text(encoding='utf-8'), before)       # Text unverändert
+        hints = yaml.safe_load((self.base / 'story/hints.yml').read_text(encoding='utf-8'))['hints']
+        self.assertEqual(len(hints), len(idx))
+        self.assertEqual(validate_project.check_project(self.base), [])
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'section', '1.1'],
+                             capture_output=True, text=True, check=True).stdout
+        page = json.loads(re.search(r'GW\.render\("abschnitt-bearbeiten",(.*)\)</script>', out).group(1))
+        self.assertEqual(len(page['HINTS']), len(idx))
+        # ein neuer Lauf ersetzt die Hinweise der gelesenen Abschnitte
+        analyze.run(self.base, 'language')
+        analyze.apply(self.base, 'run-002', 'language', [])
+        self.assertFalse(yaml.safe_load((self.base / 'story/hints.yml').read_text(encoding='utf-8'))['hints'])
+
     def test_set_part(self):
         t = '# T\n\n## Ziel des Abschnitts\n\nOffen.\n\n## Kurzbeschreibung\n\nalt\n\n## Manuskript\n\nText\n'
         t = analyze.set_part(t, 'Kurzbeschreibung', 'neu')
