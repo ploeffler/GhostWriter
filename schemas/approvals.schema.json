@@ -6,6 +6,21 @@
   "type": "object",
   "required": ["entries"],
   "properties": {
+    "historical_references": {
+      "description": "Dokumentierte historische Einträge mit nicht mehr vorhandenen Zielen; keine neuen Freigaben.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["entry", "kind", "id", "reason"],
+        "properties": {
+          "entry": {"type": "integer", "minimum": 1},
+          "kind": {"enum": ["writing", "section", "chapter", "matter", "image"]},
+          "id": {"type": "string", "pattern": "^(sec|ch|mat|img)-[a-z0-9][a-z0-9-]*$"},
+          "reason": {"type": "string", "minLength": 1, "pattern": "\\S"}
+        },
+        "additionalProperties": false
+      }
+    },
     "entries": {
       "type": "array",
       "items": {

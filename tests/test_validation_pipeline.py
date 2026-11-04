@@ -11,6 +11,40 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / 'tests/fixtures/adhs'
 
 
+class HistoricalApprovalTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = __import__('tempfile').TemporaryDirectory()
+        self.project = Path(self.tmp.name)
+        shutil.copytree(FIXTURE, self.project, dirs_exist_ok=True)
+        sys.path.insert(0, str(ROOT / 'scripts'))
+        import validate_project
+        self.validate = validate_project.check_project
+        self.entry = {'kind': 'writing', 'id': 'sec-alte-id', 'action': 'granted',
+                      'at': '2026-11-04T11:58:24Z', 'by': 'chat', 'commit': '1234567'}
+        self.ref = {'entry': 1, 'kind': 'writing', 'id': 'sec-alte-id', 'reason': 'Abschnitt aufgeteilt'}
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def check(self, refs, entries=None):
+        data = {'entries': entries if entries is not None else [self.entry], 'historical_references': refs}
+        (self.project / 'approvals.yml').write_text(yaml.safe_dump(data), encoding='utf-8')
+        return self.validate(self.project)
+
+    def test_only_exact_documented_entry_is_exempt(self):
+        self.assertFalse(any('sec-alte-id unbekannt' in e for e in self.check([self.ref])))
+        errors = self.check([self.ref], [self.entry, self.entry])
+        self.assertTrue(any('Eintrag 2:' in e and 'unbekannt' in e for e in errors), errors)
+        self.assertTrue(any('unbekannt' in e for e in self.check([])))
+
+    def test_bad_references_are_rejected(self):
+        for ref in ({**self.ref, 'id': 'sec-andere-id'}, {**self.ref, 'entry': 2},
+                    {**self.ref, 'reason': ' '}):
+            with self.subTest(ref=ref):
+                self.assertTrue(self.check([ref]))
+        self.assertTrue(any('doppelt' in e for e in self.check([self.ref, self.ref])))
+
+
 class MissingSectionFileTest(unittest.TestCase):
     def setUp(self):
         self.tmp = __import__('tempfile').TemporaryDirectory()
