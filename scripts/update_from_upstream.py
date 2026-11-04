@@ -14,8 +14,9 @@ Liegt er dahinter, werden die Commits eingespielt:
     (managed) nimmt er vom Hauptrepository, Buchdateien (book) bleiben wie im
     Buch, auch wenn das Hauptrepository die Vorlagen geändert hat. Konflikte in
     anderen Dateien brechen das Update für diesen Branch ab.
-  - Danach Migrationen (scripts/migrate_project.py), Übersichtsdatei und
-    Prüfung (scripts/validate_project.py). Schlägt die Prüfung fehl, wird
+  - Danach Migrationen (scripts/migrate_project.py), Projektprüfung
+    (scripts/validate_project.py) und erst danach die Übersichtsdatei
+    (scripts/build_index.py). Schlägt die Prüfung fehl, wird
     nichts eingespielt, sondern ein Issue „GhostWriter-Update fehlgeschlagen“
     geöffnet. Ein Buch wird nie auf eine ältere Programmversion zurückgesetzt.
 
@@ -256,7 +257,7 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
                             + ', '.join(unresolved) + '. Bitte von Hand zusammenführen.'}
         steps, migration = [], {}
         if (Path(wt) / 'ghostwriter.yml').is_file():
-            for cmd in (['scripts/migrate_project.py', '.'], ['scripts/build_index.py', '.'], ['scripts/validate_project.py', '.']):
+            for cmd in (['scripts/migrate_project.py', '.'], ['scripts/validate_project.py', '.'], ['scripts/build_index.py', '.']):
                 if not (Path(wt) / cmd[0]).is_file():
                     continue
                 code, out = run(cmd, wt)
