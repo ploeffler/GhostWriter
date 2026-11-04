@@ -413,162 +413,1388 @@ Die GitHub-Verbindung der Chat-Anwendung ist die vom jeweiligen Anbieter bereitg
 
 ## 2. Ziel und Arbeitsweise
 
-Entwickle gemeinsam mit mir ein Buchprojekt. Arbeite dialogorientiert und stelle jeweils nur die nächste sinnvolle Frage. Fasse Zwischenergebnisse zusammen und lasse mich korrigieren. Erfinde keine Angaben über mich, das Buch oder das Repository.
+Entwickle gemeinsam mit mir ein Buchprojekt. Arbeite dia…26857 tokens truncated…   n, ch = chapter_number(config, args.where)
+    items = [{'ITEM_ID': s['id'], 'ITEM_NUMBER': f'{n}.{i}', 'ITEM_TITLE': s['title']}
+             for i, s in enumerate(ch['sections'], start=1)]
+    return reorder(args, 'section', f'Abschnittsreihenfolge in Kapitel {n} ändern', items, ch['id'], n)
 
-## 3. Projektweite KI-Grundeinstellungen
 
-Diese Werte sind verbindliche Defaults und dürfen nicht stillschweigend abgeschwächt werden:
+def update_info(base, config):
+    """(automatisch ja/nein, Versionstext, Hinweis) aus ghostwriter.yml, Manifest und .ghostwriter/update.yml."""
+    auto = (config.get('updates') or {}).get('auto') is not False
+    def read_yaml(path):
+        try:
+            return yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+        except (OSError, yaml.YAMLError):
+            return {}
+    version = read_yaml(base / 'ghostwriter-manifest.yml').get('version') or read_yaml(ROOT / 'ghostwriter-manifest.yml').get('version')
+    state = read_yaml(base / '.ghostwriter' / 'update.yml')
+    text = f'Installiert: GhostWriter {version or "unbekannt"}'
+    when = str(state.get('updated_at') or '')
+    if re.match(r'\d{4}-\d{2}-\d{2}', when):
+        text += f' · zuletzt aktualisiert am {when[8:10]}.{when[5:7]}.{when[:4]}'
+    mig = state.get('migration') or {}
+    if mig.get('to') is not None:
+        text += f' · Daten auf Version {mig["to"]} umgestellt'
+        if mig.get('changes'):
+            text += ' (' + '; '.join(mig['changes'][:3]) + ('; …' if len(mig['changes']) > 3 else '') + ')'
+    hint = ''
+    if state.get('skipped_workflows'):
+        hint = (f'{len(state["skipped_workflows"])} Workflow-Datei(en) wurden nicht aktualisiert; dafür braucht das '
+                'Repository das Secret GHOSTWRITER_UPDATE_TOKEN (docs/UPDATES.md).')
+    return auto, text, hint
 
-```yaml
-ai_settings:
-  hallucination_policy: strict
-  source_policy: required
-  uncertainty_policy: explicit
-  creativity: balanced
-  web_research: research
-```
 
-Regeln:
-- Keine erfundenen Fakten, Quellen, Zitate, Studien oder Fundstellen.
-- Externe Tatsachenbehauptungen möglichst mit überprüfbaren Quellen belegen.
-- Fakten, Interpretationen, Annahmen und Hypothesen unterscheiden.
-- Unsicherheiten und Wissenslücken ausdrücklich kennzeichnen.
-- Kreative Beispiele und Analogien dürfen Fakten nicht verfälschen.
-- Bei Rechercheaufträgen aktiv im Internet recherchieren. Steht keine Internetrecherche zur Verfügung, dies ausdrücklich sagen, Aussagen aus dem eigenen Trainingswissen als ungeprüft kennzeichnen und dem Benutzer konkrete Quellen bzw. Suchanfragen zur eigenen Prüfung vorschlagen.
-- Widersprüchliche Quellen transparent dokumentieren.
-- Quellenangaben müssen auf tatsächlich konsultierte Quellen zurückgehen.
+def output_value(key, value):
+    label, names = OUTPUT_LABELS[key]
+    if isinstance(value, bool):
+        return 'ja' if value else 'nein'
+    if key == 'formats':
+        return ', '.join(names.get(v, v) for v in value)
+    if key in ('font_size',):
+        return str(value).replace('.', ',') + ' pt'
+    if key == 'line_spacing':
+        return str(value).replace('.', ',') + '-fach'
+    return names.get(value, str(value)) if names else str(value)
 
-## 4. Wizard-Schritte
 
-Erarbeite mit mir:
+OUTPUT_GROUPS = [('Seite', ['page_size', 'margins', 'chapter_start', 'running_heads', 'page_numbers']),
+                 ('Schrift', ['font', 'font_size', 'heading_font', 'initials', 'glossary_marks']),
+                 ('Absatz', ['line_spacing', 'paragraph', 'hyphenation']),
+                 ('Titelei', ['title_page', 'imprint', 'toc', 'toc_depth']),
+                 ('Formate', ['formats'])]
+PUBLICATION_LABELS = [('publisher', 'Verlag', '„Selbstverlag“ oder Name des Verlags'),
+                      ('isbn_print', 'ISBN Druckausgabe', 'ISBN-13 mit Prüfziffer'),
+                      ('isbn_ebook', 'ISBN E-Book', 'ISBN-13 mit Prüfziffer'),
+                      ('rights', 'Rechtehinweis', 'z. B. „Alle Rechte vorbehalten.“')]
 
-1. Autor und Arbeitstitel (Arbeitstitel optional).
-2. Thema, Buchidee und zentrale Fragestellung.
-3. Ziel und Nutzen des Buches.
-4. Zielgruppe und vorausgesetztes Vorwissen.
-5. Buchtyp und gewünschter Umfang (wenn bekannt).
-6. Sprache und Schreibstil (Vorschlag aus der Standard-Erzählstimme in `assistant.yml`, wenn es sie gibt; ein abweichender Stil gilt nur für dieses Buch).
-7. Kurzbeschreibung des Buches.
-8. Grobe Kapitelstruktur.
-9. Abschnitte pro Kapitel.
-10. Kurzbeschreibung und Ziel jedes Kapitels und Abschnitts.
-11. Welche KI-Dienste schon vorhanden sind, und welcher davon welche Aufgabe übernimmt: Recherche, Brainstorming, Schreiben, Überarbeiten, Fact-Checking und Queue-Bearbeitung (siehe Abschnitt 4a). Weitere Dienste erst später über das Formular „KI-Dienste“.
-12. Ob gespeicherte Änderungen in diesem Repository automatisch übernommen werden sollen (`changes.auto_merge`). Kurz erklären: Ja = jede Änderung steht sofort im Buch, ohne den Schritt „Änderungen übernehmen“; Nein = Änderungen sammeln sich in einem Pull Request und werden auf Bestätigung übernommen. Wer allein am Buch arbeitet, fährt mit Ja meist einfacher. Freigaben und Auflagen brauchen in beiden Fällen ihre eigene Bestätigung. Später in den Projekteinstellungen änderbar.
-13. Ob Übersetzungen des Buchs geplant sind, und wenn ja, in welche Sprachen (`project.translations_planned`, Sprachcodes wie `en`, `fr`). Nur festhalten, nichts anlegen: Übersetzungen selbst kommen später (#75). Nicht nach einem „Ziel der Übersetzung“ fragen, wenn der Benutzer keine Übersetzung plant.
-14. Ob im Buch stehen soll, wie bei diesem Buch KI genutzt wurde (`ai_disclosure.mode`: kurz, ausführlich, eigener Text, keine; ohne Antwort keine). Ort ist zunächst das Impressum; den Wortlaut gibt es erst vor der ersten Auflage (Abschnitt 0, „KI-Angabe im Buch“).
 
-Stelle keine lange Formularliste auf einmal. Führe ein natürliches Gespräch und frage nur nach den Informationen, die als Nächstes gebraucht werden. Unbekannte Angaben dürfen vorläufig offenbleiben.
+TEMPLATE_DE = {'classic': 'klassisch', 'modern': 'modern', 'plain': 'schlicht'}
 
-**Auswahlkarten (#81).** Schritte mit festen Antwortmöglichkeiten stehen in `templates/wizard-choices.yml` (derzeit 4, 5, 6, 12, 13 und 14). Für sie die Fragen nicht als Fließtext stellen, sondern als Karten zeigen: `python scripts/render_view.py . choice wizard.N` (Widget), im Modus „Nur Text“ `--text`. Davor höchstens ein kurzer Satz, warum die Frage kommt; danach nichts mehr, die Karte fragt selbst.
 
-- Die Antwort kommt als `wizard.answer` mit `step` und `answers` (bzw. in der Textfassung als `1b, 2a`, eigene Antwort `1: Text`). Werte mit `field` in die vorgesehene Angabe übernehmen (z. B. `book_type`, `language`, `changes.auto_merge` als `true`/`false`, Übersetzungen als Sprachcodes in `project.translations_planned`, die KI-Angabe als `ai_disclosure` mit `mode` und `placement: imprint`); `keine` bei den Übersetzungen ergibt eine leere Liste und gilt nur allein. Antworten ohne `field` (Vorwissen, Umfang, Stil) fließen in Zielgruppe, Beschreibung und die Hinweise zum Schreibstil ein. Eine eigene Antwort (`other`) sinngemäß übernehmen und bei Bedarf kurz nachfragen.
-- Wie bisher gilt: nichts schreiben, bevor die Struktur freigegeben ist (Abschnitt 7); die Antworten sammeln sich im Gespräch.
-- `wizard.skip` bzw. `S`: Angabe bleibt vorerst offen, weiter mit dem nächsten Schritt.
-- Offene Schritte (Autor, Thema, Ziel, Kurzbeschreibung, Gliederung) bleiben Gespräch. Ergibt sich im Gespräch eine Auswahl mit wenigen festen Möglichkeiten, die nicht in der Datei steht, kann eine eigene Karte mit `--spec` (JSON, Aufbau wie in der Datei) gezeigt werden.
+def output_view(base, config, args):
+    """Formular „Ausgabeoptionen“ (#68): Vorlage ausgabeoptionen bzw. Textfassung."""
+    ts = dict(TYPESETTING_DEFAULT)
+    ts.update(config.get('typesetting') or {})
+    pub = config.get('publication') or {}
+    if not args.text:
+        import build_cover
+        blurb, bio = build_cover.back_texts(base)
+        data = {'typesetting': ts, 'publication': pub, 'print': config.get('print') or {}, 'cover': config.get('cover') or {},
+                'blurb': blurb, 'author_bio': bio}
+        return fill('ausgabeoptionen.html', {'OUTPUT_JSON': json.dumps(data, ensure_ascii=False)})
+    lines = ['### 🖨️ Ausgabeoptionen', '', 'Wie Auflagen und Probedrucke aussehen. Geänderte Werte gelten ab dem nächsten '
+             'Probedruck; ohne Angabe bleibt alles wie bisher.', '']
+    for group, keys in OUTPUT_GROUPS:
+        lines += [f'**{group}**', '', '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|']
+        for k in keys:
+            label, names = OUTPUT_LABELS[k]
+            if isinstance(TYPESETTING_DEFAULT[k], bool):
+                options = 'ja, nein'
+            elif k == 'font_size':
+                options = '10, 10,5, 11, 11,5, 12'
+            elif k == 'line_spacing':
+                options = '1,0, 1,1, 1,2, 1,3, 1,5'
+            elif k == 'formats':
+                options = 'PDF, Druck-PDF, Umschlag, DOCX, EPUB (mehrere, mit Komma)'
+            else:
+                options = ', '.join(names.values())
+            lines.append(f'| {label} | {output_value(k, ts[k])} | {options} |')
+        lines.append('')
+    lines += ['**Angaben im Impressum**', '', '| Feld | Aktueller Wert | Hinweis |', '|---|---|---|']
+    lines += [f'| {label} | {pub.get(k) or "–"} | {hint} |' for k, label, hint in PUBLICATION_LABELS]
+    pr, cv = config.get('print') or {}, config.get('cover') or {}
+    prof = {'kdp': 'Amazon KDP', 'bod': 'Books on Demand', 'custom': 'eigene Werte'}
+    paper = {'white': 'weiß', 'cream': 'creme', 'premium_color': 'Premiumfarbe'}
+    spine = (f'{pr["spine_mm"]} mm (fest)' if pr.get('spine_mm') is not None else
+             f'aus Seitenzahl × {pr["paper_mm_per_page"]} mm' if pr.get('paper_mm_per_page') else
+             'aus Seitenzahl und Papier' if pr.get('profile') == 'kdp' else '–')
+    lines += ['', '**Druck**', '', '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|',
+              f'| Druckprofil | {prof.get(pr.get("profile"), "–")} | Amazon KDP, Books on Demand, eigene Werte |',
+              f'| Papier | {paper.get(pr.get("paper"), "weiß" if pr.get("profile") == "kdp" else "–")} | weiß, creme, Premiumfarbe (nur KDP) |',
+              f'| Rückenbreite | {spine} | Zahl in mm (BoD: aus dem BoD-Rechner) |',
+              f'| Beschnitt | {pr.get("bleed_mm", "Vorgabe des Profils")}{" mm" if "bleed_mm" in pr else ""} | Zahl in mm |',
+              f'| Schnittmarken | {"ja" if pr.get("crop_marks") else "nein"} | ja, nein |', '',
+              '**Umschlag**', '', '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|',
+              f'| Vorlage | {TEMPLATE_DE.get(cv.get("template", "classic"), "")} | klassisch, modern, schlicht |',
+              f'| Hintergrund | {cv.get("background", "#1F2A44")} | Farbe als #RRGGBB |',
+              f'| Schriftfarbe | {cv.get("text_color", "#FFFFFF")} | Farbe als #RRGGBB |',
+              f'| Bild vorne | {cv.get("image") or "–"} | Datei unter cover/ (JPG, PNG, mind. 300 dpi) |',
+              f'| Autorenbild | {cv.get("author_image") or "–"} | Datei unter cover/ |',
+              f'| Preis | {cv.get("price") or "–"} | z. B. 18,00 € (D) |',
+              f'| Rückentext | {"von unten nach oben" if cv.get("spine_direction") == "up" else "von oben nach unten"} | von oben nach unten, von unten nach oben |',
+              '', '<sub>Klappentext und Autorentext stehen in `cover/rueckseite.md` (`## Klappentext`, `## Über …`). '
+              'Die Vorgaben der Druckanbieter ändern sich; Maße vor dem Hochladen mit deren Rechner abgleichen.</sub>',
+              '', FORM_HINT]
+    return '\n'.join(lines) + '\n'
 
-## 4a. Auswahl der KI-Anbieter
 
-Recherche und Schreiben müssen nicht mit dem Anbieter erfolgen, mit dem gerade gechattet wird. Für das Projekt wird pro Aufgabe festgelegt, welcher Anbieter sie übernimmt. Die Auswahl steht in `ghostwriter.yml` unter `ai_providers`, die möglichen Anbieter in `providers.yml` (Übersicht: `docs/PROVIDERS.md`).
+def ai_disc_text(config):
+    s = (config.get('ai_disclosure') or {})
+    mode = s.get('mode', 'none')
+    if mode == 'none':
+        return 'keine'
+    place = {'imprint': 'im Impressum', 'foreword': 'im Vorwort', 'afterword': 'im Nachwort', 'page': 'eigene Seite'}
+    return {'short': 'kurz', 'detailed': 'ausführlich', 'custom': 'eigener Text'}[mode] + ', ' + \
+        place.get(s.get('placement', 'imprint'), '') + ('' if s.get('text') else ' (Wortlaut offen)')
 
-- **Mit dem anfangen, was schon da ist:** Frage zuerst, welche KI-Dienste der Benutzer schon hat (Abo, Zugang oder API-Schlüssel), etwa ChatGPT, Claude, Gemini oder Perplexity, und trage nur diese in `ai_providers.available` ein. Teile die Aufgaben ausschließlich diesen Diensten oder dem aktuellen Chat (`chat`) zu. Empfiehl keine neuen Abos und keine zusätzlichen Konten; wer nichts nennt, arbeitet mit `chat` für alles.
-- **Später erweitern:** Weitere Dienste kommen jederzeit über das Formular „KI-Dienste“ in der Projektübersicht dazu (`project.providers.open`, Textfassung `D`). Dort stehen bei jedem Dienst die Links **Anleitung** (wie man ihn mit GhostWriter nutzt: `docs/DIENSTE-NUTZEN.md` bzw. `setup` in `providers.yml`, etwa `docs/CONNECTOR-SETUP.md`) und **Website** des Anbieters. Für Dienste, die du nicht selbst aufrufen kannst, gilt der Ablauf „Auftrag kopieren“ aus `docs/DIENSTE-NUTZEN.md`, Weg 2. Weise im Wizard kurz darauf hin, statt den Benutzer jetzt durch Einrichtungen zu führen.
-- **API-Schlüssel nie im Chat:** Nimm keinen API-Schlüssel entgegen und schreib keinen in eine Datei, einen Commit oder eine Nachricht. Schlüssel liegen nur als GitHub-Secret im Repository; in `ghostwriter.yml` steht nur der Name (`api_key_secret`). Fügt der Benutzer trotzdem einen Schlüssel ein: nicht verwenden, nicht wiederholen, raten, ihn beim Anbieter zu löschen und neu zu erstellen, und auf `docs/DIENSTE-NUTZEN.md`, „API-Schlüssel als GitHub-Secret“ verweisen.
-- **Einstellungen je Dienst** (`ai_providers.services.<id>`, im Formular unter „Einstellungen“): `access` (Chat-App, API-Schlüssel, lokal …), `model`, `github_connected`, `plan`, `monthly_cost`, `note`. Sie bestimmen, wie eine Aufgabe läuft: Ist der zuständige Dienst der aktuelle Chat, direkt; sonst bei `access` `app` oder `local` „Auftrag kopieren“ (`docs/DIENSTE-NUTZEN.md`, Weg 2/3), bei `api` Weg 4. `model` des Dienstes steht in jedem Lauf, wenn die Aufgabe kein eigenes `model` hat. `github_connected` zeigt, ob GhostWriter in dieser App selbst speichern kann; sonst dort mit der Textfassung und eigenem Commit arbeiten (Abschnitt 7). `monthly_cost` ist ein Abo-Betrag zur Information und wird nicht auf Abschnitte umgelegt. Frag im Wizard nur nach Zugang und, falls bekannt, Modell; der Rest ist freiwillig.
-- Nicht festgelegte Aufgaben erben von `default`.
-- Für **Recherche** ist ein Anbieter mit Internetrecherche zu bevorzugen; optional können ergänzende Suchquellen (`search_tools`) gewählt werden.
-- Für **Fact-Checking** ist ein vom Schreib-Anbieter unabhängiger Anbieter empfehlenswert.
-- Die **Queue-Bearbeitung** (Abarbeiten von GitHub-Issues) braucht einen Agenten aus `queue_agents`, der technisch mit dem Repository arbeiten kann; Standard ist `manual`.
-- Kannst du einen gewählten Anbieter in dieser Umgebung nicht selbst aufrufen, sage das offen und arbeite nach „Auftrag kopieren“ (`docs/DIENSTE-NUTZEN.md`, Weg 2). Ersetze den gewählten Anbieter nie stillschweigend durch einen anderen.
-  1. **Auftrag:** ein einziger Codeblock zum Kopieren, für genau einen Abschnitt, mit Ziel und Kurzbeschreibung des Abschnitts, den nötigen Auszügen (höchstens der Text dieses Abschnitts), den globalen KI-Regeln (nichts erfinden, Quellen mit Link, Unsicherheiten kennzeichnen) und dem Antwortformat der passenden Vorlage (`templates/research-run.md`, `templates/brainstorming-run.md`, Manuskript oder Prüfbericht). Bei Recherche angehakte kostenlose Recherchequellen (z. B. Semantic Scholar, OpenAlex) im Auftrag nennen. Darunter in einem Satz, was der Benutzer tun soll.
-  2. **Rückgabe:** Fügt der Benutzer die Antwort ein, prüfe Format und Quellen (Links stichprobenartig abrufen, wenn möglich; nicht Prüfbares als ungeprüft kennzeichnen), zeige eine kurze Zusammenfassung und speichere wie jede andere Änderung. Im Lauf stehen `provider` (der gewählte Dienst) und `model` (wie vom Benutzer genannt, sonst leer); der Kosteneintrag hat `cost_status: unavailable`, außer der Benutzer nennt einen Betrag (`manually_entered`).
-  3. **Schreiben und Überarbeiten:** Zurückgegebenen Manuskripttext erst nach Sichtung durch den Benutzer und nur mit Schreibfreigabe speichern.
-- Jeder Recherche-, Brainstorming- und Prüflauf dokumentiert Anbieter und Modell. Die globalen KI-Regeln gelten für jeden Anbieter gleichermaßen.
 
-## 5. Kapitel- und Abschnittsstruktur
+def project_settings_view(base, config, args):
+    ts = dict(TYPESETTING_DEFAULT)
+    ts.update(config.get('typesetting') or {})
+    wf = config.get('workflow') or {}
+    fixed = []
+    for block, key, label in FIXED_RULES:
+        v = (config.get(block) or {}).get(key)
+        if v is None:
+            continue
+        text = FIXED_TEXT.get(v, str(v))
+        fixed.append({'FIXED_LABEL': label, 'FIXED_VALUE': text if isinstance(v, bool) else f'{text} ({v})'})
+    fc = wf.get('fact_checking_default') or 'optional'
+    upd_auto, upd_text, upd_hint = update_info(base, config)
+    auto_merge = (config.get('changes') or {}).get('auto_merge') is True
+    lim = config.get('limits') or {}
+    lim_sum = limit_summary(base, config)
+    if args.text:
+        page = {'a5': 'A5 (14,8 × 21 cm)', '12x19': '12 × 19 cm', '13.5x21.5': '13,5 × 21,5 cm', 'a4': 'A4'}
+        jn = lambda v: 'ja' if v else 'nein'
+        return '\n'.join(['### ⚙️ Projekteinstellungen', '', '**🔒 Feste Regeln** *(nur im Chat mit ausdrücklicher Bestätigung änderbar)*', '',
+                           '| Regel | Wert |', '|---|---|'] + [f'| {f["FIXED_LABEL"]} | {f["FIXED_VALUE"]} |' for f in fixed]
+                          + ['', '**Bearbeitbar**', '', '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|',
+                             f'| Faktencheck | {FC_TEXT[fc]} | aus, optional, angefordert |',
+                             f'| Seitenformat | {page.get(ts["page_size"], ts["page_size"])} | A5, 12×19, 13,5×21,5, A4 |',
+                             f'| Schrift | {"Serifenschrift" if ts["font"] == "serif" else "serifenlos"} | Serif, Serifenlos |',
+                             f'| Schriftgröße | {str(ts["font_size"]).replace(".", ",")} pt | 10, 10,5, 11, 11,5, 12 |',
+                             f'| Titelseite | {jn(ts["title_page"])} | ja, nein |', f'| Impressum | {jn(ts["imprint"])} | ja, nein |',
+                             f'| Inhaltsverzeichnis | {jn(ts["toc"])} | ja, nein |',
+                             f'| Verzeichnistiefe | {"nur Kapitel" if ts["toc_depth"] == 1 else "Kapitel und Abschnitte"} | Kapitel, Abschnitte |',
+                             f'| Updates automatisch | {jn(upd_auto)} | ja, nein |',
+                             f'| Änderungen sofort übernehmen | {jn(auto_merge)} | ja, nein |',
+                             f'| KI-Budget je Monat | {lim.get("ai_budget_monthly") or "–"} | Betrag in Projektwährung, leer = keins |',
+                             f'| Actions-Minuten je Monat | {lim.get("actions_minutes_monthly") or "–"} | Minuten, leer = nicht prüfen |',
+                             f'| KI-Angabe im Buch | {ai_disc_text(config)} | Formular `KI-Angabe` |',
+                             '| Weitere Ausgabeoptionen | Ränder, Zeilenabstand, Kolumnentitel, Formate, ISBN … | Formular `Ausgabe` |',
+                             '', f'<sub>{upd_text} · Limits: {lim_sum}</sub>'] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', FORM_HINT]) + '\n'
+    def b(v):
+        return 'true' if v else 'false'
+    return fill('projekteinstellungen.html', {'FACT_CHECK_DEFAULT': fc, 'PAGE_SIZE': ts['page_size'], 'FONT': ts['font'],
+                                              'FONT_SIZE': str(ts['font_size']).rstrip('0').rstrip('.') if isinstance(ts['font_size'], float) else str(ts['font_size']),
+                                              'TITLE_PAGE': b(ts['title_page']), 'IMPRINT': b(ts['imprint']), 'TOC': b(ts['toc']),
+                                              'TOC_DEPTH': str(ts['toc_depth']), 'UPDATES_AUTO': b(upd_auto), 'CHANGES_AUTO_MERGE': b(auto_merge),
+                                              'GW_VERSION_TEXT': upd_text, 'GW_UPDATE_HINT': upd_hint,
+                                              'AI_DISCLOSURE_TEXT': ai_disc_text(config),
+                                              'LIMIT_BUDGET': num_text(lim.get('ai_budget_monthly')),
+                                              'LIMIT_MINUTES': num_text(lim.get('actions_minutes_monthly')),
+                                              'LIMIT_SUMMARY': lim_sum}, {'FIXED': fixed})
 
-- Jedes Kapitel enthält mindestens einen Abschnitt und kann beliebig viele Abschnitte enthalten.
-- Die Anzahl der Kapitel und Abschnitte ist nicht begrenzt.
-- Kapitel und Abschnitte dürfen während des gesamten Projekts ergänzt, umbenannt, verschoben und neu geordnet werden.
-- Ein Abschnitt ist die kleinste eigenständige Recherche- und Schreibeinheit.
-- Interne IDs bleiben stabil; sichtbare Nummern ergeben sich aus der aktuellen Reihenfolge.
-- Ein Kapitel ist erst zur Zusammenführung bereit, wenn alle seine Abschnitte freigegeben sind.
 
-## 6. Konzeption und Iteration
+def num_text(v):
+    if v in (None, ''):
+        return ''
+    return str(int(v)) if float(v).is_integer() else str(v)
 
-Entwickle die Gliederung iterativ. Pro Kapitel und Abschnitt können mehrere Brainstorming- und Rechercheläufe im Chat stattfinden. Halte Ideen, offene Fragen und Entscheidungen getrennt. Schlage Änderungen vor, überschreibe aber keine bestätigten Entscheidungen ohne Rückfrage.
 
-## 7. Freigabe und Repository-Übertragung
+def ai_disclosure_view(base, config, args):
+    """Formular „KI-Angabe im Buch“ (#78), Vorlage ki-angabe bzw. Textfassung: Einstellung, Vorschlag, Hinweis."""
+    import ai_disclosure as ad
+    s = ad.settings(config)
+    proposal = ad.suggest(base, config) if s['mode'] in ('none', 'short', 'detailed') else ''
+    used = ad.usage(base)
+    names = ad.provider_names()
+    if not args.text:
+        kinds = {i['kind'] for _, i in matter_items(config)}
+        missing = [k for k in ('foreword', 'afterword') if k not in kinds]
+        if not (config.get('typesetting') or {}).get('imprint', True):
+            missing.append('imprint')
+        values = {'AI_MODE': s['mode'], 'AI_PLACEMENT': s['placement'], 'AI_NAME_SERVICES': str(bool(s['name_services'])).lower(),
+                  'AI_TEXT': s.get('text') or '',
+                  'AI_USED_TEXT': ' · '.join(f'{t}: {ad.service_text(ids, names)}' for t, ids in used.items()),
+                  'AI_PROPOSAL_SHORT': ad.suggest(base, config, 'short', False),
+                  'AI_PROPOSAL_SHORT_NAMED': ad.suggest(base, config, 'short', True),
+                  'AI_PROPOSAL_DETAILED': ad.suggest(base, config, 'detailed', False),
+                  'AI_PROPOSAL_DETAILED_NAMED': ad.suggest(base, config, 'detailed', True),
+                  'AI_PLACES_MISSING': ','.join(missing), 'AI_LEGAL_HINT': ad.LEGAL_HINT}
+        return fill('ki-angabe.html', values)
+    mode_de = {'none': 'keine', 'short': 'kurz (ein Satz)', 'detailed': 'ausführlich (je Aufgabe)', 'custom': 'eigener Text'}
+    place_de = {'imprint': 'Impressum', 'foreword': 'Vorwort (am Ende)', 'afterword': 'Nachwort (am Ende)', 'page': 'eigene Seite am Ende'}
+    lines = ['### 🤖 KI-Angabe im Buch', '',
+             'Ob und wie im Buch steht, wie bei diesem Buch KI genutzt wurde. Der Hinweis auf die Entwicklung von '
+             'GhostWriter kommt nie ins Buch.', '',
+             '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|',
+             f'| Angabe | {mode_de[s["mode"]]} | keine, kurz, ausführlich, eigener Text |',
+             f'| Ort | {place_de[s["placement"]]} | Impressum, Vorwort, Nachwort, eigene Seite |',
+             f'| Dienste nennen | {"ja" if s["name_services"] else "nein"} | ja, nein |', '']
+    if used:
+        lines += ['**Laut den Läufen genutzt:** ' + ' · '.join(
+            f'{t}: {ad.service_text(ids, names)}' for t, ids in used.items()), '']
+    else:
+        lines += ['*Bisher sind keine KI-Läufe protokolliert.*', '']
+    if s['mode'] != 'none':
+        lines += ['**Wortlaut im Buch' + (' (bestätigt)' if s['text'] else ' – noch nicht bestätigt') + ':**', '']
+        lines += ['> ' + l if l else '>' for l in (s['text'] or '*(leer)*').splitlines()] + ['']
+    if proposal and proposal != s['text'] and s['mode'] in ('short', 'detailed'):
+        lines += ['**Vorschlag aus den Läufen:**', ''] + ['> ' + l if l else '>' for l in proposal.splitlines()] + ['']
+    lines += [f'<sub>⚖️ {ad.LEGAL_HINT}</sub>', '', '---',
+              'Antworte mit `Angabe: …`, `Ort: …`, `Dienste nennen: ja|nein` oder `Text: …` (eigener Wortlaut)'
+              + (' · `OK` übernimmt den Vorschlag' if proposal and s['mode'] in ('short', 'detailed') else '')
+              + ' · `X` bricht ab']
+    return '\n'.join(lines) + '\n'
 
-Bis zur ausdrücklichen Freigabe der vollständigen Kapitel- und Abschnittsstruktur:
-- keine Buchdateien im Repository anlegen oder ändern;
-- keine Kapitel- oder Abschnittsordner erzeugen;
-- keine README mit einer vermeintlich finalen Gliederung veröffentlichen.
 
-Vor der Übertragung:
-1. Zeige die vollständige Buchübersicht.
-2. Zeige alle Kapitel mit Kurzbeschreibung.
-3. Zeige alle Abschnitte in der vorgesehenen Reihenfolge.
-4. Frage ausdrücklich: „Gibst du diese Kapitel- und Abschnittsstruktur zur Übertragung ins Repository frei?“
-5. Erst nach Zustimmung das zuvor geprüfte Zielrepository nochmals eindeutig bestätigen.
-6. Die freigegebene Struktur wie jede andere Änderung übertragen (Abschnitt 0, „Schreiben ins Repository“): **genau ein** Commit `Buchstruktur angelegt` mit allen Dateien im Arbeits-Branch mit Pull Request (nie ein Commit je Datei; geht es nur Datei für Datei, den Pull Request zusammengefasst mit dieser Nachricht übernehmen), den erfolgreichen Commit bzw. Fehlerstatus mitteilen.
-7. Mit `changes.auto_merge: true` (Wizard-Schritt 12) den Pull Request sofort mergen; die Struktur steht dann direkt im Buch-Branch. Sonst liest die Projektübersicht aus dem Arbeits-Branch und bietet „Änderungen übernehmen“ an; erst nach dieser Bestätigung steht die Struktur im Buch-Branch. Danach die Projektübersicht zeigen (ab v0.6 die Bibliotheksseite, #38) und darunter einmalig einen kurzen Hinweis auf die Befehle (Abschnitt 0, „Befehle“): `Start` · `Übersicht` · `Kapitel 1` · `Hilfe`, dazu ein Satz, dass jede Ansicht unten ihre Kürzel nennt.
+CHAPTER_RESEARCH_DIR = 'research/kapitel'   # workflow.yml, runs.chapter_research
 
-Die Übertragung umfasst mindestens:
-- `README.md` mit Autor, Titel, Untertitel, Kurzbeschreibung und Kapitelübersicht;
-- `ghostwriter.yml` mit Metadaten, globalen KI-Einstellungen, gewählten KI-Anbietern und Status;
-- `chapters/` mit je einem Ordner pro Kapitel;
-- je Kapitel eine `README.md` mit Kapitelziel, Kurzbeschreibung, Abschnittsliste und Status;
-- je Abschnitt eine Markdown-Datei mit Metadaten und Arbeitsstatus.
 
-Wenn kein GitHub-Schreibzugriff verfügbar ist, liefere die Dateien als vollständige Inhalte oder Paket, jeweils mit dem vorgesehenen Dateipfad, ohne vorzugeben, dass ein Commit erfolgt ist. Bitte den Benutzer, die Dateien selbst zu committen, und lass dir bei späteren Arbeitsschritten den aktuellen Stand der benötigten Dateien in den Chat geben.
+def run_parts(path):
+    """(Kopf, {Überschrift: Text}) einer Lauf-Datei."""
+    text = path.read_text(encoding='utf-8')
+    head, body = {}, text
+    m = re.match(r'---\n(.*?)\n---\n', text, re.S)
+    if m:
+        head = yaml.safe_load(m.group(1)) or {}
+        body = text[m.end():]
+    parts = {k.strip(): v.strip() for k, v in re.findall(r'(?m)^## ([^\n]+)\n(.*?)(?=^## |\Z)', body, re.S)}
+    return head, parts
 
-## 8. Start des laufenden Schreibbetriebs
 
-Nach der Initialisierung wird jedes Kapitel abschnittsweise bearbeitet. Für jeden Abschnitt gilt:
+def chapter_research_view(base, config, args):
+    """Formular „Kapitelrecherche“: Ziel und Kurzbeschreibung ändern, Recherche für das Kapitel starten."""
+    n, ch = chapter_number(config, args.where)
+    _, summary, goal = chapter_readme(base, ch)
+    runs = sorted((base / ch['path'] / CHAPTER_RESEARCH_DIR).glob('run-*.md'))
+    last_head, last = run_parts(runs[-1]) if runs else ({}, {})
+    draft = {}
+    if getattr(args, 'draft', None):
+        draft = json.loads(Path(args.draft).read_text(encoding='utf-8'))
+    ap = config.get('ai_providers') or {}
+    pid = (ap.get('research') or {}).get('provider') or (ap.get('default') or {}).get('provider') or 'chat'
+    catalog = yaml.safe_load((ROOT / 'providers.yml').read_text(encoding='utf-8'))
+    names = {x['id']: x.get('name', x['id']) for x in catalog.get('providers') or []}
+    provider = 'aktueller Chat' if pid == 'chat' else names.get(pid, pid).split(' (')[0]
+    when = str(last_head.get('date') or '')
+    count = (f'{len(runs)} Lauf' if len(runs) == 1 else f'{len(runs)} Läufe') if runs else 'noch keine Kapitelrecherche'
+    if runs and re.match(r'\d{4}-\d{2}-\d{2}', when):
+        count += f', zuletzt am {when[8:10]}.{when[5:7]}.{when[:4]}'
+    clean = lambda v: '' if (v or '').strip() in ('', 'Offen.', '–') else v.strip()
+    chapters = config['structure']['chapters']
+    def neighbour(k):
+        if 1 <= k <= len(chapters):
+            other = chapters[k - 1]
+            return f'Kapitel {k} · {other["title"]}', chapter_readme(base, other)[1]
+        return '', ''
+    prev_label, prev_summary = neighbour(n - 1)
+    next_label, next_summary = neighbour(n + 1)
+    def weight(key):
+        v = draft.get(key, last_head.get(key, 2))
+        return v if isinstance(v, int) and 0 <= v <= 3 else 2
+    current_goal = draft.get('goal', goal)
+    if 'task' in draft:
+        task = draft.get('task') or ''
+    elif 'task' in last_head:
+        task = last_head.get('task') or ''
+    elif 'goal_search' in last_head:            # Läufe vor 0.19: goal_search true/false
+        task = 'goal' if last_head.get('goal_search') is True else ''
+    else:
+        task = '' if current_goal else 'goal'
+    task = task if task in ('goal', 'sections', 'summary') else ''
+    existing = {sec['title'].strip().lower() for sec in ch['sections']}
+    proposals = []
+    for line in clean(last.get('Vorschlag: Abschnitte')).splitlines():
+        m = re.match(r'\s*[-*]\s+(.+?)(?::\s+(.*))?$', line)
+        if m and m.group(1).strip().lower() not in existing:
+            proposals.append({'SUG_TITLE': m.group(1).strip(), 'SUG_SUMMARY': (m.group(2) or '').strip()})
+    k = len(ch['sections'])
+    note = ('Das Kapitel hat noch keine Abschnitte; ausgewählte werden in dieser Reihenfolge angelegt.' if not k else
+            f'Das Kapitel hat schon {k} Abschnitt{"" if k == 1 else "e"}. Sie bleiben unverändert; ausgewählte neue '
+            'kommen ans Ende (Reihenfolge danach über „Abschnittsreihenfolge“).')
+    if k and ch.get('status') == 'approved':
+        note += ' Das Kapitel ist freigegeben und wird dadurch wieder „in Arbeit“.'
+    values = {'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': n, 'CHAPTER_TITLE': ch['title'],
+              'CHAPTER_GOAL': draft.get('goal', goal), 'CHAPTER_SUMMARY': draft.get('summary', summary),
+              'RESEARCH_QUESTION': draft.get('question', last_head.get('question') or ''),
+              'RESEARCH_SCOPE': draft.get('scope', last_head.get('scope') or ''),
+              'RESEARCH_TASK': task, 'SECTION_COUNT': k, 'SECTIONS_NOTE': note,
+              'PREV_CHAPTER': 'true' if prev_label else '', 'PREV_CHAPTER_LABEL': prev_label,
+              'PREV_CHAPTER_SUMMARY': prev_summary, 'PREV_WEIGHT': weight('weight_prev'),
+              'NEXT_CHAPTER': 'true' if next_label else '', 'NEXT_CHAPTER_LABEL': next_label,
+              'NEXT_CHAPTER_SUMMARY': next_summary, 'NEXT_WEIGHT': weight('weight_next'),
+              'RESEARCH_PROVIDER_TEXT': f'Recherche über: {provider}', 'RUN_COUNT_TEXT': count,
+              'LAST_RUN': 'true' if runs else '', 'LAST_RUN_ID': last_head.get('id') or (runs[-1].stem if runs else ''),
+              'LAST_RUN_TEXT': clean(last.get('Kurzfassung')),
+              'SUGGESTED_GOAL': clean(last.get('Vorschlag: Ziel des Kapitels')),
+              'SUGGESTED_SUMMARY': clean(last.get('Vorschlag: Kurzbeschreibung'))}
+    if args.text:
+        lines = [f'### 🔎 Kapitelrecherche · Kapitel {n} „{ch["title"]}“', ''] + field_table([
+            ('Ziel', values['CHAPTER_GOAL']), ('Kurzbeschreibung', values['CHAPTER_SUMMARY'])])
+        if values['SUGGESTED_GOAL'] or values['SUGGESTED_SUMMARY']:
+            lines += ['', f'**Vorschläge aus {values["LAST_RUN_ID"]}:**']
+            if values['SUGGESTED_GOAL']:
+                lines += [f'- Ziel: {values["SUGGESTED_GOAL"]} · `VZ` übernehmen']
+            if values['SUGGESTED_SUMMARY']:
+                lines += [f'- Kurzbeschreibung: {values["SUGGESTED_SUMMARY"]} · `VK` übernehmen']
+        if values['LAST_RUN_TEXT']:
+            lines += ['', f'> {values["LAST_RUN_TEXT"]}']
+        if proposals:
+            lines += ['', f'**Vorgeschlagene Abschnitte aus {values["LAST_RUN_ID"]}:**', '']
+            lines += [f'{i}. **{x["SUG_TITLE"]}**' + (f' – {x["SUG_SUMMARY"]}' if x['SUG_SUMMARY'] else '')
+                      for i, x in enumerate(proposals, start=1)]
+            lines += ['', f'<sub>{note}</sub> Anlegen: `AS 1, 3` (Nummern der Vorschläge).']
+        wtext = ['nicht berücksichtigen', 'abgrenzen', 'anschließen', 'stark einbeziehen']
+        ctx = []
+        if prev_label:
+            ctx.append(f'| Vorher | {prev_label} | {values["PREV_WEIGHT"]} · {wtext[values["PREV_WEIGHT"]]} |')
+        if next_label:
+            ctx.append(f'| Nachher | {next_label} | {values["NEXT_WEIGHT"]} · {wtext[values["NEXT_WEIGHT"]]} |')
+        if ctx:
+            lines += ['', '**Zusammenhang**', '', '| | Kapitel | Gewichtung |', '|---|---|---|'] + ctx
+        tname = {'goal': 'Ziel des Kapitels recherchieren', 'sections': 'Abschnitte erstellen', 'summary': 'Kurzbeschreibung erstellen'}
+        lines += ['', f'Aufgabe: **{tname.get(task, "keine (nur Fragestellung)")}**',
+                  '', f'<sub>{values["RESEARCH_PROVIDER_TEXT"]} · {count}</sub>', '',
+                  'Ändern: je Zeile `Ziel: …` bzw. `Kurzbeschreibung: …`. Recherche starten: `Frage: …` (optional `Schwerpunkte: …`, '
+                  '`Aufgabe: Ziel|Abschnitte|Kurzbeschreibung|keine`, `Vorher: 0–3`, `Nachher: 0–3`; 0 nicht berücksichtigen, 1 abgrenzen, 2 anschließen, 3 stark einbeziehen). `X` bricht ab.']
+        return '\n'.join(lines) + '\n'
+    return fill('kapitelrecherche.html', values, {'SUGGESTED_SECTIONS': proposals})
 
-1. Recherche (mehrere Läufe möglich).
-2. Brainstorming (mehrere Läufe möglich).
-3. Ergebnisse konsolidieren und Abschnittsgliederung vorschlagen.
-4. Schreibfreigabe einholen.
-5. Manuskript erstellen.
-6. Überarbeiten (beliebig viele Runden).
-7. Optionales Fact-Checking gemäß Abschnittseinstellung.
-8. Korrekturen abstimmen und einarbeiten.
-9. Ausdrückliche Abschnittsfreigabe.
 
-Erst wenn alle Abschnitte eines Kapitels freigegeben sind:
-1. Kapitel zusammenführen.
-2. Übergänge, roten Faden, Wiederholungen und Widersprüche prüfen.
-3. Kapitel als Ganzes überarbeiten.
-4. Kapitel zur Gesamtfreigabe vorlegen.
-5. Erst nach ausdrücklicher Freigabe Kapitelstatus auf `approved` setzen.
+# ---------- Bücherregal (#37) ----------
 
-Fact-Checking ist optional pro Abschnitt. Es erstellt zunächst einen Prüfbericht und überschreibt das Manuskript nicht automatisch.
+LIBRARY_FILE = 'library.json'
 
-## 9. Änderungen an der Struktur
 
-Der Benutzer kann jederzeit z. B. sagen:
-- „Füge in Kapitel 2 einen Abschnitt über Risiken hinzu.“
-- „Teile Abschnitt 2.3 in zwei Abschnitte.“
-- „Verschiebe diesen Abschnitt in Kapitel 4.“
-- „Ordne die Abschnitte neu.“
+def library_data(base, args):
+    """library.json (--library oder im Projektordner); fehlt sie, live aus den Branches (scripts/library.py)."""
+    path = Path(args.library) if getattr(args, 'library', None) else base / LIBRARY_FILE
+    if path.is_file():
+        return json.loads(path.read_text(encoding='utf-8'))
+    import library
+    data = library.build_library(cwd=base)
+    if not data.get('books'):   # ohne Remote (lokale Bibliothek): die lokalen Branches
+        data = library.build_library('refs/heads', base)
+    return data
 
-Vor strukturellen Änderungen:
-- Auswirkungen auf Nummerierung und Verweise erklären;
-- stabile IDs beibehalten, soweit möglich;
-- bei Löschen oder Aufteilen bestehende Inhalte und Recherchehistorie sichern und Bestätigung einholen;
-- bei Änderungen an einem bereits freigegebenen Kapitel dessen Kapitelstatus wieder auf `in_progress` setzen;
-- bereits freigegebene Texte nicht stillschweigend verändern.
 
-## 10. Transparenz
+def de_date(iso):
+    m = re.match(r'(\d{4})-(\d{2})-(\d{2})', iso or '')
+    return f'{m.group(3)}.{m.group(2)}.{m.group(1)}' if m else ''
 
-Kennzeichne jederzeit:
-- was recherchiert und belegt ist;
-- was eine Interpretation oder ein Vorschlag ist;
-- was noch ungeprüft oder unsicher ist;
-- welche Abschnitte und Kapitel freigegeben sind;
-- welche Arbeitsschritte noch offen sind.
 
----
+def plural(n, one, many):
+    return f'{n} {one if n == 1 else many}'
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg"><img src="assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+
+def book_row(b):
+    ready = b['status'] == 'ready'
+    st, sa = b.get('sections_total', 0), b.get('sections_approved', 0)
+    progress = (f'{sa} von {plural(st, "Abschnitt", "Abschnitten")} freigegeben · '
+                f'{b.get("chapters_approved", 0)} von {plural(b.get("chapters_total", 0), "Kapitel", "Kapiteln")}') if ready else 'Gliederung noch offen'
+    ed = b.get('current_edition') or 0
+    return {'BOOK_BRANCH': b['branch'], 'BOOK_TITLE': b['title'] or b['title_short'] or 'Ohne Titel',
+            'BOOK_TITLE_SHORT': b['title_short'] or b['branch'].split('/')[-1],
+            'BOOK_AUTHOR_TEXT': f'von {b["author"]}' if b.get('author') else '',
+            'BOOK_STATE': 'ready' if ready else 'setup', 'BOOK_STATE_TEXT': 'eingerichtet' if ready else 'im Aufbau',
+            'BOOK_PROGRESS': round(100 * sa / st) if st else 0, 'BOOK_PROGRESS_TEXT': progress,
+            'BOOK_EDITION_TEXT': f'Auflage {ed}' if ed else 'noch keine Auflage',
+            'BOOK_COST': (b.get('cost') or {}).get('text') or money(0, False),
+            'BOOK_PENDING_TEXT': f'{plural(b["pending"], "Änderung", "Änderungen")} offen' if b.get('pending') else '',
+            'BOOK_UPDATED_TEXT': f'{"zuletzt geändert" if ready else "angelegt"} am {de_date(b.get("updated_at"))}' if b.get('updated_at') else ''}
+
+
+def library_series(base, data):
+    """Serien (#116) aus library.json bzw. vom Standard-Branch: [{id, title, …, volumes: [branch]}]."""
+    if 'series' in data:
+        return data['series'] or []
+    import series
+    return [dict(s, volumes=series.volumes(s)) for s in series.load_all(base).values()]
+
+
+def library_view(base, config, args):
+    data = library_data(base, args)
+    books = data.get('books') or []
+    by_branch = {b['branch']: b for b in books}
+    ser = library_series(base, data)
+    rows, seen = [], set()
+    # Bücher einer Serie zuerst, gruppiert und in Bandreihenfolge (#116); danach die übrigen
+    for si, s in enumerate(ser, start=1):
+        for n, br in enumerate(s['volumes'], start=1):
+            if br in by_branch:
+                r = book_row(by_branch[br])
+                r.update({'BOOK_SERIES': s['id'], 'BOOK_SERIES_TITLE': s['title'], 'BOOK_SERIES_KEY': f'S{si}',
+                          'BOOK_VOLUME_TEXT': f'Band {n}'})
+                rows.append(r)
+                seen.add(br)
+    for b in books:
+        if b['branch'] not in seen:
+            rows.append(dict(book_row(b), BOOK_SERIES='', BOOK_SERIES_TITLE='', BOOK_SERIES_KEY='', BOOK_VOLUME_TEXT=''))
+    empty_series = [{'S_ID': s['id'], 'S_TITLE': s['title'], 'S_KEY': f'S{i}'} for i, s in enumerate(ser, start=1)
+                    if not any(br in by_branch for br in s['volumes'])]
+    count = plural(len(rows), 'Buch', 'Bücher') + (f' · {plural(len(ser), "Serie", "Serien")}' if ser else '')
+    if args.text:
+        out = [f'### 📚 Bücherregal', f'{repo_label(args)} · {count}', '']
+        if rows:
+            out += ['| # | Buch | Status | Fortschritt | Auflage | Kosten |', '|--:|---|---|---|---|--:|']
+            group = None
+            for i, r in enumerate(rows, 1):
+                if r['BOOK_SERIES'] != group:
+                    group = r['BOOK_SERIES']
+                    label = f'📚 **Serie „{r["BOOK_SERIES_TITLE"]}“** (`{r["BOOK_SERIES_KEY"]}`)' if group else '**Einzelne Bücher**'
+                    out.append(f'| | {label} | | | | |')
+                vol = f'{r["BOOK_VOLUME_TEXT"]}: ' if r['BOOK_VOLUME_TEXT'] else ''
+                out.append(f'| {i} | {vol}**{r["BOOK_TITLE"]}** ({r["BOOK_TITLE_SHORT"]}){" · ⏳ " + r["BOOK_PENDING_TEXT"] if r["BOOK_PENDING_TEXT"] else ""} | '
+                           f'{"✅ eingerichtet" if r["BOOK_STATE"] == "ready" else "🚧 im Aufbau"} | {r["BOOK_PROGRESS_TEXT"]} | {r["BOOK_EDITION_TEXT"]} | {r["BOOK_COST"]} |')
+        else:
+            out += ['*Hier steht noch kein Buch.*']
+        if empty_series:
+            out += ['', 'Serien ohne Band: ' + ', '.join(f'„{s["S_TITLE"]}“ (`{s["S_KEY"]}`)' for s in empty_series)]
+        items = ([('1' if len(rows) == 1 else f'1–{len(rows)}', 'Buch öffnen')] if rows else [])
+        if ser:
+            items.append(('S1' if len(ser) == 1 else f'S1–S{len(ser)}', 'Serie öffnen'))
+        items += [('N', 'Neues Buch'), ('NS', 'Neue Serie'), ('D', 'Daten')]
+        out += ['', '---', menu(items)]
+        return '\n'.join(out) + '\n'
+    blocks = {'BOOKS': rows}
+    if empty_series:
+        blocks['EMPTY_SERIES'] = empty_series
+    return fill('buecherregal.html', {'LIBRARY_NAME': repo_label(args), 'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
+                                      'UPDATED_TEXT': ''}, blocks)
+
+
+SERIES_KIND_DE = {'continuous': 'durchgehende Handlung', 'standalone': 'eigenständige Bände'}
+
+
+def find_series(base, data, key):
+    ser = library_series(base, data)
+    for i, s in enumerate(ser, start=1):
+        if key in (s['id'], f'S{i}', f's{i}') or (key or '').lower() == s.get('title', '').lower():
+            return s
+    raise SystemExit(f'Serie „{key}“ nicht gefunden')
+
+
+def series_view(base, config, args):
+    """Seite „Serie“ (#116, Vorlage serie): Bände in Reihenfolge, Bücher ohne Serie zum Hinzufügen."""
+    data = library_data(base, args)
+    s = find_series(base, data, args.where)
+    by_branch = {b['branch']: b for b in data.get('books') or []}
+    in_any = {br for x in library_series(base, data) for br in x['volumes']}
+    vols = []
+    for n, br in enumerate(s['volumes'], start=1):
+        b = by_branch.get(br)
+        r = book_row(b) if b else {'BOOK_BRANCH': br, 'BOOK_TITLE': br, 'BOOK_TITLE_SHORT': br.split('/')[-1], 'BOOK_STATE': 'setup',
+                                   'BOOK_STATE_TEXT': 'nicht gefunden', 'BOOK_PROGRESS': 0, 'BOOK_PROGRESS_TEXT': '', 'BOOK_EDITION_TEXT': ''}
+        vols.append({'V_NUMBER': n, 'V_BRANCH': br, 'V_TITLE': r['BOOK_TITLE'], 'V_TITLE_SHORT': r['BOOK_TITLE_SHORT'],
+                     'V_STATE': r['BOOK_STATE'], 'V_STATE_TEXT': r['BOOK_STATE_TEXT'], 'V_PROGRESS': r['BOOK_PROGRESS'],
+                     'V_PROGRESS_TEXT': r['BOOK_PROGRESS_TEXT'], 'V_EDITION_TEXT': r['BOOK_EDITION_TEXT']})
+    cands = [{'C_BRANCH': b['branch'], 'C_TITLE': b['title'] or b['title_short'] or b['branch']}
+             for b in data.get('books') or [] if b['branch'] not in in_any]
+    values = {'SERIES_ID': s['id'], 'SERIES_TITLE': s['title'], 'SERIES_SUBTITLE': s.get('subtitle') or '',
+              'SERIES_KIND_TEXT': SERIES_KIND_DE.get(s.get('kind'), ''), 'SERIES_DESCRIPTION': s.get('description') or '',
+              'VOLUME_COUNT_TEXT': plural(len(vols), 'Band', 'Bände'), 'LIBRARY_NAME': repo_label(args)}
+    import series as series_mod   # gemeinsame Figuren und Begriffe (Stufe 2)
+    schars = []
+    for c in series_mod.characters(base, s['id']):
+        h = character_file(base, c)[0]
+        schars.append({'SC_ID': c['id'], 'SC_NAME': c['name'], 'SC_ROLE': ROLE_DE.get(h.get('role'), ''), 'SC_SHORT': h.get('short', '')})
+    sterms = [{'ST_TERM': x['term'], 'ST_TEXT': x['text']} for x in series_mod.glossary(base, s['id'])]
+    om = series_mod.omnibus(base, s['id'])   # Sammelband (Stufe 4)
+    if om:
+        n = int(om.get('current_edition') or 0)
+        values.update({'OMNIBUS_STATE': om.get('status', 'draft'), 'OMNIBUS_TITLE': om.get('title', ''),
+                       'OMNIBUS_TEXT': f'{plural(len(om.get("volumes") or []), "Band", "Bände")} · '
+                                       + ('freigegeben' if om.get('status') == 'approved' else 'Entwurf, nicht freigegeben')
+                                       + (f' · Auflage {n}' if n else ' · noch keine Auflage')})
+    if args.text:
+        out = [f'### 📚 Serie „{s["title"]}“', ' · '.join(x for x in (values['SERIES_SUBTITLE'], values['SERIES_KIND_TEXT'],
+                                                                  values['VOLUME_COUNT_TEXT']) if x), '']
+        if values['SERIES_DESCRIPTION']:
+            out += [f'> {values["SERIES_DESCRIPTION"]}', '']
+        if vols:
+            out += ['| Band | Buch | Status | Fortschritt | Auflage |', '|--:|---|---|---|---|']
+            out += [f'| {v["V_NUMBER"]} | **{v["V_TITLE"]}** (`{v["V_BRANCH"]}`) | {v["V_STATE_TEXT"]} | {v["V_PROGRESS_TEXT"] or "–"} | {v["V_EDITION_TEXT"] or "–"} |' for v in vols]
+        else:
+            out += ['*Noch kein Band.*']
+        if cands:
+            out += ['', 'Ohne Serie: ' + ', '.join(f'{c["C_TITLE"]} (`{c["C_BRANCH"]}`)' for c in cands)]
+        out += ['', f'**Figuren der Serie ({len(schars)})**', '']
+        out += [f'- {c["SC_NAME"]} ({c["SC_ROLE"]}){": " + c["SC_SHORT"] if c["SC_SHORT"] else ""}' for c in schars] or ['*keine*']
+        out += ['', f'**Begriffe der Serie ({len(sterms)})**', '']
+        out += [f'- {x["ST_TERM"]}: {x["ST_TEXT"]}' for x in sterms] or ['*keine*']
+        out += ['', 'Gelten in allen Bänden; ein Band kann eine eigene Kopie führen. `+ Figur: Name` bzw. `+ Begriff: Erklärung` '
+                'nimmt etwas in die Serie auf.']
+        out += ['', f'**Sammelband:** „{values["OMNIBUS_TITLE"]}“ · {values["OMNIBUS_TEXT"]} · `SB` bearbeiten'
+                if om else '**Sammelband:** noch keiner · `SB` anlegen']
+        items = ([('1' if len(vols) == 1 else f'1–{len(vols)}', 'Band öffnen')] if vols else [])
+        items += ([('H', 'Band hinzufügen')] if cands else []) + ([('R', 'Reihenfolge ändern'), ('ENT', 'Band entfernen')] if vols else [])
+        items += [('NB', 'Neues Buch in dieser Serie'), ('B', 'Serie bearbeiten'), ('FV', '👤 Figuren aus den Texten aller Bände vorschlagen'),
+                  ('Ü', 'Bücherregal')]
+        out += ['', '---', menu(items)]
+        return '\n'.join(out) + '\n'
+    blocks = {'VOLUMES': vols}
+    if cands:
+        blocks['CANDIDATES'] = cands
+    if schars:
+        blocks['SERIES_CHARACTERS'] = schars
+    if sterms:
+        blocks['SERIES_TERMS'] = sterms
+    return fill('serie.html', values, blocks)
+
+
+KEEP_DE = {'dedication': 'Widmung', 'foreword': 'Vorwort', 'prologue': 'Prolog', 'epilogue': 'Epilog',
+           'afterword': 'Nachwort', 'acknowledgments': 'Danksagung'}
+
+
+def scope_text(scope, config=None):
+    if scope in (None, '', 'book', 'buch'):
+        return 'ganzes Buch'
+    if re.fullmatch(r'\d+', scope):
+        return f'Kapitel {scope}'
+    if re.fullmatch(r'\d+\.\d+', scope):
+        return f'Abschnitt {scope}'
+    if scope.startswith('ser-'):
+        return 'alle Bände der Serie'
+    item = find_matter(config or {'structure': {}}, scope) if config else None
+    return item['title'] if item else scope
+
+
+FIELD_DE = {'age': 'Alter', 'appearance': 'Aussehen', 'voice': 'Sprechweise', 'short': 'Kurz', 'traits': 'Eigenschaften'}
+
+
+def character_suggest_view(base, config, args):
+    """Vorschläge „Figuren aus dem Text“ (#53, Vorlage figuren-vorschlag). --draft: JSON (Datei oder Text) des
+    Assistenten mit scope und items [{name, aliases, role, short, age, appearance, traits, voice, relations,
+    sections, evidence [{where, quote}]}]; where = Bereich (book, N, N.M, Teil bzw. ser-…)."""
+    raw = args.draft or '{}'
+    data = json.loads(Path(raw).read_text(encoding='utf-8') if Path(raw).is_file() else raw)
+    scope = data.get('scope') or args.where or 'book'
+    is_series = str(scope).startswith('ser-')
+    if is_series:   # Serienebene: auf dem Standard-Branch
+        import series as series_mod
+        s, _ = series_mod.get(base, scope)
+        known = series_mod.characters(base, s['id'])
+        ser = {'id': s['id'], 'title': s['title']}
+        find = lambda n: next((c for c in known if n.strip().casefold() in (c['id'], c['name'].casefold())), None)
+    else:
+        ser = config.get('_series') or {}
+        known = character_items(config)
+        find = lambda n: find_character(config, n)
+    rows = []
+    for i, it in enumerate(data.get('items') or []):
+        hit = None
+        for n in [it.get('name', '')] + list(it.get('aliases') or []):
+            hit = hit or (find(n) if n else None)
+        state = 'new' if not hit else ('series' if ('_series' in hit or is_series) else 'existing')
+        details = '; '.join(x for x in (f'Alter: {it["age"]}' if it.get('age') else '', it.get('appearance') or '',
+                                        ', '.join(it.get('traits') or []), f'spricht {it["voice"]}' if it.get('voice') else '') if x)
+        ev = it.get('evidence') or []
+        rows.append({'S_IDX': i, 'S_NAME': it.get('name', ''), 'S_ALIASES': ', '.join(it.get('aliases') or []),
+                     'S_ROLE': it.get('role') if it.get('role') in ROLE_DE else 'supporting', 'S_SHORT': it.get('short', ''),
+                     'S_DETAILS': details, 'S_SECTIONS': ', '.join(str(x) for x in it.get('sections') or []),
+                     'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in ev[:3]),
+                     'S_STATE': state, 'S_EXISTING': hit['name'] if hit else '',
+                     'S_STATE_TEXT': {'new': 'neu', 'existing': f'schon da: {hit["name"]}' if hit else '',
+                                      'series': f'Figur der Serie: {hit["name"]}' if hit else ''}[state]})
+    conflicts = '; '.join(f'{c["name"]}, {FIELD_DE.get(c["field"], c["field"])}: ' + ' / '.join(str(v) for v in c['values'])
+                          for c in data.get('conflicts') or [])
+    values = {'RUN_TEXT': f'Hintergrundlauf {data["run"][4:]} vom {de_date(str(data.get("created_at", "")))}' if data.get('run') else '',
+              'RUN_ID': data.get('run', ''), 'CONFLICTS_TEXT': conflicts,
+              'SCOPE': str(scope), 'SCOPE_TEXT': scope_text(str(scope), config), 'SERIES_ID': ser.get('id', ''),
+              'SERIES_TITLE': ser.get('title', ''), 'SERIES_LEVEL': '1' if is_series else '',
+              'SUGGEST_COUNT_TEXT': plural(len(rows), 'Vorschlag', 'Vorschläge')}
+    if args.text:
+        out = [f'### 👤 Figuren aus dem Text · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] +
+               (f' · Serie „{ser["title"]}“' if ser else '') + (f' · {values["RUN_TEXT"]}' if values['RUN_TEXT'] else ''), '']
+        if conflicts:
+            out += [f'> ⚠️ Widersprüche im Text: {conflicts}', '']
+        if rows:
+            out += ['| # | Figur | Rolle | Kurz | Angaben | Abschnitte | Stand |', '|--:|---|---|---|---|---|---|']
+            out += [f'| {r["S_IDX"] + 1} | **{r["S_NAME"]}**{" (" + r["S_ALIASES"] + ")" if r["S_ALIASES"] else ""} | {ROLE_DE[r["S_ROLE"]]} | '
+                    f'{r["S_SHORT"] or "–"} | {r["S_DETAILS"] or "–"} | {r["S_SECTIONS"] or "–"} | {r["S_STATE_TEXT"]} |' for r in rows]
+        else:
+            out += ['*Im Text wurden keine Figuren gefunden.*']
+        out += ['', 'Nur aus dem Text; der Text selbst bleibt unverändert. Bekannte Figuren werden nur ergänzt (leere Felder) und zugeordnet.',
+                '', '---', menu([('Übernehmen: 1, 3', 'diese übernehmen'), ('Alle', 'alle übernehmen'),
+                                 ('2 = Opi', 'Vorschlag 2 mit einer bekannten Figur zusammenlegen'), ('X', 'verwerfen')]
+                                + ([('Serie: 1', 'als Figur der Serie anlegen')] if ser and not is_series else []))]
+        return '\n'.join(out) + '\n'
+    merge = [{'M_ID': c['id'], 'M_NAME': c['name']} for c in known]
+    return fill('figuren-vorschlag.html', values, {'SUGGESTIONS': rows, 'MERGE': merge})
+
+
+def analysis_suggest_view(base, config, args):
+    """Vorschläge eines Hintergrundlaufs (#124) zum Auswählen: --draft = analysis/<art>/run-NNN.json. Figuren gehen an
+    character-suggest, die anderen Arten an ihre eigene Vorlage."""
+    raw = args.draft or args.where or ''
+    path = Path(raw) if Path(raw).is_file() else base / raw
+    data = json.loads(path.read_text(encoding='utf-8'))
+    kind = data.get('kind') or 'characters'
+    if kind == 'characters':
+        args.draft = str(path)
+        return character_suggest_view(base, config, args)
+    run_text = f'Hintergrundlauf {data["run"][4:]} vom {de_date(str(data.get("created_at", "")))}' if data.get('run') else ''
+    return ANALYSIS_VIEWS[kind](base, config, args, data, run_text)
+
+
+def summaries_suggest_view(base, config, args, data, run_text):
+    """Kurzbeschreibung und Ziel je Kapitel und Abschnitt (Vorlage kurzbeschreibung-vorschlag): Vorschlag, bisheriger
+    Text, Fundstellen. Vorangehakt sind nur Felder, die noch leer sind."""
+    rows = []
+    for i, it in enumerate(data.get('items') or []):
+        ch = sec = None
+        for c in config['structure']['chapters']:
+            if it['level'] == 'chapter' and c['id'] == it['target']:
+                ch = c
+            for x in c['sections']:
+                if it['level'] == 'section' and x['id'] == it['target']:
+                    sec = x
+        if it['level'] == 'chapter' and ch:
+            _, cur_short, cur_goal = chapter_readme(base, ch)
+        elif sec:
+            _, cur_goal, cur_short, _ = section_file(base, sec)
+        else:
+            continue   # Kapitel bzw. Abschnitt gibt es nicht mehr
+        clean = lambda v: '' if v.startswith('<') and v.endswith('>') else v   # Platzhalter aus der Vorlage
+        cur_short, cur_goal = clean(cur_short), clean(cur_goal)
+        rows.append({'S_IDX': i, 'S_LEVEL': it['level'], 'S_LABEL': f'Kapitel {it["number"]}' if it['level'] == 'chapter' else it['number'],
+                     'S_TITLE': (ch or sec)['title'], 'S_GOAL': it.get('goal', ''), 'S_SHORT': it.get('short', ''),
+                     'S_GOAL_NOW': cur_goal, 'S_SHORT_NOW': cur_short,
+                     'S_GOAL_ON': '1' if it.get('goal') and not cur_goal else '', 'S_SHORT_ON': '1' if it.get('short') and not cur_short else '',
+                     'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in (it.get('evidence') or [])[:2])})
+    values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'summaries',
+              'SUGGEST_COUNT_TEXT': plural(len(rows), 'Vorschlag', 'Vorschläge'), 'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config)}
+    if args.text:
+        out = [f'### 📝 Kurzbeschreibung und Ziel · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
+        for r in rows:
+            out += [f'**{r["S_IDX"] + 1}. {r["S_LABEL"]} {r["S_TITLE"]}**',
+                    f'- Ziel: {r["S_GOAL"] or "–"}' + (f' *(bisher: {r["S_GOAL_NOW"]})*' if r['S_GOAL_NOW'] else ' *(bisher leer)*'),
+                    f'- Kurz: {r["S_SHORT"] or "–"}' + (f' *(bisher: {r["S_SHORT_NOW"]})*' if r['S_SHORT_NOW'] else ' *(bisher leer)*'),
+                    f'- Fundstellen: {r["S_EVIDENCE"] or "–"}', '']
+        if not rows:
+            out += ['*Keine Vorschläge.*', '']
+        out += ['Nur aus dem Text; der Text selbst bleibt unverändert. Ohne Angabe werden nur leere Felder gefüllt.', '', '---',
+                menu([('Übernehmen: 1, 3', 'diese übernehmen (nur leere Felder)'), ('Alle', 'alle leeren Felder füllen'),
+                      ('Ersetzen: 2', 'auch einen vorhandenen Text ersetzen'), ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    return fill('kurzbeschreibung-vorschlag.html', values, {'SUGGESTIONS': rows})
+
+
+def style_suggest_view(base, config, args, data, run_text):
+    """Stilprofil (Vorlage stilprofil-vorschlag): je Angabe Vorschlag, bisheriger Wert aus `style`, abweichende
+    Kapitel, Fundstellen; dazu die Zahlen ohne KI. Vorangehakt: Angaben, die bisher fehlen."""
+    import analyze
+    now = config.get('style') or {}
+    rows = []
+    for i, it in enumerate(data.get('items') or []):
+        cur = now.get(it['field'])
+        cur = ', '.join(cur) if isinstance(cur, list) else str(cur or '')
+        rows.append({'S_IDX': i, 'S_FIELD': it['field'], 'S_LABEL': analyze.STYLE_DE.get(it['field'], it['field']),
+                     'S_VALUE': it['value'], 'S_NOW': cur, 'S_ON': '' if cur else '1',
+                     'S_VARIANTS': '; '.join(f'{v["value"]} in {", ".join(v["where"])}' for v in it.get('variants') or []),
+                     'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in (it.get('evidence') or [])[:2])})
+    st = data.get('stats') or {}
+    parts = []
+    if st.get('sentence_length_avg') is not None:
+        parts.append(f'{str(st["sentence_length_avg"]).replace(".", ",")} Wörter je Satz')
+    if st.get('dialogue_share') is not None:
+        parts.append(f'{round(st["dialogue_share"] * 100)} % wörtliche Rede')
+    if st.get('words'):
+        parts.append(f'{st["words"]} Wörter')
+    values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'style',
+              'STATS_TEXT': ' · '.join(parts), 'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config),
+              'SUGGEST_COUNT_TEXT': plural(len(rows), 'Angabe', 'Angaben')}
+    if args.text:
+        out = [f'### 🪶 Stilprofil · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
+        if rows:
+            out += ['| # | Angabe | Vorschlag | bisher | abweichend |', '|--:|---|---|---|---|']
+            out += [f'| {r["S_IDX"] + 1} | {r["S_LABEL"]} | {r["S_VALUE"]} | {r["S_NOW"] or "–"} | {r["S_VARIANTS"] or "–"} |' for r in rows]
+        else:
+            out += ['*Keine Angaben mit Fundstelle.*']
+        out += ['', f'Gezählt ohne KI: {values["STATS_TEXT"] or "–"}', '',
+                'Das Stilprofil steht in `ghostwriter.yml` (`style`) und ist Vorgabe fürs Ghostwriting. Der Text bleibt unverändert.',
+                '', '---', menu([('Übernehmen: 1, 2', 'diese Angaben übernehmen'), ('Alle', 'alle übernehmen'),
+                                  ('3 = Präteritum', 'Angabe 3 mit anderem Wert'), ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    return fill('stilprofil-vorschlag.html', values, {'SUGGESTIONS': rows})
+
+
+def places_suggest_view(base, config, args, data, run_text):
+    """Schauplätze (Vorlage orte-vorschlag): Name, Art, ein Satz, Abschnitte, Fundstellen, Stand gegenüber
+    story/places.yml; „Zusammenlegen mit“ einem vorhandenen Ort."""
+    import analyze
+    p = analyze.story_file(base, 'places')
+    known = ((yaml.safe_load(p.read_text(encoding='utf-8')) or {}).get('places') or []) if p.is_file() else []
+    rows = []
+    for i, it in enumerate(data.get('items') or []):
+        names = {analyze.norm(x) for x in [it['name']] + list(it.get('aliases') or [])}
+        hit = next((k for k in known if names & {analyze.norm(x) for x in [k['name']] + list(k.get('aliases') or [])}), None)
+        rows.append({'S_IDX': i, 'S_NAME': it['name'], 'S_ALIASES': ', '.join(it.get('aliases') or []), 'S_KIND': it.get('kind', ''),
+                     'S_SHORT': it.get('short', ''), 'S_SECTIONS': ', '.join(it.get('sections') or []),
+                     'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in (it.get('evidence') or [])[:2]),
+                     'S_STATE': 'existing' if hit else 'new', 'S_STATE_TEXT': f'schon da: {hit["name"]}' if hit else 'neu',
+                     'S_EXISTING': hit['id'] if hit else ''})
+    values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'places',
+              'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config), 'SUGGEST_COUNT_TEXT': plural(len(rows), 'Ort', 'Orte')}
+    if args.text:
+        out = [f'### 📍 Schauplätze aus dem Text · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
+        if rows:
+            out += ['| # | Ort | Art | Beschreibung | Abschnitte | Stand |', '|--:|---|---|---|---|---|']
+            out += [f'| {r["S_IDX"] + 1} | **{r["S_NAME"]}**{" (" + r["S_ALIASES"] + ")" if r["S_ALIASES"] else ""} | {r["S_KIND"] or "–"} | '
+                    f'{r["S_SHORT"] or "–"} | {r["S_SECTIONS"] or "–"} | {r["S_STATE_TEXT"]} |' for r in rows]
+        else:
+            out += ['*Keine Schauplätze mit Fundstelle.*']
+        out += ['', 'Nur aus dem Text. Übernommen wird nach `story/places.yml`; bekannte Orte werden nur ergänzt. Der Text bleibt unverändert.',
+                '', '---', menu([('Übernehmen: 1, 3', 'diese übernehmen'), ('Alle', 'alle übernehmen'),
+                                  ('2 = Seehaus', 'Vorschlag 2 mit einem bekannten Ort zusammenlegen'), ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    merge = [{'M_ID': k['id'], 'M_NAME': k['name']} for k in known]
+    return fill('orte-vorschlag.html', values, {'SUGGESTIONS': rows, 'MERGE': merge})
+
+
+def timeline_suggest_view(base, config, args, data, run_text):
+    """Zeitleiste (Vorlage zeitleiste-vorschlag): Ereignisse in Buchreihenfolge mit Zeitangabe und Fundstelle, dazu
+    die Auffälligkeiten (Zeitsprung, Widerspruch, unklar) mit Verweis auf die Ereignisse."""
+    import analyze
+    issues = data.get('issues') or []
+    flagged = {n for x in issues for n in x['events']}
+    events = [{'E_IDX': i, 'E_N': e['n'], 'E_WHERE': e['where'], 'E_WHEN': e.get('when', ''), 'E_WHAT': e['what'],
+               'E_FLAG': '1' if e['n'] in flagged else '',
+               'E_EVIDENCE': ' · '.join(f'„{x.get("quote", "")}“' for x in (e.get('evidence') or [])[:1])}
+              for i, e in enumerate(data.get('items') or [])]
+    rows = [{'I_IDX': i, 'I_KIND': x['kind'], 'I_KIND_TEXT': analyze.TIMELINE_KIND_DE.get(x['kind'], x['kind']),
+             'I_EVENTS': ', '.join(map(str, x['events'])), 'I_TEXT': x['text']} for i, x in enumerate(issues)]
+    values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'timeline',
+              'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config),
+              'SUGGEST_COUNT_TEXT': plural(len(events), 'Ereignis', 'Ereignisse') + ' · ' + plural(len(rows), 'Auffälligkeit', 'Auffälligkeiten')}
+    if args.text:
+        out = [f'### 🕰️ Zeitleiste · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
+        if rows:
+            out += [f'> ⚠️ **{r["I_KIND_TEXT"]}** (Ereignisse {r["I_EVENTS"]}): {r["I_TEXT"]}' for r in rows] + ['']
+        if events:
+            out += ['| # | Abschnitt | Wann | Was |', '|--:|---|---|---|']
+            out += [f'| {e["E_N"]}{" ⚠️" if e["E_FLAG"] else ""} | {e["E_WHERE"]} | {e["E_WHEN"] or "–"} | {e["E_WHAT"]} |' for e in events]
+        else:
+            out += ['*Keine Ereignisse mit Fundstelle.*']
+        out += ['', 'Nur aus dem Text; Auffälligkeiten sind Hinweise, entschieden wird nichts. Übernommen wird nach '
+                '`story/timeline.yml`; der Text bleibt unverändert.', '', '---',
+                menu([('Alle', 'alle Ereignisse und Hinweise übernehmen'), ('Ohne: 4, 7', 'alle außer diesen Ereignissen'),
+                      ('Hinweise ohne: 2', 'diesen Hinweis weglassen'), ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    blocks = {'EVENTS': events}
+    if rows:
+        blocks['ISSUES'] = rows
+    return fill('zeitleiste-vorschlag.html', values, blocks)
+
+
+def continuity_suggest_view(base, config, args, data, run_text):
+    """Mögliche Widersprüche (Vorlage widerspruch-vorschlag): je Widerspruch ein Satz und die beteiligten Fundstellen;
+    gewählt wird, hinter welche Fundstellen ein Marker [KONTINUITÄT PRÜFEN: …] kommt (vorgewählt: die letzte)."""
+    rows, facts = [], []
+    for i, it in enumerate(data.get('items') or []):
+        rows.append({'S_IDX': i, 'S_TEXT': it['text'], 'S_COUNT': len(it['facts'])})
+        for k, f in enumerate(it['facts']):
+            facts.append({'F_IDX': i, 'F_K': k, 'F_WHERE': f['where'], 'F_ABOUT': f.get('about', ''), 'F_FACT': f['fact'],
+                          'F_QUOTE': f['quote'], 'F_ON': '1' if k == len(it['facts']) - 1 else ''})
+    values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'continuity',
+              'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config),
+              'SUGGEST_COUNT_TEXT': plural(len(rows), 'möglicher Widerspruch', 'mögliche Widersprüche'),
+              'FACTS_TEXT': f'{data.get("facts", 0)} Tatsachen mit Fundstelle verglichen'}
+    if args.text:
+        out = [f'### 🔗 Mögliche Widersprüche · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + f' · {values["FACTS_TEXT"]}'
+               + (f' · {run_text}' if run_text else ''), '']
+        for r in rows:
+            out += [f'**{r["S_IDX"] + 1}. {r["S_TEXT"]}**']
+            out += [f'- {chr(97 + f["F_K"])}) {f["F_WHERE"]}: „{f["F_QUOTE"]}“' for f in facts if f['F_IDX'] == r['S_IDX']] + ['']
+        if not rows:
+            out += ['*Keine Widersprüche gefunden.*', '']
+        out += ['Übernehmen setzt den Marker `[KONTINUITÄT PRÜFEN: …]` hinter die gewählte Fundstelle (ohne Angabe die letzte); '
+                'sonst bleibt der Text unverändert. Offene Marker verhindern eine Auflage, bis sie geklärt sind.', '', '---',
+                menu([('Übernehmen: 1, 3', 'Marker an der letzten Fundstelle'), ('2: a, b', 'Marker an diesen Fundstellen'),
+                      ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    return fill('widerspruch-vorschlag.html', values, {'SUGGESTIONS': rows, 'FACTS': facts})
+
+
+def language_suggest_view(base, config, args, data, run_text):
+    """Sprachliche Hinweise (Vorlage sprache-vorschlag): je Abschnitt die Auffälligkeiten mit Fundstelle; übernommen
+    wird nur in die Hinweisliste, der Text bleibt unverändert."""
+    import analyze
+    rows = [{'S_IDX': i, 'S_WHERE': h['where'], 'S_KIND': h['kind'], 'S_KIND_TEXT': analyze.LANGUAGE_DE.get(h['kind'], h['kind']),
+             'S_TEXT': h['text'], 'S_QUOTE': h['quote']} for i, h in enumerate(data.get('items') or [])]
+    values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'language',
+              'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config),
+              'SUGGEST_COUNT_TEXT': plural(len(rows), 'Hinweis', 'Hinweise'),
+              'RULES_TEXT': f'Sätze über {analyze.LONG_SENTENCE} Wörter · ein Wort {analyze.REPEAT_MIN}× in {analyze.REPEAT_WINDOW} Wörtern · '
+                            f'3 gleiche Satzanfänge hintereinander · mehr als 1 % Füllwörter'}
+    if args.text:
+        out = [f'### ✍️ Sprachliche Hinweise · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''),
+               f'Gezählt ohne KI: {values["RULES_TEXT"]}', '']
+        if rows:
+            out += ['| # | Abschnitt | Art | Hinweis | Fundstelle |', '|--:|---|---|---|---|']
+            out += [f'| {r["S_IDX"] + 1} | {r["S_WHERE"]} | {r["S_KIND_TEXT"]} | {r["S_TEXT"]} | „{r["S_QUOTE"]}“ |' for r in rows]
+        else:
+            out += ['*Keine Auffälligkeiten.*']
+        out += ['', 'Übernommen wird nur in die Hinweisliste der Abschnitte (`story/hints.yml`); der Text bleibt unverändert.',
+                '', '---', menu([('Alle', 'alle Hinweise übernehmen'), ('Ohne: 2, 5', 'alle außer diesen'), ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    return fill('sprache-vorschlag.html', values, {'SUGGESTIONS': rows})
+
+
+ANALYSIS_VIEWS = {'summaries': summaries_suggest_view, 'style': style_suggest_view, 'places': places_suggest_view,
+                  'timeline': timeline_suggest_view, 'continuity': continuity_suggest_view, 'language': language_suggest_view}
+
+
+def import_preview_view(base, config, args):
+    """Vorschau „Manuskript importieren“ (#124, Vorlage import-vorschau): Gliederung aus import/proposal.json."""
+    import import_book
+    p = import_book.load_proposal(base)
+    st = p['stats']
+    info = import_book.status(base) or {}
+    rows = []
+    for ci, c in enumerate(p['chapters'], start=1):
+        rows.append({'R_TYPE': 'chapter', 'R_CHAPTER': ci, 'R_SECTION': '', 'R_LABEL': f'Kapitel {ci}', 'R_TITLE': c['title'],
+                     'R_WORDS': sum(s['words'] for s in c['sections']), 'R_SCENES': '', 'R_LONG': '',
+                     'R_COUNT': plural(len(c['sections']), 'Abschnitt', 'Abschnitte')})
+        for si, s in enumerate(c['sections'], start=1):
+            rows.append({'R_TYPE': 'section', 'R_CHAPTER': ci, 'R_SECTION': si, 'R_LABEL': f'{ci}.{si}', 'R_TITLE': s['title'],
+                         'R_WORDS': s['words'], 'R_SCENES': s['scenes'] if s['scenes'] > 1 else '',
+                         'R_LONG': '1' if s['words'] > import_book.LONG_WORDS else '', 'R_COUNT': ''})
+    parts = [{'P_IDX': k, 'P_KIND': x['kind'], 'P_AREA': x.get('area') or MATTER[x['kind']][0], 'P_TITLE': x['title'],
+              'P_WORDS': x['words'], 'P_LABEL': MATTER[x['kind']][1]} for k, x in enumerate(p['parts'], start=1)]
+    stats_text = (f'{st["chapters"]} Kapitel, {st["sections"]} Abschnitte, {len(parts)} Teile von Vor- und Nachspann · '
+                  f'{st["words_proposal"]} von {st["words_original"]} Wörtern übernommen')
+    values = {'IMPORT_TITLE': p.get('title') or '', 'IMPORT_AUTHOR': p.get('author') or '', 'IMPORT_FORMAT': (p.get('format') or '').upper(),
+              'STATS_TEXT': stats_text, 'LOSSLESS': '1' if st.get('lossless') else '', 'KEEP_TEXT': info.get('keep_text', ''),
+              'KINDS_TEXT': ', '.join(f'{k}={v[1]}' for k, v in MATTER.items())}
+    outline = import_book.open_outline(base)
+    if outline:   # KI-Vorschlag für die Gliederung liegt bereit
+        values['OUTLINE_TEXT'] = (f'KI-Vorschlag für die Gliederung liegt bereit: {len(outline["chapters"])} Kapitel, '
+                                  f'{sum(len(c["sections"]) for c in outline["chapters"])} Abschnitte')
+    elif p.get('structure') == 'none' and len(p['chapters']) == 1:
+        values['NO_STRUCTURE'] = '1'
+    warns = [{'W_TEXT': w} for w in p.get('warnings') or []]
+    if args.text:
+        out = [f'### 📥 Manuskript importieren · {values["IMPORT_TITLE"] or "ohne Titel"}',
+               f'{values["IMPORT_FORMAT"]} · Autor: {values["IMPORT_AUTHOR"] or "–"} · {stats_text}'
+               + ('' if values['LOSSLESS'] else ' ⚠️ nicht vollständig'), '']
+        out += [f'> ⚠️ {w["W_TEXT"]}' for w in warns] + ([''] if warns else [])
+        out += ['| | Teil | Wörter | Hinweis |', '|---|---|--:|---|']
+        out += [f'| {x["P_LABEL"]} ({"Vorspann" if x["P_AREA"] == "front" else "Nachspann"}) | {x["P_TITLE"]} | {x["P_WORDS"]} | `T{x["P_IDX"]}` |'
+                for x in parts if x['P_AREA'] == 'front']
+        for r in rows:
+            hint = ('⚠️ sehr lang' if r['R_LONG'] else '') + (f' · {r["R_SCENES"]} Szenen' if r['R_SCENES'] else '')
+            out.append(f'| **{r["R_LABEL"]}** | **{r["R_TITLE"]}** · {r["R_COUNT"]} | {r["R_WORDS"]} | |' if r['R_TYPE'] == 'chapter'
+                       else f'| {r["R_LABEL"]} | {r["R_TITLE"]} | {r["R_WORDS"]} | {hint.strip(" ·")} |')
+        out += [f'| {x["P_LABEL"]} (Nachspann) | {x["P_TITLE"]} | {x["P_WORDS"]} | `T{x["P_IDX"]}` |' for x in parts if x['P_AREA'] != 'front']
+        if values.get('OUTLINE_TEXT'):
+            out += ['', f'> 🧭 **{values["OUTLINE_TEXT"]}** · `GV` ansehen']
+        elif values.get('NO_STRUCTURE'):
+            out += ['', '> 🧭 Keine Gliederung erkannt · `GK` Gliederung mit KI vorschlagen (Hintergrundlauf, Kosten werden vorher gezeigt)']
+        out += ['', 'Änderungen als Text, z. B. `Kapitel 2: Neuer Titel`, `2.1 teilen` (an Szenen), `2.1 + 2.2` (zusammenlegen), '
+                '`Kapitel 3 + 4`, `Neues Kapitel ab 2.3`, `Kapitel 1 ist Prolog`, `T1 ist ein Kapitel`.', '',
+                '---', menu([('A', 'Buch so anlegen'), ('AS', 'anlegen und Schreibfreigabe für alle Abschnitte erteilen'),
+                             ('X', 'abbrechen')])]
+        return '\n'.join(out) + '\n'
+    blocks = {'ROWS': rows}
+    if parts:
+        blocks['PARTS'] = parts
+    if warns:
+        blocks['WARNINGS'] = warns
+    return fill('import-vorschau.html', values, blocks)
+
+
+def import_outline_view(base, config, args):
+    """KI-Vorschlag für die Gliederung beim Import (#124, Vorlage gliederung-vorschlag) aus import/outline.json:
+    Kapitel und Abschnitte mit Titel, Wortzahl, Anfang (wörtlich) und Begründung."""
+    import import_book
+    o = import_book.open_outline(base)
+    if not o:
+        raise SystemExit('Es gibt keinen offenen KI-Vorschlag für die Gliederung')
+    rows = []
+    for ci, c in enumerate(o['chapters'], start=1):
+        rows.append({'O_TYPE': 'chapter', 'O_CHAPTER': ci, 'O_SECTION': '', 'O_LABEL': f'Kapitel {ci}', 'O_TITLE': c['title'],
+                     'O_START': c['start'], 'O_WORDS': c['words'], 'O_QUOTE': c['quote'], 'O_REASON': c.get('reason', ''),
+                     'O_COUNT': plural(len(c['sections']), 'Abschnitt', 'Abschnitte')})
+        for si, sec in enumerate(c['sections'], start=1):
+            rows.append({'O_TYPE': 'section', 'O_CHAPTER': ci, 'O_SECTION': si, 'O_LABEL': f'{ci}.{si}', 'O_TITLE': sec['title'],
+                         'O_START': sec['start'], 'O_WORDS': sec['words'], 'O_QUOTE': sec['quote'],
+                         'O_REASON': sec.get('reason', '') if si > 1 else '', 'O_COUNT': ''})
+    n_secs = sum(len(c['sections']) for c in o['chapters'])
+    values = {'RUN_ID': o['run'], 'RUN_TEXT': f'Vorschlag {o["run"][8:]} vom {de_date(str(o.get("created_at", "")))} ({o.get("model", "")})',
+              'STATS_TEXT': f'{len(o["chapters"])} Kapitel, {n_secs} Abschnitte aus {o["paragraphs"]} Absätzen · '
+                            f'{o["dropped"]} Anfänge ohne wörtliche Fundstelle verworfen',
+              'PARTIAL_TEXT': '' if o.get('full_text', True) else 'Sehr langes Manuskript: die KI hat je Absatz nur den Anfang gelesen.'}
+    if args.text:
+        out = ['### 🧭 Gliederung mit KI (Vorschlag)', f'{values["STATS_TEXT"]} · {values["RUN_TEXT"]}', '']
+        if values['PARTIAL_TEXT']:
+            out += [f'> ⚠️ {values["PARTIAL_TEXT"]}', '']
+        out += ['| | Titel | Wörter | beginnt mit | Begründung |', '|---|---|--:|---|---|']
+        out += [f'| **{r["O_LABEL"]}** | **{r["O_TITLE"]}** · {r["O_COUNT"]} | {r["O_WORDS"]} | „{r["O_QUOTE"]}“ | {r["O_REASON"]} |'
+                if r['O_TYPE'] == 'chapter' else f'| {r["O_LABEL"]} | {r["O_TITLE"]} | {r["O_WORDS"]} | „{r["O_QUOTE"]}“ | {r["O_REASON"]} |'
+                for r in rows]
+        out += ['', 'Getrennt wird nur an Absatzgrenzen; kein Wort geht verloren. Übernommen wird erst nach Bestätigung, '
+                'danach lässt sich die Gliederung in der Vorschau weiter ändern.', '', '---',
+                menu([('Übernehmen', 'Gliederung so übernehmen'), ('2.3 – Kapitel', 'ab 2.3 ein neues Kapitel'),
+                      ('Kapitel 3 – ohne', 'Kapitel 3 mit dem vorigen zusammenlegen'), ('2.1: Titel', 'Titel ändern'),
+                      ('X', 'verwerfen')])]
+        return '\n'.join(out) + '\n'
+    return fill('gliederung-vorschlag.html', values, {'ROWS': rows})
+
+
+def omnibus_edit_view(base, config, args):
+    """Formular „Sammelband“ (#116, Vorlage sammelband): Titel, Bände mit Auflage, Teile der Bände, Vor-/Nachwort."""
+    import series as series_mod
+    data = library_data(base, args)
+    s = find_series(base, data, args.where)
+    om = series_mod.omnibus(base, s['id']) or {}
+    picked = {v['branch']: v.get('edition') for v in om.get('volumes') or []}
+    by_branch = {b['branch']: b for b in data.get('books') or []}
+    published = {v['branch']: v for v in series_mod.published_volumes(base, s)}   # Auflagen aus den Tags
+    vols = []
+    for n, br in enumerate(s['volumes'], start=1):
+        b = by_branch.get(br) or {}
+        last = (published.get(br) or {}).get('edition') or (b.get('last_edition') or {}).get('number') or 0
+        title = (published.get(br) or {}).get('title') or b.get('title') or br
+        vols.append({'OV_NUMBER': n, 'OV_BRANCH': br, 'OV_TITLE': title, 'OV_LAST': last,
+                     'OV_ON': '1' if br in picked else '', 'OV_EDITION': picked.get(br) or '',
+                     'OV_TEXT': f'neueste Auflage {last}' if last else 'noch keine Auflage'})
+    keep = om.get('keep_matter', ['prologue', 'epilogue'])
+    pub = om.get('publication') or {}
+    values = {'SERIES_ID': s['id'], 'SERIES_TITLE': s['title'], 'OMNIBUS_TITLE': om.get('title') or f'{s["title"]} – Sammelband',
+              'OMNIBUS_SUBTITLE': om.get('subtitle', ''), 'OMNIBUS_STATE': om.get('status', '') if om else '',
+              'OMNIBUS_FOREWORD': om.get('foreword', ''), 'OMNIBUS_AFTERWORD': om.get('afterword', ''),
+              'OMNIBUS_ISBN_PRINT': pub.get('isbn_print', ''), 'OMNIBUS_ISBN_EBOOK': pub.get('isbn_ebook', ''),
+              'OMNIBUS_EDITION': str(int(om.get('current_edition') or 0)),
+              'OMNIBUS_TAG': series_mod.omnibus_tag(s, int(om.get('current_edition') or 0) + 1)}
+    keeps = [{'K_KIND': k, 'K_LABEL': v, 'K_ON': '1' if k in keep else ''} for k, v in KEEP_DE.items()]
+    if args.text:
+        out = [f'### 📚 Sammelband „{values["OMNIBUS_TITLE"]}“', f'Serie „{s["title"]}“ · ' +
+               ({'approved': 'freigegeben', 'draft': 'Entwurf'}.get(values['OMNIBUS_STATE'], 'noch nicht angelegt')), '']
+        out += ['| Band | Buch | im Sammelband | Auflage |', '|--:|---|---|---|']
+        out += [f'| {v["OV_NUMBER"]} | {v["OV_TITLE"]} | {"✅" if v["OV_ON"] else "—"} | {v["OV_EDITION"] or v["OV_TEXT"]} |' for v in vols]
+        out += ['', 'Teile der Bände, die bleiben: ' + (', '.join(KEEP_DE[k] for k in keep) or 'keine'), '']
+        out += field_table([('Titel', values['OMNIBUS_TITLE']), ('Untertitel', values['OMNIBUS_SUBTITLE']),
+                            ('Vorwort zum Sammelband', values['OMNIBUS_FOREWORD']), ('Nachwort', values['OMNIBUS_AFTERWORD']),
+                            ('ISBN Druck', values['OMNIBUS_ISBN_PRINT']), ('ISBN E-Book', values['OMNIBUS_ISBN_EBOOK'])])
+        items = [('Bände: 1, 2', 'Auswahl setzen'), ('FA', 'Freigabe zurücknehmen' if values['OMNIBUS_STATE'] == 'approved' else 'Sammelband freigeben')]
+        if values['OMNIBUS_STATE'] == 'approved':
+            items.append(('V', f'Auflage {int(values["OMNIBUS_EDITION"]) + 1} veröffentlichen'))
+        out += ['', FORM_HINT, '', menu(items)]
+        return '\n'.join(out) + '\n'
+    return fill('sammelband.html', values, {'OVOLUMES': vols, 'KEEP': keeps})
+
+
+def series_edit_view(base, config, args):
+    """Formular „Neue Serie“ bzw. „Serie bearbeiten“ (#116, Vorlage serie-bearbeiten); --draft: gesendete Werte und error."""
+    data = library_data(base, args)
+    s = find_series(base, data, args.where) if args.where else None
+    draft = json.loads(args.draft) if args.draft else {}
+    v = lambda k, d='': draft.get(k, (s or {}).get(k, d))
+    values = {'SERIES_ID': (s or {}).get('id', ''), 'SERIES_TITLE': v('title'), 'SERIES_SUBTITLE': v('subtitle'),
+              'SERIES_KIND': v('kind', 'continuous'), 'SERIES_DESCRIPTION': v('description'), 'ERROR_TEXT': draft.get('error', ''),
+              'SERIES_ISSN': v('issn'), 'SERIES_ALSO': 'false' if v('also_in_series', True) is False else 'true'}
+    taken = [{'TAKEN_TITLE': x['title']} for x in library_series(base, data) if not s or x['id'] != s['id']]
+    if args.text:
+        out = [f'### 📚 {"Serie bearbeiten" if s else "Neue Serie"}', '']
+        if values['ERROR_TEXT']:
+            out += [f'> ✗ {values["ERROR_TEXT"]}', '']
+        out += field_table([('Titel der Reihe (Pflicht)', values['SERIES_TITLE']), ('Untertitel', values['SERIES_SUBTITLE']),
+                            ('Art', SERIES_KIND_DE.get(values['SERIES_KIND'], '')), ('Beschreibung', values['SERIES_DESCRIPTION']),
+                            ('ISSN der Reihe', values['SERIES_ISSN']),
+                            ('Seite „Ebenfalls in dieser Reihe“', 'nein' if values['SERIES_ALSO'] == 'false' else 'ja')])
+        out += ['', 'Art: `durchgehende Handlung` oder `eigenständige Bände`.', '', FORM_HINT]
+        return '\n'.join(out) + '\n'
+    return fill('serie-bearbeiten.html', values, {'TAKEN': taken})
+
+
+def book_create_view(base, config, args):
+    """Formular „Neues Buch“ (#38). Vorhandene Bücher aus library.json bzw. live; --draft: gesendete Werte und error."""
+    import library
+    data = library_data(base, args)
+    books = data.get('books') or []
+    draft = json.loads(args.draft) if args.draft else {}
+    latest = sorted((b for b in books if b.get('author')), key=lambda b: b.get('updated_at') or '')
+    ser, series_text = None, ''
+    if draft.get('series_id'):   # Neues Buch in einer Serie (#116): nächster Band, Autor vom letzten Band
+        ser = find_series(base, data, draft['series_id'])
+        series_text = f'Band {len(ser["volumes"]) + 1} der Serie „{ser["title"]}“'
+        in_ser = [b for b in latest if b['branch'] in ser['volumes']]
+        latest = in_ser or latest
+    prof_path = Path(base, 'assistant.yml')   # Assistenten-Profil (#136): Autor der Bibliothek, außer in einer Serie
+    prof_author = ((yaml.safe_load(prof_path.read_text(encoding='utf-8')) or {}).get('author') or '') if prof_path.is_file() else ''
+    author = draft.get('author', (latest[-1]['author'] if latest and (ser or not prof_author) else prof_author)
+                       if latest or prof_author else '')
+    prefix = library.settings(library.load_manifest())['book_prefix']
+    if args.text:
+        out = ['### 📗 Neues Buch', '', 'Das Buch bekommt einen eigenen Bereich in dieser Bibliothek; danach folgt der Einstiegsdialog.', '']
+        if series_text:
+            out += [f'📚 {series_text}', '']
+        if draft.get('error'):
+            out += [f'> ✗ {draft["error"]}', '']
+        out += field_table([('Titel (Arbeitstitel, Pflicht)', draft.get('working_title', '')),
+                            ('Kurztitel (optional)', draft.get('title_short', '')), ('Autor (optional)', author)])
+        if books:
+            out += ['', 'Schon vergeben: ' + ', '.join(f'`{b["slug"]}` ({b["branch"]})' for b in books if b.get('slug'))]
+        out += ['', f'Der Bereich heißt `{prefix}<kurztitel>`. Antworte mit `Titel: …`, optional `Kurztitel: …` und `Autor: …`. `X` bricht ab.']
+        return '\n'.join(out) + '\n'
+    return fill('buch-anlegen.html', {'BRANCH_PREFIX': prefix, 'WORKING_TITLE': draft.get('working_title', ''),
+                                      'TITLE_SHORT': draft.get('title_short', ''), 'AUTHOR': author,
+                                      'ERROR_TEXT': draft.get('error', ''),
+                                      'SERIES_ID': ser['id'] if ser else '', 'SERIES_TEXT': series_text},
+                {'TAKEN': [{'TAKEN_SLUG': b.get('slug') or '', 'TAKEN_BRANCH': b['branch']} for b in books]})
+
+
+
+# ---------- Seite „Daten“ (#71, Teil 1) ----------
+
+PROOF_DAYS = 14   # Aufbewahrung der Probedruck-Artefakte (proof.yml)
+RUN_NAMES = {'validate': 'Projektdateien prüfen', 'proof': 'Probedruck'}
+
+
+def de_datetime_plus(iso, days=0):
+    import datetime
+    try:
+        d = datetime.datetime.fromisoformat((iso or '').replace('Z', '+00:00')) + datetime.timedelta(days=days)
+    except ValueError:
+        return ''
+    return d.strftime('%d.%m.%Y')
+
+
+def github_data(args):
+    """Rohdaten der GitHub-API aus --github (JSON): repo, branches, pulls, runs; fehlt die Datei, None."""
+    if not getattr(args, 'github', None):
+        return None
+    return json.loads(Path(args.github).read_text(encoding='utf-8'))
+
+
+def data_view(base, config, args):
+    lib = library_data(base, args)
+    gh = github_data(args)
+    prog = lib.get('program') or {}
+    upd = load_upstream(args)
+    known = '' if gh is None else '1'
+    runs = sorted((gh or {}).get('runs') or [], key=lambda r: r.get('created_at') or '', reverse=True)
+    pulls = (gh or {}).get('pulls') or []
+
+    def last_run(name, branch=None):
+        for r in runs:
+            if r.get('name') == name and (branch is None or r.get('head_branch') == branch):
+                return r
+        return None
+
+    unknown = 'unbekannt (ohne GitHub-Abfrage)'
+    if upd:
+        prog_update = update_text(upd)
+    elif getattr(args, 'upstream', None):
+        prog_update = 'aktuell'
+    else:
+        prog_update = 'nicht abgefragt'
+    full = ((gh or {}).get('repo') or {}).get('full_name') or ''
+    if full and not args.repo_known:   # Rohdaten der GitHub-API nennen das Repository (#134)
+        args.repo, args.repo_known = full, True
+    values = {
+        'LIBRARY_NAME': repo_label(args),
+        'PROGRAM_VERSION_TEXT': f'GhostWriter {prog.get("version") or "?"} · Hauptrepository {prog.get("upstream") or "?"}',
+        'PROGRAM_UPDATE_TEXT': prog_update, 'PROGRAM_BEHIND': upd['behind'] if upd else '',
+        'PROGRAM_LAST_UPDATE_TEXT': f'letzter Update-Lauf am {de_datetime_plus(prog["last_update"])}' if prog.get('last_update') else 'noch kein Update-Lauf',
+        'PROGRAM_SKIPPED_TEXT': ('Workflow-Dateien ausgelassen (Secret GHOSTWRITER_UPDATE_TOKEN fehlt): ' + ', '.join(prog['skipped_workflows']))
+                                if prog.get('skipped_workflows') else '',
+        'UI_TEXT': f'ghostwriter-ui {prog.get("ui_version") or "?"} · Commit {(prog.get("ui_commit") or "")[:7]}',
+        'GITHUB_KNOWN': known,
+        'CLEANUP_URL': f'https://github.com/{args.repo}/actions/workflows/cleanup.yml',
+        'TASKS_URL': f'https://github.com/{args.repo}/issues?q=is%3Aissue+is%3Aopen+L%C3%B6schaufgaben',
+    }
+    repo = (gh or {}).get('repo') or {}
+    if gh is None:
+        values['REPO_TEXT'] = unknown
+    else:
+        size = repo.get('size')
+        size_text = (f'{size / 1024:.1f} MB'.replace('.', ',') if size and size >= 1024 else f'{size} KB') if size is not None else 'Größe ?'
+        nb = len((gh or {}).get('branches') or [])
+        values['REPO_TEXT'] = (f'{"privat" if repo.get("private") else "öffentlich"} · {size_text} · '
+                               f'{plural(nb, "Branch", "Branches")}')
+    books = []
+    for b in lib.get('books') or []:
+        pr = next((p for p in pulls if (p.get('head') or {}).get('ref') == b.get('work_branch')), None)
+        pending = b.get('pending') or 0
+        pend_text = (f'{plural(pending, "Änderung", "Änderungen")} offen' + (f' · Pull Request #{pr["number"]}' if pr else '')) if pending else 'keine offenen Änderungen'
+        ed = b.get('last_edition')
+        v = last_run(RUN_NAMES['validate'], b['branch'])
+        pr_run = last_run(RUN_NAMES['proof'], b['branch'])
+        if gh is None:
+            check, check_text, proof_text = '', 'Prüfung: unbekannt', 'Probedruck: unbekannt'
+        else:
+            check = {'success': 'ok', 'failure': 'fail'}.get((v or {}).get('conclusion'), '')
+            check_text = ('Prüfung beim letzten Push: ' + {'ok': 'bestanden', 'fail': 'fehlgeschlagen'}.get(check, (v or {}).get('status') or 'noch nicht gelaufen')) if v else 'Prüfung: noch kein Lauf'
+            if pr_run:
+                proof_text = (f'Probedruck vom {de_datetime_plus(pr_run.get("created_at"))}, Download bis '
+                              f'{de_datetime_plus(pr_run.get("created_at"), PROOF_DAYS)}')
+            else:
+                proof_text = 'noch kein Probedruck'
+        books.append({
+            'B_TITLE': b.get('title') or b.get('title_short') or b['branch'], 'B_BRANCH': b['branch'],
+            'B_COMMIT_TEXT': f'{de_date(b.get("updated_at"))} · {b.get("last_commit") or ""}'.strip(' ·'),
+            'B_PENDING_TEXT': pend_text, 'B_PENDING': '1' if pending else '',
+            'B_AUTOMERGE_TEXT': 'Änderungen sofort übernehmen: ' + ('an' if b.get('auto_merge') else 'aus'),
+            'B_EDITION_TEXT': f'Auflage {ed["number"]} vom {de_date(ed["date"])} ({ed["tag"]})' if ed else 'noch keine Auflage',
+            'B_PROOF_TEXT': proof_text,
+            'B_DATA_TEXT': f'Datenversion {b.get("data_version", "?")}' + (' · Migration steht aus (kommt mit dem nächsten Update)' if b.get('migration_pending') else ' · aktuell'),
+            'B_MIGRATION': '1' if b.get('migration_pending') else '',
+            'B_CHECK': check, 'B_CHECK_TEXT': check_text})
+    secrets = lib.get('secrets')
+    srows = []
+    for n in lib.get('secret_names') or []:
+        v = None if secrets is None else secrets.get(n)
+        state = '' if v is None else ('yes' if v else 'no')
+        srows.append({'S_NAME': n, 'S_STATE': state or 'unknown',
+                      'S_TEXT': {'yes': 'hinterlegt', 'no': 'fehlt', 'unknown': 'unbekannt'}[state or 'unknown']})
+    rrows = []
+    seen = set()
+    for r in runs:
+        if r.get('name') in seen:
+            continue
+        seen.add(r.get('name'))
+        c = r.get('conclusion') or r.get('status') or ''
+        rrows.append({'R_NAME': r.get('name') or '', 'R_STATE': {'success': 'ok', 'failure': 'fail'}.get(c, 'other'),
+                      'R_TEXT': f'{ {"success": "erfolgreich", "failure": "fehlgeschlagen", "cancelled": "abgebrochen", "skipped": "übersprungen", "in_progress": "läuft", "queued": "wartet", "action_required": "wartet auf Freigabe"}.get(c, c)} · '
+                                f'{de_datetime_plus(r.get("created_at"))} · {r.get("head_branch") or ""}',
+                      'R_URL': r.get('html_url') or ''})
+    lrows, lim_text = limit_rows(base, config, args, gh)
+    values['LIMITS_TEXT'] = lim_text
+    if args.text:
+        out = ['### 🗂️ Daten', f'{repo_label(args)}', '', '**Programm**', '',
+               f'- {values["PROGRAM_VERSION_TEXT"]}', f'- Update: {values["PROGRAM_UPDATE_TEXT"]} · {values["PROGRAM_LAST_UPDATE_TEXT"]}',
+               f'- {values["UI_TEXT"]}'] + ([f'- ⚠️ {values["PROGRAM_SKIPPED_TEXT"]}'] if values['PROGRAM_SKIPPED_TEXT'] else [])
+        out += ['', '**Bücher**', '', '| Buch | Letzter Stand | Änderungen | Auflage | Probedruck | Daten | Prüfung |', '|---|---|---|---|---|---|---|']
+        for r in books:
+            out.append(f'| {r["B_TITLE"]} (`{r["B_BRANCH"]}`) | {r["B_COMMIT_TEXT"]} | {r["B_PENDING_TEXT"]}; {r["B_AUTOMERGE_TEXT"]} | '
+                       f'{r["B_EDITION_TEXT"]} | {r["B_PROOF_TEXT"]} | {"⚠️ " if r["B_MIGRATION"] else ""}{r["B_DATA_TEXT"]} | '
+                       f'{ {"ok": "✅ ", "fail": "❌ "}.get(r["B_CHECK"], "")}{r["B_CHECK_TEXT"]} |')
+        out += ['', '**Repository**', '', f'- {values["REPO_TEXT"]}',
+                f'- Erledigte Branches: [Branches aufräumen]({values["CLEANUP_URL"]}) · [Löschaufgaben]({values["TASKS_URL"]})']
+        if srows:
+            out += ['- Secrets (nur Namen): ' + ', '.join(f'`{r["S_NAME"]}` { {"yes": "✅", "no": "❌", "unknown": "❔"}[r["S_STATE"]]} {r["S_TEXT"]}' for r in srows)]
+        if lrows:
+            out += ['', '**Nutzungsgrenzen**', '', '| Grenze | Stand |', '|---|---|']
+            out += [f'| {r["L_LABEL"]} | { {"ok": "🟢", "warn": "🟡", "pause": "🔴"}[r["L_STATE"]]} {r["L_TEXT"]} |' for r in lrows]
+            if lim_text:
+                out += ['', f'> ⏸ {lim_text}']
+        if rrows:
+            out += ['', '**Letzte Läufe**', '', '| Action | Ergebnis |', '|---|---|'] + [f'| [{r["R_NAME"]}]({r["R_URL"]}) | {r["R_TEXT"]} |' for r in rrows]
+        out += ['', '---', menu([('Ü', 'Bücherregal')] + ([('U', 'Update einspielen')] if upd else []))]
+        return '\n'.join(out) + '\n'
+    blocks = {'BOOKS': books, 'SECRETS': srows, 'RUNS': rrows}
+    if lrows:
+        blocks['LIMITS'] = lrows
+    return fill('daten.html', values, blocks)
+
+
+def limit_rows(base, config, args, gh):
+    """Nutzungsgrenzen für „Daten“ (#71, #62): aus --limits (limits.py check --json) bzw. aus den Kosten des Monats und,
+    wenn github.json `rate_limit` (GET /rate_limit) enthält, dem API-Rate-Limit. → ([{L_LABEL, L_STATE, L_TEXT}], text)."""
+    import limits
+    if getattr(args, 'limits', None):
+        data = json.loads(Path(args.limits).read_text(encoding='utf-8'))
+        rows, state = data.get('limits') or [], data.get('state')
+    else:
+        live = {}
+        core = (((gh or {}).get('rate_limit') or {}).get('resources') or {}).get('core') or {}
+        if core.get('limit'):
+            live['api_rate'] = (core['limit'] - core.get('remaining', 0), core['limit'])
+        rows = limits.evaluate(base, config, live=live)
+        state = limits.summary(rows)[0]
+    out = [{'L_LABEL': r['label'], 'L_STATE': r['state'], 'L_TEXT': r['text'][len(r['label']) + 1:]} for r in rows]
+    paused = [r for r in rows if r['state'] == 'pause']
+    text = ('Update-Automatik pausiert: ' + '; '.join(r['text'] for r in paused)) if state == 'pause' and paused else ''
+    return out, text
+
+
+WIZARD_CHOICES = Path(__file__).resolve().parent.parent / 'templates' / 'wizard-choices.yml'
+LETTERS = 'abcdef'
+
+
+def choice_spec(args):
+    """Auswahl-Spezifikation: Schritt aus templates/wizard-choices.yml (where) oder --spec (JSON-Datei bzw. JSON-Text)."""
+    if args.spec:
+        raw = Path(args.spec).read_text(encoding='utf-8') if Path(args.spec).is_file() else args.spec
+        spec = json.loads(raw)
+        spec.setdefault('step', args.where or 'choice')
+        return spec
+    lib = yaml.safe_load(WIZARD_CHOICES.read_text(encoding='utf-8'))
+    step = args.where or ''
+    if step not in lib['steps']:
+        raise SystemExit(f'Auswahl „{step}“ unbekannt; vorhanden: {", ".join(lib["steps"])}')
+    spec = dict(lib['steps'][step], step=step)
+    num = step.split('.')[-1]
+    for k in ('title', 'subtitle', 'note'):
+        if spec.get(k):
+            spec[k] = spec[k].replace('{step}', num).replace('{steps}', str(lib.get('steps_total', '')))
+    return spec
+
+
+def check_choice_spec(spec):
+    qs = spec.get('questions') or []
+    if not 1 <= len(qs) <= 4:
+        raise SystemExit('Auswahl: 1–4 Fragen')
+    for q in qs:
+        opts = q.get('options') or []
+        if not 2 <= len(opts) <= 6:
+            raise SystemExit(f'Auswahl „{q.get("key")}“: 2–6 Antworten')
+        if len(q.get('header', '')) > 12:
+            raise SystemExit(f'Auswahl „{q.get("key")}“: Etikett höchstens 12 Zeichen')
+        if sum(bool(o.get('recommended')) for o in opts) > 1:
+            raise SystemExit(f'Auswahl „{q.get("key")}“: höchstens eine Empfehlung')
+
+
+def config_value(config, path):
+    v = config
+    for part in (path or '').split('.'):
+        if not part or not isinstance(v, dict) or part not in v:
+            return None
+        v = v[part]
+    return v
+
+
+def is_selected(current, value):
+    if current is None or current == '' or current == []:
+        return False
+    if isinstance(current, list):
+        return value in [str(x) for x in current]
+    if isinstance(current, bool):
+        return value == ('true' if current else 'false')
+    return str(current) == value
+
+
+def choice_view(base, config, args):
+    spec = choice_spec(args)
+    check_choice_spec(spec)
+    qs = spec['questions']
+    if args.text:
+        out = [f'### {spec.get("title", "Auswahl")}']
+        if spec.get('subtitle'):
+            out += ['', spec['subtitle']]
+        for i, q in enumerate(qs, 1):
+            cur = config_value(config, q.get('field'))
+            out += ['', f'**{i}. {q["text"]}**' + (' *(mehrere möglich)*' if q.get('multi') else '')]
+            for letter, o in zip(LETTERS, q['options']):
+                tags = (' · *empfohlen*' if o.get('recommended') else '') + (' · *bisher*' if is_selected(cur, str(o['value'])) else '')
+                out.append(f'- `{i}{letter}` {o["label"]}' + (f' – {o["desc"]}' if o.get('desc') else '') + tags)
+        example = ', '.join(f'{i}{"a c" if q.get("multi") else "a"}' for i, q in enumerate(qs, 1))
+        out += ['', f'Antworte mit den Kürzeln, z. B. `{example}`; eigene Antwort als `1: Text`.'
+                + (' `S` überspringt.' if spec.get('skippable') else '')]
+        if spec.get('note'):
+            out += ['', f'<sub>{spec["note"]}</sub>']
+        return '\n'.join(out) + '\n'
+    questions, options = [], []
+    for i, q in enumerate(qs, 1):
+        cur = config_value(config, q.get('field'))
+        questions.append({'Q_INDEX': str(i), 'Q_KEY': q['key'], 'Q_HEADER': q.get('header', ''), 'Q_TEXT': q['text'],
+                          'Q_MULTI': '1' if q.get('multi') else ''})
+        for o in q['options']:
+            v = str(o['value'])
+            options.append({'OPT_Q': str(i), 'OPT_VALUE': v, 'OPT_LABEL': o['label'], 'OPT_DESC': o.get('desc', ''),
+                            'OPT_RECOMMENDED': '1' if o.get('recommended') else '', 'OPT_SELECTED': '1' if is_selected(cur, v) else ''})
+    return fill('auswahl.html', {'STEP': spec['step'], 'TITLE': spec.get('title', 'Auswahl'), 'SUBTITLE': spec.get('subtitle', ''),
+                                 'NOTE': spec.get('note', ''), 'SKIPPABLE': '1' if spec.get('skippable') else ''},
+                {'QUESTIONS': questions, 'OPTIONS': options})
+
+
+FORMS = {'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view,
+         'character-suggest': character_suggest_view, 'analysis-suggest': analysis_suggest_view, 'import-preview': import_preview_view, 'import-outline': import_outline_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
+         'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
+         'section-create': section_create_view, 'section-reorder': section_reorder_view,
+         'changes-merge': changes_merge_view, 'providers-edit': providers_edit_view,
+         'approval-writing': lambda b, c, a: approval_view(b, c, a, 'writing'),
+         'approval-section': lambda b, c, a: approval_view(b, c, a, 'section'),
+         'approval-chapter': lambda b, c, a: approval_view(b, c, a, 'chapter'),
+         'approval-matter': lambda b, c, a: approval_view(b, c, a, 'section'),
+         'approval-image': lambda b, c, a: approval_view(b, c, a, 'image'),
+         'ai-disclosure': ai_disclosure_view, 'output': output_view}
+
+
+def git_head(base):
+    try:
+        return subprocess.run(['git', '-C', str(base), 'rev-parse', 'HEAD'], capture_output=True, text=True,
+                              check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return ''
+
+
+REPO_URL = re.compile(r'([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?$')
+UNKNOWN_REPO = 'unbekanntes Repository'
+
+
+def detect_repo(base):
+    """owner/name des Buch-Repositorys ohne --repo (#134): GITHUB_REPOSITORY (Actions), sonst die
+    Adresse von origin im Projektordner. Nie das Hauptrepository als Vorgabe; nichts gefunden = ''."""
+    import os
+    env = os.environ.get('GITHUB_REPOSITORY', '').strip()
+    if REPO_URL.fullmatch(env):
+        return env
+    url = subprocess.run(['git', '-C', str(base), 'remote', 'get-url', 'origin'], capture_output=True, text=True).stdout.strip()
+    m = REPO_URL.search(url.replace(':', '/')) if url and not Path(url).is_dir() else None
+    return f'{m.group(1)}/{m.group(2)}' if m else ''
+
+
+def repo_label(args):
+    """Name des Repositorys für Überschriften (Bücherregal, Serie, Daten)."""
+    return args.repo if getattr(args, 'repo_known', True) else UNKNOWN_REPO
+
+
+def resolve_repo(base, args):
+    """args.repo setzen: --repo, sonst ermittelt. Unbekannt: Anzeige „unbekanntes Repository“, Links auf
+    das Hauptrepository aus dem Manifest (dort liegen dieselben Programmdateien und die Anleitung)."""
+    repo = (args.repo or '').strip() or detect_repo(base)
+    args.repo_known = bool(repo)
+    if not repo:
+        manifest = ROOT / 'ghostwriter-manifest.yml'
+        up = (yaml.safe_load(manifest.read_text(encoding='utf-8')) or {}).get('upstream') or {} if manifest.is_file() else {}
+        repo = up.get('repo') or 'ploeffler/GhostWriter'
+    args.repo = repo
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('project')
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series'] + list(FORMS))
+    ap.add_argument('where', nargs='?')
+    ap.add_argument('--text', action='store_true')
+    ap.add_argument('--repo', help='owner/name des Buch-Repositorys; ohne Angabe aus GITHUB_REPOSITORY bzw. git remote origin (#134)')
+    ap.add_argument('--branch', default='main')
+    ap.add_argument('--revoke', action='store_true', help='bei approval-*: Freigabe zurücknehmen statt erteilen')
+    ap.add_argument('--upstream', help='JSON-Datei mit dem Update-Stand (behind, upstream, version, installed) für die Projektübersicht')
+    ap.add_argument('--limits', help='JSON-Datei von limits.py check --json (Projektübersicht: Hinweis Vorwarnung bzw. Automatik pausiert); ohne Angabe nur das KI-Budget aus costs/')
+    ap.add_argument('--changes', help='JSON-Datei mit den offenen Änderungen (Pull Request, Branches, Commits) für Projektübersicht und changes-merge')
+    ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
+    ap.add_argument('--draft', help='bei chapter-research bzw. book-create: JSON mit noch nicht gespeicherten Werten (goal, summary, question, scope bzw. working_title, title_short, author, error)')
+    ap.add_argument('--library', help='library.json vom Standard-Branch (Bücherregal; in der Projektübersicht ab 2 Büchern der Link „Bücherregal“)')
+    ap.add_argument('--github', help='bei data: JSON mit Rohdaten der GitHub-API (repo, branches, pulls, runs), siehe BEFUELLUNG.md, „Daten“')
+    ap.add_argument('--spec', help='bei choice: JSON-Datei oder JSON-Text mit einer eigenen Auswahl (Aufbau wie templates/wizard-choices.yml)')
+    ap.add_argument('--ui-ref', help='Commit oder Branch von ghostwriter-ui statt des festen Commits aus templates/ui/ghostwriter-ui.yml (nur zum Testen)')
+    args = ap.parse_args()
+    ui = yaml.safe_load(UI_CONFIG.read_text(encoding='utf-8'))
+    UI['repo'], UI['ref'] = ui['repo'], args.ui_ref or ui['commit']
+    base, config = load(args.project)
+    resolve_repo(base, args)
+    UI['head'] = args.head_sha or git_head(base)
+    if args.view in FORMS:
+        out = FORMS[args.view](base, config, args)
+    elif args.view == 'library':
+        out = library_view(base, config, args)
+    elif args.view == 'data':
+        out = data_view(base, config, args)
+    elif args.view == 'matter':
+        out = matter_view(base, config, args)
+    elif args.view == 'characters':
+        out = characters_view(base, config, args)
+    elif args.view == 'images':
+        out = images_view(base, config, args)
+    elif args.view == 'series':
+        out = series_view(base, config, args)
+    elif args.view == 'project':
+        out = project_view(base, config, args)
+    elif args.view == 'chapter':
+        out = chapter_view(base, config, args, int(args.where))
+    else:
+        c, s = (int(x) for x in args.where.split('.'))
+        out = section_view(base, config, args, c, s)
+    sys.stdout.write(out)
+
+
+if __name__ == '__main__':
+    main()
