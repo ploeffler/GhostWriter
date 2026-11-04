@@ -108,7 +108,7 @@ def evaluate(base, config, month=None, live=None):
         state = 'pause' if left < pause else 'warn' if left < warn else 'ok'
         fmt = (lambda v: f'{v:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')) if unit == '€' else (lambda v: f'{int(v)}')
         rows.append({'key': key, 'label': LABEL[key], 'used': used, 'total': total, 'left_pct': round(left, 1), 'state': state,
-                     'text': f'{LABEL[key]} {round(left):d} % übrig ({fmt(used)} von {fmt(total)}{" " + unit if unit else ""})'})
+                     'text': f'{LABEL[key]} {round(left):d} % übrig ({fmt(used)} von {fmt(total)}{" " + unit if unit else ""} verbraucht)'})
     if s['ai_budget_monthly']:
         add('ai_budget', month_costs(base, month), float(s['ai_budget_monthly']), '€')
     if s['actions_minutes_monthly'] and 'actions_minutes_used' in live:

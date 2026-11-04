@@ -354,7 +354,7 @@ class DataPageTest(unittest.TestCase):
         self.assertIn('❌ Prüfung beim letzten Push: fehlgeschlagen', t)
         self.assertIn('Migration steht aus', t)
         self.assertIn('`GHOSTWRITER_UPDATE_TOKEN` ✅ hinterlegt', t)
-        self.assertIn('| GitHub-API | 🔴 6 % übrig (4700 von 5000) |', t)   # Nutzungsgrenzen (#62)
+        self.assertIn('| GitHub-API | 🔴 6 % übrig (4700 von 5000 verbraucht) |', t)   # Nutzungsgrenzen (#62)
         self.assertIn('> ⏸ Update-Automatik pausiert: GitHub-API 6 % übrig', t)
         w = self.view('--github', str(self.gh))
         self.assertIn('"LIMITS":[{"L_LABEL":"GitHub-API","L_STATE":"pause"', w)
