@@ -41,7 +41,21 @@ Claude: **Widget** – `render_view.py` ohne `--text`, Ausgabe als Widget. `--te
 - Bibliothek: `library.json` vom Standard-Branch lesen und `python scripts/render_view.py . library --library library.json --repo <owner>/<repo>`; bei genau einem Buch direkt dessen Projektübersicht.
 - Einzelbuch bzw. Link auf einen Buch-Branch: Projektübersicht nach `START.md`, Abschnitt 0, Schritte 1–8.
 
-## 7. Fehler und Wünsche melden
+## 7. Redaktionelle Qualitätssicherung
+
+Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
+
+- Die vollständige betroffene Einheit lesen und prüfen, nicht nur den Diff oder neu eingefügte Passagen.
+- Bei Auswirkungen auf das Kapitel das ganze Kapitel lesen; bei buchweiten Auswirkungen die relevanten Kapitel und Zusammenhänge prüfen.
+- Inhaltliche Logik, Plausibilität, Chronologie, Kontinuität, Widersprüche und Wiederholungen prüfen.
+- Perspektive, Figurenstimmen, Ton, Stil, Sprache und Verständlichkeit mit den Projektvorgaben abgleichen.
+- Nach Korrekturen den vollständigen betroffenen Text erneut lesen.
+- Offene Probleme dokumentieren; bei wesentlichen ungelösten Problemen kein positives Prüfergebnis melden.
+- Die Autorinnen- bzw. Autorenfreigabe niemals aus einem Prüfergebnis ableiten.
+
+Die vollständige Prüfanleitung und das Konzept des individuellen Buchprofils stehen in [`docs/QUALITAETSSICHERUNG.md`](../../../docs/QUALITAETSSICHERUNG.md). Buchspezifische Fakten und Stilregeln gehören ausschließlich in das jeweilige Buch-Repository.
+
+## 8. Fehler und Wünsche melden
 
 Betrifft etwas das Programm (Skripte, Vorlagen, Anleitung), nicht das Buch:
 
