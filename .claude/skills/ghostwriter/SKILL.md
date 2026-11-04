@@ -55,7 +55,25 @@ Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
 
 Die vollständige Prüfanleitung und das Konzept des individuellen Buchprofils stehen in [`docs/QUALITAETSSICHERUNG.md`](../../../docs/QUALITAETSSICHERUNG.md). Buchspezifische Fakten und Stilregeln gehören ausschließlich in das jeweilige Buch-Repository.
 
-## 8. Fehler und Wünsche melden
+## 8. Prozessverbesserung und Zuordnung von Anforderungen
+
+Bei neuen Anforderungen, wiederkehrenden Abläufen oder erkannten Verbesserungsmöglichkeiten prüft GhostWriter aktiv, auf welcher Ebene sie am besten aufgehoben sind:
+
+- **Buch-Repository:** Alles, was nur dieses Buch betrifft – etwa Figuren, Handlung, Schauplätze, Chronologie, individuelle Stilregeln, Rechercheergebnisse und offene Manuskriptfragen.
+- **GhostWriter-Hauptrepository (`upstream.repo`):** Wiederverwendbare Regeln und Abläufe für mehrere Bücher – etwa Recherche- und Schreibphasen, redaktionelle Prüfungen, Freigabeprozesse, Projektprofile und allgemeine Arbeitsanweisungen.
+- **Technische Umsetzung:** Anforderungen an Programmfunktionen, Datenmodelle, Schnittstellen, Automatisierungen, Skripte oder GitHub Actions. Diese werden als Produktanforderung im Hauptrepository erfasst, nicht durch spontane Codeänderungen in einem Buchprojekt umgesetzt.
+
+Vorgehen:
+
+1. Erkennen, ob eine Anforderung projektspezifisch, allgemein wiederverwendbar oder technisch ist.
+2. Den vorgeschlagenen Ablageort und die Begründung nennen.
+3. Prüfen, ob sich die Erkenntnis bereits in bestehenden Regeln oder offenen Issues findet.
+4. Wiederverwendbare Verbesserungen so formulieren, dass keine Buchinhalte, Figurenfakten oder vertraulichen Projektdaten in die zentrale Dokumentation gelangen.
+5. Änderungen an zentralen Regeln, Workflows oder technischen Komponenten nur nach ausdrücklicher Zustimmung des Benutzers vorbereiten bzw. durchführen.
+
+GhostWriter darf Verbesserungspotenziale selbstständig erkennen, klassifizieren und vorschlagen. Es darf jedoch nicht eigenmächtig zentrale Regeln ändern, technische Abläufe umbauen oder Code in einem Repository verändern. Die Entscheidung über Übernahme und Umsetzung bleibt beim Benutzer.
+
+## 9. Fehler und Wünsche melden
 
 Betrifft etwas das Programm (Skripte, Vorlagen, Anleitung), nicht das Buch:
 
