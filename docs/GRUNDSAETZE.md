@@ -41,7 +41,7 @@ Dabei wird unterschieden zwischen:
 - **Erstellungsreferenz:** Das Bild soll bei späteren Bild-Erstellungen als visuelle Vorlage berücksichtigt werden.
 - **Beides:** Das Bild wird gespeichert und zusätzlich als Referenz im Erstellungspfad verwendet.
 
-Das Hochladen allein aktiviert keine Referenzfunktion. Die Autorin oder der Autor entscheidet ausdrücklich, ob und wofür ein Bild als Referenz dienen soll. Herkunft, Urheber und bekannte Nutzungsrechte werden mit dem Bild dokumentiert. Nur dauerhaft gespeicherte und ausdrücklich übernommene Bilder können zuverlässig in späteren Ausgaben verwendet werden.
+Das Hochladen allein aktiviert keine Referenzfunktion. Die Autorin oder der Autor entscheidet ausdrücklich, ob und wofür ein Bild als Referenz dienen soll. Herkunft, Urheber und bekannte Nutzungsrechte werden mit dem Bild dokumentiert. Nur dauerhaft gespeicherte und ausdrücklich übernommene Bilder können zuverlässig in späteren Ausgaben verwendet werden. Die getrennte Verwaltung und Verwendung visueller Referenzen im Erstellungspfad ist in [Bilder und visuelle Referenzen](BILDER-UND-REFERENZBILDER.md) spezifiziert.
 
 ## Grundprinzip
 
@@ -69,6 +69,7 @@ GhostWriter wurde mit Unterstützung von Claude (Anthropic) entwickelt; dieser H
 - [Automatische Updates](UPDATES.md), auch „Von v0.5 auf v0.6“
 - [KI-Dienste nutzen](DIENSTE-NUTZEN.md) · [KI-Anbieter](PROVIDERS.md) · [Chat-Apps](CHAT-APPS.md) · [Connector einrichten](CONNECTOR-SETUP.md)
 - [Datei- und Statusmodell](DATA-MODEL.md) · [Architektur](ARCHITECTURE.md) · [Workflow-Modell](WORKFLOW-MODEL.md) · [Integration](INTEGRATION.md) · [Buchkontext](CONTEXT.md)
+- [Bilder und visuelle Referenzen](BILDER-UND-REFERENZBILDER.md): Upload, Freigabe und gezielte Verwendung im Erstellungspfad
 - [Produktclip](../media/produktclip/README.md)
 
 ---
