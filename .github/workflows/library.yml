@@ -5,7 +5,8 @@ name: Bücherregal aktualisieren
 # Manuskripttext. Läuft nach Pushes auf Buch- und Arbeits-Branches, wenn ein
 # Branch angelegt oder gelöscht wird, nach jedem Lauf „GhostWriter aktualisieren“
 # (damit u. a. neu hinterlegte Secrets auf der Seite „Daten“ erscheinen, #71) und
-# von Hand. Commits mit GITHUB_TOKEN
+# von Hand. Jeder relevante Push aktualisiert damit auch den Pending-Zähler im Bücherregal.
+# Commits mit GITHUB_TOKEN
 # lösen keine weiteren Workflows aus, es gibt also keine Schleife.
 #
 # Im GhostWriter-Hauptrepository läuft sie nicht: library.json würde sonst mit
@@ -15,10 +16,21 @@ on:
   push:
     branches-ignore: ['v*', 'dependabot/**']
     paths:
+      - 'README.md'
       - 'ghostwriter.yml'
+      - 'assistant.yml'
       - 'chapters/**'
+      - 'research/**'
+      - 'brainstorming/**'
       - 'matter/**'
       - 'costs/**'
+      - 'approvals.yml'
+      - 'characters/**'
+      - 'story/**'
+      - 'cover/**'
+      - 'reference-images/**'
+      - 'analysis/**'
+      - 'prompts/**'
       - 'series/**'
   create:
   delete:
