@@ -1,8 +1,12 @@
 """Voraussetzungen für die redaktionelle Prüfung eines ganzen Kapitels."""
 import sys
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
@@ -44,6 +48,23 @@ class ChapterRevisionTest(unittest.TestCase):
         (self.base / 'b.md').write_text('broken', encoding='utf-8')
         self.assertFalse(readiness(self.base, self.chapter)['ready'])
         self.assertFalse(readiness(self.base, {'sections': []})['ready'])
+
+
+class WidgetReadinessTest(unittest.TestCase):
+    def test_widget_payload_tracks_actual_manuscript(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / 'book'
+            shutil.copytree(ROOT / 'tests/fixtures/adhs', project)
+            def render():
+                return subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'),
+                                       str(project), 'chapter', '1'], capture_output=True,
+                                      text=True, check=True).stdout
+            self.assertIn('"CHAPTER_REVISION_READY":"true"', render())
+            config = yaml.safe_load((project / 'ghostwriter.yml').read_text(encoding='utf-8'))
+            first = project / config['structure']['chapters'][0]['sections'][0]['path']
+            text = first.read_text(encoding='utf-8').split('## Manuskript')[0]
+            first.write_text(text + '## Manuskript\n\nNoch nicht begonnen.\n', encoding='utf-8')
+            self.assertIn('"CHAPTER_REVISION_READY":""', render())
 
 
 if __name__ == '__main__':
