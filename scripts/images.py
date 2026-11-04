@@ -31,6 +31,7 @@ Den Commit schreibt der Assistent (START.md, „Illustrationen“).
 """
 import argparse
 import datetime
+import hashlib
 import re
 import shutil
 import sys
@@ -151,7 +152,7 @@ def next_run(folder):
 
 
 def add(base, key, file, caption, alt='', prompt='', source='chat', provider='', model='', names=None,
-        variants=1, credit=''):
+        variants=1, credit='', reference_ids=None):
     _, config = load(base)
     target, folder_rel = find_target(config, key)
     src = Path(file)
@@ -160,6 +161,21 @@ def add(base, key, file, caption, alt='', prompt='', source='chat', provider='',
     ext = EXT.get(src.suffix.lower())
     if not ext:
         raise SystemExit('Nur PNG oder JPEG.')
+    reference_records = []
+    if reference_ids:
+        if source == 'own':
+            raise SystemExit('Eigene, nicht KI-erzeugte Bilder können keine KI-Referenzen protokollieren.')
+        from reference_images import select as select_reference_images
+        for ref in select_reference_images(base, reference_ids):
+            ref_path = Path(ref['file'])
+            if not ref_path.is_file():
+                raise SystemExit(f'Referenzdatei fehlt: {ref_path}')
+            reference_records.append({
+                'id': ref['id'],
+                'file': ref_path.name,
+                'sha256': hashlib.sha256(ref_path.read_bytes()).hexdigest(),
+                'caption': ref['caption']
+            })
     folder = base / folder_rel
     folder.mkdir(parents=True, exist_ok=True)
     taken = set(all_images(base, config))
@@ -209,10 +225,14 @@ def add(base, key, file, caption, alt='', prompt='', source='chat', provider='',
             '---\n' + yaml.safe_dump({'id': run, 'type': 'illustration', 'section_id': target['id'], 'status': 'completed',
                                       'date': now[:10], 'created_at': now, 'provider': provider or 'chat',
                                       'model': model or '', 'source': source, 'characters': ids,
-                                      'variants': int(variants), 'selected': dest.name},
+                                      'variants': int(variants), 'selected': dest.name,
+                                      'visual_references': reference_records},
                                      allow_unicode=True, sort_keys=False) + '---\n\n'
             f'# Bildauftrag {run[4:]}\n\n## Prompt\n\n{prompt.strip() or "(nicht festgehalten)"}\n\n'
-            f'## Ergebnis\n\nAusgewählt: `{dest.name}` aus {int(variants)} Variante(n). Status: Entwurf, Freigabe offen.\n',
+            + (('## Verwendete visuelle Referenzen\n\n' + '\n'.join(
+                f'- {ref["id"]} ({ref["caption"]}), Datei `{ref["file"]}`, SHA-256 `{ref["sha256"]}`'
+                for ref in reference_records) + '\n\n') if reference_records else '')
+            + f'## Ergebnis\n\nAusgewählt: `{dest.name}` aus {int(variants)} Variante(n). Status: Entwurf, Freigabe offen.\n',
             encoding='utf-8')
     return meta, folder_rel
 
@@ -227,7 +247,7 @@ def main(argv):
     ap.add_argument('cmd', choices=['list', 'prompt', 'add', 'ref'])
     ap.add_argument('args', nargs='*')
     ap.add_argument('--scene', default='')
-    ap.add_argument('--references', nargs='*', default=[], help='freigegebene ref-img-IDs für diesen Auftrag')
+    ap.add_argument('--references', nargs='*', default=[], help='freigegebene ref-img-IDs für Prompt und Auftragsprotokoll')
     ap.add_argument('--characters', nargs='*')
     ap.add_argument('--caption', default='')
     ap.add_argument('--alt', default='')
@@ -254,7 +274,7 @@ def main(argv):
         print(build_prompt(base, config, a.args[0], a.scene, a.characters, a.references)[0])
         if a.references:
             from reference_images import select as select_reference_images
-            print('\\nDateien für die Referenzübergabe:')
+            print('\nDateien für die Referenzübergabe:')
             for ref in select_reference_images(base, a.references):
                 print(f'- {ref["id"]}: {ref["file"]}')
         return 0
@@ -268,7 +288,7 @@ def main(argv):
     if not a.caption:
         ap.error('add braucht --caption (Bildunterschrift)')
     meta, folder = add(base, a.args[0], a.args[1], a.caption, a.alt, a.prompt, a.source, a.provider, a.model,
-                       a.characters, a.variants, a.credit)
+                       a.characters, a.variants, a.credit, a.references)
     print(f'✓ Bild {meta["id"]} abgelegt: {folder}/{meta["file"]} (Entwurf)')
     print(f'Im Text: ![](bild:{meta["id"]})')
     print(f'Commit-Nachricht: Bild „{meta["caption"]}“ abgelegt')
