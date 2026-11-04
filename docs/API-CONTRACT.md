@@ -95,6 +95,7 @@ Die Pfade sind Entwurf und müssen mit dem implementierten Dienst übereinstimme
 | DELETE | /v1/projects/{owner}/{repo}/series/{series_id}/omnibus/approve | Freigabe zurücknehmen (`series.omnibus.revoke`) |
 | POST | /v1/projects/{owner}/{repo}/series/{series_id}/omnibus/editions | Nächste Auflage des Sammelbands (`series.omnibus.publish`) |
 | PATCH | /v1/projects/{owner}/{repo}/import | Gliederung des Import-Vorschlags ändern (`import.edit`, #124) |
+| POST | /v1/projects/{owner}/{repo}/import/outline | KI-Vorschlag für die Gliederung (`import.outline.start`, #124); Ergebnis `import/outline.json`, übernommen mit `PATCH …/import` (`op: outline`) |
 | POST | /v1/projects/{owner}/{repo}/import/apply | Buch aus dem Import-Vorschlag anlegen (`import.apply`) |
 | POST | /v1/projects/{owner}/{repo}/analyses | Analyse im Hintergrund starten (`analysis.start`, #123); Ergebnis unter `analysis/` im Buch-Branch |
 | POST | /v1/projects/{owner}/{repo}/analyses/{kind}/{run}/apply | Ausgewählte Vorschläge eines Hintergrundlaufs übernehmen (`analysis.apply`, #124); Body `choices` je Art |

@@ -1,6 +1,7 @@
 """Manuskript-Import ohne KI (#124): umwandeln, Gliederung erkennen, ändern, anlegen, Aufbewahrung."""
 import datetime
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -135,6 +136,77 @@ class ImportTest(unittest.TestCase):
             p = import_book.convert(self.book, pdf)
             self.assertEqual(p['format'], 'pdf')
             self.assertTrue(p['warnings'][0].startswith('PDF:'))
+
+    def test_outline(self):
+        paras = ['Am Morgen weckte Opi den kleinen Strolchi.', 'Sie frühstückten in der Küche.',
+                 'Am Nachmittag gingen sie in den Wald.', 'Im Wald fanden sie eine Höhle.',
+                 'Abends kamen beide müde nach Hause.', 'Strolchi schlief sofort ein.']
+        src = self.tmp / 'ohne.txt'
+        src.write_text('\n\n'.join(paras) + '\n', encoding='utf-8')
+        p = import_book.convert(self.book, src)
+        self.assertEqual(p['structure'], 'none')
+        words0 = p['stats']['words_proposal']
+        fake = self.tmp / 'fake.json'
+        fake.write_text(json.dumps({'outline': {'answer': {'chapters': [
+            {'title': 'Der Morgen', 'start': 1, 'quote': 'Am Morgen weckte Opi', 'reason': 'Beginn',
+             'sections': [{'title': 'Wecken', 'start': 1, 'quote': 'Am Morgen'},
+                          {'title': 'Frühstück', 'start': 2, 'quote': 'Sie frühstückten'}]},
+            {'title': 'Erfunden', 'start': 3, 'quote': 'steht so nicht im Text', 'reason': 'falsch zitiert'},
+            {'title': 'Im Wald', 'start': 4, 'quote': 'Im Wald fanden sie', 'reason': 'Ortswechsel',
+             'sections': [{'title': 'Rückwärts', 'start': 2, 'quote': 'Sie frühstückten'}]},
+            {'title': 'Zurück', 'start': 3, 'quote': 'Am Nachmittag', 'reason': 'Reihenfolge falsch'},
+            {'title': 'Der Abend', 'start': 5, 'quote': 'Abends kamen beide', 'reason': 'Zeitsprung'}]}}}), encoding='utf-8')
+        env = dict(os.environ, GHOSTWRITER_FAKE_LLM=str(fake))
+        env.pop('ANTHROPIC_API_KEY', None)
+        env.pop('OPENAI_API_KEY', None)
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/import_book.py'), str(self.book), 'outline', '--plan'],
+                           capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('6 Absätze', r.stdout)
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/import_book.py'), str(self.book), 'outline'],
+                           capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        o = json.loads((self.book / 'import/outline.json').read_text(encoding='utf-8'))
+        self.assertEqual(o['status'], 'open')
+        self.assertEqual([(c['title'], c['start']) for c in o['chapters']], [('Der Morgen', 1), ('Im Wald', 4), ('Der Abend', 5)])
+        self.assertEqual([s['start'] for s in o['chapters'][1]['sections']], [4])        # Rückwärts verworfen
+        self.assertEqual(o['dropped'], 3)
+        self.assertEqual(sum(c['words'] for c in o['chapters']), words0)
+        costs = yaml.safe_load((self.book / 'costs/project.yml').read_text(encoding='utf-8'))['entries']
+        self.assertEqual([e['run_id'] for e in costs], ['outline-001'])
+        # am Vorschlag ändert sich nichts, bis bestätigt
+        self.assertEqual(len(import_book.load_proposal(self.book)['chapters']), 1)
+        # Ansicht
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.book), 'import-outline'],
+                             capture_output=True, text=True, check=True).stdout
+        page = json.loads(re.search(r'GW\.render\("gliederung-vorschlag",(.*)\)</script>', out).group(1))
+        self.assertEqual([r['O_TYPE'] for r in page['ROWS']], ['chapter', 'section', 'section', 'chapter', 'section', 'chapter', 'section'])
+        prev = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.book), 'import-preview'],
+                              capture_output=True, text=True, check=True).stdout
+        self.assertIn('OUTLINE_TEXT', prev)
+        txt = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.book), 'import-outline', '--text'],
+                             capture_output=True, text=True, check=True).stdout
+        self.assertIn('Ortswechsel', txt)
+        # übernehmen mit Änderung: Abend gehört noch zu Kapitel 2, neuer Titel
+        with self.assertRaisesRegex(SystemExit, 'ungültig'):
+            import_book.edit(self.book, [{'op': 'outline', 'chapters': [{'title': 'X', 'start': 2}]}])
+        p = import_book.edit(self.book, [{'op': 'outline', 'chapters': [
+            {'title': 'Morgens', 'start': 1, 'sections': [{'title': 'Wecken', 'start': 1}, {'title': 'Frühstück', 'start': 2}]},
+            {'title': 'Im Wald', 'start': 4, 'sections': [{'title': 'Höhle', 'start': 4}, {'title': 'Heimweg', 'start': 5}]}]}])
+        self.assertEqual([c['title'] for c in p['chapters']], ['Morgens', 'Im Wald'])
+        self.assertEqual([s['title'] for s in p['chapters'][1]['sections']], ['Höhle', 'Heimweg'])
+        self.assertIn('Am Nachmittag', p['chapters'][0]['sections'][1]['text'])          # Absatz 3 bleibt in 1.2
+        self.assertTrue(p['stats']['lossless'])
+        self.assertEqual(p['structure'], 'ai')
+        self.assertFalse(any('Keine Gliederung' in w for w in p['warnings']))
+        self.assertIsNone(import_book.open_outline(self.book))
+        import_book.apply(self.book)
+        self.assertEqual(validate_project.check_project(self.book), [])
+
+    def test_outline_needs_no_structure(self):
+        import_book.convert(self.book, self.tmp / 'Strolchi.docx')
+        with self.assertRaisesRegex(SystemExit, 'schon eine Gliederung'):
+            import_book.outline_plan(self.book)
 
 
 if __name__ == '__main__':
