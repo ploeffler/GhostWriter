@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import reference_images  # noqa: E402
+import validate_project  # noqa: E402
 from test_cover import png  # noqa: E402
 
 
@@ -57,6 +58,10 @@ class ReferenceImageTest(unittest.TestCase):
         stored = reference_images.all_references(self.project)[meta["id"]][0]
         self.assertEqual(len(stored["links"]), 2)
         self.assertTrue((self.project / "reference-images" / meta["file"]).is_file())
+
+    def test_project_validation_checks_reference_metadata_and_file(self):
+        self.add(links=[{"kind": "scene", "id": "szene-hafen"}])
+        self.assertEqual(validate_project.check_project(self.project), [])
 
     def test_duplicate_captions_get_unique_ids(self):
         first = self.add()
