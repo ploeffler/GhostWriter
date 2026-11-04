@@ -107,11 +107,11 @@ Jede veröffentlichte Ausgabe des Buches wird als eigener GitHub Release abgebil
 
 ## AI-Kosten und Nutzungsverbrauch
 
-**Erfassungsbereich (entschieden am 31.10.2026, #13):** Erfasst werden ausschließlich zusätzliche, verbrauchsabhängige KI-API-Kosten für Anbieteraufrufe, die über das GhostWriter-Backend (Cloudflare) ausgeführt werden.
+**Erfassungsbereich (entschieden am 31.10.2026, #13):** Erfasst werden ausschließlich zusätzliche, verbrauchsabhängige KI-API-Kosten für Anbieteraufrufe, die über eine künftig implementierte GhostWriter-API ausgeführt werden.
 
 - Arbeit im Chat über bestehende Abos erzeugt **keinen** Kosteneintrag: keine geschätzten API-Kosten, kein `unavailable`-Eintrag.
 - Reine Verwaltungsanfragen über das Backend (Projekt lesen, Dateien speichern, Übersichten laden) erzeugen keinen KI-Kosteneintrag.
-- Cloudflare-Betriebskosten und Chat-Abogebühren gehören nicht in diese Rechnung (Abos lassen sich im Formular „KI-Dienste“ zur Information notieren).
+- Betriebs- und Hostingkosten der GhostWriter-Infrastruktur sowie Chat-Abogebühren gehören nicht in diese Rechnung (Abos lassen sich im Formular „KI-Dienste“ zur Information notieren).
 - Laufhistorie und Kosten sind getrennt: Auch Chat-Läufe ohne Kosten werden als Lauf-Datei dokumentiert.
 - Einträge aus der Zeit vor v0.4 ohne Herkunft werden als `legacy_chat_estimate` gekennzeichnet und zählen nicht mit (`scripts/migrate_project.py`).
 
@@ -126,7 +126,7 @@ Jeder kostenpflichtige KI-API-Aufruf über das Backend wird als eigener, unverä
 
 ### Ausbaustufen
 
-**v0.5:** Kosteneinträge für KI-API-Aufrufe über das Backend, optionale Token-/Nutzungsdaten, Abschnittszuordnung, Kapitelzwischensummen und Projektgesamtbetrag; Kennzeichnung tatsächlicher und geschätzter Kosten. Kostenanzeigen sind keine Voraussetzung für die Arbeit im Chat; ohne Backend-Aufrufe zeigen sie „–“.
+**v0.5:** Kosteneinträge für KI-API-Aufrufe über eine implementierte GhostWriter-API, optionale Token-/Nutzungsdaten, Abschnittszuordnung, Kapitelzwischensummen und Projektgesamtbetrag; Kennzeichnung tatsächlicher und geschätzter Kosten. Kostenanzeigen sind keine Voraussetzung für die Arbeit im Chat; ohne Backend-Aufrufe zeigen sie „–“.
 
 **v1.0:** automatischer Import von Provider-Nutzungsdaten, modellbezogene Preisberechnung, soweit technisch verfügbar automatische Zuordnung, Währungsumrechnung, detaillierte Berichte sowie Budgetgrenzen und Warnungen.
 

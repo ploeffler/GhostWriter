@@ -1,48 +1,29 @@
 # Auth0-Einrichtung für GhostWriter
 
-Auth0 ist als verwalteter Identity Provider ausgewählt. GitHub bleibt eine getrennte Autorisierung über eine GitHub App.
+Auth0 bleibt als externer, verwalteter Identity Provider vorgesehen. Die Hosting- und Backend-Plattform von GhostWriter ist derzeit **nicht festgelegt**. Es gibt in diesem Repository keine ausführbare GhostWriter-API.
 
-## Auth0 konfigurieren
+## Auth0 vorbereiten
 
-1. Erstelle einen Tenant bei https://auth0.com/signup und wähle eine passende Region.
+1. Erstelle bzw. verwende einen Tenant bei https://auth0.com.
 2. Lege eine API namens `GhostWriter API` an.
-3. Verwende als Identifier zunächst einen Platzhalter wie `https://api.ghostwriter.example`; ersetze ihn später durch die feste API-Audience.
+3. Verwende zunächst eine vorläufige Audience wie `https://api.ghostwriter.example`; sie muss vor einer Integration auf die spätere API-Adresse abgestimmt werden.
 4. Wähle RS256 als Signing Algorithm und aktiviere RBAC.
-5. Lege zunächst die Permissions `read:account`, `read:projects` und `write:projects` an.
-6. Erstelle eine Anwendung vom Typ **Regular Web Application** für die GPT-Action.
-7. Aktiviere Authorization Code und verwende für den Token-Austausch POST mit Client-ID und Client-Secret.
-8. Kopiere die Client-ID und das Client-Secret sicher. Das Secret gehört ausschließlich in die OAuth-Einstellungen der GPT-Action.
+5. Lege bei Bedarf die Permissions `read:account`, `read:projects` und `write:projects` an.
+6. Erstelle eine Anwendung vom Typ **Regular Web Application**, falls die gewählte Chat-Integration diesen OAuth-Clienttyp benötigt.
+7. Bewahre Client-ID und Client-Secret sicher auf. Das Secret gehört ausschließlich in die vorgesehene OAuth-Client-Konfiguration und niemals in ein Repository.
 
-## GPT-Action OAuth-Einstellungen
+## Wichtiger Implementierungsstatus
 
-- Client ID: Auth0 Application Client ID
-- Client Secret: Auth0 Application Client Secret
-- Authorization URL: `https://YOUR_TENANT_DOMAIN/authorize?audience=https%3A%2F%2Fapi.ghostwriter.example`
-- Token URL: `https://YOUR_TENANT_DOMAIN/oauth/token`
-- Scope: `read:account`
-- Token exchange: POST
+Die Auth0-Konfiguration allein stellt noch keine funktionierende GhostWriter-Anmeldung her. Das bisherige Cloudflare-Workers-Backend wurde aus dem Repository zurückgenommen. Es gibt daher aktuell keinen GhostWriter-Endpunkt, der Auth0-Tokens validiert, und keine produktive API-Audience oder Callback-Konfiguration.
 
-Ersetze `YOUR_TENANT_DOMAIN` und die API-Audience durch die tatsächlichen Werte. Registriere danach exakt die Callback-URL, die ChatGPT im GPT-Editor anzeigt. Keine Callback-URL erraten.
+Erst nach Auswahl und Implementierung einer Hosting-unabhängigen GhostWriter-API werden Audience, Callback-URLs, Scopes und End-to-End-Tests verbindlich festgelegt. Keine Beispieladresse als produktive URL verwenden.
 
-## Worker-Konfiguration
+## Sicherheitsregeln
 
-Kopiere `backend/.dev.vars.example` nach `.dev.vars` und setze:
-
-- `AUTH0_ISSUER=https://YOUR_TENANT_DOMAIN/` (mit abschließendem Slash)
-- `AUTH0_AUDIENCE=https://api.ghostwriter.example`
-
-Diese beiden Werte sind keine Secrets. Das Client-Secret der GPT-Action wird nicht im Worker benötigt.
-
-## Test
-
-1. `GET /v1/health` muss ohne Anmeldung 200 liefern.
-2. `GET /v1/account` ohne Token muss 401 liefern.
-3. Nach erfolgreichem GPT-Action-Login muss `GET /v1/account` mit gültigem Token und `read:account` 200 liefern.
-4. Abgelaufene Tokens, falscher Issuer, falsche Audience und fehlender Scope müssen abgewiesen werden.
-
-## Noch manuell erforderlich
-
-Der Betreiber muss den Auth0-Tenant, die API und die Anwendung im eigenen Auth0-Konto anlegen und die GPT-Action konfigurieren. GhostWriter hat keinen Zugriff auf dein Auth0-Konto; es wurden keine Zugangsdaten erstellt und kein Dienst veröffentlicht.
+- Auth0 Client-Secrets niemals committen.
+- GitHub-Zugriff bleibt eine separate Autorisierung über eine GhostWriter GitHub App.
+- Ein gültiges Auth0-Token ersetzt keine Repository-Berechtigungsprüfung.
+- Vor Produktivstart Token-Signatur, Issuer, Audience, Ablaufzeit, Scopes, Widerruf und Benutzertrennung testen.
 
 Preise und Tariflimits vor Produktivstart prüfen: https://auth0.com/de/pricing
 

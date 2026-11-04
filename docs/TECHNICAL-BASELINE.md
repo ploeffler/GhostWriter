@@ -2,22 +2,22 @@
 
 ## Status
 
-Cloudflare Workers und TypeScript sind die Backend-Basis. Auth0 ist als externer Identity Provider ausgewählt. Noch keine Produktionsfreigabe und kein Live-Dienst.
+**Hosting und Backend-Laufzeit sind offen.** Cloudflare Workers wurde als technische Basis zurückgenommen. Die externe Cloudflare-GitHub-Verbindung für dieses Repository wurde am 04.11.2026 deaktiviert. Das frühere Worker-Gerüst wurde aus dem Repository entfernt. Es gibt derzeit keinen produktiven oder lokalen GhostWriter-API-Dienst.
 
-## Entscheidung
+Auth0 bleibt als externer Identity Provider vorgesehen. GitHub bleibt die maßgebliche Datenquelle für Buchprojekte.
 
-- **Runtime/Hosting:** Cloudflare Workers
-- **Sprache:** TypeScript
-- **API:** versionierte HTTPS-REST-API unter \`/v1\`
-- **Identity Provider:** Auth0
-- **GitHub-Verbindung:** separate GitHub App
-- **Projekt- und Manuskriptpersistenz:** GitHub bleibt maßgebliche Datenquelle
+## Architekturziele (anbieterneutral)
+
+- **API:** versionierte HTTPS-REST-API unter `/v1`, später gegebenenfalls ergänzt durch MCP.
+- **Identity Provider:** Auth0 (ausgewählt, aber derzeit nicht mit einer GhostWriter-API verbunden).
+- **GitHub-Verbindung:** separate GitHub App.
+- **Projekt- und Manuskriptpersistenz:** GitHub bleibt maßgebliche Datenquelle.
 - **Schreibweg:** Änderungen gehen nicht direkt auf den Buch-Branch, sondern als Commits in den Arbeits-Branch `ghostwriter/<buch-branch>` mit einem offenen Pull Request; gemergt wird nur nach Bestätigung über „Änderungen übernehmen“ in der Projektübersicht (entschieden am 31.10.2026, Issue #9; Ablauf in `START.md`, „Schreiben ins Repository“).
-- **Zusätzlicher Speicher:** zunächst keiner; später D1 für dauerhafte Benutzer-/GitHub-Installationszuordnungen und KV für kurzlebigen OAuth-State, falls erforderlich.
+- **Zusätzlicher Speicher:** zunächst keiner. Spätere Datenbank- oder Objektspeicherentscheidungen erfolgen unabhängig vom Hostinganbieter und nur bei konkretem Bedarf.
 
-## Authentifizierungsarchitektur
+## Authentifizierungsarchitektur (Zielbild)
 
-ChatGPT authentifiziert den Benutzer über Auth0 und erhält ein Access Token für die GhostWriter-API. Der Worker prüft dessen RS256-Signatur über Auth0 JWKS sowie Issuer, Audience, Ablaufzeit und Scopes. Das Auth0 Client-Secret verbleibt in der GPT-Action-Konfiguration.
+Der Chat-Client authentifiziert den Benutzer über Auth0 und erhält ein Access Token für die GhostWriter-API. Die API muss dessen Signatur über Auth0 JWKS sowie Issuer, Audience, Ablaufzeit und Scopes prüfen.
 
 GitHub wird separat über eine GhostWriter GitHub App verbunden. GitHub-Tokens bleiben serverseitig.
 
@@ -25,32 +25,32 @@ Siehe [AUTH0-SETUP.md](AUTH0-SETUP.md) und [OAUTH-FLOW.md](OAUTH-FLOW.md).
 
 ## Offene Entscheidungen
 
-- endgültige Auth0-Tenant-Region und eigene Auth0-Domain;
-- finale API-Audience und Produktionsdomain;
+- Hosting und Laufzeit der API;
+- endgültige API-Audience und Produktionsdomain;
+- Auth0-Tenant-Konfiguration und Chat-Client-Registrierung;
 - GitHub-App-Installation und Speicherung der Zuordnungen;
 - Audit- und Aufbewahrungsfristen, Rate Limits und Monitoring.
 
 ## Implementierungsstand
 
 Vorhanden:
-- öffentlicher Health-Endpunkt;
-- geschützter \`GET /v1/account\`;
-- Auth0 JWT-Validierung und Scope-Prüfung;
-- lokale Testgrundlage und Auth0-Konfigurationsanleitung.
+- Architektur- und Sicherheitsanforderungen;
+- Auth0 als vorgesehener Identity Provider;
+- GitHub als maßgebliche Projekt- und Manuskriptablage.
 
 Noch nicht vorhanden:
-- Auth0-Tenant und GPT-Action-OAuth-Konfiguration;
+- ausführbare GhostWriter-API;
+- Auth0-Integration in einen GhostWriter-Dienst;
 - GitHub-App-Integration;
 - Projekt- und Manuskriptendpunkte;
 - produktive OpenAPI-Spezifikation und Deployment.
 
 ## Nächste Schritte
 
-1. Auth0-Tenant und API gemäß AUTH0-SETUP.md einrichten.
-2. GPT-Action-Client registrieren und echte ChatGPT Callback URL hinterlegen.
-3. Worker lokal mit Auth0 Issuer und Audience konfigurieren.
-4. Auth0-Handshake und geschützten Account-Endpunkt testen.
-5. GitHub App und geschützte Repository-Leseoperationen implementieren.
+1. Hostingoptionen anhand Betrieb, Kosten, Datenschutz, Wartbarkeit und Anbieterbindung vergleichen.
+2. API-Verträge und Sicherheitsgrenzen festlegen.
+3. Hostinganbieter und Laufzeit bewusst auswählen.
+4. Auth0-Handshake und GitHub-App-Verbindung implementieren und mit Testkonto/Testrepository abnehmen.
 
 ---
 
