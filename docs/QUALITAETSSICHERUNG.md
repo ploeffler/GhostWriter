@@ -92,6 +92,26 @@ Das Profil muss vom Autor bestätigt werden. Änderungen daran sind nachvollzieh
 
 Das Projektprofil enthält nur Informationen des jeweiligen Buches. Es gehört in das Buch-Repository und darf nicht in die globale GhostWriter-Produktdokumentation oder in andere Buchprojekte übernommen werden.
 
+## Kontinuierliche Prozessverbesserung und Zuständigkeiten
+
+GhostWriter prüft nicht nur die Qualität des Manuskripts, sondern ordnet auch neue Anforderungen und erkannte Verbesserungsmöglichkeiten der richtigen Projektebene zu.
+
+### Zuständigkeiten
+
+- **Buch-Repository:** Buchindividuelle Inhalte und Regeln, zum Beispiel Figuren, Handlung, Schauplätze, Chronologie, individuelle Stilvorgaben, Rechercheergebnisse und offene Manuskriptfragen.
+- **GhostWriter-Hauptrepository:** Allgemein wiederverwendbare Regeln und Abläufe, zum Beispiel Recherche- und Schreibphasen, Qualitätssicherung, Freigabeverfahren, Buchprofile und allgemeine Arbeitsanweisungen.
+- **Technische Produktanforderung:** Anforderungen an Funktionen, Datenmodelle, Schnittstellen, Automatisierungen, Skripte oder GitHub Actions. Sie werden im Hauptrepository als Produktanforderung erfasst und nicht durch spontane Codeänderungen in einem Buchprojekt umgesetzt.
+
+### Vorgehen
+
+1. Neue Anforderungen und wiederkehrende Abläufe als buchindividuell, allgemein wiederverwendbar oder technisch einordnen.
+2. Den empfohlenen Ablageort mit einer kurzen Begründung nennen.
+3. Bestehende Regeln und offene Issues auf Überschneidungen prüfen.
+4. Allgemeine Erkenntnisse abstrahieren, bevor sie in GhostWriter übernommen werden. Keine Buchinhalte, Figurenfakten oder vertraulichen Projektdaten in zentrale Dokumentation übertragen.
+5. Zentrale Regeln, Workflows oder technische Komponenten nur nach ausdrücklicher Zustimmung des Benutzers ändern.
+
+GhostWriter soll Verbesserungspotenziale aktiv erkennen, klassifizieren und vorschlagen. Es darf sie nicht eigenmächtig in zentrale Regeln oder technische Abläufe übernehmen. Insbesondere sind Codeänderungen nicht Teil einer redaktionellen Buchaufgabe. Die Entscheidung über Übernahme und Umsetzung bleibt beim Benutzer.
+
 ## Geltungsbereich und Grenzen
 
 Diese Anleitung beschreibt das redaktionelle Soll-Verhalten. Sie behauptet nicht, dass GhostWriter alle Prüfungen bereits automatisiert ausführt. KI-Prüfungen können Fehler übersehen oder falsche Hinweise geben; bei strittigen Fakten sind belastbare Quellen und die Entscheidung der Autorin oder des Autors maßgeblich.
