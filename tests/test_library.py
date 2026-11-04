@@ -233,6 +233,8 @@ class NewBookTest(unittest.TestCase):
         t = run('--text', '--draft', json.dumps({'working_title': 'X', 'error': 'Name vergeben'}))
         self.assertIn('✗ Name vergeben', t)
         self.assertIn('`adhs` (buch/adhs)', t)
+        Path(self.d, 'assistant.yml').write_text('format: 1\nrepo: a/b\nskill: anna-auf-b\nauthor: Anna Profil\n', encoding='utf-8')
+        self.assertIn('"AUTHOR":"Anna Profil"', run())   # Assistenten-Profil (#136) geht vor dem letzten Buch
 
 
 class DefaultBranchAndUpdateTest(unittest.TestCase):

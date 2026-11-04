@@ -2472,7 +2472,10 @@ def book_create_view(base, config, args):
         series_text = f'Band {len(ser["volumes"]) + 1} der Serie „{ser["title"]}“'
         in_ser = [b for b in latest if b['branch'] in ser['volumes']]
         latest = in_ser or latest
-    author = draft.get('author', latest[-1]['author'] if latest else '')
+    prof_path = Path(base, 'assistant.yml')   # Assistenten-Profil (#136): Autor der Bibliothek, außer in einer Serie
+    prof_author = ((yaml.safe_load(prof_path.read_text(encoding='utf-8')) or {}).get('author') or '') if prof_path.is_file() else ''
+    author = draft.get('author', (latest[-1]['author'] if latest and (ser or not prof_author) else prof_author)
+                       if latest or prof_author else '')
     prefix = library.settings(library.load_manifest())['book_prefix']
     if args.text:
         out = ['### 📗 Neues Buch', '', 'Das Buch bekommt einen eigenen Bereich in dieser Bibliothek; danach folgt der Einstiegsdialog.', '']

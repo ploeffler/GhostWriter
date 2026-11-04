@@ -23,6 +23,9 @@ upstream:
 managed:
   - START.md
   - README.md
+  - CLAUDE.md                 # Einstieg für Claude (#136)
+  - AGENTS.md                 # Einstieg für andere Assistenten (#136)
+  - .claude/skills/ghostwriter/   # allgemeiner Skill; persönliche Skills daneben gehören dem Buch
   - ghostwriter-manifest.yml
   - workflow.yml
   - providers.yml
@@ -52,6 +55,10 @@ book:
   - series/                 # Serien einer Bibliothek (Standard-Branch, #116)
   - analysis/               # Analysen im Hintergrund: Läufe, Vorschläge, Zwischenspeicher (#123)
   - import/                 # Manuskript-Import: Original, Umwandlung, Vorschlag (#124)
+  - assistant.yml           # Assistenten-Profil (#136): Repo, Git-Benutzer, Autor, Stimme
+  # Der persönliche Skill .claude/skills/<skill>/ (aus assistant.yml) steht absichtlich nicht
+  # hier: Er gibt es nur im Buch, ein Update fasst ihn deshalb nie an; .claude/skills/ als
+  # Ganzes hier aufzunehmen würde den allgemeinen Skill bei jedem Update zurücksetzen.
   - editions/
   - .ghostwriter/
 
