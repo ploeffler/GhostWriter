@@ -196,6 +196,24 @@ def book_stats(ref, cwd=ROOT):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+AUTOMATIC_PENDING_ACTIONS = {'index.build', 'update'}
+
+
+def pending_commits(book_ref, work_ref, cwd=ROOT):
+    """Benutzeränderungen im Arbeits-Branch; automatisch erzeugte Index-/Update-Commits zählen nicht."""
+    if not git('rev-parse', '-q', '--verify', work_ref, cwd=cwd).strip():
+        return 0
+    shas = git('rev-list', f'{book_ref}..{work_ref}', cwd=cwd).split()
+    count = 0
+    for sha in shas:
+        message = git('show', '-s', '--format=%B', sha, cwd=cwd)
+        actions = [line.split(':', 1)[1].strip()
+                   for line in message.splitlines() if line.startswith('GhostWriter-Aktion:')]
+        if not any(action in AUTOMATIC_PENDING_ACTIONS for action in actions):
+            count += 1
+    return count
+
+
 def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None):
     manifest = manifest or load_manifest()
     configs = branch_configs(namespace, cwd)
@@ -206,8 +224,7 @@ def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None):
         entry = dict(b, author=p.get('author') or '')
         entry.update(book_stats(ref, cwd))
         work = f'{namespace}/{b["work_branch"]}'
-        ahead = git('rev-list', '--count', f'{ref}..{work}', cwd=cwd).strip() if git('rev-parse', '-q', '--verify', work, cwd=cwd).strip() else ''
-        entry['pending'] = int(ahead or 0)
+        entry['pending'] = pending_commits(ref, work, cwd)
         entry['updated_at'] = git('log', '-1', '--format=%cI', ref, cwd=cwd).strip()
         entry['last_commit'] = git('log', '-1', '--format=%s', ref, cwd=cwd).strip()
         entry['last_edition'] = last_edition(entry['slug'], cwd)
