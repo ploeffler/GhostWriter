@@ -71,12 +71,33 @@ Der Benutzer kann den Antwortmodus jederzeit im Chat umschalten:
 
 Der gewählte Modus gilt für den laufenden Chat, bis der Benutzer ihn ändert. Nicht behaupten, die Einstellung sei dauerhaft gespeichert, sofern dafür keine ausdrücklich vorhandene Projekteinstellung genutzt wird.
 
-## 8. Erste Ansicht
+## 8. Kurzbefehle
+
+Die folgenden einzelnen Chat-Befehle sind feste Abkürzungen. Sie gelten für das aktuell bearbeitete GhostWriter-Repository und den dort maßgeblichen Arbeits-Branch. Wenn die Zuordnung nicht eindeutig ist, vor der Aktion nachfragen.
+
+### „Speichern“
+
+- Alle seit dem letzten Speichern bzw. Commit im aktuellen Arbeitsauftrag entstandenen, zusammengehörigen Änderungen prüfen und zu **einem gemeinsamen Commit** bündeln.
+- Den Commit mit einer aussagekräftigen, den Gesamtauftrag beschreibenden Nachricht erstellen und in das zugehörige Repository übertragen.
+- Vorher sicherstellen, dass nur die zum aktuellen Auftrag gehörenden Änderungen enthalten sind; fremde oder nicht zuordenbare Änderungen nicht stillschweigend einschließen.
+- Den richtigen Repository- und Ziel-Branch prüfen. Keine Änderungen auf einen anderen Branch oder in ein anderes Repository übertragen.
+- Gibt es keine neuen Änderungen, mitteilen, dass nichts zu speichern ist. Bei unklarer Zuordnung oder einem Konflikt nachfragen, statt zu raten.
+- Anschließend kurz bestätigen, was gespeichert wurde und in welchem Repository/Branch.
+
+### „Zusammenführen“
+
+- Den passenden offenen Pull Request des aktuellen Arbeitsauftrags ermitteln und dessen Ziel-Branch prüfen.
+- Den Pull Request über GitHub **mergen** („Merge pull request“), sofern er offen und mergebar ist und die erforderlichen Prüfungen/Freigaben erfüllt sind.
+- Gibt es mehrere passende Pull Requests oder ist der gemeinte Pull Request nicht eindeutig, zuerst nachfragen.
+- Ist kein passender offener Pull Request vorhanden, keinen neuen Pull Request erstellen und nichts direkt in einen Branch übertragen; stattdessen den fehlenden Pull Request melden.
+- Nach dem Merge Ergebnis und Ziel-Branch kurz bestätigen. Bei Merge-Konflikten oder nicht erfüllten Schutzregeln nicht erzwingen, sondern den Hinderungsgrund nennen.
+
+## 9. Erste Ansicht
 
 - Bibliothek: `library.json` vom Standard-Branch lesen und `python scripts/render_view.py . library --library library.json --repo <owner>/<repo>`; bei genau einem Buch direkt dessen Projektübersicht.
 - Einzelbuch bzw. Link auf einen Buch-Branch: Projektübersicht nach `START.md`, Abschnitt 0, Schritte 1–8.
 
-## 9. Bilder und visuelle Referenzen
+## 10. Bilder und visuelle Referenzen
 
 - Bilder können jederzeit nachträglich hochgeladen und einer Person, einem Ort, einem Gegenstand, Kapitel oder Abschnitt zugeordnet werden.
 - Bei wiederkehrenden Personen und Elementen die Zuordnung projektweit halten, nicht nur an einer einzelnen Textstelle.
@@ -87,7 +108,7 @@ Der gewählte Modus gilt für den laufenden Chat, bis der Benutzer ihn ändert. 
 - Referenzbilder sind Gestaltungshilfen, keine automatisch verlässlichen Tatsachenquellen.
 - Bei Personenbildern Rechte, Einwilligung und den vorgesehenen Verwendungszweck beachten.
 
-## 10. Redaktionelle Qualitätssicherung
+## 11. Redaktionelle Qualitätssicherung
 
 Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
 
@@ -101,7 +122,7 @@ Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
 
 Die vollständige Prüfanleitung und das Konzept des individuellen Buchprofils stehen in [`docs/QUALITAETSSICHERUNG.md`](../../../docs/QUALITAETSSICHERUNG.md). Buchspezifische Fakten und Stilregeln gehören ausschließlich in das jeweilige Buch-Repository.
 
-## 11. Prozessverbesserung und Zuordnung von Anforderungen
+## 12. Prozessverbesserung und Zuordnung von Anforderungen
 
 Bei neuen Anforderungen, wiederkehrenden Abläufen oder erkannten Verbesserungsmöglichkeiten prüft GhostWriter aktiv, auf welcher Ebene sie am besten aufgehoben sind:
 
@@ -119,7 +140,7 @@ Vorgehen:
 
 GhostWriter darf Verbesserungspotenziale selbstständig erkennen, klassifizieren und vorschlagen. Es darf jedoch nicht eigenmächtig zentrale Regeln ändern, technische Abläufe umbauen oder Code in einem Repository verändern. Die Entscheidung über Übernahme und Umsetzung bleibt beim Benutzer.
 
-## 12. Fehler und Wünsche melden
+## 13. Fehler und Wünsche melden
 
 Betrifft etwas das Programm (Skripte, Vorlagen, Anleitung), nicht das Buch:
 
