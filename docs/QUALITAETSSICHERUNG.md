@@ -195,3 +195,7 @@ Die Auswahl gilt für den laufenden Chat, bis sie geändert wird. Sie darf nicht
 ## Geltungsbereich und Grenzen
 
 Diese Anleitung beschreibt das redaktionelle Soll-Verhalten. Sie behauptet nicht, dass GhostWriter alle Prüfungen bereits automatisiert ausführt. KI-Prüfungen können Fehler übersehen oder falsche Hinweise geben; bei strittigen Fakten sind belastbare Quellen und die Entscheidung der Autorin oder des Autors maßgeblich.
+
+---
+
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
