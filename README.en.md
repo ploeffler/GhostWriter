@@ -1,3 +1,6 @@
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/logo-wortmarke-dark.svg">
@@ -25,7 +28,7 @@ GhostWriter is a workspace for developing a book in a chat with an AI assistant.
 
 ## Further reading
 
-[Getting started in English](docs/GETTING-STARTED.en.md) · [Principles in English](docs/PRINCIPLES.en.md) · [Full guide in German](docs/ANLEITUNG.md) · [Chat interfaces in German](docs/DIALOGE.md) · [AI services in German](docs/DIENSTE-NUTZEN.md) · [Updates in German](docs/UPDATES.md)
+[Getting started in English](docs/GETTING-STARTED.en.md) · [Principles in English](docs/PRINCIPLES.en.md) · [AI services in English](docs/AI-SERVICES.en.md) · [Chat views in English](docs/INTERFACES.en.md) · [Full guide in German](docs/ANLEITUNG.md) · [Updates in German](docs/UPDATES.md)
 
 The complete English graphical interface and additional translations are planned in [issue #74](https://github.com/ploeffler/GhostWriter/issues/74).
 
