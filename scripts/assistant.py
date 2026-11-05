@@ -198,7 +198,7 @@ def set_profile(base, changes):
     errs = errors(prof)
     if errs:
         return None, errs, None
-    order = ['format', 'repo', 'skill', 'git', 'author', 'voice', 'upstream']
+    order = ['format', 'repo', 'skill', 'interface_language', 'git', 'author', 'voice', 'upstream']
     prof = {k: prof[k] for k in order if k in prof}
     header = '# Assistenten-Profil (#136): gilt für alle Bücher dieses Repositorys; daraus entsteht\n' \
              '# .claude/skills/<skill>/SKILL.md (python scripts/assistant.py . skill). Keine Secrets, keine Manuskripttexte.\n'
