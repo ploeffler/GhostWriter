@@ -124,11 +124,11 @@ class MatterTest(MatterBase):
     def test_approvals_log_knows_matter(self):
         matter.add(self.base, 'epilogue')
         (self.base / 'approvals.yml').write_text(yaml.safe_dump({'entries': [
-            {'kind': 'matter', 'id': 'mat-epilog', 'action': 'granted', 'at': '2026-11-03T10:00:00+01:00',
+            {'kind': 'matter', 'id': 'mat-epilog', 'action': 'revoked', 'at': '2026-11-03T10:00:00+01:00',
              'by': 'ploeffler', 'commit': 'abc1234'},
-            {'kind': 'writing', 'id': 'mat-epilog', 'action': 'granted', 'at': '2026-11-03T10:00:00+01:00',
+            {'kind': 'writing', 'id': 'mat-epilog', 'action': 'revoked', 'at': '2026-11-03T10:00:00+01:00',
              'by': 'ploeffler', 'commit': 'abc1234'},
-            {'kind': 'matter', 'id': 'mat-prolog', 'action': 'granted', 'at': '2026-11-03T10:00:00+01:00',
+            {'kind': 'matter', 'id': 'mat-prolog', 'action': 'revoked', 'at': '2026-11-03T10:00:00+01:00',
              'by': 'ploeffler', 'commit': 'abc1234'}]}), encoding='utf-8')
         errors = validate_project.check_project(self.base)
         self.assertEqual(len(errors), 1, errors)
