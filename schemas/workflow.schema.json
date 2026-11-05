@@ -772,7 +772,10 @@
           ],
           "properties": {
             "records": {
-              "const": "backend_ai_api_calls"
+              "type": "array",
+              "items": {"enum": ["backend_ai_api_calls", "action_ai_api_calls"]},
+              "minItems": 2,
+              "uniqueItems": true
             },
             "excludes": {
               "type": "array",
