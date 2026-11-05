@@ -222,15 +222,8 @@ def check_project(project_dir):
                 errors.append(f'{path}: Titel weicht von ghostwriter.yml ab')
             if head['number'] != f'{ci}.{si}':
                 errors.append(f'{path}: Nummer {head["number"]} statt {ci}.{si} laut Reihenfolge')
-            if head['status'] == 'approved':
-                manuscript = section_file(base, section)[3]
-                expected = None
-                actual = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
-                if (head.get('approvals') or {}).get('section') is not True:
-                    errors.append(f'{path}: Status approved ohne approvals.section=true')
-                record = None
-                if expected != actual:
-                    errors.append(f'{path}: Abschnittsfreigabe fehlt oder passt nicht zum aktuellen Manuskript; erneut freigeben')
+            if head['status'] == 'approved' and (head.get('approvals') or {}).get('section') is not True:
+                errors.append(f'{path}: Status approved ohne approvals.section=true')
 
     matter_ids = set()
     seen_kinds = set()
@@ -478,11 +471,12 @@ def check_project(project_dir):
                         if head.get('status') != 'approved':
                             continue
                         record = latest.get(('section', section['id']))
-                        digest = (head.get('approvals') or {}).get('section_content_sha256')
+                        manuscript = section_file(base, section)[3]
+                        digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
                         if not record or record.get('action') != 'granted':
                             errors.append(f'{section["path"]}: approved ohne letzte gültige Abschnittsfreigabe in approvals.yml')
                         elif record.get('note') != 'content_sha256=' + digest:
-                            errors.append(f'{section["path"]}: content_sha256 im Abschnittskopf weicht von approvals.yml ab')
+                            errors.append(f'{section["path"]}: Manuskript-Fingerabdruck weicht von der letzten Freigabe in approvals.yml ab')
     return errors
 
 
