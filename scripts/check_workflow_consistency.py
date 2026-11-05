@@ -59,12 +59,13 @@ def main():
         seen = set()
         for edge in model.get("transitions", []):
             pair = (edge.get("from"), edge.get("to"))
-            if pair in seen:
-                errors.append(f"workflow.yml: doppelter Übergang in {name}: {pair[0]} -> {pair[1]}")
-            seen.add(pair)
+            identity = (*pair, edge.get("trigger"))
+            if identity in seen:
+                errors.append(f"workflow.yml: doppelter Übergang in {name}: {pair[0]} -> {pair[1]} ({identity[2]})")
+            seen.add(identity)
             if pair[0] not in allowed or pair[1] not in allowed:
                 errors.append(f"workflow.yml: unbekannter Status in {name}: {pair[0]} -> {pair[1]}")
-        if not any(a == "approved" for a, _ in seen):
+        if not any(edge.get("from") == "approved" for edge in model.get("transitions", [])):
             errors.append(f"workflow.yml: {name} definiert keinen Rückweg aus approved")
 
     changes = workflow.get("structure_changes") or {}
