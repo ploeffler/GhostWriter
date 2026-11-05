@@ -39,6 +39,7 @@ Geprüft werden:
 
 Endet mit Code 1, sobald ein Fehler gefunden wurde.
 """
+import hashlib
 import json
 import re
 import sys
@@ -221,6 +222,14 @@ def check_project(project_dir):
                 errors.append(f'{path}: Titel weicht von ghostwriter.yml ab')
             if head['number'] != f'{ci}.{si}':
                 errors.append(f'{path}: Nummer {head["number"]} statt {ci}.{si} laut Reihenfolge')
+            if head['status'] == 'approved':
+                manuscript = section_file(base, section)[3]
+                expected = (head.get('approvals') or {}).get('section_content_sha256')
+                actual = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+                if (head.get('approvals') or {}).get('section') is not True:
+                    errors.append(f'{path}: Status approved ohne approvals.section=true')
+                if expected != actual:
+                    errors.append(f'{path}: Abschnittsfreigabe fehlt oder passt nicht zum aktuellen Manuskript; erneut freigeben')
 
     matter_ids = set()
     seen_kinds = set()
