@@ -131,9 +131,6 @@ def chapter_markdown(base, chapter, number, proof=False):
                     and approval.get('section') is True
                     and record is not None
                     and record.get('action') == 'granted'
-                    and record.get('note') == 'content_sha256=' + digest
-                    and record is not None
-                    and record.get('action') == 'granted'
                     and record.get('note') == 'content_sha256=' + digest)
         if not approved:
             reason = ('Freigabe fehlt oder Manuskript seit Freigabe geändert'
