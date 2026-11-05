@@ -251,6 +251,10 @@ section_workflow:
       to: revision
       trigger: explicit_user_section_approval_revocation
       requires: [explicit_user_confirmation, append_only_revocation_record]
+    - from: approved
+      to: revision
+      trigger: confirmed_structure_change_invalidates_section_approval
+      requires: [explicit_user_confirmation, append_only_revocation_record]
   invariants:
     - research_and_brainstorming_are_repeatable
     - prior_runs_are_never_overwritten
@@ -284,9 +288,29 @@ chapter_workflow:
       to: approved
       trigger: explicit_user_chapter_approval
       requires: [all_sections_status_approved, assembled_chapter_version, user_approval_record]
+    - from: ready_for_assembly
+      to: in_progress
+      trigger: structure_change_invalidates_chapter
+      requires: [affected_chapter_status_reset, append_only_revocation_record_if_previously_approved]
+    - from: assembly
+      to: in_progress
+      trigger: structure_change_invalidates_chapter
+      requires: [affected_chapter_status_reset, append_only_revocation_record_if_previously_approved]
+    - from: review
+      to: in_progress
+      trigger: structure_change_invalidates_chapter
+      requires: [affected_chapter_status_reset, append_only_revocation_record_if_previously_approved]
+    - from: ready_for_approval
+      to: in_progress
+      trigger: structure_change_invalidates_chapter
+      requires: [affected_chapter_status_reset, append_only_revocation_record_if_previously_approved]
     - from: approved
       to: in_progress
       trigger: explicit_user_chapter_approval_revocation
+      requires: [explicit_user_confirmation, append_only_revocation_record]
+    - from: approved
+      to: in_progress
+      trigger: structure_change_invalidates_chapter
       requires: [explicit_user_confirmation, append_only_revocation_record]
   invariants:
     - all_sections_must_be_approved_before_assembly
@@ -320,6 +344,7 @@ structure_changes:
     never_permanently_discard_without_confirmation: true
     reset_affected_chapter_status: in_progress
     invalidate_affected_chapter_approval: true
+    invalidate_changed_section_approvals: true
     retain_deleted_entity_history_and_ids: true
 
 github_automation:
