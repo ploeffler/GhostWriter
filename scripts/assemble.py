@@ -179,7 +179,14 @@ def matter_markdown(base, item, proof=False, config=None):
     """(Markdown, freigegeben, Marker) eines Teils von Vor- oder Nachspann (#57).
     Nicht freigegeben: leeres Markdown, außer im Probedruck (mit Statusvermerk)."""
     head, _, _, manuscript = section_file(base, item)
-    approved = head.get('status') == 'approved'
+    approval = head.get('approvals') or {}
+    digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+    record = latest_approval(base, 'matter', item['id'])
+    approved = (head.get('status') == 'approved'
+                and approval.get('section') is True
+                and record is not None
+                and record.get('action') == 'granted'
+                and record.get('note') == 'content_sha256=' + digest)
     if not approved and not proof:
         return '', False, []
     text = manuscript.strip()
