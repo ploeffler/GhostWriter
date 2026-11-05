@@ -34,6 +34,9 @@ jobs:
           raise SystemExit(1 if errors else 0)
           EOF
 
+      - name: Workflow-Semantik prüfen
+        run: python scripts/check_workflow_consistency.py
+
       - name: Programm oder Buch?
         # Tests und Testbücher gehören zum Programm (tests/ wird nicht mit dem Update
         # verteilt); in Buch-Repositorys würden veraltete Kopien sonst fehlschlagen.
