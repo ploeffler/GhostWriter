@@ -76,7 +76,7 @@ class AssembleTests(unittest.TestCase):
         section = chapter['sections'][0]
         path = self.base / section['path']
         text = path.read_text(encoding='utf-8')
-        text += '\nNach der Freigabe eingefügter Text.\n'
+        text = text.replace('## Manuskript\n', '## Manuskript\n\nNach der Freigabe eingefügter Text.\n', 1)
         path.write_text(text, encoding='utf-8')
         _, config = load(self.base)
         md, skipped, _ = assemble.chapter_markdown(self.base, config['structure']['chapters'][0], 1)
