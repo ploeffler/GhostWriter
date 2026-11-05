@@ -224,10 +224,11 @@ def check_project(project_dir):
                 errors.append(f'{path}: Nummer {head["number"]} statt {ci}.{si} laut Reihenfolge')
             if head['status'] == 'approved':
                 manuscript = section_file(base, section)[3]
-                expected = (head.get('approvals') or {}).get('section_content_sha256')
+                expected = None
                 actual = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
                 if (head.get('approvals') or {}).get('section') is not True:
                     errors.append(f'{path}: Status approved ohne approvals.section=true')
+                record = None
                 if expected != actual:
                     errors.append(f'{path}: Abschnittsfreigabe fehlt oder passt nicht zum aktuellen Manuskript; erneut freigeben')
 
@@ -465,8 +466,8 @@ def check_project(project_dir):
                     documented = ref and (entry['kind'], entry['id']) == (ref['kind'], ref['id'])
                     if entry['id'] not in known and not documented:
                         errors.append(f'{approvals_path}: Eintrag {i}: {art} {entry["id"]} unbekannt')
-                    if entry['kind'] == 'section' and entry['action'] == 'granted' and not entry.get('content_sha256'):
-                        errors.append(f'{approvals_path}: Abschnittsfreigabe {entry["id"]} ohne content_sha256')
+                    if entry['kind'] == 'section' and entry['action'] == 'granted' and not str(entry.get('note', '')).startswith('content_sha256='):
+                        errors.append(f'{approvals_path}: Abschnittsfreigabe {entry["id"]} ohne Manuskript-Fingerabdruck in note')
 
                 latest = {}
                 for entry in data.get('entries', []):
@@ -480,7 +481,7 @@ def check_project(project_dir):
                         digest = (head.get('approvals') or {}).get('section_content_sha256')
                         if not record or record.get('action') != 'granted':
                             errors.append(f'{section["path"]}: approved ohne letzte gültige Abschnittsfreigabe in approvals.yml')
-                        elif record.get('content_sha256') != digest:
+                        elif record.get('note') != 'content_sha256=' + digest:
                             errors.append(f'{section["path"]}: content_sha256 im Abschnittskopf weicht von approvals.yml ab')
     return errors
 
