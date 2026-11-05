@@ -466,17 +466,23 @@ def check_project(project_dir):
                 for entry in data.get('entries', []):
                     latest[(entry['kind'], entry['id'])] = entry
                 for chapter in config['structure']['chapters']:
+                    chapter_record = latest.get(('chapter', chapter['id']))
+                    if chapter.get('status') == 'approved' and (not chapter_record or chapter_record.get('action') != 'granted'):
+                        errors.append(f'{chapter["id"]}: approved ohne letzte gültige Kapitelfreigabe in approvals.yml')
+                    elif chapter.get('status') != 'approved' and chapter_record and chapter_record.get('action') == 'granted':
+                        errors.append(f'{chapter["id"]}: Kapitelstatus nicht approved, aber Freigabe in approvals.yml nicht zurückgenommen')
                     for section in chapter['sections']:
                         head = section_file(base, section)[0]
-                        if head.get('status') != 'approved':
-                            continue
                         record = latest.get(('section', section['id']))
-                        manuscript = section_file(base, section)[3]
-                        digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
-                        if not record or record.get('action') != 'granted':
-                            errors.append(f'{section["path"]}: approved ohne letzte gültige Abschnittsfreigabe in approvals.yml')
-                        elif record.get('note') != 'content_sha256=' + digest:
-                            errors.append(f'{section["path"]}: Manuskript-Fingerabdruck weicht von der letzten Freigabe in approvals.yml ab')
+                        if head.get('status') == 'approved':
+                            manuscript = section_file(base, section)[3]
+                            digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+                            if not record or record.get('action') != 'granted':
+                                errors.append(f'{section["path"]}: approved ohne letzte gültige Abschnittsfreigabe in approvals.yml')
+                            elif record.get('note') != 'content_sha256=' + digest:
+                                errors.append(f'{section["path"]}: Manuskript-Fingerabdruck weicht von der letzten Freigabe in approvals.yml ab')
+                        elif record and record.get('action') == 'granted':
+                            errors.append(f'{section["path"]}: Abschnittsfreigabe in approvals.yml nicht zurückgenommen')
     return errors
 
 
