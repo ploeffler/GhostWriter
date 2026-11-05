@@ -459,7 +459,7 @@ def check_project(project_dir):
                     documented = ref and (entry['kind'], entry['id']) == (ref['kind'], ref['id'])
                     if entry['id'] not in known and not documented:
                         errors.append(f'{approvals_path}: Eintrag {i}: {art} {entry["id"]} unbekannt')
-                    if entry['kind'] == 'section' and entry['action'] == 'granted' and not str(entry.get('note', '')).startswith('content_sha256='):
+                    if entry['kind'] in ('section', 'matter') and entry['action'] == 'granted' and not str(entry.get('note', '')).startswith('content_sha256='):
                         errors.append(f'{approvals_path}: Abschnittsfreigabe {entry["id"]} ohne Manuskript-Fingerabdruck in note')
 
                 latest = {}
@@ -488,10 +488,14 @@ def check_project(project_dir):
                     record = latest.get(('matter', item['id']))
                     if head.get('status') == 'approved':
                         digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+                        if (head.get('approvals') or {}).get('section') is not True:
+                            errors.append(f'{item["path"]}: Status approved ohne approvals.section=true')
                         if not record or record.get('action') != 'granted':
                             errors.append(f'{item["path"]}: freigegebener Vor-/Nachspann ohne letzte Freigabe in approvals.yml')
                         elif record.get('note') != 'content_sha256=' + digest:
                             errors.append(f'{item["path"]}: Manuskript-Fingerabdruck weicht von der letzten Freigabe ab')
+                    elif record and record.get('action') == 'granted':
+                        errors.append(f'{item["path"]}: Freigabe des Vor-/Nachspanns in approvals.yml nicht zurückgenommen')
                     elif record and record.get('action') == 'granted':
                         errors.append(f'{item["path"]}: Freigabe des Vor-/Nachspanns in approvals.yml nicht zurückgenommen')
     return errors
