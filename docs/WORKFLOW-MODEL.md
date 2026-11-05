@@ -14,7 +14,7 @@ Die JSON-Schema-Datei unter `schemas/workflow.schema.json` beschreibt die Strukt
 
 Recherche, Brainstorming, Revision und Faktenprüfung können mehrere Läufe bzw. Runden umfassen. Jeder Lauf wird als eigene Datei gespeichert. Faktenprüfung ist optional und verändert den Manuskripttext niemals automatisch.
 
-Der Übergang zu `writing` verlangt eine ausdrückliche Schreibfreigabe. Der Übergang zu `approved` verlangt eine ausdrückliche Abschnittsfreigabe des Benutzers. Sie wird an den SHA-256-Fingerabdruck des exakten Manuskripttexts gebunden (`approvals.section_content_sha256` und `approvals.yml` → `content_sha256`). Ein freigegebener Text darf nicht bearbeitet werden. Zuerst muss die Freigabe ausdrücklich zurückgenommen werden (`approved → revision`); die Rücknahme wird als neuer, unveränderlicher Historieneintrag protokolliert. Der nächste Schreibvorgang benötigt anschließend eine neue Schreibfreigabe.
+Der Übergang zu `writing` verlangt eine ausdrückliche Schreibfreigabe. Der Übergang zu `approved` verlangt eine ausdrückliche Abschnittsfreigabe des Benutzers. Sie wird an den SHA-256-Fingerabdruck der von section_file gelesenen, außen getrimmten UTF-8-Fassung des Manuskripttexts gebunden (`approvals.section_content_sha256` und `approvals.yml` → `content_sha256`). Ein freigegebener Text darf nicht bearbeitet werden. Zuerst muss die Freigabe ausdrücklich zurückgenommen werden (`approved → revision`); die Rücknahme wird als neuer, unveränderlicher Historieneintrag protokolliert. Der nächste Schreibvorgang benötigt anschließend eine neue Schreibfreigabe.
 
 ### Kapitel
 
@@ -32,7 +32,7 @@ Milestones gruppieren Arbeit auf Kapitel- oder Projektebene. Das Schließen eine
 
 ## Änderungsregeln
 
-Stabile IDs werden unabhängig von sichtbaren Nummern geführt. Nummern werden aus der aktuellen Reihenfolge berechnet. Strukturänderungen bewahren Inhalte und Historie. Löschen und Aufteilen erfordern Bestätigung. Hinzufügen, Umbenennen, Neuordnen, Verschieben, Aufteilen oder Löschen setzt betroffene Kapitel auf `in_progress` zurück und invalidiert deren Kapitel-Freigabe; nicht betroffene Abschnittsfreigaben bleiben nur erhalten, wenn ihr Manuskript unverändert ist.
+Stabile IDs werden unabhängig von sichtbaren Nummern geführt. Nummern werden aus der aktuellen Reihenfolge berechnet. Strukturänderungen bewahren Inhalte und Historie. Löschen und Aufteilen erfordern Bestätigung. Hinzufügen, Umbenennen, Neuordnen, Verschieben, Aufteilen oder Löschen setzt betroffene Kapitel aus jedem Prüf- oder Freigabestatus auf `in_progress` zurück und invalidiert deren Kapitel-Freigabe; nicht betroffene Abschnittsfreigaben bleiben nur erhalten, wenn ihr Manuskript unverändert ist.
 
 ## Schreib- und Auditregeln
 
