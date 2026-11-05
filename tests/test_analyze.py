@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import yaml
@@ -66,7 +67,9 @@ class AnalyzeTest(unittest.TestCase):
         # zweiter Lauf ohne Änderung: alles aus dem Zwischenspeicher, keine Aufrufe
         _, config = load(self.base)
         self.assertEqual(analyze.plan(self.base, config)['todo'], 0)
-        head2 = analyze.run(self.base)
+        with patch.object(analyze, 'call_llm', wraps=analyze.call_llm) as call:
+            head2 = analyze.run(self.base)
+        call.assert_not_called()
         self.assertEqual((head2['blocks_analysed'], head2['input_tokens']), (0, 0))
         # Hinweis in der Übersicht, bis übernommen
         view = lambda: json.loads(re.search(r'GW\.render\("projektuebersicht",(.*)\)</script>', subprocess.run(
@@ -87,6 +90,13 @@ class AnalyzeTest(unittest.TestCase):
         sec = self.base / config['structure']['chapters'][1]['sections'][0]['path']
         sec.write_text(sec.read_text(encoding='utf-8') + '\nNoch ein Satz.\n', encoding='utf-8')
         self.assertEqual(analyze.plan(self.base, config)['todo'], 1)
+        # Auch beim tatsächlichen Lauf wird nur der geänderte Kapitelblock extrahiert.
+        with patch.object(analyze, 'call_llm', wraps=analyze.call_llm) as call:
+            head3 = analyze.run(self.base)
+        extracts = [c for c in call.call_args_list if len(c.args) < 7 or c.args[6] != 'merge']
+        self.assertEqual(head3['blocks_analysed'], 1)
+        self.assertEqual(len(extracts), 1)
+        self.assertIn(config['structure']['chapters'][1]['id'], extracts[0].args[4])
 
     def test_summaries(self):
         _, config = load(self.base)
