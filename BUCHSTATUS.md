@@ -30,7 +30,7 @@ Ein Branch mit einem ähnlichen Namen ist nicht automatisch der passende Arbeits
 - Der Arbeits-Branch kann Entwürfe, Änderungen und redaktionelle Zwischenstände enthalten.
 - Ein offener Pull Request bedeutet **nicht**, dass seine Inhalte bereits freigegeben oder übernommen sind.
 - Übernimm Manuskripttext nur nach ausdrücklicher Zustimmung des Autors und gemäß den Freigaberegeln in `START.md`.
-- Mergе oder übertrage niemals einen ganzen Arbeits-Branch allein deshalb, weil er existiert.
+- Merge oder übertrage niemals einen ganzen Arbeits-Branch allein deshalb, weil er existiert.
 - Keine Branches automatisch löschen, umbenennen oder zusammenführen.
 - Wenn Zuordnung oder Status unklar sind, nenne die Unsicherheit und frage nur dann nach, wenn sie die nächste Aktion verhindert.
 
