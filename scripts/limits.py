@@ -105,7 +105,7 @@ def evaluate(base, config, month=None, live=None):
         if not total:
             return
         left = max(0.0, (total - used) / total * 100)
-        state = 'pause' if left < pause else 'warn' if left < warn else 'ok'
+        state = 'pause' if left == 0 or left < pause else 'warn' if left < warn else 'ok'
         fmt = (lambda v: f'{v:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')) if unit == '€' else (lambda v: f'{int(v)}')
         rows.append({'key': key, 'label': LABEL[key], 'used': used, 'total': total, 'left_pct': round(left, 1), 'state': state,
                      'text': f'{LABEL[key]} {round(left):d} % übrig ({fmt(used)} von {fmt(total)}{" " + unit if unit else ""} verbraucht)'})
