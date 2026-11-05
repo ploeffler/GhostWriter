@@ -40,7 +40,17 @@ def set_part(base, kind, text=None, approved=True):
     t = re.sub(r'(?m)^  writing: \w+', '  writing: true', t, count=1)
     t = re.sub(r'(?m)^  section: \w+', f'  section: {"true" if approved else "false"}', t, count=1)
     path.write_text(t, encoding='utf-8')
-
+    head = yaml.safe_load(t.split('---', 2)[1])
+    manuscript = t.split('## Manuskript\n', 1)[1].strip()
+    digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+    ledger_path = base / 'approvals.yml'
+    ledger = yaml.safe_load(ledger_path.read_text(encoding='utf-8')) if ledger_path.is_file() else {'entries': []}
+    entry = {'kind': 'matter', 'id': head['id'], 'action': 'granted' if approved else 'revoked',
+             'at': '2026-11-05T12:00:00Z', 'by': 'test', 'commit': '1234567'}
+    if approved:
+        entry['note'] = 'content_sha256=' + digest
+    ledger['entries'].append(entry)
+    ledger_path.write_text(yaml.safe_dump(ledger, allow_unicode=True, sort_keys=False), encoding='utf-8')
 
 def approve_chapter_1(base):
     cfg_path = base / 'ghostwriter.yml'
