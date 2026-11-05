@@ -483,6 +483,17 @@ def check_project(project_dir):
                                 errors.append(f'{section["path"]}: Manuskript-Fingerabdruck weicht von der letzten Freigabe in approvals.yml ab')
                         elif record and record.get('action') == 'granted':
                             errors.append(f'{section["path"]}: Abschnittsfreigabe in approvals.yml nicht zurückgenommen')
+                for _, item in matter_items(config):
+                    head, _, _, manuscript = section_file(base, item)
+                    record = latest.get(('matter', item['id']))
+                    if head.get('status') == 'approved':
+                        digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+                        if not record or record.get('action') != 'granted':
+                            errors.append(f'{item["path"]}: freigegebener Vor-/Nachspann ohne letzte Freigabe in approvals.yml')
+                        elif record.get('note') != 'content_sha256=' + digest:
+                            errors.append(f'{item["path"]}: Manuskript-Fingerabdruck weicht von der letzten Freigabe ab')
+                    elif record and record.get('action') == 'granted':
+                        errors.append(f'{item["path"]}: Freigabe des Vor-/Nachspanns in approvals.yml nicht zurückgenommen')
     return errors
 
 
