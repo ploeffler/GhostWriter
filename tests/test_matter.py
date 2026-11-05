@@ -388,14 +388,13 @@ class GlossaryReferenceTest(MatterBase):
 
     def setUp(self):
         super().setUp()
-        approve_chapter_1(self.base)
         _, config = load(self.base)
         self.section = self.base / config['structure']['chapters'][0]['sections'][0]['path']
         t = self.section.read_text(encoding='utf-8')
         head, _, ms = t.partition('## Manuskript\n')
         self.section.write_text(head + '## Manuskript\n\nWer [ADHS]{.glossar} hat, kennt [Ärgernisse]{.glossar term="Ärger"}.\n'
                                 + ms, encoding='utf-8')
-
+        approve_chapter_1(self.base)
     def body(self):
         _, config = load(self.base)
         parts, mparts = assemble.book_parts(self.base, config), assemble.matter_parts(self.base, config)
