@@ -1,6 +1,3 @@
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
 # Using AI services with GhostWriter
 
 Choose the services you already use and assign tasks in **AI services** (robot icon in the project overview; `D` in the German text view). You do not need a new subscription to start.
