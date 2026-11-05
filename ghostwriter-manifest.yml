@@ -23,6 +23,7 @@ upstream:
 managed:
   - START.md
   - README.md
+  - README.en.md
   - CLAUDE.md                 # Einstieg für Claude (#136)
   - AGENTS.md                 # Einstieg für andere Assistenten (#136)
   - .claude/skills/ghostwriter/   # allgemeiner Skill; persönliche Skills daneben gehören dem Buch
