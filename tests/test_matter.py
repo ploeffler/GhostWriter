@@ -288,6 +288,7 @@ class ForewordGlossaryTest(MatterBase):
         path = self.base / 'matter/glossar.md'
         path.write_text(path.read_text(encoding='utf-8') + '- Apfel: nochmal\n', encoding='utf-8')
         self.assertTrue(any('Begriff mehrfach eingetragen: Apfel' in e for e in validate_project.check_project(self.base)))
+        set_part(self.base, 'glossary')  # erneute Freigabe nach manueller Textänderung
         approve_chapter_1(self.base)
         _, config = load(self.base)
         found = assemble.problems(assemble.book_parts(self.base, config), config, assemble.matter_parts(self.base, config))
@@ -424,6 +425,7 @@ class GlossaryReferenceTest(MatterBase):
         found, body = self.body()
         self.assertEqual(found, ['Glossar-Verweis ohne Eintrag in Kapitel 1: „Ärger“'])
         matter.glossary_set(self.base, 'Ärger', 'Gefühl')
+        set_part(self.base, 'glossary')  # Eintrag geändert: Freigabe erneuern
         found, body = self.body()
         self.assertEqual(found, [])
         self.assertIn('Wer [ADHS](#gl-adhs){.glossar} hat, kennt [Ärgernisse](#gl-aerger){.glossar}.', body)
