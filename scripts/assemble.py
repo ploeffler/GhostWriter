@@ -129,10 +129,12 @@ def chapter_markdown(base, chapter, number, proof=False):
         record = latest_approval(base, 'section', s['id'])
         approved = (head.get('status') == 'approved'
                     and approval.get('section') is True
-                    and approval.get('section_content_sha256') == digest
                     and record is not None
                     and record.get('action') == 'granted'
-                    and record.get('content_sha256') == digest)
+                    and record.get('note') == 'content_sha256=' + digest
+                    and record is not None
+                    and record.get('action') == 'granted'
+                    and record.get('note') == 'content_sha256=' + digest)
         if not approved:
             reason = ('Freigabe fehlt oder Manuskript seit Freigabe geändert'
                       if head.get('status') == 'approved' else str(head.get('status')))
