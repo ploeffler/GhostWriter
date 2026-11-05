@@ -90,12 +90,19 @@ MVP:
 - Repository-Initialisierung;
 - stabile Datei- und Statuskonventionen.
 
-Später:
+Bereits im Repository vorgesehene bzw. implementierte v0.5-Bausteine:
+- Recherche-, Brainstorming-, Schreib- und Analyse-Läufe als getrennte, unveränderliche Dateien;
+- Abschnittsmanuskripte und Freigabehistorie;
+- Kapitelzusammenführung und Prüfung freigegebener Inhalte;
+- Projekt- und Schemaprüfung sowie CI-Validierung über GitHub Actions.
+
+Spätere Ausbaustufen:
+- vollständige End-to-End-Orchestrierung von Issues und Milestones;
 - eigene GhostWriter-Schnittstelle (API/MCP-Server, ggf. GitHub-App) für beliebige Chat-Clients;
-- Recherche- und Brainstormingläufe im Repository speichern;
-- Abschnittsmanuskripte und Prüfberichte;
-- Kapitelzusammenführung;
-- automatisierte Validierung via GitHub Actions.
+- zeitgesteuerte KI-Läufe, Warteschlange und automatisierte Budgetsteuerung;
+- weitere Produktfunktionen gemäß `workflow.yml` und `docs/WORKFLOW-MODEL.md`.
+
+Die Nennung eines Bausteins beschreibt den Repository-Stand bzw. das Zielmodell, nicht automatisch eine vollständig produktive Automatisierung. Maßgeblich sind die Roadmap-Abnahme und die zugehörigen Tests.
 
 ---
 
