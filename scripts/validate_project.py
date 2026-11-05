@@ -465,6 +465,23 @@ def check_project(project_dir):
                     documented = ref and (entry['kind'], entry['id']) == (ref['kind'], ref['id'])
                     if entry['id'] not in known and not documented:
                         errors.append(f'{approvals_path}: Eintrag {i}: {art} {entry["id"]} unbekannt')
+                    if entry['kind'] == 'section' and entry['action'] == 'granted' and not entry.get('content_sha256'):
+                        errors.append(f'{approvals_path}: Abschnittsfreigabe {entry["id"]} ohne content_sha256')
+
+                latest = {}
+                for entry in data.get('entries', []):
+                    latest[(entry['kind'], entry['id'])] = entry
+                for chapter in config['structure']['chapters']:
+                    for section in chapter['sections']:
+                        head = section_file(base, section)[0]
+                        if head.get('status') != 'approved':
+                            continue
+                        record = latest.get(('section', section['id']))
+                        digest = (head.get('approvals') or {}).get('section_content_sha256')
+                        if not record or record.get('action') != 'granted':
+                            errors.append(f'{section["path"]}: approved ohne letzte gültige Abschnittsfreigabe in approvals.yml')
+                        elif record.get('content_sha256') != digest:
+                            errors.append(f'{section["path"]}: content_sha256 im Abschnittskopf weicht von approvals.yml ab')
     return errors
 
 
