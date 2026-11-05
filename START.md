@@ -283,7 +283,7 @@ Die Knöpfe „Recherche · Sofort“ und „Ghostwriting · Sofort“ im Abschn
    - der **Lauf-Datei** nach `workflow.yml` → `runs` (Recherche: `chapters/<kapitel>/research/<abschnitt>/run-NNN.md` aus `templates/research-run.md`; Ghostwriting: `chapters/<kapitel>/writing/<abschnitt>/run-NNN.md` aus `templates/writing-run.md`); laufende Nummer, nie überschreiben;
    - bei Ghostwriting dem **Manuskript** in der Abschnittsdatei (unter `## Manuskript`) und dem Statuswechsel `ready_to_write` → `writing` bzw., wenn schon ein Entwurf da war, `writing`/`revision` → `revision`; der vorige Text bleibt in der Git-Historie;
    - dem **Status** in der Abschnittsliste der Kapitel-README und `workflow.current_*`;
-   - **keinem Kosteneintrag** für die Arbeit im Chat (#13). Nur wenn der Lauf über das GhostWriter-Backend kostenpflichtige KI-API-Aufrufe gemacht hat, kommt je Aufruf ein Eintrag mit `source: backend_api` und `run_id` dazu.
+   - **keinem Kosteneintrag** für die Arbeit im Chat (#13). Nur wenn der Lauf kostenpflichtige KI-API-Aufrufe über das GhostWriter-Backend oder eine GitHub Action gemacht hat, kommt je Aufruf ein Eintrag mit `source: backend_api` bzw. `source: action_api` und `run_id` dazu. Chat-Arbeit über bestehende Abos erzeugt keinen Kosteneintrag.
    
    Commit-Nachricht: `Recherche für Abschnitt N.M` bzw. `Entwurf für Abschnitt N.M`, darunter `GhostWriter-Aktion: run.start`.
 6. **Ergebniszeile** wie in `templates/ui/BEFUELLUNG.md`, „Statustexte“, danach wieder das Abschnittsformular mit dem neuen Stand. Freigaben erteilt ein Lauf nie; die Abschnittsfreigabe bleibt ein eigener, ausdrücklicher Schritt.
