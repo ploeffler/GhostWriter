@@ -42,7 +42,7 @@ class AssembleTests(unittest.TestCase):
                 text = re.sub(r'\*?\[(PLATZHALTER-ANEKDOTE|QUELLE PRÜFEN|MEDIZIN PRÜFEN|RECHT PRÜFEN)[^\]]*\]\*?', '', text)
             manuscript = text.split('## Manuskript\n', 1)[1].strip()
             digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
-            text = re.sub(r'(?m)^  section: \w+', f'  section: true\n  section_content_sha256: {digest}', text, count=1)
+            text = re.sub(r'(?m)^  section: \w+', '  section: true', text, count=1)
             path.write_text(text, encoding='utf-8')
             ledger['entries'].append({'kind': 'section', 'id': section['id'], 'action': 'granted',
                 'at': '2026-11-05T12:00:00Z', 'by': 'test', 'commit': '1234567', 'note': 'content_sha256=' + digest})
