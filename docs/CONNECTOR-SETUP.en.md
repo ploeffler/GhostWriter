@@ -1,6 +1,3 @@
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
 # Connecting GhostWriter to GitHub
 
 This is a translation of the setup procedure documented on 31 October 2026. **The proposed GitHub App authentication and ChatGPT write path were not fully tested in GhostWriter.** App menus, supported plans, OAuth requirements and permissions can change. Check the provider's current documentation before granting access. Report GhostWriter-specific results in [issue #22](https://github.com/ploeffler/GhostWriter/issues/22).
