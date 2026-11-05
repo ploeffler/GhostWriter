@@ -1,6 +1,3 @@
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
 # User guide: from an empty repository to the first edition
 
 This guide follows the German [Anleitung](ANLEITUNG.md). You need a GitHub account and an AI chat assistant, ideally with GitHub access and web research. You do not need to know Git. Say `Interface: English` to request English chat operation. The graphical templates and some linked material are still in German.

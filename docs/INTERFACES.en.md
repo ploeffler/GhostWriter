@@ -1,6 +1,3 @@
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
 # Chat views and forms
 
 GhostWriter presents overviews and forms in the chat. You choose an action or reply briefly, and the assistant saves through the repository workflow. Depending on the chat application, the same information may be presented as text with shortcuts or as native chat elements.

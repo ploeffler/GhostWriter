@@ -1,6 +1,3 @@
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
 # GhostWriter updates
 
 The update workflow brings program changes from the main GhostWriter repository into your book repository. This page describes the existing workflow; the [German developer guide](UPDATES.md) has additional technical detail.

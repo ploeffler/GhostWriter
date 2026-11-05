@@ -1,6 +1,3 @@
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
 # Chat apps for GhostWriter v0.5
 
 This is a translation of the historical assessment dated 31 October 2026. App capabilities and permissions can change; verify them in your own session before relying on them.
