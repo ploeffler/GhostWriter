@@ -29,9 +29,19 @@ def main():
     config = yaml.safe_load((ROOT / "ghostwriter.yml").read_text(encoding="utf-8"))
     policy = workflow.get("global_ai_policy") or {}
     project_policy = config.get("ai_settings") or {}
-    for key in ("hallucination_policy", "source_policy", "uncertainty_policy", "creativity", "web_research"):
-        if policy.get(key) != project_policy.get(key):
-            errors.append(f"KI-Regel {key}: workflow.yml={policy.get(key)!r}, ghostwriter.yml={project_policy.get(key)!r}")
+    strictness = {
+        "hallucination_policy": {"off": 0, "standard": 1, "strict": 2},
+        "source_policy": {"optional": 0, "recommended": 1, "required": 2},
+        "uncertainty_policy": {"off": 0, "normal": 1, "explicit": 2},
+        "creativity": {"creative": 0, "balanced": 1, "conservative": 2},
+        "web_research": {"none": 0, "research": 1, "mandatory": 2},
+    }
+    for key, levels in strictness.items():
+        base, chosen = policy.get(key), project_policy.get(key)
+        if base not in levels or chosen not in levels:
+            errors.append(f"KI-Regel {key}: unbekannter Wert workflow.yml={base!r}, ghostwriter.yml={chosen!r}")
+        elif levels[chosen] < levels[base]:
+            errors.append(f"KI-Regel {key}: ghostwriter.yml lockert die globale Vorgabe {base!r} auf {chosen!r}")
 
     section_schema = json.loads((ROOT / "schemas/section.schema.json").read_text(encoding="utf-8"))
     section_enum = set(section_schema["properties"]["status"]["enum"])
