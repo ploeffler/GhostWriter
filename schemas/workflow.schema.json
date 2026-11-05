@@ -577,6 +577,9 @@
               "const": "section"
             },
             "section_id_required": {
+              "const": "for_section_activity_only"
+            },
+            "project_level_activity_may_omit_section_id": {
               "const": true
             },
             "chapter_total": {
