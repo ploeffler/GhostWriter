@@ -22,6 +22,7 @@ upstream:
 # Programmdateien: beim Update vom Upstream übernommen (Ordner mit /)
 managed:
   - START.md
+  - BUCHSTATUS.md             # verbindliche Orientierung zu Buch- und Arbeits-Branches
   - README.md
   - README.en.md
   - CLAUDE.md                 # Einstieg für Claude (#136)

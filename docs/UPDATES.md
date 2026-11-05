@@ -75,6 +75,12 @@ Gut zu wissen:
 - Ein Fork eines **privaten** Repositorys wird gelöscht, wenn dir der Zugriff auf das Hauptrepository entzogen wird. Auch deshalb ist ein eigenes Repository aus der Vorlage sicherer.
 - Ordner, die nur der Entwicklung dienen (`tests/`, `backend/`), werden in Büchern nicht aktualisiert und können gelöscht werden.
 
+## Branch-Orientierung in bestehenden Buch-Repositorys
+
+`BUCHSTATUS.md` gehört zu den verwalteten GhostWriter-Dateien. Sobald die Änderung im Hauptrepository nach `main` übernommen ist, verteilt die tägliche Update-Action sie wie andere Programm- und Dokumentationsdateien auf bestehende Buch-Repositorys und deren Buch-Branches. Voraussetzung ist, dass die Update-Action im jeweiligen Repository eingerichtet und aktiviert ist; ein manueller Lauf ist jederzeit möglich (*Actions → GhostWriter aktualisieren → Run workflow*). Neue Repositorys aus der Vorlage enthalten die Datei bereits beim Anlegen.
+
+Die Datei wird beim Update aus dem Hauptrepository übernommen. Individuelle Buchinhalte und persönliche Branch-Zuordnungen gehören nicht hinein: Der Assistent prüft die Branch-Liste bei jedem Wiedereinstieg live. Das Update legt keine Branches an, verschiebt keine Manuskripte und merged keine Buch- oder Arbeits-Branches.
+
 ## Ein- und ausschalten
 
 In der Projektübersicht → **Projekteinstellungen** → **Updates**: „Neue GhostWriter-Versionen automatisch einspielen“. Dort siehst du auch die installierte Version und das Datum des letzten Updates. In `ghostwriter.yml`:
