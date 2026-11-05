@@ -26,7 +26,7 @@ def _content_activity(branch, content_paths, since):
     ).splitlines() if line]
     files = set()
     for commit in commits:
-        names = _git("diff-tree", "--no-commit-id", "--name-only", "-r", commit).splitlines()
+        names = _git("diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "-r", commit).splitlines()
         files.update(name for name in names if any(
             name == path.rstrip("/") or name.startswith(path.rstrip("/") + "/")
             for path in content_paths
@@ -100,7 +100,7 @@ def main():
 
     manifest = yaml.safe_load(Path("ghostwriter-manifest.yml").read_text(encoding="utf-8")) or {}
     configs = library.branch_configs()
-    default = library.default_branch()
+    default = library.default_branch() or os.environ.get("GITHUB_REF_NAME") or "main"
     books = library.books(configs, manifest, default)
     lines = ["## Tägliche GitHub-Übersicht"]
     append_daily_summary(lines, os.environ.get("GITHUB_REPOSITORY", ""), [b["branch"] for b in books], manifest)
