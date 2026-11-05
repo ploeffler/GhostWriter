@@ -208,7 +208,10 @@ def matter_markdown(base, item, proof=False, config=None):
     if proof:
         text = mark_markers(text) or '*(noch kein Text)*'
         if not approved:
-            text = f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben]{{.gwstatus}}\n\n' + text
+            status_note = ('Freigabe fehlt oder Manuskript seit Freigabe geändert'
+                           if head.get('status') == 'approved'
+                           else f'{STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben')
+            text = f'[Stand: {status_note}]{{.gwstatus}}\\n\\n' + text
     if kind == 'dedication':
         md = f'# {item["title"]} {{.unnumbered .unlisted .dedication epub:type=dedication}}\n\n::: widmung\n{text}\n:::\n'
     else:
