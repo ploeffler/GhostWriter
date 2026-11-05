@@ -55,19 +55,19 @@ book_releases:
 cost_tracking:
   enabled: true
   purpose: transparent_ai_activity_cost_accounting
-  # Entschieden am 31.10.2026 (#13): Erfasst werden ausschließlich zusätzliche,
-  # verbrauchsabhängige KI-API-Kosten für Anbieteraufrufe über das
-  # GhostWriter-Backend. Chat-Arbeit über bestehende Abos erzeugt
-  # keinen Kosteneintrag und keine Schätzung.
+  # Erfasst werden zusätzliche, verbrauchsabhängige KI-API-Kosten aus GhostWriter-Backend-Aufrufen
+  # (backend_api) und KI-Aufrufen aus GitHub Actions (action_api). Chat-Arbeit über bestehende
+  # Abos erzeugt keinen Kosteneintrag und keine Schätzung.
   scope:
-    records: backend_ai_api_calls
+    records: [backend_ai_api_calls, action_ai_api_calls]
     excludes: [chat_work_via_subscription, administrative_backend_requests, ghostwriter_hosting_and_operating_costs, chat_subscription_fees]
     run_history_separate: true
   project_currency: EUR
   currency_is_configurable: true
   attribution:
     primary_unit: section
-    section_id_required: true
+    section_id_required: for_section_activity_only
+    project_level_activity_may_omit_section_id: true
     chapter_total: sum_of_assigned_section_costs
     project_total: sum_of_all_chapter_totals_and_project_level_costs
     allow_project_level_costs: true
@@ -75,8 +75,8 @@ cost_tracking:
   activity_record:
     immutable: true
     one_record_per_ai_activity: true
-    required_fields: [activity_id, occurred_at, source, provider, model, activity_type, section_id, currency, cost_amount, cost_status]
-    source_values: [backend_api, legacy_chat_estimate]   # legacy_chat_estimate zählt nicht mit
+    required_fields: [activity_id, occurred_at, source, provider, model, activity_type, currency, cost_amount, cost_status]
+    source_values: [backend_api, action_api, legacy_chat_estimate]   # action_api zählt; legacy_chat_estimate zählt nicht mit
     provenance_fields: [run_id, request_id, synthetic]
     optional_usage_fields: [input_tokens, output_tokens, cached_input_tokens, reasoning_tokens, image_units, audio_units, other_usage_quantity]
     pricing_fields: [pricing_basis, input_unit_price, output_unit_price, cached_input_unit_price, pricing_source, pricing_checked_at]
@@ -111,6 +111,9 @@ cost_tracking:
     - chat_work_via_subscription_creates_no_cost_entry
     - legacy_chat_estimates_are_not_counted
     - every_section_activity_must_reference_a_stable_section_id
+    - project_level_activity_may_omit_section_id
+    - backend_and_action_ai_api_calls_are_counted
+    - chat_work_via_subscription_creates_no_cost_entry
     - chapter_and_project_totals_are_derived_not_manually_duplicated
     - estimated_costs_must_never_be_presented_as_actual_costs
     - retain_usage_and_price_basis_for_auditing
@@ -243,13 +246,20 @@ section_workflow:
     - from: ready_for_approval
       to: approved
       trigger: explicit_user_section_approval
-      requires: [manuscript_version, user_approval_record]
+      requires: [manuscript_version, manuscript_content_sha256, user_approval_record]
+    - from: approved
+      to: revision
+      trigger: explicit_user_section_approval_revocation
+      requires: [explicit_user_confirmation, append_only_revocation_record]
   invariants:
     - research_and_brainstorming_are_repeatable
     - prior_runs_are_never_overwritten
     - no_draft_before_writing_approval
     - fact_check_never_silently_changes_manuscript
     - approved_requires_explicit_user_confirmation
+    - approved_manuscript_is_immutable_until_section_approval_is_revoked
+    - approval_must_bind_to_exact_manuscript_content_sha256
+    - section_approval_revocation_requires_explicit_user_confirmation
 
 chapter_workflow:
   initial_status: planned
@@ -274,33 +284,50 @@ chapter_workflow:
       to: approved
       trigger: explicit_user_chapter_approval
       requires: [all_sections_status_approved, assembled_chapter_version, user_approval_record]
+    - from: approved
+      to: in_progress
+      trigger: explicit_user_chapter_approval_revocation
+      requires: [explicit_user_confirmation, append_only_revocation_record]
   invariants:
     - all_sections_must_be_approved_before_assembly
     - chapter_approval_is_separate_from_section_approval
     - chapter_approval_requires_explicit_user_confirmation
     - adding_or_restructuring_sections_resets_chapter_to_in_progress
+    - any_structural_change_invalidating_a_chapter_requires_chapter_status_in_progress
+    - affected_chapter_approval_must_be_revoked_in_append_only_history
 
 structure_changes:
   add_section:
     allowed_anytime: true
     preserve_existing_ids: true
-    if_chapter_was_approved: set_chapter_status_to_in_progress
+    always_reset_chapter_status: in_progress
+    invalidate_chapter_approval: true
+    preserve_unaffected_section_approvals: true
   rename_or_reorder:
     preserve_stable_ids: true
     recalculate_visible_numbers: true
+    invalidate_affected_chapter_approval: true
+    reset_affected_chapter_status: in_progress
   move_section:
     preserve_section_id: true
     recalculate_visible_numbers: true
     invalidate_affected_chapter_approval: true
+    reset_source_and_target_chapters_to: in_progress
+    preserve_section_approval_only_if_manuscript_unchanged: true
   split_or_delete:
     require_explicit_confirmation: true
     preserve_previous_content_and_history: true
     never_permanently_discard_without_confirmation: true
+    reset_affected_chapter_status: in_progress
+    invalidate_affected_chapter_approval: true
+    retain_deleted_entity_history_and_ids: true
 
 github_automation:
-  issue_per_unit_of_work: true
+  issue_per_unit_of_work: false
+  issue_creation: optional_or_explicitly_requested
+  milestone_creation: optional_grouping_for_chapters_or_project_phases
   milestone_per_chapter_or_project_phase: true
-  issue_must_include:
+  issue_must_include_when_created:
     - entity_id
     - current_status
     - target_status
