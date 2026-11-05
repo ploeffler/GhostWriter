@@ -16,6 +16,8 @@ def _git(*args):
 
 
 def _content_activity(branch, content_paths, since):
+    if not content_paths:
+        return 0, 0
     ref = f"refs/remotes/origin/{branch}"
     if not _git("rev-parse", "--verify", ref):
         return 0, 0
