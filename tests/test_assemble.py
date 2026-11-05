@@ -45,7 +45,7 @@ class AssembleTests(unittest.TestCase):
             text = re.sub(r'(?m)^  section: \w+', f'  section: true\n  section_content_sha256: {digest}', text, count=1)
             path.write_text(text, encoding='utf-8')
             ledger['entries'].append({'kind': 'section', 'id': section['id'], 'action': 'granted',
-                'at': '2026-11-05T12:00:00Z', 'by': 'test', 'commit': '1234567', 'content_sha256': digest})
+                'at': '2026-11-05T12:00:00Z', 'by': 'test', 'commit': '1234567', 'note': 'content_sha256=' + digest})
         ledger['entries'].append({'kind': 'chapter', 'id': ch['id'], 'action': 'granted',
             'at': '2026-11-05T12:00:00Z', 'by': 'test', 'commit': '1234567'})
         ledger_path.write_text(yaml.safe_dump(ledger, allow_unicode=True, sort_keys=False), encoding='utf-8')
