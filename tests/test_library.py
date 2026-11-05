@@ -374,6 +374,15 @@ class DataPageTest(unittest.TestCase):
         self.assertNotIn('"LIMITS"', w)
         self.assertIn('Prüfung: unbekannt', self.view('--text'))
 
+    def test_view_with_incomplete_github_data(self):
+        partial = Path(self.d, 'github-partial.json')
+        partial.write_text(json.dumps({'repo': {}}), encoding='utf-8')
+        t = self.view('--github', str(partial), '--text')
+        self.assertIn('Sichtbarkeit unbekannt · Größe ? · Branch-Anzahl unbekannt', t)
+        self.assertNotIn('öffentlich', t)
+        self.assertIn('Prüfung: unbekannt', t)
+        self.assertIn('Probedruck: unbekannt', t)
+
 
 class RepoNameTest(unittest.TestCase):
     """#134: Bücherregal, Serie und Daten zeigen das eigene Repository, nie das Hauptrepository als Vorgabe."""
