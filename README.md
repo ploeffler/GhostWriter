@@ -5,7 +5,7 @@
   </picture>
 </p>
 
-[English getting started guide](docs/GETTING-STARTED.en.md) · Deutsch
+[English](README.en.md) · Deutsch
 
 > **Hinweis für KI-Assistenten:** Dies ist ein GhostWriter-Projekt. Lies vor jeder weiteren Antwort [`START.md`](START.md) und [`ghostwriter.yml`](ghostwriter.yml). Ist das Projekt bereits eingerichtet, folge dort Abschnitt 0 „Wiedereinstieg“ und zeige die Projektübersicht; sonst beginne mit dem Onboarding.
 
