@@ -1,4 +1,5 @@
 """Tests für scripts/assemble.py (#14) mit dem ADHS-Projekt aus tests/fixtures/adhs."""
+import hashlib
 import re
 import shutil
 import subprocess
@@ -29,18 +30,28 @@ class AssembleTests(unittest.TestCase):
         ch = cfg['structure']['chapters'][chapter_no - 1]
         ch['status'] = 'approved'
         cfg_path.write_text(yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False), encoding='utf-8')
-        for i, s in enumerate(ch['sections'], start=1):
+        ledger_path = self.base / 'approvals.yml'
+        ledger = yaml.safe_load(ledger_path.read_text(encoding='utf-8')) if ledger_path.is_file() else {'entries': []}
+        for i, section in enumerate(ch['sections'], start=1):
             if sections is not None and i not in sections:
                 continue
-            path = self.base / s['path']
+            path = self.base / section['path']
             text = path.read_text(encoding='utf-8')
-            text = re.sub(r'(?m)^status: \w+', 'status: approved', text, count=1)
+            text = re.sub(r'(?m)^status: \\w+', 'status: approved', text, count=1)
             if strip_markers:
-                text = re.sub(r'\*?\[(PLATZHALTER-ANEKDOTE|QUELLE PRÜFEN|MEDIZIN PRÜFEN|RECHT PRÜFEN)[^\]]*\]\*?', '', text)
+                text = re.sub(r'\\*?\\[(PLATZHALTER-ANEKDOTE|QUELLE PRÜFEN|MEDIZIN PRÜFEN|RECHT PRÜFEN)[^\\]]*\\]\\*?', '', text)
+            manuscript = text.split('## Manuskript\\n', 1)[1]
+            digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+            text = re.sub(r'(?m)^  section: \\w+', f'  section: true\\n  section_content_sha256: {digest}', text, count=1)
             path.write_text(text, encoding='utf-8')
+            ledger['entries'].append({'kind': 'section', 'id': section['id'], 'action': 'granted',
+                'at': '2026-11-05T12:00:00Z', 'by': 'test', 'commit': '1234567', 'content_sha256': digest})
+        ledger['entries'].append({'kind': 'chapter', 'id': ch['id'], 'action': 'granted',
+            'at': '2026-11-05T12:00:00Z', 'by': 'test', 'commit': '1234567'})
+        ledger_path.write_text(yaml.safe_dump(ledger, allow_unicode=True, sort_keys=False), encoding='utf-8')
         readme = self.base / ch['path'] / 'README.md'
         if strip_markers:
-            readme.write_text(re.sub(r'\[(QUELLE PRÜFEN|MEDIZIN PRÜFEN)[^\]]*\]', '', readme.read_text(encoding='utf-8')),
+            readme.write_text(re.sub(r'\\[(QUELLE PRÜFEN|MEDIZIN PRÜFEN)[^\\]]*\\]', '', readme.read_text(encoding='utf-8')),
                               encoding='utf-8')
         return ch
 
