@@ -1,3 +1,6 @@
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
 # Getting started: from an empty repository to your first edition
 
 This guide describes how to set up GhostWriter and work on a book. You need a GitHub account and an AI chat assistant, ideally with access to GitHub and web research. You do not need to know Git.
@@ -14,7 +17,7 @@ Your repository is a library: the default branch contains GhostWriter, and each 
 
 ## 2. Connect your chat assistant
 
-Connect your assistant to GitHub and give it access only to your new repository. See [Chat apps](CHAT-APPS.md) and [Connector setup](CONNECTOR-SETUP.md) for setup instructions. Without a GitHub connection, the assistant can provide files in the chat for you to transfer yourself.
+Connect your assistant to GitHub and give it access only to your new repository. See [Chat apps](CHAT-APPS.en.md) and [Connector setup](CONNECTOR-SETUP.en.md) for setup instructions. Without a GitHub connection, the assistant can provide files in the chat for you to transfer yourself.
 
 ## 3. Start a chat and create a book
 
