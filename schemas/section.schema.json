@@ -16,7 +16,8 @@
       "required": ["writing", "section"],
       "properties": {
         "writing": {"type": "boolean"},
-        "section": {"type": "boolean"}
+        "section": {"type": "boolean"},
+        "section_content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "SHA-256 des exakt freigegebenen Manuskripttexts; fehlt bei Altbeständen bis zur erneuten Freigabe."}
       },
       "additionalProperties": false
     }
