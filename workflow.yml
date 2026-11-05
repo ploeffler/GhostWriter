@@ -107,7 +107,7 @@ cost_tracking:
     scope: automated_cost_accounting
     includes: [provider_usage_import, model_specific_price_calculation, automatic_activity_attribution, currency_conversion, detailed_cost_reports, budget_thresholds_and_alerts]
   invariants:
-    - every_billable_backend_ai_api_call_must_be_recorded_or_marked_unavailable
+    - every_billable_backend_or_action_ai_api_call_must_be_recorded_or_marked_unavailable
     - chat_work_via_subscription_creates_no_cost_entry
     - legacy_chat_estimates_are_not_counted
     - every_section_activity_must_reference_a_stable_section_id
