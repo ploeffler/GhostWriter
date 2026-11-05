@@ -2,7 +2,7 @@
 
 This guide describes how to set up GhostWriter and work on a book. You need a GitHub account and an AI chat assistant, ideally with access to GitHub and web research. You do not need to know Git.
 
-**Language:** This guide is in English, but GhostWriter's interface, commands and linked documentation are currently in German. The labels below reproduce the German wording so you can find the right controls. A complete English interface is planned in [issue #74](https://github.com/ploeffler/GhostWriter/issues/74).
+**Language:** Say `Interface: English` to use English in the current chat, or `Deutsch` to switch back. The assistant presents English text or native chat elements; graphical widgets and linked documentation may still be in German. The labels below include German wording for reference. A complete English interface is planned in [issue #74](https://github.com/ploeffler/GhostWriter/issues/74).
 
 ## 1. Create a repository
 
@@ -30,7 +30,7 @@ The assistant asks about your subject, goals, audience, book type, language and 
 
 The project overview opens chapters; a chapter opens its sections. You can research a section or a whole chapter, then approve writing and edit the resulting text yourself. Front and back matter, an AI-use statement, output settings and cover options can be added when needed.
 
-Changes are collected until you choose **Änderungen übernehmen** (Apply changes), unless you enabled immediate application. Existing German commands include `Start`, `Übersicht` (overview), `Kapitel 3`, `Abschnitt 3.2`, `Neues Kapitel`, `Probedruck` (proof), `Auflage` (edition) and `Hilfe` (help).
+Changes are collected until you choose **Änderungen übernehmen** (Apply changes), unless you enabled immediate application. English commands include `Home`, `Overview`, `Chapter 3`, `Section 3.2`, `New chapter`, `Proof`, `Edition` and `Help`. The German commands remain available.
 
 ## 6. Approve and export
 

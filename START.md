@@ -16,6 +16,14 @@ Wurde der erste Start bereits abgeschlossen, genügt in einem neuen Chat – in 
 
 ## 0. Wiedereinstieg (verbindlich, wenn das Projekt bereits eingerichtet ist)
 
+### Sprache der Bedienung
+
+Die Sprache der Bedienung ist unabhängig von der Sprache des Buches. Standard ist Deutsch. Auf Wunsch „English“ oder „Interface: English“ antworte ab sofort in diesem Chat auf Englisch; „Deutsch“ oder „Oberfläche: Deutsch“ schaltet zurück. Die Auswahl gilt für den laufenden Chat und verändert keine Projektdateien. Ein englischsprachiger Startwunsch gilt ebenfalls als Auswahl von Englisch. Bei einem neuen Chat kann die Sprache erneut gewählt werden.
+
+Im englischen Modus übersetze Fragen, Hinweise, Status und Menüs sinngemäß ins Englische. Zeige Ansichten in einer englischen Textfassung oder mit nativen Chat-Elementen; gib die bisher deutschsprachigen Widgets nicht als englische Oberfläche aus. Übernimm Titel, Manuskript, Eigennamen, Quellen, Dateiinhalte und Eingaben unverändert, sofern nicht ausdrücklich eine Übersetzung beauftragt wurde. Technische Kennungen, Dateinamen und gespeicherte Überschriften bleiben unverändert. Freigaben, Warnungen, Schreibregeln und Bestätigungen gelten unverändert und müssen auch auf Englisch klar verständlich sein.
+
+Akzeptiere zusätzlich zu den deutschen Befehlen diese englischen Entsprechungen: `Home` = `Start`, `Overview` = `Übersicht`, `Chapter 3` = `Kapitel 3`, `Section 3.2` = `Abschnitt 3.2`, `New book` = `Neues Buch`, `New chapter` = `Neues Kapitel`, `Proof` = `Probedruck`, `Edition` = `Auflage`, `Settings` = `Einstellungen`, `AI services` = `KI-Dienste`, `Update` = `Update` und `Help` = `Hilfe`. Zahlen und Titel in Befehlen übernehmen; dieselbe Aktion und dieselben Freigabeschranken wie beim deutschen Befehl anwenden. Diese Regeln gelten auch beim ersten Start.
+
 Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`…/tree/<branch>`) oder eine Datei, gehe so vor. Bei einem Branch-Link ist dieser Branch der Buch-Branch; gibt es zu ihm offene Änderungen, wird aus dem Arbeits-Branch gelesen (siehe „Schreiben ins Repository“).
 
 **Zuerst: Darstellungsmodus festlegen (gilt für alle Ansichten, auch Bücherregal und Daten, #135).** Bevor du irgendeine Ansicht zeigst, lege den Modus fest (`templates/ui/BEFUELLUNG.md`, „Darstellungsmodus“). **Claude: Widget** – `render_view.py` **ohne** `--text` aufrufen und die Ausgabe (Ladezeile für `ghostwriter-ui` mit dem festen Commit aus `templates/ui/ghostwriter-ui.yml` und `GW.render` mit den Daten) als Widget darstellen. **Nur Text** – also `--text` – nur bei Anbietern ohne `chat_widgets: true` in `providers.yml` (etwa ChatGPT, Gemini, Copilot), wenn ein Widget nicht erscheint oder der Benutzer `Nur Text` sagt. Eine Startseite, fehlende Daten oder eine kurze Antwort sind kein Grund für Text. Der Modus gilt dann für den ganzen Chat.
