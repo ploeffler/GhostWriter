@@ -7,6 +7,11 @@
   "required": ["format", "repo", "skill"],
   "properties": {
     "format": {"const": 1},
+    "interface_language": {
+      "type": "string",
+      "enum": ["de", "en"],
+      "description": "Bevorzugte Sprache der Bedienung; fehlt = Deutsch. Unabhängig von der Buchsprache."
+    },
     "repo": {
       "type": "string",
       "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
