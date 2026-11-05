@@ -79,3 +79,26 @@ def append_daily_summary(lines, repo, book_branches, manifest):
         lines.extend(f"| [#{number} {title}]({url}) | {state} |" for number, title, state, url in pulls)
     else:
         lines.append("Keine aktualisierten Pull Requests im Berichtszeitraum.")
+
+
+def main():
+    import yaml
+    import library
+    from pathlib import Path
+
+    manifest = yaml.safe_load(Path("ghostwriter-manifest.yml").read_text(encoding="utf-8")) or {}
+    configs = library.branch_configs()
+    default = library.default_branch()
+    books = library.books(configs, manifest, default)
+    lines = ["## Tägliche GitHub-Übersicht"]
+    append_daily_summary(lines, os.environ.get("GITHUB_REPOSITORY", ""), [b["branch"] for b in books], manifest)
+    rendered = "\\n".join(lines) + "\\n"
+    print(rendered)
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary_path:
+        with open(summary_path, "a", encoding="utf-8") as stream:
+            stream.write(rendered)
+
+
+if __name__ == "__main__":
+    main()
