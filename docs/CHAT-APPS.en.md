@@ -23,7 +23,7 @@ The original assessment refers to [Anthropic's GitHub integration help](https://
 ## Ways to work with the repository
 
 1. **Claude with a working environment:** The tested session could create commits, branches and pull requests and merge them. Tags and releases were rejected in that session.
-2. **A custom GitHub MCP connector:** Configure it for the chat app and test the available write operations. See [connector setup](CONNECTOR-SETUP.md) (German).
+2. **A custom GitHub MCP connector:** Configure it for the chat app and test the available write operations. See [connector setup](CONNECTOR-SETUP.en.md).
 3. **Manual fallback:** The assistant supplies changed files for the user to commit. This works without chat write access but does not provide the same pull-request workflow in the chat.
 
 The historical plan delegates creation of edition tags and releases and attachment of PDF, DOCX and EPUB files to a GitHub Action after the corresponding changes are merged.
