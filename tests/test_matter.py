@@ -54,7 +54,7 @@ def approve_chapter_1(base):
         p = base / section['path']
         t = re.sub(r'(?m)^status: \w+', 'status: approved', p.read_text(encoding='utf-8'), count=1)
         t = re.sub(r'\*?\[(PLATZHALTER-ANEKDOTE|QUELLE PRÜFEN|MEDIZIN PRÜFEN|RECHT PRÜFEN)[^\]]*\]\*?', '', t)
-        manuscript = t.split('## Manuskript\n', 1)[1]
+        manuscript = t.split('## Manuskript\n', 1)[1].strip()
         digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
         t = re.sub(r'(?m)^  section: \w+', f'  section: true\n  section_content_sha256: {digest}', t, count=1)
         p.write_text(t, encoding='utf-8')
