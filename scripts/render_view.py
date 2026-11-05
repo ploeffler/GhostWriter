@@ -2567,9 +2567,10 @@ def data_view(base, config, args):
     else:
         size = repo.get('size')
         size_text = (f'{size / 1024:.1f} MB'.replace('.', ',') if size and size >= 1024 else f'{size} KB') if size is not None else 'Größe ?'
-        nb = len((gh or {}).get('branches') or [])
-        values['REPO_TEXT'] = (f'{"privat" if repo.get("private") else "öffentlich"} · {size_text} · '
-                               f'{plural(nb, "Branch", "Branches")}')
+        branches = gh.get('branches')
+        visibility = {True: 'privat', False: 'öffentlich'}.get(repo.get('private'), 'Sichtbarkeit unbekannt')
+        branch_text = plural(len(branches), 'Branch', 'Branches') if isinstance(branches, list) else 'Branch-Anzahl unbekannt'
+        values['REPO_TEXT'] = f'{visibility} · {size_text} · {branch_text}'
     books = []
     for b in lib.get('books') or []:
         pr = next((p for p in pulls if (p.get('head') or {}).get('ref') == b.get('work_branch')), None)
@@ -2578,7 +2579,7 @@ def data_view(base, config, args):
         ed = b.get('last_edition')
         v = last_run(RUN_NAMES['validate'], b['branch'])
         pr_run = last_run(RUN_NAMES['proof'], b['branch'])
-        if gh is None:
+        if gh is None or not isinstance(gh.get('runs'), list):
             check, check_text, proof_text = '', 'Prüfung: unbekannt', 'Probedruck: unbekannt'
         else:
             check = {'success': 'ok', 'failure': 'fail'}.get((v or {}).get('conclusion'), '')
