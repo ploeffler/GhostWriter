@@ -126,8 +126,10 @@ def chapter_markdown(base, chapter, number, proof=False):
         text = shift_headings(manuscript.strip(), 3)
         if proof:
             text = mark_markers(text) or '*(noch kein Text)*'
-            note = '' if head.get('status') == 'approved' else \
-                f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben]{{.gwstatus}}\n\n'
+            note = '' if approved else \
+                (f'[Stand: Freigabe fehlt oder Manuskript geändert, nicht freigegeben]{{.gwstatus}}\n\n'
+                 if head.get('status') == 'approved' else
+                 f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben]{{.gwstatus}}\n\n')
             text = note + text
         out += [f'## {s["title"]}', '', text, '']
         markers += [(f'{number}.{si}', m.group(0)) for m in MARKER_TEXT.finditer(manuscript)]
