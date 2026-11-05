@@ -86,3 +86,9 @@ jobs:
           if [ -n "$INPUT_BRANCH" ]; then args+=(--branch "$INPUT_BRANCH"); fi
           if [ "$INPUT_DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           python scripts/update_from_upstream.py "${args[@]}"
+
+      - name: Tägliche GitHub-Übersicht ergänzen
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/daily_summary.py
