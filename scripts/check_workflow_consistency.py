@@ -67,6 +67,28 @@ def main():
                 errors.append(f"workflow.yml: unbekannter Status in {name}: {pair[0]} -> {pair[1]}")
         if not any(edge.get("from") == "approved" for edge in model.get("transitions", [])):
             errors.append(f"workflow.yml: {name} definiert keinen Rückweg aus approved")
+        edges = model.get("transitions", [])
+        reachable = {model.get("initial_status")}
+        changed = True
+        while changed:
+            changed = False
+            for edge in edges:
+                if edge.get("from") in reachable and edge.get("to") not in reachable:
+                    reachable.add(edge.get("to"))
+                    changed = True
+        missing = allowed - reachable
+        if missing:
+            errors.append(f"workflow.yml: {name} enthält unerreichbare Status: {sorted(missing)}")
+        if name == "section_workflow" and not any(
+            e.get("from") == "approved" and e.get("to") == "revision"
+            and e.get("trigger") == "explicit_user_section_approval_revocation" for e in edges
+        ):
+            errors.append("workflow.yml: Abschnittsfreigabe kann nicht ausdrücklich zurückgenommen werden")
+        if name == "chapter_workflow":
+            for source in ("ready_for_assembly", "assembly", "review", "ready_for_approval", "approved"):
+                if not any(e.get("from") == source and e.get("to") == "in_progress"
+                           and e.get("trigger") == "structure_change_invalidates_chapter" for e in edges):
+                    errors.append(f"workflow.yml: Kapitelstatus {source} hat keinen Struktur-Rücksetzpfad")
 
     changes = workflow.get("structure_changes") or {}
     for operation in ("add_section", "rename_or_reorder", "move_section", "split_or_delete"):
@@ -75,6 +97,8 @@ def main():
             errors.append(f"workflow.yml: structure_changes.{operation} setzt betroffene Kapitel nicht auf in_progress zurück")
         if not (rule.get("invalidate_chapter_approval") or rule.get("invalidate_affected_chapter_approval")):
             errors.append(f"workflow.yml: structure_changes.{operation} invalidiert Kapitel-Freigaben nicht")
+    if changes.get("split_or_delete", {}).get("invalidate_changed_section_approvals") is not True:
+        errors.append("workflow.yml: split_or_delete muss Freigaben betroffener Abschnitte invalidieren")
 
     approvals = workflow.get("github_automation", {}).get("approval_policy", {})
     for key in ("github_issue_closure_is_not_user_approval", "milestone_completion_is_not_user_approval", "only_explicit_chat_confirmation_counts"):
