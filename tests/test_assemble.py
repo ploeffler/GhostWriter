@@ -71,6 +71,20 @@ class AssembleTests(unittest.TestCase):
         self.assertNotIn('## Manuskript', md)
         self.assertNotIn('Vorspann', md)
 
+    def test_post_approval_manuscript_change_is_excluded(self):
+        chapter = self.approve(1)
+        section = chapter['sections'][0]
+        path = self.base / section['path']
+        text = path.read_text(encoding='utf-8')
+        text += '\nNach der Freigabe eingefügter Text.\n'
+        path.write_text(text, encoding='utf-8')
+        _, config = load(self.base)
+        md, skipped, _ = assemble.chapter_markdown(self.base, config['structure']['chapters'][0], 1)
+        self.assertNotIn('Nach der Freigabe eingefügter Text.', md)
+        self.assertTrue(any('Freigabe fehlt oder Manuskript seit Freigabe geändert' in item for item in skipped))
+        found = assemble.problems(assemble.book_parts(self.base, config), config)
+        self.assertTrue(any('nicht freigegebene Abschnitte' in item for item in found), found)
+
     def test_markers_block_and_clean_chapter_passes(self):
         self.approve(1, strip_markers=False)
         _, config = load(self.base)
