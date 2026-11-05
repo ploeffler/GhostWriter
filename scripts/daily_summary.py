@@ -102,7 +102,7 @@ def main():
     books = library.books(configs, manifest, default)
     lines = ["## Tägliche GitHub-Übersicht"]
     append_daily_summary(lines, os.environ.get("GITHUB_REPOSITORY", ""), [b["branch"] for b in books], manifest)
-    rendered = "\\n".join(lines) + "\\n"
+    rendered = "\n".join(lines) + "\n"
     print(rendered)
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
