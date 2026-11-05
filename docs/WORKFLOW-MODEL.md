@@ -14,25 +14,25 @@ Die JSON-Schema-Datei unter `schemas/workflow.schema.json` beschreibt die Strukt
 
 Recherche, Brainstorming, Revision und Faktenprüfung können mehrere Läufe bzw. Runden umfassen. Jeder Lauf wird als eigene Datei gespeichert. Faktenprüfung ist optional und verändert den Manuskripttext niemals automatisch.
 
-Der Übergang zu `writing` verlangt eine ausdrückliche Schreibfreigabe. Der Übergang zu `approved` verlangt eine ausdrückliche Abschnittsfreigabe des Benutzers.
+Der Übergang zu `writing` verlangt eine ausdrückliche Schreibfreigabe. Der Übergang zu `approved` verlangt eine ausdrückliche Abschnittsfreigabe des Benutzers. Sie wird an den SHA-256-Fingerabdruck des exakten Manuskripttexts gebunden (`approvals.section_content_sha256` und `approvals.yml` → `content_sha256`). Ein freigegebener Text darf nicht bearbeitet werden. Zuerst muss die Freigabe ausdrücklich zurückgenommen werden (`approved → revision`); die Rücknahme wird als neuer, unveränderlicher Historieneintrag protokolliert. Der nächste Schreibvorgang benötigt anschließend eine neue Schreibfreigabe.
 
 ### Kapitel
 
 `planned → in_progress → ready_for_assembly → assembly → review → ready_for_approval → approved`
 
-Ein Kapitel kann erst zusammengeführt werden, wenn alle zugehörigen Abschnitte freigegeben sind. Die Kapitelgesamtfreigabe ist eine eigenständige Benutzerentscheidung und wird nicht aus Abschnittsfreigaben abgeleitet.
+Ein Kapitel kann erst zusammengeführt werden, wenn alle zugehörigen Abschnitte freigegeben sind. Die Kapitelgesamtfreigabe ist eine eigenständige Benutzerentscheidung und wird nicht aus Abschnittsfreigaben abgeleitet. Sie kann nur durch ausdrückliche Bestätigung zurückgenommen werden (`approved → in_progress`); betroffene Strukturänderungen invalidieren sie ebenfalls.
 
 Die **Kapitelrecherche** (`runs.chapter_research`) recherchiert für das ganze Kapitel, wahlweise mit einer Aufgabe (Ziel recherchieren, Abschnitte erstellen, Kurzbeschreibung erstellen) und gewichtetem Zusammenhang mit dem vorherigen und nächsten Kapitel. Sie ändert keinen Status und keine Struktur; ihre Vorschläge wirken erst, wenn der Benutzer sie im Formular übernimmt. Neue Abschnitte aus Vorschlägen kommen ans Ende und setzen ein freigegebenes Kapitel auf `in_progress` zurück.
 
 ## GitHub-Aufgaben und Milestones
 
-Für jede konkrete Arbeitseinheit kann ein Issue erzeugt werden. Jedes Issue muss mindestens die Entitäts-ID, den aktuellen und angestrebten Status, Aufgabentyp, einschlägige Anweisungen, Eingaben, Akzeptanzkriterien, betroffene Dateien und gegebenenfalls die Freigabeschranke enthalten.
+Issues sind optional und werden nur auf ausdrücklichen Benutzerwunsch oder bei ausdrücklich aktivierter Automatisierung angelegt; es gibt keine Pflicht zu einem Issue pro Arbeitseinheit. Wird ein Issue angelegt, enthält es mindestens Entitäts-ID, aktuellen und angestrebten Status, Aufgabentyp, einschlägige Anweisungen, Eingaben, Akzeptanzkriterien, betroffene Dateien und gegebenenfalls die Freigabeschranke. Milestones sind optionale Gruppierungen für Kapitel oder Projektphasen.
 
 Milestones gruppieren Arbeit auf Kapitel- oder Projektebene. Das Schließen eines Issues oder das Abschließen eines Milestones ist niemals gleichbedeutend mit einer Benutzerfreigabe.
 
 ## Änderungsregeln
 
-Stabile IDs werden unabhängig von sichtbaren Nummern geführt. Nummern werden aus der aktuellen Reihenfolge berechnet. Strukturänderungen bewahren Inhalte und Historie. Löschen und Aufteilen erfordern Bestätigung. Jede strukturelle Änderung an einem freigegebenen Kapitel setzt dessen Freigabestatus zurück.
+Stabile IDs werden unabhängig von sichtbaren Nummern geführt. Nummern werden aus der aktuellen Reihenfolge berechnet. Strukturänderungen bewahren Inhalte und Historie. Löschen und Aufteilen erfordern Bestätigung. Hinzufügen, Umbenennen, Neuordnen, Verschieben, Aufteilen oder Löschen setzt betroffene Kapitel auf `in_progress` zurück und invalidiert deren Kapitel-Freigabe; nicht betroffene Abschnittsfreigaben bleiben nur erhalten, wenn ihr Manuskript unverändert ist.
 
 ## Schreib- und Auditregeln
 
@@ -107,7 +107,7 @@ Jede veröffentlichte Ausgabe des Buches wird als eigener GitHub Release abgebil
 
 ## AI-Kosten und Nutzungsverbrauch
 
-**Erfassungsbereich (entschieden am 31.10.2026, #13):** Erfasst werden ausschließlich zusätzliche, verbrauchsabhängige KI-API-Kosten für Anbieteraufrufe, die über eine künftig implementierte GhostWriter-API ausgeführt werden.
+**Erfassungsbereich (entschieden am 31.10.2026, #13):** Erfasst werden zusätzliche, verbrauchsabhängige KI-API-Kosten aus GhostWriter-Backend-Aufrufen (`backend_api`) und aus GitHub Actions (`action_api`). Chat-Arbeit über bestehende Abos erzeugt keinen Kosteneintrag.
 
 - Arbeit im Chat über bestehende Abos erzeugt **keinen** Kosteneintrag: keine geschätzten API-Kosten, kein `unavailable`-Eintrag.
 - Reine Verwaltungsanfragen über das Backend (Projekt lesen, Dateien speichern, Übersichten laden) erzeugen keinen KI-Kosteneintrag.
@@ -115,7 +115,7 @@ Jede veröffentlichte Ausgabe des Buches wird als eigener GitHub Release abgebil
 - Laufhistorie und Kosten sind getrennt: Auch Chat-Läufe ohne Kosten werden als Lauf-Datei dokumentiert.
 - Einträge aus der Zeit vor v0.4 ohne Herkunft werden als `legacy_chat_estimate` gekennzeichnet und zählen nicht mit (`scripts/migrate_project.py`).
 
-Jeder kostenpflichtige KI-API-Aufruf über das Backend wird als eigener, unveränderlicher Kosteneintrag erfasst und primär einem Abschnitt über dessen stabile ID zugeordnet. Erfasst werden – soweit verfügbar – Anbieter, Modell, Aktivitätstyp, Zeitpunkt, Token-/Nutzungsmenge, Preisgrundlage, Preisquelle und Betrag. Nicht verfügbare Werte werden ausdrücklich als unbekannt markiert; manuelle Eingaben und Schätzungen bleiben als solche gekennzeichnet.
+Jeder kostenpflichtige KI-API-Aufruf über das Backend wird als eigener, unveränderlicher Kosteneintrag erfasst und primär einem Abschnitt über dessen stabile ID zugeordnet. Projektweite Aktivitäten dürfen ohne `section_id` in `costs/project.yml` stehen; bei Abschnittsaktivitäten ist die stabile `section_id` Pflicht. Erfasst werden – soweit verfügbar – Anbieter, Modell, Aktivitätstyp, Zeitpunkt, Token-/Nutzungsmenge, Preisgrundlage, Preisquelle und Betrag. Nicht verfügbare Werte werden ausdrücklich als unbekannt markiert; manuelle Eingaben und Schätzungen bleiben als solche gekennzeichnet.
 
 - **Abschnitt:** Summe aller zugeordneten AI-Aktivitäten.
 - **Kapitel:** automatisch berechnete Summe der Abschnittssummen.
