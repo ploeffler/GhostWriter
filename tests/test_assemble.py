@@ -40,7 +40,7 @@ class AssembleTests(unittest.TestCase):
             text = re.sub(r'(?m)^status: \w+', 'status: approved', text, count=1)
             if strip_markers:
                 text = re.sub(r'\*?\[(PLATZHALTER-ANEKDOTE|QUELLE PRÜFEN|MEDIZIN PRÜFEN|RECHT PRÜFEN)[^\]]*\]\*?', '', text)
-            manuscript = text.split('## Manuskript\n', 1)[1]
+            manuscript = text.split('## Manuskript\n', 1)[1].strip()
             digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
             text = re.sub(r'(?m)^  section: \w+', f'  section: true\n  section_content_sha256: {digest}', text, count=1)
             path.write_text(text, encoding='utf-8')
