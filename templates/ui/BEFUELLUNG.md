@@ -17,12 +17,12 @@ python scripts/render_view.py <projektordner> approval-writing 2.4 | approval-se
 
 ## Darstellungsmodus (verbindlich)
 
-Es gibt zwei Modi, festgelegt einmal zu Beginn des Chats und dann für jede Ansicht gleich:
+Die Bediensprache wird zuerst nach `START.md` bestimmt. Bei Englisch verwende eine englische Textfassung oder tatsächlich unterstützte native Chat-Elemente; die derzeit deutschen Widgets sind keine englische Oberfläche. Buchinhalte und technische Kennungen unverändert lassen. Bei Deutsch gelten die folgenden Modi:
 
 - **Widget:** nur bei Anbietern, deren Chat-Oberfläche GhostWriter-Widgets darstellt (`chat_widgets: true` in `providers.yml`, derzeit Claude). Der Modus wird vor der **ersten** Ansicht festgelegt, also auch vor dem Bücherregal beim Wiedereinstieg in eine Bibliothek (`START.md`, Abschnitt 0, #135). Dann ist jede Ansicht ein Widget – Projektübersicht, Bücherregal, Daten, Formulare, Bestätigungen, Auswahlkarten (Ausgabe unten). Eine Startseite, fehlende Daten (etwa ohne `library.json` oder `--github`) oder eine kurze Antwort sind kein Grund für Text.
 - **Nur Text:** bei allen anderen Anbietern (etwa ChatGPT, Gemini, Copilot) und im Zweifel; erscheint ein Widget nicht, ab dann ebenfalls. Dann jede Ansicht als Textfassung (`render_view.py … --text`, siehe „Textfassung ohne Widgets“). **Nie HTML, `GW.render` oder Widget-Code ausgeben**, auch nicht als Codeblock.
 
-Nie beide Fassungen derselben Ansicht und nie den Modus von Ansicht zu Ansicht wechseln. Der Benutzer kann umschalten: `Nur Text` stellt auf Text um; `Widgets` stellt zurück, aber nur bei einem Anbieter mit `chat_widgets: true` – sonst antworte in einem Satz, dass dieser Chat keine Widgets darstellt.
+Nie beide Fassungen derselben Ansicht und nie den Modus von Ansicht zu Ansicht wechseln. Der Benutzer kann umschalten: `Nur Text` stellt auf Text um; `Widgets` stellt bei Deutsch und einem Anbieter mit `chat_widgets: true` zurück. Bei Englisch erklären, dass die grafischen Vorlagen noch nicht vollständig übersetzt sind, und bei Text bzw. unterstützten nativen Elementen bleiben.
 
 ## Ausgabe im Chat
 
