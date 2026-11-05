@@ -74,6 +74,16 @@ class ProfileTest(unittest.TestCase):
         self.assertEqual(prof['voice']['tense'], 'Präteritum')
         self.assertIn('Autor: Anna Berg', (self.d / '.claude/skills/cyberlefl325-auf-yawa/SKILL.md').read_text(encoding='utf-8'))
 
+    def test_interface_language_is_optional_and_persisted(self):
+        assistant.set_profile(self.d, PROFILE)
+        prof, errs, _ = assistant.set_profile(self.d, {'interface_language': 'en'})
+        self.assertEqual(errs, [])
+        self.assertEqual(assistant.load(self.d)['interface_language'], 'en')
+        self.assertEqual(prof['voice'], PROFILE['voice'])
+        _, errs, _ = assistant.set_profile(self.d, {'interface_language': 'fr'})
+        self.assertTrue(errs)
+        self.assertEqual(assistant.load(self.d)['interface_language'], 'en')
+
     def test_rename_removes_only_generated_skill(self):
         assistant.set_profile(self.d, PROFILE)
         own = self.d / '.claude/skills/mein-eigener/SKILL.md'
