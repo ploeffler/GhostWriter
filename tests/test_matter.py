@@ -395,6 +395,7 @@ class GlossaryReferenceTest(MatterBase):
         self.section.write_text(head + '## Manuskript\n\nWer [ADHS]{.glossar} hat, kennt [Ärgernisse]{.glossar term="Ärger"}.\n'
                                 + ms, encoding='utf-8')
         approve_chapter_1(self.base)
+
     def body(self):
         _, config = load(self.base)
         parts, mparts = assemble.book_parts(self.base, config), assemble.matter_parts(self.base, config)
