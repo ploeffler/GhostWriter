@@ -54,11 +54,21 @@ def _recent_pull_requests(repo, since):
     return recent, None
 
 
+def content_paths(manifest):
+    """Nur Manuskript-/Buchinhalt, keine Programm- oder Verwaltungsdateien."""
+    allowed = {"chapters", "matter", "cover", "characters", "story", "research"}
+    return [p for p in (manifest.get("book") or []) if p.rstrip("/") in allowed]
+
+
+def is_content_file(name, paths):
+    return any(name == path.rstrip("/") or name.startswith(path.rstrip("/") + "/") for path in paths)
+
+
 def append_daily_summary(lines, repo, book_branches, manifest):
     """Hängt Tagesaktivität an; zählt ausschließlich Pfade aus manifest.book."""
     since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
     since = since_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-    paths = [p for p in (manifest.get("book") or []) if p.rstrip("/") in {"chapters", "matter", "cover", "characters", "story", "research"}]
+    paths = content_paths(manifest)
     lines.extend(["", "## Buchinhalte – letzte 24 Stunden", ""])
     rows = []
     for branch in sorted(set(book_branches)):
