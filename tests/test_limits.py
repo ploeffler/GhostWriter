@@ -60,6 +60,12 @@ class LimitTest(unittest.TestCase):
         config = load(self.base)[1]
         self.assertEqual(limits.summary(limits.evaluate(self.base, config, '2026-12')), ('ok', ''))
 
+    def test_exhausted_with_zero_pause_threshold(self):
+        config = self.setup(10, extra={'pause_below_percent': 0})
+        self.assertEqual(limits.summary(limits.evaluate(self.base, config, '2026-11'))[0], 'pause')
+        rows = limits.evaluate(self.base, config, '2026-12', {'api_rate': (5000, 5000)})
+        self.assertEqual(next(r['state'] for r in rows if r['key'] == 'api_rate'), 'pause')
+
     def test_no_limits(self):
         self.assertEqual(limits.evaluate(self.base, load(self.base)[1], '2026-11'), [])
 
