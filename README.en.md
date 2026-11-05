@@ -28,7 +28,7 @@ GhostWriter is a workspace for developing a book in a chat with an AI assistant.
 
 ## Further reading
 
-[Getting started in English](docs/GETTING-STARTED.en.md) · [Principles in English](docs/PRINCIPLES.en.md) · [AI services in English](docs/AI-SERVICES.en.md) · [Chat views in English](docs/INTERFACES.en.md) · [Full guide in German](docs/ANLEITUNG.md) · [Updates in German](docs/UPDATES.md)
+[Getting started in English](docs/GETTING-STARTED.en.md) · [Principles in English](docs/PRINCIPLES.en.md) · [AI services in English](docs/AI-SERVICES.en.md) · [Chat views in English](docs/INTERFACES.en.md) · [Updates in English](docs/UPDATES.en.md) · [Full guide in German](docs/ANLEITUNG.md)
 
 The complete English graphical interface and additional translations are planned in [issue #74](https://github.com/ploeffler/GhostWriter/issues/74).
 
