@@ -97,6 +97,18 @@ STATUS_DE = {'planned': 'geplant', 'research': 'Recherche', 'brainstorming': 'Id
              'fact_check': 'Faktencheck', 'ready_for_approval': 'bereit zur Freigabe', 'approved': 'freigegeben'}
 
 
+def latest_approval(base, kind, entity_id):
+    """Letzter append-only Freigabeeintrag für eine Entität."""
+    path = base / 'approvals.yml'
+    if not path.is_file():
+        return None
+    data = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+    for entry in reversed(data.get('entries') or []):
+        if entry.get('kind') == kind and entry.get('id') == entity_id:
+            return entry
+    return None
+
+
 def mark_markers(text):
     """Probedruck: Marker als Pandoc-Span [ … ]{.gwmarker}, damit sie hervorgehoben werden."""
     return MARKER_TEXT.sub(lambda m: '[' + m.group(0).replace('[', '\\[').replace(']', '\\]') + ']{.gwmarker}', text)
@@ -114,9 +126,13 @@ def chapter_markdown(base, chapter, number, proof=False):
         head, _, _, manuscript = section_file(base, s)
         approval = head.get('approvals') or {}
         digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+        record = latest_approval(base, 'section', s['id'])
         approved = (head.get('status') == 'approved'
                     and approval.get('section') is True
-                    and approval.get('section_content_sha256') == digest)
+                    and approval.get('section_content_sha256') == digest
+                    and record is not None
+                    and record.get('action') == 'granted'
+                    and record.get('content_sha256') == digest)
         if not approved:
             reason = ('Freigabe fehlt oder Manuskript seit Freigabe geändert'
                       if head.get('status') == 'approved' else str(head.get('status')))
@@ -245,7 +261,11 @@ def book_parts(base, config, proof=False):
     proof=True: alle Kapitel und Abschnitte (Probedruck)."""
     parts = []
     for i, ch in enumerate(config['structure']['chapters'], start=1):
-        if ch.get('status') != 'approved' and not proof:
+        chapter_approval = latest_approval(base, 'chapter', ch['id'])
+        chapter_approved = (ch.get('status') == 'approved'
+                            and chapter_approval is not None
+                            and chapter_approval.get('action') == 'granted')
+        if not chapter_approved and not proof:
             continue
         md, skipped, markers = chapter_markdown(base, ch, i, proof)
         parts.append((i, ch, md, skipped, markers))
