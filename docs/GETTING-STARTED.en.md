@@ -1,6 +1,3 @@
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
 # Getting started: from an empty repository to your first edition
 
 This guide describes how to set up GhostWriter and work on a book. You need a GitHub account and an AI chat assistant, ideally with access to GitHub and web research. You do not need to know Git.
