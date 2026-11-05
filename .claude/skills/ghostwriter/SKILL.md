@@ -34,14 +34,14 @@ Commits sollen dem Benutzer zugeordnet sein, nicht dem Assistenten:
 
 ## 5. Darstellungsmodus festlegen
 
-Claude: **Widget** – `render_view.py` ohne `--text`, Ausgabe als Widget. `--text` nur, wenn ein Widget nicht erscheint oder der Benutzer `Nur Text` sagt. Der Modus gilt für den ganzen Chat.
+Zuerst die Bediensprache nach `START.md` bestimmen. Bei Englisch Text oder unterstützte native Chat-Elemente verwenden; die Widgets sind noch nicht vollständig übersetzt. Bei Deutsch: Claude zeigt das **Widget** mit `render_view.py` ohne `--text`; Text, wenn das Widget nicht erscheint oder der Benutzer ihn verlangt. Der Modus gilt für den ganzen Chat.
 
 ## 6. Darstellungsmodus für ChatGPT und andere Chat-Clients
 
 Der Darstellungsmodus ist unabhängig vom Antwortmodus (einfach/erweitert) und gilt für den laufenden Chat, bis der Benutzer ihn ändert.
 
 - **ChatGPT:** Wenn der Chat-Client native strukturierte Ausgaben unterstützt, Informationen passend als übersichtliche Karten/Abschnitte, Tabellen, Statuskennzeichnungen, Fortschrittsanzeigen, Diagramme oder – wenn inhaltlich sinnvoll – Bilder und interaktive Bedienelemente darstellen. Nur Elemente verwenden, die der jeweilige Client tatsächlich unterstützt. Keine HTML- oder Claude-Widget-Ausgabe als in ChatGPT funktionsfähig voraussetzen und keine bloß vorgetäuschte Interaktion erzeugen.
-- **Claude:** GhostWriter-Widget über `scripts/render_view.py` ohne `--text` verwenden. `--text` nur, wenn das Widget nicht erscheint oder der Benutzer „Nur Text“ verlangt.
+- **Claude:** Bei Deutsch das GhostWriter-Widget über `scripts/render_view.py` ohne `--text` verwenden; bei Englisch die Sprachregel oben beachten. Text verwenden, wenn das Widget nicht erscheint oder der Benutzer ihn verlangt.
 - **Andere Clients oder unklare Unterstützung:** Auf eine klare, gut gegliederte Textdarstellung zurückfallen. Keine technische Darstellung erzwingen, die der Client nicht zuverlässig anzeigen kann.
 
 Der Benutzer kann den Modus umschalten:
