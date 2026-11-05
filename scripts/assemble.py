@@ -57,6 +57,7 @@ Text gibt der Assistent nie im Chat aus (START.md, „Kein ganzes Buch im Chat�
 """
 import argparse
 import datetime
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -111,8 +112,15 @@ def chapter_markdown(base, chapter, number, proof=False):
     skipped, markers = [], []
     for si, s in enumerate(chapter['sections'], start=1):
         head, _, _, manuscript = section_file(base, s)
-        if head.get('status') != 'approved':
-            skipped.append(f'{number}.{si} {s["title"]} ({head.get("status")})')
+        approval = head.get('approvals') or {}
+        digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+        approved = (head.get('status') == 'approved'
+                    and approval.get('section') is True
+                    and approval.get('section_content_sha256') == digest)
+        if not approved:
+            reason = ('Freigabe fehlt oder Manuskript seit Freigabe geändert'
+                      if head.get('status') == 'approved' else str(head.get('status')))
+            skipped.append(f'{number}.{si} {s["title"]} ({reason})')
             if not proof:
                 continue
         text = shift_headings(manuscript.strip(), 3)
