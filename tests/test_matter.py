@@ -59,7 +59,8 @@ def approve_chapter_1(base):
     ch = cfg['structure']['chapters'][0]
     text = re.sub(rf'(?ms)(- id: {ch["id"]}\n.*?status: )\w+', r'\1approved', text, count=1)
     cfg_path.write_text(text, encoding='utf-8')
-    ledger = {'entries': []}
+    ledger_path = base / 'approvals.yml'
+    ledger = yaml.safe_load(ledger_path.read_text(encoding='utf-8')) if ledger_path.is_file() else {'entries': []}
     for section in ch['sections']:
         p = base / section['path']
         t = re.sub(r'(?m)^status: \w+', 'status: approved', p.read_text(encoding='utf-8'), count=1)
@@ -72,7 +73,7 @@ def approve_chapter_1(base):
             'at': '2026-11-05T12:00:00Z', 'by': 'test', 'commit': '1234567', 'note': 'content_sha256=' + digest})
     ledger['entries'].append({'kind': 'chapter', 'id': ch['id'], 'action': 'granted',
         'at': '2026-11-05T12:00:00Z', 'by': 'test', 'commit': '1234567'})
-    (base / 'approvals.yml').write_text(yaml.safe_dump(ledger, allow_unicode=True, sort_keys=False), encoding='utf-8')
+    ledger_path.write_text(yaml.safe_dump(ledger, allow_unicode=True, sort_keys=False), encoding='utf-8')
     readme = base / ch['path'] / 'README.md'
     readme.write_text(re.sub(r'\[(QUELLE PRÜFEN|MEDIZIN PRÜFEN)[^\]]*\]', '', readme.read_text(encoding='utf-8')),
                       encoding='utf-8')
