@@ -298,17 +298,26 @@ UI_URL = 'https://cdn.jsdelivr.net/gh/{repo}@{ref}/dist/gw.min.js'  # von jsDeli
 UI = {'repo': 'ploeffler/ghostwriter-ui', 'ref': None}
 
 
+class RenderedWidget(str):
+    """Widget-Ausgabe samt unveränderten Rohdaten für alternative native Ansichten."""
+    def __new__(cls, text, template, data):
+        value = super().__new__(cls, text)
+        value.template, value.data = template, data
+        return value
+
+
 def fill(template, values, blocks=None):
     """Widget-Code: Ladezeile für ghostwriter-ui und GW.render mit den Daten.
     Maskieren, Wiederholblöcke und data-gw-if erledigt gw.js im Chat."""
     data = dict(values)
     data.update(blocks or {})
+    data['LANGUAGE'] = UI.get('language', 'de')
     if UI.get('head'):
         data['HEAD_SHA'] = UI['head']  # gelesener Stand; gw.js schickt ihn als expected_head_sha zurück
     payload = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     url = UI_URL.format(repo=UI['repo'], ref=UI['ref'])
-    return (f'<div id="gw"></div>\n<script src="{url}"></script>\n'
-            f'<script>GW.render({json.dumps(template[:-5])},{payload})</script>\n')
+    return RenderedWidget((f'<div id="gw"></div>\n<script src="{url}"></script>\n'
+            f'<script>GW.render({json.dumps(template[:-5])},{payload})</script>\n'), template[:-5], data)
 
 
 # ---------- Textfassung (Chats ohne Widgets) ----------
@@ -684,6 +693,7 @@ def project_view(base, config, args):
     except Exception:   # noqa: BLE001
         open_runs = []
     analyses = [{'A_KIND': k, 'A_RUN': h['path'][:-3] + '.json', 'A_ICON': spec['icon'],
+                 'A_COUNT': h.get('suggestions', 0), 'A_DATE': str(h.get('created_at') or ''),
                  'A_TEXT': f'{spec["offer"]} vom {de_date(str(h.get("created_at")))} liegen bereit ({h.get("suggestions", 0)})'}
                 for k, h, spec in open_runs]
     try:   # Import (#124): Original wird bald entfernt
@@ -692,11 +702,13 @@ def project_view(base, config, args):
     except Exception:   # noqa: BLE001
         imp = None
     if imp and imp.get('soon') and not imp.get('removed'):
+        values['IMPORT_SOURCE'], values['IMPORT_EXPIRES'] = Path(imp['source']).name, imp['expires']
         values['IMPORT_TEXT'] = (f'Das Original des Imports ({Path(imp["source"]).name}) wird am '
                                  f'{de_date(imp["expires"])} entfernt (Aufbewahrung {imp["keep_text"]}).')
     ser, vol = book_series(base, args)
     if ser:   # Serie (#116): „Band 2 der Serie …“ mit Link
-        values.update({'SERIES_ID': ser['id'], 'SERIES_TEXT': f'Band {vol} der Serie „{ser["title"]}“'})
+        values.update({'SERIES_ID': ser['id'], 'SERIES_TITLE': ser['title'], 'SERIES_VOLUME_NUMBER': vol,
+                       'SERIES_TEXT': f'Band {vol} der Serie „{ser["title"]}“'})
     lim_state, lim_text = limit_state(base, config, args)
     if lim_state != 'ok':   # Limitwarnung (#62)
         values.update({'LIMIT_STATE': lim_state, 'LIMIT_TEXT': lim_text})
@@ -1849,7 +1861,12 @@ def book_row(b):
     progress = (f'{sa} von {plural(st, "Abschnitt", "Abschnitten")} freigegeben · '
                 f'{b.get("chapters_approved", 0)} von {plural(b.get("chapters_total", 0), "Kapitel", "Kapiteln")}') if ready else 'Gliederung noch offen'
     ed = b.get('current_edition') or 0
-    return {'BOOK_BRANCH': b['branch'], 'BOOK_TITLE': b['title'] or b['title_short'] or 'Ohne Titel',
+    return {'BOOK_SECTION_COUNT': st, 'BOOK_APPROVED_SECTION_COUNT': sa,
+            'BOOK_CHAPTER_COUNT': b.get('chapters_total', 0), 'BOOK_APPROVED_CHAPTER_COUNT': b.get('chapters_approved', 0),
+            'BOOK_EDITION_NUMBER': ed, 'BOOK_PENDING_COUNT': b.get('pending') or 0,
+            'BOOK_AUTHOR_NAME': b.get('author') or '', 'BOOK_UPDATED_AT': b.get('updated_at') or '',
+            'BOOK_TITLE_EMPTY': not (b['title'] or b['title_short']),
+            'BOOK_BRANCH': b['branch'], 'BOOK_TITLE': b['title'] or b['title_short'] or 'Ohne Titel',
             'BOOK_TITLE_SHORT': b['title_short'] or b['branch'].split('/')[-1],
             'BOOK_AUTHOR_TEXT': f'von {b["author"]}' if b.get('author') else '',
             'BOOK_STATE': 'ready' if ready else 'setup', 'BOOK_STATE_TEXT': 'eingerichtet' if ready else 'im Aufbau',
@@ -1880,7 +1897,7 @@ def library_view(base, config, args):
             if br in by_branch:
                 r = book_row(by_branch[br])
                 r.update({'BOOK_SERIES': s['id'], 'BOOK_SERIES_TITLE': s['title'], 'BOOK_SERIES_KEY': f'S{si}',
-                          'BOOK_VOLUME_TEXT': f'Band {n}'})
+                          'BOOK_VOLUME_NUMBER': n, 'BOOK_VOLUME_TEXT': f'Band {n}'})
                 rows.append(r)
                 seen.add(br)
     for b in books:
@@ -1915,7 +1932,8 @@ def library_view(base, config, args):
     blocks = {'BOOKS': rows}
     if empty_series:
         blocks['EMPTY_SERIES'] = empty_series
-    return fill('buecherregal.html', {'LIBRARY_NAME': repo_label(args), 'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
+    return fill('buecherregal.html', {'LIBRARY_NAME': repo_label(args), 'BOOK_COUNT_NUMBER': len(rows), 'SERIES_COUNT_NUMBER': len(ser),
+                                      'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
                                       'UPDATED_TEXT': ''}, blocks)
 
 
@@ -2817,6 +2835,7 @@ def main():
     ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
+    ap.add_argument('--language', help='Bediensprache de/en; Englisch zunächst für project, chapter und library')
     ap.add_argument('--repo', help='owner/name des Buch-Repositorys; ohne Angabe aus GITHUB_REPOSITORY bzw. git remote origin (#134)')
     ap.add_argument('--branch', default='main')
     ap.add_argument('--revoke', action='store_true', help='bei approval-*: Freigabe zurücknehmen statt erteilen')
@@ -2834,6 +2853,27 @@ def main():
     UI['repo'], UI['ref'] = ui['repo'], args.ui_ref or ui['commit']
     base, config = load(args.project)
     resolve_repo(base, args)
+    try:
+        from .i18n import resolve_language
+        from . import render_view_en
+    except ImportError:
+        from i18n import resolve_language
+        import render_view_en
+    default = subprocess.run(['git', '-C', str(base), 'symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD'], capture_output=True, text=True).stdout.strip().removeprefix('origin/') or 'main'
+    raw_profile = subprocess.run(['git', '-C', str(base), 'show', f'refs/remotes/origin/{default}:assistant.yml'], capture_output=True, text=True)
+    try:
+        profile = yaml.safe_load(raw_profile.stdout) or {} if raw_profile.returncode == 0 else {}
+    except yaml.YAMLError:
+        profile = {}
+    language = resolve_language(args.language, config, profile)
+    UI['language'] = language
+    requested_text = args.text
+    if language == 'en':
+        if args.view not in ('project', 'chapter', 'library'):
+            raise SystemExit('English output is not yet available for this view. Use --language de, or ask your assistant for an English native chat view.')
+        # Ohne bewusst gewählte neue UI-Testfassung bleibt Englisch nativ: der feste UI-Commit ist noch deutsch.
+        requested_text = requested_text or not args.ui_ref
+        args.text = False
     UI['head'] = args.head_sha or git_head(base)
     if args.view in FORMS:
         out = FORMS[args.view](base, config, args)
@@ -2856,6 +2896,9 @@ def main():
     else:
         c, s = (int(x) for x in args.where.split('.'))
         out = section_view(base, config, args, c, s)
+    if language == 'en':
+        data = render_view_en.prepare(out.template, out.data, config, args)
+        out = render_view_en.render(out.template, data, config, sys.modules[__name__]) if requested_text else fill(out.template + '.html', data)
     sys.stdout.write(out)
 
 
