@@ -53,6 +53,60 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertEqual(data['MARKERS'][0]['MARKER_LABEL'], 'Check source')
         self.assertEqual(data['SECTION_MANUSCRIPT'].strip(), 'Originaltext mit [QUELLE PRÜFEN].')
 
+    def test_edition_form_localizes_warnings_formats_and_preserves_identifiers(self):
+        self.config['project']['title_short'] = 'Buch {name}'
+        self.config['typesetting'] = {'formats': ['pdf_print', 'cover', 'epub']}
+        self.save()
+        before = (self.base / 'ghostwriter.yml').read_bytes()
+        text = self.run_view('edition-create', '--language', 'en').stdout
+        self.assertIn('Create a new edition · Edition 1', text)
+        self.assertIn('The book has no chapters yet.', text)
+        self.assertIn('no chapter has been approved yet', text)
+        self.assertIn('Print PDF, Cover, EPUB', text)
+        self.assertIn('`Date: YYYY-MM-DD`', text)
+        self.assertIn('`Notes: …`', text)
+        self.assertEqual(text, self.run_view('edition-create', '--language', 'en', '--text').stdout)
+        previews = []
+        for language in ('de', 'en'):
+            html = self.run_view('edition-create', '--language', language, '--ui-ref', 'a' * 40).stdout
+            previews.append(json.loads(re.search(r'GW.render\("auflage-erzeugen",(.*?)\)</script>', html).group(1)))
+        self.assertEqual(previews[0]['EDITION_NAME'], previews[1]['EDITION_NAME'])
+        self.assertEqual(previews[0]['EDITION_TAG'], previews[1]['EDITION_TAG'])
+        self.assertIn('Buch {name}', previews[1]['EDITION_NAME'])
+        self.assertIn('The edition cannot be built', previews[1]['APPROVAL_WARNING_TEXT'])
+        self.assertEqual(previews[1]['FORMATS'][0]['FORMAT_LABEL'], 'Print PDF')
+        self.assertEqual(before, (self.base / 'ghostwriter.yml').read_bytes())
+
+    def test_edition_warning_tracks_approvals_and_markers_without_changing_them(self):
+        section = self.chapter(True)
+        self.config['structure']['chapters'][0]['status'] = 'approved'
+        self.save()
+        text = self.run_view('edition-create', '--language', 'en').stdout
+        self.assertIn('approved chapters contain unapproved sections', text)
+        section.write_text(section.read_text().replace('status: writing', 'status: approved'))
+        before = section.read_bytes()
+        text = self.run_view('edition-create', '--language', 'en').stdout
+        self.assertIn('open markers in approved text: 1', text)
+        self.assertNotIn('contain unapproved sections', text)
+        self.assertEqual(before, section.read_bytes())
+        section.write_text(section.read_text().replace('[QUELLE PRÜFEN]', 'geprüfter Quelle'))
+        text = self.run_view('edition-create', '--language', 'en').stdout
+        self.assertNotIn('cannot be built', text)
+        self.assertNotIn('⚠️', text)
+
+    def test_edition_missing_title_and_partial_approval_are_explained_in_english(self):
+        self.config['project']['title'] = ''
+        self.config['project']['language'] = 'de'
+        self.save()
+        self.assertIn('the book has no title yet', self.run_view('edition-create', '--language', 'en').stdout)
+        self.chapter(True)
+        text = self.run_view('edition-create', '--language', 'en').stdout
+        self.assertIn('Chapters approved so far: 0 of 1', text)
+        self.assertIn('only approved chapters are included', text)
+        self.config['project']['language'] = 'en'
+        self.save()
+        self.assertIn('Neue Auflage erzeugen', self.run_view('edition-create', '--language', 'de', '--text').stdout)
+
     def test_english_default_is_native_and_preserves_title(self):
         before = (self.base / 'ghostwriter.yml').read_bytes()
         text = self.run_view('project', '--language', 'en').stdout
@@ -81,10 +135,11 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertEqual(data['PROJECT_EDITION_TEXT'], 'no edition yet')
         self.assertIn('a' * 40, text)
 
-    def test_untranslated_forms_do_not_silently_return_german_as_english(self):
-        r = self.run_view('project-settings', '--text', '--language', 'en', check=False)
-        self.assertNotEqual(r.returncode, 0)
-        self.assertIn('English native text output is not yet available', r.stderr)
+    def test_project_settings_are_available_in_english(self):
+        text = self.run_view('project-settings', '--text', '--language', 'en').stdout
+        self.assertIn('Project settings', text)
+        self.assertIn('Fixed rules', text)
+        self.assertIn('explicit confirmation', text)
         self.assertIn('Projektdaten', self.run_view('project-edit', '--text', '--language', 'de').stdout)
 
     def test_all_template_preview_keeps_raw_project_settings(self):

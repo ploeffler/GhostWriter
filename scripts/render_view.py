@@ -267,14 +267,14 @@ def total(entries):
 def money(amount, estimated, currency='€'):
     if amount is None:
         return '–'
-    s = f'{amount:.2f}'.replace('.', ',')
+    s = f'{amount:.2f}'.replace('.', '.' if UI.get('language') == 'en' else ',')
     return ('≈ ' if estimated else '') + f'{s} {currency}'
 
 
 def cost_hint(base_hint, amount, estimated):
     if amount is None:
-        return 'Keine KI-API-Kosten erfasst (Arbeit im Chat über ein Abo kostet nichts zusätzlich)'
-    return base_hint + (', enthält geschätzte Kosten' if estimated else '')
+        return view_message('cost.none')
+    return base_hint + (view_message('cost.estimated') if estimated else '')
 
 
 def combine(parts):
@@ -336,6 +336,490 @@ def view_matter_kind(kind):
     return labels.get(kind, MATTER[kind][1])
 
 
+def view_labels(name):
+    """Nur feste Tabellen lokalisieren; die importierbaren deutschen Konstanten bleiben stabil."""
+    if name == 'OUTPUT_LABELS':
+        return {
+            'page_size': (
+                view_message('labels.OUTPUT_LABELS.page_size.0'),
+                {
+                    'a5': view_message('labels.OUTPUT_LABELS.page_size.1.a5'),
+                    '12x19': '12 × 19 cm',
+                    '13.5x21.5': view_message('labels.OUTPUT_LABELS.page_size.1.13.5x21.5'),
+                    'a4': 'A4',
+                },
+            ),
+            'font': (
+                view_message('labels.OUTPUT_LABELS.font.0'),
+                {
+                    'serif': view_message('labels.OUTPUT_LABELS.font.1.serif'),
+                    'sans': view_message('labels.OUTPUT_LABELS.font.1.sans'),
+                    'pagella': 'Pagella',
+                    'termes': 'Termes',
+                    'bonum': 'Bonum',
+                    'schola': 'Schola',
+                    'heros': 'Heros',
+                    'adventor': 'Adventor',
+                },
+            ),
+            'font_size': (view_message('labels.OUTPUT_LABELS.font_size.0'), None),
+            'heading_font': (
+                view_message('labels.OUTPUT_LABELS.heading_font.0'),
+                {
+                    'same': view_message('labels.OUTPUT_LABELS.heading_font.1.same'),
+                    'serif': view_message('labels.OUTPUT_LABELS.heading_font.1.serif'),
+                    'sans': view_message('labels.OUTPUT_LABELS.heading_font.1.sans'),
+                },
+            ),
+            'initials': (view_message('labels.OUTPUT_LABELS.initials.0'), None),
+            'glossary_marks': (
+                view_message('labels.OUTPUT_LABELS.glossary_marks.0'),
+                {
+                    'arrow': view_message('labels.OUTPUT_LABELS.glossary_marks.1.arrow'),
+                    'italic': view_message('labels.OUTPUT_LABELS.glossary_marks.1.italic'),
+                    'none': view_message('labels.OUTPUT_LABELS.glossary_marks.1.none'),
+                },
+            ),
+            'margins': (
+                view_message('labels.OUTPUT_LABELS.margins.0'),
+                {
+                    'standard': 'Standard',
+                    'classic': view_message('labels.OUTPUT_LABELS.margins.1.classic'),
+                    'modern': view_message('labels.OUTPUT_LABELS.margins.1.modern'),
+                },
+            ),
+            'line_spacing': (view_message('labels.OUTPUT_LABELS.line_spacing.0'), None),
+            'paragraph': (
+                view_message('labels.OUTPUT_LABELS.paragraph.0'),
+                {
+                    'indent': view_message('labels.OUTPUT_LABELS.paragraph.1.indent'),
+                    'spacing': view_message('labels.OUTPUT_LABELS.paragraph.1.spacing'),
+                },
+            ),
+            'hyphenation': (view_message('labels.OUTPUT_LABELS.hyphenation.0'), None),
+            'chapter_start': (
+                view_message('labels.OUTPUT_LABELS.chapter_start.0'),
+                {
+                    'any': view_message('labels.OUTPUT_LABELS.chapter_start.1.any'),
+                    'right': view_message('labels.OUTPUT_LABELS.chapter_start.1.right'),
+                },
+            ),
+            'running_heads': (
+                view_message('labels.OUTPUT_LABELS.running_heads.0'),
+                {
+                    'sections': view_message('labels.OUTPUT_LABELS.running_heads.1.sections'),
+                    'chapter': view_message('labels.OUTPUT_LABELS.running_heads.1.chapter'),
+                    'book': view_message('labels.OUTPUT_LABELS.running_heads.1.book'),
+                    'none': view_message('labels.OUTPUT_LABELS.running_heads.1.none'),
+                },
+            ),
+            'page_numbers': (
+                view_message('labels.OUTPUT_LABELS.page_numbers.0'),
+                {
+                    'header': view_message('labels.OUTPUT_LABELS.page_numbers.1.header'),
+                    'footer_center': view_message('labels.OUTPUT_LABELS.page_numbers.1.footer_center'),
+                    'footer_outer': view_message('labels.OUTPUT_LABELS.page_numbers.1.footer_outer'),
+                },
+            ),
+            'title_page': (view_message('labels.OUTPUT_LABELS.title_page.0'), None),
+            'imprint': (view_message('labels.OUTPUT_LABELS.imprint.0'), None),
+            'toc': (view_message('labels.OUTPUT_LABELS.toc.0'), None),
+            'toc_depth': (
+                view_message('labels.OUTPUT_LABELS.toc_depth.0'),
+                {
+                    1: view_message('labels.OUTPUT_LABELS.toc_depth.1.1'),
+                    2: view_message('labels.OUTPUT_LABELS.toc_depth.1.2'),
+                },
+            ),
+            'formats': (
+                view_message('labels.OUTPUT_LABELS.formats.0'),
+                {
+                    'pdf': view_message('labels.OUTPUT_LABELS.formats.1.pdf'),
+                    'pdf_print': view_message('labels.OUTPUT_LABELS.formats.1.pdf_print'),
+                    'cover': view_message('labels.OUTPUT_LABELS.formats.1.cover'),
+                    'docx': 'DOCX',
+                    'epub': 'EPUB',
+                },
+            ),
+        }
+    if name == 'FIXED_TEXT':
+        return {
+            'strict': view_message('labels.FIXED_TEXT.strict'),
+            'required': view_message('labels.FIXED_TEXT.required'),
+            'explicit': view_message('labels.FIXED_TEXT.explicit'),
+            'balanced': view_message('labels.FIXED_TEXT.balanced'),
+            'research': view_message('labels.FIXED_TEXT.research'),
+            True: view_message('labels.FIXED_TEXT.True'),
+            False: view_message('labels.FIXED_TEXT.False'),
+        }
+    if name == 'FC_TEXT':
+        return {
+            'disabled': view_message('labels.FC_TEXT.disabled'),
+            'optional': 'optional',
+            'requested': view_message('labels.FC_TEXT.requested'),
+        }
+    if name == 'FIXED_RULES':
+        return [
+            ('ai_settings', 'hallucination_policy', view_message('labels.FIXED_RULES.0.2')),
+            ('ai_settings', 'source_policy', view_message('labels.FIXED_RULES.1.2')),
+            ('ai_settings', 'uncertainty_policy', view_message('labels.FIXED_RULES.2.2')),
+            ('ai_settings', 'creativity', view_message('labels.FIXED_RULES.3.2')),
+            ('ai_settings', 'web_research', view_message('labels.FIXED_RULES.4.2')),
+            ('workflow', 'require_section_writing_approval', view_message('labels.FIXED_RULES.5.2')),
+            ('workflow', 'require_section_approval', view_message('labels.FIXED_RULES.6.2')),
+            ('workflow', 'require_chapter_approval', view_message('labels.FIXED_RULES.7.2')),
+        ]
+    if name == 'OUTPUT_GROUPS':
+        return [
+            (
+                view_message('labels.OUTPUT_GROUPS.0.0'),
+                ['page_size', 'margins', 'chapter_start', 'running_heads', 'page_numbers'],
+            ),
+            (
+                view_message('labels.OUTPUT_GROUPS.1.0'),
+                ['font', 'font_size', 'heading_font', 'initials', 'glossary_marks'],
+            ),
+            (view_message('labels.OUTPUT_GROUPS.2.0'), ['line_spacing', 'paragraph', 'hyphenation']),
+            (view_message('labels.OUTPUT_GROUPS.3.0'), ['title_page', 'imprint', 'toc', 'toc_depth']),
+            (view_message('labels.OUTPUT_GROUPS.4.0'), ['formats']),
+        ]
+    if name == 'PUBLICATION_LABELS':
+        return [
+            (
+                'publisher',
+                view_message('labels.PUBLICATION_LABELS.0.1'),
+                view_message('labels.PUBLICATION_LABELS.0.2'),
+            ),
+            (
+                'isbn_print',
+                view_message('labels.PUBLICATION_LABELS.1.1'),
+                view_message('labels.PUBLICATION_LABELS.1.2'),
+            ),
+            (
+                'isbn_ebook',
+                view_message('labels.PUBLICATION_LABELS.2.1'),
+                view_message('labels.PUBLICATION_LABELS.2.2'),
+            ),
+            (
+                'rights',
+                view_message('labels.PUBLICATION_LABELS.3.1'),
+                view_message('labels.PUBLICATION_LABELS.3.2'),
+            ),
+        ]
+    if name == 'TEMPLATE_DE':
+        return {
+            'classic': view_message('labels.TEMPLATE_DE.classic'),
+            'modern': 'modern',
+            'plain': view_message('labels.TEMPLATE_DE.plain'),
+        }
+    if name == 'ROLE_DE':
+        return {
+            'main': view_message('labels.ROLE_DE.main'),
+            'supporting': view_message('labels.ROLE_DE.supporting'),
+            'minor': view_message('labels.ROLE_DE.minor'),
+        }
+    if name == 'SOURCE_DE':
+        return {
+            'series': view_message('labels.SOURCE_DE.series'),
+            'copy': view_message('labels.SOURCE_DE.copy'),
+            'copy_diff': view_message('labels.SOURCE_DE.copy_diff'),
+            'own': view_message('labels.SOURCE_DE.own'),
+        }
+    if name == 'TERM_STATE_DE':
+        return {
+            'missing': view_message('labels.TERM_STATE_DE.missing'),
+            'same': view_message('labels.TERM_STATE_DE.same'),
+            'differs': view_message('labels.TERM_STATE_DE.differs'),
+            'own': view_message('labels.TERM_STATE_DE.own'),
+        }
+    if name == 'WEB_TEXT':
+        return {
+            'native': view_message('labels.WEB_TEXT.native'),
+            'via_tool': view_message('labels.WEB_TEXT.via_tool'),
+            'none': view_message('labels.WEB_TEXT.none'),
+        }
+    if name == 'ACCESS_TEXT':
+        return {
+            'app': view_message('labels.ACCESS_TEXT.app'),
+            'api': view_message('labels.ACCESS_TEXT.api'),
+            'local': view_message('labels.ACCESS_TEXT.local'),
+            'cli': view_message('labels.ACCESS_TEXT.cli'),
+            'web': view_message('service.web_access'),
+            'github': view_message('service.github_access'),
+        }
+    if name == 'KEEP_DE':
+        return {
+            'dedication': view_message('labels.KEEP_DE.dedication'),
+            'foreword': view_message('labels.KEEP_DE.foreword'),
+            'prologue': view_message('labels.KEEP_DE.prologue'),
+            'epilogue': view_message('labels.KEEP_DE.epilogue'),
+            'afterword': view_message('labels.KEEP_DE.afterword'),
+            'acknowledgments': view_message('labels.KEEP_DE.acknowledgments'),
+        }
+    if name == 'FIELD_DE':
+        return {
+            'age': view_message('labels.FIELD_DE.age'),
+            'appearance': view_message('labels.FIELD_DE.appearance'),
+            'voice': view_message('labels.FIELD_DE.voice'),
+            'short': view_message('labels.FIELD_DE.short'),
+            'traits': view_message('labels.FIELD_DE.traits'),
+        }
+    if name == 'MARKER_LABEL':
+        return {
+            'anekdote': view_message('labels.MARKER_LABEL.anekdote'),
+            'quelle': view_message('labels.MARKER_LABEL.quelle'),
+            'medizin': view_message('labels.MARKER_LABEL.medizin'),
+            'recht': view_message('labels.MARKER_LABEL.recht'),
+            'kontinuitaet': view_message('labels.MARKER_LABEL.kontinuitaet'),
+        }
+    if name == 'MATTER_HINTS':
+        return {
+            'dedication': view_message('labels.MATTER_HINTS.dedication'),
+            'foreword': view_message('labels.MATTER_HINTS.foreword'),
+            'prologue': view_message('labels.MATTER_HINTS.prologue'),
+            'epilogue': view_message('labels.MATTER_HINTS.epilogue'),
+            'afterword': view_message('labels.MATTER_HINTS.afterword'),
+            'glossary': view_message('labels.MATTER_HINTS.glossary'),
+            'acknowledgments': view_message('labels.MATTER_HINTS.acknowledgments'),
+        }
+    if name == 'STYLE_DE':
+        return {
+            'perspective': view_message('labels.STYLE_DE.perspective'),
+            'tense': view_message('labels.STYLE_DE.tense'),
+            'address': view_message('labels.STYLE_DE.address'),
+            'register': view_message('labels.STYLE_DE.register'),
+            'tone': view_message('labels.STYLE_DE.tone'),
+            'features': view_message('labels.STYLE_DE.features'),
+        }
+    if name == 'TIMELINE_KIND_DE':
+        return {
+            'jump': view_message('labels.TIMELINE_KIND_DE.jump'),
+            'contradiction': view_message('labels.TIMELINE_KIND_DE.contradiction'),
+            'unclear': view_message('labels.TIMELINE_KIND_DE.unclear'),
+        }
+    if name == 'LANGUAGE_DE':
+        return {
+            'long_sentence': view_message('labels.LANGUAGE_DE.long_sentence'),
+            'repetition': view_message('labels.LANGUAGE_DE.repetition'),
+            'same_start': view_message('labels.LANGUAGE_DE.same_start'),
+            'filler': view_message('labels.LANGUAGE_DE.filler'),
+        }
+    raise KeyError(name)
+
+
+def view_role_info():
+    return [
+        ('default', view_message('service.role_default'), view_message('service.hint_default')),
+        ('research', view_message('service.role_research'), view_message('service.hint_research')),
+        ('brainstorming', view_message('service.role_brainstorming'), ''),
+        ('writing', view_message('service.role_writing'), view_message('service.hint_writing')),
+        ('revision', view_message('service.role_revision'), ''),
+        ('fact_check', view_message('service.role_fact_check'), view_message('service.hint_fact_check')),
+        ('queue_processing', view_message('service.role_queue_processing'), view_message('service.hint_queue_processing')),
+    ]
+
+
+def view_provider_catalog(catalog):
+    """Lokalisierte Anzeige-Metadaten; Zugang, IDs und Konfiguration bleiben unverändert."""
+    import copy
+    result = copy.deepcopy(catalog)
+    notes = {
+        'google': view_message('catalog.google.note'),
+        'mistral': view_message('catalog.mistral.note'),
+        'perplexity': view_message('catalog.perplexity.note'),
+        'cohere': view_message('catalog.cohere.note'),
+        'deepseek': view_message('catalog.deepseek.note'),
+        'qwen': view_message('catalog.qwen.note'),
+        'meta_llama': view_message('catalog.meta_llama.note'),
+        'openrouter': view_message('catalog.openrouter.note'),
+        'aws_bedrock': view_message('catalog.aws_bedrock.note'),
+        'azure_ai_foundry': view_message('catalog.azure_ai_foundry.note'),
+        'google_vertex': view_message('catalog.google_vertex.note'),
+        'local_ollama': view_message('catalog.local_ollama.note'),
+        'brave_search': view_message('catalog.brave_search.note'),
+        'tavily': view_message('catalog.tavily.note'),
+        'exa': view_message('catalog.exa.note'),
+        'parallel': view_message('catalog.parallel.note'),
+        'perplexity_sonar': view_message('catalog.perplexity_sonar.note'),
+        'serpapi': view_message('catalog.serpapi.note'),
+        'semantic_scholar': view_message('catalog.semantic_scholar.note'),
+        'openalex': view_message('catalog.openalex.note'),
+        'github_copilot_agent': view_message('catalog.github_copilot_agent.note'),
+        'openai_codex': view_message('catalog.openai_codex.note'),
+        'claude_code': view_message('catalog.claude_code.note'),
+        'google_jules': view_message('catalog.google_jules.note'),
+        'gemini_cli': view_message('catalog.gemini_cli.note'),
+        'manual': view_message('catalog.manual.note'),
+    }
+    names = {
+        'meta_llama': view_message('catalog.meta_llama.name'),
+        'local_ollama': view_message('catalog.local_ollama.name'),
+        'local_lmstudio': view_message('catalog.local_lmstudio.name'),
+        'manual': view_message('catalog.manual.name'),
+    }
+    for group in ('providers', 'search_tools', 'queue_agents'):
+        for service in result.get(group) or []:
+            if service['id'] in notes:
+                service['note'] = notes[service['id']]
+            if service['id'] in names:
+                service['name'] = names[service['id']]
+    return result
+
+
+def view_choice_labels(spec, steps):
+    """Nur die eingebauten Wizard-Beschriftungen übersetzen, nie freie Auswahl-Spezifikationen."""
+    labels = {
+        'wizard.4': [
+            (['title'], view_message('wizard.4.title', step=spec['step'].split('.')[-1], steps=steps)),
+            (['subtitle'], view_message('wizard.4.subtitle')),
+            (['note'], view_message('wizard.4.note')),
+            (['questions', 0, 'header'], view_message('wizard.4.audience.header')),
+            (['questions', 0, 'text'], view_message('wizard.4.audience.text')),
+            (['questions', 0, 'options', 0, 'label'], view_message('wizard.4.audience.betroffene.label')),
+            (['questions', 0, 'options', 0, 'desc'], view_message('wizard.4.audience.betroffene.desc')),
+            (['questions', 0, 'options', 1, 'label'], view_message('wizard.4.audience.angehoerige.label')),
+            (['questions', 0, 'options', 1, 'desc'], view_message('wizard.4.audience.angehoerige.desc')),
+            (['questions', 0, 'options', 2, 'label'], view_message('wizard.4.audience.fachpublikum.label')),
+            (['questions', 0, 'options', 2, 'desc'], view_message('wizard.4.audience.fachpublikum.desc')),
+            (['questions', 0, 'options', 3, 'label'], view_message('wizard.4.audience.allgemein.label')),
+            (['questions', 0, 'options', 3, 'desc'], view_message('wizard.4.audience.allgemein.desc')),
+            (['questions', 1, 'header'], view_message('wizard.4.prior_knowledge.header')),
+            (['questions', 1, 'text'], view_message('wizard.4.prior_knowledge.text')),
+            (['questions', 1, 'options', 0, 'label'], view_message('wizard.4.prior_knowledge.keines.label')),
+            (['questions', 1, 'options', 0, 'desc'], view_message('wizard.4.prior_knowledge.keines.desc')),
+            (['questions', 1, 'options', 1, 'label'], view_message('wizard.4.prior_knowledge.grundlagen.label')),
+            (['questions', 1, 'options', 1, 'desc'], view_message('wizard.4.prior_knowledge.grundlagen.desc')),
+            (['questions', 1, 'options', 2, 'label'], view_message('wizard.4.prior_knowledge.fachlich.label')),
+            (['questions', 1, 'options', 2, 'desc'], view_message('wizard.4.prior_knowledge.fachlich.desc')),
+        ],
+        'wizard.5': [
+            (['title'], view_message('wizard.5.title', step=spec['step'].split('.')[-1], steps=steps)),
+            (['subtitle'], view_message('wizard.5.subtitle')),
+            (['note'], view_message('wizard.5.note')),
+            (['questions', 0, 'header'], view_message('wizard.5.book_type.header')),
+            (['questions', 0, 'text'], view_message('wizard.5.book_type.text')),
+            (['questions', 0, 'options', 0, 'label'], view_message('wizard.5.book_type.sachbuch.label')),
+            (['questions', 0, 'options', 0, 'desc'], view_message('wizard.5.book_type.sachbuch.desc')),
+            (['questions', 0, 'options', 1, 'label'], view_message('wizard.5.book_type.ratgeber.label')),
+            (['questions', 0, 'options', 1, 'desc'], view_message('wizard.5.book_type.ratgeber.desc')),
+            (['questions', 0, 'options', 2, 'label'], view_message('wizard.5.book_type.fachbuch.label')),
+            (['questions', 0, 'options', 2, 'desc'], view_message('wizard.5.book_type.fachbuch.desc')),
+            (['questions', 0, 'options', 3, 'label'], view_message('wizard.5.book_type.erfahrungsbericht.label')),
+            (['questions', 0, 'options', 3, 'desc'], view_message('wizard.5.book_type.erfahrungsbericht.desc')),
+            (['questions', 1, 'header'], view_message('wizard.5.length.header')),
+            (['questions', 1, 'text'], view_message('wizard.5.length.text')),
+            (['questions', 1, 'options', 0, 'label'], view_message('wizard.5.length.kurz.label')),
+            (['questions', 1, 'options', 0, 'desc'], view_message('wizard.5.length.kurz.desc')),
+            (['questions', 1, 'options', 1, 'label'], view_message('wizard.5.length.mittel.label')),
+            (['questions', 1, 'options', 1, 'desc'], view_message('wizard.5.length.mittel.desc')),
+            (['questions', 1, 'options', 2, 'label'], view_message('wizard.5.length.lang.label')),
+            (['questions', 1, 'options', 2, 'desc'], view_message('wizard.5.length.lang.desc')),
+            (['questions', 1, 'options', 3, 'label'], view_message('wizard.5.length.offen.label')),
+            (['questions', 1, 'options', 3, 'desc'], view_message('wizard.5.length.offen.desc')),
+        ],
+        'wizard.6': [
+            (['title'], view_message('wizard.6.title', step=spec['step'].split('.')[-1], steps=steps)),
+            (['subtitle'], view_message('wizard.6.subtitle')),
+            (['note'], view_message('wizard.6.note')),
+            (['questions', 0, 'header'], view_message('wizard.6.language.header')),
+            (['questions', 0, 'text'], view_message('wizard.6.language.text')),
+            (['questions', 0, 'options', 0, 'label'], view_message('wizard.6.language.de.label')),
+            (['questions', 0, 'options', 1, 'label'], view_message('wizard.6.language.en.label')),
+            (['questions', 0, 'options', 2, 'label'], view_message('wizard.6.language.fr.label')),
+            (['questions', 0, 'options', 3, 'label'], view_message('wizard.6.language.es.label')),
+            (['questions', 1, 'header'], view_message('wizard.6.style.header')),
+            (['questions', 1, 'text'], view_message('wizard.6.style.text')),
+            (['questions', 1, 'options', 0, 'label'], view_message('wizard.6.style.sachlich.label')),
+            (['questions', 1, 'options', 0, 'desc'], view_message('wizard.6.style.sachlich.desc')),
+            (['questions', 1, 'options', 1, 'label'], view_message('wizard.6.style.zugewandt.label')),
+            (['questions', 1, 'options', 1, 'desc'], view_message('wizard.6.style.zugewandt.desc')),
+            (['questions', 1, 'options', 2, 'label'], view_message('wizard.6.style.erzaehlend.label')),
+            (['questions', 1, 'options', 2, 'desc'], view_message('wizard.6.style.erzaehlend.desc')),
+            (['questions', 1, 'options', 3, 'label'], view_message('wizard.6.style.humorvoll.label')),
+            (['questions', 1, 'options', 3, 'desc'], view_message('wizard.6.style.humorvoll.desc')),
+        ],
+        'wizard.12': [
+            (['title'], view_message('wizard.12.title', step=spec['step'].split('.')[-1], steps=steps)),
+            (['subtitle'], view_message('wizard.12.subtitle')),
+            (['note'], view_message('wizard.12.note')),
+            (['questions', 0, 'header'], view_message('wizard.12.auto_merge.header')),
+            (['questions', 0, 'text'], view_message('wizard.12.auto_merge.text')),
+            (['questions', 0, 'options', 0, 'label'], view_message('wizard.12.auto_merge.true.label')),
+            (['questions', 0, 'options', 0, 'desc'], view_message('wizard.12.auto_merge.true.desc')),
+            (['questions', 0, 'options', 1, 'label'], view_message('wizard.12.auto_merge.false.label')),
+            (['questions', 0, 'options', 1, 'desc'], view_message('wizard.12.auto_merge.false.desc')),
+        ],
+        'wizard.13': [
+            (['title'], view_message('wizard.13.title', step=spec['step'].split('.')[-1], steps=steps)),
+            (['subtitle'], view_message('wizard.13.subtitle')),
+            (['note'], view_message('wizard.13.note')),
+            (['questions', 0, 'header'], view_message('wizard.13.translations.header')),
+            (['questions', 0, 'text'], view_message('wizard.13.translations.text')),
+            (['questions', 0, 'options', 0, 'label'], view_message('wizard.13.translations.keine.label')),
+            (['questions', 0, 'options', 1, 'label'], view_message('wizard.13.translations.en.label')),
+            (['questions', 0, 'options', 2, 'label'], view_message('wizard.13.translations.fr.label')),
+            (['questions', 0, 'options', 3, 'label'], view_message('wizard.13.translations.es.label')),
+            (['questions', 0, 'options', 4, 'label'], view_message('wizard.13.translations.it.label')),
+        ],
+        'wizard.14': [
+            (['title'], view_message('wizard.14.title', step=spec['step'].split('.')[-1], steps=steps)),
+            (['subtitle'], view_message('wizard.14.subtitle')),
+            (['note'], view_message('wizard.14.note')),
+            (['questions', 0, 'header'], view_message('wizard.14.ai_disclosure.header')),
+            (['questions', 0, 'text'], view_message('wizard.14.ai_disclosure.text')),
+            (['questions', 0, 'options', 0, 'label'], view_message('wizard.14.ai_disclosure.short.label')),
+            (['questions', 0, 'options', 0, 'desc'], view_message('wizard.14.ai_disclosure.short.desc')),
+            (['questions', 0, 'options', 1, 'label'], view_message('wizard.14.ai_disclosure.detailed.label')),
+            (['questions', 0, 'options', 1, 'desc'], view_message('wizard.14.ai_disclosure.detailed.desc')),
+            (['questions', 0, 'options', 2, 'label'], view_message('wizard.14.ai_disclosure.custom.label')),
+            (['questions', 0, 'options', 2, 'desc'], view_message('wizard.14.ai_disclosure.custom.desc')),
+            (['questions', 0, 'options', 3, 'label'], view_message('wizard.14.ai_disclosure.none.label')),
+        ],
+    }
+    import copy
+    result = copy.deepcopy(spec)
+    for path, value in labels.get(spec.get('step'), []):
+        target = result
+        for key in path[:-1]:
+            target = target[key]
+        target[path[-1]] = value
+    return result
+
+
+def display_status(code):
+    return f'{STATUS_ICON.get(code, "•")} {view_status(code)}'
+
+
+def limit_row_text(row):
+    if UI.get('language') != 'en' or not {'key', 'used', 'total', 'left_pct'} <= row.keys():
+        return row['text']
+    labels = {'ai_budget': view_message('limit.ai_budget'), 'actions_minutes': view_message('limit.actions_minutes'),
+              'api_rate': view_message('limit.api_rate')}
+    key = row['key']
+    unit = ' €' if key == 'ai_budget' else ' min' if key == 'actions_minutes' else ''
+    fmt = (lambda n: f'{n:,.2f}') if key == 'ai_budget' else (lambda n: str(int(n)))
+    return view_message('limit.row', label=labels.get(key, key), percent=round(row['left_pct']),
+                        used=fmt(row['used']), total=fmt(row['total']), unit=unit)
+
+
+def view_usage_task(task):
+    return {'Recherche': view_message('disclosure.task_research'), 'Ideensammlung': view_message('disclosure.task_brainstorming'),
+            'Textentwürfe': view_message('disclosure.task_writing'), 'Faktenprüfung': view_message('disclosure.task_fact_check')}.get(task, task)
+
+
+def view_service_names(ids, names):
+    named = sorted({names.get(i, i) for i in ids if i != 'chat'})
+    if 'chat' in ids:
+        named.append(view_message('disclosure.chat_assistant'))
+    return named[0] if len(named) == 1 else ', '.join(named[:-1]) + view_message('disclosure.and') + named[-1] if named else ''
+
+
+def view_import_keep(info):
+    values = {'first_edition': view_message('import.keep_first'), '30': view_message('import.keep_30'),
+              '90': view_message('import.keep_90'), 'forever': view_message('import.keep_forever')}
+    return values.get(str(info.get('keep')), info.get('keep_text', ''))
+
+
 class RenderedWidget(str):
     """Widget-Ausgabe samt unveränderten Rohdaten für alternative native Ansichten."""
     def __new__(cls, text, template, data):
@@ -376,8 +860,9 @@ def status_text(st):
     return f'{STATUS_ICON.get(st, "•")} {STATUS_DE.get(st, st)}'
 
 
-def menu(items, intro='Was möchtest du tun? Antworte mit dem Kürzel'):
+def menu(items, intro=None):
     """items: [(kürzel, text)] -> Aktionszeile mit Kürzeln als Inline-Code."""
+    intro = view_message('menu.prompt') if intro is None else intro
     return f'**{intro}:**  \n' + ' · '.join(f'`{k}` {t}' for k, t in items)
 
 
@@ -424,32 +909,29 @@ def matter_view(base, config, args):
             parts = []
             for kind, (area, title, _) in MATTER.items():
                 i = have.get(kind)
-                parts.append({'PART_KIND': kind, 'PART_TITLE': i['title'] if i else title, 'PART_AREA': area,
+                parts.append({'PART_KIND': kind, 'PART_TITLE': i['title'] if i else view_matter_kind(kind), 'PART_AREA': area,
                               'PART_ID': i['id'] if i else '', 'PART_STATUS': section_file(base, i)[0]['status'] if i else '',
-                              'PART_HINT': MATTER_HINTS[kind]})
+                              'PART_HINT': view_labels('MATTER_HINTS')[kind]})
             return fill('vor-nachspann.html', {'PROJECT_TITLE_SHORT': short}, {'PARTS': parts})
-        lines = ['### 📜 Vor- und Nachspann', '', '| Teil | Bereich | Stand |', '|---|---|---|']
+        lines = [view_message('view.matter.front_and_back_matter'), '', view_message('view.matter.part_area_status'), '|---|---|---|']
         for kind, (area, title, _) in MATTER.items():
             i = have.get(kind)
-            state = status_text(section_file(base, i)[0]['status']) if i else '*nicht angelegt*'
-            lines.append(f'| {i["title"] if i else title} | {"Vorspann" if area == "front" else "Nachspann"} | {state} |')
-        lines += ['', 'Nur freigegebene Teile kommen in eine Auflage. Widmung und Danksagung schreibst du selbst; '
-                  'für Vorwort, Prolog, Epilog und Nachwort gibt es Recherche und Ghostwriting wie bei Abschnitten, '
-                  'fürs Glossar Vorschläge und Recherche je Begriff.', '', '---']
-        items = [(i['title'], 'öffnen') for _, i in matter_items(config)]
-        items += [(f'+ {title}', 'anlegen') for kind, (_, title, _) in MATTER.items() if kind not in have]
-        items.append(('Ü', 'Zur Übersicht'))
+            state = display_status(section_file(base, i)[0]['status']) if i else view_message('view.matter.not_created')
+            lines.append(f'| {i["title"] if i else view_matter_kind(kind)} | {view_message('view.matter.front_matter') if area == "front" else view_message('view.matter.back_matter')} | {state} |')
+        lines += ['', view_message('view.matter.only_approved_parts_enter_an_edition_you'), '', '---']
+        items = [(i['title'], view_message('view.matter.open')) for _, i in matter_items(config)]
+        items += [(f'+ {view_matter_kind(kind)}', view_message('view.matter.create')) for kind, (_, title, _) in MATTER.items() if kind not in have]
+        items.append(('Ü', view_message('view.matter.back_to_overview')))
         return '\n'.join(lines + [menu(items)]) + '\n'
     item = find_matter(config, args.where)
     if not item:
-        have = ', '.join(i['title'] for _, i in matter_items(config)) or 'keine'
-        return (f'Im Buch gibt es „{args.where}“ noch nicht (vorhanden: {have}). '
-                f'Anlegen mit `python scripts/matter.py . add <art>` (START.md, „Vor- und Nachspann“).\n')
+        have = ', '.join(i['title'] for _, i in matter_items(config)) or view_message('view.matter.none')
+        return (view_message('view.matter.the_book_does_not_yet_contain_available', p_a=args.where, p_b=have))
     head, goal, _, ms = section_file(base, item)
     kind = item['kind']
-    area = 'Vorspann' if MATTER[kind][0] == 'front' else 'Nachspann'
+    area = view_message('view.matter.front_matter') if MATTER[kind][0] == 'front' else view_message('view.matter.back_matter')
     markers = [(KIND[m.group(1)], (m.group(2) or '').strip() or '–') for m in MARKER_TEXT.finditer(ms)]
-    yn = lambda v: '✅ ja' if v else '— nein'
+    yn = lambda v: view_message('view.matter.yes') if v else view_message('view.matter.no')
     goal_m = re.search(r'(?ms)^## Ziel\n\n(.*?)(?=^## |\Z)', (base / item['path']).read_text(encoding='utf-8'))
     goal = goal_m.group(1).strip() if goal_m else ''
     if goal.startswith('<'):
@@ -460,33 +942,32 @@ def matter_view(base, config, args):
         values = {'PROJECT_TITLE_SHORT': short, 'MATTER_ID': item['id'], 'MATTER_KIND': kind, 'MATTER_TITLE': item['title'],
                   'MATTER_AREA_TEXT': area, 'MATTER_STATUS': head['status'], 'MATTER_GOAL': goal,
                   'MATTER_MANUSCRIPT': '' if kind == 'glossary' or ms in EMPTY_MANUSCRIPT else ms,
-                  'MARKER_COUNT_TEXT': 'keine offenen Marker' if not n else f'{n} offene{"r" if n == 1 else ""} Marker',
+                  'MARKER_COUNT_TEXT': view_message('view.matter.no_open_markers') if not n else view_message('view.matter.open_marker', p_a=n, p_b=view_plural(n, 'r', german_singular=True)),
                   'APPROVAL_WRITING': str(bool(head['approvals']['writing'])).lower(),
                   'APPROVAL_SECTION': str(bool(head['approvals']['section'])).lower(),
                   'SIGNED': '1' if kind in MATTER_SIGNED else '', 'BYLINE': head.get('byline') or '',
                   'PLACE_DATE': head.get('place_date') or '', 'GLOSSARY': '1' if kind == 'glossary' else '',
                   'GLOSSARY_INTRO': intro, 'RESEARCH': '1' if kind in MATTER_RESEARCH else '',
                   'GHOSTWRITING': '1' if kind in MATTER_GHOSTWRITING else '',
-                  'PERSONAL_NOTE': ('Persönlicher Teil: Den Text schreibst du selbst; Vorschläge gibt es nur, wenn du '
-                                    'ausdrücklich darum bittest.') if kind in ('dedication', 'acknowledgments') else ''}
-        blocks = {'MARKERS': [{'MARKER_TYPE': k, 'MARKER_LABEL': MARKER_LABEL[k], 'MARKER_TEXT': v} for k, v in markers],
+                  'PERSONAL_NOTE': (view_message('view.matter.personal_part_you_write_the_text_yourself')) if kind in ('dedication', 'acknowledgments') else ''}
+        blocks = {'MARKERS': [{'MARKER_TYPE': k, 'MARKER_LABEL': view_labels('MARKER_LABEL')[k], 'MARKER_TEXT': v} for k, v in markers],
                   'GLOSSARY_ENTRIES': [{'G_TERM': t, 'G_TEXT': e} for t, e in sorted(entries, key=lambda x: german_key(x[0]))]}
         st = series_terms(base, config, entries) if kind == 'glossary' else []
         if st:   # Begriffe der Serie (#116)
             values.update({'SERIES_ID': config['_series']['id'], 'SERIES_TITLE': config['_series']['title']})
             blocks['SERIES_TERMS'] = [{'T_TERM': x['term'], 'T_TEXT': x['text'] or x['book_text'], 'T_BOOK_TEXT': x['book_text'],
-                                       'T_STATE': x['state'], 'T_STATE_TEXT': TERM_STATE_DE[x['state']]} for x in st]
+                                       'T_STATE': x['state'], 'T_STATE_TEXT': view_labels('TERM_STATE_DE')[x['state']]} for x in st]
         return fill('teil-bearbeiten.html', values, blocks)
-    lines = [f'### 📜 {item["title"]}', f'{area} · {status_text(head["status"])}', '',
-             '| | |', '|---|---|', f'| Ziel | {goal or "*offen*"} |',
-             f'| Schreibfreigabe | {yn(head["approvals"]["writing"])} |',
-             f'| Freigegeben | {yn(head["approvals"]["section"])} |']
+    lines = [f'### 📜 {item["title"]}', f'{area} · {display_status(head["status"])}', '',
+             '| | |', '|---|---|', view_message('view.matter.goal', p_a=goal or view_message('view.matter.not_set')),
+             view_message('view.matter.writing_approval', p_a=yn(head["approvals"]["writing"])),
+             view_message('view.matter.approved', p_a=yn(head["approvals"]["section"]))]
     if kind in MATTER_SIGNED:
-        lines += [f'| Verfasser | {head.get("byline") or "*der Autor des Buchs*"} |',
-                  f'| Ort, Datum | {head.get("place_date") or "*keine Angabe*"} |']
+        lines += [view_message('view.matter.byline', p_a=head.get("byline") or view_message('view.matter.the_book_s_author')),
+                  view_message('view.matter.place_date', p_a=head.get("place_date") or view_message('view.matter.unspecified'))]
     lines.append('')
     if markers:
-        lines += [f'**Offene Marker ({len(markers)})**'] + [f'- {MARKER_ICON[k]} {MARKER_LABEL[k]}: {v}' for k, v in markers] + ['']
+        lines += [view_message('view.matter.open_markers', p_a=len(markers))] + [f'- {MARKER_ICON[k]} {view_labels('MARKER_LABEL')[k]}: {v}' for k, v in markers] + ['']
     if kind == 'glossary':
         intro, entries = glossary_entries('' if ms in EMPTY_MANUSCRIPT else ms)
         dup = glossary_duplicates(entries)
@@ -494,31 +975,30 @@ def matter_view(base, config, args):
         if intro:
             lines += [intro, '']
         if entries:
-            lines += [f'**{len(entries)} Begriff{"e" if len(entries) != 1 else ""}** (im Buch alphabetisch)', '',
-                      '| Begriff | Erklärung |', '|---|---|']
-            lines += [f'| {t}{" ⚠️ doppelt" if t in dup else ""} | {e} |' for t, e in sorted(entries, key=lambda x: german_key(x[0]))]
+            lines += [view_message('view.matter.term_alphabetical_in_the_book', p_a=len(entries), p_b=view_plural(len(entries), 'e')), '',
+                      view_message('view.matter.term_explanation'), '|---|---|']
+            lines += [f'| {t}{view_message('view.matter.duplicate') if t in dup else ""} | {e} |' for t, e in sorted(entries, key=lambda x: german_key(x[0]))]
         else:
-            lines += ['*Noch keine Begriffe.*']
+            lines += [view_message('view.matter.no_terms_yet')]
         st = series_terms(base, config, entries)
         if st:
-            lines += ['', f'**Begriffe der Serie „{config["_series"]["title"]}“**', '', '| Begriff | Stand | Erklärung der Serie |', '|---|---|---|']
-            lines += [f'| {x["term"]} | {"⚠️ " if x["state"] == "differs" else ""}{TERM_STATE_DE[x["state"]]} | {x["text"] or "–"} |' for x in st]
-            lines += ['', '`ÜB Begriff` aus der Serie ins Buch übernehmen (Kopie) · `IS Begriff` in die Serie übernehmen · '
-                      '`AN Begriff` an die Serie angleichen']
+            lines += ['', view_message('view.matter.terms_from_series', p_a=config["_series"]["title"]), '', view_message('view.matter.term_status_series_explanation'), '|---|---|---|']
+            lines += [f'| {x["term"]} | {"⚠️ " if x["state"] == "differs" else ""}{view_labels('TERM_STATE_DE')[x["state"]]} | {x["text"] or "–"} |' for x in st]
+            lines += ['', view_message('view.matter.b_term_copy_from_series_into_book')]
         lines += ['', '---']
-        items = [('+ Begriff: Erklärung', 'aufnehmen'), ('Begriff: neue Erklärung', 'ändern'), ('- Begriff', 'entfernen'),
-                 ('VB', 'Begriffe aus dem freigegebenen Text vorschlagen'), ('F', 'Titel, Ziel und Einleitung')]
+        items = [(view_message('view.matter.term_explanation_2'), view_message('view.matter.add')), (view_message('view.matter.term_new_explanation'), view_message('view.matter.edit')), (view_message('view.matter.term'), view_message('view.matter.remove')),
+                 ('VB', view_message('view.matter.suggest_terms_from_approved_text')), ('F', view_message('view.matter.title_goal_and_introduction'))]
     else:
-        lines += ['---', '', ms or '*Noch kein Text.*', '', '---']
-        items = [('T', 'Text ändern (geänderten Text schicken)'),
-                 ('F', 'Titel, Ziel, Verfasser, Ort und Datum' if kind in MATTER_SIGNED else 'Titel und Ziel')]
-    items += [('FS', 'Schreibfreigabe zurücknehmen' if head['approvals']['writing'] else 'Schreiben freigeben'),
-              ('FA', 'Freigabe zurücknehmen' if head['approvals']['section'] else f'{item["title"]} freigeben')]
+        lines += ['---', '', ms or view_message('view.matter.no_text_yet'), '', '---']
+        items = [('T', view_message('view.matter.edit_text_send_the_revised_text')),
+                 ('F', view_message('view.matter.title_goal_byline_place_and_date') if kind in MATTER_SIGNED else view_message('view.matter.title_and_goal'))]
+    items += [('FS', view_message('view.matter.withdraw_writing_permission') if head['approvals']['writing'] else view_message('view.matter.grant_writing_permission')),
+              ('FA', view_message('view.matter.withdraw_approval') if head['approvals']['section'] else view_message('view.matter.approve', p_a=item["title"]))]
     if kind in MATTER_RESEARCH:
-        items.append(('RS', 'Recherche je Begriff' if kind == 'glossary' else 'Recherche sofort'))
+        items.append(('RS', view_message('view.matter.research_each_term') if kind == 'glossary' else view_message('view.matter.research_now')))
     if kind in MATTER_GHOSTWRITING:
-        items.append(('GS', 'Ghostwriting sofort'))
-    items += [('FV', '👤 Figuren aus dem Text vorschlagen'), ('Ü', 'Zur Übersicht')]
+        items.append(('GS', view_message('view.matter.ghostwriting_now')))
+    items += [('FV', view_message('view.matter.suggest_characters_from_the_text')), ('Ü', view_message('view.matter.back_to_overview'))]
     lines += [menu(items)]
     return '\n'.join(lines) + '\n'
 
@@ -547,22 +1027,22 @@ def images_view(base, config, args):
     names = {c['id']: c['name'] for c in character_items(config)}
     style = images.settings(config)['style']
     rows = [{'I_ID': iid, 'I_CAPTION': v[0].get('caption', ''), 'I_STATE': v[0].get('status', 'draft'),
-             'I_SOURCE': {'chat': 'im Chat erzeugt', 'copy': 'Auftrag kopiert', 'own': 'eigenes Bild'}.get(v[0].get('source'), ''),
+             'I_SOURCE': {'chat': view_message('view.images.generated_in_chat'), 'copy': view_message('view.images.copied_prompt'), 'own': view_message('view.images.own_image')}.get(v[0].get('source'), ''),
              'I_SIZE': f'{v[0]["width_px"]} × {v[0]["height_px"]} px' if v[0].get('width_px') else '',
              'I_IN_TEXT': '1' if iid in used else ''} for iid, v in imgs]
     chars = [names.get(c, c) for c in head.get('characters') or []]
     if args.text:
-        lines = [f'### 🖼️ Bilder · {target["title"]}', '',
-                 f'Bildstil des Buchs: {style or "*noch keiner (images.style)*"} · Figuren im Abschnitt: {", ".join(chars) or "–"}', '']
+        lines = [view_message('view.images.images', p_a=target["title"]), '',
+                 view_message('view.images.book_image_style_characters_in_section', p_a=style or view_message('view.images.none_yet_images_style'), p_b=", ".join(chars) or "–"), '']
         if rows:
-            lines += ['| Bild | Bildunterschrift | Stand | Herkunft | im Text |', '|---|---|---|---|---|']
-            lines += [f'| `{r["I_ID"]}` | {r["I_CAPTION"] or "–"} | {"✅ freigegeben" if r["I_STATE"] == "approved" else "✏️ Entwurf"} | '
-                      f'{r["I_SOURCE"]} | {"ja" if r["I_IN_TEXT"] else "nein"} |' for r in rows]
+            lines += [view_message('view.images.image_caption_status_source_in_text'), '|---|---|---|---|---|']
+            lines += [f'| `{r["I_ID"]}` | {r["I_CAPTION"] or "–"} | {view_message('view.images.approved') if r["I_STATE"] == "approved" else view_message('view.images.draft')} | '
+                      f'{r["I_SOURCE"]} | {view_message('view.images.yes') if r["I_IN_TEXT"] else view_message('view.images.no')} |' for r in rows]
         else:
-            lines += ['*Noch keine Bilder.*']
-        lines += ['', '---', menu([('BI', 'Bild-Auftrag: Szene beschreiben (`Szene: …`)'), ('BH', 'Bild hochladen (Datei anhängen)')]
-                                 + [(f'FB {r["I_ID"]}', 'freigeben' if r['I_STATE'] != 'approved' else 'Freigabe zurücknehmen') for r in rows]
-                                 + [('Ü', 'Zur Übersicht')])]
+            lines += [view_message('view.images.no_images_yet')]
+        lines += ['', '---', menu([('BI', view_message('view.images.image_prompt_describe_the_scene_scene')), ('BH', view_message('view.images.upload_image_attach_a_file'))]
+                                 + [(f'FB {r["I_ID"]}', view_message('view.images.approve') if r['I_STATE'] != 'approved' else view_message('view.images.withdraw_approval')) for r in rows]
+                                 + [('Ü', view_message('view.images.back_to_overview'))])]
         return '\n'.join(lines) + '\n'
     p = config['project']
     values = {'PROJECT_TITLE_SHORT': p.get('title_short') or p.get('title') or '', 'TARGET_ID': target['id'],
@@ -598,56 +1078,55 @@ def characters_view(base, config, args):
         for i in items:
             head = character_file(base, i)[0]
             src = character_source(config, i)
-            rows.append({'C_ID': i['id'], 'C_NAME': i['name'], 'C_ROLE': ROLE_DE.get(head.get('role'), ''),
+            rows.append({'C_ID': i['id'], 'C_NAME': i['name'], 'C_ROLE': view_labels('ROLE_DE').get(head.get('role'), ''),
                          'C_SHORT': head.get('short', ''), 'C_USED': ', '.join(used.get(i['id'], [])) or '–',
-                         'C_SOURCE': src, 'C_SOURCE_TEXT': SOURCE_DE.get(src, '')})
+                         'C_SOURCE': src, 'C_SOURCE_TEXT': view_labels('SOURCE_DE').get(src, '')})
         if args.text:
-            lines = ['### 🎭 Figuren', ''] + ([f'Band der Serie „{ser["title"]}“: Figuren der Serie gelten in allen Bänden.', ''] if ser else [])
+            lines = [view_message('view.characters.characters'), ''] + ([view_message('view.characters.volume_of_series_series_characters_apply_to', p_a=ser["title"]), ''] if ser else [])
             if rows:
-                lines += ['| Figur | Rolle | Kurz | kommt vor in |' + (' Herkunft |' if ser else ''),
+                lines += [view_message('view.characters.character_role_short_description_appears_in') + (view_message('view.characters.source') if ser else ''),
                           '|---|---|---|---|' + ('---|' if ser else '')]
                 lines += [f'| {r["C_NAME"]} | {r["C_ROLE"]} | {r["C_SHORT"] or "–"} | {r["C_USED"]} |'
                           + (f' {"⚠️ " if r["C_SOURCE"] == "copy_diff" else ""}{r["C_SOURCE_TEXT"]} |' if ser else '') for r in rows]
             else:
-                lines += ['*Noch keine Figuren.*']
-            lines += ['', 'Figuren sind Arbeitsgrundlage für Brainstorming und Ghostwriting; sie kommen nicht ins Buch.', '', '---']
-            lines += [menu([(r['C_NAME'], 'öffnen') for r in rows] + [('+ Name', 'neue Figur anlegen (optional `Rolle: Nebenfigur`)'), ('FV', '👤 Figuren aus dem Text vorschlagen'),
-                                                                     ('Ü', 'Zur Übersicht')])]
+                lines += [view_message('view.characters.no_characters_yet')]
+            lines += ['', view_message('view.characters.characters_provide_working_references_for_brainstorming_and'), '', '---']
+            lines += [menu([(r['C_NAME'], view_message('view.characters.open')) for r in rows] + [(view_message('view.characters.name'), view_message('view.characters.create_a_character_optional_role_supporting')), ('FV', view_message('view.characters.suggest_characters_from_the_text')),
+                                                                     ('Ü', view_message('view.characters.back_to_overview'))])]
             return '\n'.join(lines) + '\n'
         return fill('figuren.html', {'PROJECT_TITLE_SHORT': short, 'SERIES_TITLE': ser.get('title', '')}, {'CHARACTERS': rows})
     item = find_character(config, args.where)
     if not item:
-        return f'Eine Figur „{args.where}“ gibt es nicht (vorhanden: {", ".join(names.values()) or "keine"}).\n'
+        return view_message('view.characters.there_is_no_character_available', p_a=args.where, p_b=", ".join(names.values()) or view_message('view.characters.none'))
     head, desc, notes = character_file(base, item)
     rel = [{'R_TO': r['to'], 'R_NAME': names.get(r['to'], r['to']), 'R_KIND': r['kind']} for r in head.get('relations') or []]
     if args.text:
-        rows = [('Rolle', ROLE_DE.get(head.get('role'), '')), ('Kurz', head.get('short')), ('Alter', head.get('age')),
-                ('Aussehen', head.get('appearance')), ('Eigenschaften', ', '.join(head.get('traits') or [])),
-                ('Sprechweise', head.get('voice')), ('Bildbeschreibung', head.get('visual')),
-                ('Beziehungen', '; '.join(f'{r["R_KIND"]} von {r["R_NAME"]}' for r in rel)),
-                ('kommt vor in', ', '.join(used.get(item['id'], [])))]
+        rows = [(view_message('view.characters.role'), view_labels('ROLE_DE').get(head.get('role'), '')), (view_message('view.characters.brief_description'), head.get('short')), (view_message('view.characters.age'), head.get('age')),
+                (view_message('view.characters.appearance'), head.get('appearance')), (view_message('view.characters.traits'), ', '.join(head.get('traits') or [])),
+                (view_message('view.characters.speech'), head.get('voice')), (view_message('view.characters.image_description'), head.get('visual')),
+                (view_message('view.characters.relationships'), '; '.join(view_message('view.characters.of', p_a=r["R_KIND"], p_b=r["R_NAME"]) for r in rel)),
+                (view_message('view.characters.appears_in'), ', '.join(used.get(item['id'], [])))]
         src = character_source(config, item)
         if src:
-            rows.append(('Herkunft', SOURCE_DE[src] + f' (Serie „{ser["title"]}“)'))
+            rows.append((view_message('view.characters.source_2'), view_labels('SOURCE_DE')[src] + view_message('view.characters.series', p_a=ser["title"])))
         lines = [f'### 🎭 {item["name"]}', '', '| | |', '|---|---|'] + [f'| {k} | {v or "–"} |' for k, v in rows]
-        lines += ['', '**Beschreibung**', '', desc or '*offen*']
+        lines += ['', view_message('view.characters.description'), '', desc or view_message('view.characters.not_set')]
         if notes:
-            lines += ['', '**Notizen**', '', notes]
-        lines += ['', '---', 'Antworte mit `Feld: neuer Wert` (z. B. `Alter: 78`, `Eigenschaften: geduldig, brummig`, '
-                  '`Beziehung: Besitzer von Strolchi`, `Beschreibung: …`). `X` bricht ab, `FI` zeigt alle Figuren.']
-        extra = {'series': [('KO', 'Kopie nur für dieses Buch')], 'copy': [('AN', 'an die Serie angleichen'), ('IS', 'in die Serie übernehmen')],
-                 'copy_diff': [('AN', 'an die Serie angleichen'), ('IS', 'in die Serie übernehmen')], 'own': [('IS', 'in die Serie übernehmen')]}.get(src)
+            lines += ['', view_message('view.characters.notes'), '', notes]
+        lines += ['', '---', view_message('view.characters.reply_with_field_new_value_e_g')]
+        extra = {'series': [('KO', view_message('view.characters.copy_for_this_book_only'))], 'copy': [('AN', view_message('view.characters.align_with_series')), ('IS', view_message('view.characters.apply_to_series'))],
+                 'copy_diff': [('AN', view_message('view.characters.align_with_series')), ('IS', view_message('view.characters.apply_to_series'))], 'own': [('IS', view_message('view.characters.apply_to_series'))]}.get(src)
         if extra:
-            lines += ['', ('Änderungen gelten für alle Bände der Serie. ' if src == 'series' else '') + menu(extra, 'Serie')]
+            lines += ['', (view_message('view.characters.changes_apply_to_all_volumes_in_the') if src == 'series' else '') + menu(extra, view_message('view.characters.series_2'))]
         return '\n'.join(lines) + '\n'
     values = {'PROJECT_TITLE_SHORT': short, 'CHARACTER_ID': item['id'], 'CHARACTER_NAME': item['name'],
               'CHARACTER_ROLE': head.get('role', 'main'), 'CHARACTER_SHORT': head.get('short', ''),
               'CHARACTER_AGE': head.get('age', ''), 'CHARACTER_APPEARANCE': head.get('appearance', ''),
               'CHARACTER_TRAITS': ', '.join(head.get('traits') or []), 'CHARACTER_VOICE': head.get('voice', ''),
               'CHARACTER_VISUAL': head.get('visual', ''), 'CHARACTER_DESCRIPTION': desc, 'CHARACTER_NOTES': notes,
-              'CHARACTER_USED': ', '.join(used.get(item['id'], [])) or 'noch nirgends'}
+              'CHARACTER_USED': ', '.join(used.get(item['id'], [])) or view_message('view.characters.nowhere_yet')}
     src = character_source(config, item)
-    values.update({'CHARACTER_SOURCE': src, 'CHARACTER_SOURCE_TEXT': SOURCE_DE.get(src, ''),
+    values.update({'CHARACTER_SOURCE': src, 'CHARACTER_SOURCE_TEXT': view_labels('SOURCE_DE').get(src, ''),
                    'SERIES_ID': ser.get('id', ''), 'SERIES_TITLE': ser.get('title', '')})
     others = [{'O_ID': i['id'], 'O_NAME': i['name']} for i in items if i['id'] != item['id']]
     return fill('figur-bearbeiten.html', values, {'RELATIONS': rel, 'OTHERS': others})
@@ -677,13 +1156,19 @@ def limit_state(base, config, args):
         data = json.loads(Path(path).read_text(encoding='utf-8'))
         return data.get('state') or 'ok', data.get('text') or ''
     import limits
-    return limits.summary(limits.evaluate(base, config))
+    rows = limits.evaluate(base, config)
+    for state, message in [('pause', lambda details: view_message('limit.paused', details=details)),
+                           ('warn', lambda details: view_message('limit.warning', details=details))]:
+        selected = [limit_row_text(r) for r in rows if r['state'] == state]
+        if selected:
+            return state, message('; '.join(selected))
+    return 'ok', ''
 
 
 def limit_summary(base, config):
     import limits
     rows = limits.evaluate(base, config)
-    return ('; '.join(r['text'] for r in rows) + '.') if rows else 'Keine Limits eingestellt.'
+    return ('; '.join(limit_row_text(r) for r in rows) + '.') if rows else view_message('view.limit_summary.no_limits_configured')
 
 
 # Hintergrundläufe (#123, #124): Kürzel und Symbol je Art in der Textfassung der Projektübersicht
@@ -779,7 +1264,7 @@ def project_view(base, config, args):
         if rows:
             # Letzte Spalte: Kürzel zum Bearbeiten des Kapitels (wie der Bearbeiten-Knopf der Kapitelansicht).
             lines += ['| # | Kapitel | Kosten | Status | |', '|--:|---|--:|---|:-:|']
-            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_COST"]} | {status_text(r["CHAPTER_STATUS"])} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
+            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_COST"]} | {display_status(r["CHAPTER_STATUS"])} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
         else:
             lines += ['*Noch keine Kapitel.*']
         if back:
@@ -867,7 +1352,7 @@ def chapter_view(base, config, args, cnum):
         lines += ['', f'{values["SECTION_COUNT_TEXT"]} · ✅ {values["APPROVED_COUNT_TEXT"]} freigegeben · {values["MARKER_COUNT_TEXT"]} · Kosten **{values["CHAPTER_COST"]}**', '']
         if rows:
             lines += ['| # | Abschnitt | Marker | Kosten | Status |', '|--:|---|---|--:|---|']
-            lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {marks(r)} | {r["SECTION_COST"]} | {status_text(r["SECTION_STATUS"])} |' for r in rows]
+            lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {marks(r)} | {r["SECTION_COST"]} | {display_status(r["SECTION_STATUS"])} |' for r in rows]
             if counts_total:
                 lines += ['', f'<sub>{MARKER_LEGEND}</sub>']
         else:
@@ -892,7 +1377,7 @@ def section_hints(base, sid):
         return []
     import analyze
     data = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
-    return [{'H_KIND': h['kind'], 'H_KIND_TEXT': analyze.LANGUAGE_DE.get(h['kind'], h['kind']), 'H_TEXT': h['text'], 'H_QUOTE': h.get('quote', '')}
+    return [{'H_KIND': h['kind'], 'H_KIND_TEXT': view_labels('LANGUAGE_DE').get(h['kind'], h['kind']), 'H_TEXT': h['text'], 'H_QUOTE': h.get('quote', '')}
             for h in data.get('hints') or [] if h.get('section') == sid]
 
 
@@ -930,10 +1415,10 @@ def section_view(base, config, args, cnum, snum):
     if args.text:
         yn = lambda v: '✅ ja' if v else '— nein'
         lines = [f'### ✏️ {cnum}.{snum} · {s["title"]}',
-                 f'Kapitel {cnum} · {status_text(head["status"])} · Kosten **{values["SECTION_COST"]}**', '',
+                 f'Kapitel {cnum} · {display_status(head["status"])} · Kosten **{values["SECTION_COST"]}**', '',
                  '| | |', '|---|---|',
                  f'| Ziel | {goal or "*offen*"} |', f'| Kurzbeschreibung | {summary or "*offen*"} |',
-                 f'| Faktencheck | {FC_TEXT.get(head["fact_check"], head["fact_check"])} |',
+                 f'| Faktencheck | {view_labels('FC_TEXT').get(head["fact_check"], head["fact_check"])} |',
                  f'| Schreibfreigabe | {yn(head["approvals"]["writing"])} |', f'| Abschnitt freigegeben | {yn(head["approvals"]["section"])} |']
         if chars:
             names = {c['id']: c['name'] for c in chars}
@@ -981,7 +1466,7 @@ def project_edit_view(base, config, args):
         return '\n'.join(['### 📝 Projektdaten bearbeiten', ''] + field_table([
             ('Titel', values['PROJECT_TITLE']), ('Kurztitel', values['PROJECT_TITLE_SHORT']), ('Autor', values['PROJECT_AUTHOR']),
             ('Kurzbeschreibung', values['PROJECT_DESCRIPTION_SHORT']), ('Beschreibung', values['PROJECT_DESCRIPTION'])])
-            + ['', FORM_HINT]) + '\n'
+            + ['', view_message('settings.form_hint')]) + '\n'
     return fill('projektdaten-bearbeiten.html', values)
 
 
@@ -1012,10 +1497,9 @@ def edition_create_view(base, config, args):
     chapters = config['structure']['chapters']
     approved = sum(ch['status'] == 'approved' for ch in chapters)
     if not chapters:
-        warn = 'Das Buch hat noch keine Kapitel.'
+        warn = view_message('edition.no_chapters')
     elif approved < len(chapters):
-        warn = (f'Bisher {"ist" if approved == 1 else "sind"} {approved} von {len(chapters)} Kapiteln freigegeben; '
-                'nur freigegebene Kapitel kommen in die Auflage.')
+        warn = view_message('edition.partial_approval', approved=approved, total=len(chapters))
     else:
         warn = ''
     # Was den Bau der Auflage verhindert (scripts/assemble.py check): kein freigegebenes
@@ -1025,30 +1509,32 @@ def edition_create_view(base, config, args):
     markers = sum(x.startswith('Offener Marker') for x in blockers)
     parts = []
     if not short:
-        parts.append('das Buch hat noch keinen Titel')
+        parts.append(view_message('edition.no_title'))
     if not approved:
-        parts.append('noch kein Kapitel ist freigegeben')
+        parts.append(view_message('edition.none_approved'))
     if markers:
-        parts.append(f'{markers} offene Marker im freigegebenen Text')
+        parts.append(view_message('edition.open_markers', number=markers))
     if len(blockers) > markers:
-        parts.append('freigegebene Kapitel mit nicht freigegebenen Abschnitten')
+        parts.append(view_message('edition.unapproved_sections'))
     if parts:
-        warn = (warn + ' ' if warn else '') + ('So kann die Auflage nicht gebaut werden: ' + ', '.join(parts[:-1])
-                                              + (' und ' if len(parts) > 1 else '') + parts[-1] + '. Bitte zuerst klären.')
+        reasons = ', '.join(parts[:-1]) + (view_message('edition.and') if len(parts) > 1 else '') + parts[-1]
+        warn = (warn + ' ' if warn else '') + view_message('edition.blocked', reasons=reasons)
     if not short:
         short = 'Ohne Titel'
     values = {'EDITION_NUMBER': n, 'EDITION_NAME': br['name_pattern'].format(title_short=short, edition=n),
               'EDITION_TAG': br['tag_pattern'].format(title_short_slug=tag_slug(short), edition=n),
               'EDITION_DATE_DEFAULT': datetime.date.today().isoformat(), 'APPROVAL_WARNING_TEXT': warn}
     chosen = (config.get('typesetting') or {}).get('formats') or br['assets']   # Ausgabeoptionen (#68)
-    short = {'pdf_print': 'Druck-PDF', 'cover': 'Umschlag'}
+    short = {'pdf_print': view_message('edition.print_pdf'), 'cover': view_message('edition.cover')}
     formats = [{'FORMAT_LABEL': short.get(a, a.upper())} for a in ['pdf', 'pdf_print', 'cover', 'epub', 'docx'] if a in chosen]
     if args.text:
-        return '\n'.join([f'### 📚 Neue Auflage erzeugen · Auflage {n}', '', '| | |', '|---|---|', f'| Name | {values["EDITION_NAME"]} |',
-                           f'| Tag | `{values["EDITION_TAG"]}` |', f'| Formate | {", ".join(f["FORMAT_LABEL"] for f in formats)} |',
-                           f'| Erscheinungsdatum | {values["EDITION_DATE_DEFAULT"]} *(Vorschlag)* |']
+        return '\n'.join([view_message('edition.heading', number=n), '', '| | |', '|---|---|',
+                           view_message('edition.name_row', name=values['EDITION_NAME']),
+                           view_message('edition.tag_row', tag=values['EDITION_TAG']),
+                           view_message('edition.formats_row', formats=', '.join(f['FORMAT_LABEL'] for f in formats)),
+                           view_message('edition.date_row', date=values['EDITION_DATE_DEFAULT'])]
                           + (['', f'> ⚠️ {warn}'] if warn else [])
-                          + ['', 'Schicke `Datum: JJJJ-MM-TT` und optional `Anmerkungen: …`. `OK` übernimmt den Vorschlag, `X` bricht ab.']) + '\n'
+                          + ['', view_message('edition.form_hint')]) + '\n'
     return fill('auflage-erzeugen.html', values, {'FORMATS': formats})
 
 
@@ -1062,9 +1548,12 @@ def load_upstream(args):
 
 def update_text(upd):
     n = int(upd['behind'])
-    text = f'{n} Commit{"" if n == 1 else "s"} hinter {upd.get("upstream") or "ploeffler/GhostWriter:main"}'
+    text = (view_message('update.behind_one', number=n, upstream=upd.get('upstream') or 'ploeffler/GhostWriter:main') if n == 1 else
+            view_message('update.behind', number=n, upstream=upd.get('upstream') or 'ploeffler/GhostWriter:main'))
     if upd.get('version') and upd.get('version') != upd.get('installed'):
-        text += f' · Version {upd["version"]} verfügbar' + (f' (installiert {upd["installed"]})' if upd.get('installed') else '')
+        text += view_message('update.available', version=upd['version'])
+        if upd.get('installed'):
+            text += view_message('update.installed', version=upd['installed'])
     return text
 
 
@@ -1289,7 +1778,7 @@ ROLE_INFO = [('default', 'Standard', 'gilt für alle Aufgaben, die unten nicht e
              ('queue_processing', 'Aufgaben-Warteschlange', 'Agent, der GitHub-Issues abarbeitet; Standard: manuell')]
 WEB_TEXT = {'native': 'mit Websuche', 'via_tool': 'Websuche über Werkzeug', 'none': 'ohne Websuche'}
 ACCESS_TEXT = {'app': 'Chat-App oder Website', 'api': 'API-Schlüssel', 'local': 'auf meinem Rechner', 'cli': 'Kommandozeile',
-               'web': 'über die Websuche (kostenlos)', 'github': 'in GitHub zugewiesen'}
+               'web': view_message('service.web_access'), 'github': view_message('service.github_access')}
 
 
 def access_options(s, group):
@@ -1335,7 +1824,7 @@ def service_settings(s, group, cfg, present=None):
 
 def providers_edit_view(base, config, args):
     """Formular „KI-Dienste“: vorhandene Dienste und Zuteilung je Aufgabe."""
-    catalog = yaml.safe_load((ROOT / 'providers.yml').read_text(encoding='utf-8'))
+    catalog = view_provider_catalog(yaml.safe_load((ROOT / 'providers.yml').read_text(encoding='utf-8')))
     ap = config.get('ai_providers') or {}
     available = list(ap.get('available') or [])
     settings = ap.get('services') or {}
@@ -1362,7 +1851,7 @@ def providers_edit_view(base, config, args):
                 continue
             if group == 'llm':
                 roles = ','.join(s.get('roles') or [])
-                note = ' · '.join(x for x in (s.get('hq', ''), WEB_TEXT.get(s.get('web_research'), ''), s.get('note', '')) if x and x != 'n/a')
+                note = ' · '.join(x for x in (s.get('hq', ''), view_labels('WEB_TEXT').get(s.get('web_research'), ''), s.get('note', '')) if x and x != 'n/a')
             elif group == 'search':
                 roles, note = 'search', s.get('note', '')
             else:
@@ -1372,43 +1861,42 @@ def providers_edit_view(base, config, args):
                              'SERVICE_GUIDE_URL': guide(s, group), 'SERVICE_WEBSITE_URL': s.get('url', ''),
                              **service_settings(s, group, settings.get(s['id']) or {}, present)})
     roles = []
-    for rid, label, hint in ROLE_INFO:
+    for rid, label, hint in view_role_info():
         entry = ap.get(rid) or {}
         value = entry.get('agent', 'manual') if rid == 'queue_processing' else entry.get('provider', '')
         roles.append({'ROLE_ID': rid, 'ROLE_LABEL': label, 'ROLE_HINT': hint, 'ROLE_VALUE': value or ''})
     secrets_url = f'https://github.com/{args.repo}/settings/secrets/actions/new'
     if args.text:
         names = {s['SERVICE_ID']: s['SERVICE_NAME'] for s in services}
-        names.update({'chat': 'Aktueller Chat', 'manual': 'manuell', '': 'wie Standard'})
-        lines = ['### 🤖 KI-Dienste', '', '**Deine Dienste**', '']
+        names.update({'chat': view_message('view.providers_edit.current_chat'), 'manual': view_message('view.providers_edit.manual'), '': view_message('view.providers_edit.same_as_default')})
+        lines = [view_message('view.providers_edit.ai_services'), '', view_message('view.providers_edit.your_services'), '']
         mine = [s for s in services if s['SERVICE_AVAILABLE']]
         def summary(s):
-            parts = [ACCESS_TEXT[s['SERVICE_ACCESS']]]
+            parts = [view_labels('ACCESS_TEXT')[s['SERVICE_ACCESS']]]
             if s['SERVICE_ACCESS'] == 'api':
-                st = {'ok': '✅ hinterlegt', 'alt': f'✅ über `{s["SERVICE_SECRET_ALT"]}`', 'missing': '⚠️ fehlt', '': 'Status unbekannt'}[s['SERVICE_SECRET_STATE']]
+                st = {'ok': view_message('view.providers_edit.stored'), 'alt': view_message('view.providers_edit.via', p_a=s["SERVICE_SECRET_ALT"]), 'missing': view_message('view.providers_edit.missing'), '': view_message('view.providers_edit.status_unknown')}[s['SERVICE_SECRET_STATE']]
                 parts.append(f'Secret `{s["SERVICE_SECRET"]}` ({st})')
             if s['SERVICE_GROUP'] == 'llm':
-                parts.append(f'Modell: {s["SERVICE_MODEL"] or "Standard"}')
+                parts.append(view_message('view.providers_edit.model', p_a=s["SERVICE_MODEL"] or view_message('view.providers_edit.default')))
                 if s['SERVICE_ACCESS'] == 'app':
-                    parts.append('mit GitHub verbunden' if s['SERVICE_GITHUB'] else 'nicht mit GitHub verbunden')
+                    parts.append(view_message('view.providers_edit.connected_to_github') if s['SERVICE_GITHUB'] else view_message('view.providers_edit.not_connected_to_github'))
             if s['SERVICE_PLAN']:
-                parts.append(f'Tarif: {s["SERVICE_PLAN"]}')
+                parts.append(view_message('view.providers_edit.plan', p_a=s["SERVICE_PLAN"]))
             if s['SERVICE_COST']:
-                parts.append(f'{money(Decimal(s["SERVICE_COST"]), False)} / Monat')
+                parts.append(view_message('view.providers_edit.month', p_a=money(Decimal(s["SERVICE_COST"]), False)))
             if s['SERVICE_MEMO']:
                 parts.append(s['SERVICE_MEMO'])
             return ' · '.join(parts)
-        lines += [f'- `{s["SERVICE_ID"]}` {s["SERVICE_NAME"]}: {summary(s)}' for s in mine] or ['- *noch keine eingetragen; bis dahin macht alles der aktuelle Chat*']
-        lines += ['', '| Aufgabe | Dienst |', '|---|---|']
+        lines += [f'- `{s["SERVICE_ID"]}` {s["SERVICE_NAME"]}: {summary(s)}' for s in mine] or [view_message('view.providers_edit.none_added_yet_until_then_the_current')]
+        lines += ['', view_message('view.providers_edit.task_service'), '|---|---|']
         lines += [f'| {r["ROLE_LABEL"]} | {names.get(r["ROLE_VALUE"], r["ROLE_VALUE"])} |' for r in roles]
-        lines += ['', '<details><summary>Weitere Dienste hinzufügen</summary>', '']
-        lines += [f'- `{s["SERVICE_ID"]}` {s["SERVICE_NAME"]} · [Anleitung]({s["SERVICE_GUIDE_URL"]})'
+        lines += ['', view_message('view.providers_edit.details_summary_add_more_services_summary'), '']
+        lines += [view_message('view.providers_edit.guide', p_a=s["SERVICE_ID"], p_b=s["SERVICE_NAME"], p_c=s["SERVICE_GUIDE_URL"])
                   + (f' · [Website]({s["SERVICE_WEBSITE_URL"]})' if s['SERVICE_WEBSITE_URL'] else '')
                   for s in services if not s['SERVICE_AVAILABLE']]
         lines += ['', '</details>', '', '---',
-                  'Antworte je Zeile: `+ id` (Dienst habe ich), `- id` (habe ich nicht mehr), `Aufgabe: id` (zuteilen, z. B. `Recherche: perplexity`), '
-                  '`id.Einstellung: Wert` mit Zugang, Modell, GitHub (ja/nein), Secret (Name des GitHub-Secrets), Tarif, Kosten (€ pro Monat) oder Notiz (z. B. `openai.Modell: gpt-5`). `X` bricht ab.',
-                  '', f'🔑 API-Schlüssel nie hier in den Chat schreiben. Sie gehören als Secret in GitHub: [Secret anlegen]({secrets_url}).']
+                  view_message('view.providers_edit.reply_one_item_per_line_id_i'),
+                  '', view_message('view.providers_edit.never_put_api_keys_in_this_chat', p_a=secrets_url)]
         return '\n'.join(lines) + '\n'
     connector = f'https://github.com/{args.repo}/blob/{args.branch}/docs/CONNECTOR-SETUP.md'
     keys_guide = f'https://github.com/{args.repo}/blob/{args.branch}/docs/DIENSTE-NUTZEN.md#api-schlüssel-als-github-secret'
@@ -1483,7 +1971,7 @@ def chapter_edit_view(base, config, args):
               'CHAPTER_SUMMARY': summary, 'CHAPTER_GOAL': goal}
     if args.text:
         return '\n'.join([f'### 📝 Kapitel {n} bearbeiten', ''] + field_table([
-            ('Titel', ch['title']), ('Untertitel', subtitle), ('Kurzbeschreibung', summary), ('Ziel', goal)]) + ['', FORM_HINT]) + '\n'
+            ('Titel', ch['title']), ('Untertitel', subtitle), ('Kurzbeschreibung', summary), ('Ziel', goal)]) + ['', view_message('settings.form_hint')]) + '\n'
     return fill('kapitel-bearbeiten.html', values)
 
 
@@ -1500,7 +1988,7 @@ def section_create_view(base, config, args):
     if args.text:
         return '\n'.join([f'### ➕ Neuer Abschnitt in Kapitel {n}', '',
                            'Schicke je Zeile `Titel: …` (Pflicht), `Ziel: …`, `Kurzbeschreibung: …`, `Position: Nummer` '
-                           f'und optional `Faktencheck: aus | optional | angefordert` (Vorgabe: {FC_TEXT[fc]}).', '', '**Positionen**']
+                           f'und optional `Faktencheck: aus | optional | angefordert` (Vorgabe: {view_labels('FC_TEXT')[fc]}).', '', '**Positionen**']
                           + [f'`{i}` {l}' + (' *(Vorgabe)*' if i == len(labels) - 1 else '') + '  ' for i, l in enumerate(labels)]
                           + ['', '`X` bricht ab.']) + '\n'
     return fill('abschnitt-anlegen.html', {'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': n, 'CHAPTER_TITLE': ch['title'],
@@ -1539,32 +2027,31 @@ def update_info(base, config):
             return {}
     version = read_yaml(base / 'ghostwriter-manifest.yml').get('version') or read_yaml(ROOT / 'ghostwriter-manifest.yml').get('version')
     state = read_yaml(base / '.ghostwriter' / 'update.yml')
-    text = f'Installiert: GhostWriter {version or "unbekannt"}'
+    text = view_message('settings.installed', p_a=version or view_message('settings.unknown'))
     when = str(state.get('updated_at') or '')
     if re.match(r'\d{4}-\d{2}-\d{2}', when):
-        text += f' · zuletzt aktualisiert am {when[8:10]}.{when[5:7]}.{when[:4]}'
+        text += view_message('settings.updated', p_a=when[8:10], p_b=when[5:7], p_c=when[:4])
     mig = state.get('migration') or {}
     if mig.get('to') is not None:
-        text += f' · Daten auf Version {mig["to"]} umgestellt'
+        text += view_message('settings.migrated', p_a=mig["to"])
         if mig.get('changes'):
             text += ' (' + '; '.join(mig['changes'][:3]) + ('; …' if len(mig['changes']) > 3 else '') + ')'
     hint = ''
     if state.get('skipped_workflows'):
-        hint = (f'{len(state["skipped_workflows"])} Workflow-Datei(en) wurden nicht aktualisiert; dafür braucht das '
-                'Repository das Secret GHOSTWRITER_UPDATE_TOKEN (docs/UPDATES.md).')
+        hint = (view_message('settings.workflow_skipped', p_a=len(state["skipped_workflows"])))
     return auto, text, hint
 
 
 def output_value(key, value):
-    label, names = OUTPUT_LABELS[key]
+    label, names = view_labels('OUTPUT_LABELS')[key]
     if isinstance(value, bool):
-        return 'ja' if value else 'nein'
+        return view_message('settings.yes') if value else view_message('settings.no')
     if key == 'formats':
         return ', '.join(names.get(v, v) for v in value)
     if key in ('font_size',):
-        return str(value).replace('.', ',') + ' pt'
+        return str(value).replace('.', '.' if UI.get('language') == 'en' else ',') + ' pt'
     if key == 'line_spacing':
-        return str(value).replace('.', ',') + '-fach'
+        return str(value).replace('.', '.' if UI.get('language') == 'en' else ',') + view_message('settings.spacing_unit')
     return names.get(value, str(value)) if names else str(value)
 
 
@@ -1593,49 +2080,47 @@ def output_view(base, config, args):
         data = {'typesetting': ts, 'publication': pub, 'print': config.get('print') or {}, 'cover': config.get('cover') or {},
                 'blurb': blurb, 'author_bio': bio}
         return fill('ausgabeoptionen.html', {'OUTPUT_JSON': json.dumps(data, ensure_ascii=False)})
-    lines = ['### 🖨️ Ausgabeoptionen', '', 'Wie Auflagen und Probedrucke aussehen. Geänderte Werte gelten ab dem nächsten '
-             'Probedruck; ohne Angabe bleibt alles wie bisher.', '']
-    for group, keys in OUTPUT_GROUPS:
-        lines += [f'**{group}**', '', '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|']
+    lines = [view_message('settings.output_heading'), '', view_message('settings.output_intro'), '']
+    for group, keys in view_labels('OUTPUT_GROUPS'):
+        lines += [f'**{group}**', '', view_message('settings.fields_table'), '|---|---|---|']
         for k in keys:
-            label, names = OUTPUT_LABELS[k]
+            label, names = view_labels('OUTPUT_LABELS')[k]
             if isinstance(TYPESETTING_DEFAULT[k], bool):
-                options = 'ja, nein'
+                options = view_message('settings.yes_no')
             elif k == 'font_size':
-                options = '10, 10,5, 11, 11,5, 12'
+                options = view_message('settings.font_sizes')
             elif k == 'line_spacing':
-                options = '1,0, 1,1, 1,2, 1,3, 1,5'
+                options = view_message('settings.line_spacings')
             elif k == 'formats':
-                options = 'PDF, Druck-PDF, Umschlag, DOCX, EPUB (mehrere, mit Komma)'
+                options = view_message('settings.formats')
             else:
                 options = ', '.join(names.values())
             lines.append(f'| {label} | {output_value(k, ts[k])} | {options} |')
         lines.append('')
-    lines += ['**Angaben im Impressum**', '', '| Feld | Aktueller Wert | Hinweis |', '|---|---|---|']
-    lines += [f'| {label} | {pub.get(k) or "–"} | {hint} |' for k, label, hint in PUBLICATION_LABELS]
+    lines += [view_message('settings.imprint_heading'), '', view_message('settings.hints_table'), '|---|---|---|']
+    lines += [f'| {label} | {pub.get(k) or "–"} | {hint} |' for k, label, hint in view_labels('PUBLICATION_LABELS')]
     pr, cv = config.get('print') or {}, config.get('cover') or {}
-    prof = {'kdp': 'Amazon KDP', 'bod': 'Books on Demand', 'custom': 'eigene Werte'}
-    paper = {'white': 'weiß', 'cream': 'creme', 'premium_color': 'Premiumfarbe'}
-    spine = (f'{pr["spine_mm"]} mm (fest)' if pr.get('spine_mm') is not None else
-             f'aus Seitenzahl × {pr["paper_mm_per_page"]} mm' if pr.get('paper_mm_per_page') else
-             'aus Seitenzahl und Papier' if pr.get('profile') == 'kdp' else '–')
-    lines += ['', '**Druck**', '', '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|',
-              f'| Druckprofil | {prof.get(pr.get("profile"), "–")} | Amazon KDP, Books on Demand, eigene Werte |',
-              f'| Papier | {paper.get(pr.get("paper"), "weiß" if pr.get("profile") == "kdp" else "–")} | weiß, creme, Premiumfarbe (nur KDP) |',
-              f'| Rückenbreite | {spine} | Zahl in mm (BoD: aus dem BoD-Rechner) |',
-              f'| Beschnitt | {pr.get("bleed_mm", "Vorgabe des Profils")}{" mm" if "bleed_mm" in pr else ""} | Zahl in mm |',
-              f'| Schnittmarken | {"ja" if pr.get("crop_marks") else "nein"} | ja, nein |', '',
-              '**Umschlag**', '', '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|',
-              f'| Vorlage | {TEMPLATE_DE.get(cv.get("template", "classic"), "")} | klassisch, modern, schlicht |',
-              f'| Hintergrund | {cv.get("background", "#1F2A44")} | Farbe als #RRGGBB |',
-              f'| Schriftfarbe | {cv.get("text_color", "#FFFFFF")} | Farbe als #RRGGBB |',
-              f'| Bild vorne | {cv.get("image") or "–"} | Datei unter cover/ (JPG, PNG, mind. 300 dpi) |',
-              f'| Autorenbild | {cv.get("author_image") or "–"} | Datei unter cover/ |',
-              f'| Preis | {cv.get("price") or "–"} | z. B. 18,00 € (D) |',
-              f'| Rückentext | {"von unten nach oben" if cv.get("spine_direction") == "up" else "von oben nach unten"} | von oben nach unten, von unten nach oben |',
-              '', '<sub>Klappentext und Autorentext stehen in `cover/rueckseite.md` (`## Klappentext`, `## Über …`). '
-              'Die Vorgaben der Druckanbieter ändern sich; Maße vor dem Hochladen mit deren Rechner abgleichen.</sub>',
-              '', FORM_HINT]
+    prof = {'kdp': 'Amazon KDP', 'bod': 'Books on Demand', 'custom': view_message('settings.custom')}
+    paper = {'white': view_message('settings.white'), 'cream': view_message('settings.cream'), 'premium_color': view_message('settings.premium_color')}
+    spine = (view_message('settings.fixed_spine', p_a=pr["spine_mm"]) if pr.get('spine_mm') is not None else
+             view_message('settings.calculated_spine', p_a=pr["paper_mm_per_page"]) if pr.get('paper_mm_per_page') else
+             view_message('settings.paper_spine') if pr.get('profile') == 'kdp' else '–')
+    lines += ['', view_message('settings.print_heading'), '', view_message('settings.fields_table'), '|---|---|---|',
+              view_message('settings.profile_row', p_a=prof.get(pr.get("profile"), "–")),
+              view_message('settings.paper_row', p_a=paper.get(pr.get("paper"), view_message('settings.white') if pr.get("profile") == "kdp" else "–")),
+              view_message('settings.spine_row', p_a=spine),
+              view_message('settings.bleed_row', p_a=pr.get("bleed_mm", view_message('settings.profile_default')), p_b=" mm" if "bleed_mm" in pr else ""),
+              view_message('settings.crop_row', p_a=view_message('settings.yes') if pr.get("crop_marks") else view_message('settings.no')), '',
+              view_message('settings.cover_heading'), '', view_message('settings.fields_table'), '|---|---|---|',
+              view_message('settings.template_row', p_a=view_labels('TEMPLATE_DE').get(cv.get("template", "classic"), "")),
+              view_message('settings.background_row', p_a=cv.get("background", "#1F2A44")),
+              view_message('settings.text_color_row', p_a=cv.get("text_color", "#FFFFFF")),
+              view_message('settings.cover_image_row', p_a=cv.get("image") or "–"),
+              view_message('settings.author_image_row', p_a=cv.get("author_image") or "–"),
+              view_message('settings.price_row', p_a=cv.get("price") or "–"),
+              view_message('settings.spine_direction_row', p_a=view_message('settings.spine_up') if cv.get("spine_direction") == "up" else view_message('settings.spine_down')),
+              '', view_message('settings.cover_note'),
+              '', view_message('settings.form_hint')]
     return '\n'.join(lines) + '\n'
 
 
@@ -1643,10 +2128,10 @@ def ai_disc_text(config):
     s = (config.get('ai_disclosure') or {})
     mode = s.get('mode', 'none')
     if mode == 'none':
-        return 'keine'
-    place = {'imprint': 'im Impressum', 'foreword': 'im Vorwort', 'afterword': 'im Nachwort', 'page': 'eigene Seite'}
-    return {'short': 'kurz', 'detailed': 'ausführlich', 'custom': 'eigener Text'}[mode] + ', ' + \
-        place.get(s.get('placement', 'imprint'), '') + ('' if s.get('text') else ' (Wortlaut offen)')
+        return view_message('settings.none')
+    place = {'imprint': view_message('settings.in_imprint'), 'foreword': view_message('settings.in_foreword'), 'afterword': view_message('settings.in_afterword'), 'page': view_message('settings.own_page')}
+    return {'short': view_message('settings.short'), 'detailed': view_message('settings.detailed'), 'custom': view_message('settings.custom_text')}[mode] + ', ' + \
+        place.get(s.get('placement', 'imprint'), '') + ('' if s.get('text') else view_message('settings.wording_pending'))
 
 
 def project_settings_view(base, config, args):
@@ -1654,11 +2139,11 @@ def project_settings_view(base, config, args):
     ts.update(config.get('typesetting') or {})
     wf = config.get('workflow') or {}
     fixed = []
-    for block, key, label in FIXED_RULES:
+    for block, key, label in view_labels('FIXED_RULES'):
         v = (config.get(block) or {}).get(key)
         if v is None:
             continue
-        text = FIXED_TEXT.get(v, str(v))
+        text = view_labels('FIXED_TEXT').get(v, str(v))
         fixed.append({'FIXED_LABEL': label, 'FIXED_VALUE': text if isinstance(v, bool) else f'{text} ({v})'})
     fc = wf.get('fact_checking_default') or 'optional'
     upd_auto, upd_text, upd_hint = update_info(base, config)
@@ -1666,25 +2151,25 @@ def project_settings_view(base, config, args):
     lim = config.get('limits') or {}
     lim_sum = limit_summary(base, config)
     if args.text:
-        page = {'a5': 'A5 (14,8 × 21 cm)', '12x19': '12 × 19 cm', '13.5x21.5': '13,5 × 21,5 cm', 'a4': 'A4'}
-        jn = lambda v: 'ja' if v else 'nein'
-        return '\n'.join(['### ⚙️ Projekteinstellungen', '', '**🔒 Feste Regeln** *(nur im Chat mit ausdrücklicher Bestätigung änderbar)*', '',
-                           '| Regel | Wert |', '|---|---|'] + [f'| {f["FIXED_LABEL"]} | {f["FIXED_VALUE"]} |' for f in fixed]
-                          + ['', '**Bearbeitbar**', '', '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|',
-                             f'| Faktencheck | {FC_TEXT[fc]} | aus, optional, angefordert |',
-                             f'| Seitenformat | {page.get(ts["page_size"], ts["page_size"])} | A5, 12×19, 13,5×21,5, A4 |',
-                             f'| Schrift | {"Serifenschrift" if ts["font"] == "serif" else "serifenlos"} | Serif, Serifenlos |',
-                             f'| Schriftgröße | {str(ts["font_size"]).replace(".", ",")} pt | 10, 10,5, 11, 11,5, 12 |',
-                             f'| Titelseite | {jn(ts["title_page"])} | ja, nein |', f'| Impressum | {jn(ts["imprint"])} | ja, nein |',
-                             f'| Inhaltsverzeichnis | {jn(ts["toc"])} | ja, nein |',
-                             f'| Verzeichnistiefe | {"nur Kapitel" if ts["toc_depth"] == 1 else "Kapitel und Abschnitte"} | Kapitel, Abschnitte |',
-                             f'| Updates automatisch | {jn(upd_auto)} | ja, nein |',
-                             f'| Änderungen sofort übernehmen | {jn(auto_merge)} | ja, nein |',
-                             f'| KI-Budget je Monat | {lim.get("ai_budget_monthly") or "–"} | Betrag in Projektwährung, leer = keins |',
-                             f'| Actions-Minuten je Monat | {lim.get("actions_minutes_monthly") or "–"} | Minuten, leer = nicht prüfen |',
-                             f'| KI-Angabe im Buch | {ai_disc_text(config)} | Formular `KI-Angabe` |',
-                             '| Weitere Ausgabeoptionen | Ränder, Zeilenabstand, Kolumnentitel, Formate, ISBN … | Formular `Ausgabe` |',
-                             '', f'<sub>{upd_text} · Limits: {lim_sum}</sub>'] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', FORM_HINT]) + '\n'
+        page = {'a5': view_message('settings.a5'), '12x19': '12 × 19 cm', '13.5x21.5': view_message('settings.page_135'), 'a4': 'A4'}
+        jn = lambda v: view_message('settings.yes') if v else view_message('settings.no')
+        return '\n'.join([view_message('settings.heading'), '', view_message('settings.fixed_rules'), '',
+                           view_message('settings.rules_table'), '|---|---|'] + [f'| {f["FIXED_LABEL"]} | {f["FIXED_VALUE"]} |' for f in fixed]
+                          + ['', view_message('settings.editable'), '', view_message('settings.fields_table'), '|---|---|---|',
+                             view_message('settings.fact_check_row', p_a=view_labels('FC_TEXT')[fc]),
+                             view_message('settings.page_row', p_a=page.get(ts["page_size"], ts["page_size"])),
+                             view_message('settings.font_row', p_a=view_message('settings.serif') if ts["font"] == "serif" else view_message('settings.sans')),
+                             view_message('settings.font_size_row', p_a=str(ts["font_size"]).replace(".", "." if UI.get('language') == 'en' else ",")),
+                             view_message('settings.title_page_row', p_a=jn(ts["title_page"])), view_message('settings.imprint_row', p_a=jn(ts["imprint"])),
+                             view_message('settings.toc_row', p_a=jn(ts["toc"])),
+                             view_message('settings.toc_depth_row', p_a=view_message('settings.chapters_only') if ts["toc_depth"] == 1 else view_message('settings.chapters_sections')),
+                             view_message('settings.updates_row', p_a=jn(upd_auto)),
+                             view_message('settings.auto_merge_row', p_a=jn(auto_merge)),
+                             view_message('settings.budget_row', p_a=lim.get("ai_budget_monthly") or "–"),
+                             view_message('settings.minutes_row', p_a=lim.get("actions_minutes_monthly") or "–"),
+                             view_message('settings.disclosure_row', p_a=ai_disc_text(config)),
+                             view_message('settings.output_row'),
+                             '', f'<sub>{upd_text} · Limits: {lim_sum}</sub>'] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', view_message('settings.form_hint')]) + '\n'
     def b(v):
         return 'true' if v else 'false'
     return fill('projekteinstellungen.html', {'FACT_CHECK_DEFAULT': fc, 'PAGE_SIZE': ts['page_size'], 'FONT': ts['font'],
@@ -1718,36 +2203,35 @@ def ai_disclosure_view(base, config, args):
             missing.append('imprint')
         values = {'AI_MODE': s['mode'], 'AI_PLACEMENT': s['placement'], 'AI_NAME_SERVICES': str(bool(s['name_services'])).lower(),
                   'AI_TEXT': s.get('text') or '',
-                  'AI_USED_TEXT': ' · '.join(f'{t}: {ad.service_text(ids, names)}' for t, ids in used.items()),
+                  'AI_USED_TEXT': ' · '.join(f'{view_usage_task(t)}: {view_service_names(ids, names)}' for t, ids in used.items()),
                   'AI_PROPOSAL_SHORT': ad.suggest(base, config, 'short', False),
                   'AI_PROPOSAL_SHORT_NAMED': ad.suggest(base, config, 'short', True),
                   'AI_PROPOSAL_DETAILED': ad.suggest(base, config, 'detailed', False),
                   'AI_PROPOSAL_DETAILED_NAMED': ad.suggest(base, config, 'detailed', True),
-                  'AI_PLACES_MISSING': ','.join(missing), 'AI_LEGAL_HINT': ad.LEGAL_HINT}
+                  'AI_PLACES_MISSING': ','.join(missing), 'AI_LEGAL_HINT': view_message('disclosure.legal_hint')}
         return fill('ki-angabe.html', values)
-    mode_de = {'none': 'keine', 'short': 'kurz (ein Satz)', 'detailed': 'ausführlich (je Aufgabe)', 'custom': 'eigener Text'}
-    place_de = {'imprint': 'Impressum', 'foreword': 'Vorwort (am Ende)', 'afterword': 'Nachwort (am Ende)', 'page': 'eigene Seite am Ende'}
-    lines = ['### 🤖 KI-Angabe im Buch', '',
-             'Ob und wie im Buch steht, wie bei diesem Buch KI genutzt wurde. Der Hinweis auf die Entwicklung von '
-             'GhostWriter kommt nie ins Buch.', '',
-             '| Feld | Aktueller Wert | Mögliche Werte |', '|---|---|---|',
-             f'| Angabe | {mode_de[s["mode"]]} | keine, kurz, ausführlich, eigener Text |',
-             f'| Ort | {place_de[s["placement"]]} | Impressum, Vorwort, Nachwort, eigene Seite |',
-             f'| Dienste nennen | {"ja" if s["name_services"] else "nein"} | ja, nein |', '']
+    mode_de = {'none': view_message('settings.none'), 'short': view_message('view.ai_disclosure.short_one_sentence'), 'detailed': view_message('view.ai_disclosure.detailed_per_task'), 'custom': view_message('view.ai_disclosure.custom_text')}
+    place_de = {'imprint': view_message('view.ai_disclosure.imprint'), 'foreword': view_message('view.ai_disclosure.foreword_at_the_end'), 'afterword': view_message('view.ai_disclosure.afterword_at_the_end'), 'page': view_message('view.ai_disclosure.separate_page_at_the_end')}
+    lines = [view_message('view.ai_disclosure.ai_disclosure_in_the_book'), '',
+             view_message('view.ai_disclosure.whether_and_how_the_book_discloses_ai'), '',
+             view_message('settings.fields_table'), '|---|---|---|',
+             view_message('view.ai_disclosure.disclosure_none_short_detailed_custom', p_a=mode_de[s["mode"]]),
+             view_message('view.ai_disclosure.placement_imprint_foreword_afterword_separate_page', p_a=place_de[s["placement"]]),
+             view_message('view.ai_disclosure.name_services_yes_no', p_a=view_message('view.ai_disclosure.yes') if s["name_services"] else view_message('view.ai_disclosure.no')), '']
     if used:
-        lines += ['**Laut den Läufen genutzt:** ' + ' · '.join(
-            f'{t}: {ad.service_text(ids, names)}' for t, ids in used.items()), '']
+        lines += [view_message('view.ai_disclosure.used_according_to_the_runs') + ' · '.join(
+            f'{view_usage_task(t)}: {view_service_names(ids, names)}' for t, ids in used.items()), '']
     else:
-        lines += ['*Bisher sind keine KI-Läufe protokolliert.*', '']
+        lines += [view_message('view.ai_disclosure.no_ai_runs_have_been_recorded_yet'), '']
     if s['mode'] != 'none':
-        lines += ['**Wortlaut im Buch' + (' (bestätigt)' if s['text'] else ' – noch nicht bestätigt') + ':**', '']
-        lines += ['> ' + l if l else '>' for l in (s['text'] or '*(leer)*').splitlines()] + ['']
+        lines += [view_message('view.ai_disclosure.wording_in_the_book') + (view_message('view.ai_disclosure.confirmed') if s['text'] else view_message('view.ai_disclosure.not_confirmed_yet')) + ':**', '']
+        lines += ['> ' + l if l else '>' for l in (s['text'] or view_message('view.ai_disclosure.empty')).splitlines()] + ['']
     if proposal and proposal != s['text'] and s['mode'] in ('short', 'detailed'):
-        lines += ['**Vorschlag aus den Läufen:**', ''] + ['> ' + l if l else '>' for l in proposal.splitlines()] + ['']
-    lines += [f'<sub>⚖️ {ad.LEGAL_HINT}</sub>', '', '---',
-              'Antworte mit `Angabe: …`, `Ort: …`, `Dienste nennen: ja|nein` oder `Text: …` (eigener Wortlaut)'
-              + (' · `OK` übernimmt den Vorschlag' if proposal and s['mode'] in ('short', 'detailed') else '')
-              + ' · `X` bricht ab']
+        lines += [view_message('view.ai_disclosure.suggestion_based_on_recorded_runs'), ''] + ['> ' + l if l else '>' for l in proposal.splitlines()] + ['']
+    lines += [f"<sub>⚖️ {view_message('disclosure.legal_hint')}</sub>", '', '---',
+              view_message('view.ai_disclosure.reply_with_disclosure_placement_name_services_yes')
+              + (view_message('view.ai_disclosure.ok_accepts_the_suggestion') if proposal and s['mode'] in ('short', 'detailed') else '')
+              + view_message('view.ai_disclosure.x_cancels')]
     return '\n'.join(lines) + '\n'
 
 
@@ -1777,19 +2261,19 @@ def chapter_research_view(base, config, args):
         draft = json.loads(Path(args.draft).read_text(encoding='utf-8'))
     ap = config.get('ai_providers') or {}
     pid = (ap.get('research') or {}).get('provider') or (ap.get('default') or {}).get('provider') or 'chat'
-    catalog = yaml.safe_load((ROOT / 'providers.yml').read_text(encoding='utf-8'))
+    catalog = view_provider_catalog(yaml.safe_load((ROOT / 'providers.yml').read_text(encoding='utf-8')))
     names = {x['id']: x.get('name', x['id']) for x in catalog.get('providers') or []}
-    provider = 'aktueller Chat' if pid == 'chat' else names.get(pid, pid).split(' (')[0]
+    provider = view_message('view.chapter_research.current_chat') if pid == 'chat' else names.get(pid, pid).split(' (')[0]
     when = str(last_head.get('date') or '')
-    count = (f'{len(runs)} Lauf' if len(runs) == 1 else f'{len(runs)} Läufe') if runs else 'noch keine Kapitelrecherche'
+    count = (view_message('view.chapter_research.run', p_a=len(runs)) if len(runs) == 1 else view_message('view.chapter_research.runs', p_a=len(runs))) if runs else view_message('view.chapter_research.no_chapter_research_yet')
     if runs and re.match(r'\d{4}-\d{2}-\d{2}', when):
-        count += f', zuletzt am {when[8:10]}.{when[5:7]}.{when[:4]}'
+        count += view_message('view.chapter_research.latest_on', p_a=when[8:10], p_b=when[5:7], p_c=when[:4])
     clean = lambda v: '' if (v or '').strip() in ('', 'Offen.', '–') else v.strip()
     chapters = config['structure']['chapters']
     def neighbour(k):
         if 1 <= k <= len(chapters):
             other = chapters[k - 1]
-            return f'Kapitel {k} · {other["title"]}', chapter_readme(base, other)[1]
+            return view_message('view.chapter_research.chapter', p_a=k, p_b=other["title"]), chapter_readme(base, other)[1]
         return '', ''
     prev_label, prev_summary = neighbour(n - 1)
     next_label, next_summary = neighbour(n + 1)
@@ -1813,11 +2297,10 @@ def chapter_research_view(base, config, args):
         if m and m.group(1).strip().lower() not in existing:
             proposals.append({'SUG_TITLE': m.group(1).strip(), 'SUG_SUMMARY': (m.group(2) or '').strip()})
     k = len(ch['sections'])
-    note = ('Das Kapitel hat noch keine Abschnitte; ausgewählte werden in dieser Reihenfolge angelegt.' if not k else
-            f'Das Kapitel hat schon {k} Abschnitt{"" if k == 1 else "e"}. Sie bleiben unverändert; ausgewählte neue '
-            'kommen ans Ende (Reihenfolge danach über „Abschnittsreihenfolge“).')
+    note = (view_message('view.chapter_research.the_chapter_has_no_sections_yet_selected') if not k else
+            view_message('view.chapter_research.the_chapter_already_has_section_existing_sections', p_a=k, p_b=view_plural(k, 'e')))
     if k and ch.get('status') == 'approved':
-        note += ' Das Kapitel ist freigegeben und wird dadurch wieder „in Arbeit“.'
+        note += view_message('view.chapter_research.the_chapter_is_approved_this_change_returns')
     values = {'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': n, 'CHAPTER_TITLE': ch['title'],
               'CHAPTER_GOAL': draft.get('goal', goal), 'CHAPTER_SUMMARY': draft.get('summary', summary),
               'RESEARCH_QUESTION': draft.get('question', last_head.get('question') or ''),
@@ -1827,40 +2310,39 @@ def chapter_research_view(base, config, args):
               'PREV_CHAPTER_SUMMARY': prev_summary, 'PREV_WEIGHT': weight('weight_prev'),
               'NEXT_CHAPTER': 'true' if next_label else '', 'NEXT_CHAPTER_LABEL': next_label,
               'NEXT_CHAPTER_SUMMARY': next_summary, 'NEXT_WEIGHT': weight('weight_next'),
-              'RESEARCH_PROVIDER_TEXT': f'Recherche über: {provider}', 'RUN_COUNT_TEXT': count,
+              'RESEARCH_PROVIDER_TEXT': view_message('view.chapter_research.research_via', p_a=provider), 'RUN_COUNT_TEXT': count,
               'LAST_RUN': 'true' if runs else '', 'LAST_RUN_ID': last_head.get('id') or (runs[-1].stem if runs else ''),
               'LAST_RUN_TEXT': clean(last.get('Kurzfassung')),
               'SUGGESTED_GOAL': clean(last.get('Vorschlag: Ziel des Kapitels')),
               'SUGGESTED_SUMMARY': clean(last.get('Vorschlag: Kurzbeschreibung'))}
     if args.text:
-        lines = [f'### 🔎 Kapitelrecherche · Kapitel {n} „{ch["title"]}“', ''] + field_table([
-            ('Ziel', values['CHAPTER_GOAL']), ('Kurzbeschreibung', values['CHAPTER_SUMMARY'])])
+        lines = [view_message('view.chapter_research.chapter_research_chapter', p_a=n, p_b=ch["title"]), ''] + field_table([
+            (view_message('view.chapter_research.goal'), values['CHAPTER_GOAL']), (view_message('view.chapter_research.summary'), values['CHAPTER_SUMMARY'])])
         if values['SUGGESTED_GOAL'] or values['SUGGESTED_SUMMARY']:
-            lines += ['', f'**Vorschläge aus {values["LAST_RUN_ID"]}:**']
+            lines += ['', view_message('view.chapter_research.suggestions_from', p_a=values["LAST_RUN_ID"])]
             if values['SUGGESTED_GOAL']:
-                lines += [f'- Ziel: {values["SUGGESTED_GOAL"]} · `VZ` übernehmen']
+                lines += [view_message('view.chapter_research.goal_vz_apply', p_a=values["SUGGESTED_GOAL"])]
             if values['SUGGESTED_SUMMARY']:
-                lines += [f'- Kurzbeschreibung: {values["SUGGESTED_SUMMARY"]} · `VK` übernehmen']
+                lines += [view_message('view.chapter_research.summary_vk_apply', p_a=values["SUGGESTED_SUMMARY"])]
         if values['LAST_RUN_TEXT']:
             lines += ['', f'> {values["LAST_RUN_TEXT"]}']
         if proposals:
-            lines += ['', f'**Vorgeschlagene Abschnitte aus {values["LAST_RUN_ID"]}:**', '']
+            lines += ['', view_message('view.chapter_research.suggested_sections_from', p_a=values["LAST_RUN_ID"]), '']
             lines += [f'{i}. **{x["SUG_TITLE"]}**' + (f' – {x["SUG_SUMMARY"]}' if x['SUG_SUMMARY'] else '')
                       for i, x in enumerate(proposals, start=1)]
-            lines += ['', f'<sub>{note}</sub> Anlegen: `AS 1, 3` (Nummern der Vorschläge).']
-        wtext = ['nicht berücksichtigen', 'abgrenzen', 'anschließen', 'stark einbeziehen']
+            lines += ['', view_message('view.chapter_research.sub_sub_create_as_suggestion_numbers', p_a=note)]
+        wtext = [view_message('view.chapter_research.ignore'), view_message('view.chapter_research.distinguish'), view_message('view.chapter_research.connect'), view_message('view.chapter_research.include_strongly')]
         ctx = []
         if prev_label:
-            ctx.append(f'| Vorher | {prev_label} | {values["PREV_WEIGHT"]} · {wtext[values["PREV_WEIGHT"]]} |')
+            ctx.append(view_message('view.chapter_research.previous', p_a=prev_label, p_b=values["PREV_WEIGHT"], p_c=wtext[values["PREV_WEIGHT"]]))
         if next_label:
-            ctx.append(f'| Nachher | {next_label} | {values["NEXT_WEIGHT"]} · {wtext[values["NEXT_WEIGHT"]]} |')
+            ctx.append(view_message('view.chapter_research.next', p_a=next_label, p_b=values["NEXT_WEIGHT"], p_c=wtext[values["NEXT_WEIGHT"]]))
         if ctx:
-            lines += ['', '**Zusammenhang**', '', '| | Kapitel | Gewichtung |', '|---|---|---|'] + ctx
-        tname = {'goal': 'Ziel des Kapitels recherchieren', 'sections': 'Abschnitte erstellen', 'summary': 'Kurzbeschreibung erstellen'}
-        lines += ['', f'Aufgabe: **{tname.get(task, "keine (nur Fragestellung)")}**',
+            lines += ['', view_message('view.chapter_research.context'), '', view_message('view.chapter_research.chapter_weight'), '|---|---|---|'] + ctx
+        tname = {'goal': view_message('view.chapter_research.research_the_chapter_goal'), 'sections': view_message('view.chapter_research.create_sections'), 'summary': view_message('view.chapter_research.create_a_summary')}
+        lines += ['', view_message('view.chapter_research.task', p_a=tname.get(task, view_message('view.chapter_research.none_question_only'))),
                   '', f'<sub>{values["RESEARCH_PROVIDER_TEXT"]} · {count}</sub>', '',
-                  'Ändern: je Zeile `Ziel: …` bzw. `Kurzbeschreibung: …`. Recherche starten: `Frage: …` (optional `Schwerpunkte: …`, '
-                  '`Aufgabe: Ziel|Abschnitte|Kurzbeschreibung|keine`, `Vorher: 0–3`, `Nachher: 0–3`; 0 nicht berücksichtigen, 1 abgrenzen, 2 anschließen, 3 stark einbeziehen). `X` bricht ab.']
+                  view_message('view.chapter_research.edit_with_one_goal_or_summary_per')]
         return '\n'.join(lines) + '\n'
     return fill('kapitelrecherche.html', values, {'SUGGESTED_SECTIONS': proposals})
 
@@ -1884,7 +2366,7 @@ def library_data(base, args):
 
 def de_date(iso):
     m = re.match(r'(\d{4})-(\d{2})-(\d{2})', iso or '')
-    return f'{m.group(3)}.{m.group(2)}.{m.group(1)}' if m else ''
+    return (m.group(0) if UI.get('language') == 'en' else f'{m.group(3)}.{m.group(2)}.{m.group(1)}') if m else ''
 
 
 def plural(n, one, many):
@@ -1897,7 +2379,7 @@ def book_row(b):
     progress = (f'{sa} von {plural(st, "Abschnitt", "Abschnitten")} freigegeben · '
                 f'{b.get("chapters_approved", 0)} von {plural(b.get("chapters_total", 0), "Kapitel", "Kapiteln")}') if ready else 'Gliederung noch offen'
     ed = b.get('current_edition') or 0
-    return {'BOOK_SECTION_COUNT': st, 'BOOK_APPROVED_SECTION_COUNT': sa,
+    result = {'BOOK_SECTION_COUNT': st, 'BOOK_APPROVED_SECTION_COUNT': sa,
             'BOOK_CHAPTER_COUNT': b.get('chapters_total', 0), 'BOOK_APPROVED_CHAPTER_COUNT': b.get('chapters_approved', 0),
             'BOOK_EDITION_NUMBER': ed, 'BOOK_PENDING_COUNT': b.get('pending') or 0,
             'BOOK_AUTHOR_NAME': b.get('author') or '', 'BOOK_UPDATED_AT': b.get('updated_at') or '',
@@ -1911,6 +2393,21 @@ def book_row(b):
             'BOOK_COST': (b.get('cost') or {}).get('text') or money(0, False),
             'BOOK_PENDING_TEXT': f'{plural(b["pending"], "Änderung", "Änderungen")} offen' if b.get('pending') else '',
             'BOOK_UPDATED_TEXT': f'{"zuletzt geändert" if ready else "angelegt"} am {de_date(b.get("updated_at"))}' if b.get('updated_at') else ''}
+
+    if UI.get('language') == 'en':
+        result.update({
+            'BOOK_TITLE': b['title'] or b['title_short'] or view_message('book.untitled'),
+            'BOOK_STATE_TEXT': view_message('book.ready') if ready else view_message('book.setup'),
+            'BOOK_PROGRESS_TEXT': view_message('book.progress', approved=sa, total=st,
+                chapters=b.get('chapters_approved', 0), chapter_total=b.get('chapters_total', 0),
+                section_word=view_message('book.section_one') if st == 1 else view_message('book.sections'),
+                chapter_word=view_message('book.chapter_one') if b.get('chapters_total', 0) == 1 else view_message('book.chapters')) if ready else view_message('book.outline_pending'),
+            'BOOK_EDITION_TEXT': view_message('book.edition', number=ed) if ed else view_message('book.no_edition'),
+            'BOOK_PENDING_TEXT': (view_message('book.pending_one', number=b['pending']) if b['pending'] == 1 else
+                                  view_message('book.pending', number=b['pending'])) if b.get('pending') else '',
+            'BOOK_UPDATED_TEXT': (view_message('book.updated', date=de_date(b['updated_at'])) if ready else
+                                  view_message('book.created', date=de_date(b['updated_at']))) if b.get('updated_at') else ''})
+    return result
 
 
 def library_series(base, data):
@@ -1981,7 +2478,7 @@ def find_series(base, data, key):
     for i, s in enumerate(ser, start=1):
         if key in (s['id'], f'S{i}', f's{i}') or (key or '').lower() == s.get('title', '').lower():
             return s
-    raise SystemExit(f'Serie „{key}“ nicht gefunden')
+    raise SystemExit(view_message('series.not_found', name=key))
 
 
 def series_view(base, config, args):
@@ -1994,7 +2491,7 @@ def series_view(base, config, args):
     for n, br in enumerate(s['volumes'], start=1):
         b = by_branch.get(br)
         r = book_row(b) if b else {'BOOK_BRANCH': br, 'BOOK_TITLE': br, 'BOOK_TITLE_SHORT': br.split('/')[-1], 'BOOK_STATE': 'setup',
-                                   'BOOK_STATE_TEXT': 'nicht gefunden', 'BOOK_PROGRESS': 0, 'BOOK_PROGRESS_TEXT': '', 'BOOK_EDITION_TEXT': ''}
+                                   'BOOK_STATE_TEXT': view_message('view.series.not_found'), 'BOOK_PROGRESS': 0, 'BOOK_PROGRESS_TEXT': '', 'BOOK_EDITION_TEXT': ''}
         vols.append({'V_NUMBER': n, 'V_BRANCH': br, 'V_TITLE': r['BOOK_TITLE'], 'V_TITLE_SHORT': r['BOOK_TITLE_SHORT'],
                      'V_STATE': r['BOOK_STATE'], 'V_STATE_TEXT': r['BOOK_STATE_TEXT'], 'V_PROGRESS': r['BOOK_PROGRESS'],
                      'V_PROGRESS_TEXT': r['BOOK_PROGRESS_TEXT'], 'V_EDITION_TEXT': r['BOOK_EDITION_TEXT']})
@@ -2002,44 +2499,43 @@ def series_view(base, config, args):
              for b in data.get('books') or [] if b['branch'] not in in_any]
     values = {'SERIES_ID': s['id'], 'SERIES_TITLE': s['title'], 'SERIES_SUBTITLE': s.get('subtitle') or '',
               'SERIES_KIND_TEXT': view_series_kind(s.get('kind')), 'SERIES_DESCRIPTION': s.get('description') or '',
-              'VOLUME_COUNT_TEXT': plural(len(vols), 'Band', 'Bände'), 'LIBRARY_NAME': repo_label(args)}
+              'VOLUME_COUNT_TEXT': plural(len(vols), view_message('view.series.volume'), view_message('view.series.volumes')), 'LIBRARY_NAME': repo_label(args)}
     import series as series_mod   # gemeinsame Figuren und Begriffe (Stufe 2)
     schars = []
     for c in series_mod.characters(base, s['id']):
         h = character_file(base, c)[0]
-        schars.append({'SC_ID': c['id'], 'SC_NAME': c['name'], 'SC_ROLE': ROLE_DE.get(h.get('role'), ''), 'SC_SHORT': h.get('short', '')})
+        schars.append({'SC_ID': c['id'], 'SC_NAME': c['name'], 'SC_ROLE': view_labels('ROLE_DE').get(h.get('role'), ''), 'SC_SHORT': h.get('short', '')})
     sterms = [{'ST_TERM': x['term'], 'ST_TEXT': x['text']} for x in series_mod.glossary(base, s['id'])]
     om = series_mod.omnibus(base, s['id'])   # Sammelband (Stufe 4)
     if om:
         n = int(om.get('current_edition') or 0)
         values.update({'OMNIBUS_STATE': om.get('status', 'draft'), 'OMNIBUS_TITLE': om.get('title', ''),
-                       'OMNIBUS_TEXT': f'{plural(len(om.get("volumes") or []), "Band", "Bände")} · '
-                                       + ('freigegeben' if om.get('status') == 'approved' else 'Entwurf, nicht freigegeben')
-                                       + (f' · Auflage {n}' if n else ' · noch keine Auflage')})
+                       'OMNIBUS_TEXT': f'{plural(len(om.get("volumes") or []), view_message('view.series.volume'), view_message('view.series.volumes'))} · '
+                                       + (view_message('view.series.approved') if om.get('status') == 'approved' else view_message('view.series.draft_not_approved'))
+                                       + (view_message('view.series.edition', p_a=n) if n else view_message('view.series.no_edition_yet'))})
     if args.text:
-        out = [f'### 📚 Serie „{s["title"]}“', ' · '.join(x for x in (values['SERIES_SUBTITLE'], values['SERIES_KIND_TEXT'],
+        out = [view_message('view.series.series', p_a=s["title"]), ' · '.join(x for x in (values['SERIES_SUBTITLE'], values['SERIES_KIND_TEXT'],
                                                                   values['VOLUME_COUNT_TEXT']) if x), '']
         if values['SERIES_DESCRIPTION']:
             out += [f'> {values["SERIES_DESCRIPTION"]}', '']
         if vols:
-            out += ['| Band | Buch | Status | Fortschritt | Auflage |', '|--:|---|---|---|---|']
+            out += [view_message('view.series.volume_book_status_progress_edition'), '|--:|---|---|---|---|']
             out += [f'| {v["V_NUMBER"]} | **{v["V_TITLE"]}** (`{v["V_BRANCH"]}`) | {v["V_STATE_TEXT"]} | {v["V_PROGRESS_TEXT"] or "–"} | {v["V_EDITION_TEXT"] or "–"} |' for v in vols]
         else:
-            out += ['*Noch kein Band.*']
+            out += [view_message('view.series.no_volumes_yet')]
         if cands:
-            out += ['', 'Ohne Serie: ' + ', '.join(f'{c["C_TITLE"]} (`{c["C_BRANCH"]}`)' for c in cands)]
-        out += ['', f'**Figuren der Serie ({len(schars)})**', '']
-        out += [f'- {c["SC_NAME"]} ({c["SC_ROLE"]}){": " + c["SC_SHORT"] if c["SC_SHORT"] else ""}' for c in schars] or ['*keine*']
-        out += ['', f'**Begriffe der Serie ({len(sterms)})**', '']
-        out += [f'- {x["ST_TERM"]}: {x["ST_TEXT"]}' for x in sterms] or ['*keine*']
-        out += ['', 'Gelten in allen Bänden; ein Band kann eine eigene Kopie führen. `+ Figur: Name` bzw. `+ Begriff: Erklärung` '
-                'nimmt etwas in die Serie auf.']
-        out += ['', f'**Sammelband:** „{values["OMNIBUS_TITLE"]}“ · {values["OMNIBUS_TEXT"]} · `SB` bearbeiten'
-                if om else '**Sammelband:** noch keiner · `SB` anlegen']
-        items = ([('1' if len(vols) == 1 else f'1–{len(vols)}', 'Band öffnen')] if vols else [])
-        items += ([('H', 'Band hinzufügen')] if cands else []) + ([('R', 'Reihenfolge ändern'), ('ENT', 'Band entfernen')] if vols else [])
-        items += [('NB', 'Neues Buch in dieser Serie'), ('B', 'Serie bearbeiten'), ('FV', '👤 Figuren aus den Texten aller Bände vorschlagen'),
-                  ('Ü', 'Bücherregal')]
+            out += ['', view_message('view.series.outside_a_series') + ', '.join(f'{c["C_TITLE"]} (`{c["C_BRANCH"]}`)' for c in cands)]
+        out += ['', view_message('view.series.series_characters', p_a=len(schars)), '']
+        out += [f'- {c["SC_NAME"]} ({c["SC_ROLE"]}){": " + c["SC_SHORT"] if c["SC_SHORT"] else ""}' for c in schars] or [view_message('view.series.none')]
+        out += ['', view_message('view.series.series_terms', p_a=len(sterms)), '']
+        out += [f'- {x["ST_TERM"]}: {x["ST_TEXT"]}' for x in sterms] or [view_message('view.series.none')]
+        out += ['', view_message('view.series.these_apply_to_all_volumes_a_volume')]
+        out += ['', view_message('view.series.omnibus_sb_edit', p_a=values["OMNIBUS_TITLE"], p_b=values["OMNIBUS_TEXT"])
+                if om else view_message('view.series.omnibus_none_yet_sb_create')]
+        items = ([('1' if len(vols) == 1 else f'1–{len(vols)}', view_message('view.series.open_volume'))] if vols else [])
+        items += ([('H', view_message('view.series.add_volume'))] if cands else []) + ([('R', view_message('view.series.change_order')), ('ENT', view_message('view.series.remove_volume'))] if vols else [])
+        items += [('NB', view_message('view.series.new_book_in_this_series')), ('B', view_message('view.series.edit_series')), ('FV', view_message('view.series.suggest_characters_from_all_volumes')),
+                  ('Ü', view_message('view.series.library'))]
         out += ['', '---', menu(items)]
         return '\n'.join(out) + '\n'
     blocks = {'VOLUMES': vols}
@@ -2058,13 +2554,13 @@ KEEP_DE = {'dedication': 'Widmung', 'foreword': 'Vorwort', 'prologue': 'Prolog',
 
 def scope_text(scope, config=None):
     if scope in (None, '', 'book', 'buch'):
-        return 'ganzes Buch'
+        return view_message('view.scope_text.whole_book')
     if re.fullmatch(r'\d+', scope):
-        return f'Kapitel {scope}'
+        return view_message('view.scope_text.chapter', p_a=scope)
     if re.fullmatch(r'\d+\.\d+', scope):
-        return f'Abschnitt {scope}'
+        return view_message('view.scope_text.section', p_a=scope)
     if scope.startswith('ser-'):
-        return 'alle Bände der Serie'
+        return view_message('view.scope_text.all_volumes_of_the_series')
     item = find_matter(config or {'structure': {}}, scope) if config else None
     return item['title'] if item else scope
 
@@ -2096,38 +2592,38 @@ def character_suggest_view(base, config, args):
         for n in [it.get('name', '')] + list(it.get('aliases') or []):
             hit = hit or (find(n) if n else None)
         state = 'new' if not hit else ('series' if ('_series' in hit or is_series) else 'existing')
-        details = '; '.join(x for x in (f'Alter: {it["age"]}' if it.get('age') else '', it.get('appearance') or '',
-                                        ', '.join(it.get('traits') or []), f'spricht {it["voice"]}' if it.get('voice') else '') if x)
+        details = '; '.join(x for x in (view_message('view.character_suggest.age', p_a=it["age"]) if it.get('age') else '', it.get('appearance') or '',
+                                        ', '.join(it.get('traits') or []), view_message('view.character_suggest.speaks', p_a=it["voice"]) if it.get('voice') else '') if x)
         ev = it.get('evidence') or []
         rows.append({'S_IDX': i, 'S_NAME': it.get('name', ''), 'S_ALIASES': ', '.join(it.get('aliases') or []),
-                     'S_ROLE': it.get('role') if it.get('role') in ROLE_DE else 'supporting', 'S_SHORT': it.get('short', ''),
+                     'S_ROLE': it.get('role') if it.get('role') in view_labels('ROLE_DE') else 'supporting', 'S_SHORT': it.get('short', ''),
                      'S_DETAILS': details, 'S_SECTIONS': ', '.join(str(x) for x in it.get('sections') or []),
                      'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in ev[:3]),
                      'S_STATE': state, 'S_EXISTING': hit['name'] if hit else '',
-                     'S_STATE_TEXT': {'new': 'neu', 'existing': f'schon da: {hit["name"]}' if hit else '',
-                                      'series': f'Figur der Serie: {hit["name"]}' if hit else ''}[state]})
-    conflicts = '; '.join(f'{c["name"]}, {FIELD_DE.get(c["field"], c["field"])}: ' + ' / '.join(str(v) for v in c['values'])
+                     'S_STATE_TEXT': {'new': view_message('view.character_suggest.new'), 'existing': view_message('view.character_suggest.already_exists', p_a=hit["name"]) if hit else '',
+                                      'series': view_message('view.character_suggest.series_character', p_a=hit["name"]) if hit else ''}[state]})
+    conflicts = '; '.join(f'{c["name"]}, {view_labels('FIELD_DE').get(c["field"], c["field"])}: ' + ' / '.join(str(v) for v in c['values'])
                           for c in data.get('conflicts') or [])
-    values = {'RUN_TEXT': f'Hintergrundlauf {data["run"][4:]} vom {de_date(str(data.get("created_at", "")))}' if data.get('run') else '',
+    values = {'RUN_TEXT': view_message('view.character_suggest.background_run_from', p_a=data["run"][4:], p_b=de_date(str(data.get("created_at", "")))) if data.get('run') else '',
               'RUN_ID': data.get('run', ''), 'CONFLICTS_TEXT': conflicts,
               'SCOPE': str(scope), 'SCOPE_TEXT': scope_text(str(scope), config), 'SERIES_ID': ser.get('id', ''),
               'SERIES_TITLE': ser.get('title', ''), 'SERIES_LEVEL': '1' if is_series else '',
-              'SUGGEST_COUNT_TEXT': plural(len(rows), 'Vorschlag', 'Vorschläge')}
+              'SUGGEST_COUNT_TEXT': plural(len(rows), view_message('view.character_suggest.suggestion'), view_message('view.character_suggest.suggestions'))}
     if args.text:
-        out = [f'### 👤 Figuren aus dem Text · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] +
-               (f' · Serie „{ser["title"]}“' if ser else '') + (f' · {values["RUN_TEXT"]}' if values['RUN_TEXT'] else ''), '']
+        out = [view_message('view.character_suggest.characters_from_the_text', p_a=values["SCOPE_TEXT"]), values['SUGGEST_COUNT_TEXT'] +
+               (view_message('view.character_suggest.series', p_a=ser["title"]) if ser else '') + (f' · {values["RUN_TEXT"]}' if values['RUN_TEXT'] else ''), '']
         if conflicts:
-            out += [f'> ⚠️ Widersprüche im Text: {conflicts}', '']
+            out += [view_message('view.character_suggest.contradictions_in_the_text', p_a=conflicts), '']
         if rows:
-            out += ['| # | Figur | Rolle | Kurz | Angaben | Abschnitte | Stand |', '|--:|---|---|---|---|---|---|']
-            out += [f'| {r["S_IDX"] + 1} | **{r["S_NAME"]}**{" (" + r["S_ALIASES"] + ")" if r["S_ALIASES"] else ""} | {ROLE_DE[r["S_ROLE"]]} | '
+            out += [view_message('view.character_suggest.character_role_short_description_details_sections_status'), '|--:|---|---|---|---|---|---|']
+            out += [f'| {r["S_IDX"] + 1} | **{r["S_NAME"]}**{" (" + r["S_ALIASES"] + ")" if r["S_ALIASES"] else ""} | {view_labels('ROLE_DE')[r["S_ROLE"]]} | '
                     f'{r["S_SHORT"] or "–"} | {r["S_DETAILS"] or "–"} | {r["S_SECTIONS"] or "–"} | {r["S_STATE_TEXT"]} |' for r in rows]
         else:
-            out += ['*Im Text wurden keine Figuren gefunden.*']
-        out += ['', 'Nur aus dem Text; der Text selbst bleibt unverändert. Bekannte Figuren werden nur ergänzt (leere Felder) und zugeordnet.',
-                '', '---', menu([('Übernehmen: 1, 3', 'diese übernehmen'), ('Alle', 'alle übernehmen'),
-                                 ('2 = Opi', 'Vorschlag 2 mit einer bekannten Figur zusammenlegen'), ('X', 'verwerfen')]
-                                + ([('Serie: 1', 'als Figur der Serie anlegen')] if ser and not is_series else []))]
+            out += [view_message('view.character_suggest.no_characters_found_in_the_text')]
+        out += ['', view_message('view.character_suggest.from_the_text_only_the_text_itself'),
+                '', '---', menu([(view_message('view.character_suggest.apply'), view_message('view.character_suggest.apply_these')), (view_message('view.character_suggest.all'), view_message('view.character_suggest.apply_all')),
+                                 ('2 = Opi', view_message('view.character_suggest.merge_suggestion_with_an_existing_character')), ('X', view_message('view.character_suggest.discard'))]
+                                + ([(view_message('view.character_suggest.series_2'), view_message('view.character_suggest.create_as_a_series_character'))] if ser and not is_series else []))]
         return '\n'.join(out) + '\n'
     merge = [{'M_ID': c['id'], 'M_NAME': c['name']} for c in known]
     return fill('figuren-vorschlag.html', values, {'SUGGESTIONS': rows, 'MERGE': merge})
@@ -2143,7 +2639,7 @@ def analysis_suggest_view(base, config, args):
     if kind == 'characters':
         args.draft = str(path)
         return character_suggest_view(base, config, args)
-    run_text = f'Hintergrundlauf {data["run"][4:]} vom {de_date(str(data.get("created_at", "")))}' if data.get('run') else ''
+    run_text = view_message('view.analysis_suggest.background_run_from', p_a=data["run"][4:], p_b=de_date(str(data.get("created_at", "")))) if data.get('run') else ''
     return ANALYSIS_VIEWS[kind](base, config, args, data, run_text)
 
 
@@ -2167,25 +2663,25 @@ def summaries_suggest_view(base, config, args, data, run_text):
             continue   # Kapitel bzw. Abschnitt gibt es nicht mehr
         clean = lambda v: '' if v.startswith('<') and v.endswith('>') else v   # Platzhalter aus der Vorlage
         cur_short, cur_goal = clean(cur_short), clean(cur_goal)
-        rows.append({'S_IDX': i, 'S_LEVEL': it['level'], 'S_LABEL': f'Kapitel {it["number"]}' if it['level'] == 'chapter' else it['number'],
+        rows.append({'S_IDX': i, 'S_LEVEL': it['level'], 'S_LABEL': view_message('view.summaries_suggest.chapter', p_a=it["number"]) if it['level'] == 'chapter' else it['number'],
                      'S_TITLE': (ch or sec)['title'], 'S_GOAL': it.get('goal', ''), 'S_SHORT': it.get('short', ''),
                      'S_GOAL_NOW': cur_goal, 'S_SHORT_NOW': cur_short,
                      'S_GOAL_ON': '1' if it.get('goal') and not cur_goal else '', 'S_SHORT_ON': '1' if it.get('short') and not cur_short else '',
                      'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in (it.get('evidence') or [])[:2])})
     values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'summaries',
-              'SUGGEST_COUNT_TEXT': plural(len(rows), 'Vorschlag', 'Vorschläge'), 'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config)}
+              'SUGGEST_COUNT_TEXT': plural(len(rows), view_message('view.summaries_suggest.suggestion'), view_message('view.summaries_suggest.suggestions')), 'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config)}
     if args.text:
-        out = [f'### 📝 Kurzbeschreibung und Ziel · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
+        out = [view_message('view.summaries_suggest.summary_and_goal', p_a=values["SCOPE_TEXT"]), values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
         for r in rows:
             out += [f'**{r["S_IDX"] + 1}. {r["S_LABEL"]} {r["S_TITLE"]}**',
-                    f'- Ziel: {r["S_GOAL"] or "–"}' + (f' *(bisher: {r["S_GOAL_NOW"]})*' if r['S_GOAL_NOW'] else ' *(bisher leer)*'),
-                    f'- Kurz: {r["S_SHORT"] or "–"}' + (f' *(bisher: {r["S_SHORT_NOW"]})*' if r['S_SHORT_NOW'] else ' *(bisher leer)*'),
-                    f'- Fundstellen: {r["S_EVIDENCE"] or "–"}', '']
+                    view_message('view.summaries_suggest.goal', p_a=r["S_GOAL"] or "–") + (view_message('view.summaries_suggest.current', p_a=r["S_GOAL_NOW"]) if r['S_GOAL_NOW'] else view_message('view.summaries_suggest.currently_empty')),
+                    view_message('view.summaries_suggest.summary', p_a=r["S_SHORT"] or "–") + (view_message('view.summaries_suggest.current', p_a=r["S_SHORT_NOW"]) if r['S_SHORT_NOW'] else view_message('view.summaries_suggest.currently_empty')),
+                    view_message('view.summaries_suggest.cited_passages', p_a=r["S_EVIDENCE"] or "–"), '']
         if not rows:
-            out += ['*Keine Vorschläge.*', '']
-        out += ['Nur aus dem Text; der Text selbst bleibt unverändert. Ohne Angabe werden nur leere Felder gefüllt.', '', '---',
-                menu([('Übernehmen: 1, 3', 'diese übernehmen (nur leere Felder)'), ('Alle', 'alle leeren Felder füllen'),
-                      ('Ersetzen: 2', 'auch einen vorhandenen Text ersetzen'), ('X', 'verwerfen')])]
+            out += [view_message('view.summaries_suggest.no_suggestions'), '']
+        out += [view_message('view.summaries_suggest.from_the_text_only_the_text_itself'), '', '---',
+                menu([(view_message('view.summaries_suggest.apply'), view_message('view.summaries_suggest.apply_these_empty_fields_only')), (view_message('view.summaries_suggest.all'), view_message('view.summaries_suggest.fill_all_empty_fields')),
+                      (view_message('view.summaries_suggest.replace'), view_message('view.summaries_suggest.also_replace_existing_text')), ('X', view_message('view.summaries_suggest.discard'))])]
         return '\n'.join(out) + '\n'
     return fill('kurzbeschreibung-vorschlag.html', values, {'SUGGESTIONS': rows})
 
@@ -2199,32 +2695,32 @@ def style_suggest_view(base, config, args, data, run_text):
     for i, it in enumerate(data.get('items') or []):
         cur = now.get(it['field'])
         cur = ', '.join(cur) if isinstance(cur, list) else str(cur or '')
-        rows.append({'S_IDX': i, 'S_FIELD': it['field'], 'S_LABEL': analyze.STYLE_DE.get(it['field'], it['field']),
+        rows.append({'S_IDX': i, 'S_FIELD': it['field'], 'S_LABEL': view_labels('STYLE_DE').get(it['field'], it['field']),
                      'S_VALUE': it['value'], 'S_NOW': cur, 'S_ON': '' if cur else '1',
                      'S_VARIANTS': '; '.join(f'{v["value"]} in {", ".join(v["where"])}' for v in it.get('variants') or []),
                      'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in (it.get('evidence') or [])[:2])})
     st = data.get('stats') or {}
     parts = []
     if st.get('sentence_length_avg') is not None:
-        parts.append(f'{str(st["sentence_length_avg"]).replace(".", ",")} Wörter je Satz')
+        parts.append(view_message('view.style_suggest.words_per_sentence', p_a=str(st["sentence_length_avg"]).replace(".", "." if UI.get('language') == 'en' else ",")))
     if st.get('dialogue_share') is not None:
-        parts.append(f'{round(st["dialogue_share"] * 100)} % wörtliche Rede')
+        parts.append(view_message('view.style_suggest.dialogue', p_a=round(st["dialogue_share"] * 100)))
     if st.get('words'):
-        parts.append(f'{st["words"]} Wörter')
+        parts.append(view_message('view.style_suggest.words', p_a=st["words"]))
     values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'style',
               'STATS_TEXT': ' · '.join(parts), 'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config),
-              'SUGGEST_COUNT_TEXT': plural(len(rows), 'Angabe', 'Angaben')}
+              'SUGGEST_COUNT_TEXT': plural(len(rows), view_message('view.style_suggest.disclosure'), view_message('view.style_suggest.fields'))}
     if args.text:
-        out = [f'### 🪶 Stilprofil · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
+        out = [view_message('view.style_suggest.style_profile', p_a=values["SCOPE_TEXT"]), values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
         if rows:
-            out += ['| # | Angabe | Vorschlag | bisher | abweichend |', '|--:|---|---|---|---|']
+            out += [view_message('view.style_suggest.field_suggestion_current_differs'), '|--:|---|---|---|---|']
             out += [f'| {r["S_IDX"] + 1} | {r["S_LABEL"]} | {r["S_VALUE"]} | {r["S_NOW"] or "–"} | {r["S_VARIANTS"] or "–"} |' for r in rows]
         else:
-            out += ['*Keine Angaben mit Fundstelle.*']
-        out += ['', f'Gezählt ohne KI: {values["STATS_TEXT"] or "–"}', '',
-                'Das Stilprofil steht in `ghostwriter.yml` (`style`) und ist Vorgabe fürs Ghostwriting. Der Text bleibt unverändert.',
-                '', '---', menu([('Übernehmen: 1, 2', 'diese Angaben übernehmen'), ('Alle', 'alle übernehmen'),
-                                  ('3 = Präteritum', 'Angabe 3 mit anderem Wert'), ('X', 'verwerfen')])]
+            out += [view_message('view.style_suggest.no_findings_with_a_cited_passage')]
+        out += ['', view_message('view.style_suggest.counted_without_ai', p_a=values["STATS_TEXT"] or "–"), '',
+                view_message('view.style_suggest.the_style_profile_is_stored_in_ghostwriter'),
+                '', '---', menu([(view_message('view.style_suggest.apply'), view_message('view.style_suggest.apply_these_fields')), (view_message('view.style_suggest.all'), view_message('view.style_suggest.apply_all')),
+                                  (view_message('view.style_suggest.past_tense'), view_message('view.style_suggest.set_field_to_another_value')), ('X', view_message('view.style_suggest.discard'))])]
         return '\n'.join(out) + '\n'
     return fill('stilprofil-vorschlag.html', values, {'SUGGESTIONS': rows})
 
@@ -2242,21 +2738,21 @@ def places_suggest_view(base, config, args, data, run_text):
         rows.append({'S_IDX': i, 'S_NAME': it['name'], 'S_ALIASES': ', '.join(it.get('aliases') or []), 'S_KIND': it.get('kind', ''),
                      'S_SHORT': it.get('short', ''), 'S_SECTIONS': ', '.join(it.get('sections') or []),
                      'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in (it.get('evidence') or [])[:2]),
-                     'S_STATE': 'existing' if hit else 'new', 'S_STATE_TEXT': f'schon da: {hit["name"]}' if hit else 'neu',
+                     'S_STATE': 'existing' if hit else 'new', 'S_STATE_TEXT': view_message('view.places_suggest.already_exists', p_a=hit["name"]) if hit else view_message('view.places_suggest.new'),
                      'S_EXISTING': hit['id'] if hit else ''})
     values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'places',
-              'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config), 'SUGGEST_COUNT_TEXT': plural(len(rows), 'Ort', 'Orte')}
+              'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config), 'SUGGEST_COUNT_TEXT': plural(len(rows), view_message('view.places_suggest.location'), view_message('view.places_suggest.places'))}
     if args.text:
-        out = [f'### 📍 Schauplätze aus dem Text · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
+        out = [view_message('view.places_suggest.places_from_the_text', p_a=values["SCOPE_TEXT"]), values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
         if rows:
-            out += ['| # | Ort | Art | Beschreibung | Abschnitte | Stand |', '|--:|---|---|---|---|---|']
+            out += [view_message('view.places_suggest.place_kind_description_sections_status'), '|--:|---|---|---|---|---|']
             out += [f'| {r["S_IDX"] + 1} | **{r["S_NAME"]}**{" (" + r["S_ALIASES"] + ")" if r["S_ALIASES"] else ""} | {r["S_KIND"] or "–"} | '
                     f'{r["S_SHORT"] or "–"} | {r["S_SECTIONS"] or "–"} | {r["S_STATE_TEXT"]} |' for r in rows]
         else:
-            out += ['*Keine Schauplätze mit Fundstelle.*']
-        out += ['', 'Nur aus dem Text. Übernommen wird nach `story/places.yml`; bekannte Orte werden nur ergänzt. Der Text bleibt unverändert.',
-                '', '---', menu([('Übernehmen: 1, 3', 'diese übernehmen'), ('Alle', 'alle übernehmen'),
-                                  ('2 = Seehaus', 'Vorschlag 2 mit einem bekannten Ort zusammenlegen'), ('X', 'verwerfen')])]
+            out += [view_message('view.places_suggest.no_places_with_a_cited_passage')]
+        out += ['', view_message('view.places_suggest.from_the_text_only_applied_to_story'),
+                '', '---', menu([(view_message('view.places_suggest.apply'), view_message('view.places_suggest.apply_these')), (view_message('view.places_suggest.all'), view_message('view.places_suggest.apply_all')),
+                                  ('2 = Seehaus', view_message('view.places_suggest.merge_suggestion_with_an_existing_place')), ('X', view_message('view.places_suggest.discard'))])]
         return '\n'.join(out) + '\n'
     merge = [{'M_ID': k['id'], 'M_NAME': k['name']} for k in known]
     return fill('orte-vorschlag.html', values, {'SUGGESTIONS': rows, 'MERGE': merge})
@@ -2272,24 +2768,23 @@ def timeline_suggest_view(base, config, args, data, run_text):
                'E_FLAG': '1' if e['n'] in flagged else '',
                'E_EVIDENCE': ' · '.join(f'„{x.get("quote", "")}“' for x in (e.get('evidence') or [])[:1])}
               for i, e in enumerate(data.get('items') or [])]
-    rows = [{'I_IDX': i, 'I_KIND': x['kind'], 'I_KIND_TEXT': analyze.TIMELINE_KIND_DE.get(x['kind'], x['kind']),
+    rows = [{'I_IDX': i, 'I_KIND': x['kind'], 'I_KIND_TEXT': view_labels('TIMELINE_KIND_DE').get(x['kind'], x['kind']),
              'I_EVENTS': ', '.join(map(str, x['events'])), 'I_TEXT': x['text']} for i, x in enumerate(issues)]
     values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'timeline',
               'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config),
-              'SUGGEST_COUNT_TEXT': plural(len(events), 'Ereignis', 'Ereignisse') + ' · ' + plural(len(rows), 'Auffälligkeit', 'Auffälligkeiten')}
+              'SUGGEST_COUNT_TEXT': plural(len(events), view_message('view.timeline_suggest.event'), view_message('view.timeline_suggest.events')) + ' · ' + plural(len(rows), view_message('view.timeline_suggest.finding'), view_message('view.timeline_suggest.findings'))}
     if args.text:
-        out = [f'### 🕰️ Zeitleiste · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
+        out = [view_message('view.timeline_suggest.timeline', p_a=values["SCOPE_TEXT"]), values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''), '']
         if rows:
-            out += [f'> ⚠️ **{r["I_KIND_TEXT"]}** (Ereignisse {r["I_EVENTS"]}): {r["I_TEXT"]}' for r in rows] + ['']
+            out += [view_message('view.timeline_suggest.events_2', p_a=r["I_KIND_TEXT"], p_b=r["I_EVENTS"], p_c=r["I_TEXT"]) for r in rows] + ['']
         if events:
-            out += ['| # | Abschnitt | Wann | Was |', '|--:|---|---|---|']
+            out += [view_message('view.timeline_suggest.section_when_what'), '|--:|---|---|---|']
             out += [f'| {e["E_N"]}{" ⚠️" if e["E_FLAG"] else ""} | {e["E_WHERE"]} | {e["E_WHEN"] or "–"} | {e["E_WHAT"]} |' for e in events]
         else:
-            out += ['*Keine Ereignisse mit Fundstelle.*']
-        out += ['', 'Nur aus dem Text; Auffälligkeiten sind Hinweise, entschieden wird nichts. Übernommen wird nach '
-                '`story/timeline.yml`; der Text bleibt unverändert.', '', '---',
-                menu([('Alle', 'alle Ereignisse und Hinweise übernehmen'), ('Ohne: 4, 7', 'alle außer diesen Ereignissen'),
-                      ('Hinweise ohne: 2', 'diesen Hinweis weglassen'), ('X', 'verwerfen')])]
+            out += [view_message('view.timeline_suggest.no_events_with_a_cited_passage')]
+        out += ['', view_message('view.timeline_suggest.from_the_text_only_findings_are_notes'), '', '---',
+                menu([(view_message('view.timeline_suggest.all'), view_message('view.timeline_suggest.apply_all_events_and_notes')), (view_message('view.timeline_suggest.without'), view_message('view.timeline_suggest.apply_all_except_these_events')),
+                      (view_message('view.timeline_suggest.notes_without'), view_message('view.timeline_suggest.omit_this_note')), ('X', view_message('view.timeline_suggest.discard'))])]
         return '\n'.join(out) + '\n'
     blocks = {'EVENTS': events}
     if rows:
@@ -2308,20 +2803,19 @@ def continuity_suggest_view(base, config, args, data, run_text):
                           'F_QUOTE': f['quote'], 'F_ON': '1' if k == len(it['facts']) - 1 else ''})
     values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'continuity',
               'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config),
-              'SUGGEST_COUNT_TEXT': plural(len(rows), 'möglicher Widerspruch', 'mögliche Widersprüche'),
-              'FACTS_TEXT': f'{data.get("facts", 0)} Tatsachen mit Fundstelle verglichen'}
+              'SUGGEST_COUNT_TEXT': plural(len(rows), view_message('view.continuity_suggest.possible_contradiction'), view_message('view.continuity_suggest.possible_contradictions')),
+              'FACTS_TEXT': view_message('view.continuity_suggest.facts_compared_with_cited_passages', p_a=data.get("facts", 0))}
     if args.text:
-        out = [f'### 🔗 Mögliche Widersprüche · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + f' · {values["FACTS_TEXT"]}'
+        out = [view_message('view.continuity_suggest.possible_contradictions_2', p_a=values["SCOPE_TEXT"]), values['SUGGEST_COUNT_TEXT'] + f' · {values["FACTS_TEXT"]}'
                + (f' · {run_text}' if run_text else ''), '']
         for r in rows:
             out += [f'**{r["S_IDX"] + 1}. {r["S_TEXT"]}**']
             out += [f'- {chr(97 + f["F_K"])}) {f["F_WHERE"]}: „{f["F_QUOTE"]}“' for f in facts if f['F_IDX'] == r['S_IDX']] + ['']
         if not rows:
-            out += ['*Keine Widersprüche gefunden.*', '']
-        out += ['Übernehmen setzt den Marker `[KONTINUITÄT PRÜFEN: …]` hinter die gewählte Fundstelle (ohne Angabe die letzte); '
-                'sonst bleibt der Text unverändert. Offene Marker verhindern eine Auflage, bis sie geklärt sind.', '', '---',
-                menu([('Übernehmen: 1, 3', 'Marker an der letzten Fundstelle'), ('2: a, b', 'Marker an diesen Fundstellen'),
-                      ('X', 'verwerfen')])]
+            out += [view_message('view.continuity_suggest.no_contradictions_found'), '']
+        out += [view_message('view.continuity_suggest.applying_inserts_kontinuit_t_pr_fen_after'), '', '---',
+                menu([(view_message('view.continuity_suggest.apply'), view_message('view.continuity_suggest.marker_at_the_last_cited_passage')), ('2: a, b', view_message('view.continuity_suggest.markers_at_these_cited_passages')),
+                      ('X', view_message('view.continuity_suggest.discard'))])]
         return '\n'.join(out) + '\n'
     return fill('widerspruch-vorschlag.html', values, {'SUGGESTIONS': rows, 'FACTS': facts})
 
@@ -2330,23 +2824,22 @@ def language_suggest_view(base, config, args, data, run_text):
     """Sprachliche Hinweise (Vorlage sprache-vorschlag): je Abschnitt die Auffälligkeiten mit Fundstelle; übernommen
     wird nur in die Hinweisliste, der Text bleibt unverändert."""
     import analyze
-    rows = [{'S_IDX': i, 'S_WHERE': h['where'], 'S_KIND': h['kind'], 'S_KIND_TEXT': analyze.LANGUAGE_DE.get(h['kind'], h['kind']),
+    rows = [{'S_IDX': i, 'S_WHERE': h['where'], 'S_KIND': h['kind'], 'S_KIND_TEXT': view_labels('LANGUAGE_DE').get(h['kind'], h['kind']),
              'S_TEXT': h['text'], 'S_QUOTE': h['quote']} for i, h in enumerate(data.get('items') or [])]
     values = {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'language',
               'SCOPE_TEXT': scope_text(str(data.get('scope') or 'book'), config),
-              'SUGGEST_COUNT_TEXT': plural(len(rows), 'Hinweis', 'Hinweise'),
-              'RULES_TEXT': f'Sätze über {analyze.LONG_SENTENCE} Wörter · ein Wort {analyze.REPEAT_MIN}× in {analyze.REPEAT_WINDOW} Wörtern · '
-                            f'3 gleiche Satzanfänge hintereinander · mehr als 1 % Füllwörter'}
+              'SUGGEST_COUNT_TEXT': plural(len(rows), view_message('view.language_suggest.note'), view_message('view.language_suggest.notes')),
+              'RULES_TEXT': view_message('view.language_suggest.sentences_over_words_one_word_within_words', p_a=analyze.LONG_SENTENCE, p_b=analyze.REPEAT_MIN, p_c=analyze.REPEAT_WINDOW)}
     if args.text:
-        out = [f'### ✍️ Sprachliche Hinweise · {values["SCOPE_TEXT"]}', values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''),
-               f'Gezählt ohne KI: {values["RULES_TEXT"]}', '']
+        out = [view_message('view.language_suggest.language_notes', p_a=values["SCOPE_TEXT"]), values['SUGGEST_COUNT_TEXT'] + (f' · {run_text}' if run_text else ''),
+               view_message('view.language_suggest.counted_without_ai', p_a=values["RULES_TEXT"]), '']
         if rows:
-            out += ['| # | Abschnitt | Art | Hinweis | Fundstelle |', '|--:|---|---|---|---|']
+            out += [view_message('view.language_suggest.section_kind_note_passage'), '|--:|---|---|---|---|']
             out += [f'| {r["S_IDX"] + 1} | {r["S_WHERE"]} | {r["S_KIND_TEXT"]} | {r["S_TEXT"]} | „{r["S_QUOTE"]}“ |' for r in rows]
         else:
-            out += ['*Keine Auffälligkeiten.*']
-        out += ['', 'Übernommen wird nur in die Hinweisliste der Abschnitte (`story/hints.yml`); der Text bleibt unverändert.',
-                '', '---', menu([('Alle', 'alle Hinweise übernehmen'), ('Ohne: 2, 5', 'alle außer diesen'), ('X', 'verwerfen')])]
+            out += [view_message('view.language_suggest.no_findings')]
+        out += ['', view_message('view.language_suggest.applied_only_to_the_section_notes_story'),
+                '', '---', menu([(view_message('view.language_suggest.all'), view_message('view.language_suggest.apply_all_notes')), (view_message('view.language_suggest.without'), view_message('view.language_suggest.apply_all_except_these')), ('X', view_message('view.language_suggest.discard'))])]
         return '\n'.join(out) + '\n'
     return fill('sprache-vorschlag.html', values, {'SUGGESTIONS': rows})
 
@@ -2363,48 +2856,45 @@ def import_preview_view(base, config, args):
     info = import_book.status(base) or {}
     rows = []
     for ci, c in enumerate(p['chapters'], start=1):
-        rows.append({'R_TYPE': 'chapter', 'R_CHAPTER': ci, 'R_SECTION': '', 'R_LABEL': f'Kapitel {ci}', 'R_TITLE': c['title'],
+        rows.append({'R_TYPE': 'chapter', 'R_CHAPTER': ci, 'R_SECTION': '', 'R_LABEL': view_message('view.import_preview.chapter', p_a=ci), 'R_TITLE': c['title'],
                      'R_WORDS': sum(s['words'] for s in c['sections']), 'R_SCENES': '', 'R_LONG': '',
-                     'R_COUNT': plural(len(c['sections']), 'Abschnitt', 'Abschnitte')})
+                     'R_COUNT': plural(len(c['sections']), view_message('view.import_preview.section'), view_message('view.import_preview.sections'))})
         for si, s in enumerate(c['sections'], start=1):
             rows.append({'R_TYPE': 'section', 'R_CHAPTER': ci, 'R_SECTION': si, 'R_LABEL': f'{ci}.{si}', 'R_TITLE': s['title'],
                          'R_WORDS': s['words'], 'R_SCENES': s['scenes'] if s['scenes'] > 1 else '',
                          'R_LONG': '1' if s['words'] > import_book.LONG_WORDS else '', 'R_COUNT': ''})
     parts = [{'P_IDX': k, 'P_KIND': x['kind'], 'P_AREA': x.get('area') or MATTER[x['kind']][0], 'P_TITLE': x['title'],
-              'P_WORDS': x['words'], 'P_LABEL': MATTER[x['kind']][1]} for k, x in enumerate(p['parts'], start=1)]
-    stats_text = (f'{st["chapters"]} Kapitel, {st["sections"]} Abschnitte, {len(parts)} Teile von Vor- und Nachspann · '
-                  f'{st["words_proposal"]} von {st["words_original"]} Wörtern übernommen')
+              'P_WORDS': x['words'], 'P_LABEL': view_matter_kind(x['kind'])} for k, x in enumerate(p['parts'], start=1)]
+    stats_text = (view_message('view.import_preview.chapters_sections_front_back_matter_parts_of', p_a=st["chapters"], p_b=st["sections"], p_c=len(parts), p_d=st["words_proposal"], p_e=st["words_original"]))
     values = {'IMPORT_TITLE': p.get('title') or '', 'IMPORT_AUTHOR': p.get('author') or '', 'IMPORT_FORMAT': (p.get('format') or '').upper(),
-              'STATS_TEXT': stats_text, 'LOSSLESS': '1' if st.get('lossless') else '', 'KEEP_TEXT': info.get('keep_text', ''),
-              'KINDS_TEXT': ', '.join(f'{k}={v[1]}' for k, v in MATTER.items())}
+              'STATS_TEXT': stats_text, 'LOSSLESS': '1' if st.get('lossless') else '', 'KEEP_TEXT': view_import_keep(info),
+              'KINDS_TEXT': ', '.join(f'{k}={view_matter_kind(k)}' for k, v in MATTER.items())}
     outline = import_book.open_outline(base)
     if outline:   # KI-Vorschlag für die Gliederung liegt bereit
-        values['OUTLINE_TEXT'] = (f'KI-Vorschlag für die Gliederung liegt bereit: {len(outline["chapters"])} Kapitel, '
-                                  f'{sum(len(c["sections"]) for c in outline["chapters"])} Abschnitte')
+        values['OUTLINE_TEXT'] = (view_message('view.import_preview.an_ai_outline_suggestion_is_ready_chapters', p_a=len(outline["chapters"]), p_b=sum(len(c["sections"]) for c in outline["chapters"])))
     elif p.get('structure') == 'none' and len(p['chapters']) == 1:
         values['NO_STRUCTURE'] = '1'
-    warns = [{'W_TEXT': w} for w in p.get('warnings') or []]
+    warns = [{'W_TEXT': (view_message('import.original_notice') + ': ' if UI.get('language') == 'en' else '') + w} for w in p.get('warnings') or []]
     if args.text:
-        out = [f'### 📥 Manuskript importieren · {values["IMPORT_TITLE"] or "ohne Titel"}',
-               f'{values["IMPORT_FORMAT"]} · Autor: {values["IMPORT_AUTHOR"] or "–"} · {stats_text}'
-               + ('' if values['LOSSLESS'] else ' ⚠️ nicht vollständig'), '']
+        out = [view_message('view.import_preview.import_manuscript', p_a=values["IMPORT_TITLE"] or view_message('view.import_preview.untitled')),
+               view_message('view.import_preview.author', p_a=values["IMPORT_FORMAT"], p_b=values["IMPORT_AUTHOR"] or "–", p_c=stats_text)
+               + ('' if values['LOSSLESS'] else view_message('view.import_preview.incomplete')), '']
         out += [f'> ⚠️ {w["W_TEXT"]}' for w in warns] + ([''] if warns else [])
-        out += ['| | Teil | Wörter | Hinweis |', '|---|---|--:|---|']
-        out += [f'| {x["P_LABEL"]} ({"Vorspann" if x["P_AREA"] == "front" else "Nachspann"}) | {x["P_TITLE"]} | {x["P_WORDS"]} | `T{x["P_IDX"]}` |'
+        out += [view_message('view.import_preview.part_words_note'), '|---|---|--:|---|']
+        out += [f'| {x["P_LABEL"]} ({view_message('view.import_preview.front_matter') if x["P_AREA"] == "front" else view_message('view.import_preview.back_matter')}) | {x["P_TITLE"]} | {x["P_WORDS"]} | `T{x["P_IDX"]}` |'
                 for x in parts if x['P_AREA'] == 'front']
         for r in rows:
-            hint = ('⚠️ sehr lang' if r['R_LONG'] else '') + (f' · {r["R_SCENES"]} Szenen' if r['R_SCENES'] else '')
+            hint = (view_message('view.import_preview.very_long') if r['R_LONG'] else '') + (view_message('view.import_preview.scenes', p_a=r["R_SCENES"]) if r['R_SCENES'] else '')
             out.append(f'| **{r["R_LABEL"]}** | **{r["R_TITLE"]}** · {r["R_COUNT"]} | {r["R_WORDS"]} | |' if r['R_TYPE'] == 'chapter'
                        else f'| {r["R_LABEL"]} | {r["R_TITLE"]} | {r["R_WORDS"]} | {hint.strip(" ·")} |')
-        out += [f'| {x["P_LABEL"]} (Nachspann) | {x["P_TITLE"]} | {x["P_WORDS"]} | `T{x["P_IDX"]}` |' for x in parts if x['P_AREA'] != 'front']
+        out += [view_message('view.import_preview.back_matter_t', p_a=x["P_LABEL"], p_b=x["P_TITLE"], p_c=x["P_WORDS"], p_d=x["P_IDX"]) for x in parts if x['P_AREA'] != 'front']
         if values.get('OUTLINE_TEXT'):
-            out += ['', f'> 🧭 **{values["OUTLINE_TEXT"]}** · `GV` ansehen']
+            out += ['', view_message('import.view_outline', text=values['OUTLINE_TEXT'])]
         elif values.get('NO_STRUCTURE'):
-            out += ['', '> 🧭 Keine Gliederung erkannt · `GK` Gliederung mit KI vorschlagen (Hintergrundlauf, Kosten werden vorher gezeigt)']
-        out += ['', 'Änderungen als Text, z. B. `Kapitel 2: Neuer Titel`, `2.1 teilen` (an Szenen), `2.1 + 2.2` (zusammenlegen), '
-                '`Kapitel 3 + 4`, `Neues Kapitel ab 2.3`, `Kapitel 1 ist Prolog`, `T1 ist ein Kapitel`.', '',
-                '---', menu([('A', 'Buch so anlegen'), ('AS', 'anlegen und Schreibfreigabe für alle Abschnitte erteilen'),
-                             ('X', 'abbrechen')])]
+            out += ['', view_message('view.import_preview.no_outline_detected_gk_suggest_an_outline')]
+        out += ['', view_message('view.import_preview.request_changes_in_text_e_g_chapter'), '',
+                '---', menu([('A', view_message('view.import_preview.create_book_as_shown')), ('AS', view_message('view.import_preview.create_and_grant_writing_permission_for_all')),
+                             ('X', view_message('import.cancel'))])]
         return '\n'.join(out) + '\n'
     blocks = {'ROWS': rows}
     if parts:
@@ -2420,34 +2910,32 @@ def import_outline_view(base, config, args):
     import import_book
     o = import_book.open_outline(base)
     if not o:
-        raise SystemExit('Es gibt keinen offenen KI-Vorschlag für die Gliederung')
+        raise SystemExit(view_message('view.import_outline.there_is_no_pending_ai_outline_suggestion'))
     rows = []
     for ci, c in enumerate(o['chapters'], start=1):
-        rows.append({'O_TYPE': 'chapter', 'O_CHAPTER': ci, 'O_SECTION': '', 'O_LABEL': f'Kapitel {ci}', 'O_TITLE': c['title'],
+        rows.append({'O_TYPE': 'chapter', 'O_CHAPTER': ci, 'O_SECTION': '', 'O_LABEL': view_message('view.import_outline.chapter', p_a=ci), 'O_TITLE': c['title'],
                      'O_START': c['start'], 'O_WORDS': c['words'], 'O_QUOTE': c['quote'], 'O_REASON': c.get('reason', ''),
-                     'O_COUNT': plural(len(c['sections']), 'Abschnitt', 'Abschnitte')})
+                     'O_COUNT': plural(len(c['sections']), view_message('view.import_outline.section'), view_message('view.import_outline.sections'))})
         for si, sec in enumerate(c['sections'], start=1):
             rows.append({'O_TYPE': 'section', 'O_CHAPTER': ci, 'O_SECTION': si, 'O_LABEL': f'{ci}.{si}', 'O_TITLE': sec['title'],
                          'O_START': sec['start'], 'O_WORDS': sec['words'], 'O_QUOTE': sec['quote'],
                          'O_REASON': sec.get('reason', '') if si > 1 else '', 'O_COUNT': ''})
     n_secs = sum(len(c['sections']) for c in o['chapters'])
-    values = {'RUN_ID': o['run'], 'RUN_TEXT': f'Vorschlag {o["run"][8:]} vom {de_date(str(o.get("created_at", "")))} ({o.get("model", "")})',
-              'STATS_TEXT': f'{len(o["chapters"])} Kapitel, {n_secs} Abschnitte aus {o["paragraphs"]} Absätzen · '
-                            f'{o["dropped"]} Anfänge ohne wörtliche Fundstelle verworfen',
-              'PARTIAL_TEXT': '' if o.get('full_text', True) else 'Sehr langes Manuskript: die KI hat je Absatz nur den Anfang gelesen.'}
+    values = {'RUN_ID': o['run'], 'RUN_TEXT': view_message('view.import_outline.suggestion_from', p_a=o["run"][8:], p_b=de_date(str(o.get("created_at", ""))), p_c=o.get("model", "")),
+              'STATS_TEXT': view_message('view.import_outline.chapters_sections_from_paragraphs_openings_without_a', p_a=len(o["chapters"]), p_b=n_secs, p_c=o["paragraphs"], p_d=o["dropped"]),
+              'PARTIAL_TEXT': '' if o.get('full_text', True) else view_message('view.import_outline.very_long_manuscript_the_ai_read_only')}
     if args.text:
-        out = ['### 🧭 Gliederung mit KI (Vorschlag)', f'{values["STATS_TEXT"]} · {values["RUN_TEXT"]}', '']
+        out = [view_message('view.import_outline.ai_outline_suggestion'), f'{values["STATS_TEXT"]} · {values["RUN_TEXT"]}', '']
         if values['PARTIAL_TEXT']:
             out += [f'> ⚠️ {values["PARTIAL_TEXT"]}', '']
-        out += ['| | Titel | Wörter | beginnt mit | Begründung |', '|---|---|--:|---|---|']
+        out += [view_message('view.import_outline.title_words_starts_with_reason'), '|---|---|--:|---|---|']
         out += [f'| **{r["O_LABEL"]}** | **{r["O_TITLE"]}** · {r["O_COUNT"]} | {r["O_WORDS"]} | „{r["O_QUOTE"]}“ | {r["O_REASON"]} |'
                 if r['O_TYPE'] == 'chapter' else f'| {r["O_LABEL"]} | {r["O_TITLE"]} | {r["O_WORDS"]} | „{r["O_QUOTE"]}“ | {r["O_REASON"]} |'
                 for r in rows]
-        out += ['', 'Getrennt wird nur an Absatzgrenzen; kein Wort geht verloren. Übernommen wird erst nach Bestätigung, '
-                'danach lässt sich die Gliederung in der Vorschau weiter ändern.', '', '---',
-                menu([('Übernehmen', 'Gliederung so übernehmen'), ('2.3 – Kapitel', 'ab 2.3 ein neues Kapitel'),
-                      ('Kapitel 3 – ohne', 'Kapitel 3 mit dem vorigen zusammenlegen'), ('2.1: Titel', 'Titel ändern'),
-                      ('X', 'verwerfen')])]
+        out += ['', view_message('view.import_outline.splits_occur_only_at_paragraph_boundaries_no'), '', '---',
+                menu([(view_message('view.import_outline.apply'), view_message('view.import_outline.apply_outline_as_shown')), (view_message('view.import_outline.chapter_2'), view_message('view.import_outline.start_a_new_chapter_from')),
+                      (view_message('view.import_outline.chapter_omit'), view_message('view.import_outline.merge_chapter_with_the_previous_one')), (view_message('view.import_outline.title'), view_message('view.import_outline.change_title')),
+                      ('X', view_message('view.import_outline.discard'))])]
         return '\n'.join(out) + '\n'
     return fill('gliederung-vorschlag.html', values, {'ROWS': rows})
 
@@ -2468,29 +2956,29 @@ def omnibus_edit_view(base, config, args):
         title = (published.get(br) or {}).get('title') or b.get('title') or br
         vols.append({'OV_NUMBER': n, 'OV_BRANCH': br, 'OV_TITLE': title, 'OV_LAST': last,
                      'OV_ON': '1' if br in picked else '', 'OV_EDITION': picked.get(br) or '',
-                     'OV_TEXT': f'neueste Auflage {last}' if last else 'noch keine Auflage'})
+                     'OV_TEXT': view_message('view.omnibus_edit.latest_edition', p_a=last) if last else view_message('view.omnibus_edit.no_edition_yet')})
     keep = om.get('keep_matter', ['prologue', 'epilogue'])
     pub = om.get('publication') or {}
-    values = {'SERIES_ID': s['id'], 'SERIES_TITLE': s['title'], 'OMNIBUS_TITLE': om.get('title') or f'{s["title"]} – Sammelband',
+    values = {'SERIES_ID': s['id'], 'SERIES_TITLE': s['title'], 'OMNIBUS_TITLE': om.get('title') or view_message('view.omnibus_edit.omnibus', p_a=s["title"]),
               'OMNIBUS_SUBTITLE': om.get('subtitle', ''), 'OMNIBUS_STATE': om.get('status', '') if om else '',
               'OMNIBUS_FOREWORD': om.get('foreword', ''), 'OMNIBUS_AFTERWORD': om.get('afterword', ''),
               'OMNIBUS_ISBN_PRINT': pub.get('isbn_print', ''), 'OMNIBUS_ISBN_EBOOK': pub.get('isbn_ebook', ''),
               'OMNIBUS_EDITION': str(int(om.get('current_edition') or 0)),
               'OMNIBUS_TAG': series_mod.omnibus_tag(s, int(om.get('current_edition') or 0) + 1)}
-    keeps = [{'K_KIND': k, 'K_LABEL': v, 'K_ON': '1' if k in keep else ''} for k, v in KEEP_DE.items()]
+    keeps = [{'K_KIND': k, 'K_LABEL': v, 'K_ON': '1' if k in keep else ''} for k, v in view_labels('KEEP_DE').items()]
     if args.text:
-        out = [f'### 📚 Sammelband „{values["OMNIBUS_TITLE"]}“', f'Serie „{s["title"]}“ · ' +
-               ({'approved': 'freigegeben', 'draft': 'Entwurf'}.get(values['OMNIBUS_STATE'], 'noch nicht angelegt')), '']
-        out += ['| Band | Buch | im Sammelband | Auflage |', '|--:|---|---|---|']
+        out = [view_message('view.omnibus_edit.omnibus_2', p_a=values["OMNIBUS_TITLE"]), view_message('view.omnibus_edit.series', p_a=s["title"]) +
+               ({'approved': view_message('view.omnibus_edit.approved'), 'draft': view_message('view.omnibus_edit.draft')}.get(values['OMNIBUS_STATE'], view_message('view.omnibus_edit.not_created_yet'))), '']
+        out += [view_message('view.omnibus_edit.volume_book_in_omnibus_edition'), '|--:|---|---|---|']
         out += [f'| {v["OV_NUMBER"]} | {v["OV_TITLE"]} | {"✅" if v["OV_ON"] else "—"} | {v["OV_EDITION"] or v["OV_TEXT"]} |' for v in vols]
-        out += ['', 'Teile der Bände, die bleiben: ' + (', '.join(KEEP_DE[k] for k in keep) or 'keine'), '']
-        out += field_table([('Titel', values['OMNIBUS_TITLE']), ('Untertitel', values['OMNIBUS_SUBTITLE']),
-                            ('Vorwort zum Sammelband', values['OMNIBUS_FOREWORD']), ('Nachwort', values['OMNIBUS_AFTERWORD']),
-                            ('ISBN Druck', values['OMNIBUS_ISBN_PRINT']), ('ISBN E-Book', values['OMNIBUS_ISBN_EBOOK'])])
-        items = [('Bände: 1, 2', 'Auswahl setzen'), ('FA', 'Freigabe zurücknehmen' if values['OMNIBUS_STATE'] == 'approved' else 'Sammelband freigeben')]
+        out += ['', view_message('view.omnibus_edit.volume_parts_to_keep') + (', '.join(view_labels('KEEP_DE')[k] for k in keep) or view_message('view.omnibus_edit.none')), '']
+        out += field_table([(view_message('view.omnibus_edit.title'), values['OMNIBUS_TITLE']), (view_message('view.omnibus_edit.subtitle'), values['OMNIBUS_SUBTITLE']),
+                            (view_message('view.omnibus_edit.omnibus_foreword'), values['OMNIBUS_FOREWORD']), (view_message('view.omnibus_edit.afterword'), values['OMNIBUS_AFTERWORD']),
+                            (view_message('view.omnibus_edit.print_isbn'), values['OMNIBUS_ISBN_PRINT']), (view_message('view.omnibus_edit.e_book_isbn'), values['OMNIBUS_ISBN_EBOOK'])])
+        items = [(view_message('view.omnibus_edit.volumes'), view_message('view.omnibus_edit.set_selection')), ('FA', view_message('view.omnibus_edit.withdraw_approval') if values['OMNIBUS_STATE'] == 'approved' else view_message('view.omnibus_edit.approve_omnibus'))]
         if values['OMNIBUS_STATE'] == 'approved':
-            items.append(('V', f'Auflage {int(values["OMNIBUS_EDITION"]) + 1} veröffentlichen'))
-        out += ['', FORM_HINT, '', menu(items)]
+            items.append(('V', view_message('view.omnibus_edit.publish_edition', p_a=int(values["OMNIBUS_EDITION"]) + 1)))
+        out += ['', view_message('settings.form_hint'), '', menu(items)]
         return '\n'.join(out) + '\n'
     return fill('sammelband.html', values, {'OVOLUMES': vols, 'KEEP': keeps})
 
@@ -2569,7 +3057,7 @@ def de_datetime_plus(iso, days=0):
         d = datetime.datetime.fromisoformat((iso or '').replace('Z', '+00:00')) + datetime.timedelta(days=days)
     except ValueError:
         return ''
-    return d.strftime('%d.%m.%Y')
+    return d.strftime('%Y-%m-%d' if UI.get('language') == 'en' else '%d.%m.%Y')
 
 
 def github_data(args):
@@ -2594,22 +3082,22 @@ def data_view(base, config, args):
                 return r
         return None
 
-    unknown = 'unbekannt (ohne GitHub-Abfrage)'
+    unknown = view_message('view.data.unknown_without_a_github_query')
     if upd:
         prog_update = update_text(upd)
     elif getattr(args, 'upstream', None):
-        prog_update = 'aktuell'
+        prog_update = view_message('view.data.current_2')
     else:
-        prog_update = 'nicht abgefragt'
+        prog_update = view_message('view.data.not_queried')
     full = ((gh or {}).get('repo') or {}).get('full_name') or ''
     if full and not args.repo_known:   # Rohdaten der GitHub-API nennen das Repository (#134)
         args.repo, args.repo_known = full, True
     values = {
         'LIBRARY_NAME': repo_label(args),
-        'PROGRAM_VERSION_TEXT': f'GhostWriter {prog.get("version") or "?"} · Hauptrepository {prog.get("upstream") or "?"}',
+        'PROGRAM_VERSION_TEXT': view_message('view.data.ghostwriter_upstream_repository', p_a=prog.get("version") or "?", p_b=prog.get("upstream") or "?"),
         'PROGRAM_UPDATE_TEXT': prog_update, 'PROGRAM_BEHIND': upd['behind'] if upd else '',
-        'PROGRAM_LAST_UPDATE_TEXT': f'letzter Update-Lauf am {de_datetime_plus(prog["last_update"])}' if prog.get('last_update') else 'noch kein Update-Lauf',
-        'PROGRAM_SKIPPED_TEXT': ('Workflow-Dateien ausgelassen (Secret GHOSTWRITER_UPDATE_TOKEN fehlt): ' + ', '.join(prog['skipped_workflows']))
+        'PROGRAM_LAST_UPDATE_TEXT': view_message('view.data.last_update_run_on', p_a=de_datetime_plus(prog["last_update"])) if prog.get('last_update') else view_message('view.data.no_update_run_yet'),
+        'PROGRAM_SKIPPED_TEXT': (view_message('view.data.workflow_files_skipped_ghostwriter_update_token_secret') + ', '.join(prog['skipped_workflows']))
                                 if prog.get('skipped_workflows') else '',
         'UI_TEXT': f'ghostwriter-ui {prog.get("ui_version") or "?"} · Commit {(prog.get("ui_commit") or "")[:7]}',
         'GITHUB_KNOWN': known,
@@ -2621,37 +3109,36 @@ def data_view(base, config, args):
         values['REPO_TEXT'] = unknown
     else:
         size = repo.get('size')
-        size_text = (f'{size / 1024:.1f} MB'.replace('.', ',') if size and size >= 1024 else f'{size} KB') if size is not None else 'Größe ?'
+        size_text = (f'{size / 1024:.1f} MB'.replace('.', '.' if UI.get('language') == 'en' else ',') if size and size >= 1024 else f'{size} KB') if size is not None else view_message('view.data.size_unknown')
         branches = gh.get('branches')
-        visibility = {True: 'privat', False: 'öffentlich'}.get(repo.get('private'), 'Sichtbarkeit unbekannt')
-        branch_text = plural(len(branches), 'Branch', 'Branches') if isinstance(branches, list) else 'Branch-Anzahl unbekannt'
+        visibility = {True: view_message('view.data.private'), False: view_message('view.data.public')}.get(repo.get('private'), view_message('view.data.visibility_unknown'))
+        branch_text = plural(len(branches), view_message('view.data.branch'), view_message('view.data.branches')) if isinstance(branches, list) else view_message('view.data.branch_count_unknown')
         values['REPO_TEXT'] = f'{visibility} · {size_text} · {branch_text}'
     books = []
     for b in lib.get('books') or []:
         pr = next((p for p in pulls if (p.get('head') or {}).get('ref') == b.get('work_branch')), None)
         pending = b.get('pending') or 0
-        pend_text = (f'{plural(pending, "Änderung", "Änderungen")} offen' + (f' · Pull Request #{pr["number"]}' if pr else '')) if pending else 'keine offenen Änderungen'
+        pend_text = (view_message('view.data.pending', p_a=plural(pending, view_message('view.data.change'), view_message('view.data.changes'))) + (f' · Pull Request #{pr["number"]}' if pr else '')) if pending else view_message('view.data.no_pending_changes')
         ed = b.get('last_edition')
         v = last_run(RUN_NAMES['validate'], b['branch'])
         pr_run = last_run(RUN_NAMES['proof'], b['branch'])
         if gh is None or not isinstance(gh.get('runs'), list):
-            check, check_text, proof_text = '', 'Prüfung: unbekannt', 'Probedruck: unbekannt'
+            check, check_text, proof_text = '', view_message('view.data.validation_unknown'), view_message('view.data.proof_unknown')
         else:
             check = {'success': 'ok', 'failure': 'fail'}.get((v or {}).get('conclusion'), '')
-            check_text = ('Prüfung beim letzten Push: ' + {'ok': 'bestanden', 'fail': 'fehlgeschlagen'}.get(check, (v or {}).get('status') or 'noch nicht gelaufen')) if v else 'Prüfung: noch kein Lauf'
+            check_text = (view_message('view.data.validation_on_last_push') + {'ok': view_message('view.data.passed'), 'fail': view_message('view.data.failed')}.get(check, (v or {}).get('status') or view_message('view.data.not_run_yet'))) if v else view_message('view.data.validation_no_runs_yet')
             if pr_run:
-                proof_text = (f'Probedruck vom {de_datetime_plus(pr_run.get("created_at"))}, Download bis '
-                              f'{de_datetime_plus(pr_run.get("created_at"), PROOF_DAYS)}')
+                proof_text = (view_message('view.data.proof_from_download_available_until', p_a=de_datetime_plus(pr_run.get("created_at")), p_b=de_datetime_plus(pr_run.get("created_at"), PROOF_DAYS)))
             else:
-                proof_text = 'noch kein Probedruck'
+                proof_text = view_message('view.data.no_proof_yet')
         books.append({
             'B_TITLE': b.get('title') or b.get('title_short') or b['branch'], 'B_BRANCH': b['branch'],
             'B_COMMIT_TEXT': f'{de_date(b.get("updated_at"))} · {b.get("last_commit") or ""}'.strip(' ·'),
             'B_PENDING_TEXT': pend_text, 'B_PENDING': '1' if pending else '',
-            'B_AUTOMERGE_TEXT': 'Änderungen sofort übernehmen: ' + ('an' if b.get('auto_merge') else 'aus'),
-            'B_EDITION_TEXT': f'Auflage {ed["number"]} vom {de_date(ed["date"])} ({ed["tag"]})' if ed else 'noch keine Auflage',
+            'B_AUTOMERGE_TEXT': view_message('view.data.apply_changes_immediately') + (view_message('view.data.on') if b.get('auto_merge') else view_message('view.data.off')),
+            'B_EDITION_TEXT': view_message('view.data.edition_of', p_a=ed["number"], p_b=de_date(ed["date"]), p_c=ed["tag"]) if ed else view_message('view.data.no_edition_yet'),
             'B_PROOF_TEXT': proof_text,
-            'B_DATA_TEXT': f'Datenversion {b.get("data_version", "?")}' + (' · Migration steht aus (kommt mit dem nächsten Update)' if b.get('migration_pending') else ' · aktuell'),
+            'B_DATA_TEXT': view_message('view.data.data_version', p_a=b.get("data_version", "?")) + (view_message('view.data.migration_pending_included_in_the_next_update') if b.get('migration_pending') else view_message('view.data.current')),
             'B_MIGRATION': '1' if b.get('migration_pending') else '',
             'B_CHECK': check, 'B_CHECK_TEXT': check_text})
     secrets = lib.get('secrets')
@@ -2660,7 +3147,7 @@ def data_view(base, config, args):
         v = None if secrets is None else secrets.get(n)
         state = '' if v is None else ('yes' if v else 'no')
         srows.append({'S_NAME': n, 'S_STATE': state or 'unknown',
-                      'S_TEXT': {'yes': 'hinterlegt', 'no': 'fehlt', 'unknown': 'unbekannt'}[state or 'unknown']})
+                      'S_TEXT': {'yes': view_message('view.data.stored'), 'no': view_message('view.data.missing'), 'unknown': view_message('view.data.unknown')}[state or 'unknown']})
     rrows = []
     seen = set()
     for r in runs:
@@ -2669,32 +3156,32 @@ def data_view(base, config, args):
         seen.add(r.get('name'))
         c = r.get('conclusion') or r.get('status') or ''
         rrows.append({'R_NAME': r.get('name') or '', 'R_STATE': {'success': 'ok', 'failure': 'fail'}.get(c, 'other'),
-                      'R_TEXT': f'{ {"success": "erfolgreich", "failure": "fehlgeschlagen", "cancelled": "abgebrochen", "skipped": "übersprungen", "in_progress": "läuft", "queued": "wartet", "action_required": "wartet auf Freigabe"}.get(c, c)} · '
+                      'R_TEXT': f'{ {"success": view_message('view.data.successful'), "failure": view_message('view.data.failed'), "cancelled": view_message('view.data.cancelled'), "skipped": view_message('view.data.skipped'), "in_progress": view_message('view.data.in_progress'), "queued": view_message('view.data.queued'), "action_required": view_message('view.data.awaiting_approval')}.get(c, c)} · '
                                 f'{de_datetime_plus(r.get("created_at"))} · {r.get("head_branch") or ""}',
                       'R_URL': r.get('html_url') or ''})
     lrows, lim_text = limit_rows(base, config, args, gh)
     values['LIMITS_TEXT'] = lim_text
     if args.text:
-        out = ['### 🗂️ Daten', f'{repo_label(args)}', '', '**Programm**', '',
+        out = [view_message('view.data.data'), f'{repo_label(args)}', '', view_message('view.data.program'), '',
                f'- {values["PROGRAM_VERSION_TEXT"]}', f'- Update: {values["PROGRAM_UPDATE_TEXT"]} · {values["PROGRAM_LAST_UPDATE_TEXT"]}',
                f'- {values["UI_TEXT"]}'] + ([f'- ⚠️ {values["PROGRAM_SKIPPED_TEXT"]}'] if values['PROGRAM_SKIPPED_TEXT'] else [])
-        out += ['', '**Bücher**', '', '| Buch | Letzter Stand | Änderungen | Auflage | Probedruck | Daten | Prüfung |', '|---|---|---|---|---|---|---|']
+        out += ['', view_message('view.data.books'), '', view_message('view.data.book_latest_state_changes_edition_proof_data'), '|---|---|---|---|---|---|---|']
         for r in books:
             out.append(f'| {r["B_TITLE"]} (`{r["B_BRANCH"]}`) | {r["B_COMMIT_TEXT"]} | {r["B_PENDING_TEXT"]}; {r["B_AUTOMERGE_TEXT"]} | '
                        f'{r["B_EDITION_TEXT"]} | {r["B_PROOF_TEXT"]} | {"⚠️ " if r["B_MIGRATION"] else ""}{r["B_DATA_TEXT"]} | '
                        f'{ {"ok": "✅ ", "fail": "❌ "}.get(r["B_CHECK"], "")}{r["B_CHECK_TEXT"]} |')
         out += ['', '**Repository**', '', f'- {values["REPO_TEXT"]}',
-                f'- Erledigte Branches: [Branches aufräumen]({values["CLEANUP_URL"]}) · [Löschaufgaben]({values["TASKS_URL"]})']
+                view_message('view.data.completed_branches_clean_up_branches_deletion_tasks', p_a=values["CLEANUP_URL"], p_b=values["TASKS_URL"])]
         if srows:
-            out += ['- Secrets (nur Namen): ' + ', '.join(f'`{r["S_NAME"]}` { {"yes": "✅", "no": "❌", "unknown": "❔"}[r["S_STATE"]]} {r["S_TEXT"]}' for r in srows)]
+            out += [view_message('view.data.secrets_names_only') + ', '.join(f'`{r["S_NAME"]}` { {"yes": "✅", "no": "❌", "unknown": "❔"}[r["S_STATE"]]} {r["S_TEXT"]}' for r in srows)]
         if lrows:
-            out += ['', '**Nutzungsgrenzen**', '', '| Grenze | Stand |', '|---|---|']
+            out += ['', view_message('view.data.usage_limits'), '', view_message('view.data.limit_state'), '|---|---|']
             out += [f'| {r["L_LABEL"]} | { {"ok": "🟢", "warn": "🟡", "pause": "🔴"}[r["L_STATE"]]} {r["L_TEXT"]} |' for r in lrows]
             if lim_text:
                 out += ['', f'> ⏸ {lim_text}']
         if rrows:
-            out += ['', '**Letzte Läufe**', '', '| Action | Ergebnis |', '|---|---|'] + [f'| [{r["R_NAME"]}]({r["R_URL"]}) | {r["R_TEXT"]} |' for r in rrows]
-        out += ['', '---', menu([('Ü', 'Bücherregal')] + ([('U', 'Update einspielen')] if upd else []))]
+            out += ['', view_message('view.data.latest_runs'), '', view_message('view.data.action_result'), '|---|---|'] + [f'| [{r["R_NAME"]}]({r["R_URL"]}) | {r["R_TEXT"]} |' for r in rrows]
+        out += ['', '---', menu([('Ü', view_message('view.data.library'))] + ([('U', view_message('view.data.install_update'))] if upd else []))]
         return '\n'.join(out) + '\n'
     blocks = {'BOOKS': books, 'SECRETS': srows, 'RUNS': rrows}
     if lrows:
@@ -2716,9 +3203,16 @@ def limit_rows(base, config, args, gh):
             live['api_rate'] = (core['limit'] - core.get('remaining', 0), core['limit'])
         rows = limits.evaluate(base, config, live=live)
         state = limits.summary(rows)[0]
-    out = [{'L_LABEL': r['label'], 'L_STATE': r['state'], 'L_TEXT': r['text'][len(r['label']) + 1:]} for r in rows]
+    labels = {'ai_budget': view_message('limit.ai_budget'), 'actions_minutes': view_message('limit.actions_minutes'),
+              'api_rate': view_message('limit.api_rate')}
+    out = []
+    for row in rows:
+        text = limit_row_text(row)
+        label = labels.get(row.get('key'), row['label']) if UI.get('language') == 'en' else row['label']
+        out.append({'L_LABEL': label, 'L_STATE': row['state'],
+                    'L_TEXT': text[len(label) + 1:] if text.startswith(label + ' ') else text})
     paused = [r for r in rows if r['state'] == 'pause']
-    text = ('Update-Automatik pausiert: ' + '; '.join(r['text'] for r in paused)) if state == 'pause' and paused else ''
+    text = (view_message('view.limit_rows.automatic_updates_paused') + '; '.join(limit_row_text(r) for r in paused)) if state == 'pause' and paused else ''
     return out, text
 
 
@@ -2736,8 +3230,8 @@ def choice_spec(args):
     lib = yaml.safe_load(WIZARD_CHOICES.read_text(encoding='utf-8'))
     step = args.where or ''
     if step not in lib['steps']:
-        raise SystemExit(f'Auswahl „{step}“ unbekannt; vorhanden: {", ".join(lib["steps"])}')
-    spec = dict(lib['steps'][step], step=step)
+        raise SystemExit(view_message('view.choice_spec.unknown_choice_available', p_a=step, p_b=", ".join(lib["steps"])))
+    spec = view_choice_labels(dict(lib['steps'][step], step=step), lib.get('steps_total', ''))
     num = step.split('.')[-1]
     for k in ('title', 'subtitle', 'note'):
         if spec.get(k):
@@ -2748,15 +3242,15 @@ def choice_spec(args):
 def check_choice_spec(spec):
     qs = spec.get('questions') or []
     if not 1 <= len(qs) <= 4:
-        raise SystemExit('Auswahl: 1–4 Fragen')
+        raise SystemExit(view_message('view.check_choice_spec.choice_questions'))
     for q in qs:
         opts = q.get('options') or []
         if not 2 <= len(opts) <= 6:
-            raise SystemExit(f'Auswahl „{q.get("key")}“: 2–6 Antworten')
+            raise SystemExit(view_message('view.check_choice_spec.choice_answers', p_a=q.get("key")))
         if len(q.get('header', '')) > 12:
-            raise SystemExit(f'Auswahl „{q.get("key")}“: Etikett höchstens 12 Zeichen')
+            raise SystemExit(view_message('view.check_choice_spec.choice_label_must_not_exceed_characters', p_a=q.get("key")))
         if sum(bool(o.get('recommended')) for o in opts) > 1:
-            raise SystemExit(f'Auswahl „{q.get("key")}“: höchstens eine Empfehlung')
+            raise SystemExit(view_message('view.check_choice_spec.choice_at_most_one_recommendation', p_a=q.get("key")))
 
 
 def config_value(config, path):
@@ -2783,18 +3277,18 @@ def choice_view(base, config, args):
     check_choice_spec(spec)
     qs = spec['questions']
     if args.text:
-        out = [f'### {spec.get("title", "Auswahl")}']
+        out = [f'### {spec.get("title", view_message('view.choice.choice'))}']
         if spec.get('subtitle'):
             out += ['', spec['subtitle']]
         for i, q in enumerate(qs, 1):
             cur = config_value(config, q.get('field'))
-            out += ['', f'**{i}. {q["text"]}**' + (' *(mehrere möglich)*' if q.get('multi') else '')]
+            out += ['', f'**{i}. {q["text"]}**' + (view_message('view.choice.multiple_selections_allowed') if q.get('multi') else '')]
             for letter, o in zip(LETTERS, q['options']):
-                tags = (' · *empfohlen*' if o.get('recommended') else '') + (' · *bisher*' if is_selected(cur, str(o['value'])) else '')
+                tags = (view_message('view.choice.recommended') if o.get('recommended') else '') + (view_message('view.choice.current') if is_selected(cur, str(o['value'])) else '')
                 out.append(f'- `{i}{letter}` {o["label"]}' + (f' – {o["desc"]}' if o.get('desc') else '') + tags)
         example = ', '.join(f'{i}{"a c" if q.get("multi") else "a"}' for i, q in enumerate(qs, 1))
-        out += ['', f'Antworte mit den Kürzeln, z. B. `{example}`; eigene Antwort als `1: Text`.'
-                + (' `S` überspringt.' if spec.get('skippable') else '')]
+        out += ['', view_message('view.choice.reply_with_the_codes_e_g_enter', p_a=example)
+                + (view_message('view.choice.s_skips') if spec.get('skippable') else '')]
         if spec.get('note'):
             out += ['', f'<sub>{spec["note"]}</sub>']
         return '\n'.join(out) + '\n'
@@ -2807,7 +3301,7 @@ def choice_view(base, config, args):
             v = str(o['value'])
             options.append({'OPT_Q': str(i), 'OPT_VALUE': v, 'OPT_LABEL': o['label'], 'OPT_DESC': o.get('desc', ''),
                             'OPT_RECOMMENDED': '1' if o.get('recommended') else '', 'OPT_SELECTED': '1' if is_selected(cur, v) else ''})
-    return fill('auswahl.html', {'STEP': spec['step'], 'TITLE': spec.get('title', 'Auswahl'), 'SUBTITLE': spec.get('subtitle', ''),
+    return fill('auswahl.html', {'STEP': spec['step'], 'TITLE': spec.get('title', view_message('view.choice.choice')), 'SUBTITLE': spec.get('subtitle', ''),
                                  'NOTE': spec.get('note', ''), 'SKIPPABLE': '1' if spec.get('skippable') else ''},
                 {'QUESTIONS': questions, 'OPTIONS': options})
 
@@ -2851,7 +3345,7 @@ def detect_repo(base):
 
 def repo_label(args):
     """Name des Repositorys für Überschriften (Bücherregal, Serie, Daten)."""
-    return args.repo if getattr(args, 'repo_known', True) else UNKNOWN_REPO
+    return args.repo if getattr(args, 'repo_known', True) else view_message('repo.unknown')
 
 
 def resolve_repo(base, args):
