@@ -4,7 +4,9 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
-SUPPORTED = {'projektuebersicht', 'kapitelansicht', 'buecherregal'}
+FORM_TEMPLATES = {'buch-anlegen', 'kapitel-anlegen', 'kapitel-bearbeiten', 'abschnitt-anlegen', 'projektdaten-bearbeiten'}
+SUPPORTED = {'projektuebersicht', 'kapitelansicht', 'buecherregal'} | FORM_TEMPLATES
+CLI_VIEWS = {'project', 'chapter', 'library', 'book-create', 'chapter-create', 'chapter-edit', 'section-create', 'project-edit'}
 RESOURCE = Path(__file__).resolve().parents[1] / 'templates' / 'ui' / 'i18n'
 
 
@@ -75,6 +77,24 @@ def prepare(template, original, config, args):
         data['BOOK_COUNT_TEXT'] = quantity('book_count', number=data['BOOK_COUNT_NUMBER'])
         if data['SERIES_COUNT_NUMBER']:
             data['BOOK_COUNT_TEXT'] += ' · ' + quantity('series_count', number=data['SERIES_COUNT_NUMBER'])
+    elif template in ('kapitel-anlegen', 'abschnitt-anlegen'):
+        if template == 'kapitel-anlegen':
+            items = config['structure']['chapters']
+            number = None
+        else:
+            number = data['CHAPTER_NUMBER']
+            items = config['structure']['chapters'][number - 1]['sections']
+        for i, row in enumerate(data['POSITIONS']):
+            if not items:
+                row['POSITION_LABEL'] = native('first_chapter' if number is None else 'first_section')
+            elif i == 0:
+                row['POSITION_LABEL'] = native('chapter_beginning') if number is None else native('section_beginning', number=number)
+            else:
+                last = i == len(items)
+                label = ('chapter_end' if last else 'after_chapter') if number is None else ('section_end' if last else 'after_section')
+                row['POSITION_LABEL'] = native(label, number=i if number is None else f'{number}.{i}', title=items[i - 1]['title'])
+    elif template == 'buch-anlegen' and data.get('SERIES_ID'):
+        data['SERIES_TEXT'] = native('series_volume', number=data['SERIES_VOLUME_NUMBER'], title=data['SERIES_TITLE'])
     return data
 
 
@@ -87,6 +107,8 @@ def cell(value):
 
 
 def render(template, data, config, renderer):
+    if template in FORM_TEMPLATES:
+        return render_form(template, data)
     if template == 'projektuebersicht':
         rows = data.get('CHAPTERS', [])
         lines = ['### 📘 ' + (data['PROJECT_TITLE'] or native('untitled')),
@@ -183,6 +205,67 @@ def render(template, data, config, renderer):
         lines += ['', '---', menu(items + [('N', tr('ui.new_book')), ('NS', tr('ui.new_series')), ('D', tr('ui.data'))])]
     else:
         raise ValueError('English view not yet supported: ' + template)
+    return '\n'.join(lines) + '\n'
+
+
+def label(key, **fields):
+    """UI-Platzhalter nur im festen Sprachtext füllen, niemals in Nutzdaten."""
+    import re
+    return re.sub(r'\{\{([A-Z_]+)\}\}', lambda m: str(fields.get(m[1], m[0])), texts()[key])
+
+
+def field_table(rows):
+    lines = [native('field_table'), '|---|---|']
+    for title, value in rows:
+        content = native('empty') if value is None or value == '' else cell(value)
+        lines.append(f'| {title} | {content} |')
+    return lines
+
+
+def render_form(template, data):
+    required = lambda key: native('required', field=tr(key))
+    if template == 'projektdaten-bearbeiten':
+        lines = ['### 📝 ' + tr('ui.edit_project_details'), '']
+        rows = [(required('ui.title'), data['PROJECT_TITLE']), (tr('ui.short_title'), data['PROJECT_TITLE_SHORT']),
+                (tr('ui.author'), data['PROJECT_AUTHOR']), (tr('ui.summary'), data['PROJECT_DESCRIPTION_SHORT']),
+                (tr('ui.description'), data['PROJECT_DESCRIPTION'])]
+        hint = native('form_hint')
+    elif template == 'kapitel-bearbeiten':
+        lines = ['### 📝 ' + label('ui.edit_chapter', CHAPTER_NUMBER=data['CHAPTER_NUMBER']), '']
+        rows = [(required('ui.title'), data['CHAPTER_TITLE']), (tr('ui.subtitle'), data['CHAPTER_SUBTITLE']),
+                (tr('ui.summary'), data['CHAPTER_SUMMARY']), (tr('ui.chapter_goal'), data['CHAPTER_GOAL'])]
+        hint = native('form_hint')
+    elif template in ('kapitel-anlegen', 'abschnitt-anlegen'):
+        chapter = template == 'kapitel-anlegen'
+        heading = tr('ui.add_a_new_chapter') if chapter else label('ui.new_section_in_chapter', CHAPTER_NUMBER=data['CHAPTER_NUMBER'])
+        lines = ['### ➕ ' + heading, '']
+        selected = next((i for i, row in enumerate(data['POSITIONS']) if row['POSITION_SELECTED']), 0)
+        rows = [(required('ui.title'), ''), (tr('ui.summary'), ''),
+                (tr('ui.chapter_goal' if chapter else 'ui.section_goal'), ''), (tr('ui.position'), selected)]
+        if not chapter:
+            fact_check = data['FACT_CHECK_DEFAULT']
+            choice = {'disabled': 'ui.off', 'optional': 'ui.optional', 'requested': 'ui.requested'}.get(fact_check)
+            rows.append((tr('ui.fact_check'), tr(choice) if choice else fact_check))
+        hint = native('create_chapter_hint' if chapter else 'create_section_hint')
+    elif template == 'buch-anlegen':
+        lines = ['### 📗 ' + tr('ui.new_book'), '', tr('ui.book_create_intro'), '']
+        if data.get('SERIES_TEXT'):
+            lines += ['📚 ' + data['SERIES_TEXT'], '']
+        if data.get('ERROR_TEXT'):
+            lines += ['> ' + native('original_error') + ': ' + data['ERROR_TEXT'], '']
+        rows = [(required('ui.working_title'), data['WORKING_TITLE']), (tr('ui.short_title'), data['TITLE_SHORT']), (tr('ui.author'), data['AUTHOR'])]
+        hint = native('book_create_hint', prefix=data['BRANCH_PREFIX'])
+    else:
+        raise ValueError('English form not yet supported: ' + template)
+    lines += field_table(rows)
+    if data.get('POSITIONS'):
+        lines += ['', '**' + tr('ui.position') + '**']
+        for i, row in enumerate(data['POSITIONS']):
+            default = ' ' + native('default_position') if row['POSITION_SELECTED'] else ''
+            lines.append(f'`{i}` {row["POSITION_LABEL"]}{default}  ')
+    if data.get('TAKEN'):
+        lines += ['', native('already_taken') + ' ' + ', '.join('`' + row['TAKEN_SLUG'] + '` (' + row['TAKEN_BRANCH'] + ')' for row in data['TAKEN'])]
+    lines += ['', hint]
     return '\n'.join(lines) + '\n'
 
 

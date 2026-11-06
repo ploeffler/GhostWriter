@@ -4,11 +4,13 @@ GhostWriter presents overviews and forms in the chat. You choose an action or re
 
 The examples below show the German interface and a test library. Icons and colors vary by application; the current graphical widgets are not yet fully translated into English.
 
-## English core views
+## English core views and forms
 
-`render_view.py --language en` supports the library, project overview and chapter overview. These views use the same book data and approval checks as their German equivalents. Titles, descriptions and manuscript text remain in the book's language. Existing update/limit diagnostics and configured attribution text are preserved as original notices.
+`render_view.py --language en` supports the library, project overview and chapter overview, plus the forms `book-create`, `chapter-create`, `chapter-edit`, `section-create` and `project-edit`. Chapter edit and section creation take the chapter number as their next argument. These views use the same book data and approval checks as their German equivalents. Titles, descriptions and manuscript text remain in the book's language. Existing update/limit diagnostics, returned server error messages and configured attribution text are preserved as original notices.
 
-Until the separately reviewed UI release is pinned, English defaults to a native text view. Developers can preview the new graphical version with `--ui-ref <reviewed-ui-commit>`. The remaining 35 graphical templates and their generated text forms are not yet translated; explicit English requests for those views receive a clear availability message instead of silently displaying German.
+The forms preserve existing titles and descriptions, mandatory-field and duplicate-name checks, stable IDs, fact-check codes and numeric insertion positions. Native forms accept English field names such as `Title`, `Working title`, `Summary`, `Goal`, `Position` and `Fact check`. Opening a form does not save anything; existing approval rules still apply.
+
+Until the separately reviewed UI release is pinned, English defaults to a native text view. Developers can preview the new graphical version with `--ui-ref <reviewed-ui-commit>`. The remaining 30 graphical templates and their generated text forms are not yet translated; explicit English requests for those views receive a clear availability message instead of silently displaying German.
 
 ## Bookshelf
 

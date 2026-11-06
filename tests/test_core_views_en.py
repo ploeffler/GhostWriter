@@ -64,7 +64,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertIn('a' * 40, text)
 
     def test_untranslated_forms_do_not_silently_return_german_as_english(self):
-        r = self.run_view('project-edit', '--text', '--language', 'en', check=False)
+        r = self.run_view('project-settings', '--text', '--language', 'en', check=False)
         self.assertNotEqual(r.returncode, 0)
         self.assertIn('English output is not yet available', r.stderr)
         self.assertIn('Projektdaten', self.run_view('project-edit', '--text', '--language', 'de').stdout)
@@ -143,6 +143,69 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertIn('Volume 1: Deutsches Buch', text)
         self.assertIn('1 book', text)
         self.assertNotIn('1 books', text)
+
+    def test_project_form_preserves_values_without_saving(self):
+        self.config['project']['description'] = 'Beschreibung mit Kapitel | Wortlaut.'
+        self.config['project']['author'] = 'Deutscher Autor'
+        self.save()
+        before = (self.base / 'ghostwriter.yml').read_bytes()
+        text = self.run_view('project-edit', '--language', 'en').stdout
+        self.assertIn('Edit project details', text)
+        self.assertIn('Title (required)', text)
+        self.assertIn('Deutscher Autor', text)
+        self.assertIn(r'Beschreibung mit Kapitel \| Wortlaut.', text)
+        self.assertIn('`X` cancels', text)
+        self.assertEqual((self.base / 'ghostwriter.yml').read_bytes(), before)
+
+    def test_chapter_form_positions_and_edit_fields(self):
+        self.chapter(True)
+        create = self.run_view('chapter-create', '--language', 'en').stdout
+        self.assertIn('`0` At the beginning', create)
+        self.assertIn('`1` At the end (after chapter 1 “Kapitel Beschreibung”) *(default)*', create)
+        edit = self.run_view('chapter-edit', '1', '--language', 'en').stdout
+        self.assertIn('Edit chapter 1', edit)
+        self.assertIn('Deutsches Ziel.', edit)
+        self.assertIn('Deutsche Kurzbeschreibung.', edit)
+        self.assertIn('Subtitle', edit)
+
+    def test_section_form_preserves_fact_check_codes_and_positions(self):
+        self.chapter(True)
+        self.config['workflow']['fact_checking_default'] = 'disabled'
+        self.save()
+        before = (self.base / 'ghostwriter.yml').read_bytes()
+        text = self.run_view('section-create', '1', '--language', 'en').stdout
+        self.assertIn('New section in chapter 1', text)
+        self.assertIn('| Fact check | off |', text)
+        self.assertIn('`1` At the end (after 1.1 “Beschreibung Kapitel”) *(default)*', text)
+        html = self.run_view('section-create', '1', '--language', 'en', '--ui-ref', 'a' * 40).stdout
+        data = json.loads(re.search(r'GW.render\("abschnitt-anlegen",(.*?)\)</script>', html).group(1))
+        self.assertEqual(data['FACT_CHECK_DEFAULT'], 'disabled')
+        self.assertEqual(data['CHAPTER_ID'], 'c1')
+        self.assertEqual(data['POSITIONS'][1]['POSITION_SELECTED'], 'selected')
+        self.assertEqual((self.base / 'ghostwriter.yml').read_bytes(), before)
+
+    def test_new_book_form_keeps_draft_author_series_and_taken_names(self):
+        library = {'books': [{'branch': 'buch/test', 'slug': 'test', 'title': 'Buch', 'title_short': 'TEST', 'author': 'Bestehender Autor', 'status': 'ready', 'updated_at': '2026-11-01'}],
+                   'series': [{'id': 'ser-test', 'title': 'Deutsche Serie', 'volumes': ['buch/test']}]}
+        (self.base / 'library.json').write_text(json.dumps(library))
+        draft = {'working_title': 'Neuer deutscher Titel', 'title_short': 'NEU', 'series_id': 'ser-test'}
+        before = sorted(str(path.relative_to(self.base)) for path in self.base.rglob('*'))
+        text = self.run_view('book-create', '--language', 'en', '--draft', json.dumps(draft)).stdout
+        self.assertIn('Working title (required)', text)
+        self.assertIn('Neuer deutscher Titel', text)
+        self.assertIn('Bestehender Autor', text)
+        self.assertIn('Volume 2 of series “Deutsche Serie”', text)
+        self.assertIn('Already in use: `test` (buch/test)', text)
+        self.assertEqual(sorted(str(path.relative_to(self.base)) for path in self.base.rglob('*')), before)
+
+    def test_empty_chapter_and_section_positions_are_zero_based(self):
+        create = self.run_view('chapter-create', '--language', 'en').stdout
+        self.assertIn('`0` As the first chapter *(default)*', create)
+        self.chapter(True)
+        self.config['structure']['chapters'][0]['sections'] = []
+        self.save()
+        section = self.run_view('section-create', '1', '--language', 'en').stdout
+        self.assertIn('`0` As the first section *(default)*', section)
 
     def test_shared_resource_contract(self):
         self.assertEqual(render_view_en.validate_resources(), [])

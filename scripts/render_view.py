@@ -2515,7 +2515,8 @@ def book_create_view(base, config, args):
     return fill('buch-anlegen.html', {'BRANCH_PREFIX': prefix, 'WORKING_TITLE': draft.get('working_title', ''),
                                       'TITLE_SHORT': draft.get('title_short', ''), 'AUTHOR': author,
                                       'ERROR_TEXT': draft.get('error', ''),
-                                      'SERIES_ID': ser['id'] if ser else '', 'SERIES_TEXT': series_text},
+                                      'SERIES_ID': ser['id'] if ser else '', 'SERIES_TITLE': ser['title'] if ser else '',
+                                      'SERIES_VOLUME_NUMBER': len(ser['volumes']) + 1 if ser else 0, 'SERIES_TEXT': series_text},
                 {'TAKEN': [{'TAKEN_SLUG': b.get('slug') or '', 'TAKEN_BRANCH': b['branch']} for b in books]})
 
 
@@ -2835,7 +2836,7 @@ def main():
     ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
-    ap.add_argument('--language', help='Bediensprache de/en; Englisch zunächst für project, chapter und library')
+    ap.add_argument('--language', help='Bediensprache de/en; Englisch für die migrierten Ansichten und Formulare')
     ap.add_argument('--repo', help='owner/name des Buch-Repositorys; ohne Angabe aus GITHUB_REPOSITORY bzw. git remote origin (#134)')
     ap.add_argument('--branch', default='main')
     ap.add_argument('--revoke', action='store_true', help='bei approval-*: Freigabe zurücknehmen statt erteilen')
@@ -2869,7 +2870,7 @@ def main():
     UI['language'] = language
     requested_text = args.text
     if language == 'en':
-        if args.view not in ('project', 'chapter', 'library'):
+        if args.view not in render_view_en.CLI_VIEWS:
             raise SystemExit('English output is not yet available for this view. Use --language de, or ask your assistant for an English native chat view.')
         # Ohne bewusst gewählte neue UI-Testfassung bleibt Englisch nativ: der feste UI-Commit ist noch deutsch.
         requested_text = requested_text or not args.ui_ref
