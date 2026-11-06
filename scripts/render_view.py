@@ -2908,7 +2908,7 @@ def main():
     if language == 'en':
         if args.view not in (render_view_en.CLI_VIEWS | view_i18n.DIRECT_VIEWS) and (not args.ui_ref or args.text):
             raise SystemExit('English native text output is not yet available for this view. Use --language de, or preview the translated UI templates with --ui-ref <checked-ui-commit> without --text.')
-        # Ohne bewusst gewählte neue UI-Testfassung bleibt Englisch nativ: der feste UI-Commit ist noch deutsch.
+        # Englisch bleibt standardmäßig nativ; grafische Testfassungen werden ausdrücklich mit --ui-ref gewählt.
         requested_text = requested_text or not args.ui_ref
         args.text = requested_text if args.view in view_i18n.DIRECT_VIEWS else False
     UI['head'] = args.head_sha or git_head(base)
