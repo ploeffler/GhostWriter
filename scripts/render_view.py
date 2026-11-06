@@ -892,7 +892,7 @@ def section_hints(base, sid):
         return []
     import analyze
     data = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
-    return [{'H_KIND_TEXT': analyze.LANGUAGE_DE.get(h['kind'], h['kind']), 'H_TEXT': h['text'], 'H_QUOTE': h.get('quote', '')}
+    return [{'H_KIND': h['kind'], 'H_KIND_TEXT': analyze.LANGUAGE_DE.get(h['kind'], h['kind']), 'H_TEXT': h['text'], 'H_QUOTE': h.get('quote', '')}
             for h in data.get('hints') or [] if h.get('section') == sid]
 
 

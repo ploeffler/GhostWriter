@@ -28,10 +28,12 @@ def validate_resources():
         if not all(isinstance(texts, dict) for texts in resources.values()):
             return ['Ansichtstexte müssen Objekte sein']
         source = Path(__file__).with_name('render_view.py').read_text(encoding='utf-8')
+        source += '\n' + Path(__file__).with_name('render_view_en.py').read_text(encoding='utf-8')
         tree = ast.parse(source)
         used = {node.args[0].value for node in ast.walk(tree)
                 if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'view_message'
                 and node.args and isinstance(node.args[0], ast.Constant)}
+        used |= {node.value for node in ast.walk(tree) if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value.startswith('section_ui.')}
         if any(set(texts) != used for texts in resources.values()):
             return ['Ansichtstexte: fehlende oder unbenutzte Schlüssel']
         fields = lambda text: {name for _, name, _, _ in Formatter().parse(text) if name is not None}
