@@ -1,6 +1,6 @@
 # Anleitung: vom leeren Repository zur ersten Auflage
 
-Diese Anleitung führt einmal durch den ganzen Weg. Du brauchst ein GitHub-Konto und einen KI-Chat-Assistenten, idealerweise mit GitHub-Verbindung und Internetrecherche. Git-Kenntnisse brauchst du nicht; alles Weitere läuft im Chat.
+Diese Anleitung führt einmal durch den ganzen Weg. Du brauchst ein GitHub-Konto und einen KI-Chat-Assistenten, idealerweise mit GitHub-Verbindung und Internetrecherche. Git, die Versionsverwaltung aus der Softwareentwicklung, sichert die gespeicherten Buchstände und macht Änderungen vergleichbar und wiederherstellbar. Die Bedienung läuft im Chat; Git-Kenntnisse sind dafür nicht erforderlich.
 
 ## 1. Repository anlegen
 
@@ -57,7 +57,8 @@ Sind die gewünschten Kapitel freigegeben, öffne **Neue Auflage**: Name, Ersche
 
 ## 10. Später weiterarbeiten
 
-- **Neuer Chat:** In jedem Browser genügt der Link zu deinem Repository; ein Link auf ein Buch (`…/tree/buch/<kurztitel>`) öffnet direkt dessen Übersicht, ein Link auf eine Kapitel- oder Abschnittsdatei direkt diese Stelle. Lange Chats lieber neu beginnen; der Stand liegt vollständig im Repository.
+- **Neuer Chat:** In jedem Browser genügt der Link zu deinem Repository; ein Link auf ein Buch (`…/tree/buch/<kurztitel>`) öffnet direkt dessen Übersicht, ein Link auf eine Kapitel- oder Abschnittsdatei direkt diese Stelle. Lange Chats lieber neu beginnen; der gespeicherte Stand liegt im Repository.
+- **Client wechseln:** Repository, ausgewähltes Buch und offene Änderungen gegen GitHub neu prüfen lassen. Ein alter Chat oder lokaler Stand ist kein Nachweis für den aktuellen Buchstand. Nicht gespeicherte Eingaben vor dem Wechsel sichern. Ein verbesserter automatischer Abgleich ist [geplant](WORKFLOW-MODEL.md#standabgleich-zwischen-clients-geplant).
 - **Weitere Bücher:** jederzeit über **Neues Buch** im Bücherregal.
 - **Profil:** Mit dem Befehl `Profil` hältst du fest, mit welchem Git-Benutzer der Assistent committet, welcher Autorenname vorbelegt ist und wie deine Standard-Erzählstimme klingt. Daraus entsteht ein Skill, den Claude beim nächsten Öffnen des Repositorys von selbst lädt; im Repository ändert er nur `assistant.yml` und `.claude/skills/` ([Chat-Apps](CHAT-APPS.md#automatisch-geladene-hinweise-136)).
 - **Updates:** kommen automatisch, ändern nur Programmdateien und nie dein Buch ([Updates](UPDATES.md)).

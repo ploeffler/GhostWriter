@@ -87,10 +87,30 @@ Der Weg zu v0.5 ist in fünf Stufen geteilt. Jede endet mit einer Abnahme im Cha
 |---|---|
 | v0.6 | Bibliothek: eine Installation, mehrere Bücher als Branches (#36–#41); automatische Migration der Datenstruktur (#59); README und Anleitung (#46); Programm-Repository öffentlich, Testbuch getrennt (#48); Abnahme nach [TESTPLAN-v0.6.md](TESTPLAN-v0.6.md) |
 | v0.7 | Figuren auf Buch-Ebene (#53) und Bilderzeugung (#54) |
-| v1.0 | Vollausbau (siehe oben): eigene Schnittstelle bzw. Backend (#19), installierbare Web-App (#35) mit Offline-Arbeit am Buch (#61), zeitgesteuerte KI-Läufe und Warteschlange (#65), automatische Kostenabrechnung und Budget (#66), Limitwarnung – unter 10 % keine Automatik (#62), Widmung, Prolog, Epilog, Danksagung (#57), Ausgabeoptionen mit Satz, Umschlag und Druck (#68), Mehrsprachigkeit des Programms (#74), KI-Angabe im Buch als Einstellung je Buch (#78) |
+| v1.0 | Vollausbau (siehe oben): eigene Schnittstelle bzw. Backend (#19), installierbare Web-App (#35) mit Offline-Arbeit am Buch (#61), zeitgesteuerte KI-Läufe und Warteschlange (#65), automatische Kostenabrechnung und Budget (#66), Limitwarnung – unter 10 % keine Automatik (#62), Widmung, Prolog, Epilog, Danksagung (#57), Ausgabeoptionen mit Satz, Umschlag und Druck (#68), Mehrsprachigkeit des Programms (#74), KI-Angabe im Buch als Einstellung je Buch (#78); clientübergreifender Standabgleich (#179, geplant) |
 | v1.5 | Vorwort, Nachwort, Glossar (#58); Übersetzung des Buchs mit Auflagen je Sprache (#75) |
 
 Jeder Schritt, der die Datenstruktur ändert, liefert eine Migration mit (#59); Doku und Programm prüft `scripts/check_docs.py` in `validate.yml`.
+
+### Git als Produktvorteil
+
+Die aus der Softwareentwicklung kommende Versionsverwaltung ist ein ausdrücklicher Produktvorteil: präzise gespeicherte Änderungsschritte, vergleichbare Fassungen, gezielte Wiederherstellung, getrennte Entwürfe und die eindeutige Zuordnung jeder Auflage zu ihrem Buchstand. README und Grundlagen erklären diese Vorteile in Autorensprache; fehlendes Git-Fachwissen ist eine Frage der einfachen Bedienung. Die Dokumentationsarbeit knüpft an [#46](https://github.com/ploeffler/GhostWriter/issues/46) an. Versioniert sind gespeicherte Änderungen, nicht jeder noch ungespeicherte Chatentwurf.
+
+### Standabgleich zwischen Clients (geplant)
+
+**Prioritärer Planungsauftrag [#179](https://github.com/ploeffler/GhostWriter/issues/179), im Zielumfang `cross_client_state_sync` für v1.0 erfasst; noch nicht umgesetzt.** Beim Wechsel zwischen Clients können Buchtext, Programm, Werkzeug, Anweisungen und lokale Kopien auf unterschiedlichen Ständen sein. GitHub bleibt die gemeinsame Quelle für gespeicherte Buchstände. Ein erfolgreich geladener Starttext ist ein Anweisungs-Snapshot und kein Nachweis, dass spätere Buchdaten aktuell sind.
+
+Für die Umsetzung untersuchen:
+
+- **Leichten Abgleich:** Zu Beginn einer neuen Arbeitsaufgabe, bei Client-/Buchwechsel und vor Schreiben oder Freigaben Repository, Buch-/Lesebranch, Head-SHA und passenden offenen PR prüfen. Änderungen anhand von Commit-Beziehungen erkennen; Zeitstempel allein reichen nicht.
+- **Getrennte Versionen:** Buch-Datenversion, Programmversion mit Upstream-Commit, Client-/Werkzeugversion, Anweisungs-/Profilstand sowie Index und Zusammenfassungen getrennt erfassen. Veraltete abgeleitete Daten nachladen oder ihre Originaldateien verwenden.
+- **Ansichten und Eingaben:** Bei neuem Stand Ansichten und betroffenen Kontext aktualisieren. Nicht gespeicherte Eingaben erhalten, ihren Ausgangsstand mitführen und gegen die neue Basis abgleichen. Kollidiert dieselbe Datei, Schreiben stoppen und den konkreten Unterschied zeigen. Nicht kollidierende Änderungen auf aktueller Basis fortsetzen.
+- **Startspeicher:** Den kurzen Instanz-Einstieg aus #178 wiederverwenden, aber eine leichte Aktualitätsprüfung und gezielte Invalidierung bei geändertem Programm, Profil oder Anweisungsstand vorsehen. Aktuelle Buchdaten weiterhin separat lesen. Bereits geöffnete Chats müssen ein Programmupdate erkennen können.
+- **Verständlichen Status:** Gelesenen Commit und nicht abgeglichene Bereiche benennen. Bei fehlendem Zugriff oder inkompatiblen Daten-/Clientversionen keine unbelegte Zusage „alles synchron“ und keine Schreiboperation auf ungeprüfter Basis.
+
+Leseaktualisierung erteilt keine Übernahmefreigabe. Synchronisation darf weder Force-Push noch pauschales Zusammenführen oder Verwerfen eines Arbeitsbranches bedeuten. Die bestehenden Regeln für Text-, Kapitel- und Auflagenfreigaben bleiben erhalten.
+
+**Abnahme für die spätere Umsetzung:** Client A speichert; Client B sieht den neuen Stand ohne neuen Chat. Ein altes Formular in B überschreibt A nicht. Merge und Branchwechsel werden trotz veraltetem Index erkannt. Programm- und Profiländerungen invalidieren betroffene Anweisungen. Nicht gespeicherte Eingaben bleiben erhalten. Neustart, gekürzter Kontext, Offline-/Netzfehler, kollidierende und nicht kollidierende Änderungen werden getestet. Bezug: #178, eigene Schnittstelle #19 und Offline-Arbeit #61.
 
 ## Buchausgaben als GitHub Releases
 

@@ -7,7 +7,7 @@
 
 [English](README.en.md) · Deutsch
 
-> **Hinweis für KI-Assistenten:** Dies ist ein GhostWriter-Projekt. Lies vor jeder weiteren Antwort [`START.md`](START.md), [`ghostwriter.yml`](ghostwriter.yml) und [`BUCHSTATUS.md`](BUCHSTATUS.md). Prüfe beim Wiedereinstieg außerdem die tatsächlich vorhandenen GitHub-Branches; `BUCHSTATUS.md` erklärt, wie Buch- und Arbeits-Branches zuzuordnen sind.
+> **Hinweis für KI-Assistenten:** Dies ist ein GhostWriter-Projekt. Lies zu Beginn eines neuen Chats [`START.md`](START.md), [`ghostwriter.yml`](ghostwriter.yml) und [`BUCHSTATUS.md`](BUCHSTATUS.md). Verwende START.md intern und rufe sie nach erfolgreichem Laden nicht bei jeder Nachricht erneut ab. Prüfe die tatsächlich vorhandenen GitHub-Branches und lade veränderliche Projektdaten für die aktuelle Aufgabe gezielt nach; `BUCHSTATUS.md` erklärt die Zuordnung von Buch- und Arbeits-Branches.
 
 ## GhostWriter – dein Buch, Schritt für Schritt
 
@@ -16,6 +16,8 @@ Du hast eine Buchidee und willst sie wirklich schreiben, nicht nur darüber nach
 **Schritt für Schritt.** Vom leeren Repository bis zur ersten gedruckten Auflage. Du weißt immer, wo dein Buch steht und was als Nächstes kommt. → [Anleitung](docs/ANLEITUNG.md)
 
 **Geführte Dialoge.** Übersichten, Formulare und Auswahlkarten erscheinen direkt im Chat. Du brauchst kein Git-Wissen und keine Konfigurationsdateien, nur klicken oder kurz antworten. → [So sieht es aus](docs/DIALOGE.md)
+
+**Versionierung aus der Softwareentwicklung.** Git hält jeden im Repository gespeicherten Stand deines Buchs fest: Änderungen vergleichen, frühere Fassungen wiederherstellen und Entwürfe getrennt vom übernommenen Text entwickeln. Jede Auflage bleibt einem genauen Buchstand zugeordnet. Diese Stärke nutzt GhostWriter für dein Manuskript. → [Versionsverlauf und Zusammenarbeit](docs/GRUNDSAETZE.md#versionierung-mit-git)
 
 **Ohne dich geht es nicht.** Kein Abschnitt kommt ohne deine Freigabe ins Buch. Quellen werden belegt und von dir geprüft, Unsicherheiten markiert, und es bleibt deine Stimme. GhostWriter hilft, er ersetzt dich nicht. → [Grundsätze](docs/GRUNDSAETZE.md)
 

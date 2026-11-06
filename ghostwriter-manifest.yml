@@ -21,7 +21,7 @@ upstream:
 
 # Programmdateien: beim Update vom Upstream übernommen (Ordner mit /)
 managed:
-  - START.md
+  - START.md                # zentrale Quelle; Update erzeugt daraus den kurzen Instanz-Einstieg
   - BUCHSTATUS.md             # verbindliche Orientierung zu Buch- und Arbeits-Branches
   - README.md
   - README.en.md
@@ -36,6 +36,7 @@ managed:
   - docs/
   - schemas/
   - scripts/
+  - integrations/             # offizielle Chat-Anbindungen; Installation im Client bleibt ausdrücklich
   - templates/
   - assets/
   - .github/workflows/

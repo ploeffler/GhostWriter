@@ -7,8 +7,16 @@ GhostWriter ist ein Werkzeug für Menschen, die ein Buch schreiben. Es nimmt dir
 - **Ordnen:** Aus deiner Idee wird im Gespräch eine Gliederung aus Kapiteln und Abschnitten. Sie bleibt jederzeit änderbar.
 - **Mitrecherchieren:** Zu jedem Abschnitt und Kapitel kann recherchiert werden, mit Quellenangaben, die du nachprüfen kannst.
 - **Vorschlagen:** Ziele, Kurzbeschreibungen, Abschnitte und Textentwürfe kommen als Vorschläge. Übernommen wird nur, was du übernimmst.
-- **Festhalten:** Jeder Stand liegt in deinem eigenen GitHub-Repository, mit Verlauf. Nichts geht verloren, jede Änderung ist nachvollziehbar.
+- **Versionieren:** Git hält jeden im Repository gespeicherten Stand fest. Du kannst Änderungen nachvollziehen, Fassungen vergleichen und frühere Texte gezielt wiederherstellen.
 - **Setzen:** Aus den freigegebenen Kapiteln entsteht ein Probedruck oder eine Auflage als PDF, Word-Datei und E-Book.
+
+## Versionierung mit Git
+
+GhostWriter nutzt Git, die Versionsverwaltung aus der Softwareentwicklung, als Fundament für die Arbeit am Buch. Jeder gespeicherte Änderungsschritt erhält eine eindeutige Kennung. Damit lässt sich nachvollziehen, was geändert wurde und auf welchem Stand eine Überarbeitung beruht. Frühere Fassungen lassen sich vergleichen und gezielt wiederherstellen; Entwürfe können getrennt vom übernommenen Buchtext weiterentwickelt werden. Auflagen bleiben ihrem genauen Ausgangsstand zugeordnet.
+
+Diese Historie gehört dir und liegt mit dem Manuskript in deinem eigenen Repository. Sie ist eine Stärke von GhostWriter, die auch ohne Git-Fachwissen nutzbar sein soll: Die Dialoge führen durch Speichern, Prüfen und Übernehmen; Git liefert den präzisen Versionsverlauf darunter. Im Chat besprochene, noch nicht gespeicherte Entwürfe gehören noch nicht zu dieser Historie.
+
+Ein gemeinsamer Versionsverlauf bedeutet nicht, dass jeder Client bereits denselben Stand geladen hat. Chatkontext, lokale Kopie, Übersichtsdatei und Startspeicher können älter sein als GitHub. Ein verbesserter clientübergreifender Abgleich ist als [eigener Planungsauftrag](WORKFLOW-MODEL.md#standabgleich-zwischen-clients-geplant) erfasst; er ist noch keine zugesicherte automatische Synchronisation.
 
 ## Was GhostWriter nicht tut
 

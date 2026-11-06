@@ -8,9 +8,9 @@ Kennst du den Hinweis „This branch is 3 commits behind ploeffler/GhostWriter:m
 
 Die Action **„GhostWriter aktualisieren“** (`.github/workflows/update.yml`) läuft jeden Tag um 03:23 Uhr (UTC) und lässt sich jederzeit von Hand starten. Sie prüft **jeden Branch** deines Repositorys: Wie viele Commits liegt er hinter seinem Gegenstück im Hauptrepository (gleichnamiger Branch, sonst `main`)? Bei einem Repository aus der Vorlage zählt sie die Commits seit dem letzten eingespielten Stand. Liegt er dahinter, spielt sie die Commits ein:
 
-1. **Branch ohne eigene Commits** (reine Kopie): Er wird einfach nachgezogen, wie bei *Sync fork*.
+1. **Branch ohne eigene Commits** (reine Kopie): Programm übernehmen und den Instanz-Einstieg erzeugen. Dafür entsteht ein Update-Commit. Nur ältere Programmstände ohne Einstiegsgenerator werden noch unmittelbar nachgezogen (Fast-Forward).
 2. **Branch mit deinem Buch:** Die Commits des Hauptrepositorys werden **hineingemergt**. Dabei gilt das Manifest (`ghostwriter-manifest.yml`):
-   - **Programmdateien** (`managed`: `START.md`, `README.md`, `CLAUDE.md`, `AGENTS.md`, der allgemeine Skill `.claude/skills/ghostwriter/`, `docs/`, `schemas/`, `scripts/`, `templates/`, `assets/` (Logo und App-Symbole), `.github/workflows/`, `workflow.yml`, `providers.yml` …) kommen genau so, wie sie im Hauptrepository sind.
+   - **Programmdateien** (`managed`: `START.md`, `README.md`, `CLAUDE.md`, `AGENTS.md`, der allgemeine Skill `.claude/skills/ghostwriter/`, `docs/`, `schemas/`, `scripts/`, `templates/`, `assets/` (Logo und App-Symbole), `.github/workflows/`, `workflow.yml`, `providers.yml` …) kommen aus dem Hauptrepository. Ausnahme: Aus der zentralen `START.md` erzeugt der Lauf anschließend den kurzen Instanz-Einstieg und die Anweisungsmodule (siehe unten).
    - **Dein Buch** (`book`: `ghostwriter.yml`, `chapters/`, `costs/`, `research/`, `approvals.yml`, das Assistenten-Profil `assistant.yml`; der persönliche Skill daneben unter `.claude/skills/` wird nie angefasst) bleibt genau so, wie es ist, auch wenn das Hauptrepository die Vorlagen dafür geändert hat.
    - Konflikte in anderen Dateien bricht die Action ab und meldet sie; die führst du von Hand zusammen.
 3. **Migrationen.** Jedes Buch trägt eine **Datenversion** (`data_version` in `ghostwriter.yml`, fehlt = 0). Ist die neue GhostWriter-Version weiter, bringt `scripts/migrate_project.py` das Buch Schritt für Schritt auf den neuen Stand (0 → 1 → 2 …, auch über mehrere Versionen hinweg). Geändert wird nur die Struktur (neue Felder mit Vorgaben, Umbenennungen, verschobene Dateien), nie Texte, Freigaben, Läufe oder Kosten. Was umgestellt wurde, steht im Commit und in `.ghostwriter/update.yml` (`migration`); die Projekteinstellungen zeigen es beim Update-Stand. Ist ein Buch neuer als das Programm, bricht die Migration ab, und nichts wird verändert.
@@ -49,6 +49,30 @@ Neue Pflichtfelder gibt es mit v0.6 nicht; die Datenversion bleibt 1 (`scripts/m
 ## Hinweis im Chat
 
 Liegt der Buch-Branch hinter dem Hauptrepository, zeigt die **Projektübersicht** oben einen Hinweis, etwa „GhostWriter-Update: 3 Commits hinter ploeffler/GhostWriter:main · Version 0.3.1 verfügbar“, mit dem Knopf **Update einspielen** (Textfassung: `U`). Das kommt vor, wenn seit dem letzten nächtlichen Lauf eine neue Version erschienen ist oder wenn die Action in deinem Repository noch nicht läuft. **Update einspielen** startet die Action sofort, sofern die GitHub-Verbindung des Chats das kann; sonst bekommst du den Link *Actions → GhostWriter aktualisieren → Run workflow*.
+
+## Erzeugter Instanz-Einstieg
+
+Der Update-Lauf erzeugt nach Migration und Projektprüfung eine kurze `START.md` für das Zielrepository. Die vollständige `START.md` im Hauptrepository bleibt die zentrale Quelle. Ihre Abschnitte werden vollständig in einzeln ladbare Dateien unter `docs/start/` aufgeteilt; `docs/start/index.md` erschließt die Fachanweisungen. Der Assistent soll den Einstieg intern lesen und nur die für seine Aufgabe benötigten Anweisungen nachladen.
+
+Repository, aktueller Branch und Standard-Branch stammen aus dem Update-Lauf. Die Bediensprache folgt `interface.language` des Buchs, dann `interface_language` des Profils, dann Deutsch; für Englisch gibt es eine eigene Einstiegsvorlage. Ein Buch mit Kapiteln oder einer Phase nach `wizard` erhält den Wiedereinstieg; ein neuer Buchbranch bleibt im Wizard, auch wenn die Bibliothek schon eingerichtet ist. Ein vorhandenes Bibliotheksprofil oder Bücherregal kennzeichnet eine eingerichtete Bibliothek. Veränderliche Buchstände und Branch-Zuordnungen werden im Chat weiterhin live geprüft.
+
+Optionale, ausdrücklich konfigurierte Instanzangaben stehen in `assistant.yml` **auf dem Standard-Branch**, auch für die Einstiege der Buchbranches:
+
+```yaml
+startup:
+  client: openwebui
+  tools:
+    read_start: read_start_md
+    read_file: read_file
+```
+
+Erlaubte Clients: `openwebui`, `chatgpt`, `claude`, `text`. Die Werkzeugnamen müssen zu den tatsächlich installierten Werkzeugen passen. Ohne diese Angaben bleibt die Zuordnung ausdrücklich unbekannt; aus einem Update kann kein Client oder Werkzeugname abgeleitet werden. Keine Token oder anderen Secrets eintragen. Änderungen am Profil mit `scripts/assistant.py ... set` speichern, damit der persönliche Skill weiterhin passt.
+
+Die Erzeugung erfolgt **im selben Update-Commit** wie die Programmänderungen, auch bei einem erstmaligen Update. Sie läuft bei geänderten Vorlagen, Profil- oder Projektangaben erneut. Identische Eingaben erzeugen identische Dateien ohne Zeitstempel; der nächste Lauf erkennt den Stand als aktuell. Eine defekte Vorlage oder ein Generatorfehler verhindert den Push. Im Probelauf bleibt das Ziel unverändert.
+
+Die Vorlagen liegen unter `templates/start/`, der Generator unter `scripts/build_start.py`. Die erzeugten Dateien gehören zum Programm und werden nicht individuell bearbeitet. Ein veralteter Update-Läufer muss zunächst selbst aktualisiert werden; läuft die erste Übernahme noch mit dem alten Skript, erzeugt erst der nächste Update-Lauf den Instanz-Einstieg.
+
+Die kurze START.md spart Kontext, garantiert aber keine einmalige Ausführung durch das Modell. Die [Open-WebUI-Integration](../integrations/openwebui/README.md#kontrollierter-start-pro-chat) speichert den erfolgreichen Einstieg pro Benutzer und Chat und verhindert wiederholte GitHub-Abrufe; bei fehlendem Kontext stellt sie die Anweisungen aus dem gespeicherten Stand wieder her. Andere Clients benötigen eine entsprechende eigene Zustandsverwaltung. Open-WebUI-Modellparameter, Native-Modus und die Auswahl eingebauter Werkzeuge werden durch diese Datei nicht umgeschaltet. Ein Repository-Update verteilt den Werkzeugquelltext, installiert ihn aber nicht automatisch in Open WebUI.
 
 ## Eigenes Buch anlegen
 

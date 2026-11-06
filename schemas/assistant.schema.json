@@ -51,6 +51,36 @@
       },
       "additionalProperties": false
     },
+    "startup": {
+      "type": "object",
+      "description": "Explizite Instanzangaben für die beim Update erzeugte START.md; fehlt = Client und Werkzeugnamen unbekannt.",
+      "properties": {
+        "client": {
+          "type": "string",
+          "enum": [
+            "openwebui",
+            "chatgpt",
+            "claude",
+            "text"
+          ]
+        },
+        "tools": {
+          "type": "object",
+          "properties": {
+            "read_start": {
+              "type": "string",
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+            },
+            "read_file": {
+              "type": "string",
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "upstream": {
       "type": "string",
       "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",

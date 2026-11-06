@@ -199,6 +199,58 @@ def counts(base, up):
     return behind, ahead
 
 
+def start_profile(base):
+    """Das Instanzprofil kommt verbindlich vom Standard-Branch, auch für Bücher."""
+    standard = f'origin/{default_branch()}'
+    rev = standard if git('rev-parse', '--verify', standard, check=False) else base
+    return yaml.safe_load(show(rev, 'assistant.yml') or '{}') or {}
+
+
+def start_library(base):
+    """Auch Bibliotheken ohne Profil/Index anhand der aktuellen Branches erkennen."""
+    if exists(base, 'library.json'):
+        return True
+    manifest = yaml.safe_load(show(base, MANIFEST) or '{}') or {}
+    for ref in git('for-each-ref', '--format=%(refname)', 'refs/remotes/origin').splitlines():
+        if ref.endswith('/HEAD'):
+            continue
+        name = ref.removeprefix('refs/remotes/origin/')
+        config = yaml.safe_load(show(ref, 'ghostwriter.yml') or '{}') or {}
+        if name != default_branch() and library.is_book(name, config, manifest, default_branch()):
+            return True
+    return False
+
+
+def expected_start(base, up_rev, branch):
+    """Erwartete generierte Dateien für Drift-Prüfung, ohne den Zielbranch zu ändern.
+
+    Alte Upstream-Versionen ohne Generator behalten den bisherigen Update-Weg.
+    Der kanonische START.md-Volltext bleibt im Hauptrepository.
+    """
+    if not exists(up_rev, 'scripts/build_start.py'):
+        return None
+    import build_start
+    repo = os.environ.get('GITHUB_REPOSITORY', '')
+    manifest = yaml.safe_load(show(up_rev, MANIFEST) or '{}') or {}
+    if ((manifest.get('upstream') or {}).get('repo', '').lower() == repo.lower()
+            and branch == default_branch()):
+        return None  # Die zentrale START.md niemals durch einen Instanz-Einstieg ersetzen.
+    config = yaml.safe_load(show(base, 'ghostwriter.yml') or '{}') or {}
+    profile = start_profile(base)
+    language = ((config.get('interface') or {}).get('language') or profile.get('interface_language') or 'de')
+    name = 'en' if language.split('-')[0] == 'en' else 'de'
+    template = show(up_rev, f'templates/start/{name}.md')
+    source = show(up_rev, 'START.md')
+    if template is None or source is None:
+        raise RuntimeError('START.md nicht erzeugt: zentrale Quelle oder Einstiegsvorlage fehlt.')
+    try:
+        return build_start.render(source, template, repo=repo, branch=branch,
+                                  default_branch=default_branch(), config=config, profile=profile,
+                                  library_present=start_library(base))
+    except ValueError as error:
+        raise RuntimeError(f'START.md nicht erzeugt: {error}') from error
+
+
 def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
     """Gibt ein dict mit behind, ahead, status (updated|current|skipped|failed) und text zurück."""
     base = f'origin/{branch}'
@@ -220,7 +272,14 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
     managed = [m.rstrip('/') for m in up_manifest.get('managed') or []]
     if not can_workflows:
         managed = [m for m in managed if m != WORKFLOWS]
+    generated = expected_start(base, up_rev, branch)
     drift = [f for f in git('diff', '--name-only', base, up_rev, '--', *managed).splitlines() if f] if managed else []
+    if generated is not None:
+        # Instanzdateien sind absichtlich anders als die zentrale Quelle.
+        drift = [f for f in drift if f != 'START.md' and not f.startswith('docs/start/')]
+        drift.extend(path for path, text in generated.items() if show(base, path) != text)
+        previous = git('ls-tree', '-r', '--name-only', base, '--', 'docs/start').splitlines()
+        drift.extend(path for path in previous if path not in generated)
     if behind == 0 and not drift:
         return {**res, 'status': 'current', 'text': f'aktuell, nicht hinter {up_label}'}
     config = yaml.safe_load(show(base, 'ghostwriter.yml') or '{}') or {}
@@ -236,7 +295,7 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
                 'text': f'{commits(behind)} hinter {up_label}; dort gibt es kein {MANIFEST}, daher nur von Hand zusammenführen'}
 
     # Ohne eigene Commits: Fast-Forward wie „Sync fork“
-    if related and ahead == 0 and (can_workflows or not workflows_differ):
+    if generated is None and related and ahead == 0 and (can_workflows or not workflows_differ):
         if args.dry_run:
             return {**res, 'status': 'updated', 'text': f'(Probelauf) Fast-Forward um {commits(behind)} auf {up_label}'}
         code, err = push(f'{up_sha}:refs/heads/{branch}')
@@ -281,6 +340,21 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
                 'updated_at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
                 'skipped_workflows': skipped,
                 **({'migration': migration} if migration else {})}, allow_unicode=True, sort_keys=False), encoding='utf-8')
+        if generated is not None:
+            # Nach Migration/Prüfung aus den neuen zentralen Quellen rendern.
+            # Auch ein bisher möglicher Fast-Forward läuft dadurch über genau
+            # einen geprüften Update-Commit einschließlich Instanz-Einstieg.
+            with tempfile.TemporaryDirectory(prefix='gw-start-profile-') as profile_dir:
+                profile_path = Path(profile_dir, 'profile.json')
+                profile_path.write_text(json.dumps(start_profile(base)), encoding='utf-8')
+                cmd = ['scripts/build_start.py', '.', '--repo', os.environ.get('GITHUB_REPOSITORY', ''),
+                       '--branch', branch, '--default-branch', default_branch(),
+                       '--profile-json', str(profile_path)]
+                if start_library(base):
+                    cmd.append('--library-present')
+                code, out = run(cmd, wt)
+            if code:
+                return {**res, 'status': 'failed', 'text': 'START.md nicht erzeugt; Update nicht eingespielt.\n' + out}
         git('add', '-A', cwd=wt)
         files = [f for f in git('diff', '--cached', '--name-only', 'HEAD', cwd=wt).splitlines() if f]
         msg = f'GhostWriter aktualisiert auf {version} ({up_sha[:7]})'
