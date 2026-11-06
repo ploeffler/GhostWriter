@@ -66,8 +66,15 @@ class EnglishCoreViewsTest(unittest.TestCase):
     def test_untranslated_forms_do_not_silently_return_german_as_english(self):
         r = self.run_view('project-settings', '--text', '--language', 'en', check=False)
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn('English output is not yet available', r.stderr)
+        self.assertIn('English native text output is not yet available', r.stderr)
         self.assertIn('Projektdaten', self.run_view('project-edit', '--text', '--language', 'de').stdout)
+
+    def test_all_template_preview_keeps_raw_project_settings(self):
+        before = (self.base / 'ghostwriter.yml').read_bytes()
+        text = self.run_view('project-settings', '--language', 'en', '--ui-ref', 'a' * 40).stdout
+        self.assertIn('GW.render("projekteinstellungen",', text)
+        self.assertIn('"LANGUAGE":"en"', text)
+        self.assertEqual(before, (self.base / 'ghostwriter.yml').read_bytes())
 
     def test_library_cards_are_localized_without_changing_titles(self):
         data = {'books': [{'branch': 'buch/test', 'title': 'Kapitel Beschreibung', 'title_short': 'TEST', 'author': 'Autor', 'status': 'ready', 'sections_total': 2, 'sections_approved': 1, 'chapters_total': 1, 'chapters_approved': 0, 'current_edition': 2, 'pending': 1}], 'series': []}

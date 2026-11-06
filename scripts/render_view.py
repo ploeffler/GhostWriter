@@ -2870,8 +2870,8 @@ def main():
     UI['language'] = language
     requested_text = args.text
     if language == 'en':
-        if args.view not in render_view_en.CLI_VIEWS:
-            raise SystemExit('English output is not yet available for this view. Use --language de, or ask your assistant for an English native chat view.')
+        if args.view not in render_view_en.CLI_VIEWS and (not args.ui_ref or args.text):
+            raise SystemExit('English native text output is not yet available for this view. Use --language de, or preview the translated UI templates with --ui-ref <checked-ui-commit> without --text.')
         # Ohne bewusst gewählte neue UI-Testfassung bleibt Englisch nativ: der feste UI-Commit ist noch deutsch.
         requested_text = requested_text or not args.ui_ref
         args.text = False

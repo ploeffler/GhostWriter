@@ -10,7 +10,7 @@ The examples below show the German interface and a test library. Icons and color
 
 The forms preserve existing titles and descriptions, mandatory-field and duplicate-name checks, stable IDs, fact-check codes and numeric insertion positions. Native forms accept English field names such as `Title`, `Working title`, `Summary`, `Goal`, `Position` and `Fact check`. Opening a form does not save anything; existing approval rules still apply.
 
-Until the separately reviewed UI release is pinned, English defaults to a native text view. Developers can preview the new graphical version with `--ui-ref <reviewed-ui-commit>`. The remaining 30 graphical templates and their generated text forms are not yet translated; explicit English requests for those views receive a clear availability message instead of silently displaying German.
+Until the separately reviewed UI release is pinned, English defaults to a native text view. Developers can preview the new graphical version with `--ui-ref <reviewed-ui-commit>`. All 38 graphical templates now have English fixed labels and script messages, and can be previewed with an explicit `--ui-ref`. The additional native text forms and program-generated labels outside the eight migrated views are a separate migration step; such generated labels can still be German in the preview. Explicit English requests for those native text forms receive a clear availability message.
 
 ## Bookshelf
 
