@@ -1,5 +1,7 @@
 # Qualitätssicherung für Bücher
 
+[English](QUALITY-ASSURANCE.en.md) · Deutsch
+
 ## Zweck
 
 Diese Anleitung definiert eine wiederholbare redaktionelle Qualitätsprüfung für jedes GhostWriter-Buch. Sie gilt unabhängig von Genre, Erzählperspektive, Sprache, Umfang und KI-Anbieter.

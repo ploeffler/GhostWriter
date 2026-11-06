@@ -1,6 +1,6 @@
 # Using AI services with GhostWriter
 
-Choose the services you already use and assign tasks in **AI services** (robot icon in the project overview; `D` in the German text view). You do not need a new subscription to start.
+Choose the services you already use and assign tasks in **AI services** (robot icon in the project overview; `D` in the text view). You do not need a new subscription to start. See [providers and roles](PROVIDERS.en.md) for the dated service catalog.
 
 This guide reflects the German guide dated 1 November 2026. Provider menus and capabilities can change; check the provider's current instructions before setting up a service.
 
@@ -17,7 +17,7 @@ This guide reflects the German guide dated 1 November 2026. Provider menus and c
 
 ## Current chat
 
-If a task uses **Current chat**, or inherits a default set to the current chat, the assistant performs it in the conversation. Saving the result requires GitHub write access; see [connector setup](CONNECTOR-SETUP.md) (German).
+If a task uses **Current chat**, or inherits a default set to the current chat, the assistant performs it in the conversation. Saving the result requires GitHub write access; see [connector setup](CONNECTOR-SETUP.en.md).
 
 ## Another chat service: copy the task
 

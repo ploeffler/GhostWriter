@@ -8,7 +8,7 @@ This guide describes how to set up GhostWriter and work on a book. You need a Gi
 
 1. Open the [GhostWriter repository](https://github.com/ploeffler/GhostWriter) and choose **Use this template → Create a new repository**.
 2. Choose a name and select **Private** if your manuscript should not be public. A fork of a public repository is always public.
-3. Follow [Updates → Eigenes Buch anlegen](UPDATES.md#eigenes-buch-anlegen) to set up automatic updates.
+3. Follow [Updates → Create a private book repository](UPDATES.en.md#create-a-private-book-repository) to set up automatic updates.
 
 Your repository is a library: the default branch contains GhostWriter, and each book gets its own branch named `buch/<short-title>`.
 
@@ -20,7 +20,7 @@ Connect your assistant to GitHub and give it access only to your new repository.
 
 Send the repository link to a new chat. The assistant reads `START.md`, explains which capabilities are available, and shows your bookshelf. Without GitHub access, attach `START.md` or copy its start prompt into the chat.
 
-Choose **Neues Buch** (New book), or write `Neues Buch: <title>`. Enter a working title and, optionally, a short title and author. The form previews the branch name and warns if it is already taken. Choose **Anlegen** to create the book branch.
+Choose **New book**, or write `New book: <title>`. Enter a working title and, optionally, a short title and author. The form previews the branch name and warns if it is already taken. Choose **Create** to create the book branch.
 
 ## 4. Develop the outline
 
@@ -30,17 +30,17 @@ The assistant asks about your subject, goals, audience, book type, language and 
 
 The project overview opens chapters; a chapter opens its sections. You can research a section or a whole chapter, then approve writing and edit the resulting text yourself. Front and back matter, an AI-use statement, output settings and cover options can be added when needed.
 
-Changes are collected until you choose **Änderungen übernehmen** (Apply changes), unless you enabled immediate application. English commands include `Home`, `Overview`, `Chapter 3`, `Section 3.2`, `New chapter`, `Proof`, `Edition` and `Help`. The German commands remain available.
+Changes are collected until you choose **Apply changes**, unless you enabled immediate application. English commands include `Home`, `Overview`, `Chapter 3`, `Section 3.2`, `New chapter`, `Proof`, `Edition` and `Help`. The German commands remain available.
 
 ## 6. Approve and export
 
 Approve each section when it is ready. Open review markers must be resolved before the section can be included in an edition. Approve a chapter after all its sections are approved and the chapter has been assembled. Each approval requires a separate confirmation and can be revoked.
 
-Use **Probedruck** to create a proof PDF of the current state. When the desired chapters are approved, choose **Neue Auflage**, select the details and formats, and confirm. GitHub builds the edition as a release; subsequent corrections go into a new edition.
+Use **Proof** to create a proof PDF of the current state. When the desired chapters are approved, choose **New edition**, select the details and formats, and confirm. GitHub builds the edition as a release; subsequent corrections go into a new edition.
 
 ## 7. Return later
 
-Start a new chat with the repository link to return to the bookshelf. A link to a book branch opens that book. You can create more books from the bookshelf. See the German [full guide](ANLEITUNG.md), [principles](GRUNDSAETZE.md) and [updates guide](UPDATES.md) for further details.
+Start a new chat with the repository link to return to the bookshelf. A link to a book branch opens that book. You can create more books from the bookshelf. See the [user guide](USER-GUIDE.en.md), [principles](PRINCIPLES.en.md) and [updates guide](UPDATES.en.md) for further details.
 
 ---
 
