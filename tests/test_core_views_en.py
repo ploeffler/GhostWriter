@@ -217,6 +217,129 @@ class EnglishCoreViewsTest(unittest.TestCase):
     def test_shared_resource_contract(self):
         self.assertEqual(render_view_en.validate_resources(), [])
 
+    def preview(self, *args, language='en'):
+        text = self.run_view(*args, '--language', language, '--ui-ref', 'a' * 40, '--head-sha', 'b' * 40).stdout
+        return json.loads(re.search(r'GW.render\("[^"\n]+",(.*?)\)</script>', text).group(1))
+
+    def test_approval_checks_and_confirmation_are_identical_across_languages(self):
+        section = self.chapter(False)
+        for manuscript, writing, approved, revoke in [
+                ('Noch nicht begonnen.', False, False, False),
+                ('Original [QUELLE PRÜFEN].', True, False, False),
+                ('Originaltext.', True, True, False),
+                ('Originaltext.', True, True, True),
+                ('Originaltext.', False, False, True)]:
+            state = 'approved' if approved else 'writing'
+            section.write_text('---\nid: s1\nstatus: ' + state + '\napprovals:\n  writing: ' + str(writing).lower()
+                               + '\n  section: ' + str(approved).lower() + '\nfact_check: requested\n---\n\n## Manuskript\n\n' + manuscript + '\n')
+            before = section.read_bytes()
+            args = ['approval-section', '1.1'] + (['--revoke'] if revoke else [])
+            de, en = self.preview(*args, language='de'), self.preview(*args)
+            for key in ['APPROVAL_KIND', 'APPROVAL_REVOKE', 'TARGET_ID', 'HEAD_SHORT', 'HEAD_SHA']:
+                self.assertEqual(de[key], en[key], key)
+            self.assertEqual([c['CHECK_STATE'] for c in de['CHECKS']], [c['CHECK_STATE'] for c in en['CHECKS']])
+            self.assertIn('Beschreibung Kapitel', en['TARGET_LABEL'])
+            text = self.run_view(*args, '--language', 'en').stdout
+            blocked = any(c['CHECK_STATE'] == 'block' for c in en['CHECKS'])
+            self.assertEqual('`OK` confirms' in text, not blocked)
+            self.assertNotIn('freigegeben', text)
+            self.assertEqual(section.read_bytes(), before)
+        self.assertIn('Withdraw section approval', text)
+
+    def test_writing_and_chapter_approvals_explain_missing_prerequisites_in_english(self):
+        section = self.chapter(True)
+        section.write_text(section.read_text().replace('status: writing', 'status: writing\napprovals: {writing: false, section: false}'))
+        text = self.run_view('approval-writing', '1.1', '--language', 'en').stdout
+        self.assertIn('Grant writing permission', text)
+        self.assertIn('No research run yet', text)
+        self.assertIn('No brainstorming run yet', text)
+        for kind, count in [('research', 2), ('brainstorming', 1)]:
+            folder = self.base / 'chapters/01' / kind / 's1'
+            folder.mkdir(parents=True)
+            for index in range(count):
+                (folder / f'{index}.md').write_text('Laufdaten bleiben unverändert.')
+        text = self.run_view('approval-writing', '1.1', '--language', 'en').stdout
+        self.assertIn('2 research runs available', text)
+        self.assertIn('1 brainstorming run available', text)
+        chapter = self.run_view('approval-chapter', '1', '--language', 'en').stdout
+        self.assertIn('Approve chapter', chapter)
+        self.assertIn('in progress', chapter)
+        self.assertIn('Complete the ⛔ items', chapter)
+        self.assertNotIn('`OK` confirms', chapter)
+
+    def test_matter_approval_preserves_user_title_and_blocks_empty_text(self):
+        matter = self.base / 'back-matter' / 'glossar.md'
+        matter.parent.mkdir()
+        matter.write_text('---\nid: mat-glossary\nstatus: writing\napprovals:\n  writing: true\n  section: false\n---\n\n## Manuskript\n\nNoch nicht begonnen.\n')
+        self.config['structure']['back_matter'] = [{'id': 'mat-glossary', 'kind': 'glossary', 'title': 'Eigenes Glossar', 'path': 'back-matter/glossar.md', 'status': 'writing'}]
+        self.save()
+        text = self.run_view('approval-matter', 'mat-glossary', '--language', 'en').stdout
+        self.assertIn('Eigenes Glossar (Back matter)', text)
+        self.assertIn('There is no text yet', text)
+        self.assertNotIn('`OK` confirms', text)
+        matter.write_text(matter.read_text().replace('Noch nicht begonnen.', '- Wort: Erklärung.'))
+        text = self.run_view('approval-matter', 'mat-glossary', '--language', 'en').stdout
+        self.assertIn('1 term, with no duplicates', text)
+        self.assertIn('`OK` confirms', text)
+
+    def test_changes_empty_and_populated_preserve_commit_messages(self):
+        self.assertEqual(self.run_view('changes-merge', '--language', 'en').stdout, 'There are no pending changes.\n')
+        data = {'pull_request': 3, 'book_branch': 'buch/original', 'work_branch': 'arbeit/original',
+                'commits': [{'sha': 'b' * 40, 'message': 'Änderung {{p_a}} – Original', 'date': '2026-11-06T10:20:00Z'}]}
+        changes = self.base / 'changes.json'
+        changes.write_text(json.dumps(data))
+        text = self.run_view('changes-merge', '--changes', str(changes), '--language', 'en').stdout
+        self.assertIn('1 change', text)
+        self.assertIn('Änderung {{p_a}} – Original', text)
+        self.assertIn('2026-11-06, 10:20', text)
+        self.assertIn('`OK` applies', text)
+        self.assertIn('`buch/original`', text)
+        self.assertEqual(json.loads(changes.read_text()), data)
+
+    def test_reorder_views_preserve_ids_numbers_and_titles(self):
+        self.chapter(True)
+        chapter = self.run_view('chapter-reorder', '--language', 'en').stdout
+        section = self.run_view('section-reorder', '1', '--language', 'en').stdout
+        self.assertIn('Change chapter order', chapter)
+        self.assertIn('Kapitel Beschreibung', chapter)
+        self.assertIn('Change section order in chapter 1', section)
+        self.assertIn('`1.1`', section)
+        de, en = self.preview('section-reorder', '1', language='de'), self.preview('section-reorder', '1')
+        self.assertEqual(de['ITEMS'], en['ITEMS'])
+        self.assertEqual(de['CHAPTER_ID'], en['CHAPTER_ID'])
+        self.assertEqual(de['REORDER_KIND'], en['REORDER_KIND'])
+
+    def test_series_form_uses_english_labels_and_preserves_draft(self):
+        draft = {'title': 'Deutsche Reihe {{p_a}}', 'subtitle': 'Untertitel', 'kind': 'standalone',
+                 'description': 'Beschreibung | bleibt.', 'issn': '1234-5679', 'also_in_series': False,
+                 'error': 'Originaldiagnose'}
+        before = (self.base / 'ghostwriter.yml').read_bytes()
+        text = self.run_view('series-edit', '--draft', json.dumps(draft), '--language', 'en').stdout
+        self.assertIn('New series', text)
+        self.assertIn('Deutsche Reihe {{p_a}}', text)
+        self.assertIn('standalone volumes', text)
+        self.assertIn('Originaldiagnose', text)
+        self.assertIn('Field: new value', text)
+        self.assertIn(r'Beschreibung \| bleibt.', text)
+        self.assertEqual((self.base / 'ghostwriter.yml').read_bytes(), before)
+
+    def test_image_approval_checks_missing_file_and_preserves_caption(self):
+        self.chapter(True)
+        folder = self.base / 'chapters/01/images/s1'
+        folder.mkdir(parents=True)
+        meta = {'id': 'img-test', 'file': 'img-test.png', 'caption': 'Bildtitel {{p_a}}',
+                'status': 'draft', 'width_px': 1800, 'alt': 'Alternativtext', 'ai_generated': True}
+        (folder / 'img-test.yml').write_text(yaml.safe_dump(meta))
+        text = self.run_view('approval-image', 'img-test', '--language', 'en').stdout
+        self.assertIn('The image file is missing', text)
+        self.assertNotIn('`OK` confirms', text)
+        (folder / 'img-test.png').write_bytes(b'fixture')
+        text = self.run_view('approval-image', 'img-test', '--language', 'en').stdout
+        self.assertIn('Image “Bildtitel {{p_a}}”', text)
+        self.assertIn('AI-generated', text)
+        self.assertIn('`OK` confirms', text)
+        self.assertEqual(yaml.safe_load((folder / 'img-test.yml').read_text()), meta)
+
 
 if __name__ == '__main__':
     unittest.main()

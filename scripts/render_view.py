@@ -194,7 +194,7 @@ def find_matter(config, key):
     """Eintrag nach Art (dedication), ID (mat-widmung), Dateiname (widmung) oder Titel (Widmung)."""
     k = (key or '').strip().lower()
     for _, item in matter_items(config):
-        if k in (item['kind'], item['id'], item['id'][4:], item['title'].lower(), MATTER[item['kind']][1].lower()):
+        if k in (item['kind'], item['id'], item['id'][4:], item['title'].lower(), view_matter_kind(item['kind']).lower()):
             return item
     return None
 
@@ -298,6 +298,44 @@ UI_URL = 'https://cdn.jsdelivr.net/gh/{repo}@{ref}/dist/gw.min.js'  # von jsDeli
 UI = {'repo': 'ploeffler/ghostwriter-ui', 'ref': None}
 
 
+def view_message(key, **values):
+    """Nur feste Oberflächentexte übersetzen, keine fertig befüllten Nutztexte."""
+    try:
+        from .view_i18n import translate
+    except ImportError:
+        from view_i18n import translate
+    return translate(key, UI.get('language', 'de'), **values)
+
+
+def view_status(code):
+    if UI.get('language') == 'en':
+        try:
+            from .render_view_en import status
+        except ImportError:
+            from render_view_en import status
+        return status(code)
+    return STATUS_DE.get(code, code)
+
+
+def view_plural(number, german_suffix, german_singular=False):
+    if UI.get('language') == 'en':
+        return '' if number == 1 else 's'
+    return german_suffix if (number == 1 if german_singular else number != 1) else ''
+
+
+def view_series_kind(kind):
+    return {'continuous': view_message('continuous_story'),
+            'standalone': view_message('standalone_volumes')}.get(kind, '')
+
+
+def view_matter_kind(kind):
+    labels = {'dedication': view_message('dedication'), 'foreword': view_message('foreword'),
+              'prologue': view_message('prologue'), 'epilogue': view_message('epilogue'),
+              'afterword': view_message('afterword'), 'glossary': view_message('glossary'),
+              'acknowledgments': view_message('acknowledgements')}
+    return labels.get(kind, MATTER[kind][1])
+
+
 class RenderedWidget(str):
     """Widget-Ausgabe samt unveränderten Rohdaten für alternative native Ansichten."""
     def __new__(cls, text, template, data):
@@ -344,9 +382,9 @@ def menu(items, intro='Was möchtest du tun? Antworte mit dem Kürzel'):
 
 
 def field_table(rows):
-    out = ['| Feld | Aktueller Wert |', '|---|---|']
+    out = [view_message('field_table'), '|---|---|']
     for label, value in rows:
-        v = str(value).replace('\n', ' ').replace('|', '\\|') if value not in ('', None) else '*(leer)*'
+        v = str(value).replace('\n', ' ').replace('|', '\\|') if value not in ('', None) else view_message('empty')
         out.append(f'| {label} | {v} |')
     return out
 
@@ -1044,13 +1082,13 @@ def load_changes(args):
 
 def changes_text(changes):
     n = len(changes['commits'])
-    return '1 Änderung' if n == 1 else f'{n} Änderungen'
+    return view_message('one_change') if n == 1 else view_message('many_changes', number=n)
 
 
 def change_date(value):
     import datetime
     try:
-        return datetime.datetime.fromisoformat(str(value).replace('Z', '+00:00')).strftime('%d.%m.%Y, %H:%M')
+        return datetime.datetime.fromisoformat(str(value).replace('Z', '+00:00')).strftime('%Y-%m-%d, %H:%M' if UI.get('language') == 'en' else '%d.%m.%Y, %H:%M')
     except ValueError:
         return str(value or '')
 
@@ -1058,20 +1096,19 @@ def change_date(value):
 def changes_merge_view(base, config, args):
     changes = load_changes(args)
     if not changes:
-        msg = 'Es gibt keine offenen Änderungen.'
+        msg = view_message('there_are_no_pending_changes')
         return msg + '\n' if args.text else f'<p>{msg}</p>\n'
     rows = [{'CHANGE_MESSAGE': c['message'].splitlines()[0], 'CHANGE_DATE': change_date(c.get('date')),
              'CHANGE_SHA': c['sha'][:7]} for c in changes['commits']]
     values = {'PENDING_TEXT': changes_text(changes), 'PENDING_PR': changes['pull_request'],
               'BOOK_BRANCH': changes['book_branch'], 'WORK_BRANCH': changes['work_branch']}
     if args.text:
-        lines = ['### 🔀 Änderungen übernehmen', '',
-                 f'In `{values["BOOK_BRANCH"]}` übernehmen: {values["PENDING_TEXT"]} aus `{values["WORK_BRANCH"]}` '
-                 f'(Pull Request #{values["PENDING_PR"]}).', '',
-                 '| # | Änderung | Datum | Commit |', '|--:|---|---|---|']
+        lines = [view_message('apply_changes'), '',
+                 view_message('apply_to_from_pull_request', p_a=f"{values['BOOK_BRANCH']}", p_b=f"{values['PENDING_TEXT']}", p_c=f"{values['WORK_BRANCH']}", p_d=f"{values['PENDING_PR']}"), '',
+                 view_message('change_date_commit'), '|--:|---|---|---|']
         lines += [f'| {i} | {r["CHANGE_MESSAGE"]} | {r["CHANGE_DATE"]} | `{r["CHANGE_SHA"]}` |' for i, r in enumerate(rows, start=1)]
-        lines += ['', 'Danach gehören die Änderungen zum Buch; rückgängig machen geht nur mit einer neuen Änderung.', '',
-                  '---', '`OK` übernimmt · `X` bricht ab']
+        lines += ['', view_message('the_changes_become_part_of_the_book_undoing_them_requires_another_change'), '',
+                  '---', view_message('ok_applies_x_cancels')]
         return '\n'.join(lines) + '\n'
     return fill('aenderungen-uebernehmen.html', values, {'CHANGES': rows})
 
@@ -1095,57 +1132,56 @@ def approval_view(base, config, args, kind):
         import images
         hit = images.all_images(base, config).get(args.where or '')
         if not hit:
-            raise SystemExit(f'Bild {args.where} nicht gefunden')
+            raise SystemExit(view_message('image_not_found', p_a=f'{args.where}'))
         meta = hit[0]
-        target_id, label = meta['id'], f'Bild „{meta.get("caption") or meta["id"]}“'
+        target_id, label = meta['id'], view_message('image', p_a=f"{meta.get('caption') or meta['id']}")
         approved = meta.get('status') == 'approved'
         if revoke:
-            title, button = 'Bildfreigabe zurücknehmen', 'Zurücknehmen'
+            title, button = view_message('withdraw_image_approval'), view_message('withdraw')
             if not approved:
-                add('block', 'Das Bild ist nicht freigegeben.')
-            effect = 'Das Bild wird wieder Entwurf; steht es in freigegebenem Text, verhindert das die nächste Auflage.'
+                add('block', view_message('the_image_is_not_approved'))
+            effect = view_message('the_image_returns_to_draft_if_it_appears_in_approved_text_it_prevents_the_next_edition')
         else:
-            title, button = 'Bild freigeben', 'Freigeben'
+            title, button = view_message('approve_image'), view_message('approve')
             if approved:
-                add('block', 'Das Bild ist bereits freigegeben.')
+                add('block', view_message('the_image_is_already_approved'))
             if not hit[1].is_file():
-                add('block', 'Die Bilddatei fehlt.')
+                add('block', view_message('the_image_file_is_missing'))
             w = meta.get('width_px')
-            add('ok' if w and w >= 1500 else 'warn', f'{w} px breit.' if w else 'Größe unbekannt.')
-            add('ok' if meta.get('caption') else 'warn', 'Bildunterschrift vorhanden.' if meta.get('caption') else 'Keine Bildunterschrift.')
-            add('ok' if meta.get('alt') else 'warn', 'Alternativtext vorhanden.' if meta.get('alt') else 'Kein Alternativtext (EPUB).')
+            add('ok' if w and w >= 1500 else 'warn', view_message('width_px', p_a=f'{w}') if w else view_message('size_unknown'))
+            add('ok' if meta.get('caption') else 'warn', view_message('caption_provided') if meta.get('caption') else view_message('no_caption'))
+            add('ok' if meta.get('alt') else 'warn', view_message('alternative_text_provided') if meta.get('alt') else view_message('no_alternative_text_epub'))
             if meta.get('ai_generated'):
-                add('ok', 'KI-erzeugt; der Bildnachweis im Impressum nennt das.' if (config.get('images') or {}).get('credit_in_imprint', True)
-                    else 'KI-erzeugt; der Bildnachweis im Impressum ist ausgeschaltet.')
-            effect = 'Das Bild wird „freigegeben“ und kommt an seiner Stelle im Text in die nächste Auflage.'
+                add('ok', view_message('ai_generated_the_image_credit_in_the_imprint_states_this') if (config.get('images') or {}).get('credit_in_imprint', True)
+                    else view_message('ai_generated_the_image_credit_in_the_imprint_is_turned_off'))
+            effect = view_message('the_image_becomes_approved_and_is_included_at_its_position_in_the_text_in_the_next_edition')
     elif kind == 'chapter':
         cnum, ch = chapter_number(config, args.where)
-        target_id, label = ch['id'], f'Kapitel {cnum} „{ch["title"]}“'
+        target_id, label = ch['id'], view_message('chapter', p_a=f'{cnum}', p_b=f"{ch['title']}")
         heads = [section_file(base, s)[0] for s in ch['sections']]
         open_ = sum(h['status'] != 'approved' for h in heads)
         if revoke:
-            title, button = 'Kapitelfreigabe zurücknehmen', 'Zurücknehmen'
+            title, button = view_message('withdraw_chapter_approval'), view_message('withdraw')
             if ch['status'] != 'approved':
-                add('block', 'Das Kapitel ist nicht freigegeben.')
-            effect = 'Das Kapitel wechselt zu „in Arbeit“; die Abschnittsfreigaben bleiben bestehen.'
+                add('block', view_message('the_chapter_is_not_approved'))
+            effect = view_message('the_chapter_returns_to_in_progress_section_approvals_remain_in_place')
         else:
-            title, button = 'Kapitel freigeben', 'Freigeben'
+            title, button = view_message('approve_chapter'), view_message('approve')
             if ch['status'] == 'approved':
-                add('block', 'Das Kapitel ist bereits freigegeben.')
+                add('block', view_message('the_chapter_is_already_approved'))
             if open_:
-                add('block', f'{open_} von {len(heads)} Abschnitten sind noch nicht freigegeben.')
+                add('block', view_message('of_sections_are_not_yet_approved', p_a=f'{open_}', p_b=f'{len(heads)}'))
             else:
-                add('ok', f'Alle {len(heads)} Abschnitte sind freigegeben.')
+                add('ok', view_message('all_sections_are_approved', p_a=f'{len(heads)}'))
             if ch['status'] not in ('ready_for_approval', 'approved'):
-                add('block', f'Das Kapitel steht auf „{STATUS_DE.get(ch["status"], ch["status"])}“, nicht auf „bereit zur Freigabe“ '
-                             '(erst zusammenführen und durchsehen).')
-            effect = 'Das Kapitel wird „freigegeben“. Du bestätigst damit das zusammengeführte Kapitel in diesem Stand.'
+                add('block', view_message('the_chapter_status_is_rather_than_ready_for_approval_assemble_and_review_it_first', p_a=f"{view_status(ch['status'])}"))
+            effect = view_message('the_chapter_becomes_approved_you_confirm_the_assembled_chapter_in_this_version')
     else:
         item = None if re.fullmatch(r'\d+\.\d+', args.where or '') else find_matter(config, args.where)
         if item:   # Vor- oder Nachspann (#57): Schreibfreigabe und Freigabe des Teils wie bei einem Abschnitt
             sec, ch, c, s_ = item, {'status': '', 'path': ''}, 0, 0
             head, goal, summary, ms = section_file(base, item)
-            target_id, label = item['id'], f'{item["title"]} ({"Vorspann" if MATTER[item["kind"]][0] == "front" else "Nachspann"})'
+            target_id, label = item['id'], f"{item['title']} ({view_message('front_matter') if MATTER[item['kind']][0] == 'front' else view_message('back_matter')})"
             if kind == 'section':
                 kind = 'matter'
         else:
@@ -1153,81 +1189,81 @@ def approval_view(base, config, args, kind):
             ch = chapters[c - 1]
             sec = ch['sections'][s_ - 1]
             head, goal, summary, ms = section_file(base, sec)
-            target_id, label = sec['id'], f'Abschnitt {c}.{s_} „{sec["title"]}“'
+            target_id, label = sec['id'], view_message('section', p_a=f'{c}', p_b=f'{s_}', p_c=f"{sec['title']}")
         ap = head['approvals']
         if kind == 'writing' and revoke:
-            title, button = 'Schreibfreigabe zurücknehmen', 'Zurücknehmen'
+            title, button = view_message('withdraw_writing_permission'), view_message('withdraw')
             if not ap['writing']:
-                add('block', 'Die Schreibfreigabe ist nicht erteilt.')
+                add('block', view_message('writing_permission_has_not_been_granted'))
             if ap['section']:
-                add('block', f'{item["title"]} ist freigegeben; zuerst diese Freigabe zurücknehmen.' if item else
-                    'Der Abschnitt ist freigegeben; zuerst die Abschnittsfreigabe zurücknehmen.')
-            effect = 'Die Schreibfreigabe wird zurückgenommen; das Manuskript bleibt, wie es ist, darf aber erst nach einer neuen Freigabe weiter geschrieben werden.'
+                add('block', view_message('is_approved_withdraw_that_approval_first', p_a=f"{item['title']}") if item else
+                    view_message('the_section_is_approved_withdraw_section_approval_first'))
+            effect = view_message('writing_permission_is_withdrawn_the_manuscript_stays_as_it_is_but_writing_can_resume_only_after_new_')
         elif kind == 'writing' and item:
-            title, button = 'Schreiben freigeben', 'Freigeben'
+            title, button = view_message('grant_writing_permission'), view_message('approve')
             if ap['writing']:
-                add('block', 'Die Schreibfreigabe ist bereits erteilt.')
+                add('block', view_message('writing_permission_has_already_been_granted'))
             if item['kind'] not in MATTER_GHOSTWRITING:
-                add('ok', f'{MATTER[item["kind"]][1]}: Der Text kommt von dir; Ghostwriting nur auf ausdrücklichen Wunsch.')
-            effect = 'Die Schreibfreigabe wird erteilt; danach darf der Text geschrieben werden.' + \
-                (' Der Teil wechselt zu „Schreiben“.' if head['status'] in ('planned', 'research', 'brainstorming', 'ready_to_write') else '')
+                add('ok', view_message('you_provide_the_text_ghostwriting_requires_an_explicit_request', p_a=f"{view_matter_kind(item['kind'])}"))
+            effect = view_message('writing_permission_is_granted_the_text_may_then_be_written') + \
+                (view_message('the_part_moves_to_writing') if head['status'] in ('planned', 'research', 'brainstorming', 'ready_to_write') else '')
         elif kind == 'writing':
-            title, button = 'Schreiben freigeben', 'Freigeben'
+            title, button = view_message('grant_writing_permission'), view_message('approve')
             if ap['writing']:
-                add('block', 'Die Schreibfreigabe ist bereits erteilt.')
-            add('ok' if goal else 'warn', 'Ziel des Abschnitts ist eingetragen.' if goal else 'Ziel des Abschnitts fehlt noch.')
-            add('ok' if summary else 'warn', 'Kurzbeschreibung ist eingetragen.' if summary else 'Kurzbeschreibung fehlt noch.')
-            for folder, name in (('research', 'Recherchelauf'), ('brainstorming', 'Brainstorminglauf')):
+                add('block', view_message('writing_permission_has_already_been_granted'))
+            add('ok' if goal else 'warn', view_message('section_goal_provided') if goal else view_message('section_goal_still_missing'))
+            add('ok' if summary else 'warn', view_message('summary_provided') if summary else view_message('summary_still_missing'))
+            for folder, name in (('research', view_message('research_run')), ('brainstorming', view_message('brainstorming_run'))):
                 k = run_count(base, ch, sec['id'], folder)
-                add('ok' if k else 'warn', f'{k} {name}{"e" if k != 1 else ""} vorhanden.' if k else
-                    f'Noch kein {name} (laut workflow.yml vor der Schreibfreigabe vorgesehen).')
-            effect = 'Die Schreibfreigabe wird erteilt; danach darf das Manuskript geschrieben werden.' + \
-                (' Der Abschnitt wechselt zu „Schreiben“.' if head['status'] in ('planned', 'research', 'brainstorming', 'ready_to_write') else '')
+                add('ok' if k else 'warn', view_message('available', p_a=f'{k}', p_b=f'{name}', p_c=f"{view_plural(k, 'e')}") if k else
+                    view_message('no_yet_workflow_yml_requires_this_before_writing_permission', p_a=f'{name}'))
+            effect = view_message('writing_permission_is_granted_the_manuscript_may_then_be_written') + \
+                (view_message('the_section_moves_to_writing') if head['status'] in ('planned', 'research', 'brainstorming', 'ready_to_write') else '')
         elif revoke and item:
-            title, button = 'Freigabe zurücknehmen', 'Zurücknehmen'
+            title, button = view_message('withdraw_approval'), view_message('withdraw')
             if not ap['section']:
-                add('block', f'{item["title"]} ist nicht freigegeben.')
-            effect = f'Die Freigabe wird zurückgenommen; {item["title"]} wechselt zu „Überarbeitung“ und fehlt in der nächsten Auflage, bis du wieder freigibst.'
+                add('block', view_message('is_not_approved', p_a=f"{item['title']}"))
+            effect = view_message('approval_is_withdrawn_moves_to_revision_and_is_excluded_from_the_next_edition_until_approved_again', p_a=f"{item['title']}")
         elif item:
-            title, button = f'{item["title"]} freigeben', 'Freigeben'
+            title, button = view_message('approve_2', p_a=f"{item['title']}"), view_message('approve')
             if ap['section']:
-                add('block', f'{item["title"]} ist bereits freigegeben.')
+                add('block', view_message('is_already_approved', p_a=f"{item['title']}"))
             if not ap['writing']:
-                add('block', 'Die Schreibfreigabe fehlt.')
+                add('block', view_message('writing_permission_is_missing'))
             if ms.strip() in EMPTY_MANUSCRIPT:
-                add('block', 'Es gibt noch keinen Text.')
+                add('block', view_message('there_is_no_text_yet'))
             else:
-                add('ok', f'Text: {len(ms.split())} Wörter.')
+                add('ok', view_message('text_words', p_a=f'{len(ms.split())}'))
             n = sum(marker_counts(ms).values())
-            add('warn' if n else 'ok', f'{n} offene{"r" if n == 1 else ""} Marker; sie verhindern die Auflage.' if n else 'Keine offenen Marker.')
+            add('warn' if n else 'ok', view_message('open_marker_these_prevent_an_edition', p_a=f'{n}', p_b=f"{view_plural(n, 'r', german_singular=True)}") if n else view_message('no_open_markers'))
             if item['kind'] == 'glossary':
                 entries = glossary_entries(ms)[1]
                 dup = glossary_duplicates(entries)
-                add('block' if dup else 'ok', f'Begriffe mehrfach eingetragen: {", ".join(dup)}.' if dup else
-                    f'{len(entries)} Begriff{"e" if len(entries) != 1 else ""}, keiner doppelt.')
-            effect = f'{item["title"]} wird „freigegeben“ und kommt in die nächste Auflage. Du bestätigst damit den Text in diesem Stand.'
+                add('block' if dup else 'ok', view_message('duplicate_terms', p_a=f"{', '.join(dup)}") if dup else
+                    view_message('term_with_no_duplicates', p_a=f'{len(entries)}', p_b=f"{view_plural(len(entries), 'e')}"))
+            effect = view_message('becomes_approved_and_is_included_in_the_next_edition_you_confirm_the_text_in_this_version', p_a=f"{item['title']}")
         elif revoke:
-            title, button = 'Abschnittsfreigabe zurücknehmen', 'Zurücknehmen'
+            title, button = view_message('withdraw_section_approval'), view_message('withdraw')
             if not ap['section']:
-                add('block', 'Der Abschnitt ist nicht freigegeben.')
+                add('block', view_message('the_section_is_not_approved'))
             if ch['status'] == 'approved':
-                add('warn', f'Damit wird auch die Freigabe von Kapitel {c} aufgehoben; es wechselt zu „in Arbeit“.')
-            effect = 'Die Abschnittsfreigabe wird zurückgenommen; der Abschnitt wechselt zu „Überarbeitung“.'
+                add('warn', view_message('this_also_withdraws_approval_for_chapter_it_returns_to_in_progress', p_a=f'{c}'))
+            effect = view_message('section_approval_is_withdrawn_the_section_moves_to_revision')
         else:
-            title, button = 'Abschnitt freigeben', 'Freigeben'
+            title, button = view_message('approve_section'), view_message('approve')
             if ap['section']:
-                add('block', 'Der Abschnitt ist bereits freigegeben.')
+                add('block', view_message('the_section_is_already_approved'))
             if not ap['writing']:
-                add('block', 'Die Schreibfreigabe fehlt.')
+                add('block', view_message('writing_permission_is_missing'))
             if ms.strip() in EMPTY_MANUSCRIPT:
-                add('block', 'Es gibt noch kein Manuskript.')
+                add('block', view_message('there_is_no_manuscript_yet'))
             else:
-                add('ok', f'Manuskript: {len(ms.split())} Wörter.')
+                add('ok', view_message('manuscript_words', p_a=f'{len(ms.split())}'))
             n = sum(marker_counts(ms).values())
-            add('warn' if n else 'ok', f'{n} offene{"r" if n == 1 else ""} Marker; sie bleiben im freigegebenen Text.' if n else 'Keine offenen Marker.')
+            add('warn' if n else 'ok', view_message('open_marker_these_remain_in_the_approved_text', p_a=f'{n}', p_b=f"{view_plural(n, 'r', german_singular=True)}") if n else view_message('no_open_markers'))
             if head['fact_check'] == 'requested':
-                add('warn', 'Ein Faktencheck ist angefordert; ist er erledigt?')
-            effect = 'Der Abschnitt wird „freigegeben“. Du bestätigst damit den Text, wie er im Abschnittsformular steht.'
+                add('warn', view_message('a_fact_check_is_requested_has_it_been_completed'))
+            effect = view_message('the_section_becomes_approved_you_confirm_the_text_as_shown_in_the_section_form')
     head_sha = UI.get('head', '')
     values = {'APPROVAL_KIND': kind, 'APPROVAL_REVOKE': 'true' if revoke else '', 'APPROVAL_TITLE': title,
               'APPROVAL_BUTTON': button, 'APPROVAL_EFFECT': effect, 'TARGET_ID': target_id, 'TARGET_LABEL': label,
@@ -1235,11 +1271,11 @@ def approval_view(base, config, args, kind):
     if args.text:
         icon = {'ok': '✅', 'warn': '⚠️', 'block': '⛔'}
         blocked = any(x['CHECK_STATE'] == 'block' for x in checks)
-        lines = [f'### {"↩️" if revoke else "✅"} {title}', '', f'**{label}** · Stand `{values["HEAD_SHORT"]}`', '']
+        lines = [f'### {"↩️" if revoke else "✅"} {title}', '', view_message('version', p_a=f'{label}', p_b=f"{values['HEAD_SHORT']}"), '']
         if checks:
             lines += [f'- {icon[x["CHECK_STATE"]]} {x["CHECK_TEXT"]}' for x in checks] + ['']
         lines += [effect, '', '---',
-                  'Bestätigen geht erst, wenn die ⛔-Punkte erledigt sind. `X` schließt.' if blocked else '`OK` bestätigt · `X` bricht ab']
+                  view_message('complete_the_items_before_confirming_x_closes_this_view') if blocked else view_message('ok_confirms_x_cancels')]
         return '\n'.join(lines) + '\n'
     return fill('freigabe-bestaetigen.html', values, {'CHECKS': checks})
 
@@ -1473,9 +1509,9 @@ def section_create_view(base, config, args):
 
 def reorder(args, kind, heading, items, chapter_id='', chapter_no=''):
     if args.text:
-        return '\n'.join([f'### ↕️ {heading}', '', '| Jetzt | Titel |', '|--:|---|']
+        return '\n'.join([f'### ↕️ {heading}', '', view_message('current_title'), '|--:|---|']
                           + [f'| `{i["ITEM_NUMBER"]}` | {i["ITEM_TITLE"]} |' for i in items]
-                          + ['', 'Schicke die Nummern in der neuen Reihenfolge, z. B. `' + ', '.join(str(i['ITEM_NUMBER']) for i in (items[1::-1] + items[2:4] if len(items) > 1 else items)) + (', …' if len(items) > 4 else '') + '`. `X` bricht ab.']) + '\n'
+                          + ['', view_message('send_the_numbers_in_the_new_order_e_g') + ', '.join(str(i['ITEM_NUMBER']) for i in (items[1::-1] + items[2:4] if len(items) > 1 else items)) + (', …' if len(items) > 4 else '') + view_message('x_cancels')]) + '\n'
     return fill('reihenfolge.html', {'REORDER_KIND': kind, 'REORDER_HEADING': heading, 'CHAPTER_ID': chapter_id,
                                      'CHAPTER_NUMBER': chapter_no}, {'ITEMS': items})
 
@@ -1483,14 +1519,14 @@ def reorder(args, kind, heading, items, chapter_id='', chapter_no=''):
 def chapter_reorder_view(base, config, args):
     items = [{'ITEM_ID': ch['id'], 'ITEM_NUMBER': i, 'ITEM_TITLE': ch['title']}
              for i, ch in enumerate(config['structure']['chapters'], start=1)]
-    return reorder(args, 'chapter', 'Kapitelreihenfolge ändern', items)
+    return reorder(args, 'chapter', view_message('change_chapter_order'), items)
 
 
 def section_reorder_view(base, config, args):
     n, ch = chapter_number(config, args.where)
     items = [{'ITEM_ID': s['id'], 'ITEM_NUMBER': f'{n}.{i}', 'ITEM_TITLE': s['title']}
              for i, s in enumerate(ch['sections'], start=1)]
-    return reorder(args, 'section', f'Abschnittsreihenfolge in Kapitel {n} ändern', items, ch['id'], n)
+    return reorder(args, 'section', view_message('change_section_order_in_chapter', p_a=f'{n}'), items, ch['id'], n)
 
 
 def update_info(base, config):
@@ -1965,7 +2001,7 @@ def series_view(base, config, args):
     cands = [{'C_BRANCH': b['branch'], 'C_TITLE': b['title'] or b['title_short'] or b['branch']}
              for b in data.get('books') or [] if b['branch'] not in in_any]
     values = {'SERIES_ID': s['id'], 'SERIES_TITLE': s['title'], 'SERIES_SUBTITLE': s.get('subtitle') or '',
-              'SERIES_KIND_TEXT': SERIES_KIND_DE.get(s.get('kind'), ''), 'SERIES_DESCRIPTION': s.get('description') or '',
+              'SERIES_KIND_TEXT': view_series_kind(s.get('kind')), 'SERIES_DESCRIPTION': s.get('description') or '',
               'VOLUME_COUNT_TEXT': plural(len(vols), 'Band', 'Bände'), 'LIBRARY_NAME': repo_label(args)}
     import series as series_mod   # gemeinsame Figuren und Begriffe (Stufe 2)
     schars = []
@@ -2470,14 +2506,14 @@ def series_edit_view(base, config, args):
               'SERIES_ISSN': v('issn'), 'SERIES_ALSO': 'false' if v('also_in_series', True) is False else 'true'}
     taken = [{'TAKEN_TITLE': x['title']} for x in library_series(base, data) if not s or x['id'] != s['id']]
     if args.text:
-        out = [f'### 📚 {"Serie bearbeiten" if s else "Neue Serie"}', '']
+        out = [f"### 📚 {view_message('edit_series') if s else view_message('new_series')}", '']
         if values['ERROR_TEXT']:
             out += [f'> ✗ {values["ERROR_TEXT"]}', '']
-        out += field_table([('Titel der Reihe (Pflicht)', values['SERIES_TITLE']), ('Untertitel', values['SERIES_SUBTITLE']),
-                            ('Art', SERIES_KIND_DE.get(values['SERIES_KIND'], '')), ('Beschreibung', values['SERIES_DESCRIPTION']),
-                            ('ISSN der Reihe', values['SERIES_ISSN']),
-                            ('Seite „Ebenfalls in dieser Reihe“', 'nein' if values['SERIES_ALSO'] == 'false' else 'ja')])
-        out += ['', 'Art: `durchgehende Handlung` oder `eigenständige Bände`.', '', FORM_HINT]
+        out += field_table([(view_message('series_title_required'), values['SERIES_TITLE']), (view_message('subtitle'), values['SERIES_SUBTITLE']),
+                            (view_message('type'), view_series_kind(values['SERIES_KIND'])), (view_message('description'), values['SERIES_DESCRIPTION']),
+                            (view_message('series_issn'), values['SERIES_ISSN']),
+                            (view_message('also_in_this_series_page'), view_message('no') if values['SERIES_ALSO'] == 'false' else view_message('yes'))])
+        out += ['', view_message('type_continuous_story_or_standalone_volumes'), '', view_message('form_hint')]
         return '\n'.join(out) + '\n'
     return fill('serie-bearbeiten.html', values, {'TAKEN': taken})
 
@@ -2856,10 +2892,10 @@ def main():
     resolve_repo(base, args)
     try:
         from .i18n import resolve_language
-        from . import render_view_en
+        from . import render_view_en, view_i18n
     except ImportError:
         from i18n import resolve_language
-        import render_view_en
+        import render_view_en, view_i18n
     default = subprocess.run(['git', '-C', str(base), 'symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD'], capture_output=True, text=True).stdout.strip().removeprefix('origin/') or 'main'
     raw_profile = subprocess.run(['git', '-C', str(base), 'show', f'refs/remotes/origin/{default}:assistant.yml'], capture_output=True, text=True)
     try:
@@ -2870,11 +2906,11 @@ def main():
     UI['language'] = language
     requested_text = args.text
     if language == 'en':
-        if args.view not in render_view_en.CLI_VIEWS and (not args.ui_ref or args.text):
+        if args.view not in (render_view_en.CLI_VIEWS | view_i18n.DIRECT_VIEWS) and (not args.ui_ref or args.text):
             raise SystemExit('English native text output is not yet available for this view. Use --language de, or preview the translated UI templates with --ui-ref <checked-ui-commit> without --text.')
         # Ohne bewusst gewählte neue UI-Testfassung bleibt Englisch nativ: der feste UI-Commit ist noch deutsch.
         requested_text = requested_text or not args.ui_ref
-        args.text = False
+        args.text = requested_text if args.view in view_i18n.DIRECT_VIEWS else False
     UI['head'] = args.head_sha or git_head(base)
     if args.view in FORMS:
         out = FORMS[args.view](base, config, args)
@@ -2897,7 +2933,7 @@ def main():
     else:
         c, s = (int(x) for x in args.where.split('.'))
         out = section_view(base, config, args, c, s)
-    if language == 'en':
+    if language == 'en' and args.view not in view_i18n.DIRECT_VIEWS:
         data = render_view_en.prepare(out.template, out.data, config, args)
         out = render_view_en.render(out.template, data, config, sys.modules[__name__]) if requested_text else fill(out.template + '.html', data)
     sys.stdout.write(out)

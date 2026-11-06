@@ -216,6 +216,8 @@ def main(argv):
     problems.extend(validate_catalogs())
     from render_view_en import validate_resources
     problems.extend(validate_resources())
+    from view_i18n import validate_resources as validate_view_resources
+    problems.extend(validate_view_resources())
     if args.ui and (Path(args.ui) / 'i18n').is_dir():
         for name in ('de.json', 'en.json', 'native-keys.json', 'template-keys.json'):
             local = ROOT / 'templates' / 'ui' / 'i18n' / name
