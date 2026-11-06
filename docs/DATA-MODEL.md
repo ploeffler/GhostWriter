@@ -197,6 +197,10 @@ Stand der Werte: November 2026 (KDP-Hilfe „Cover“, BoD-Hinweise zur Umschlag
 ## Abschnittsdatei – Frontmatter-Beispiel
 
 ```yaml
+## Bediensprache (#74)
+
+`interface.language` ist eine optionale Buch-Einstellung (`de`, `en`, mit Sprachvariante). Vorrang: ausdrückliche Auswahl → `interface.language` → `assistant.yml: interface_language` auf dem Standard-Branch → Deutsch. Die Bediensprache ist unabhängig von `project.language`. Zunächst wird sie von den Tagesberichten verwendet; grafische Vorlagen und erzeugte Textansichten werden in weiteren Schritten migriert.
+
 ---
 id: sec-01-purpose
 number: "1.1"

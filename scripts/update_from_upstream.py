@@ -97,8 +97,8 @@ def summary(lines):
     path = os.environ.get('GITHUB_STEP_SUMMARY')
     text = '\n'.join(lines) + '\n'
     print(text)
-    if path:
-        with open(path, 'a', encoding='utf-8') as f:
+    for target in dict.fromkeys(p for p in (path, os.environ.get('DAILY_UPDATE_REPORT_PATH')) if p):
+        with open(target, 'a', encoding='utf-8') as f:
             f.write(text)
 
 

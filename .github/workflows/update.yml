@@ -24,9 +24,16 @@ on:
         type: boolean
         default: false
 
+      send_report:
+        description: 'Vollständigen Tagesbericht als Issue-Kommentar zustellen (höchstens einmal pro UTC-Tag; nicht im Probelauf)'
+        type: boolean
+        default: false
+
 permissions:
   contents: write
   issues: write
+  pull-requests: read
+  actions: read
 
 concurrency:
   group: ghostwriter-update
@@ -75,10 +82,12 @@ jobs:
           fi
 
       - name: Updates einspielen
+        id: apply
         if: steps.limits.outputs.paused != 'true' || github.event_name == 'workflow_dispatch'
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GHOSTWRITER_UPDATE_TOKEN: ${{ secrets.GHOSTWRITER_UPDATE_TOKEN }}
+          DAILY_UPDATE_REPORT_PATH: ${{ runner.temp }}/ghostwriter-update-report.md
           INPUT_BRANCH: ${{ inputs.branch }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
         run: |
@@ -86,3 +95,25 @@ jobs:
           if [ -n "$INPUT_BRANCH" ]; then args+=(--branch "$INPUT_BRANCH"); fi
           if [ "$INPUT_DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           python scripts/update_from_upstream.py "${args[@]}"
+
+      - name: Tägliche GitHub-Übersicht ergänzen
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DAILY_UPDATE_REPORT_PATH: ${{ runner.temp }}/ghostwriter-update-report.md
+          GHOSTWRITER_INTERFACE_LANGUAGE: ${{ vars.GHOSTWRITER_INTERFACE_LANGUAGE }}
+          DAILY_REPORT_SEND: ${{ github.event_name == 'schedule' || (inputs.send_report && !inputs.dry_run) }}
+          DAILY_REPORT_RECIPIENT: ${{ vars.GHOSTWRITER_REPORT_RECIPIENT || github.actor }}
+          UPDATE_OUTCOME: ${{ steps.apply.outcome }}
+          UPDATE_PAUSED: ${{ steps.limits.outputs.paused }}
+          UPDATE_LIMIT_TEXT: ${{ steps.limits.outputs.text }}
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'; then
+            export SUMMARY_BRANCHES_AVAILABLE=true
+          else
+            export SUMMARY_BRANCHES_AVAILABLE=false
+          fi
+          python scripts/daily_summary.py

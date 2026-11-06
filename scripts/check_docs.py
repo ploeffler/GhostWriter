@@ -212,6 +212,8 @@ def main(argv):
     check_roadmap(args.milestones, problems)
     check_credit(problems)
     check_migration(problems)
+    from i18n import validate_catalogs
+    problems.extend(validate_catalogs())
     for p in problems:
         print(f'✗ {p}')
     if not problems:
