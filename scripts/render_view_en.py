@@ -23,6 +23,14 @@ def native(key, **values):
     return tr('native.' + key, **values)
 
 
+def view_message(key, **values):
+    try:
+        from .view_i18n import translate
+    except ImportError:
+        from view_i18n import translate
+    return translate(key, 'en', **values)
+
+
 def quantity(key, number):
     return native(key + ('_one' if number == 1 else ''), number=number)
 
@@ -61,11 +69,11 @@ def prepare(template, original, config, args):
         data['CHAPTER_COST_HINT'] = native('chapter_cost_hint') + (' (' + native('estimated') + ')' if data['CHAPTER_COST'].startswith('≈') else '')
     elif template == 'abschnitt-bearbeiten':
         data['MARKER_COUNT_TEXT'] = quantity('open_markers', len(data.get('MARKERS', [])))
-        data['SECTION_COST_HINT'] = native('section_cost_hint')
+        data['SECTION_COST_HINT'] = view_message('section_ui.section_cost_hint')
         for row in data.get('MARKERS', []):
-            row['MARKER_LABEL'] = native({'anekdote': 'marker_anekdote', 'quelle': 'marker_quelle', 'medizin': 'marker_medizin', 'recht': 'marker_recht', 'kontinuitaet': 'marker_kontinuitaet'}[row['MARKER_TYPE']])
+            row['MARKER_LABEL'] = view_message({'anekdote': 'section_ui.marker_anekdote', 'quelle': 'section_ui.marker_quelle', 'medizin': 'section_ui.marker_medizin', 'recht': 'section_ui.marker_recht', 'kontinuitaet': 'section_ui.marker_kontinuitaet'}[row['MARKER_TYPE']])
         for row in data.get('HINTS', []):
-            row['H_KIND_TEXT'] = native({'long_sentence': 'hint_long_sentence', 'repetition': 'hint_repetition', 'same_start': 'hint_same_start', 'filler': 'hint_filler'}[row['H_KIND']])
+            row['H_KIND_TEXT'] = view_message({'long_sentence': 'section_ui.hint_long_sentence', 'repetition': 'section_ui.hint_repetition', 'same_start': 'section_ui.hint_same_start', 'filler': 'section_ui.hint_filler'}[row['H_KIND']])
         for direction in ('PREV', 'NEXT'):
             if data.get(direction + '_SECTION_ID'):
                 number = int(data['SECTION_NUMBER'].split('.')[1]) + (-1 if direction == 'PREV' else 1)
@@ -194,13 +202,13 @@ def render(template, data, config, renderer):
         lines += ['', '---', menu(items)]
     elif template == 'abschnitt-bearbeiten':
         lines = [f"### ✏️ {data['SECTION_NUMBER']} · {data['SECTION_TITLE']}",
-                 native('section_meta', number=data['CHAPTER_NUMBER'], status=status(data['SECTION_STATUS']), cost=data['SECTION_COST']), '']
+                 view_message('section_ui.section_meta', number=data['CHAPTER_NUMBER'], status=status(data['SECTION_STATUS']), cost=data['SECTION_COST']), '']
         fact = {'disabled': 'ui.off', 'optional': 'ui.optional', 'requested': 'ui.requested'}.get(data['FACT_CHECK'])
-        yesno = lambda value: native('yes' if value == 'true' else 'no')
+        yesno = lambda value: view_message('section_ui.yes' if value == 'true' else 'section_ui.no')
         rows = [(tr('ui.section_goal'), data['SECTION_GOAL']), (tr('ui.summary'), data['SECTION_SUMMARY']),
                 (tr('ui.fact_check'), tr(fact) if fact else data['FACT_CHECK']),
-                (native('writing_approval'), yesno(data['APPROVAL_WRITING'])),
-                (native('section_approved'), yesno(data['APPROVAL_SECTION']))]
+                (view_message('section_ui.writing_approval'), yesno(data['APPROVAL_WRITING'])),
+                (view_message('section_ui.section_approved'), yesno(data['APPROVAL_SECTION']))]
         if data.get('CHARACTERS_ENABLED'):
             rows.append((tr('ui.characters_3'), ', '.join(r['C_NAME'] for r in data.get('ALL_CHARACTERS', []) if r['C_ON']) or '–'))
         lines += field_table(rows) + ['', '**' + tr('ui.open_markers') + '**']
@@ -209,10 +217,10 @@ def render(template, data, config, renderer):
             lines += ['', '**' + tr('ui.language_notes') + '** · ' + tr('ui.for_review_only_the_text_remains_unchanged')]
             lines += [f"- {r['H_KIND_TEXT']}: {r['H_TEXT']}" + (' (“' + r['H_QUOTE'] + '”)' if r['H_QUOTE'] else '') for r in data['HINTS']]
         lines += ['', '---', '', data['SECTION_MANUSCRIPT'], '', '---']
-        items = [('T', native('edit_text')), ('F', native('section_fields')),
-                 ('FS', native('revoke_writing' if data['APPROVAL_WRITING'] == 'true' else 'grant_writing')),
-                 ('FA', native('revoke_section' if data['APPROVAL_SECTION'] == 'true' else 'grant_section')),
-                 ('RS', native('research_now')), ('GS', native('ghostwriting_now')), ('BI', tr('ui.images')),
+        items = [('T', view_message('section_ui.edit_text')), ('F', view_message('section_ui.section_fields')),
+                 ('FS', view_message('section_ui.revoke_writing' if data['APPROVAL_WRITING'] == 'true' else 'section_ui.grant_writing')),
+                 ('FA', view_message('section_ui.revoke_section' if data['APPROVAL_SECTION'] == 'true' else 'section_ui.grant_section')),
+                 ('RS', view_message('section_ui.research_now')), ('GS', view_message('section_ui.ghostwriting_now')), ('BI', tr('ui.images')),
                  ('FV', tr('ui.suggest_characters_from_the_text'))]
         for direction, offset, key in [('PREV', -1, 'ui.previous_section'), ('NEXT', 1, 'ui.next_section')]:
             if data.get(direction + '_SECTION_ID'):
