@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Lesender Tagesbericht für den vorhandenen Update-Lauf; kein Mailversand."""
 import datetime
+import re
 import html
 import json
 import os
@@ -101,9 +102,10 @@ def _content_activity(branch, paths, since):
     return count, len(files)
 
 
-def _api(repo, endpoint):
+def _api(repo, endpoint, method="GET", data=None):
     request = urllib.request.Request('https://api.github.com/repos/' + repo + '/' + endpoint,
-                                     headers={'Accept': 'application/vnd.github+json',
+                                     method=method, data=json.dumps(data).encode('utf-8') if data is not None else None,
+                                     headers={'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json',
                                               'X-GitHub-Api-Version': '2022-11-28'})
     if os.environ.get('GITHUB_TOKEN'):
         request.add_header('Authorization', 'Bearer ' + os.environ['GITHUB_TOKEN'])
@@ -238,6 +240,44 @@ def append_daily_summary(lines, repo, book_branches, manifest):
     _updates(lines, repo, since)
 
 
+REPORT_ISSUE_MARKER = '<!-- ghostwriter:daily-report -->'
+
+
+def publish_daily_report(repo, rendered, recipient, day=None):
+    """Genau einen neuen Tageskommentar je UTC-Datum anlegen, nie bestehende ändern."""
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9-]*', recipient or ''):
+        raise ValueError('Empfänger fehlt oder ist ungültig')
+    day = day or datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+    marker = f'<!-- ghostwriter:daily-report:{day} -->'
+    issues = _pages(repo, 'issues?state=all')
+    issue = next((i for i in issues if 'pull_request' not in i and
+                  REPORT_ISSUE_MARKER in (i.get('body') or '')), None)
+    if issue and issue.get('state') == 'closed':
+        return 'Tagesbericht-Issue geschlossen; Zustellung pausiert.'
+    if issue:
+        number = int(issue['number'])
+        comments = _pages(repo, f'issues/{number}/comments')
+        if any(marker in (c.get('body') or '') for c in comments):
+            return 'Tagesbericht für dieses UTC-Datum bereits zugestellt; kein weiterer Kommentar.'
+    # GitHubs Kommentargrenze niemals durch Kürzen oder mehrere Kommentare umgehen.
+    run_id = os.environ.get('GITHUB_RUN_ID', '')
+    run_link = f'\n\n[Update-Lauf](https://github.com/{repo}/actions/runs/{int(run_id)})' if run_id.isdigit() else ''
+    body = f'{marker}\n# Tagesbericht {day} (UTC)\n\n@{recipient}\n\n{rendered}{run_link}'
+    if len(body.encode('utf-8')) > 65000:
+        raise ValueError('Vollständiger Bericht ist zu groß für einen Issue-Kommentar')
+    if not issue:
+        issue = _api(repo, 'issues', method='POST', data={
+            'title': 'GhostWriter: täglicher Update-Bericht',
+            'body': REPORT_ISSUE_MARKER + '\nHier erscheint höchstens ein vollständiger Bericht pro UTC-Tag. '
+                    'GitHub verschickt Benachrichtigungen gemäß den persönlichen Einstellungen. '
+                    'Dieses Issue abonnieren (Subscribe), um die Berichte zu erhalten; '
+                    'Schließen pausiert die Zustellung, Wiederöffnen aktiviert sie. '
+                    'Es gibt keinen eigenen Maildienst.'})
+        number = int(issue['number'])
+    _api(repo, f'issues/{number}/comments', method='POST', data={'body': body})
+    return f'Tagesbericht als Kommentar in Issue #{number} zugestellt.'
+
+
 def main():
     import yaml
     import library
@@ -258,6 +298,19 @@ def main():
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
             stream.write(rendered)
+    if os.environ.get('DAILY_REPORT_SEND') == 'true':
+        try:
+            from pathlib import Path
+            update_path = os.environ.get('DAILY_UPDATE_REPORT_PATH')
+            update_report = Path(update_path).read_text(encoding='utf-8') if update_path and Path(update_path).exists() else ''
+            print(publish_daily_report(os.environ.get('GITHUB_REPOSITORY', ''), update_report + '\n' + rendered,
+                                       os.environ.get('DAILY_REPORT_RECIPIENT', '')))
+        except Exception:
+            warning = '\nTagesbericht konnte nicht als Issue-Kommentar zugestellt werden; vollständigen Bericht im Actions-Lauf lesen.\n'
+            print('::warning::Tagesbericht konnte nicht als Issue-Kommentar zugestellt werden.')
+            if os.environ.get('GITHUB_STEP_SUMMARY'):
+                with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
+                    stream.write(warning)
 
 
 if __name__ == '__main__':

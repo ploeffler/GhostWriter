@@ -22,6 +22,10 @@ Danach liegt kein Branch mehr hinter dem Hauptrepository, und GitHubs Hinweis �
 
 Neue Versionen erscheinen erst, wenn ein Versionsschritt im Hauptrepository nach `main` gemergt ist. Zwischenstände aus Entwicklungs-Branches kommen nicht in dein Buch.
 
+## Täglicher Bericht als GitHub-Benachrichtigung
+
+Der tägliche Update-Lauf ergänzt die Actions-Zusammenfassung und veröffentlicht den vollständigen Bericht höchstens einmal pro UTC-Tag im festen Issue „GhostWriter: täglicher Update-Bericht“. Der Empfänger wird erwähnt; GitHub übernimmt die Benachrichtigung gemäß seinen persönlichen Einstellungen. Es werden kein SMTP-Zugang und keine zusätzlichen Secrets benötigt. Empfängerwahl, Abonnieren, Pausieren und manuelles Anfordern stehen unter [Tägliche GitHub-Übersicht](DAILY-SUMMARY.md#tagesbericht-erhalten).
+
 ## Bibliothek: mehrere Bücher in einem Repository
 
 In einer Bibliothek (#36–#39) liegt auf dem Standard-Branch nur das Programm, jedes Buch auf einem eigenen Branch `buch/<slug>`. Die Action aktualisiert zuerst den Standard-Branch und danach jedes Buch einzeln; die Zusammenfassung zeigt eine Zeile je Buch. Welche Branches Bücher sind, entscheidet die Erkennungsregel in `scripts/library.py`: der Standard-Branch nur, wenn er Kapitel hat (Einzelbuch), jeder `buch/*`-Branch, sonst Branches mit Kapiteln. Arbeits-Branches (`ghostwriter/…`) und andere Branches werden nicht angefasst; offene Änderungen bekommen das Update mit dem nächsten „Änderungen übernehmen“. Ein Fehler in einem Buch hält die anderen nicht auf; für das betroffene Buch öffnet die Action ein Issue.
