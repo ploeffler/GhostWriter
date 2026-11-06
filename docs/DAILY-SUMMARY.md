@@ -13,7 +13,7 @@ Pro erkanntem Buch-Branch werden Inhalts-Commits und unterschiedliche geänderte
 - `story/`
 - `research/`
 
-Programmdateien, GhostWriter-Update-Metadaten, Konfigurationen und reine Statusänderungen werden nicht gezählt. Bücher ohne Inhaltsänderungen erscheinen nicht in der Tabelle.
+Programmdateien, GhostWriter-Update-Metadaten, Konfigurationen und reine Statusänderungen werden nicht gezählt. In Abschnittsdateien werden dafür Verwaltungsfelder einschließlich `approvals` aus dem YAML-Vorspann ausgeblendet; in Kapitelübersichten die Statusspalte und der Bereich „Kapitelstatus“. Änderungen am Manuskript, an Absatztrennungen und an inhaltlichen Übersichtsangaben bleiben zählbar. Bücher ohne Inhaltsänderungen erscheinen nicht in der Tabelle.
 
 ## Pull Requests
 

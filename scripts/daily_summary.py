@@ -4,7 +4,6 @@ import datetime
 import html
 import json
 import os
-import re
 import subprocess
 import urllib.request
 
@@ -23,6 +22,52 @@ def content_paths(manifest):
 
 def is_content_file(name, paths):
     return any(name.startswith(p.rstrip('/') + '/') for p in paths)
+
+
+def _content_text(text, name):
+    """Verwaltungsfelder nur in Frontmatter und bekannten Kapitelübersichten ausblenden."""
+    import yaml
+
+    metadata = ''
+    lines = text.splitlines(keepends=True)
+    if name.endswith('.md') and lines and lines[0].strip() == '---':
+        end = next((i for i in range(1, len(lines)) if lines[i].strip() == '---'), None)
+        if end is None:
+            raise RuntimeError('Frontmatter nicht lesbar')
+        try:
+            header = yaml.safe_load(''.join(lines[1:end])) or {}
+            if not isinstance(header, dict):
+                raise RuntimeError('Frontmatter nicht lesbar')
+            for field in ('status', 'approvals', 'approved_at', 'approved_by', 'updated_at', 'last_modified'):
+                header.pop(field, None)
+            metadata = yaml.safe_dump(header, allow_unicode=True, sort_keys=True) if header else ''
+        except yaml.YAMLError as exc:
+            raise RuntimeError('Frontmatter nicht lesbar') from exc
+        text = ''.join(lines[end + 1:])
+    if name.startswith('chapters/') and name.endswith('/README.md'):
+        result, status_section, status_table = [], False, False
+        for line in text.splitlines(keepends=True):
+            if line.startswith('## '):
+                status_section = line.strip() == '## Kapitelstatus'
+                status_table = False
+            if status_section:
+                continue
+            cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
+            if cells == ['Nummer', 'Abschnitt', 'Status']:
+                status_table = True
+            elif not line.lstrip().startswith('|'):
+                status_table = False
+            if status_table and len(cells) == 3:
+                line = '| ' + ' | '.join(cells[:2]) + ' |\n'
+            result.append(line)
+        text = ''.join(result)
+    return metadata + text
+
+
+def _file_text(revision, name):
+    if revision is None or not _git('ls-tree', '--name-only', revision, '--', name).strip():
+        return ''
+    return _git('show', revision + ':' + name)
 
 
 def _content_activity(branch, paths, since):
@@ -46,13 +91,9 @@ def _content_activity(branch, paths, since):
             if _git(*diff_args).startswith('-\t-\t'):
                 changed.add(name)
                 continue
-            patch_args = ['diff', '--unified=0', parents[0], commit, '--', name] if parents else [
-                'show', '--format=', '--unified=0', commit, '--', name]
-            edits = [line[1:] for line in _git(*patch_args).splitlines()
-                     if line[:1] in ('+', '-') and not line.startswith(('+++', '---'))]
-            if any(line.strip() and not re.match(
-                    r'^\s*(?:status|approved_at|approved_by|updated_at|last_modified)\s*:', line)
-                   for line in edits):
+            before = _file_text(parents[0] if parents else None, name)
+            after = _file_text(commit, name)
+            if _content_text(before, name) != _content_text(after, name):
                 changed.add(name)
         if changed:
             count += 1

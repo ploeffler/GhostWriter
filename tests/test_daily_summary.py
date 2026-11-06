@@ -146,13 +146,35 @@ class ContentActivityTests(unittest.TestCase):
         return ds._content_activity('buch/test', ['chapters/'], '2000-01-01T00:00:00Z')
 
     def test_root_status_and_program_changes(self):
-        self.commit('chapters/a.md', 'status: writing\n\nText\n')
+        self.commit('chapters/a.md', '---\nstatus: writing\n---\n\nText\n')
         self.assertEqual(self.activity(), (1, 1))
-        self.commit('chapters/a.md', 'status: approved\n\nText\n')
+        self.commit('chapters/a.md', '---\nstatus: approved\n---\n\nText\n')
         self.commit('scripts/x.py', 'print(1)\n')
         self.assertEqual(self.activity(), (1, 1))
-        self.commit('chapters/a.md', 'status: approved\n\nNeuer Text\n')
+        self.commit('chapters/a.md', '---\nstatus: approved\n---\n\nNeuer Text\n')
         self.assertEqual(self.activity(), (2, 1))
+
+    def test_approval_only_changes_do_not_count_as_content(self):
+        text = '---\nstatus: writing\napprovals:\n  writing: false\n  section: false\n---\n\n## Manuskript\nText.\n'
+        self.commit('chapters/a.md', text)
+        self.commit('chapters/a.md', text.replace('writing: false', 'writing: true'))
+        self.commit('chapters/a.md', text.replace('writing: false', 'writing: true').replace('section: false', 'section: true'))
+        self.assertEqual(self.activity(), (1, 1))
+
+    def test_chapter_status_and_table_status_do_not_count(self):
+        text = Path('templates/chapter-README.md').read_text()
+        self.commit('chapters/01/README.md', text)
+        self.commit('chapters/01/README.md', text.replace('`planned`', '`approved`'))
+        self.assertEqual(self.activity(), (1, 1))
+        self.commit('chapters/01/README.md', text.replace('<TITEL>', 'Neuer Titel'))
+        self.assertEqual(self.activity(), (2, 1))
+
+    def test_manuscript_status_word_and_paragraph_changes_count(self):
+        text = '---\nstatus: writing\n---\n\n## Manuskript\nstatus: offline\nAbsatz zwei.\n'
+        self.commit('chapters/a.md', text)
+        self.commit('chapters/a.md', text.replace('status: offline', 'status: online'))
+        self.commit('chapters/a.md', text.replace('status: offline', 'status: online\n'))
+        self.assertEqual(self.activity(), (3, 1))
 
     def test_deletion_and_rename_count_changed_paths(self):
         self.commit('chapters/a.md', 'Text\n')
