@@ -35,6 +35,24 @@ class EnglishCoreViewsTest(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
         return r
 
+    def test_section_preserves_manuscript_and_approval_state(self):
+        section = self.chapter(True)
+        section.write_text(section.read_text().replace('status: writing\n', 'status: writing\nfact_check: optional\napprovals:\n  writing: false\n  section: false\n'))
+        before = section.read_bytes()
+        text = self.run_view('section', '1.1', '--language', 'en').stdout
+        self.assertIn('Originaltext mit [QUELLE PRÜFEN].', text)
+        self.assertIn('Check source', text)
+        self.assertIn('Writing approval', text)
+        self.assertIn('`FS` Approve writing', text)
+        self.assertIn('`K` To chapter', text)
+        self.assertNotIn('Schreibfreigabe', text)
+        self.assertEqual(before, section.read_bytes())
+        self.assertEqual(text, self.run_view('section', '1.1', '--language', 'en', '--text').stdout)
+        preview = self.run_view('section', '1.1', '--language', 'en', '--ui-ref', 'a' * 40).stdout
+        data = json.loads(re.search(r'GW.render\("abschnitt-bearbeiten",(.*?)\)</script>', preview).group(1))
+        self.assertEqual(data['MARKERS'][0]['MARKER_LABEL'], 'Check source')
+        self.assertEqual(data['SECTION_MANUSCRIPT'].strip(), 'Originaltext mit [QUELLE PRÜFEN].')
+
     def test_english_default_is_native_and_preserves_title(self):
         before = (self.base / 'ghostwriter.yml').read_bytes()
         text = self.run_view('project', '--language', 'en').stdout

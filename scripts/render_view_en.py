@@ -5,8 +5,8 @@ from functools import lru_cache
 from pathlib import Path
 
 FORM_TEMPLATES = {'buch-anlegen', 'kapitel-anlegen', 'kapitel-bearbeiten', 'abschnitt-anlegen', 'projektdaten-bearbeiten'}
-SUPPORTED = {'projektuebersicht', 'kapitelansicht', 'buecherregal'} | FORM_TEMPLATES
-CLI_VIEWS = {'project', 'chapter', 'library', 'book-create', 'chapter-create', 'chapter-edit', 'section-create', 'project-edit'}
+SUPPORTED = {'abschnitt-bearbeiten', 'projektuebersicht', 'kapitelansicht', 'buecherregal'} | FORM_TEMPLATES
+CLI_VIEWS = {'section', 'project', 'chapter', 'library', 'book-create', 'chapter-create', 'chapter-edit', 'section-create', 'project-edit'}
 RESOURCE = Path(__file__).resolve().parents[1] / 'templates' / 'ui' / 'i18n'
 
 
@@ -59,6 +59,18 @@ def prepare(template, original, config, args):
         data['APPROVED_COUNT_TEXT'] = native('approved_count', number=approved, total=total)
         data['MARKER_COUNT_TEXT'] = quantity('open_markers', number=markers)
         data['CHAPTER_COST_HINT'] = native('chapter_cost_hint') + (' (' + native('estimated') + ')' if data['CHAPTER_COST'].startswith('≈') else '')
+    elif template == 'abschnitt-bearbeiten':
+        data['MARKER_COUNT_TEXT'] = quantity('open_markers', len(data.get('MARKERS', [])))
+        data['SECTION_COST_HINT'] = native('section_cost_hint')
+        for row in data.get('MARKERS', []):
+            row['MARKER_LABEL'] = native({'anekdote': 'marker_anekdote', 'quelle': 'marker_quelle', 'medizin': 'marker_medizin', 'recht': 'marker_recht', 'kontinuitaet': 'marker_kontinuitaet'}[row['MARKER_TYPE']])
+        for row in data.get('HINTS', []):
+            row['H_KIND_TEXT'] = native({'long_sentence': 'hint_long_sentence', 'repetition': 'hint_repetition', 'same_start': 'hint_same_start', 'filler': 'hint_filler'}[row['H_KIND']])
+        for direction in ('PREV', 'NEXT'):
+            if data.get(direction + '_SECTION_ID'):
+                number = int(data['SECTION_NUMBER'].split('.')[1]) + (-1 if direction == 'PREV' else 1)
+                chapter = config['structure']['chapters'][data['CHAPTER_NUMBER'] - 1]
+                data[direction + '_SECTION_PROMPT'] = tr('ui.edit_section_number_title', number=f"{data['CHAPTER_NUMBER']}.{number}", title=chapter['sections'][number - 1]['title'])
     elif template == 'buecherregal':
         for row in data.get('BOOKS', []):
             ready = row['BOOK_STATE'] == 'ready'
@@ -180,6 +192,33 @@ def render(template, data, config, renderer):
             items.append(('KU', tr('ui.revise_chapter_2')))
         items += [('B', tr('ui.edit_chapter_2')), ('Z', native('chapter_research')), ('N', tr('ui.new_section')), ('R', native('section_order')), ('FV', native('chapter_characters', number=data['CHAPTER_NUMBER'])), ('Ü', tr('ui.project_overview'))]
         lines += ['', '---', menu(items)]
+    elif template == 'abschnitt-bearbeiten':
+        lines = [f"### ✏️ {data['SECTION_NUMBER']} · {data['SECTION_TITLE']}",
+                 native('section_meta', number=data['CHAPTER_NUMBER'], status=status(data['SECTION_STATUS']), cost=data['SECTION_COST']), '']
+        fact = {'disabled': 'ui.off', 'optional': 'ui.optional', 'requested': 'ui.requested'}.get(data['FACT_CHECK'])
+        yesno = lambda value: native('yes' if value == 'true' else 'no')
+        rows = [(tr('ui.section_goal'), data['SECTION_GOAL']), (tr('ui.summary'), data['SECTION_SUMMARY']),
+                (tr('ui.fact_check'), tr(fact) if fact else data['FACT_CHECK']),
+                (native('writing_approval'), yesno(data['APPROVAL_WRITING'])),
+                (native('section_approved'), yesno(data['APPROVAL_SECTION']))]
+        if data.get('CHARACTERS_ENABLED'):
+            rows.append((tr('ui.characters_3'), ', '.join(r['C_NAME'] for r in data.get('ALL_CHARACTERS', []) if r['C_ON']) or '–'))
+        lines += field_table(rows) + ['', '**' + tr('ui.open_markers') + '**']
+        lines += [f"- {renderer.MARKER_ICON[r['MARKER_TYPE']]} {r['MARKER_LABEL']}: {r['MARKER_TEXT']}" for r in data.get('MARKERS', [])] or [tr('ui.no_markers')]
+        if data.get('HINTS'):
+            lines += ['', '**' + tr('ui.language_notes') + '** · ' + tr('ui.for_review_only_the_text_remains_unchanged')]
+            lines += [f"- {r['H_KIND_TEXT']}: {r['H_TEXT']}" + (' (“' + r['H_QUOTE'] + '”)' if r['H_QUOTE'] else '') for r in data['HINTS']]
+        lines += ['', '---', '', data['SECTION_MANUSCRIPT'], '', '---']
+        items = [('T', native('edit_text')), ('F', native('section_fields')),
+                 ('FS', native('revoke_writing' if data['APPROVAL_WRITING'] == 'true' else 'grant_writing')),
+                 ('FA', native('revoke_section' if data['APPROVAL_SECTION'] == 'true' else 'grant_section')),
+                 ('RS', native('research_now')), ('GS', native('ghostwriting_now')), ('BI', tr('ui.images')),
+                 ('FV', tr('ui.suggest_characters_from_the_text'))]
+        for direction, offset, key in [('PREV', -1, 'ui.previous_section'), ('NEXT', 1, 'ui.next_section')]:
+            if data.get(direction + '_SECTION_ID'):
+                number = int(data['SECTION_NUMBER'].split('.')[1]) + offset
+                items.append((f"{data['CHAPTER_NUMBER']}.{number}", tr(key)))
+        lines += [menu(items + [('K', tr('ui.to_chapter'))])]
     elif template == 'buecherregal':
         rows = data.get('BOOKS', [])
         lines = ['### 📚 ' + tr('ui.library_2'), data['LIBRARY_NAME'] + ' · ' + data['BOOK_COUNT_TEXT'], '']
