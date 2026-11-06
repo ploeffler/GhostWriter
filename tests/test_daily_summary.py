@@ -204,5 +204,88 @@ class ContentActivityTests(unittest.TestCase):
             ds._content_activity('missing', ['chapters/'], '2000-01-01')
 
 
+class DailyDeliveryTests(unittest.TestCase):
+    def issue(self, state='open'):
+        return {'number': 42, 'body': ds.REPORT_ISSUE_MARKER, 'state': state}
+
+    def test_first_delivery_creates_issue_and_full_comment(self):
+        with patch.object(ds, '_pages', return_value=[]), patch.object(ds, '_api', side_effect=[{'number': 42}, {}]) as api:
+            ds.publish_daily_report('o/r', 'Vollständiger Bericht\nTabelle', 'owner', '2026-11-06')
+            self.assertEqual(api.call_count, 2)
+            self.assertEqual(api.call_args_list[0].args[1], 'issues')
+            body = api.call_args.kwargs['data']['body']
+            self.assertIn('@owner', body)
+            self.assertIn('Vollständiger Bericht\nTabelle', body)
+            self.assertIn('ghostwriter:daily-report:2026-11-06', body)
+
+    def test_repeated_run_never_creates_or_edits_comment(self):
+        with patch.object(ds, '_pages', side_effect=[[self.issue()], [
+                {'body': '<!-- ghostwriter:daily-report:2026-11-06 -->'}]]), patch.object(ds, '_api') as api:
+            result = ds.publish_daily_report('o/r', 'Bericht', 'owner', '2026-11-06')
+            api.assert_not_called()
+            self.assertIn('bereits zugestellt', result)
+
+    def test_next_day_uses_same_issue(self):
+        with patch.object(ds, '_pages', side_effect=[[self.issue()], [
+                {'body': '<!-- ghostwriter:daily-report:2026-11-05 -->'}]]), patch.object(ds, '_api') as api:
+            ds.publish_daily_report('o/r', 'Bericht', 'owner', '2026-11-06')
+            api.assert_called_once()
+            self.assertEqual(api.call_args.args[1], 'issues/42/comments')
+            self.assertEqual(api.call_args.kwargs['method'], 'POST')
+
+    def test_closing_issue_pauses_delivery_without_recreating(self):
+        with patch.object(ds, '_pages', return_value=[self.issue('closed')]), patch.object(ds, '_api') as api:
+            self.assertIn('pausiert', ds.publish_daily_report('o/r', 'Bericht', 'owner'))
+            api.assert_not_called()
+
+    def test_incomplete_comment_listing_never_posts_duplicate(self):
+        with patch.object(ds, '_pages', side_effect=[[self.issue()], OSError]), patch.object(ds, '_api') as api:
+            with self.assertRaises(OSError):
+                ds.publish_daily_report('o/r', 'Bericht', 'owner')
+            api.assert_not_called()
+
+    def test_large_report_is_never_split_or_truncated(self):
+        with patch.object(ds, '_pages', return_value=[]), patch.object(ds, '_api') as api:
+            with self.assertRaises(ValueError):
+                ds.publish_daily_report('o/r', 'ä' * 65000, 'owner')
+            api.assert_not_called()
+
+    def test_empty_recipient_does_not_write(self):
+        with patch.object(ds, '_api') as api:
+            with self.assertRaises(ValueError):
+                ds.publish_daily_report('o/r', 'Bericht', '')
+            api.assert_not_called()
+
+    def test_delivery_failure_keeps_summary_and_local_run_does_not_send(self):
+        import sys
+        from scripts import library
+        with tempfile.TemporaryDirectory() as tmp:
+            summary, report = Path(tmp) / 'summary', Path(tmp) / 'report'
+            report.write_text('## Update-Ergebnis\nVollständig.\n')
+            with patch.dict(sys.modules, {'library': library}), \
+                    patch.object(library, 'branch_configs', return_value={}), \
+                    patch.object(library, 'default_branch', return_value='main'), \
+                    patch.object(ds, 'append_daily_summary', side_effect=lambda lines, *args: lines.append('Bericht')), \
+                    patch.object(ds, 'publish_daily_report', side_effect=OSError) as publish, \
+                    patch.dict(os.environ, {'GITHUB_STEP_SUMMARY': str(summary), 'DAILY_UPDATE_REPORT_PATH': str(report),
+                                            'DAILY_REPORT_SEND': 'false', 'DAILY_REPORT_RECIPIENT': 'owner'}, clear=True):
+                ds.main()
+                publish.assert_not_called()
+                os.environ['DAILY_REPORT_SEND'] = 'true'
+                ds.main()
+                self.assertIn('Update-Ergebnis', publish.call_args.args[1])
+                self.assertIn('Bericht', summary.read_text())
+                self.assertIn('nicht als Issue-Kommentar zugestellt', summary.read_text())
+
+    def test_update_summary_is_also_saved_for_delivery(self):
+        from scripts import update_from_upstream
+        with tempfile.TemporaryDirectory() as tmp:
+            summary, report = Path(tmp) / 'summary', Path(tmp) / 'report'
+            with patch.dict(os.environ, {'GITHUB_STEP_SUMMARY': str(summary), 'DAILY_UPDATE_REPORT_PATH': str(report)}):
+                update_from_upstream.summary(['## Update', '| main | aktuell |'])
+            self.assertEqual(summary.read_text(), report.read_text())
+            self.assertIn('| main | aktuell |', report.read_text())
+
+
 if __name__ == "__main__":
     unittest.main()

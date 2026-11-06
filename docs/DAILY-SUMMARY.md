@@ -25,7 +25,19 @@ Der Bericht zeigt das Ergebnis des aktuellen Update-Schritts sowie eine Limitpau
 
 ## Betrieb
 
-Die Ergänzung läuft als letzter Schritt im vorhandenen Workflow. Es gibt keinen zweiten Zeitplan, keinen E-Mail-Versand und keine zusätzlichen Issue-Kommentare. Die Ergebnisse stehen unter **Actions → GhostWriter aktualisieren → Summary**. Ist die PR-Abfrage vorübergehend nicht erreichbar, wird dies in der Übersicht ausgewiesen; der Update-Lauf selbst wird dadurch nicht beeinträchtigt.
+Die Ergänzung läuft als letzter Schritt im vorhandenen Workflow. Es gibt keinen zweiten Zeitplan und keinen eigenen E-Mail-Versand. Der geplante tägliche Lauf veröffentlicht zusätzlich höchstens einen Issue-Kommentar pro UTC-Tag mit dem vollständigen Bericht einschließlich der Update-Ergebnisse je Branch. Die Ergebnisse stehen unter **Actions → GhostWriter aktualisieren → Summary**. Ist die PR-Abfrage vorübergehend nicht erreichbar, wird dies in der Übersicht ausgewiesen; der Update-Lauf selbst wird dadurch nicht beeinträchtigt.
+
+## Tagesbericht erhalten
+
+Beim ersten Versand wird im jeweiligen Repository einmalig das Issue **„GhostWriter: täglicher Update-Bericht“** angelegt. Jeder Tageskommentar enthält den vollständigen Bericht und erwähnt den Empfänger mit `@Benutzername`. Standard ist der GitHub-Akteur des geplanten Workflows (`github.actor`), also der für die Zeitplanung verantwortliche Benutzer. Optional kann die Repository-Variable `GHOSTWRITER_REPORT_RECIPIENT` einen festen GitHub-Benutzernamen vorgeben. Für Organisations-Repositories ebenfalls einen Benutzer wählen, nicht die Organisation.
+
+Der Empfänger aktiviert in seinen persönlichen GitHub-Benachrichtigungseinstellungen E-Mail für Erwähnungen beziehungsweise abonnierte Vorgänge und abonniert bei Bedarf das Berichts-Issue mit **Subscribe**. GitHub verschickt dann die Kommentarbenachrichtigung; GhostWriter benötigt weder SMTP noch zusätzliche Secrets und kann eine E-Mail bei deaktivierten Benachrichtigungen nicht erzwingen. Andere abonnierte Benutzer können ebenfalls benachrichtigt werden. Die erstmalige Issue-Erstellung kann zusätzlich eine Benachrichtigung an Beobachter auslösen.
+
+Wiederholte Läufe am selben UTC-Tag erzeugen keinen weiteren Kommentar und ändern den bestehenden nicht. Die bestehende Workflow-Sperre verhindert parallele Zustellungen. Schließen des Berichts-Issues pausiert den Versand; Wiederöffnen aktiviert ihn wieder. Das Issue wird anhand einer festen unsichtbaren Kennung gefunden; sein Titel darf geändert werden, die Kennung im Text muss erhalten bleiben.
+
+Manuelle Update-Läufe versenden standardmäßig nichts. Mit **„Vollständigen Tagesbericht als Issue-Kommentar zustellen“** kann der Bericht ausdrücklich auch manuell angefordert werden; die Tagesbegrenzung gilt weiterhin. Probeläufe (`dry_run`) versenden nie. Ein Versandfehler lässt das Update-Ergebnis unverändert und wird in der Actions-Zusammenfassung gemeldet. Überschreitet ein Bericht die Kommentargrößengrenze, bleibt er vollständig in der Actions-Zusammenfassung; er wird nicht gekürzt oder auf mehrere Kommentare verteilt.
+
+Für wenig E-Mails können die normalen Actions-Benachrichtigungen auf Fehler beschränkt und andere unerwünschte Repository-Abonnements reduziert werden. GhostWriter verändert persönliche GitHub-Einstellungen nicht. Die Verbindung braucht im Workflow weiterhin `issues: write`; zusätzliche Rechte sind nicht nötig.
 
 ---
 
