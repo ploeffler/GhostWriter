@@ -135,10 +135,11 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertEqual(data['PROJECT_EDITION_TEXT'], 'no edition yet')
         self.assertIn('a' * 40, text)
 
-    def test_untranslated_forms_do_not_silently_return_german_as_english(self):
-        r = self.run_view('project-settings', '--text', '--language', 'en', check=False)
-        self.assertNotEqual(r.returncode, 0)
-        self.assertIn('English native text output is not yet available', r.stderr)
+    def test_project_settings_are_available_in_english(self):
+        text = self.run_view('project-settings', '--text', '--language', 'en').stdout
+        self.assertIn('Project settings', text)
+        self.assertIn('Fixed rules', text)
+        self.assertIn('explicit confirmation', text)
         self.assertIn('Projektdaten', self.run_view('project-edit', '--text', '--language', 'de').stdout)
 
     def test_all_template_preview_keeps_raw_project_settings(self):

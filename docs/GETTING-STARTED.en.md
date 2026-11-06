@@ -2,7 +2,7 @@
 
 This guide describes how to set up GhostWriter and work on a book. You need a GitHub account and an AI chat assistant, ideally with access to GitHub and web research. You do not need to know Git.
 
-**Language:** Say `Interface: English` to use English in the current chat, or `Deutsch` to switch back. The assistant presents English text or native chat elements; graphical widgets and linked documentation may still be in German. The labels below include German wording for reference. A complete English interface is planned in [issue #74](https://github.com/ploeffler/GhostWriter/issues/74).
+**Language:** Say `Interface: English` to use English in the current chat, or `Deutsch` to switch back. The assistant presents English text or native chat elements; all current views support English native output; some linked documentation remains in German. The labels below include German wording for reference. Further localization work is tracked in [issue #74](https://github.com/ploeffler/GhostWriter/issues/74).
 
 ## 1. Create a repository
 

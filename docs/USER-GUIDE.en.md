@@ -1,6 +1,6 @@
 # User guide: from an empty repository to the first edition
 
-This guide follows the German [Anleitung](ANLEITUNG.md). You need a GitHub account and an AI chat assistant, ideally with GitHub access and web research. You do not need to know Git. Say `Interface: English` to request English chat operation. The graphical templates and some linked material are still in German.
+This guide follows the German [Anleitung](ANLEITUNG.md). You need a GitHub account and an AI chat assistant, ideally with GitHub access and web research. You do not need to know Git. Say `Interface: English` to request English chat operation. All current views support native English output; some linked documentation remains in German.
 
 ## 1. Create a repository
 
