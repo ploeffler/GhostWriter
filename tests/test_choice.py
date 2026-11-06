@@ -59,6 +59,24 @@ class ChoiceTest(unittest.TestCase):
         self.assertIn('`S` überspringt', r.stdout)
         self.assertNotIn('<', r.stdout.replace('<sub>', '').replace('</sub>', ''))
 
+    def test_english_wizard_steps_render_and_preserve_option_values(self):
+        lib = yaml.safe_load((ROOT / 'templates/wizard-choices.yml').read_text(encoding='utf-8'))
+        before = (FIX / 'ghostwriter.yml').read_bytes()
+        for step, spec in lib['steps'].items():
+            with self.subTest(step=step):
+                title = f"New book · Step {step.split('.')[-1]} of {lib['steps_total']}"
+                text = run(step, '--text', '--language', 'en', '--repo', 'owner/book')
+                self.assertEqual(text.returncode, 0, text.stderr)
+                self.assertIn(title, text.stdout)
+                self.assertNotIn('{step}', text.stdout)
+                widget = run(step, '--language', 'en', '--ui-ref', 'a' * 40, '--repo', 'owner/book')
+                self.assertEqual(widget.returncode, 0, widget.stderr)
+                data = payload(widget.stdout)
+                self.assertEqual(data['TITLE'], title)
+                self.assertEqual([o['OPT_VALUE'] for o in data['OPTIONS']],
+                                 [o['value'] for q in spec['questions'] for o in q['options']])
+        self.assertEqual(before, (FIX / 'ghostwriter.yml').read_bytes())
+
     def test_custom_spec(self):
         spec = {'step': 'custom.1', 'title': 'Test', 'questions': [{'key': 'x', 'header': 'X', 'text': 'Frage?',
                 'options': [{'value': 'a', 'label': 'A'}, {'value': 'b', 'label': 'B'}]}]}

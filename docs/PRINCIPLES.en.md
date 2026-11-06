@@ -7,8 +7,16 @@ GhostWriter helps people organize, research and manage a book so they can focus 
 - **Organizes:** Develop an outline of chapters and sections in conversation. You can change it later.
 - **Researches:** Research sections and chapters with sources you can check.
 - **Suggests:** Goals, summaries and drafts are proposals; you decide what to accept.
-- **Keeps track:** Your GitHub repository holds the book and its change history.
+- **Version control:** Git records each state saved in your repository, so you can trace changes, compare revisions and restore earlier passages.
 - **Produces editions:** Create a proof or an edition from approved chapters in PDF, Word and e-book formats.
+
+## Version control with Git
+
+GhostWriter builds on Git, the version control system used in software development. Each saved change has a unique identifier. Compare revisions, trace an edit back to its starting point, restore earlier text and develop drafts separately from accepted manuscript content. Each edition remains tied to its exact source state.
+
+You own this history alongside the manuscript in your repository. GhostWriter exposes its benefits through guided saving, review and acceptance; working with the book does not require Git expertise. Drafts discussed in a chat become part of this history only when saved to the repository.
+
+A shared history does not mean every client has already loaded the same state. Chat context, local copies, indexes and startup caches may lag behind GitHub. Improved cross-client state checking is [planned](WORKFLOW-MODEL.md#standabgleich-zwischen-clients-geplant); automatic synchronization is not yet guaranteed.
 
 ## What GhostWriter does not do
 
