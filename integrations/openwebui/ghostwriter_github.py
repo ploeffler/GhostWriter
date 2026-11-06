@@ -1,12 +1,13 @@
 """
 title: GhostWriter GitHub
 description: GitHub lesen und Aufgaben als gemeinsamen Commit speichern.
-version: 1.2.0
-requirements: requests,pydantic
+version: 1.3.0
+requirements: requests,pydantic,pyyaml
 """
 import asyncio
 import base64
 import hashlib
+import hmac
 import json
 import re
 import sqlite3
@@ -16,6 +17,7 @@ from typing import Literal, Optional
 from urllib.parse import quote
 
 import requests
+import yaml
 from pydantic import BaseModel, Field
 
 
@@ -105,13 +107,197 @@ class Tools:
                 "books": books, "view": "\n".join(lines), "source_kind": "library_index",
                 "message": "Die fertige Ansicht aus view unverändert anzeigen. Bücher und Zahlen nicht selbst erfinden. Angaben stammen aus der gelesenen Bibliotheksdatei."}
 
-    async def show_library(self) -> str:
+    def _navigation_scope(self, repo, chat, user, metadata, tool_id):
+        metadata = metadata or {}
+        chat = chat or metadata.get("chat_id")
+        user = (user or {}).get("id") or metadata.get("user_id")
+        if not isinstance(chat, str) or not chat or not isinstance(user, str) or not user:
+            return None
+        return json.dumps([repo.lower(), chat, user, tool_id or "ghostwriter-github"])
+
+    def _navigation_view(self, result, payload, scope):
+        if scope is None:
+            return result
+        encoded = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).decode().rstrip("=")
+        signature = hmac.new(self.valves.GITHUB_TOKEN.encode(), (scope + "\n" + encoded).encode(), hashlib.sha256).hexdigest()
+        receipt = encoded + "." + signature
+        return {**result, "navigation_receipt": receipt,
+                "view": result["view"] + "\n\n<!-- ghostwriter-nav:" + receipt + " -->"}
+
+    def _navigation_data(self, receipt, scope):
+        if not scope or not isinstance(receipt, str) or len(receipt) > 100000:
+            raise ValueError("Auswahl fehlt oder ist veraltet. Bitte Bibliothek erneut öffnen.")
+        try:
+            encoded, signature = receipt.rsplit(".", 1)
+            expected = hmac.new(self.valves.GITHUB_TOKEN.encode(), (scope + "\n" + encoded).encode(), hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(expected, signature):
+                raise ValueError()
+            data = json.loads(base64.b64decode(encoded + "=" * (-len(encoded) % 4), altchars=b"-_", validate=True))
+            if not isinstance(data, dict) or data.get("kind") not in ("library", "book"):
+                raise ValueError()
+            return data
+        except (ValueError, UnicodeError, TypeError):
+            raise ValueError("Auswahl gehört nicht zu dieser Sitzung oder wurde verändert. Bitte Bibliothek erneut öffnen.") from None
+
+    def _signed_library(self, result, scope):
+        return self._navigation_view(result, {"kind": "library", "branches": [b["branch"] for b in result["books"]],
+                                               "sha": result["sha"]}, scope)
+
+    async def show_library(self, __chat_id__: Optional[str] = None, __user__: Optional[dict] = None,
+                           __metadata__: Optional[dict] = None, __id__: Optional[str] = None) -> str:
         """Zeigt die echte Bibliothek für START_REPO. Bei „Bibliothek“, „Library“ oder „Home“ aufrufen.
         Liest library.json jedes Mal frisch vom tatsächlichen Standard-Branch, unabhängig von START_BRANCH.
         Die fertige Markdown-Ansicht aus view unverändert anzeigen; books ordnet Nummern zu Branches zu.
         Bei einem Fehler keine leere Liste, Nullwerte oder Beispieldaten erfinden.
         """
-        return await self._run(lambda trace: self._library_view(trace, self._instance_repo()))
+        def op(trace):
+            repo = self._instance_repo()
+            scope = self._navigation_scope(repo, __chat_id__, __user__, __metadata__, __id__)
+            return self._signed_library(self._library_view(trace, repo), scope)
+        return await self._run(op)
+
+    def _book_view(self, trace, repo, book_branch, chapter=0, section=0, expected_head=None):
+        root = self._repo(repo)
+        library = self._library_view(trace, repo)
+        if not any(book["branch"] == book_branch for book in library["books"]):
+            raise ValueError("Das ausgewählte Buch ist nicht mehr in der Bibliothek. Bitte Bibliothek neu öffnen.")
+        branches = {b["name"]: b["commit"]["sha"] for b in self._pages(trace, root + "/branches")}
+        if book_branch not in branches:
+            raise ValueError("Buchbranch nicht gefunden. Bitte Bibliothek neu öffnen.")
+        work = "ghostwriter/" + book_branch
+        pulls = [p for p in self._pages(trace, root + "/pulls", {"state": "open"})
+                 if p["base"]["ref"] == book_branch and p["head"]["ref"] == work
+                 and (p["head"].get("repo") or {}).get("full_name", "").lower() == repo.lower()]
+        if len(pulls) > 1:
+            raise ValueError("Mehrere passende Arbeits-PRs. Buchzuordnung muss zuerst geklärt werden.")
+        reading = work if pulls else book_branch
+        if reading not in branches:
+            raise ValueError("Arbeitsbranch des offenen PR fehlt. Buch nicht geöffnet.")
+        head = branches[reading]
+        if not re.fullmatch(r"[0-9a-fA-F]{40}", head) or (pulls and pulls[0]["head"]["sha"] != head):
+            raise ValueError("Buchstand hat sich während des Lesens geändert. Bitte erneut öffnen.")
+        cfg = yaml.safe_load(self._read_utf8(trace, repo, "ghostwriter.yml", head)["content"])
+        if not isinstance(cfg, dict) or not isinstance(cfg.get("project"), dict) or not isinstance(cfg.get("structure"), dict):
+            raise ValueError("Ungültige Projektdatei; keine Buchübersicht erzeugt.")
+        chapters = cfg["structure"].get("chapters")
+        if not isinstance(chapters, list) or any(not isinstance(c, dict) or not isinstance(c.get("sections"), list) for c in chapters):
+            raise ValueError("Ungültige Kapitelstruktur; keine Buchübersicht erzeugt.")
+        changed = bool(expected_head and expected_head != head)
+        if changed:
+            chapter, section = 0, 0  # Keine Auswahl aus einer inzwischen umgeordneten Struktur erraten.
+        english = self.valves.INTERFACE_LANGUAGE == "en"
+        def text(value):
+            if not isinstance(value, str):
+                raise ValueError("Ungültiger Titel in der Projektdatei.")
+            return re.sub(r"([|\[\]*_`<>])", r"\\\1", value.replace("\\", "\\\\").replace("\n", " ").replace("\r", " "))
+        def status(value):
+            labels = {"planned": ("geplant", "planned"), "in_progress": ("in Arbeit", "in progress"),
+                      "ready_for_assembly": ("bereit zum Zusammenführen", "ready for assembly"),
+                      "assembly": ("Zusammenführung", "assembly"), "review": ("Prüfung", "review"),
+                      "ready_for_approval": ("bereit zur Freigabe", "ready for approval"),
+                      "approved": ("freigegeben", "approved"), "writing": ("Entwurf", "draft"),
+                      "research": ("Recherche", "research"), "revision": ("Überarbeitung", "revision"),
+                      "brainstorming": ("Ideensammlung", "brainstorming"), "ready_to_write": ("bereit zum Schreiben", "ready to write"),
+                      "fact_check": ("Faktenprüfung", "fact check")}
+            if not isinstance(value, str):
+                return "unbekannt" if not english else "unknown"
+            return text(labels.get(value, (value, value))[int(english)])
+        title = text(cfg["project"].get("title") or cfg["project"].get("working_title") or book_branch)
+        lines = ["### 📖 " + title, "", text(repo), "",
+                 ("Reading branch: " if english else "Lesestand: ") + "`" + reading + "` · `" + head[:7] + "`"]
+        if pulls:
+            lines += [("Pending changes · PR #" if english else "Noch nicht übernommene Änderungen · PR #") + str(pulls[0]["number"])]
+        if changed:
+            lines += ["", "The book changed. Choose again from the updated overview." if english else
+                      "Der Buchstand wurde inzwischen geändert. Bitte aus der aktualisierten Übersicht erneut wählen."]
+        if chapter == 0:
+            lines += ["", ("Author: " if english else "Autor: ") + text(cfg["project"].get("author") or "–"), "",
+                      "| No. | Chapter | Sections | Status |" if english else "| Nr. | Kapitel | Abschnitte | Stand |", "|---|---|---|---|"]
+            for number, ch in enumerate(chapters, 1):
+                lines.append(f"| {number} | {text(ch.get('title') or '–')} | {len(ch['sections'])} | {status(ch.get('status'))} |")
+            if not chapters:
+                lines.append("No chapters yet." if english else "Noch keine Kapitel angelegt.")
+            if chapters:
+                lines += ["", "`Chapter N` or a number · `Library`" if english else "`Kapitel N` oder Nummer · `Bibliothek`"]
+            else:
+                lines += ["", "`Library`" if english else "`Bibliothek`"]
+        else:
+            if chapter < 1 or chapter > len(chapters):
+                raise ValueError("Diese Kapitelnummer gibt es im aktuellen Buch nicht.")
+            ch = chapters[chapter - 1]
+            lines += ["", f"#### {chapter}. {text(ch.get('title') or '–')}", ""]
+            def section_data(s):
+                path = s.get("path")
+                folder = ch.get("path")
+                if not isinstance(path, str) or not isinstance(folder, str) or not path.startswith(folder.rstrip("/") + "/sections/"):
+                    raise ValueError("Ungültiger Abschnittspfad; Abschnitt nicht gelesen.")
+                raw = self._read_utf8(trace, repo, path, head)["content"]
+                match = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|$)", raw, re.S)
+                if not match:
+                    raise ValueError("Abschnitt ohne gültige Metadaten.")
+                metadata = yaml.safe_load(match[1])
+                if not isinstance(metadata, dict):
+                    raise ValueError("Abschnitt mit ungültigen Metadaten.")
+                return metadata, raw[match.end():].strip()
+            if section == 0:
+                lines += ["| No. | Section | Status |" if english else "| Nr. | Abschnitt | Stand |", "|---|---|---|"]
+                for number, s in enumerate(ch["sections"], 1):
+                    meta, _ = section_data(s)
+                    lines.append(f"| {chapter}.{number} | {text(s.get('title') or '–')} | {status(meta.get('status'))} |")
+                if ch["sections"]:
+                    lines += ["", f"`Section {chapter}.N` or a number · `Overview` · `Library`" if english else
+                              f"`Abschnitt {chapter}.N` oder Nummer · `Übersicht` · `Bibliothek`"]
+                else:
+                    lines += ["", "No sections yet. `Overview` · `Library`" if english else
+                              "Noch keine Abschnitte. `Übersicht` · `Bibliothek`"]
+            else:
+                if section < 1 or section > len(ch["sections"]):
+                    raise ValueError("Diese Abschnittsnummer gibt es im aktuellen Kapitel nicht.")
+                s = ch["sections"][section - 1]
+                meta, body = section_data(s)
+                lines += [f"##### {chapter}.{section} {text(s.get('title') or '–')}", "", status(meta.get("status")), "", body,
+                          "", f"`Chapter {chapter}` · `Overview` · `Library`" if english else f"`Kapitel {chapter}` · `Übersicht` · `Bibliothek`"]
+        return {"repo": repo, "book_branch": book_branch, "branch": reading, "sha": head, "chapter": chapter, "section": section,
+                "changed": changed, "view": "\n".join(lines)}
+
+    async def open_book(self, selection: str, receipt: str, __chat_id__: Optional[str] = None,
+                        __user__: Optional[dict] = None, __metadata__: Optional[dict] = None,
+                        __id__: Optional[str] = None) -> str:
+        """Öffnet eine Nummer aus der angezeigten Bibliothek oder eine Buch-/Kapitel-/Abschnittsansicht.
+        selection ist der unveränderte Navigationsbefehl, receipt die zugehörige Navigationsquittung.
+        Nur lesend. Kein Schreiben, keine Freigabe. Veränderte Strukturen werden nicht still umgedeutet.
+        """
+        def op(trace):
+            repo = self._instance_repo()
+            scope = self._navigation_scope(repo, __chat_id__, __user__, __metadata__, __id__)
+            context = self._navigation_data(receipt, scope)
+            command = selection.strip().casefold()
+            number = re.fullmatch(r"(?:(?:buch|book)\s*)?([1-9][0-9]*)", command)
+            ch = re.fullmatch(r"(?:kapitel|chapter)\s*([1-9][0-9]*)", command)
+            sec = re.fullmatch(r"(?:(?:abschnitt|section)\s*)?([1-9][0-9]*)\.([1-9][0-9]*)", command)
+            chapter = section = 0
+            if context["kind"] == "library":
+                if not number or int(number[1]) > len(context.get("branches", [])):
+                    raise ValueError("Bitte eine Buchnummer aus der angezeigten Bibliothek wählen.")
+                book = context["branches"][int(number[1]) - 1]
+            else:
+                book = context["book_branch"]
+                if ch:
+                    chapter = int(ch[1])
+                elif sec:
+                    chapter, section = int(sec[1]), int(sec[2])
+                elif number and not command.startswith(("buch", "book")):
+                    if context.get("chapter"):
+                        chapter, section = context["chapter"], int(number[1])
+                    else:
+                        chapter = int(number[1])
+                elif command not in ("übersicht", "overview"):
+                    raise ValueError("Unbekannte Navigation; bitte Bibliothek, Übersicht, Kapitel oder Abschnitt wählen.")
+            result = self._book_view(trace, repo, book, chapter, section,
+                                     context.get("sha") if context["kind"] == "book" and command not in ("übersicht", "overview") else None)
+            return self._navigation_view(result, {"kind": "book", "book_branch": book, "sha": result["sha"],
+                                                  "chapter": result["chapter"], "section": result["section"]}, scope)
+        return await self._run(op)
 
     def _path(self, path):
         if not path or path.startswith("/") or any(p in ("", ".", "..") for p in path.split("/")):
@@ -164,7 +350,7 @@ class Tools:
         try:
             result = await asyncio.to_thread(operation, trace)
             payload = {"ok": True, "result": result}
-        except (ValueError, KeyError, TypeError, AttributeError, UnicodeError) as exc:
+        except (ValueError, KeyError, TypeError, AttributeError, UnicodeError, yaml.YAMLError) as exc:
             payload = {"ok": False, "error": str(exc)}
         if self.valves.DEBUG:
             payload["debug"] = trace
@@ -285,7 +471,8 @@ class Tools:
                 result["message"] = "Einstieg bereits im Chat vorhanden. Kein GitHub-Abruf. Jetzt Benutzeranfrage bearbeiten; Startwerkzeug nicht wiederholen."
             if fetched:
                 try:
-                    library = self._library_view(trace, repo, snapshot["branch"] if not branch else None)
+                    scope = self._navigation_scope(repo, __chat_id__, __user__, __metadata__, __id__)
+                    library = self._signed_library(self._library_view(trace, repo, snapshot["branch"] if not branch else None), scope)
                     result["view"] = library["view"]
                     result["books"] = library["books"]
                     result["library_source"] = {key: library[key] for key in ("path", "branch", "sha", "source_kind")}

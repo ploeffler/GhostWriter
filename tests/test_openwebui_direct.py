@@ -59,6 +59,19 @@ class DirectPipeTest(unittest.TestCase):
                 forward.assert_not_awaited()
         self.assertEqual(self.library.await_count, 4)
 
+    def test_book_request_with_old_tool_is_not_sent_to_model(self):
+        with patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
+            output = self.call('Buch 1')
+        self.assertIn('Version 1.3', output)
+        forward.assert_not_awaited()
+
+    def test_number_without_view_context_refreshes_library_instead_of_guessing(self):
+        with patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
+            output = self.call('1')
+        self.assertIn('Bitte aus dieser Bibliothek wählen', output)
+        self.assertIn(VIEW, output)
+        forward.assert_not_awaited()
+
     def test_reload_passes_trusted_metadata_to_already_bound_tool(self):
         self.assertTrue(self.call('Start neu laden').endswith(VIEW))
         self.start.assert_awaited_once_with()
@@ -119,7 +132,9 @@ class DirectPipeTest(unittest.TestCase):
         users.Users = types.SimpleNamespace(get_user_by_id=AsyncMock(return_value=object()))
         chat = types.ModuleType('open_webui.utils.chat')
         chat.generate_chat_completion = AsyncMock(return_value='Providerantwort')
-        body = {'model': 'ghostwriter_direct', 'messages': [{'role': 'user', 'content': 'Text'}], 'stream': True}
+        body = {'model': 'ghostwriter_direct', 'messages': [
+            {'role': 'assistant', 'content': 'Ansicht\n\n<!-- ghostwriter-nav:eyJraW5kIjoiYm9vayJ9.signature -->'},
+            {'role': 'user', 'content': 'Text'}], 'stream': True}
         before = copy.deepcopy(body)
         request = object()
         with patch.dict(sys.modules, {'open_webui.models.users': users, 'open_webui.utils.chat': chat}):
@@ -128,6 +143,7 @@ class DirectPipeTest(unittest.TestCase):
         args = chat.generate_chat_completion.await_args
         self.assertEqual(args.args[1]['model'], 'llama3.2:3b')
         self.assertEqual(args.args[1]['metadata'], {'chat_id': 'c'})
+        self.assertNotIn('ghostwriter-nav:', args.args[1]['messages'][0]['content'])
         self.assertEqual(args.kwargs, {})
         self.assertEqual(body, before)
 
