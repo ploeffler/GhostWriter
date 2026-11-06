@@ -1,5 +1,7 @@
 # Tägliche GitHub-Übersicht
 
+[English](DAILY-SUMMARY.en.md) · Deutsch
+
 Die Action **GhostWriter aktualisieren** ergänzt ihre bestehende Actions-Zusammenfassung um eine Übersicht der letzten 24 Stunden.
 
 ## Buchinhalte
@@ -38,6 +40,12 @@ Wiederholte Läufe am selben UTC-Tag erzeugen keinen weiteren Kommentar und änd
 Manuelle Update-Läufe versenden standardmäßig nichts. Mit **„Vollständigen Tagesbericht als Issue-Kommentar zustellen“** kann der Bericht ausdrücklich auch manuell angefordert werden; die Tagesbegrenzung gilt weiterhin. Probeläufe (`dry_run`) versenden nie. Ein Versandfehler lässt das Update-Ergebnis unverändert und wird in der Actions-Zusammenfassung gemeldet. Überschreitet ein Bericht die Kommentargrößengrenze, bleibt er vollständig in der Actions-Zusammenfassung; er wird nicht gekürzt oder auf mehrere Kommentare verteilt.
 
 Für wenig E-Mails können die normalen Actions-Benachrichtigungen auf Fehler beschränkt und andere unerwünschte Repository-Abonnements reduziert werden. GhostWriter verändert persönliche GitHub-Einstellungen nicht. Die Verbindung braucht im Workflow weiterhin `issues: write`; zusätzliche Rechte sind nicht nötig.
+
+## Sprache des Berichts
+
+Die Sprachwahl für geplante Berichte lautet: Repository-Variable `GHOSTWRITER_INTERFACE_LANGUAGE` → optionale Buch-Einstellung `interface.language` → `assistant.yml: interface_language` vom Standard-Branch → Deutsch. `en` wählt Englisch; Sprachvarianten wie `en-GB` werden auf die Basissprache abgebildet. Die Manuskriptsprache `project.language` beeinflusst diese Auswahl nicht. Für einen lokalen Aufruf: `python scripts/daily_summary.py --language en`.
+
+Überschriften, Beschriftungen, Entscheidungen und Zustellmeldungen des Tagesberichts sind übersetzt. Titel, Branch-Namen und Nutzdaten bleiben unverändert. Die zuvor erzeugten Detailmeldungen des Update- und Limitskripts können weiterhin deutsch sein; grafische Vorlagen und erzeugte Chat-Ansichten werden gesondert migriert.
 
 ---
 

@@ -12,6 +12,12 @@ The update is validated before it is pushed. If validation fails, the branch is 
 
 In a library, the workflow updates the default branch and then each eligible book branch. Working branches are not updated directly. A failure on one book does not stop the others. The project overview may offer **Update einspielen** (install update) when a newer upstream state is available.
 
+## Daily report and GitHub notifications
+
+The scheduled update run posts the complete report, including branch results, at most once per UTC day in a dedicated issue. It mentions the recipient; GitHub can send the comment by email according to personal notification settings. No SMTP service or extra secrets are needed. Repeated runs do not create duplicate comments. Closing the issue pauses delivery; reopening it resumes delivery.
+
+Manual runs send only when explicitly requested using the report-delivery input. Dry runs never send. Recipient selection, subscriptions and language settings are described in the [daily report guide](DAILY-SUMMARY.en.md#receive-the-daily-report).
+
 ## Create a private book repository
 
 The main `ploeffler/GhostWriter` repository is public. For a private manuscript, the recommended route is **Use this template → Create a new repository**, then choose **Private**. A fork of a public repository is public.

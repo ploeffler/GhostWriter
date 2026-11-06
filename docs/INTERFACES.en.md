@@ -4,6 +4,14 @@ GhostWriter presents overviews and forms in the chat. You choose an action or re
 
 The examples below show the German interface and a test library. Icons and colors vary by application; the current graphical widgets are not yet fully translated into English.
 
+## English core views and forms
+
+`render_view.py --language en` supports the library, project overview and chapter overview, plus the forms `book-create`, `chapter-create`, `chapter-edit`, `section-create` and `project-edit`. Chapter edit and section creation take the chapter number as their next argument. These views use the same book data and approval checks as their German equivalents. Titles, descriptions and manuscript text remain in the book's language. Existing update/limit diagnostics, returned server error messages and configured attribution text are preserved as original notices.
+
+The forms preserve existing titles and descriptions, mandatory-field and duplicate-name checks, stable IDs, fact-check codes and numeric insertion positions. Native forms accept English field names such as `Title`, `Working title`, `Summary`, `Goal`, `Position` and `Fact check`. Opening a form does not save anything; existing approval rules still apply.
+
+The reviewed UI version 0.43.0 is pinned to commit `9a9a2029ae6ec3abb9359023cb3943a0ff10c428`. English continues to default to a native text view. Developers can preview the new graphical version with `--ui-ref <reviewed-ui-commit>`. All 38 graphical templates now have English fixed labels and script messages, and can be previewed with an explicit `--ui-ref`. Approval confirmations (writing, section, chapter, front/back matter and images), applying changes, chapter/section ordering and editing a series also have native English views and translated generated labels. Further native text forms and program-generated labels remain a separate migration step; such generated labels can still be German in the preview. Explicit English requests for those native text forms receive a clear availability message.
+
 ## Bookshelf
 
 For a library with multiple books, the bookshelf shows each book's progress, edition and pending changes. Open a book to see its project overview, or continue setup for a book in progress.

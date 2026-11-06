@@ -212,6 +212,22 @@ def main(argv):
     check_roadmap(args.milestones, problems)
     check_credit(problems)
     check_migration(problems)
+    from i18n import validate_catalogs
+    problems.extend(validate_catalogs())
+    from render_view_en import validate_resources
+    problems.extend(validate_resources())
+    from view_i18n import validate_resources as validate_view_resources
+    problems.extend(validate_view_resources())
+    if args.ui and (Path(args.ui) / 'i18n').is_dir():
+        for name in ('de.json', 'en.json', 'native-keys.json', 'template-keys.json'):
+            local = ROOT / 'templates' / 'ui' / 'i18n' / name
+            remote = Path(args.ui) / 'i18n' / name
+            try:
+                matching = json.loads(local.read_text(encoding='utf-8')) == json.loads(remote.read_text(encoding='utf-8'))
+            except (OSError, ValueError):
+                matching = False
+            if not matching:
+                problems.append('Geteilte UI-Sprachressourcen fehlen, sind ungültig oder weichen ab: ' + name)
     for p in problems:
         print(f'✗ {p}')
     if not problems:

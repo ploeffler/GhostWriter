@@ -103,6 +103,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           DAILY_UPDATE_REPORT_PATH: ${{ runner.temp }}/ghostwriter-update-report.md
+          GHOSTWRITER_INTERFACE_LANGUAGE: ${{ vars.GHOSTWRITER_INTERFACE_LANGUAGE }}
           DAILY_REPORT_SEND: ${{ github.event_name == 'schedule' || (inputs.send_report && !inputs.dry_run) }}
           DAILY_REPORT_RECIPIENT: ${{ vars.GHOSTWRITER_REPORT_RECIPIENT || github.actor }}
           UPDATE_OUTCOME: ${{ steps.apply.outcome }}

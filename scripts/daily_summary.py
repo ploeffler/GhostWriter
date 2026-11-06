@@ -9,6 +9,19 @@ import subprocess
 import urllib.request
 
 
+from contextvars import ContextVar
+try:
+    from .i18n import message, resolve_language
+except ImportError:
+    from i18n import message, resolve_language
+
+LANGUAGE = ContextVar('ghostwriter_report_language', default='de')
+
+
+def tr(key, **values):
+    return message(LANGUAGE.get(), key, **values)
+
+
 def _git(*args):
     result = subprocess.run(['git', *args], text=True, capture_output=True)
     if result.returncode:
@@ -140,18 +153,18 @@ def _pulls(lines, repo, since):
     pulls = _pages(repo, 'pulls?state=all&sort=updated&direction=desc',
                    stop=lambda p: p['updated_at'] < since)
     recent = [p for p in pulls if p.get('updated_at', '') >= since]
-    lines.extend(['', '## GhostWriter-Pull-Requests – letzte 24 Stunden', ''])
+    lines.extend(['', tr('report.pulls'), ''])
     if recent:
-        lines.extend(['| PR | Status |', '|---|---|'])
+        lines.extend([tr('report.pr_table'), '|---|---|'])
         for pr in recent:
-            state = 'gemergt' if pr.get('merged_at') else 'geschlossen' if pr['state'] == 'closed' else 'offen'
+            state = tr('status.merged') if pr.get('merged_at') else tr('status.closed') if pr['state'] == 'closed' else tr('status.open')
             lines.append(f'| {_link(pr)}(https://github.com/{repo}/pull/{int(pr["number"])}) | {state} |')
     else:
-        lines.append('Keine aktualisierten Pull Requests im Berichtszeitraum.')
-    lines.extend(['', '## Entscheidungen und offene Vorgänge', ''])
+        lines.append(tr('report.no_pulls'))
+    lines.extend(['', tr('report.decisions'), ''])
     opened = _pages(repo, 'pulls?state=open')
     if not opened:
-        lines.append('Keine offenen Pull Requests.')
+        lines.append(tr('report.no_open_pulls'))
     for pr in opened:
         number = int(pr['number'])
         try:
@@ -163,60 +176,60 @@ def _pulls(lines, repo, since):
                     latest[(review.get('user') or {}).get('login')] = review['state']
             state = detail.get('mergeable_state')
             if pr.get('draft'):
-                action = 'Entwurf – Fertigstellung ausstehend'
+                action = tr('decision.draft')
             elif detail.get('mergeable') is False or state == 'dirty':
-                action = 'Blockiert – Zusammenführungskonflikt beheben'
+                action = tr('decision.conflict')
             elif 'CHANGES_REQUESTED' in latest.values():
-                action = 'Änderungen angefordert – Überarbeitung ausstehend'
+                action = tr('decision.changes')
             elif state in ('blocked', 'unstable'):
-                action = 'Blockiert oder Prüfungen auffällig – Prüfungen und Freigaben ansehen'
+                action = tr('decision.blocked')
             elif detail.get('requested_reviewers') or detail.get('requested_teams'):
-                action = 'Review angefordert – Prüfung ausstehend'
+                action = tr('decision.review')
             elif state in ('clean', 'has_hooks'):
-                action = 'Entscheidung zur Übernahme ausstehend; keine automatische Freigabe'
+                action = tr('decision.merge')
             else:
-                action = 'Offen – Prüf-/Merge-Status noch unbekannt'
+                action = tr('decision.unknown')
         except (OSError, ValueError, RuntimeError, KeyError):
-            action = 'Offen – Detailstatus nicht verfügbar'
+            action = tr('decision.unavailable')
         lines.append(f'- {_link(pr)}(https://github.com/{repo}/pull/{number}): {action}.')
 
 
 def _updates(lines, repo, since):
-    lines.extend(['', '## Update-Lauf und Automatik', ''])
+    lines.extend(['', tr('report.updates'), ''])
     paused = os.environ.get('UPDATE_PAUSED') == 'true'
     outcome = os.environ.get('UPDATE_OUTCOME', '')
     if paused and os.environ.get('GITHUB_EVENT_NAME') != 'workflow_dispatch':
-        lines.append('Aktueller Lauf: Automatik wegen Limits pausiert; Update übersprungen.')
+        lines.append(tr('update.paused'))
     else:
-        labels = {'success': 'Update-Schritt erfolgreich', 'failure': 'Update-Schritt fehlgeschlagen',
-                  'cancelled': 'Update-Schritt abgebrochen', 'skipped': 'Update-Schritt übersprungen'}
-        lines.append('Aktueller Lauf: ' + labels.get(outcome, 'Update-Status unbekannt') + '.')
+        labels = {'success': tr('update.success'), 'failure': tr('update.failure'),
+                  'cancelled': tr('update.cancelled'), 'skipped': tr('update.skipped')}
+        lines.append(tr('update.current') + labels.get(outcome, tr('update.unknown')) + '.')
         if paused:
-            lines.append('Limitwarnung aktiv; dieser manuelle Lauf durfte trotzdem fortfahren.')
+            lines.append(tr('update.manual_warning'))
     if os.environ.get('UPDATE_LIMIT_TEXT'):
-        lines.append('Limits: ' + _text(os.environ['UPDATE_LIMIT_TEXT']))
+        lines.append(tr('update.limits') + _text(os.environ['UPDATE_LIMIT_TEXT']))
     try:
         issues = _pages(repo, 'issues?state=open')
         relevant = [i for i in issues if 'pull_request' not in i and (
             i.get('title') == 'GhostWriter-Automatik pausiert' or
             i.get('title', '').startswith('GhostWriter-Update fehlgeschlagen'))]
         for issue in relevant:
-            lines.append(f'- {_link(issue)}(https://github.com/{repo}/issues/{int(issue["number"])}): weiterhin offen.')
+            lines.append(f'- {_link(issue)}(https://github.com/{repo}/issues/{int(issue["number"])}): {tr("status.still_open")}')
         runs = _pages(repo, 'actions/workflows/update.yml/runs?created=%3E%3D' + since,
                       key='workflow_runs')
         failed = [r for r in runs if r.get('conclusion') in ('failure', 'cancelled', 'timed_out', 'action_required')]
         for run in failed:
-            lines.append(f'- [Update-Lauf {int(run["id"])}](https://github.com/{repo}/actions/runs/{int(run["id"])}): '
+            lines.append(f'- [{tr("update.run")} {int(run["id"])}](https://github.com/{repo}/actions/runs/{int(run["id"])}): '
                          + _text(run['conclusion']) + '.')
         if not relevant and not failed:
-            lines.append('Keine offenen Update-/Pausenmeldungen und keine fehlgeschlagenen oder abgebrochenen Update-Läufe der letzten 24 Stunden.')
+            lines.append(tr('update.no_problems'))
     except (OSError, ValueError, RuntimeError, KeyError):
-        lines.append('Frühere Update-/Pausenmeldungen nicht verfügbar; Status unbekannt.')
+        lines.append(tr('update.unavailable'))
 
 
 def append_daily_summary(lines, repo, book_branches, manifest):
     since = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
-    lines.extend(['', '## Buchinhalte – letzte 24 Stunden', ''])
+    lines.extend(['', tr('report.books'), ''])
     rows = []
     unavailable = book_branches is None or os.environ.get('SUMMARY_BRANCHES_AVAILABLE') == 'false'
     for branch in sorted(set(book_branches or [])) if not unavailable else []:
@@ -225,18 +238,18 @@ def append_daily_summary(lines, repo, book_branches, manifest):
             if commits:
                 rows.append(f'| {_text(branch)} | {commits} | {files} |')
         except RuntimeError:
-            rows.append(f'| {_text(branch)} | unbekannt | unbekannt |')
+            rows.append(f'| {_text(branch)} | {tr("status.unknown")} | {tr("status.unknown")} |')
     if unavailable:
-        lines.append('Buchaktivität unbekannt; aktuelle Branch-Daten nicht verfügbar.')
+        lines.append(tr('report.books_unknown'))
     elif rows:
-        lines.extend(['| Buch-Branch | Inhalts-Commits | geänderte Inhaltsdateien |', '|---|---:|---:|', *rows])
+        lines.extend([tr('report.books_table'), '|---|---:|---:|', *rows])
     else:
-        lines.append('Keine Buchinhaltsänderungen im Berichtszeitraum.')
+        lines.append(tr('report.no_books'))
     upstream = (manifest.get('upstream') or {}).get('repo') or repo
     try:
         _pulls(lines, upstream, since)
     except (OSError, ValueError, RuntimeError, KeyError):
-        lines.append('PR-Übersicht nicht verfügbar; Aktivität und Entscheidungen unbekannt.')
+        lines.append(tr('report.pr_unavailable'))
     _updates(lines, repo, since)
 
 
@@ -253,37 +266,33 @@ def publish_daily_report(repo, rendered, recipient, day=None):
     issue = next((i for i in issues if 'pull_request' not in i and
                   REPORT_ISSUE_MARKER in (i.get('body') or '')), None)
     if issue and issue.get('state') == 'closed':
-        return 'Tagesbericht-Issue geschlossen; Zustellung pausiert.'
+        return tr('delivery.paused')
     if issue:
         number = int(issue['number'])
         comments = _pages(repo, f'issues/{number}/comments')
         if any(marker in (c.get('body') or '') for c in comments):
-            return 'Tagesbericht für dieses UTC-Datum bereits zugestellt; kein weiterer Kommentar.'
+            return tr('delivery.duplicate')
     # GitHubs Kommentargrenze niemals durch Kürzen oder mehrere Kommentare umgehen.
     run_id = os.environ.get('GITHUB_RUN_ID', '')
-    run_link = f'\n\n[Update-Lauf](https://github.com/{repo}/actions/runs/{int(run_id)})' if run_id.isdigit() else ''
-    body = f'{marker}\n# Tagesbericht {day} (UTC)\n\n@{recipient}\n\n{rendered}{run_link}'
+    run_link = f'\n\n[{tr("update.run")}](https://github.com/{repo}/actions/runs/{int(run_id)})' if run_id.isdigit() else ''
+    body = f'{marker}\n# {tr("delivery.heading", day=day)}\n\n@{recipient}\n\n{rendered}{run_link}'
     if len(body.encode('utf-8')) > 65000:
         raise ValueError('Vollständiger Bericht ist zu groß für einen Issue-Kommentar')
     if not issue:
         issue = _api(repo, 'issues', method='POST', data={
-            'title': 'GhostWriter: täglicher Update-Bericht',
-            'body': REPORT_ISSUE_MARKER + '\nHier erscheint höchstens ein vollständiger Bericht pro UTC-Tag. '
-                    'GitHub verschickt Benachrichtigungen gemäß den persönlichen Einstellungen. '
-                    'Dieses Issue abonnieren (Subscribe), um die Berichte zu erhalten; '
-                    'Schließen pausiert die Zustellung, Wiederöffnen aktiviert sie. '
-                    'Es gibt keinen eigenen Maildienst.'})
+            'title': tr('delivery.issue_title'),
+            'body': REPORT_ISSUE_MARKER + '\n' + tr('delivery.body')})
         number = int(issue['number'])
     _api(repo, f'issues/{number}/comments', method='POST', data={'body': body})
-    return f'Tagesbericht als Kommentar in Issue #{number} zugestellt.'
+    return tr('delivery.sent', number=number)
 
 
-def main():
+def _main():
     import yaml
     import library
     from pathlib import Path
 
-    lines = ['## Tägliche GitHub-Übersicht']
+    lines = [tr('report.title')]
     try:
         manifest = yaml.safe_load(Path('ghostwriter-manifest.yml').read_text(encoding='utf-8')) or {}
         configs = library.branch_configs()
@@ -292,7 +301,7 @@ def main():
         append_daily_summary(lines, os.environ.get('GITHUB_REPOSITORY', ''), [b['branch'] for b in books] if configs else None, manifest)
     except Exception:
         # Berichtsteil darf den Update-Lauf weder scheitern lassen noch Fehlerdetails/Secrets ausgeben.
-        lines.append('Tagesbericht nicht vollständig verfügbar; Update-Ergebnis siehe vorherige Zusammenfassung.')
+        lines.append(tr('report.partial'))
     rendered = '\n'.join(lines) + '\n'
     print(rendered)
     if os.environ.get('GITHUB_STEP_SUMMARY'):
@@ -306,12 +315,35 @@ def main():
             print(publish_daily_report(os.environ.get('GITHUB_REPOSITORY', ''), update_report + '\n' + rendered,
                                        os.environ.get('DAILY_REPORT_RECIPIENT', '')))
         except Exception:
-            warning = '\nTagesbericht konnte nicht als Issue-Kommentar zugestellt werden; vollständigen Bericht im Actions-Lauf lesen.\n'
-            print('::warning::Tagesbericht konnte nicht als Issue-Kommentar zugestellt werden.')
+            warning = '\n' + tr('delivery.warning') + '\n'
+            print('::warning::' + tr('delivery.annotation'))
             if os.environ.get('GITHUB_STEP_SUMMARY'):
                 with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
                     stream.write(warning)
 
 
+def main(language=None):
+    import yaml
+    from pathlib import Path
+    try:
+        config = yaml.safe_load(Path('ghostwriter.yml').read_text(encoding='utf-8')) or {}
+    except (OSError, yaml.YAMLError):
+        config = {}
+    profile = {}
+    default = os.environ.get('GHOSTWRITER_DEFAULT_BRANCH', 'main')
+    try:
+        profile = yaml.safe_load(_git('show', f'refs/remotes/origin/{default}:assistant.yml')) or {}
+    except (RuntimeError, yaml.YAMLError):
+        pass
+    token = LANGUAGE.set(resolve_language(language or os.environ.get('GHOSTWRITER_INTERFACE_LANGUAGE'), config, profile))
+    try:
+        _main()
+    finally:
+        LANGUAGE.reset(token)
+
+
 if __name__ == '__main__':
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--language', help='Bediensprache, z. B. de oder en; unabhängig von der Buchsprache')
+    main(parser.parse_args().language)

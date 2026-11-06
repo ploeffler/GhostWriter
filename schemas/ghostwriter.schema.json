@@ -6,6 +6,12 @@
   "required": ["project", "ai_settings", "ai_providers", "workflow", "structure"],
   "properties": {
     "data_version": {"type": "integer", "minimum": 0, "description": "Datenstruktur-Version des Buchs; setzt scripts/migrate_project.py (#59), fehlt = 0"},
+    "interface": {
+      "type": "object",
+      "description": "Bediensprache unabhängig vom Manuskript (#74); optional, sonst Assistenten-Profil bzw. Deutsch",
+      "properties": {"language": {"type": "string", "pattern": "^(de|en)(-[A-Za-z]{2,8})?$"}},
+      "additionalProperties": false
+    },
     "project": {
       "type": "object",
       "required": ["title", "title_short", "working_title", "subtitle", "author", "language",
