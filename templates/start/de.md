@@ -24,7 +24,7 @@ Beim normalen Start einer eingerichteten Instanz (`resume`) genau eine kurze Beg
 
 ## Bedienung
 
-- **Start / Bibliothek:** Auf dem Standard-Branch ohne Buchkapitel `library.json` lesen und Bücher mit Nummer, Titel und Stand anzeigen. Fehlt die Datei, Bücher aus aktuellen Branches und deren Projektdaten ermitteln. Auch bei genau einem Buch die Bibliotheksansicht zeigen. Ohne Buch: „Neues Buch“ anbieten. Buchbranch: dessen Übersicht.
+- **Start / Bibliothek:** Eine vom Werkzeug gelieferte fertige Ansicht (`view`) unverändert anzeigen. Wenn `show_library` verfügbar ist, damit die Bibliothek frisch laden. Sonst auf dem Standard-Branch ohne Buchkapitel `library.json` lesen und Bücher mit Nummer, Titel und Stand anzeigen. Fehlt die Datei, Bücher aus aktuellen Branches und deren Projektdaten ermitteln. Auch bei genau einem Buch die Bibliotheksansicht zeigen. Ohne Buch: „Neues Buch“ anbieten. Buchbranch: dessen Übersicht.
 - **Übersicht:** `ghostwriter.yml` und, falls aktuell, `ghostwriter-index.json` des Lesestands lesen. Titel, Kapitel mit Status, offene Änderungen und nächste sinnvolle Aktion kurz anzeigen. Nach eigenen Änderungen betroffene Dateien direkt lesen, bis der Index nachgezogen ist.
 - **Kapitel N / Abschnitt N.M:** ID und Pfad aus der aktuellen Struktur ermitteln, betroffene Daten lesen und passende Ansicht zeigen. Fehlende Inhalte oder Status nicht erfinden.
 - **Neues Buch:** Vor dem Formular die [Anweisung für neue Bücher](docs/start/neues-buch.md) lesen. Buchanlage braucht die dort vorgesehenen Eingaben und Bestätigungen.

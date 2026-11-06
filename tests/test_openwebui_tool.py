@@ -119,6 +119,10 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertEqual(method, "GET", "Einstieg darf keine Schreibzugriffe auslösen")
         if path.endswith("/contents/START.md"):
             return self.start_response()
+        if path.endswith("/contents/library.json"):
+            return self.start_response(json.dumps({"books": [
+                {"branch": "buch/erstes", "title": "Erstes Buch", "status": "ready", "chapters_total": 15, "sections_total": 45},
+                {"branch": "buch/zweites", "title": "Zweites Buch", "status": "setup", "chapters_total": 0, "sections_total": 0}]}))
         return {"default_branch": "main"}
 
     def test_start_first_read_then_short_status_without_network(self):
@@ -126,14 +130,17 @@ class OpenWebUIToolTests(unittest.TestCase):
             first = self.run_tool(self.start())
             self.assertTrue(first["ok"], first)
             self.assertTrue(first["result"]["fetched"])
-            self.assertEqual(http.call_count, 2)
+            self.assertEqual(http.call_count, 3)
+            self.assertIn("| 1 | Erstes Buch | 15 | 45 | eingerichtet |", first["result"]["view"])
+            self.assertEqual(first["result"]["books"][1]["branch"], "buch/zweites")
             history = [{"role": "tool", "content": json.dumps(first)}]
             second = self.run_tool(self.start(messages=history))
             self.assertTrue(second["ok"], second)
             self.assertTrue(second["result"]["already_loaded"])
             self.assertFalse(second["result"]["context_restored"])
             self.assertNotIn("content", second["result"])
-            self.assertEqual(http.call_count, 2)
+            self.assertNotIn("view", second["result"])
+            self.assertEqual(http.call_count, 3)
 
     def test_start_survives_new_tools_instance_and_restores_lost_context(self):
         with patch.object(self.tool, "_http", side_effect=self.start_http):
@@ -158,12 +165,14 @@ class OpenWebUIToolTests(unittest.TestCase):
             self.tool.valves.START_REPO = "owner/book"
             self.tool.valves.START_BRANCH = "buch/test"
             self.assertTrue(self.run_tool(self.start())["result"]["fetched"])
-            self.assertEqual(http.call_args.args[3], {"ref": "buch/test"})
+            self.assertTrue(any(c.args[2].endswith("/contents/START.md") and c.args[3] == {"ref": "buch/test"}
+                                for c in http.call_args_list))
+            self.assertEqual(http.call_args.args[3], {"ref": "main"}, "Bibliothek kommt auch auf Buchbranches vom Standard-Branch")
             self.tool.valves.START_BRANCH = ""
             self.tool.valves.GITHUB_TOKEN = "ANOTHER_TEST_PLACEHOLDER"
             self.assertTrue(self.run_tool(self.start())["result"]["fetched"])
-            # 5 Initialisierungen mit Standard-Branch je 2 GETs, 1 mit festem Branch.
-            self.assertEqual(http.call_count, 11)
+            # Jede Initialisierung liest START.md und die Bibliotheksdatei.
+            self.assertEqual(http.call_count, 18)
 
     def test_missing_identity_or_ambiguous_repository_never_fetches(self):
         with patch.object(self.tool, "_http") as http:
@@ -192,7 +201,7 @@ class OpenWebUIToolTests(unittest.TestCase):
             repeated = self.run_tool(self.start(metadata=meta, messages=[{"role": "tool", "content": json.dumps(refreshed)}]))
             self.assertFalse(repeated["result"]["fetched"])
             self.assertNotIn("content", repeated["result"])
-            self.assertEqual(http.call_count, 4)
+            self.assertEqual(http.call_count, 6)
 
     def test_start_rejects_long_source_and_does_not_persist_token(self):
         self.tool.valves.MAX_START_BYTES = 1024
@@ -210,7 +219,7 @@ class OpenWebUIToolTests(unittest.TestCase):
             first = self.run_tool(self.start())
             result = self.run_tool(self.start(messages=[{"role": "user", "content": json.dumps(first)}]))
             self.assertTrue(result["result"]["context_restored"])
-            self.assertEqual(http.call_count, 2)
+            self.assertEqual(http.call_count, 3)
 
     def test_parallel_calls_fetch_only_once_across_tool_instances(self):
         replacement = self.module.Tools()
@@ -222,7 +231,71 @@ class OpenWebUIToolTests(unittest.TestCase):
             results = [json.loads(value) for value in asyncio.run(run())]
         self.assertTrue(all(value["ok"] for value in results), results)
         self.assertEqual(sum(value["result"]["fetched"] for value in results), 1)
-        self.assertEqual(first_http.call_count + second_http.call_count, 2)
+        self.assertEqual(first_http.call_count + second_http.call_count, 3)
+
+    def test_library_is_fresh_and_uses_default_branch_independent_of_start_branch(self):
+        self.tool.valves.START_BRANCH = "buch/erstes"
+        libraries = [{"books": [{"branch": "buch/erstes", "title": title, "chapters_total": 2, "sections_total": 3}]}
+                     for title in ("Vorher", "Nachher")]
+        with patch.object(self.tool, "_http", side_effect=[{"default_branch": "stable"}, self.start_response(json.dumps(libraries[0])),
+                                                         {"default_branch": "stable"}, self.start_response(json.dumps(libraries[1]))]) as http:
+            first = self.run_tool(self.tool.show_library())
+            second = self.run_tool(self.tool.show_library())
+        self.assertTrue(first["ok"], first)
+        self.assertTrue(second["ok"], second)
+        self.assertIn("Nachher", second["result"]["view"])
+        self.assertNotIn("Vorher", second["result"]["view"])
+        self.assertEqual(http.call_count, 4)
+        self.assertEqual(http.call_args.args[3], {"ref": "stable"})
+
+    def test_empty_library_is_not_an_error_and_single_book_remains_a_library(self):
+        for books in ([], [{"branch": "buch/einzeln", "title": "Ein Buch"}]):
+            with self.subTest(books=len(books)), patch.object(self.tool, "_http", side_effect=[{"default_branch": "main"}, self.start_response(json.dumps({"books": books}))]):
+                result = self.run_tool(self.tool.show_library())
+            self.assertTrue(result["ok"], result)
+            self.assertIn("Bibliothek", result["result"]["view"])
+            if books:
+                self.assertIn("| 1 | Ein Buch | – | – |", result["result"]["view"])
+            else:
+                self.assertIn("Noch keine Bücher", result["result"]["view"])
+
+    def test_invalid_or_missing_library_does_not_become_empty_or_zero_values(self):
+        examples = ({}, {"books": {}}, {"books": [0]}, {"books": [{"title": "Kein Branch"}]},
+                    {"books": [{"branch": "buch/a", "chapters_total": []}]},
+                    {"books": [{"branch": "buch/a", "title": ["Kein Text"]}]},
+                    {"books": [{"branch": "buch/a", "title": 0}]},
+                    {"books": [{"branch": "buch/a"}, {"branch": "buch/a"}]})
+        for data in examples:
+            with self.subTest(data=data), patch.object(self.tool, "_http", side_effect=[{"default_branch": "main"}, self.start_response(json.dumps(data))]):
+                result = self.run_tool(self.tool.show_library())
+            self.assertFalse(result["ok"], result)
+            self.assertNotIn("view", result)
+            self.assertNotIn("Noch keine Bücher", json.dumps(result))
+        with patch.object(self.tool, "_http", side_effect=ValueError("GitHub HTTP 404")):
+            result = self.run_tool(self.tool.show_library())
+        self.assertFalse(result["ok"])
+
+    def test_start_reports_library_failure_and_library_can_be_retried(self):
+        with patch.object(self.tool, "_http", side_effect=[{"default_branch": "main"}, self.start_response(), ValueError("GitHub HTTP 404")]):
+            result = self.run_tool(self.start())
+        self.assertTrue(result["ok"], result)
+        self.assertIn("library_error", result["result"])
+        self.assertNotIn("view", result["result"])
+        with patch.object(self.tool, "_http", side_effect=self.start_http):
+            retry = self.run_tool(self.tool.show_library())
+        self.assertTrue(retry["ok"])
+        self.assertIn("Erstes Buch", retry["result"]["view"])
+
+    def test_library_escapes_table_data_and_supports_english_without_translating_titles(self):
+        self.tool.valves.INTERFACE_LANGUAGE = "en"
+        data = {"books": [{"branch": "buch/test", "title": "Buch | [Titel]\nZweite Zeile", "status": "ready", "pending": 2}]}
+        with patch.object(self.tool, "_http", side_effect=[{"default_branch": "main"}, self.start_response(json.dumps(data))]):
+            result = self.run_tool(self.tool.show_library())
+        self.assertTrue(result["ok"], result)
+        self.assertIn("Library", result["result"]["view"])
+        self.assertIn(r"Buch \| \[Titel\] Zweite Zeile", result["result"]["view"])
+        self.assertIn("2 pending changes", result["result"]["view"])
+        self.assertEqual(result["result"]["books"][0]["title"], data["books"][0]["title"])
 
     def test_cached_start_still_requires_repository_permission(self):
         with patch.object(self.tool, "_http", side_effect=self.start_http):

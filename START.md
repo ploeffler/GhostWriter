@@ -14,7 +14,7 @@ Starte einen neuen Chat mit dem Ghostwriter-Startprompt. Stelle dem Chat diese D
 
 ### Wiedereinstieg in ein bestehendes Projekt
 
-**Sichtbare Startausgabe einer eingerichteten Instanz:** START.md intern lesen. Beim normalen Start nur einen kurzen Willkommenssatz und direkt danach die aktuelle Bibliotheksansicht zeigen, auch bei nur einem Buch. Keine Ausgabe der Startdatei, Regelzusammenfassung oder erneuten Einrichtungsfragen. Eine konkrete Buch-/Abschnittsanfrage öffnet direkt deren Ansicht; eine Einzelbuchinstanz ihre Übersicht. Technische Startzustände bleiben intern, tatsächliche Fehler werden verständlich gemeldet.
+**Sichtbare Startausgabe einer eingerichteten Instanz:** START.md intern lesen. Beim normalen Start nur einen kurzen Willkommenssatz und direkt danach die aktuelle Bibliotheksansicht zeigen, auch bei nur einem Buch. Keine Ausgabe der Startdatei, Regelzusammenfassung oder erneuten Einrichtungsfragen. Liefert ein Werkzeug eine fertige Bibliotheksansicht (`view`), diese unverändert anzeigen; in Open WebUI ist für weitere Bibliotheksaufrufe `show_library` vorgesehen. Bibliotheksdaten nicht aus leeren Starter-Projektfeldern ableiten. Eine konkrete Buch-/Abschnittsanfrage öffnet direkt deren Ansicht; eine Einzelbuchinstanz ihre Übersicht. Technische Startzustände bleiben intern, tatsächliche Fehler werden verständlich gemeldet.
 
 Wurde der erste Start bereits abgeschlossen, genügt in einem neuen Chat – in jedem Browser – der Link zum Buch-Repository. Der Assistent folgt dann Abschnitt 0 statt den Schritten ab Abschnitt 1.
 

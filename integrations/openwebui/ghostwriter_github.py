@@ -1,7 +1,7 @@
 """
 title: GhostWriter GitHub
 description: GitHub lesen und Aufgaben als gemeinsamen Commit speichern.
-version: 1.1.0
+version: 1.2.0
 requirements: requests,pydantic
 """
 import asyncio
@@ -12,7 +12,7 @@ import re
 import sqlite3
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 from urllib.parse import quote
 
 import requests
@@ -28,6 +28,7 @@ class Tools:
         ALLOWED_REPOS: str = Field(default="", description="Erlaubte owner/repo, durch Komma getrennt. Leer sperrt alle Zugriffe.")
         START_REPO: str = Field(default="", description="Repository für read_start_md; bei genau einem erlaubten Repository optional.")
         START_BRANCH: str = Field(default="", description="Branch für den Einstieg; leer verwendet den tatsächlichen Standard-Branch.")
+        INTERFACE_LANGUAGE: Literal["de", "en"] = Field(default="de", description="Sprache der fertigen Bibliotheksansicht.")
         START_STATE_DIR: str = Field(default="/app/backend/data/ghostwriter", description="Persistenter Startzustand je Benutzer und Chat im Open-WebUI-Datenvolume.")
         MAX_START_BYTES: int = Field(default=16384, ge=1024, le=65536, description="Maximale Größe des kurzen Instanz-Einstiegs. Vollständige START.md vorher per GhostWriter-Update kürzen lassen.")
         DEBUG: bool = Field(default=False, description="HTTP-Status, Dauer und Request-ID ausgeben; keine Header oder Dateiinhalte.")
@@ -45,6 +46,72 @@ class Tools:
         if repo.lower() not in allowed:
             raise ValueError("Repository ist nicht im Valve ALLOWED_REPOS freigegeben.")
         return "/repos/" + repo
+
+    def _instance_repo(self):
+        if not self.valves.GITHUB_TOKEN:
+            raise ValueError("GITHUB_TOKEN im Valve fehlt.")
+        allowed = {v.strip() for v in self.valves.ALLOWED_REPOS.split(",") if v.strip()}
+        repo = self.valves.START_REPO.strip()
+        if not repo and len(allowed) == 1:
+            repo = next(iter(allowed))
+        if not repo:
+            raise ValueError("START_REPO im Valve festlegen; mehrere oder keine Repositorys freigegeben.")
+        self._repo(repo)
+        return repo
+
+    def _library_view(self, trace, repo, default_branch=None):
+        """Liest bei jedem Aufruf neu; Buchdaten werden nie im Startzustand gespeichert."""
+        branch = default_branch or self._http(trace, "GET", self._repo(repo))["default_branch"]
+        data = self._read_utf8(trace, repo, "library.json", branch)
+        library = json.loads(data["content"])
+        if not isinstance(library, dict) or not isinstance(library.get("books"), list):
+            raise ValueError("library.json enthält keine gültige Bücherliste; Bibliothek nicht angezeigt.")
+        english = self.valves.INTERFACE_LANGUAGE == "en"
+        def cell(value):
+            text = str(value).replace("\r", " ").replace("\n", " ").replace("\\", "\\\\")
+            return re.sub(r"([|\[\]*_`<>])", r"\\\1", text)
+        def count(book, key):
+            value = book.get(key)
+            if value is None:
+                return "–"
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"library.json: ungültiger Wert für {key}; Bibliothek nicht angezeigt.")
+            return str(value)
+        books, rows, branches = [], [], set()
+        for number, book in enumerate(library["books"], 1):
+            if not isinstance(book, dict) or not isinstance(book.get("branch"), str) or not book["branch"].strip():
+                raise ValueError("library.json: Buch ohne gültigen Branch; Bibliothek nicht angezeigt.")
+            if book["branch"] in branches:
+                raise ValueError("library.json: Buchbranch mehrfach vorhanden; Bibliothek nicht angezeigt.")
+            branches.add(book["branch"])
+            if any(book.get(key) is not None and not isinstance(book[key], str) for key in ("title", "title_short")):
+                raise ValueError("library.json: ungültiger Buchtitel; Bibliothek nicht angezeigt.")
+            title = book.get("title") or book.get("title_short") or ("Untitled book" if english else "Unbenanntes Buch")
+            state = {"ready": "set up" if english else "eingerichtet",
+                     "setup": "in setup" if english else "im Aufbau"}.get(book.get("status"), "unknown" if english else "unbekannt")
+            pending = count(book, "pending")
+            if pending != "–" and int(pending):
+                state += (f" · {pending} pending change" + ("s" if int(pending) != 1 else "")) if english else f" · {pending} offene Änderung" + ("en" if int(pending) != 1 else "")
+            rows.append(f"| {number} | {cell(title)} | {count(book, 'chapters_total')} | {count(book, 'sections_total')} | {state} |")
+            books.append({"number": number, "title": title, "branch": book["branch"]})
+        lines = ["### 📚 " + ("Library" if english else "Bibliothek"), "", cell(repo), ""]
+        if rows:
+            lines += ["| No. | Book | Chapters | Sections | Status |" if english else "| Nr. | Buch | Kapitel | Abschnitte | Stand |",
+                      "|---|---|---|---|---|", *rows, "",
+                      "Enter a number to open a book, or `New book`." if english else "Zum Öffnen die Nummer nennen oder `Neues Buch` wählen."]
+        else:
+            lines.append("No books yet. Choose `New book`." if english else "Noch keine Bücher. Wähle `Neues Buch`.")
+        return {"repo": repo, "branch": branch, "path": "library.json", "sha": data["sha"],
+                "books": books, "view": "\n".join(lines), "source_kind": "library_index",
+                "message": "Die fertige Ansicht aus view unverändert anzeigen. Bücher und Zahlen nicht selbst erfinden. Angaben stammen aus der gelesenen Bibliotheksdatei."}
+
+    async def show_library(self) -> str:
+        """Zeigt die echte Bibliothek für START_REPO. Bei „Bibliothek“, „Library“ oder „Home“ aufrufen.
+        Liest library.json jedes Mal frisch vom tatsächlichen Standard-Branch, unabhängig von START_BRANCH.
+        Die fertige Markdown-Ansicht aus view unverändert anzeigen; books ordnet Nummern zu Branches zu.
+        Bei einem Fehler keine leere Liste, Nullwerte oder Beispieldaten erfinden.
+        """
+        return await self._run(lambda trace: self._library_view(trace, self._instance_repo()))
 
     def _path(self, path):
         if not path or path.startswith("/") or any(p in ("", ".", "..") for p in path.split("/")):
@@ -157,14 +224,7 @@ class Tools:
                 raise ValueError("Start nicht geladen: Open WebUI muss Chat-ID und Benutzer-ID bereitstellen.")
             if __chat_id__ and metadata.get("chat_id") and __chat_id__ != metadata["chat_id"]:
                 raise ValueError("Widersprüchliche Chat-Kennung; Start nicht geladen.")
-            if not self.valves.GITHUB_TOKEN:
-                raise ValueError("GITHUB_TOKEN im Valve fehlt.")
-            allowed = {v.strip() for v in self.valves.ALLOWED_REPOS.split(",") if v.strip()}
-            repo = self.valves.START_REPO.strip()
-            if not repo and len(allowed) == 1:
-                repo = next(iter(allowed))
-            if not repo:
-                raise ValueError("START_REPO im Valve festlegen; mehrere oder keine Repositorys freigegeben.")
+            repo = self._instance_repo()
             root = self._repo(repo)  # Freigabe auch bei einem gespeicherten Einstieg erneut prüfen.
             branch = self.valves.START_BRANCH.strip()
             # Getrennte Zustände je Benutzer, Chat, Werkzeug, Repo, Branch und Zugang.
@@ -223,6 +283,16 @@ class Tools:
                 result["message"] = "Einstieg intern lesen, Dateiinhalt nicht ausgeben. Beim normalen Start kurz begrüßen und danach die aktuelle Bibliothek mit Lesewerkzeugen laden und anzeigen. Bei konkreter Benutzeranfrage diese direkt bearbeiten."
             else:
                 result["message"] = "Einstieg bereits im Chat vorhanden. Kein GitHub-Abruf. Jetzt Benutzeranfrage bearbeiten; Startwerkzeug nicht wiederholen."
+            if fetched:
+                try:
+                    library = self._library_view(trace, repo, snapshot["branch"] if not branch else None)
+                    result["view"] = library["view"]
+                    result["books"] = library["books"]
+                    result["library_source"] = {key: library[key] for key in ("path", "branch", "sha", "source_kind")}
+                    result["message"] = "START.md intern lesen. Beim normalen Start einen kurzen Willkommenssatz und danach die fertige Bibliotheksansicht aus view unverändert anzeigen. Nicht selbst JSON in eine Ansicht umdeuten. Bei konkreter Buchanfrage diese direkt bearbeiten."
+                except (ValueError, KeyError, TypeError) as error:
+                    result["library_error"] = str(error)
+                    result["message"] = "Einstieg geladen, Bibliotheksansicht fehlgeschlagen. library_error verständlich melden; keine leere Bibliothek und keine Platzhalter erfinden. Erneuter Bibliotheksabruf über show_library."
             return result
         return await self._run(op)
 
