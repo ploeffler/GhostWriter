@@ -5,6 +5,22 @@ Sie führt GitHub-API-Aufrufe aus, keine lokalen GhostWriter-Python-Skripte.
 Die benötigten Freigaben und redaktionellen Prüfungen aus START.md bleiben Aufgabe des Assistenten;
 das Werkzeug ist keine vollständige GhostWriter-API und erteilt selbst keine Buchfreigaben.
 
+## Direkte Ausgabe für Start und Bibliothek
+
+Ein erfolgreiches Werkzeugergebnis beweist noch keine korrekte Modellantwort: Kleine Modelle können trotz fertigem `view` eine erfundene `answer`-Funktion als Text ausgeben. Für **Start**, **Start neu laden**, **Bibliothek**, **Library** und **Home** übernimmt deshalb `ghostwriter_direct.py` die Ausgabe direkt als eigene Open-WebUI-Pipe. Das Basismodell wird für diese Befehle nicht aufgerufen. Die Pipe gibt den Willkommenssatz und die fertige Ansicht als normalen Antworttext zurück. Sie wertet kein vom Modell erzeugtes Funktions-JSON aus.
+
+### Installation der Pipe (Open WebUI ab 0.13.0)
+
+1. Das vorhandene GitHub-Werkzeug ab Version **1.2.0** mit seinen bisherigen Valves beibehalten.
+2. Im Administrationsbereich unter **Funktionen / Functions** eine Funktion anlegen, den vollständigen Code aus `ghostwriter_direct.py` einfügen, speichern und aktivieren. Sie wird als Pipe erkannt und erscheint als Modell **GhostWriter Direkt**.
+3. Dein eigenes Workspace-Modell **GhostWriter** bearbeiten: als Basismodell die neue Pipe **GhostWriter Direkt** wählen und weiterhin genau das vorhandene GhostWriter-GitHub-Werkzeug zuordnen. Eingebaute Werkzeuge und Erinnerungen bleiben für diese Konfiguration ausgeschaltet; Native bleibt eingestellt. Das Ollama-Basismodell selbst wird nicht verändert.
+4. In den **Valves der Pipe** bleibt `BASE_MODEL` auf `llama3.2:3b`. Dort kein Pipe-Modell auswählen. `TOOL_ID` bleibt bei genau einer passenden Integration leer; nur bei mehreren Integrationen die ID des gewünschten Werkzeugs eintragen. `INTERFACE_LANGUAGE` passend zum GitHub-Werkzeug auf `de` oder `en` stellen. Die Pipe braucht keinen eigenen GitHub-Token: Sie verwendet ausschließlich die von Open WebUI bereitgestellten, bereits autorisierten Werkzeugfunktionen.
+5. Neuen Chat mit deinem Workspace-Modell öffnen und **Start** senden. Die Antwort muss genau Begrüßung plus Bibliotheksansicht sein. **Bibliothek** liefert danach die frisch gelesene Ansicht ohne weitere Begrüßung.
+
+Normale Gesprächsbeiträge werden an `BASE_MODEL` über den internen Open-WebUI-Provider weitergegeben. Dabei bleiben Benutzer- und Modellberechtigungen aktiv; Startanweisungen werden intern mitgeführt. Die Qualität dieser Modellantworten und weitere Buchbefehle hängen weiterhin vom Basismodell ab. Die Pipe ist keine vollständige GhostWriter-API und keine neue Freigabeinstanz. Hintergrundaufgaben wie Titelerzeugung lösen keinen Start aus. Werkzeugfehler werden angezeigt und nicht durch Modelltext ersetzt.
+
+Technische Grundlage: [Pipe Functions](https://docs.openwebui.com/features/extensibility/plugin/functions/pipe/) und [reservierte Argumente](https://docs.openwebui.com/features/extensibility/plugin/development/reserved-args/) von Open WebUI. Der Pipe-Rückgabewert wird direkt als Chatantwort gespeichert; eine reine Tool-Rückgabe geht dagegen zunächst an das Modell. Die Schnittstellen wurden gegen den Quellstand v0.13.0 geprüft. Der tatsächliche Einbau in einer fremden Open-WebUI-Instanz muss dort einmal getestet werden.
+
 ## Einrichten
 
 1. In Open WebUI unter Workspace → Tools ein Werkzeug erstellen und den vollständigen
