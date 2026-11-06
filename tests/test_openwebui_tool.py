@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import unittest
 import tempfile
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 try:
     import pydantic
@@ -307,6 +307,162 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertNotIn("content", result)
         http.assert_not_called()
+
+    def navigation_fixture(self):
+        self.nav_head = self.head
+        self.nav_work = None
+        self.nav_pulls = []
+        self.nav_books = [
+            {"branch": "buch/erstes", "title": "Erstes Buch", "status": "ready", "chapters_total": 15, "sections_total": 45},
+            {"branch": "buch/zweites", "title": "Zweites Buch", "status": "ready"}]
+        self.nav_config = {"project": {"title": "Tatsächlicher Buchtitel", "author": "Testautor"}, "structure": {"chapters": [
+            {"id": "ch-1", "title": "Erstes Kapitel", "path": "chapters/01-erstes", "status": "in_progress", "sections": [
+                {"id": "sec-1", "title": "Erster Abschnitt", "path": "chapters/01-erstes/sections/01.md"}]},
+            {"id": "ch-2", "title": "Zweites Kapitel", "path": "chapters/02-zweites", "status": "planned", "sections": [{"id": "sec-2", "title": "Zweiter Abschnitt", "path": "chapters/02-zweites/sections/01.md"}]}]}}
+
+    def navigation_http(self, trace, method, path, params=None, **kw):
+        self.assertEqual(method, "GET", "Navigation darf keine Schreibzugriffe ausführen")
+        if path.endswith('/contents/START.md'):
+            return self.start_response()
+        if path.endswith('/contents/library.json'):
+            return self.start_response(json.dumps({'books': self.nav_books}))
+        if path.endswith('/branches'):
+            values = [{'name': b['branch'], 'commit': {'sha': self.nav_head}} for b in self.nav_books]
+            if self.nav_work:
+                values.append({'name': 'ghostwriter/buch/erstes', 'commit': {'sha': self.nav_work}})
+            return values
+        if path.endswith('/pulls'):
+            return self.nav_pulls
+        if path.endswith('/contents/ghostwriter.yml'):
+            self.assertIn(params['ref'], [self.nav_head, self.nav_work])
+            return self.start_response(self.module.yaml.safe_dump(self.nav_config))
+        if '/contents/chapters/' in path:
+            self.assertIn(params['ref'], [self.nav_head, self.nav_work])
+            return self.start_response('---\nstatus: writing\n---\n## Manuskript\nNur dieser eine Abschnitt.')
+        return {'default_branch': 'main'}
+
+    def receipt(self, branches=None):
+        scope = self.tool._navigation_scope('owner/book', 'chat-1', {'id': 'user-1'}, {}, None)
+        view = self.tool._navigation_view({'view': 'Bibliothek'},
+            {'kind': 'library', 'branches': branches or ['buch/erstes', 'buch/zweites'], 'sha': self.head}, scope)
+        return view['navigation_receipt']
+
+    def open_navigation(self, selection, receipt, chat='chat-1', user='user-1'):
+        return self.run_tool(self.tool.open_book(selection, receipt, __chat_id__=chat, __user__={'id': user}))
+
+    def test_book_number_uses_displayed_branch_even_after_library_reordering(self):
+        self.navigation_fixture()
+        receipt = self.receipt()
+        self.nav_books.reverse()
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http):
+            result = self.open_navigation('1', receipt)
+        self.assertTrue(result['ok'], result)
+        self.assertEqual(result['result']['book_branch'], 'buch/erstes')
+        self.assertEqual(result['result']['branch'], 'buch/erstes')
+        self.assertIn('Tatsächlicher Buchtitel', result['result']['view'])
+        self.assertIn('| 1 | Erstes Kapitel | 1 |', result['result']['view'])
+        self.assertNotIn('Nur dieser eine Abschnitt', result['result']['view'])
+
+    def test_book_uses_only_matching_open_work_pr_and_pins_file_reads(self):
+        self.navigation_fixture()
+        self.nav_work = 'b' * 40
+        pr = {'number': 7, 'base': {'ref': 'buch/erstes'},
+              'head': {'ref': 'ghostwriter/buch/erstes', 'sha': self.nav_work, 'repo': {'full_name': 'owner/book'}}}
+        self.nav_pulls = [pr]
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http) as http:
+            result = self.open_navigation('Buch 1', self.receipt())
+        self.assertTrue(result['ok'], result)
+        self.assertEqual(result['result']['sha'], self.nav_work)
+        self.assertIn('Noch nicht übernommene Änderungen · PR #7', result['result']['view'])
+        cfg_call = next(c for c in http.call_args_list if c.args[2].endswith('/contents/ghostwriter.yml'))
+        self.assertEqual(cfg_call.args[3], {'ref': self.nav_work})
+        self.nav_pulls = [{**pr, 'head': {**pr['head'], 'repo': {'full_name': 'other/book'}}}]
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http):
+            result = self.open_navigation('1', self.receipt())
+        self.assertEqual(result['result']['branch'], 'buch/erstes')
+
+    def test_receipt_tampering_cross_session_and_invalid_numbers_never_open(self):
+        self.navigation_fixture()
+        receipt = self.receipt()
+        with patch.object(self.tool, '_http') as http:
+            self.assertFalse(self.open_navigation('1', receipt + 'a')['ok'])
+            self.assertFalse(self.open_navigation('1', receipt, chat='other-chat')['ok'])
+            self.assertFalse(self.open_navigation('1', receipt, user='other-user')['ok'])
+            self.assertFalse(self.open_navigation('9', receipt)['ok'])
+            self.assertFalse(self.open_navigation('Freigeben', receipt)['ok'])
+            http.assert_not_called()
+
+    def test_deleted_book_does_not_select_new_book_at_same_number(self):
+        self.navigation_fixture()
+        self.nav_books.pop(0)
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http) as http:
+            result = self.open_navigation('1', self.receipt())
+        self.assertFalse(result['ok'], result)
+        self.assertFalse(any(c.args[2].endswith('/contents/ghostwriter.yml') for c in http.call_args_list))
+
+    def test_changed_head_refreshes_overview_instead_of_reusing_chapter_number(self):
+        self.navigation_fixture()
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http):
+            book = self.open_navigation('1', self.receipt())['result']
+            self.nav_head = 'c' * 40
+            self.nav_config['structure']['chapters'].reverse()
+            result = self.open_navigation('1', book['navigation_receipt'])
+        self.assertTrue(result['ok'], result)
+        self.assertTrue(result['result']['changed'])
+        self.assertEqual(result['result']['chapter'], 0)
+        self.assertIn('inzwischen geändert', result['result']['view'])
+
+    def test_chapter_table_and_single_section_are_read_from_same_commit(self):
+        self.navigation_fixture()
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http) as http:
+            book = self.open_navigation('1', self.receipt())['result']
+            chapter = self.open_navigation('Kapitel 1', book['navigation_receipt'])['result']
+            section = self.open_navigation('1', chapter['navigation_receipt'])['result']
+            overview = self.open_navigation('Übersicht', section['navigation_receipt'])['result']
+        self.assertIn('| 1.1 | Erster Abschnitt | Entwurf |', chapter['view'])
+        self.assertNotIn('Nur dieser eine Abschnitt', chapter['view'])
+        self.assertEqual(section['section'], 1)
+        self.assertEqual(section['view'].count('Nur dieser eine Abschnitt'), 1)
+        self.assertEqual(overview['chapter'], 0)
+        pinned = [c.args[3]['ref'] for c in http.call_args_list if '/contents/chapters/' in c.args[2]]
+        self.assertTrue(pinned)
+        self.assertEqual(set(pinned), {self.head})
+
+    def test_path_outside_section_directory_is_rejected(self):
+        self.navigation_fixture()
+        self.nav_config['structure']['chapters'][0]['sections'][0]['path'] = '.env'
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http) as http:
+            book = self.open_navigation('1', self.receipt())['result']
+            result = self.open_navigation('Abschnitt 1.1', book['navigation_receipt'])
+        self.assertFalse(result['ok'])
+        self.assertFalse(any('/contents/.env' in c.args[2] for c in http.call_args_list))
+
+    def test_start_number_book_chapter_section_path_without_any_model_call(self):
+        from functools import partial
+        self.navigation_fixture()
+        path = Path(__file__).resolve().parents[1] / 'integrations/openwebui/ghostwriter_direct.py'
+        spec = importlib.util.spec_from_file_location('navigation_pipe', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        pipe = module.Pipe()
+        tools = {name: {'tool_id': 'github', 'spec': {'name': name}, 'callable': partial(getattr(self.tool, name),
+                         __chat_id__='chat-1', __user__={'id': 'user-1'}, __id__='github')}
+                 for name in ['read_start_md', 'show_library', 'open_book']}
+        messages = []
+        outputs = []
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http), patch.object(pipe, '_forward', new_callable=AsyncMock) as forward:
+            for command in ['Start', '1', '1', '1', 'Übersicht', 'Buch 2']:
+                messages.append({'role': 'user', 'content': command})
+                output = asyncio.run(pipe.pipe({'model': 'direct', 'messages': messages}, __tools__=tools))
+                messages.append({'role': 'assistant', 'content': output})
+                outputs.append(output)
+            forward.assert_not_awaited()
+        self.assertIn('Herzlich willkommen', outputs[0])
+        self.assertIn('| 1 | Erstes Kapitel |', outputs[1])
+        self.assertIn('| 1.1 | Erster Abschnitt |', outputs[2])
+        self.assertIn('Nur dieser eine Abschnitt', outputs[3])
+        self.assertIn('| 1 | Erstes Kapitel |', outputs[4])
+        self.assertNotIn('✗', '\n'.join(outputs))
 
 
 if __name__ == "__main__":
