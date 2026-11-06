@@ -136,5 +136,21 @@
   "section_ui.section_cost_hint": "Summe der Kosteneinträge",
   "section_ui.hint_repetition": "Wortwiederholung",
   "section_ui.marker_kontinuitaet": "Kontinuität prüfen",
-  "section_ui.section_approved": "Abschnitt freigegeben"
+  "section_ui.section_approved": "Abschnitt freigegeben",
+  "edition.no_chapters": "Das Buch hat noch keine Kapitel.",
+  "edition.partial_approval": "Bisher freigegeben: {approved} von {total} Kapiteln; nur freigegebene Kapitel kommen in die Auflage.",
+  "edition.no_title": "das Buch hat noch keinen Titel",
+  "edition.none_approved": "noch kein Kapitel ist freigegeben",
+  "edition.open_markers": "{number} offene Marker im freigegebenen Text",
+  "edition.unapproved_sections": "freigegebene Kapitel mit nicht freigegebenen Abschnitten",
+  "edition.and": " und ",
+  "edition.blocked": "So kann die Auflage nicht gebaut werden: {reasons}. Bitte zuerst klären.",
+  "edition.print_pdf": "Druck-PDF",
+  "edition.cover": "Umschlag",
+  "edition.heading": "### 📚 Neue Auflage erzeugen · Auflage {number}",
+  "edition.name_row": "| Name | {name} |",
+  "edition.tag_row": "| Tag | `{tag}` |",
+  "edition.formats_row": "| Formate | {formats} |",
+  "edition.date_row": "| Erscheinungsdatum | {date} *(Vorschlag)* |",
+  "edition.form_hint": "Schicke `Datum: JJJJ-MM-TT` und optional `Anmerkungen: …`. `OK` übernimmt den Vorschlag, `X` bricht ab."
 }

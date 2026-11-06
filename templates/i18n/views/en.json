@@ -136,5 +136,21 @@
   "section_ui.section_cost_hint": "Total cost entries",
   "section_ui.hint_repetition": "Word repetition",
   "section_ui.marker_kontinuitaet": "Check continuity",
-  "section_ui.section_approved": "Section approved"
+  "section_ui.section_approved": "Section approved",
+  "edition.no_chapters": "The book has no chapters yet.",
+  "edition.partial_approval": "Chapters approved so far: {approved} of {total}; only approved chapters are included in the edition.",
+  "edition.no_title": "the book has no title yet",
+  "edition.none_approved": "no chapter has been approved yet",
+  "edition.open_markers": "open markers in approved text: {number}",
+  "edition.unapproved_sections": "approved chapters contain unapproved sections",
+  "edition.and": " and ",
+  "edition.blocked": "The edition cannot be built: {reasons}. Please resolve these issues first.",
+  "edition.print_pdf": "Print PDF",
+  "edition.cover": "Cover",
+  "edition.heading": "### 📚 Create a new edition · Edition {number}",
+  "edition.name_row": "| Name | {name} |",
+  "edition.tag_row": "| Tag | `{tag}` |",
+  "edition.formats_row": "| Formats | {formats} |",
+  "edition.date_row": "| Publication date | {date} *(suggested)* |",
+  "edition.form_hint": "Reply with `Date: YYYY-MM-DD` and optional `Notes: …`. `OK` accepts the suggested date; `X` cancels."
 }

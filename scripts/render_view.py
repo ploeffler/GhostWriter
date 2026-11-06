@@ -1012,10 +1012,9 @@ def edition_create_view(base, config, args):
     chapters = config['structure']['chapters']
     approved = sum(ch['status'] == 'approved' for ch in chapters)
     if not chapters:
-        warn = 'Das Buch hat noch keine Kapitel.'
+        warn = view_message('edition.no_chapters')
     elif approved < len(chapters):
-        warn = (f'Bisher {"ist" if approved == 1 else "sind"} {approved} von {len(chapters)} Kapiteln freigegeben; '
-                'nur freigegebene Kapitel kommen in die Auflage.')
+        warn = view_message('edition.partial_approval', approved=approved, total=len(chapters))
     else:
         warn = ''
     # Was den Bau der Auflage verhindert (scripts/assemble.py check): kein freigegebenes
@@ -1025,30 +1024,32 @@ def edition_create_view(base, config, args):
     markers = sum(x.startswith('Offener Marker') for x in blockers)
     parts = []
     if not short:
-        parts.append('das Buch hat noch keinen Titel')
+        parts.append(view_message('edition.no_title'))
     if not approved:
-        parts.append('noch kein Kapitel ist freigegeben')
+        parts.append(view_message('edition.none_approved'))
     if markers:
-        parts.append(f'{markers} offene Marker im freigegebenen Text')
+        parts.append(view_message('edition.open_markers', number=markers))
     if len(blockers) > markers:
-        parts.append('freigegebene Kapitel mit nicht freigegebenen Abschnitten')
+        parts.append(view_message('edition.unapproved_sections'))
     if parts:
-        warn = (warn + ' ' if warn else '') + ('So kann die Auflage nicht gebaut werden: ' + ', '.join(parts[:-1])
-                                              + (' und ' if len(parts) > 1 else '') + parts[-1] + '. Bitte zuerst klären.')
+        reasons = ', '.join(parts[:-1]) + (view_message('edition.and') if len(parts) > 1 else '') + parts[-1]
+        warn = (warn + ' ' if warn else '') + view_message('edition.blocked', reasons=reasons)
     if not short:
         short = 'Ohne Titel'
     values = {'EDITION_NUMBER': n, 'EDITION_NAME': br['name_pattern'].format(title_short=short, edition=n),
               'EDITION_TAG': br['tag_pattern'].format(title_short_slug=tag_slug(short), edition=n),
               'EDITION_DATE_DEFAULT': datetime.date.today().isoformat(), 'APPROVAL_WARNING_TEXT': warn}
     chosen = (config.get('typesetting') or {}).get('formats') or br['assets']   # Ausgabeoptionen (#68)
-    short = {'pdf_print': 'Druck-PDF', 'cover': 'Umschlag'}
+    short = {'pdf_print': view_message('edition.print_pdf'), 'cover': view_message('edition.cover')}
     formats = [{'FORMAT_LABEL': short.get(a, a.upper())} for a in ['pdf', 'pdf_print', 'cover', 'epub', 'docx'] if a in chosen]
     if args.text:
-        return '\n'.join([f'### 📚 Neue Auflage erzeugen · Auflage {n}', '', '| | |', '|---|---|', f'| Name | {values["EDITION_NAME"]} |',
-                           f'| Tag | `{values["EDITION_TAG"]}` |', f'| Formate | {", ".join(f["FORMAT_LABEL"] for f in formats)} |',
-                           f'| Erscheinungsdatum | {values["EDITION_DATE_DEFAULT"]} *(Vorschlag)* |']
+        return '\n'.join([view_message('edition.heading', number=n), '', '| | |', '|---|---|',
+                           view_message('edition.name_row', name=values['EDITION_NAME']),
+                           view_message('edition.tag_row', tag=values['EDITION_TAG']),
+                           view_message('edition.formats_row', formats=', '.join(f['FORMAT_LABEL'] for f in formats)),
+                           view_message('edition.date_row', date=values['EDITION_DATE_DEFAULT'])]
                           + (['', f'> ⚠️ {warn}'] if warn else [])
-                          + ['', 'Schicke `Datum: JJJJ-MM-TT` und optional `Anmerkungen: …`. `OK` übernimmt den Vorschlag, `X` bricht ab.']) + '\n'
+                          + ['', view_message('edition.form_hint')]) + '\n'
     return fill('auflage-erzeugen.html', values, {'FORMATS': formats})
 
 

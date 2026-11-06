@@ -6,7 +6,7 @@ from pathlib import Path
 from string import Formatter
 
 RESOURCE = Path(__file__).resolve().parents[1] / 'templates' / 'i18n' / 'views'
-DIRECT_VIEWS = {'changes-merge', 'chapter-reorder', 'section-reorder', 'series-edit',
+DIRECT_VIEWS = {'edition-create', 'changes-merge', 'chapter-reorder', 'section-reorder', 'series-edit',
                 'approval-writing', 'approval-section', 'approval-chapter', 'approval-matter', 'approval-image'}
 
 
