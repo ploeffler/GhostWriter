@@ -15,6 +15,7 @@ das Werkzeug ist keine vollständige GhostWriter-API und erteilt selbst keine Bu
      Ohne Eintrag ist jeder Zugriff gesperrt. Nur tatsächlich benötigte Repositorys aufnehmen.
    - `START_REPO`: Repository für den Einstieg; bei genau einem Eintrag in `ALLOWED_REPOS` optional.
    - `START_BRANCH`: leer für den tatsächlichen Standard-Branch; sonst ausdrücklich gewählter Branch.
+   - `INTERFACE_LANGUAGE`: `de` oder `en` für die fertige Bibliotheksansicht (Vorgabe Deutsch).
    - `START_STATE_DIR`: Vorgabe `/app/backend/data/ghostwriter`, im vorhandenen Open-WebUI-Datenvolume.
    - `MAX_START_BYTES`: Vorgabe 16384 Bytes. Eine vollständige alte START.md wird abgewiesen; zuerst GhostWriter aktualisieren.
    - `DEBUG`: für die Einrichtung einschalten, danach nach Bedarf ausschalten.
@@ -38,7 +39,7 @@ Token niemals in Chat, Prompt, Buchdatei oder Repository speichern.
 
 ## Kontrollierter Start pro Chat
 
-Version 1.1.0 ergänzt `read_start_md` ohne normale Modellparameter. Open WebUI liefert Chat-ID, Benutzerkennung und Verlauf über [reservierte Argumente](https://docs.openwebui.com/features/extensibility/plugin/development/reserved-args/). Ohne diese Kennungen wird nichts geladen; es gibt keinen gemeinsamen anonymen Zustand.
+Version 1.2.0 liefert die Bibliotheksansicht direkt mit dem ersten erfolgreichen `read_start_md`-Aufruf. Das Startwerkzeug benötigt keine normalen Modellparameter. Open WebUI liefert Chat-ID, Benutzerkennung und Verlauf über [reservierte Argumente](https://docs.openwebui.com/features/extensibility/plugin/development/reserved-args/). Ohne diese Kennungen wird nichts geladen; es gibt keinen gemeinsamen anonymen Zustand.
 
 Beim ersten erfolgreichen Aufruf wird der Standard-Branch ermittelt und dessen kurze `START.md` geladen (bei gesetztem `START_BRANCH` dieser Branch). Gespeichert werden nur diese Anweisungen, Datei-SHA, Branch und eine technische Quittung in `startup.sqlite3`, getrennt nach Benutzer, Chat, Werkzeug, Repository, Branch und Zugang. Der Token selbst wird nicht gespeichert. Die SQLite-Transaktion verhindert doppelte Abrufe durch parallele Aufrufe, auch über mehrere Werkzeuginstanzen im selben Datenvolume. Ein fehlgeschlagener Abruf setzt den Chat nicht auf „geladen“.
 
@@ -47,6 +48,14 @@ Wenn der vollständige erfolgreiche Werkzeuginhalt bereits im übergebenen Chatv
 Die ausdrückliche Benutzernachricht **„Start neu laden“** oder **„Reload start“** fordert eine neue Fassung von GitHub an. Mehrere Werkzeugaufrufe für dieselbe Benutzer-Nachrichten-ID lösen nur einen neuen Abruf aus. Dabei wird die bisherige erfolgreiche Fassung erst nach erfolgreichem Lesen ersetzt. Ein neuer Chat lädt unabhängig neu.
 
 Ein Werkzeug kann die Entscheidung des Modells, es aufzurufen, nicht verhindern. Diese Sperre verhindert wiederholte GitHub-Initialisierungen und unnötige Volltextantworten bei vorhandenem Kontext; sie startet auch keinen leeren Chat von selbst. `read_file` bleibt ein allgemeines, ungepuffertes Lesewerkzeug. Für den Chatstart ausschließlich `read_start_md` verwenden.
+
+### Fertige Bibliotheksansicht
+
+Der erste erfolgreiche Start liefert neben den internen Anweisungen ein fertiges Markdown-Feld `view` und die Nummer-/Branch-Zuordnung in `books`. Das Modell soll einen kurzen Willkommenssatz und danach `view` unverändert anzeigen. Es muss dafür weder JSON selbst umformen noch weitere Dateiaufrufe erraten.
+
+Für spätere Befehle **„Bibliothek“**, **„Library“** und **„Home“** dient `show_library` ohne Parameter. Es ermittelt den tatsächlichen Standard-Branch und liest `library.json` bei jedem Aufruf frisch, auch wenn `START_BRANCH` auf einen Buchbranch zeigt. Die Bücherliste liegt niemals im Startspeicher. `sha` bzw. `library_source` nennt die tatsächlich gelesene Dateiversion; die Angaben stammen aus dem erzeugten Bibliotheksindex und ersetzen keinen zusätzlichen Head-/PR-Abgleich vor Schreiboperationen.
+
+Eine vorhandene, leere Bücherliste wird als leere Bibliothek angezeigt. Fehlende oder ungültige Dateien ergeben einen Fehler statt erfundener Nullwerte. Scheitert nur der Bibliotheksabruf beim Start, bleiben die erfolgreich geladenen Anweisungen erhalten, und `library_error` meldet den fehlgeschlagenen Teil. Mit `show_library` kann die Ansicht anschließend erneut abgerufen werden. Eine Bibliothek mit nur einem Buch bleibt eine Bibliotheksansicht.
 
 ### Eigenes Workspace-Modell
 
@@ -61,7 +70,9 @@ Du bist GhostWriter. Antworte kurz und auf Deutsch.
 Beim ersten Benutzerbeitrag eines neuen Chats rufe read_start_md auf.
 Lies den Inhalt intern und bearbeite anschließend die Benutzeranfrage.
 Beim normalen Start einer eingerichteten Bibliothek antworte mit genau
-einem kurzen Willkommenssatz und zeige danach die aktuelle Bibliotheksansicht.
+einem kurzen Willkommenssatz und zeige danach die fertige Ansicht aus `view`
+unverändert. Bei „Bibliothek“, „Library“ oder „Home“ rufe show_library auf
+und zeige dessen `view`. Erfinde keine Bücherlisten, Nullwerte oder Beispieldaten.
 Gib START.md nicht als Antwort aus. Nach erfolgreichem Start rufe das
 Startwerkzeug bei normalen Nachrichten nicht erneut auf.
 Nur bei „Start neu laden“ oder „Reload start“ rufe read_start_md erneut auf.
