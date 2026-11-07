@@ -51,6 +51,13 @@ For major changes to plot, characters, narrative perspective, time structure or 
 - Use the project profile and binding fact/character material as references.
 - Perform a complete linear final reading of the manuscript when needed.
 
+## New material and reconciling findings
+
+For anecdotes, notes, sources and findings supplied later, follow
+[Integrating new material and catching up](NACHZIEHEN.md) (German). Compare all
+sections within the selected scope, then review the complete affected context
+after integrating the material. Analysis alone does not complete a revision.
+
 ## Correction loop
 
 1. Record the review scope and the text version being reviewed.
