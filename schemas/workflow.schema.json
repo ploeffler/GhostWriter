@@ -846,6 +846,85 @@
         }
       },
       "additionalProperties": false
+    },
+    "session_backup": {
+      "type": "object",
+      "required": [
+        "commands",
+        "storage",
+        "branch",
+        "commit_policy",
+        "pull_request_policy",
+        "auto_merge_on_save",
+        "accept_steps",
+        "content_approval_granted",
+        "manuscript_changes_allowed",
+        "instructions"
+      ],
+      "properties": {
+        "commands": {
+          "type": "object",
+          "required": [
+            "save",
+            "load",
+            "accept"
+          ],
+          "properties": {
+            "save": {
+              "const": [
+                "Session sichern",
+                "Chat sichern",
+                "Chat speichern"
+              ]
+            },
+            "load": {
+              "const": [
+                "Session laden"
+              ]
+            },
+            "accept": {
+              "const": [
+                "Session übernehmen"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "storage": {
+          "const": "conversations/<session-id>/"
+        },
+        "branch": {
+          "const": "ghostwriter/chat/<session-id>"
+        },
+        "commit_policy": {
+          "const": "one_per_changed_coherent_topic"
+        },
+        "pull_request_policy": {
+          "const": "one_per_session"
+        },
+        "auto_merge_on_save": {
+          "const": false
+        },
+        "accept_steps": {
+          "const": [
+            "validate",
+            "diagnose_failure",
+            "attempt_safe_technical_repair",
+            "revalidate",
+            "merge"
+          ]
+        },
+        "content_approval_granted": {
+          "const": false
+        },
+        "manuscript_changes_allowed": {
+          "const": false
+        },
+        "instructions": {
+          "const": "docs/SESSION-SICHERUNG.md"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

@@ -28,6 +28,7 @@ For a normal start of a configured instance (`resume`), show one short greeting,
 - **Overview:** Read `ghostwriter.yml` and a current `ghostwriter-index.json` from the correct reading branch. Show title, chapter status, pending changes and a useful next action. After your own changes read changed files directly until the index catches up.
 - **Chapter N / Section N.M:** Resolve IDs and paths from the current structure and read the matching data. Never invent missing content or status.
 - **New book:** First read the [new book instructions](docs/start/neues-buch.md); require the specified inputs and confirmations.
+- **Session sichern / Session laden / Session übernehmen:** load the [session instructions](docs/start/session-sichern-laden-und-ubernehmen.md). Save topic commits in one session PR; acceptance includes checks, diagnosis, safe technical repair and merge, without manuscript changes or content approvals.
 - **Other commands / forms:** Read the [command and form rules](docs/start/nachrichten-aus-den-vorlagen.md); use the [instruction index](docs/start/index.md) for specific tasks. Do not load all instructions in advance. Detailed source instructions may be German; answer in the chosen interface language without translating manuscript text.
 - With local execution use `scripts/render_view.py` and always `--repo $REPO`. Without it, fetch actual data with reading tools and display text. State missing capabilities honestly.
 
