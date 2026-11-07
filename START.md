@@ -141,11 +141,13 @@ Eine vorhandene Geschichte bzw. ein Manuskript wird ein Buch (Befehl `Als Buch i
 
 ### Neuer Chat statt langem Verlauf
 
-Ein Chat lässt sich nicht leeren; jede Ansicht bleibt im Verlauf stehen. Der Projektstand liegt aber vollständig im Repository. Deshalb:
+Ein Chat lässt sich nicht leeren; jede Ansicht bleibt im Verlauf stehen. Der Projektstand liegt im Repository, der aktuelle Arbeitskontext kann zusätzlich im Chat liegen.
 
 1. Schlage einen neuen Chat vor, wenn ein Abschnitt freigegeben ist, ein Kapitel abgeschlossen ist oder der Verlauf lang und unübersichtlich wird; höchstens einmal je Anlass, nicht bei jeder Antwort.
-2. Gib dafür den Link mit, mit dem der neue Chat startet: `https://github.com/<owner>/<repo>/tree/<branch>` des aktuellen Projekts. Der Wiedereinstieg (oben) zeigt dort die frische Projektübersicht und bietet die zuletzt bearbeitete Stelle an.
-3. Vorher muss alles Gewünschte gespeichert sein. Ungespeicherte Änderungen nennst du ausdrücklich, bevor du den neuen Chat vorschlägst.
+2. Gib dafür den Link mit, mit dem der neue Chat startet: `https://github.com/<owner>/<repo>/tree/<branch>` des aktuellen Projekts.
+3. Wenn du von dir aus einen neuen Chat vorschlägst, nenne vorher ungespeicherte Änderungen ausdrücklich und kläre, ob sie zuerst mit „Buchstand speichern“ gesichert werden sollen.
+4. Auf den ausdrücklichen Befehl **„Chat wechseln“** erstellst du sofort eine vollständige, kopierfertige Übergabe für einen neuen Chat. Sie enthält mindestens: aktives Buch und Repository, Buch-Branch und – soweit bekannt – Arbeits-Branch/PR, zuletzt bearbeitetes Kapitel und Abschnitt, erreichten Arbeitsstand, wichtige Entscheidungen, offene Fragen und nächste Aufgaben sowie relevante Quellen/Dateipfade. Ungespeicherte Entwürfe und Änderungen aus dem aktuellen Chat werden ausdrücklich als **nicht gespeichert** gekennzeichnet und in die Übergabe aufgenommen, damit sie im neuen Chat weiterbearbeitet werden können.
+5. **„Chat wechseln“ ist ausschließlich ein Kontextwechsel.** Er speichert nichts im Repository, erstellt keinen Commit oder PR, merged nichts und erteilt keine Freigaben. Ungespeicherte Arbeit darf dafür nicht verworfen oder stillschweigend als gespeichert dargestellt werden. Die Übergabe enthält einen direkt verwendbaren Starttext für den neuen Chat.
 
 Tipp für den Benutzer: In einem claude.ai-Projekt mit Startprompt und Link als Projektanweisung genügt im neuen Chat ein „Start“.
 
@@ -158,8 +160,9 @@ Unterscheide die folgenden Schritte konsequent. Sie bewegen Daten an unterschied
 3. **„Buchstand aktualisieren“** bedeutet: den aktuellen Stand aus dem Buch-Repository erneut lesen und den im Chat geladenen Projekt- und Manuskriptkontext damit abgleichen. Das ist ein Lese-/Abgleichvorgang, erzeugt keinen Commit und keinen Pull Request. Nicht gespeicherte Chatentwürfe nicht stillschweigend verwerfen; Abweichungen und mögliche Konflikte kenntlich machen.
 4. **„Buchänderungen übernehmen“** bezeichnet ausschließlich die bestätigungspflichtige Zusammenführung des offenen Pull Requests vom Arbeits-Branch in den Buch-Branch (`changes.merge`). Die Bestätigung muss den tatsächlich angezeigten Stand umfassen.
 5. **„GhostWriter aktualisieren“** bezeichnet ausschließlich das Einspielen neuer Programmdateien aus dem Hauptrepository über die Update-Action. Es aktualisiert nicht den Buchinhalt und ersetzt nicht „Buchstand aktualisieren“.
+6. **„Chat wechseln“** bedeutet: den aktuellen Gesprächs- und Arbeitskontext einschließlich ausdrücklich markierter, noch nicht gespeicherter Entwürfe in eine kopierfertige Übergabe für einen neuen Chat übertragen. Es ist keine Speicher-, Commit-, PR-, Merge- oder Freigabeaktion.
 
-Verwende diese Bezeichnungen in Antworten, Statusmeldungen, Anleitungen und Benutzeroberflächen. Verwende „Buchänderungen übernehmen“ ausschließlich für den bestätigten Merge des Buch-Pull-Requests; nutze „Buchstand speichern“ für das Übertragen aus dem Chat und „Buchstand aktualisieren“ für das erneute Lesen aus YAWA. Die bestehenden technischen Aktionsnamen und API-Endpunkte bleiben unverändert.
+Verwende diese Bezeichnungen in Antworten, Statusmeldungen, Anleitungen und Benutzeroberflächen. Verwende „Buchänderungen übernehmen“ ausschließlich für den bestätigten Merge des Buch-Pull-Requests; nutze „Buchstand speichern“ für das Übertragen aus dem Chat, „Buchstand aktualisieren“ für das erneute Lesen aus YAWA und „Chat wechseln“ ausschließlich für die Kontextübergabe. Die bestehenden technischen Aktionsnamen und API-Endpunkte bleiben unverändert.
 ### Programmdateien und Updates (verbindlich)
 
 GhostWriter aktualisiert sich selbst (`docs/UPDATES.md`): Die Programmdateien unter `managed` in `ghostwriter-manifest.yml` (`START.md`, `docs/`, `scripts/`, `templates/` …) werden beim nächsten Update überschrieben.
