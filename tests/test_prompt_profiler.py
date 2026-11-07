@@ -181,3 +181,19 @@ class PromptProfilerTests(unittest.TestCase):
         self.assertEqual(summary['usage']['prompt_tokens']['known_sum'], 9)
         self.assertEqual(summary['usage']['cache_read_tokens']['unknown_calls'], 1)
         self.assertNotIn('Nicht-im-Report', result.stdout)
+
+    def test_pipe_projection_excludes_non_model_metadata(self):
+        payload = {'model': 'local', 'messages': [{'role': 'user', 'content': 'PRIVATE'}],
+                   'metadata': {'callable': lambda: None, 'secret': 'DO_NOT_DISPLAY'},
+                   'options': {'num_ctx': 32768}}
+        before_messages = copy.deepcopy(payload['messages'])
+        result = profiler.openwebui_report(payload)
+        self.assertEqual(payload['messages'], before_messages)
+        self.assertEqual(result['coverage']['excluded_top_level_fields'], 1)
+        self.assertNotIn('PRIVATE', json.dumps(result))
+        self.assertNotIn('DO_NOT_DISPLAY', json.dumps(result))
+        self.assertIsNone(result['usage']['cost'])
+
+    def test_single_file_pipe_uses_current_shared_core(self):
+        import build_openwebui_profiler
+        self.assertTrue(build_openwebui_profiler.build(check=True))

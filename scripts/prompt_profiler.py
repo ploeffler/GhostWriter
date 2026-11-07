@@ -22,7 +22,7 @@ def component(content, *, source, kind, scope='request', priority='unknown',
 
 def request_plan(payload, adapter):
     """Nur explizit übergebene Payloads; keine Header, Schlüssel oder Plattformabfragen."""
-    if adapter not in ('openai-chat', 'anthropic-messages'):
+    if adapter not in ('openai-chat', 'anthropic-messages', 'openwebui-pipe'):
         raise ValueError('Unbekannter Adapter')
     parts = []
     if 'system' in payload:
@@ -155,10 +155,28 @@ def aggregate(reports):
     return {'calls': len(reports), 'usage': totals, 'repeated_components': repeated,
             'cost_status': 'unavailable', 'cache_savings': 'unknown'}
 
+
+def openwebui_report(payload):
+    """Nur Modellfelder an der Pipe-Grenze; Metadaten können Callables enthalten."""
+    fields = {'model', 'messages', 'system', 'tools', 'options', 'stream', 'temperature',
+              'top_p', 'top_k', 'num_ctx', 'max_tokens', 'seed', 'stop', 'response_format'}
+    visible = {key: value for key, value in payload.items() if key in fields}
+    result = report(request_plan(visible, 'openwebui-pipe'), visible)
+    result['visibility']['adapter_payload'] = 'pipe_boundary_model_fields'
+    result['coverage'] = {'excluded_top_level_fields': len(set(payload) - fields),
+                          'complete_provider_request': False}
+    result['transport_status'] = 'not_observed'
+    result['limits'] = ['Pipe-Grenze vor Open-WebUI-Verarbeitung',
+                        'Metadaten und andere nicht erfasste Felder sind ausgeschlossen',
+                        'Provider-Request, Usage und Kosten bleiben unbekannt',
+                        'Keine semantische Konfliktanalyse']
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--aggregate', action='store_true', help='Metadaten-JSONL aggregieren')
-    parser.add_argument('--adapter', choices=['openai-chat', 'anthropic-messages'])
+    parser.add_argument('--adapter', choices=['openai-chat', 'anthropic-messages', 'openwebui-pipe'])
     args = parser.parse_args()
     try:
         if args.aggregate:
@@ -168,7 +186,8 @@ def main():
             if not args.adapter:
                 parser.error('--adapter fehlt')
             payload = json.load(sys.stdin)
-            result = report(request_plan(payload, args.adapter), payload)
+            result = (openwebui_report(payload) if args.adapter == 'openwebui-pipe'
+                      else report(request_plan(payload, args.adapter), payload))
     except (ValueError, TypeError, KeyError, AttributeError):
         parser.exit(2, 'Ungültiger Request; Eingabe wird aus Datenschutzgründen nicht ausgegeben.\n')
     print(json.dumps(result, ensure_ascii=False, indent=2))

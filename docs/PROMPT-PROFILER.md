@@ -126,6 +126,21 @@ Transportstatus bleibt je Fundstelle sichtbar; bei Offline-Snapshots oder Fehler
 ist die tatsächliche Übertragung nicht nachgewiesen. Wiederholung belegt weder
 einen Provider-Cache-Treffer noch eine Geldersparnis. Die Eingabe muss jeden Aufruf genau einmal enthalten.
 
+## Open WebUI mit lokalem Modell
+
+Die [Direkt-Pipe 1.7](../integrations/openwebui/README.md) enthält denselben
+Profiler als erzeugten Codeblock. Mit **Prompt-Profil** wird eine Diagnose ohne
+Modellaufruf angezeigt. Die Valve `PROMPT_PROFILE` schaltet optional die
+Metadatenerfassung bei normalen Weiterleitungen ein. Ein lokales Ollama-Modell
+benötigt dafür keinen zusätzlichen bezahlten API-Zugang.
+
+Die Sichtbarkeit ist enger als bei den direkt erfassten API-Bodys: Die Pipe sieht
+nur ihre Modellfelder vor Übergabe an Open WebUI. Der Report kennzeichnet
+unbekannte Plattform-/Provideranteile sowie ausgeschlossene Felder. Ein Aufruf
+mit Streaming wird unverändert zurückgegeben und zur Messung nicht konsumiert.
+Gemessene Usage und Kosten werden daher nicht behauptet. Der Snapshot-CLI-Modus
+`--adapter openwebui-pipe` verwendet dieselbe eingeschränkte Sicht.
+
 ## Noch offen für Phase 1
 
 - Core-Bausteine beim Aufbau feiner in Projekt-, Aufgaben- und Abschnittskontext zerlegen.
@@ -133,7 +148,7 @@ einen Provider-Cache-Treffer noch eine Geldersparnis. Die Eingabe muss jeden Auf
   bisher wurde der Transport mit simulierten HTTP-Antworten geprüft.
 - Passende Tokenizer, Buch-/Kapitel-/Abschnittszuordnung und getrennte Kostenwerte.
 - Semantische Vorschläge für Überschneidungen und Konflikte mit Fundstellen.
-- Open-WebUI-Adapter an seiner tatsächlichen Sichtbarkeitsgrenze anbinden.
+- Open-WebUI-/Ollama-Installation mit echtem Chat prüfen; bisher Adaptertests mit simuliertem Plattformaufruf.
 - Repräsentative Aufgabenabnahme einschließlich Regel-Erhalt.
 
 Phase 1 ist mit diesen Bausteinen **noch nicht vollständig abgenommen**.
