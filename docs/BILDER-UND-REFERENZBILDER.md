@@ -1,5 +1,7 @@
 # Bilder und visuelle Referenzen
 
+[English](IMAGES-AND-REFERENCES.en.md) · Deutsch
+
 ## Zweck und Geltungsbereich
 
 Diese Anforderung gilt für **alle GhostWriter-Bücher** und alle Buchtypen. Sie ergänzt die bestehende Illustrationsfunktion (#54) um eine eigenständige Verwaltung hochgeladener Bilder, die als visuelle Referenzen in spätere Erstellungsaufträge einbezogen werden können.

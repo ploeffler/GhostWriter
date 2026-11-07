@@ -1,5 +1,7 @@
 # KI-Anbieter und Auswahl
 
+[English](PROVIDERS.en.md) · Deutsch
+
 GhostWriter ist anbieterunabhängig. Für jedes Buchprojekt wird pro Aufgabe festgelegt, welcher KI-Anbieter sie übernimmt. Die maschinenlesbare Liste steht in [`providers.yml`](../providers.yml), die Auswahl des Projekts in [`ghostwriter.yml`](../ghostwriter.yml) unter `ai_providers`.
 
 > Stand der Liste: 31.10.2026. Funktionen, Modelle, Preise und Datenschutzbedingungen ändern sich laufend. Die Liste ist eine Auswahlhilfe, keine Empfehlung. Vor dem Einsatz beim Anbieter prüfen.

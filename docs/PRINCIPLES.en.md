@@ -38,13 +38,13 @@ Global AI settings in `ghostwriter.yml` apply to research, brainstorming, writin
 | Creativity | `balanced` | Use examples and imagery without distorting facts. |
 | Web research | `research` | Search actively for research tasks; say when search is unavailable. |
 
-The book's `ai_providers` settings select services for individual tasks. See [providers](PROVIDERS.md) and [using AI services](DIENSTE-NUTZEN.md) (German).
+The book's `ai_providers` settings select services for individual tasks. See [providers](PROVIDERS.en.md) and [using AI services](AI-SERVICES.en.md).
 
 ## Images and visual references
 
 Images can be assigned to a person, place, object, chapter or section. An image can be intended for the book, serve as a reference for future image generation, or be used for both purposes.
 
-Uploading an image does not activate its use as a reference. The author explicitly decides whether and how it may be used. Record its origin, creator and known usage rights. Only durably stored and expressly accepted images can reliably be used in future editions. See [images and visual references](BILDER-UND-REFERENZBILDER.md) (German) for the separate reference workflow.
+Uploading an image does not activate its use as a reference. The author explicitly decides whether and how it may be used. Record its origin, creator and known usage rights. Only durably stored and expressly accepted images can reliably be used in future editions. See [images and visual references](IMAGES-AND-REFERENCES.en.md) for the separate reference workflow.
 
 ## Workflow
 
@@ -65,7 +65,11 @@ GhostWriter was developed with assistance from Claude (Anthropic); this acknowle
 
 ## Further reading
 
-[Getting started](GETTING-STARTED.en.md) · [German documentation index](GRUNDSAETZE.md#unterlagen) · [Assistant instructions](../START.md) (German)
+- [Getting started](GETTING-STARTED.en.md) · [User guide](USER-GUIDE.en.md) · [Chat views](INTERFACES.en.md)
+- [Quality assurance](QUALITY-ASSURANCE.en.md) · [Images and visual references](IMAGES-AND-REFERENCES.en.md)
+- [AI services](AI-SERVICES.en.md) · [Providers](PROVIDERS.en.md) · [Chat apps](CHAT-APPS.en.md) · [Connector setup](CONNECTOR-SETUP.en.md)
+- [Updates](UPDATES.en.md) · [Daily report](DAILY-SUMMARY.en.md)
+- [Assistant instructions](../START.md) and [technical documentation index](GRUNDSAETZE.md#unterlagen) (German)
 
 ---
 
