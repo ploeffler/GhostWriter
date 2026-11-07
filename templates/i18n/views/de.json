@@ -1,6 +1,6 @@
 {
   "there_are_no_pending_changes": "Es gibt keine offenen Änderungen.",
-  "apply_changes": "### 🔀 Änderungen übernehmen",
+  "apply_changes": "### 🔀 Buchänderungen übernehmen",
   "apply_to_from_pull_request": "In `{p_a}` übernehmen: {p_b} aus `{p_c}` (Pull Request #{p_d}).",
   "change_date_commit": "| # | Änderung | Datum | Commit |",
   "the_changes_become_part_of_the_book_undoing_them_requires_another_change": "Danach gehören die Änderungen zum Buch; rückgängig machen geht nur mit einer neuen Änderung.",
