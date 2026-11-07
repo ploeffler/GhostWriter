@@ -189,5 +189,56 @@ class BackupTest(unittest.TestCase):
         self.assertEqual(current, self.git('rev-parse', 'HEAD'))
 
 
+
+    def review(self):
+        return {'section_id': 'sec-one', 'source_commit': self.base,
+                'dialogue_complete': True, 'awaiting_reply': False,
+                'items': [{'id': 'question-1', 'question': 'Welche Variante?',
+                           'status': 'decided', 'evidence': ['1']}]}
+
+    def test_section_checkpoint_saves_once_and_preserves_dialogue_evidence(self):
+        before = copy.deepcopy(self.payload)
+        review = self.review()
+        result = cb.section_checkpoint(str(self.remote), 'main', 'test-session',
+                                       self.payload, self.base, review)
+        self.assertEqual(result['trigger'], 'section_dialogue_completed')
+        self.assertEqual(self.payload, before)
+        loaded = cb.resume(str(self.remote), 'test-session')
+        self.assertEqual(json.loads(loaded['topics']['section_dialogue']), review)
+        self.assertEqual(loaded['topics']['conversation']['messages'], self.payload['messages'])
+        repeated = cb.section_checkpoint(str(self.remote), 'main', 'test-session',
+                                         self.payload, result['head'], review)
+        self.assertEqual(repeated['commits'], [])
+        self.assertEqual(self.git('ls-remote', 'origin', 'refs/heads/main').split()[0], self.base)
+
+    def test_section_checkpoint_does_not_write_while_discussion_is_open(self):
+        for changes in ({'dialogue_complete': False}, {'awaiting_reply': True},
+                        {'items': [{'id': 'q', 'question': 'Noch offen?', 'status': 'open', 'evidence': ['1']}] }):
+            review = {**self.review(), **changes}
+            with patch.object(cb, 'save') as save:
+                result = cb.section_checkpoint(str(self.remote), 'main', 'test-session',
+                                               self.payload, self.base, review)
+            self.assertEqual(result['status'], 'not_due')
+            save.assert_not_called()
+        self.assertNotIn('ghostwriter/chat/', self.git('ls-remote', '--heads', 'origin'))
+
+    def test_section_checkpoint_requires_available_evidence_and_user_deferral(self):
+        for status, evidence in [('deferred', ['2']), ('decided', ['missing'])]:
+            review = self.review()
+            review['items'][0].update(status=status, evidence=evidence)
+            with patch.object(cb, 'save') as save:
+                with self.assertRaises(ValueError):
+                    cb.section_checkpoint(str(self.remote), 'main', 'test-session',
+                                          self.payload, self.base, review)
+            save.assert_not_called()
+        review = self.review()
+        review['items'][0]['status'] = 'deferred'
+        with patch.object(cb, 'save', return_value={'status': 'remote_saved'}) as save:
+            result = cb.section_checkpoint(str(self.remote), 'main', 'test-session',
+                                           self.payload, self.base, review)
+        self.assertEqual(result['status'], 'remote_saved')
+        save.assert_called_once()
+
+
 if __name__ == '__main__':
     unittest.main()

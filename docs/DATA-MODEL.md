@@ -525,7 +525,7 @@ Kosteneinträge schreibt in v0.5 nur das Backend bzw. der Assistent nach einem k
 
 ## Sitzungssicherungen
 
-`conversations/<session-id>/session.json` ordnet eine Session ihrem Projekt, ursprünglichen Zielbranch und Ausgangscommit zu. Je Thema (`conversation`, `decisions`, `research`, `brainstorming`, `drafts`, `planning`) liegen `latest.json` und unveränderliche `<sha256>.json`-Snapshots vor. Sichtbare Gesprächsbeiträge, Quellen, Entscheidungen, Entwürfe und Lücken bleiben erhalten; keine internen Anweisungen oder Secret-Werte. Diese Daten sind eigene Projektdateien, kein Manuskript und keine Freigabe. Ein Sicherungsbranch `ghostwriter/chat/<session-id>` und ein gemeinsamer PR bündeln die Themen-Commits; keine automatische Übernahme. Befehle und Reparaturablauf stehen in [Session-Sicherung](SESSION-SICHERUNG.md).
+`conversations/<session-id>/session.json` ordnet eine Session ihrem Projekt, ursprünglichen Zielbranch und Ausgangscommit zu. Je Thema (`conversation`, `decisions`, `research`, `brainstorming`, `drafts`, `planning`, `section_dialogue`) liegen `latest.json` und unveränderliche `<sha256>.json`-Snapshots vor. Sichtbare Gesprächsbeiträge, Quellen, Entscheidungen, Entwürfe und Lücken bleiben erhalten; keine internen Anweisungen oder Secret-Werte. Diese Daten sind eigene Projektdateien, kein Manuskript und keine Freigabe. Ein Sicherungsbranch `ghostwriter/chat/<session-id>` und ein gemeinsamer PR bündeln die Themen-Commits; keine automatische Übernahme. Befehle und Reparaturablauf stehen in [Session-Sicherung](SESSION-SICHERUNG.md).
 
 ## Dauerhafter Buchkontext
 

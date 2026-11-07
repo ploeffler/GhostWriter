@@ -4,7 +4,7 @@
 
 **Session sichern** (auch **Chat sichern**, **Chat speichern**) sichert die verfügbare Gesprächsarbeit dauerhaft: sichtbare Gesprächsbeiträge, Entscheidungen, Recherche mit Quellen, Brainstorming, Varianten, Entwürfe, Planungen und offene Punkte. Eine Kurzfassung allein reicht nicht. **Session laden** liest eine Sicherung zum Weiterarbeiten. **Session übernehmen** prüft die Sicherung, analysiert Fehler, versucht eine sichere technische Reparatur, prüft erneut und führt den zugehörigen Pull Request zusammen. Laden und Übernehmen sind verschiedene Aktionen.
 
-Die Befehle sind durch den Assistenten ausgeführte Arbeitsabläufe; die verfügbaren Werkzeuge müssen Git-Schreibzugriff und für den PR die GitHub-CLI oder gleichwertige GitHub-Werkzeuge bereitstellen. Sie sind kein eingebauter Export der jeweiligen Chat-App. Der Assistent sichert nur tatsächlich zugängliche Inhalte, keine internen Anweisungen, Secrets oder nicht abgesendeten Eingaben. Fehlende frühere Beiträge und Anhänge werden ausdrücklich ausgewiesen. Keine automatische Sicherung im Hintergrund und kein Zugriff auf verborgene Chat-Historie werden behauptet.
+Die Befehle sind durch den Assistenten ausgeführte Arbeitsabläufe; die verfügbaren Werkzeuge müssen Git-Schreibzugriff und für den PR die GitHub-CLI oder gleichwertige GitHub-Werkzeuge bereitstellen. Sie sind kein eingebauter Export der jeweiligen Chat-App. Der Assistent sichert nur tatsächlich zugängliche Inhalte, keine internen Anweisungen, Secrets oder nicht abgesendeten Eingaben. Fehlende frühere Beiträge und Anhänge werden ausdrücklich ausgewiesen. Automatische Sicherung erfolgt ausschließlich beim unten beschriebenen Abschluss eines Abschnittsdialogs durch den ausführenden Assistenten; keine zeitgesteuerte Hintergrundüberwachung und kein Zugriff auf verborgene Chat-Historie werden behauptet.
 
 ## Ablage und Freigabegrenzen
 
@@ -48,6 +48,35 @@ Eingabeformat (Themen sind frei formulierte Texte; nur nichtleere, tatsächlich 
 ```
 
 Der `context` bleibt pro Sitzung beständig; veränderliche Aufgaben und neue Quellenstände gehören in `planning`. Nachrichten-IDs dürfen nicht doppelt sein. `session.json` hält ursprünglichen Zielbranch und Ausgangscommit fest. Jedes Thema hat einen aktuellen Stand `latest.json` und unveränderliche, nach SHA-256 benannte Snapshots. Die gesamte Sicherung bleibt über Git nachvollziehbar. `resume` gibt Inhalte nur auf ausdrücklichen Ladeauftrag aus; der Assistent liest sie intern und antwortet mit einem kurzen Wiedereinstieg.
+
+## Automatisch sichern, wenn der Abschnittsdialog abgeschlossen ist
+
+Der Assistent löst die Sicherung **ohne zusätzlichen Speicherbefehl** aus, sobald der Dialog über die offenen Dinge eines Abschnitts fertig ist. Alle im aktuellen Dialog besprochenen Punkte müssen beantwortet, entschieden oder vom Benutzer ausdrücklich vertagt sein. Es darf keine Antwort auf eine noch gestellte Frage ausstehen. Bei unklarem Abschluss weiterarbeiten statt „fertig“ zu unterstellen. Nicht sämtliche Aufgaben des ganzen Abschnitts müssen erledigt sein; die Sicherung hält den tatsächlichen Stand samt Vertagungen fest. Keine automatische Abschnittsfreigabe und kein Merge.
+
+Der Assistent führt eine Liste der besprochenen Punkte mit Verweisen auf verfügbare Nachrichten. Vertagungen und Entscheidungen brauchen einen Benutzerbeitrag als Beleg; bloße Vorschläge des Assistenten zählen nicht als bestätigte Entscheidungen. Nach der letzten Antwort den Abschluss gegen diese Liste prüfen, Gesprächsinhalte und Themen wie beim manuellen Sichern vollständig erfassen und denselben Sitzungsbranch und PR fortsetzen. Bei bereits übernommener Sitzung eine neue Kennung verwenden. Ziel, Vertraulichkeit und Zugriff müssen wie beim manuellen Sichern geklärt sein. Fehlendes Ziel oder fehlende Werkzeuge ausdrücklich nennen; nichts still in einem anderen Repository ablegen.
+
+```sh
+python3 scripts/chat_backup.py checkpoint <git-url> <session-id> <eingabe.json> --review <dialogabschluss.json> --base <zielbranch> --expected-head <gelesener-sicherungs-head> --github-repo <owner/repo>
+```
+
+`dialogabschluss.json` enthält den gelesenen Abschnittsstand und belegte Punkte:
+
+```json
+{
+  "section_id": "sec-beispiel",
+  "source_commit": "0123456789abcdef0123456789abcdef01234567",
+  "dialogue_complete": true,
+  "awaiting_reply": false,
+  "items": [
+    {"id": "frage-1", "question": "Welcher Einstieg?", "status": "decided", "evidence": ["1"]},
+    {"id": "frage-2", "question": "Quelle ergänzen?", "status": "deferred", "evidence": ["1"]}
+  ]
+}
+```
+
+Zulässige Punktzustände: `open`, `answered`, `decided`, `deferred`. Belegkennungen müssen auf tatsächlich mitgesicherte Nachrichten zeigen. Der Helfer gibt `not_due` zurück, wenn noch ein Punkt offen ist, eine Antwort aussteht oder der Dialog nicht abgeschlossen ist; dann erfolgt keinerlei Git-Schreibzugriff. Er speichert bei abgeschlossenem Dialog auch den Nachweis als Thema `section_dialogue`. Unveränderter wiederholter Aufruf erzeugt keine neuen Commits. Das Ereignis wird vom ausführenden Assistenten erkannt; der Helfer überwacht keine fremden Chats und erkennt keine Browser-Inaktivität.
+
+Nach bestätigtem Push kurz „Abschnittsdialog automatisch gesichert“ mit Sitzungskennung, PR und bekannten Lücken melden. Bei Fehlern keine Erfolgsmeldung: vorhandenen Sicherungsstand prüfen und den regulären Sicherungsablauf wiederholen, soweit sicher möglich. Ein noch offener PR bedeutet nicht „ungesichert“; ein unbestätigter Push dagegen schon. Allgemeine zeitgesteuerte Hintergrundsicherung bleibt außerhalb dieses Auslösers.
 
 ## Session übernehmen: prüfen, analysieren, reparieren, erneut prüfen, mergen
 
