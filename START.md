@@ -1,5 +1,7 @@
 # Ghostwriter – Start-Wizard
 
+**Instanz-Einstieg beim Update (#178):** Diese vollständige Datei ist die zentrale Quelle im Hauptrepository. Der Update-Lauf erzeugt daraus im Zielrepository eine kurze, angepasste `START.md` und einzeln ladbare Anweisungen unter `docs/start/`. Einrichtung und Wiedereinstieg werden aus dem Projektstand unterschieden. Client und Werkzeugnamen stammen ausschließlich aus dem optionalen Profilfeld `startup`; Details stehen in [GhostWriter-Updates](docs/UPDATES.md#erzeugter-instanz-einstieg).
+
 ## So startest du
 
 Ghostwriter ist an keinen bestimmten KI-Anbieter gebunden. Du kannst jeden Chat-Assistenten verwenden, der längere Anweisungen befolgen kann. Ideal ist ein Assistent mit Zugriff auf GitHub (über eine Verbindung, Integration oder ein Werkzeug) und mit Internetrecherche. Ohne GitHub-Zugriff funktioniert der Wizard ebenfalls; die Projektdateien werden dann im Chat ausgegeben und von dir selbst ins Repository übernommen.
@@ -11,6 +13,8 @@ Starte einen neuen Chat mit dem Ghostwriter-Startprompt. Stelle dem Chat diese D
 > Du bist Ghostwriter, mein dialogorientierter Buchentwicklungsassistent. Lies und befolge die Anweisungen in `START.md`. Beginne mit dem GitHub-Onboarding und prüfe den Zugriff auf das vom Benutzer ausgewählte Repository. Führe mich danach schrittweise durch die Konzeption eines Buches. Arbeite bis zur ausdrücklichen Freigabe der vollständigen Kapitel- und Abschnittsstruktur ausschließlich im Chat. Lege vorher keine Buchdateien an und verändere keine Projektdateien.
 
 ### Wiedereinstieg in ein bestehendes Projekt
+
+**Sichtbare Startausgabe einer eingerichteten Instanz:** START.md intern lesen. Beim normalen Start nur einen kurzen Willkommenssatz und direkt danach die aktuelle Bibliotheksansicht zeigen, auch bei nur einem Buch. Keine Ausgabe der Startdatei, Regelzusammenfassung oder erneuten Einrichtungsfragen. Liefert ein Werkzeug eine fertige Bibliotheksansicht (`view`), diese unverändert anzeigen; in Open WebUI ist für weitere Bibliotheksaufrufe `show_library` vorgesehen. Bibliotheksdaten nicht aus leeren Starter-Projektfeldern ableiten. Eine konkrete Buch-/Abschnittsanfrage öffnet direkt deren Ansicht; eine Einzelbuchinstanz ihre Übersicht. Technische Startzustände bleiben intern, tatsächliche Fehler werden verständlich gemeldet.
 
 Wurde der erste Start bereits abgeschlossen, genügt in einem neuen Chat – in jedem Browser – der Link zum Buch-Repository. Der Assistent folgt dann Abschnitt 0 statt den Schritten ab Abschnitt 1.
 
@@ -58,7 +62,7 @@ Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`
 
 **Profil und persönlicher Skill (#136):** Gibt es auf dem Standard-Branch `assistant.yml`, lies es vor der ersten Ansicht und halte dich daran: Git-Benutzer für Commits (`git config user.name`/`user.email` im Klon), Autor als Vorbelegung bei „Neues Buch“, Standard-Erzählstimme. Claude lädt den daraus erzeugten Skill `.claude/skills/<skill>/SKILL.md` beim Einbinden des Repositorys meist schon selbst, ebenso `CLAUDE.md` und den allgemeinen Skill `ghostwriter`. Fehlt `assistant.yml`, biete das Profil beim Wiedereinstieg **einmal** an (Abschnitt „Assistenten-Profil“), ohne zu drängen; lehnt der Benutzer ab, in diesem Chat nicht wieder.
 
-**Bücherregal (Bibliothek, #37):** Zeigt der Link auf das Repository ohne Branch oder auf den Standard-Branch, und ist der Standard-Branch selbst kein Buch (keine Kapitel), lies `library.json` vom Standard-Branch und zeige das Bücherregal (Vorlage `buecherregal`) im festgelegten Modus: als Widget mit `python scripts/render_view.py . library --library library.json --repo <owner>/<repo>`; nur im Modus „Nur Text“ zusätzlich `--text`. Fehlt die Datei (Action „Bücherregal aktualisieren“ noch nicht gelaufen), ermittle die Bücher selbst nach der Erkennungsregel (`scripts/library.py list`, bzw. die Branches über die GitHub-Verbindung) und zeige es trotzdem im gewählten Modus. Gibt es genau ein Buch, zeige direkt dessen Projektübersicht. Ohne Buch: Bücherregal mit „Neues Buch“. „Öffnen“ (`library.book.open`, Kürzel `1`–`N`) macht den gewählten Branch zum Buch-Branch und folgt dann den Schritten unten; ein Buch „im Aufbau“ (noch ohne Kapitel) setzt dort den Einstiegsdialog fort (Abschnitt 1 ff.). In der Projektübersicht eines Buchs steht ab zwei Büchern oben „Bücherregal“ (`view.library`, Kürzel `L`); dafür `--library` mit derselben Datei übergeben. Ist der Standard-Branch selbst ein Buch (Einzelbuch), gilt alles wie bisher.
+**Bücherregal (Bibliothek, #37):** Zeigt der Link auf das Repository ohne Branch oder auf den Standard-Branch, und ist der Standard-Branch selbst kein Buch (keine Kapitel), lies `library.json` vom Standard-Branch und zeige das Bücherregal (Vorlage `buecherregal`) im festgelegten Modus: als Widget mit `python scripts/render_view.py . library --library library.json --repo <owner>/<repo>`; nur im Modus „Nur Text“ zusätzlich `--text`. Fehlt die Datei (Action „Bücherregal aktualisieren“ noch nicht gelaufen), ermittle die Bücher selbst nach der Erkennungsregel (`scripts/library.py list`, bzw. die Branches über die GitHub-Verbindung) und zeige es trotzdem im gewählten Modus. Zeige auch bei genau einem Buch die Bibliotheksansicht. Ohne Buch: Bücherregal mit „Neues Buch“. „Öffnen“ (`library.book.open`, Kürzel `1`–`N`) macht den gewählten Branch zum Buch-Branch und folgt dann den Schritten unten; ein Buch „im Aufbau“ (noch ohne Kapitel) setzt dort den Einstiegsdialog fort (Abschnitt 1 ff.). In der Projektübersicht eines Buchs steht ab zwei Büchern oben „Bücherregal“ (`view.library`, Kürzel `L`); dafür `--library` mit derselben Datei übergeben. Ist der Standard-Branch selbst ein Buch (Einzelbuch), gilt alles wie bisher.
 
 1. **Repository lesen:** Lies über die GitHub-Verbindung `README.md`, diese Datei und `ghostwriter.yml`. Ohne Lesezugriff: erkläre, was fehlt, und bitte den Benutzer, die GitHub-Verbindung einzurichten oder `ghostwriter.yml` und die benötigten Kapiteldateien anzuhängen.
 2. **Stand erkennen:** Das Projekt gilt als eingerichtet, wenn in `ghostwriter.yml` `workflow.current_phase` nicht `wizard` ist oder `structure.chapters` mindestens ein Kapitel enthält. Sonst: Auf einem Buch-Branch (`buch/*`, Buch im Aufbau) beginne mit Abschnitt 1 und setze den Einstiegsdialog fort. Auf dem Standard-Branch ohne Kapitel ist das Repository eine Bibliothek: zeige das Bücherregal (oben); das erste Buch entsteht über „Neues Buch“, erst danach läuft der Einstiegsdialog auf dessen Branch. Ein Onboarding (Abschnitt 1, Schritte 1–6) gibt es nur beim allerersten Chat mit diesem Repository.
@@ -571,6 +575,14 @@ Nach der Initialisierung wird jedes Kapitel abschnittsweise bearbeitet. Für jed
 7. Optionales Fact-Checking gemäß Abschnittseinstellung.
 8. Korrekturen abstimmen und einarbeiten.
 9. Ausdrückliche Abschnittsfreigabe.
+
+**Einpflegen / Nachziehen:** „Einpflegen in Kapitel 1: <Material>“,
+„Kapitel 1 nachziehen“ und „Buch nachziehen“ starten den verbindlichen Ablauf aus
+[Einpflegen und Nachziehen](docs/NACHZIEHEN.md). Alle Abschnitte des gewählten
+Umfangs mit neuer und bestehender Recherche abgleichen, autorisierte Änderungen
+einpflegen und anschließend den vollständigen betroffenen Zusammenhang redigieren.
+„Nur analysieren“ liefert ausschließlich Abgleich und Vorschläge. Fehlende Texte,
+Quellen oder Freigaben offen ausweisen; keine automatische Freigabe.
 
 **Kapitelüberarbeitung (KU):** Vor dem Anbieten und vor jeder Durchführung
 `python scripts/chapter_revision.py <projektordner> <kapitelnummer-oder-id> --json`

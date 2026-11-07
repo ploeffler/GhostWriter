@@ -19,7 +19,7 @@ jobs:
           python-version: "3.12"
 
       - name: Abhängigkeiten installieren
-        run: pip install pyyaml jsonschema
+        run: pip install pyyaml jsonschema requests pydantic
 
       - name: workflow.yml gegen sein Schema prüfen
         run: |

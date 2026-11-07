@@ -135,11 +135,22 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertEqual(data['PROJECT_EDITION_TEXT'], 'no edition yet')
         self.assertIn('a' * 40, text)
 
-    def test_project_settings_are_available_in_english(self):
+    def test_project_settings_are_english_and_preserve_values_and_approval_rules(self):
+        self.config['workflow']['fact_checking_default'] = 'requested'
+        self.config['changes'] = {'auto_merge': True}
+        self.config['typesetting'] = {'font_size': 11.5}
+        self.save()
+        before = (self.base / 'ghostwriter.yml').read_bytes()
         text = self.run_view('project-settings', '--text', '--language', 'en').stdout
         self.assertIn('Project settings', text)
-        self.assertIn('Fixed rules', text)
-        self.assertIn('explicit confirmation', text)
+        self.assertIn('changes require explicit confirmation', text)
+        self.assertIn('| Writing approval per section | required |', text)
+        self.assertIn('| Fact check | requested |', text)
+        self.assertIn('| Font size | 11.5 pt |', text)
+        self.assertIn('| Apply changes immediately | yes |', text)
+        self.assertNotIn('Projekteinstellungen', text)
+        self.assertNotIn('Mögliche Werte', text)
+        self.assertEqual(before, (self.base / 'ghostwriter.yml').read_bytes())
         self.assertIn('Projektdaten', self.run_view('project-edit', '--text', '--language', 'de').stdout)
 
     def test_all_template_preview_keeps_raw_project_settings(self):

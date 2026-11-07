@@ -7,7 +7,7 @@
 
 [Deutsch](README.md) · English
 
-> **Note for AI assistants:** This is a GhostWriter project. Read [`START.md`](START.md), `ghostwriter.yml` and [`BUCHSTATUS.md`](BUCHSTATUS.md) before responding; check current GitHub branches when resuming. If the project is already set up, follow the restart procedure in section 0 of `START.md`; otherwise begin onboarding. For English chat operation, follow the language instructions in section 0.
+> **Note for AI assistants:** This is a GhostWriter project. At the beginning of a new chat, read [`START.md`](START.md), `ghostwriter.yml` and [`BUCHSTATUS.md`](BUCHSTATUS.md). Use START.md internally and do not fetch it again on every message after successful loading. Refresh live branches and relevant project data for the current task. Follow the generated entry or the full source instructions for setup, resuming work and interface language.
 
 ## GhostWriter – your book, step by step
 
@@ -15,6 +15,7 @@ GhostWriter is a workspace for developing a book in a chat with an AI assistant.
 
 - **Step by step:** Move from an empty repository to an edition while keeping track of the book's progress. See the [getting started guide](docs/GETTING-STARTED.en.md).
 - **Guided conversations:** Overviews, forms and choices support work in the chat. Say `Interface: English` for English chat operation; all existing views have an English text version. Graphical previews are also translated and require a client that supports them.
+- **Version control from software development:** Git records every revision saved to your repository. Compare revisions, restore earlier passages and develop drafts separately from accepted text. Each edition is tied to an exact book state. See [version control with Git](docs/PRINCIPLES.en.md#version-control-with-git).
 - **You stay in control:** Sections require your approval. Sources should be documented and checked, and uncertainties made clear.
 
 ## Quick start
