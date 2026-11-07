@@ -1284,7 +1284,7 @@ def project_view(base, config, args):
         if changes:
             items.append(('M', 'Buchänderungen übernehmen'))
         if upd:
-            items.append(('U', 'Update einspielen'))
+            items.append(('U', 'GhostWriter aktualisieren'))
         if lib_count >= 2:
             items.append(('L', f'Bücherregal ({lib_count} Bücher)'))
         if ser:
