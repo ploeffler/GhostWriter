@@ -4,6 +4,10 @@ Diese Dialoggerüste gelten für alle unterstützten Chat-Anbieter. Sie bündeln
 vorhandene Schritte, ersetzen aber keine erforderliche Freigabe. Buchinhalte,
 Erinnerungen und Quellen bleiben im jeweiligen Buchprojekt.
 
+## Gesamtüberblick
+
+Der redaktionelle Buchkreislauf und der technische Weg vom Chat bis zur Übernahme in den Buch-Branch sind mit Ablaufdiagrammen in [Buchworkflow und Git-Wege](BUCH-WORKFLOW.md) dargestellt. Dort werden auch GitHub-Arbeit, lokale Ordner und echte lokale Git-Clones voneinander abgegrenzt.
+
 ## Gemeinsame Regeln
 
 - Vor jeder Änderung den Lese-Stand und einen offenen Arbeitsstand ermitteln.
