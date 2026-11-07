@@ -1,7 +1,7 @@
 """
 title: GhostWriter GitHub
 description: GitHub lesen und Aufgaben als gemeinsamen Commit speichern.
-version: 1.3.0
+version: 1.4.0
 requirements: requests,pydantic,pyyaml
 """
 import asyncio
@@ -203,6 +203,11 @@ class Tools:
                 return "unbekannt" if not english else "unknown"
             return text(labels.get(value, (value, value))[int(english)])
         title = text(cfg["project"].get("title") or cfg["project"].get("working_title") or book_branch)
+        context = {"repo": repo, "book_branch": book_branch, "reading_branch": reading, "sha": head,
+                   "book_title": cfg["project"].get("title") or cfg["project"].get("working_title"),
+                   "book_language": cfg["project"].get("language"), "level": "book",
+                   "chapters": [{"number": i, "id": c.get("id"), "title": c.get("title"), "status": c.get("status")}
+                                for i, c in enumerate(chapters, 1)]}
         lines = ["### 📖 " + title, "", text(repo), "",
                  ("Reading branch: " if english else "Lesestand: ") + "`" + reading + "` · `" + head[:7] + "`"]
         if pulls:
@@ -225,6 +230,7 @@ class Tools:
             if chapter < 1 or chapter > len(chapters):
                 raise ValueError("Diese Kapitelnummer gibt es im aktuellen Buch nicht.")
             ch = chapters[chapter - 1]
+            context.update(level="chapter", chapter=context["chapters"][chapter - 1], sections=[])
             lines += ["", f"#### {chapter}. {text(ch.get('title') or '–')}", ""]
             def section_data(s):
                 path = s.get("path")
@@ -243,6 +249,8 @@ class Tools:
                 lines += ["| No. | Section | Status |" if english else "| Nr. | Abschnitt | Stand |", "|---|---|---|"]
                 for number, s in enumerate(ch["sections"], 1):
                     meta, _ = section_data(s)
+                    context["sections"].append({"number": f"{chapter}.{number}", "id": s.get("id"),
+                                                "title": s.get("title"), "status": meta.get("status")})
                     lines.append(f"| {chapter}.{number} | {text(s.get('title') or '–')} | {status(meta.get('status'))} |")
                 if ch["sections"]:
                     lines += ["", f"`Section {chapter}.N` or a number · `Overview` · `Library`" if english else
@@ -255,10 +263,12 @@ class Tools:
                     raise ValueError("Diese Abschnittsnummer gibt es im aktuellen Kapitel nicht.")
                 s = ch["sections"][section - 1]
                 meta, body = section_data(s)
+                context.update(level="section", section={"number": f"{chapter}.{section}", "id": s.get("id"),
+                               "title": s.get("title"), "status": meta.get("status")})
                 lines += [f"##### {chapter}.{section} {text(s.get('title') or '–')}", "", status(meta.get("status")), "", body,
                           "", f"`Chapter {chapter}` · `Overview` · `Library`" if english else f"`Kapitel {chapter}` · `Übersicht` · `Bibliothek`"]
         return {"repo": repo, "book_branch": book_branch, "branch": reading, "sha": head, "chapter": chapter, "section": section,
-                "changed": changed, "view": "\n".join(lines)}
+                "changed": changed, "view": "\n".join(lines), "conversation_context": context}
 
     async def open_book(self, selection: str, receipt: str, __chat_id__: Optional[str] = None,
                         __user__: Optional[dict] = None, __metadata__: Optional[dict] = None,
@@ -297,6 +307,42 @@ class Tools:
                                      context.get("sha") if context["kind"] == "book" and command not in ("übersicht", "overview") else None)
             return self._navigation_view(result, {"kind": "book", "book_branch": book, "sha": result["sha"],
                                                   "chapter": result["chapter"], "section": result["section"]}, scope)
+        return await self._run(op)
+
+    async def get_current_context(self, receipt: str, __chat_id__: Optional[str] = None,
+                                  __user__: Optional[dict] = None, __metadata__: Optional[dict] = None,
+                                  __id__: Optional[str] = None) -> str:
+        """Liest den ausgewählten Gesprächskontext frisch. Keine Statusänderung oder Freigabe.
+        receipt stammt aus der zuletzt angezeigten Ansicht. Bei geändertem Lesestand erneut wählen.
+        """
+        def op(trace):
+            repo = self._instance_repo()
+            scope = self._navigation_scope(repo, __chat_id__, __user__, __metadata__, __id__)
+            selected = self._navigation_data(receipt, scope)
+            if selected["kind"] == "library":
+                result = self._library_view(trace, repo)
+                result["changed"] = (selected.get("sha") != result["library_source"]["sha"] or
+                                     selected.get("branches") != [b["branch"] for b in result["books"]])
+                result["conversation_context"] = {"level": "library", "repo": repo, "books": result["books"]}
+                return self._signed_library(result, scope)
+            result = self._book_view(trace, repo, selected["book_branch"], selected.get("chapter", 0),
+                                     selected.get("section", 0), expected_head=selected.get("sha"))
+            workflow = yaml.safe_load(self._read_utf8(trace, repo, "workflow.yml", result["sha"])["content"])
+            rules = {}
+            if not isinstance(workflow, dict):
+                raise ValueError("Ungültige Ablaufregeln; Gesprächskontext nicht geladen.")
+            for entity in ("chapter", "section"):
+                definition = (workflow.get("entities") or {}).get(entity, {})
+                flow = workflow.get(entity + "_workflow", {})
+                statuses = definition.get("statuses")
+                transitions = flow.get("transitions")
+                if (not isinstance(statuses, list) or not statuses or not all(isinstance(v, str) for v in statuses)
+                        or not isinstance(transitions, list) or not all(isinstance(t, dict) for t in transitions)):
+                    raise ValueError("Unvollständige Statusregeln; Gesprächskontext nicht geladen.")
+                rules[entity] = {"statuses": statuses, "transitions": transitions, "invariants": flow.get("invariants", [])}
+            result["conversation_context"]["status_rules"] = rules
+            return self._navigation_view(result, {"kind": "book", "book_branch": result["book_branch"],
+                          "sha": result["sha"], "chapter": result["chapter"], "section": result["section"]}, scope)
         return await self._run(op)
 
     def _path(self, path):

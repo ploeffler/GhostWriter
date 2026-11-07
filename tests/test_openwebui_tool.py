@@ -333,6 +333,9 @@ class OpenWebUIToolTests(unittest.TestCase):
             return values
         if path.endswith('/pulls'):
             return self.nav_pulls
+        if path.endswith('/contents/workflow.yml'):
+            self.assertIn(params['ref'], [self.nav_head, self.nav_work])
+            return self.start_response((Path(__file__).resolve().parents[1] / 'workflow.yml').read_text())
         if path.endswith('/contents/ghostwriter.yml'):
             self.assertIn(params['ref'], [self.nav_head, self.nav_work])
             return self.start_response(self.module.yaml.safe_dump(self.nav_config))
@@ -437,6 +440,45 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertFalse(result['ok'])
         self.assertFalse(any('/contents/.env' in c.args[2] for c in http.call_args_list))
 
+    def current_context(self, receipt, **kwargs):
+        return self.run_tool(self.tool.get_current_context(receipt, __chat_id__='chat-1',
+                             __user__={'id': 'user-1'}, **kwargs))
+
+    def test_fresh_conversation_context_has_separate_statuses_and_one_selected_section(self):
+        self.navigation_fixture()
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http):
+            book = self.open_navigation('1', self.receipt())['result']
+            context = self.current_context(book['navigation_receipt'])['result']['conversation_context']
+            self.assertEqual(context['level'], 'book')
+            self.assertEqual(context['chapters'][0]['status'], 'in_progress')
+            self.assertIn('assembly', context['status_rules']['chapter']['statuses'])
+            self.assertNotIn('writing', context['status_rules']['chapter']['statuses'])
+            self.assertIn('writing', context['status_rules']['section']['statuses'])
+            self.assertTrue(context['status_rules']['section']['transitions'])
+            chapter = self.open_navigation('Kapitel 1', book['navigation_receipt'])['result']
+            data = self.current_context(chapter['navigation_receipt'])['result']
+            self.assertEqual(data['conversation_context']['chapter']['number'], 1)
+            self.assertEqual(data['conversation_context']['sections'][0]['number'], '1.1')
+            self.assertNotIn('Nur dieser eine Abschnitt', data['view'])
+            section = self.open_navigation('1', chapter['navigation_receipt'])['result']
+            data = self.current_context(section['navigation_receipt'])['result']
+            self.assertEqual(data['conversation_context']['level'], 'section')
+            self.assertEqual(data['conversation_context']['section']['status'], 'writing')
+            self.assertEqual(data['view'].count('Nur dieser eine Abschnitt'), 1)
+
+    def test_context_refreshes_on_changed_head_and_rejects_tampered_receipt(self):
+        self.navigation_fixture()
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http):
+            book = self.open_navigation('1', self.receipt())['result']
+            chapter = self.open_navigation('Kapitel 1', book['navigation_receipt'])['result']
+            self.nav_head = 'c' * 40
+            context = self.current_context(chapter['navigation_receipt'])['result']
+            self.assertTrue(context['changed'])
+            self.assertEqual(context['conversation_context']['level'], 'book')
+        with patch.object(self.tool, '_http') as http:
+            self.assertFalse(self.current_context(chapter['navigation_receipt'] + 'x')['ok'])
+            http.assert_not_called()
+
     def test_start_number_book_chapter_section_path_without_any_model_call(self):
         from functools import partial
         self.navigation_fixture()
@@ -448,7 +490,7 @@ class OpenWebUIToolTests(unittest.TestCase):
         pipe._state_dir = Path(self.state.name)
         tools = {name: {'tool_id': 'github', 'spec': {'name': name}, 'callable': partial(getattr(self.tool, name),
                          __chat_id__='chat-1', __user__={'id': 'user-1'}, __id__='github')}
-                 for name in ['read_start_md', 'show_library', 'open_book']}
+                 for name in ['read_start_md', 'show_library', 'open_book', 'get_current_context']}
         messages = []
         outputs = []
         with patch.object(self.tool, '_http', side_effect=self.navigation_http), patch.object(pipe, '_forward', new_callable=AsyncMock) as forward:
@@ -466,6 +508,19 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertIn('Nur dieser eine Abschnitt', outputs[3])
         self.assertIn('| 1 | Erstes Kapitel |', outputs[4])
         self.assertNotIn('✗', '\n'.join(outputs))
+        messages.append({'role': 'user', 'content': 'Welche Statuswerte kann Kapitel 1 haben?'})
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http), patch.object(pipe, '_forward', new_callable=AsyncMock, return_value='Antwort mit Kontext') as forward:
+            answer = asyncio.run(pipe.pipe({'model': 'direct', 'messages': messages}, __tools__=tools,
+                                 __user__={'id': 'user-1'}, __metadata__={'chat_id': 'chat-1'}))
+        self.assertEqual(answer, 'Antwort mit Kontext')
+        context_message = forward.await_args.args[0]['messages'][-2]
+        facts = json.loads(context_message['content'].split('Aktueller Kontext / Current context:\n')[1])
+        self.assertEqual(facts['book_branch'], 'buch/zweites')
+        self.assertEqual(facts['chapters'][0]['number'], 1)
+        self.assertEqual(facts['chapters'][0]['status'], 'in_progress')
+        self.assertIn('assembly', facts['status_rules']['chapter']['statuses'])
+        self.assertNotIn('ghostwriter-nav:', context_message['content'])
+
 
 
 if __name__ == "__main__":
