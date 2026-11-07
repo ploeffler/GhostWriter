@@ -1,7 +1,7 @@
 """
 title: GhostWriter Direkt
 description: Start und Bibliothek direkt ausführen, Gespräch an das Basismodell weitergeben.
-version: 1.7.0
+version: 1.7.1
 required_open_webui_version: 0.13.0
 requirements: pydantic
 """
@@ -235,6 +235,25 @@ class Pipe:
                 "Dem Modell genau ein GhostWriter-GitHub-Werkzeug ab Version 1.2 zuordnen. Bei mehreren Integrationen TOOL_ID festlegen.",
                 "Bind exactly one GhostWriter GitHub tool, version 1.2 or later. Set TOOL_ID if several integrations are attached."))
         return complete[0]
+
+    def _navigation_diagnostic(self, tools):
+        lines = [self._text("### Navigation prüfen", "### Check navigation"), "",
+                 self._text("Direkt-Pipe: 1.7.1. Prüfung ohne Modell- oder GitHub-Aufruf.",
+                            "Direct pipe: 1.7.1. Check without model or GitHub calls."), ""]
+        try:
+            functions = self._functions(tools)
+        except ValueError as error:
+            return "\n".join(lines) + str(error)
+        lines += [self._text("| Funktion | Bei der Pipe angekommen |", "| Function | Received by pipe |"), "|---|---|"]
+        for name in ("read_start_md", "show_library", "open_book", "get_current_context"):
+            state = self._text("ja", "yes") if name in functions else self._text("fehlt", "missing")
+            lines.append(f"| `{name}` | {state} |")
+        lines += ["", self._text(
+            "Fehlt open_book, kann diese Pipe kein Buch öffnen. Die Prüfung zeigt die übergebenen Funktionen, "
+            "nicht die Version des gespeicherten Werkzeugcodes. Keine Zugangsdaten oder Inhalte werden ausgegeben.",
+            "Without open_book, this pipe cannot open a book. The check shows supplied functions, "
+            "not the saved tool code version. No credentials or contents are displayed.")]
+        return "\n".join(lines)
 
     async def _call(self, function, **kwargs):
         value = await function(**kwargs)
@@ -503,6 +522,8 @@ class Pipe:
             if __task__ or metadata.get("task"):
                 return await self._forward(body, __request__, __user__, metadata, __event_emitter__)
             command = self._user_text(body, metadata).strip().casefold()
+            if command in ("navigation prüfen", "navigation pruefen", "check navigation"):
+                return self._navigation_diagnostic(__tools__)
             functions = self._functions(__tools__)
             scope = self._scope(body, __user__, metadata)
             explicit_book = re.fullmatch(r"(?:buch|book)\s*[0-9]+", command)
@@ -512,8 +533,8 @@ class Pipe:
                                     latest_only=bool(bare_number and not explicit_book))
             if explicit_book or explicit_book_view or (bare_number and receipt):
                 if "open_book" not in functions:
-                    raise ValueError(self._text("Für Buchnavigation das GitHub-Werkzeug auf Version 1.3 aktualisieren.",
-                                                "Update the GitHub tool to version 1.3 for book navigation."))
+                    raise ValueError(self._text("Die Werkzeugfunktion open_book fehlt bei der Pipe. GitHub-Werkzeug ab Version 1.3 und dessen Zuordnung prüfen. Diagnose: Navigation prüfen.",
+                                                "The pipe did not receive open_book. Check GitHub tool version 1.3 or later and its binding. Diagnostic: check navigation."))
                 if not receipt:
                     library = await self._call(functions["show_library"])
                     return self._answer(library, body, scope, self._text("Bitte zuerst aus der aktuellen Bibliothek wählen.\n\n",

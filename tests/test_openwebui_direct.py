@@ -66,7 +66,7 @@ class DirectPipeTest(unittest.TestCase):
     def test_book_request_with_old_tool_is_not_sent_to_model(self):
         with patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
             output = self.call('Buch 1')
-        self.assertIn('Version 1.3', output)
+        self.assertIn('open_book', output)
         forward.assert_not_awaited()
 
     def test_number_without_view_context_refreshes_library_instead_of_guessing(self):
@@ -395,6 +395,24 @@ class DirectPipeTest(unittest.TestCase):
         self.assertIn('Prompt-Profil JSON', answer)
         self.assertNotIn('```json', answer)
         self.assertNotIn('Interne Regeln', answer)
+
+    def test_navigation_diagnostic_reports_supplied_functions_without_calls(self):
+        with patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
+            answer = self.call('Navigation prüfen')
+        self.assertIn('| `open_book` | fehlt |', answer)
+        self.assertIn('| `read_start_md` | ja |', answer)
+        self.start.assert_not_awaited()
+        self.library.assert_not_awaited()
+        forward.assert_not_awaited()
+        opener = AsyncMock()
+        context = AsyncMock()
+        self.tools['open_book'] = {'tool_id': 'github', 'spec': {'name': 'open_book'}, 'callable': opener}
+        self.tools['get_current_context'] = {'tool_id': 'github', 'spec': {'name': 'get_current_context'}, 'callable': context}
+        answer = self.call('Navigation prüfen')
+        self.assertIn('| `open_book` | ja |', answer)
+        self.assertIn('| `get_current_context` | ja |', answer)
+        opener.assert_not_awaited()
+        context.assert_not_awaited()
 
 
 if __name__ == '__main__':
