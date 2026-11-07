@@ -414,6 +414,20 @@ class DirectPipeTest(unittest.TestCase):
         opener.assert_not_awaited()
         context.assert_not_awaited()
 
+    def test_profile_origin_tracks_injection_and_filtered_message_positions(self):
+        body = {'model': 'direct', 'messages': [
+            {'role': 'system', 'content': 'Externe Vorgabe'},
+            {'role': 'tool', 'content': 'Nicht weitergeben'},
+            {'role': 'user', 'content': 'Prompt-Profil JSON'}]}
+        before = copy.deepcopy(body)
+        answer = asyncio.run(self.pipe.pipe(body, __tools__=self.tools, __user__={'id': 'u'}))
+        profile = json.loads(answer.split('```json\n')[1].split('\n```')[0])
+        self.assertEqual([r['origin'] for r in profile['components']],
+                         ['read_start_md.content', 'openwebui.input.messages', 'pipe.current_context'])
+        self.assertEqual(profile['components'][1]['origin_position'], 0)
+        self.assertEqual(body, before)
+        self.assertNotIn('Externe Vorgabe', answer)
+
 
 if __name__ == '__main__':
     unittest.main()

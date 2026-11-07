@@ -1,7 +1,7 @@
 """
 title: GhostWriter Direkt
 description: Start und Bibliothek direkt ausführen, Gespräch an das Basismodell weitergeben.
-version: 1.7.1
+version: 1.8.0
 required_open_webui_version: 0.13.0
 requirements: pydantic
 """
@@ -168,12 +168,20 @@ def aggregate(reports):
             'cost_status': 'unavailable', 'cache_savings': 'unknown'}
 
 
-def openwebui_report(payload):
+def openwebui_report(payload, origins=None):
     """Nur Modellfelder an der Pipe-Grenze; Metadaten können Callables enthalten."""
     fields = {'model', 'messages', 'system', 'tools', 'options', 'stream', 'temperature',
               'top_p', 'top_k', 'num_ctx', 'max_tokens', 'seed', 'stop', 'response_format'}
     visible = {key: value for key, value in payload.items() if key in fields}
     result = report(request_plan(visible, 'openwebui-pipe'), visible)
+    allowed = {'openwebui.input.messages', 'read_start_md.content', 'pipe.current_context'}
+    for row in result['components']:
+        match = row['source'].removeprefix('$.messages[').removesuffix(']')
+        label = origins[int(match)] if match.isdigit() and origins and int(match) < len(origins) else None
+        row['origin'] = label['source'] if isinstance(label, dict) and label.get('source') in allowed else 'unknown'
+        if isinstance(label, dict) and row['origin'] != 'unknown' and count(label.get('position')) is not None:
+            row['origin_position'] = label['position']
+    result['visibility']['ghostwriter_core'] = 'injected_sources_labeled' if origins else 'unattributed'
     result['visibility']['adapter_payload'] = 'pipe_boundary_model_fields'
     result['coverage'] = {'excluded_top_level_fields': len(set(payload) - fields),
                           'complete_provider_request': False}
@@ -238,8 +246,8 @@ class Pipe:
 
     def _navigation_diagnostic(self, tools):
         lines = [self._text("### Navigation prüfen", "### Check navigation"), "",
-                 self._text("Direkt-Pipe: 1.7.1. Prüfung ohne Modell- oder GitHub-Aufruf.",
-                            "Direct pipe: 1.7.1. Check without model or GitHub calls."), ""]
+                 self._text("Direkt-Pipe: 1.8.0. Prüfung ohne Modell- oder GitHub-Aufruf.",
+                            "Direct pipe: 1.8.0. Check without model or GitHub calls."), ""]
         try:
             functions = self._functions(tools)
         except ValueError as error:
@@ -409,7 +417,7 @@ class Pipe:
                                 "These are the defined states. A transition depends on its prerequisites and required approvals. Nothing was changed.")]
         return "\n".join(lines)
 
-    def _prepare_forward(self, body, request, metadata):
+    def _prepare_forward(self, body, request, metadata, origin_labels=None, captured_origins=None):
         payload = {**body, "model": self.valves.BASE_MODEL, "metadata": dict(metadata or {})}
         # Nur die Pipe ruft die gebundenen Navigationsfunktionen auf. Der
         # Gesprächsprovider darf weder Quittungen erfinden noch Werkzeuge wählen.
@@ -420,7 +428,7 @@ class Pipe:
         payload.pop("tool_ids", None)
         payload.pop("tool_servers", None)
         payload["messages"] = []
-        for message in body.get("messages", []):
+        for original_position, message in enumerate(body.get("messages", [])):
             if message.get("role") in ("tool", "function"):
                 continue
             copied = dict(message)
@@ -431,6 +439,9 @@ class Pipe:
             if isinstance(copied.get("content"), str):
                 copied["content"] = re.sub(r"\n*<!-- ghostwriter-nav:[A-Za-z0-9_.-]+ -->", "", copied["content"])
             payload["messages"].append(copied)
+            if captured_origins is not None:
+                captured_origins.append(origin_labels[original_position] if origin_labels else
+                                        {"source": "openwebui.input.messages", "position": original_position})
         app_state = getattr(getattr(request, "app", None), "state", None)
         target = getattr(app_state, "MODELS", {}).get(self.valves.BASE_MODEL)
         if isinstance(target, dict) and target.get("owned_by") == "ollama":
@@ -460,18 +471,22 @@ class Pipe:
         lines = ["### " + heading, "", self._text("Umfang: etwa ", "Size: approximately ") +
                  str(total['estimated_tokens']) + self._text(" Tokens (", " tokens (") +
                  str(total['characters']) + self._text(" Zeichen, einschließlich Formatierung).", " characters, including formatting)."),
-                 "", self._text("| Reihenfolge | Rolle | Tokens, geschätzt |", "| Order | Role | Estimated tokens |"),
-                 "|---|---|---:|"]
+                 "", self._text("| Reihenfolge | Rolle | Herkunft | Tokens, geschätzt |", "| Order | Role | Origin | Estimated tokens |"),
+                 "|---|---|---|---:|"]
         labels = {'system': 'System', 'user': self._text('Benutzer', 'User'),
                   'assistant': self._text('Assistent', 'Assistant'), 'tools': self._text('Werkzeuge', 'Tools')}
+        origins = {'openwebui.input.messages': self._text('Vom Chat übergeben', 'Supplied by chat'),
+                   'read_start_md.content': self._text('Geladene Startanweisungen', 'Loaded startup instructions'),
+                   'pipe.current_context': self._text('Aktueller Kontext und Gesprächsregeln', 'Current context and conversation rules')}
         for row in profile['components']:
-            lines.append(f"| {row['position'] + 1} | {labels.get(row['kind'], self._text('Weitere', 'Other'))} | ~{row['estimated_tokens']} |")
+            origin = origins.get(row.get('origin'), self._text('Unbekannt', 'Unknown'))
+            lines.append(f"| {row['position'] + 1} | {labels.get(row['kind'], self._text('Weitere', 'Other'))} | {origin} | ~{row['estimated_tokens']} |")
         lines += ["", self._text("Exakte Wiederholungen: ", "Exact duplicates: ") + str(len(profile['findings'])),
                   "", explanation, "", self._text("Details mit Prüfsummen: **Prompt-Profil JSON**.",
                                                    "Details with fingerprints: **Prompt profile JSON**.")]
         return "\n".join(lines)
 
-    async def _forward(self, body, request, user_data, metadata, event_emitter=None):
+    async def _forward(self, body, request, user_data, metadata, event_emitter=None, origin_labels=None):
         # Open-WebUI-Import erst im Weiterleitungspfad: die direkten Befehle
         # benötigen weder Ollama noch einen Modellaufruf.
         from open_webui.models.users import Users
@@ -491,10 +506,11 @@ class Pipe:
             raise RuntimeError("Benutzerabfrage fehlgeschlagen") from None
         if user is None:
             raise ValueError(self._text("Open-WebUI-Benutzer nicht verfügbar.", "Open WebUI user is unavailable."))
-        payload = self._prepare_forward(body, request, metadata)
+        captured_origins = []
+        payload = self._prepare_forward(body, request, metadata, origin_labels, captured_origins)
         if self.valves.PROMPT_PROFILE:
             try:
-                profile = openwebui_report(payload)
+                profile = openwebui_report(payload, captured_origins)
                 emit(profile)
                 if event_emitter is not None:
                     await event_emitter({"type": "status", "data": {
@@ -568,11 +584,14 @@ class Pipe:
                 raise ValueError(startup["library_error"])
             payload = dict(body)
             payload["messages"] = [dict(message) for message in body.get("messages", [])]
+            origin_labels = [{"source": "openwebui.input.messages", "position": i}
+                             for i in range(len(payload["messages"]))]
             source = startup.get("content")
             if isinstance(source, str) and source.strip():
                 instructions = {"role": "system", "content": "GhostWriter-Projektanweisungen (intern):\n" + source}
                 if instructions not in payload["messages"]:
                     payload["messages"].insert(0, instructions)
+                    origin_labels.insert(0, {"source": "read_start_md.content"})
             selected_receipt = self._receipt(body, scope)
             current = None
             if selected_receipt:
@@ -625,15 +644,18 @@ class Pipe:
             last_user = next((i for i in range(len(payload["messages"]) - 1, -1, -1)
                               if payload["messages"][i].get("role") == "user"), len(payload["messages"]))
             payload["messages"].insert(last_user, context_message)
+            origin_labels.insert(last_user, {"source": "pipe.current_context"})
             if command in ("prompt-profil", "prompt profil", "prompt profile",
                            "prompt-profil json", "prompt profil json", "prompt profile json"):
-                prepared = self._prepare_forward(payload, __request__, metadata)
+                captured_origins = []
+                prepared = self._prepare_forward(payload, __request__, metadata, origin_labels, captured_origins)
                 # Der Diagnosebefehl ist keine Modellaufgabe und wird nicht mitgezählt.
                 diagnostic_index = next((i for i in range(len(prepared["messages"]) - 1, -1, -1)
                                          if prepared["messages"][i].get("role") == "user"), None)
                 if diagnostic_index is not None:
                     prepared["messages"] = [m for i, m in enumerate(prepared["messages"]) if i != diagnostic_index]
-                profile = openwebui_report(prepared)
+                    captured_origins.pop(diagnostic_index)
+                profile = openwebui_report(prepared, captured_origins)
                 return self._profile_view(profile, json_output=command.endswith(" json"))
             if command in ("kontext prüfen", "kontext pruefen", "check context"):
                 prepared = self._prepare_forward(payload, __request__, metadata)
@@ -648,7 +670,7 @@ class Pipe:
                          self._text("Das zeigt die vorbereitete Anfrage, nicht die vom Server tatsächlich genutzte Kontextlänge.",
                                     "This shows the prepared request, not the context length actually used by the server.")]
                 return "\n\n".join(lines)
-            return await self._forward(payload, __request__, __user__, metadata, __event_emitter__)
+            return await self._forward(payload, __request__, __user__, metadata, __event_emitter__, origin_labels)
         except ValueError as error:
             return "✗ " + str(error)
         except Exception:
