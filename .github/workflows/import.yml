@@ -39,6 +39,10 @@ on:
       by:
         description: 'bei apply mit Schreibfreigabe: GitHub-Login'
         default: ''
+      prompt_profile:
+        description: 'Prompt-Profil erstellen (Metadaten im Laufprotokoll, keine Volltexte)'
+        type: boolean
+        default: false
       confirm_low_budget:
         description: 'bei outline: auch starten, wenn weniger als 10 % des KI-Budgets übrig sind'
         type: boolean
@@ -88,6 +92,7 @@ jobs:
           BY: ${{ inputs.by }}
           CONFIRM: ${{ inputs.confirm_low_budget }}
           GH_TOKEN: ${{ github.token }}
+          GHOSTWRITER_PROMPT_PROFILE: ${{ inputs.prompt_profile && '1' || '0' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |

@@ -29,6 +29,13 @@ Der Plan enthält `source_digest` für Buch und Kapitel. Die Kapitelprüfsumme b
 
 Die Regel „kein ganzes Buch im Chat“ bleibt bestehen: Lesen ist erlaubt, Ausgabe höchstens eines Abschnittstexts auf einmal. Zusammenführen und Export bleiben bei der GitHub Action.
 
+## Prompt-Umfang untersuchen
+
+Die [Bestandsaufnahme und der lesende Prompt-Profiler](PROMPT-PROFILER.md)
+zeigen die vorhandenen Modellwege und erlauben die Untersuchung explizit
+übergebener Request-Snapshots. Der Kontextplan lädt keine Modellanfrage und
+ist selbst kein Nachweis übertragener Tokens.
+
 ## Prüfung
 
 `python3 -m unittest discover -s tests -p 'test_context.py'` prüft 15.000/15.001 Wörter, Kontextmangel, fehlende und nach Textänderung veraltete Zusammenfassungen, leere Manuskripte und Unicode-Wörter. Der Test läuft auch in der Prüf-Action. Ein realer Chat muss zusätzlich zeigen, dass die vorgesehenen Dateien tatsächlich gelesen und Einschränkungen korrekt gemeldet werden.
