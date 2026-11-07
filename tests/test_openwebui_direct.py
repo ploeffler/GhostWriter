@@ -311,6 +311,91 @@ class DirectPipeTest(unittest.TestCase):
         self.assertIn('keine weitere Pipe', output)
         chat.generate_chat_completion.assert_not_awaited()
 
+    def test_prompt_profile_is_direct_private_and_bilingual(self):
+        for language, command, heading in [('de', 'Prompt-Profil JSON', 'ohne Modellaufruf'),
+                                            ('en', 'Prompt profile JSON', 'no model call')]:
+            with self.subTest(language=language):
+                self.pipe.valves.INTERFACE_LANGUAGE = language
+                body = {'model': 'direct', 'messages': [{'role': 'user', 'content': command}],
+                        'metadata': {'private': 'PRIVATE_METADATA'}}
+                before = copy.deepcopy(body)
+                with patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
+                    answer = asyncio.run(self.pipe.pipe(body, __tools__=self.tools, __user__={'id': 'u'}))
+                forward.assert_not_awaited()
+                self.assertEqual(body, before)
+                self.assertIn(heading, answer)
+                profile = json.loads(answer.split('```json\n')[1].split('\n```')[0])
+                self.assertEqual(profile['adapter'], 'openwebui-pipe')
+                self.assertEqual(profile['transport_status'], 'not_observed')
+                self.assertFalse(profile['coverage']['complete_provider_request'])
+                self.assertEqual(profile['measurement']['status'], 'estimated')
+                self.assertNotIn('PRIVATE_METADATA', answer)
+                self.assertNotIn('Interne Regeln', answer)
+                # Nur interne Instruktionen, kein Diagnosebefehl in der Messung.
+                self.assertFalse(any(c['kind'] == 'user' for c in profile['components']))
+
+    def test_profile_opt_in_does_not_change_forwarding_or_stream_response(self):
+        import contextlib
+        import io
+        users = types.ModuleType('open_webui.models.users')
+        users.Users = types.SimpleNamespace(get_user_by_id=AsyncMock(return_value=object()))
+        chat = types.ModuleType('open_webui.utils.chat')
+        sentinel = object()  # Auch StreamingResponse darf weder gelesen noch ersetzt werden.
+        chat.generate_chat_completion = AsyncMock(return_value=sentinel)
+        request = types.SimpleNamespace(app=types.SimpleNamespace(state=types.SimpleNamespace(MODELS={
+            'llama3.2:3b': {'owned_by': 'ollama'}})))
+        body = {'model': 'direct', 'stream': True,
+                'messages': [{'role': 'user', 'content': 'PRIVATE_MANUSCRIPT'}],
+                'metadata': {'secret': 'PRIVATE_METADATA'}}
+        before = copy.deepcopy(body)
+        log = io.StringIO()
+        emitter = AsyncMock()
+        with patch.dict(sys.modules, {'open_webui.models.users': users, 'open_webui.utils.chat': chat}), \
+             contextlib.redirect_stderr(log):
+            plain = asyncio.run(self.pipe._forward(body, request, {'id': 'u'}, {'chat_id': 'c'}, emitter))
+            first = copy.deepcopy(chat.generate_chat_completion.await_args.args[1])
+            emitter.assert_not_awaited()
+            self.assertEqual(log.getvalue(), '')
+            self.pipe.valves.PROMPT_PROFILE = True
+            profiled = asyncio.run(self.pipe._forward(body, request, {'id': 'u'}, {'chat_id': 'c'}, emitter))
+        self.assertIs(plain, sentinel)
+        self.assertIs(profiled, sentinel)
+        self.assertEqual(first, chat.generate_chat_completion.await_args.args[1])
+        self.assertEqual(body, before)
+        self.assertNotIn('PRIVATE_MANUSCRIPT', log.getvalue())
+        self.assertNotIn('PRIVATE_METADATA', log.getvalue())
+        profile = json.loads(log.getvalue().removeprefix('GHOSTWRITER_PROFILE '))
+        self.assertEqual(profile['visibility']['adapter_payload'], 'pipe_boundary_model_fields')
+        self.assertIsNone(profile['usage']['prompt_tokens'])
+        self.assertEqual(emitter.await_args.args[0]['type'], 'status')
+
+    def test_profile_output_failure_does_not_block_model(self):
+        users = types.ModuleType('open_webui.models.users')
+        users.Users = types.SimpleNamespace(get_user_by_id=AsyncMock(return_value=object()))
+        chat = types.ModuleType('open_webui.utils.chat')
+        chat.generate_chat_completion = AsyncMock(return_value='Antwort')
+        emitter = AsyncMock(side_effect=RuntimeError('PRIVATE_ERROR'))
+        self.pipe.valves.PROMPT_PROFILE = True
+        import contextlib
+        import io
+        log = io.StringIO()
+        with patch.dict(sys.modules, {'open_webui.models.users': users, 'open_webui.utils.chat': chat}), \
+             contextlib.redirect_stderr(log):
+            answer = asyncio.run(self.pipe._forward({'model': 'direct', 'messages': []}, object(),
+                                                   {'id': 'u'}, {}, emitter))
+        self.assertEqual(answer, 'Antwort')
+        self.assertNotIn('PRIVATE_ERROR', log.getvalue())
+
+    def test_plain_profile_is_readable_without_json_or_content(self):
+        with patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
+            answer = self.call('Prompt-Profil')
+        forward.assert_not_awaited()
+        self.assertIn('| Reihenfolge | Rolle |', answer)
+        self.assertIn('Exakte Wiederholungen:', answer)
+        self.assertIn('Prompt-Profil JSON', answer)
+        self.assertNotIn('```json', answer)
+        self.assertNotIn('Interne Regeln', answer)
+
 
 if __name__ == '__main__':
     unittest.main()
