@@ -1,13 +1,16 @@
 """
 title: GhostWriter Direkt
 description: Start und Bibliothek direkt ausführen, Gespräch an das Basismodell weitergeben.
-version: 1.1.0
+version: 1.2.0
 required_open_webui_version: 0.13.0
 requirements: pydantic
 """
 import json
 import base64
 import re
+import hashlib
+import sqlite3
+from pathlib import Path
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -21,6 +24,7 @@ class Pipe:
 
     def __init__(self):
         self.valves = self.Valves()
+        self._state_dir = Path("/app/backend/data/ghostwriter")
 
     def _text(self, de, en):
         return en if self.valves.INTERFACE_LANGUAGE == "en" else de
@@ -71,16 +75,77 @@ class Pipe:
             raise ValueError(error if isinstance(error, str) else self._text("Ungültige Werkzeugantwort.", "Invalid tool response."))
         return payload["result"]
 
-    def _receipt(self, body, wanted=None, latest_only=False):
-        messages = [m for m in body.get("messages", []) if isinstance(m, dict) and m.get("role") == "assistant"]
-        for message in reversed(messages):
-            content = message.get("content", "")
-            if not isinstance(content, str):
-                if latest_only:
-                    return None
+    def _scope(self, body, user, metadata):
+        chat = metadata.get("chat_id")
+        user_id = (user or {}).get("id")
+        if not chat or not user_id:
+            return None
+        return json.dumps([user_id, chat, body.get("model"), self.valves.TOOL_ID], ensure_ascii=False)
+
+    def _view_key(self, messages):
+        # Der Gesprächspfad bindet auch gleich aussehende Ansichten an ihren
+        # ursprünglichen Stand. Bei gekürztem Kontext neu wählen statt raten.
+        transcript = [[m.get("role"), m.get("content")] for m in messages
+                      if isinstance(m, dict) and m.get("role") in ("user", "assistant")]
+        return hashlib.sha256(json.dumps(transcript, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+
+    def _state(self):
+        self._state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        db = sqlite3.connect(self._state_dir / "navigation.sqlite3", timeout=10)
+        db.execute("CREATE TABLE IF NOT EXISTS views (scope TEXT, view_key TEXT, receipt TEXT, PRIMARY KEY(scope, view_key))")
+        return db
+
+    def _answer(self, result, body, scope, prefix=""):
+        view = result.get("view")
+        if not isinstance(view, str) or not view.strip():
+            raise ValueError(self._text("Keine gültige Ansicht erhalten.", "No valid view received."))
+        # Kompatibel mit Werkzeug 1.3: dessen Kommentar bleibt nur intern.
+        marker = re.search(r"<!-- ghostwriter-nav:([A-Za-z0-9_.-]+) -->", view)
+        receipt = result.get("navigation_receipt") or (marker[1] if marker else None)
+        view = re.sub(r"\n*<!-- ghostwriter-nav:[A-Za-z0-9_.-]+ -->", "", view)
+        view = re.sub(r"(?m)^(?:Lesestand|Reading branch):[^\n]*\n?", "", view).strip()
+        answer = prefix + view
+        if receipt:
+            if not scope:
+                raise ValueError(self._text("Benutzer- oder Chatkennung fehlt für die Navigation.",
+                                            "User or chat identity is missing for navigation."))
+            key = self._view_key([*body.get("messages", []), {"role": "assistant", "content": answer}])
+            try:
+                db = self._state()
+                try:
+                    with db:
+                        db.execute("INSERT OR REPLACE INTO views VALUES (?, ?, ?)", (scope, key, receipt))
+                finally:
+                    db.close()
+            except (OSError, sqlite3.Error):
+                raise ValueError(self._text("Navigation konnte nicht gespeichert werden. Datenspeicher des Containers prüfen.",
+                                            "Navigation could not be saved. Check container data storage.")) from None
+        return answer
+
+    def _receipt(self, body, scope, wanted=None, latest_only=False):
+        messages = body.get("messages", [])
+        for index in range(len(messages) - 1, -1, -1):
+            message = messages[index]
+            if not isinstance(message, dict) or message.get("role") != "assistant":
                 continue
-            for match in reversed(list(re.finditer(r"<!-- ghostwriter-nav:([A-Za-z0-9_.-]+) -->", content))):
-                receipt = match[1]
+            content = message.get("content", "")
+            receipts = []
+            # Alte Chats bleiben lesbar; neue Antworten enthalten keine Marker.
+            if isinstance(content, str):
+                receipts.extend(m[1] for m in re.finditer(r"<!-- ghostwriter-nav:([A-Za-z0-9_.-]+) -->", content))
+            if scope:
+                try:
+                    db = self._state()
+                    try:
+                        row = db.execute("SELECT receipt FROM views WHERE scope=? AND view_key=?",
+                                         (scope, self._view_key(messages[:index + 1]))).fetchone()
+                    finally:
+                        db.close()
+                    if row:
+                        receipts.append(row[0])
+                except (OSError, sqlite3.Error):
+                    raise ValueError(self._text("Navigationsspeicher nicht verfügbar.", "Navigation storage is unavailable.")) from None
+            for receipt in reversed(receipts):
                 try:
                     encoded = receipt.split(".")[0]
                     context = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
@@ -137,10 +202,11 @@ class Pipe:
                 return await self._forward(body, __request__, __user__, metadata)
             command = self._user_text(body, metadata).strip().casefold()
             functions = self._functions(__tools__)
+            scope = self._scope(body, __user__, metadata)
             explicit_book = re.fullmatch(r"(?:buch|book)\s*[0-9]+", command)
             explicit_book_view = re.fullmatch(r"(?:kapitel|chapter)\s*[0-9]+|(?:(?:abschnitt|section)\s*)?[0-9]+\.[0-9]+|übersicht|overview", command)
             bare_number = re.fullmatch(r"[0-9]+", command)
-            receipt = self._receipt(body, "library" if explicit_book else "book" if explicit_book_view else None,
+            receipt = self._receipt(body, scope, "library" if explicit_book else "book" if explicit_book_view else None,
                                     latest_only=bool(bare_number and not explicit_book))
             if explicit_book or explicit_book_view or (bare_number and receipt):
                 if "open_book" not in functions:
@@ -148,22 +214,23 @@ class Pipe:
                                                 "Update the GitHub tool to version 1.3 for book navigation."))
                 if not receipt:
                     library = await self._call(functions["show_library"])
-                    return self._text("Bitte zuerst aus der aktuellen Bibliothek wählen.\n\n",
-                                      "Please choose from the current library first.\n\n") + library["view"]
+                    return self._answer(library, body, scope, self._text("Bitte zuerst aus der aktuellen Bibliothek wählen.\n\n",
+                                      "Please choose from the current library first.\n\n"))
                 opened = await self._call(functions["open_book"], selection=command, receipt=receipt)
                 if not isinstance(opened.get("view"), str) or not opened["view"].strip():
                     raise ValueError(self._text("Keine gültige Buchansicht erhalten.", "No valid book view received."))
-                return opened["view"]
+                return self._answer(opened, body, scope)
             startup = await self._call(functions["read_start_md"])
             if bare_number and not receipt:
                 library = startup if startup.get("view") else await self._call(functions["show_library"])
-                return self._text("Bitte aus dieser Bibliothek wählen.\n\n", "Please choose from this library.\n\n") + library["view"]
+                return self._answer(library, body, scope, self._text("Bitte aus dieser Bibliothek wählen.\n\n", "Please choose from this library.\n\n"))
             if command in ("start", "bibliothek", "library", "home", "start neu laden", "reload start"):
                 if startup.get("library_error"):
                     raise ValueError(startup["library_error"])
                 view = startup.get("view")
                 if not isinstance(view, str) or not view.strip():
                     library = await self._call(functions["show_library"])
+                    startup = library
                     view = library.get("view")
                 if not isinstance(view, str) or not view.strip():
                     raise ValueError(self._text("Das Werkzeug hat keine fertige Bibliotheksansicht geliefert.",
@@ -171,8 +238,8 @@ class Pipe:
                 if command in ("start", "start neu laden", "reload start"):
                     greeting = self._text("Herzlich willkommen, dein Schreibassistent ist geladen und bereit.",
                                           "Welcome, your writing assistant is loaded and ready.")
-                    return greeting + "\n\n" + view
-                return view
+                    return self._answer(startup, body, scope, greeting + "\n\n")
+                return self._answer(startup, body, scope)
             if startup.get("library_error"):
                 # Ein Bibliotheksfehler darf nicht durch eine erfundene Modellansicht verdeckt werden.
                 raise ValueError(startup["library_error"])
