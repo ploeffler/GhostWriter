@@ -1,5 +1,12 @@
 # Datei- und Statusmodell
 
+## Einpflegen und Nachziehen
+
+Der Lauf `catch_up` dokumentiert neue Materialien, den Abgleich aller Abschnitte,
+Änderungen und die anschließende Redaktion unter
+`analysis/catch-up/run-{sequence}.md`. Ablauf und Pflichtangaben stehen in
+[Einpflegen und Nachziehen](NACHZIEHEN.md); es gibt keine automatische Freigabe.
+
 ## Vorgeschlagene Projektstruktur
 
 ```text
