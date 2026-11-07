@@ -25,6 +25,14 @@ Eine freie Frage liest die benötigten Daten neu. Hat sich der Lesestand veränd
 
 Ab Direkt-Pipe **1.4** werden erkannte Fragen nach Kapitel- und Abschnittsstatus direkt aus den frisch gelesenen Regeln beantwortet, beispielsweise „Welche Statuswerte kann Kapitel 1 haben?“, „Welchen Zustand könnte 1 schon bekommen?“ und `Status Kapitel 1`. Die Ausgabe nennt den gespeicherten Zustand und ausschließlich die für diese Einheit definierten Statuswerte. Sie behauptet keine erfüllten Voraussetzungen und führt keine Änderung aus. Änderungsaufträge werden durch diese Auskunft nicht als erledigt behandelt. Andere freie Fragen verwenden weiterhin das Basismodell. Für dieses Update genügt die neue Direkt-Funktion; das GitHub-Werkzeug 1.4 bleibt kompatibel.
 
+### Kontextlänge bei der Weiterleitung an Ollama
+
+Direkt-Pipe **1.5** überträgt die am Pipe-Modell ankommenden Generierungsparameter wie `num_ctx` und `temperature` in `options` für den Ollama-Aufruf. Die Open-WebUI-Konvertierung erwartet sie dort; Parameter am Wurzelobjekt einer Pipe konnten bislang verloren gehen. Bereits vorhandene `options` haben Vorrang. Fehlt `num_ctx`, verwendet die neue Pipe-Valve `CONTEXT_LENGTH` standardmäßig **32768**. Für andere Provider bleibt die Weiterleitung unverändert.
+
+Nach Öffnen eines Abschnitts zeigt `Kontext prüfen` (englisch `Check context`) ohne Modellaufruf das gewählte Modell, Buch, Abschnitt, die vorbereitete Kontextlänge und ob die Abschnittsansicht im Modellkontext enthalten ist. Die Ausgabe enthält keine Zugangsdaten oder Manuskriptkopie. Sie bestätigt die vorbereitete Anfrage, nicht die serverseitig effektiv genutzte Kontextgröße oder die Qualität einer Modellantwort. Für dieses Update genügt die Direkt-Funktion 1.5; das GitHub-Werkzeug 1.4 bleibt kompatibel.
+
+Quellen: [Open WebUI v0.13.0: Pipe-Parameter](https://github.com/open-webui/open-webui/blob/v0.13.0/backend/open_webui/functions.py) und [Ollama-Payload-Konvertierung](https://github.com/open-webui/open-webui/blob/v0.13.0/backend/open_webui/utils/payload.py).
+
 Technische Grundlage: [Pipe Functions](https://docs.openwebui.com/features/extensibility/plugin/functions/pipe/) und [reservierte Argumente](https://docs.openwebui.com/features/extensibility/plugin/development/reserved-args/) von Open WebUI. Der Pipe-Rückgabewert wird direkt als Chatantwort gespeichert; eine reine Tool-Rückgabe geht dagegen zunächst an das Modell. Die Schnittstellen wurden gegen den Quellstand v0.13.0 geprüft. Der tatsächliche Einbau in einer fremden Open-WebUI-Instanz muss dort einmal getestet werden.
 
 ### Auswahl und aktuelle Buchstände

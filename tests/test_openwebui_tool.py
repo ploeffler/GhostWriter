@@ -506,6 +506,18 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertIn('| 1 | Erstes Kapitel |', outputs[1])
         self.assertIn('| 1.1 | Erster Abschnitt |', outputs[2])
         self.assertIn('Nur dieser eine Abschnitt', outputs[3])
+        section_messages = messages[:8] + [{'role': 'user', 'content': 'Kontext prüfen'}]
+        request = type('Request', (), {'app': type('App', (), {'state': type('State', (), {'MODELS': {'llama3.2:3b': {'owned_by': 'ollama'}}})()})()})()
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http), patch.object(pipe, '_forward', new_callable=AsyncMock) as forward:
+            diagnostic = asyncio.run(pipe.pipe({'model': 'direct', 'num_ctx': 32768, 'messages': section_messages}, __tools__=tools,
+                                 __user__={'id': 'user-1'}, __metadata__={'chat_id': 'chat-1'}, __request__=request))
+        forward.assert_not_awaited()
+        self.assertIn('Erster Abschnitt', diagnostic)
+        self.assertIn('num_ctx: 32768', diagnostic)
+        self.assertIn('Abschnittsansicht im Modellkontext: ja', diagnostic)
+        self.assertNotIn('Nur dieser eine Abschnitt', diagnostic)
+        self.assertNotIn('ghostwriter-nav', diagnostic)
+
         self.assertIn('| 1 | Erstes Kapitel |', outputs[4])
         self.assertNotIn('✗', '\n'.join(outputs))
         messages.append({'role': 'user', 'content': 'Was sollte ich bei Kapitel 1 beachten?'})

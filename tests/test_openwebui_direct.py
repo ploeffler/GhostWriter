@@ -162,6 +162,27 @@ class DirectPipeTest(unittest.TestCase):
         self.assertIsNone(self.pipe._status_answer('kannst du den status ändern?', facts))
         self.assertIsNone(self.pipe._status_answer('was sollte ich bei kapitel 1 beachten?', facts))
 
+    def test_ollama_forward_preserves_workspace_context_and_generation_settings(self):
+        request = types.SimpleNamespace(app=types.SimpleNamespace(state=types.SimpleNamespace(MODELS={
+            'llama3.2:3b': {'owned_by': 'ollama'}})))
+        body = {'model': 'direct', 'num_ctx': 32768, 'temperature': 0.1,
+                'messages': [{'role': 'system', 'content': 'Buchkontext'}, {'role': 'user', 'content': 'Frage'}]}
+        before = copy.deepcopy(body)
+        prepared = self.pipe._prepare_forward(body, request, {})
+        self.assertEqual(prepared['options']['num_ctx'], 32768)
+        self.assertEqual(prepared['options']['temperature'], 0.1)
+        self.assertEqual(prepared['messages'], body['messages'])
+        self.assertEqual(body, before)
+        body['options'] = {'num_ctx': 16384, 'temperature': 0.2}
+        before = copy.deepcopy(body)
+        self.assertEqual(self.pipe._prepare_forward(body, request, {})['options'], body['options'])
+        self.assertEqual(body, before)
+        body.pop('num_ctx')
+        body.pop('options')
+        self.pipe.valves.CONTEXT_LENGTH = 8192
+        self.assertEqual(self.pipe._prepare_forward(body, request, {})['options']['num_ctx'], 8192)
+        self.assertNotIn('options', self.pipe._prepare_forward(body, object(), {}))
+
     def test_reload_passes_trusted_metadata_to_already_bound_tool(self):
         self.assertTrue(self.call('Start neu laden').endswith(VIEW))
         self.start.assert_awaited_once_with()
