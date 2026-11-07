@@ -12,7 +12,7 @@ from pathlib import Path
 
 LABELS = {'conversation': 'Gesprächsstand', 'decisions': 'Entscheidungen',
           'research': 'Recherche', 'brainstorming': 'Brainstorming',
-          'drafts': 'Entwürfe', 'planning': 'Planung'}
+          'drafts': 'Entwürfe', 'planning': 'Planung', 'section_dialogue': 'Abschnittsdialog'}
 
 
 def run(*args, cwd=None, timeout=60):
@@ -60,7 +60,7 @@ def validate(payload):
         raise ValueError('Doppelte Nachrichtenkennungen')
     topics = payload['topics']
     if not isinstance(topics, dict) or any(k not in LABELS or k == 'conversation' for k in topics):
-        raise ValueError('Themen: decisions, research, brainstorming, drafts, planning')
+        raise ValueError('Themen: decisions, research, brainstorming, drafts, planning, section_dialogue')
     if any(not isinstance(v, str) or not v.strip() for v in topics.values()):
         raise ValueError('Themeninhalte müssen nichtleere Texte sein')
     return {**topics, 'conversation': {k: payload[k] for k in ('context', 'coverage', 'messages')}}
@@ -315,6 +315,46 @@ def accept(repository, github_repo, session, expected_head, expected_base, *, co
             return diagnosis
 
 
+def section_checkpoint(repository, base, session, payload, expected_head, review, **kwargs):
+    """Ereignis nach abgeschlossenem Abschnittsdialog; keine Zeit-/Inaktivitätserkennung."""
+    validate(payload)
+    fields = {'section_id', 'source_commit', 'dialogue_complete', 'awaiting_reply', 'items'}
+    if not isinstance(review, dict) or set(review) != fields:
+        raise ValueError('Abschnittsdialog braucht section_id, source_commit, dialogue_complete, awaiting_reply, items')
+    identifier(review['section_id'])
+    if not isinstance(review['source_commit'], str) or not re.fullmatch(r'[0-9a-f]{40,64}', review['source_commit']):
+        raise ValueError('Gelesener Buchstand fehlt')
+    if type(review['dialogue_complete']) is not bool or type(review['awaiting_reply']) is not bool:
+        raise ValueError('Dialogabschluss und ausstehende Antwort müssen boolesch sein')
+    items = review['items']
+    if not isinstance(items, list) or not items:
+        raise ValueError('Besprochene Punkte mit Belegen erforderlich')
+    messages = {m['id']: m for m in payload['messages']}
+    seen = set()
+    for item in items:
+        if (not isinstance(item, dict) or set(item) != {'id', 'question', 'status', 'evidence'}
+                or not isinstance(item['id'], str) or not item['id'] or item['id'] in seen
+                or not isinstance(item['question'], str) or not item['question'].strip()
+                or item['status'] not in ('open', 'answered', 'decided', 'deferred')
+                or not isinstance(item['evidence'], list) or not item['evidence']
+                or not all(isinstance(x, str) and x in messages for x in item['evidence'])):
+            raise ValueError('Ungültiger Gesprächspunkt oder fehlender Nachrichtenbeleg')
+        seen.add(item['id'])
+        if item['status'] in ('decided', 'deferred') and not any(
+                messages[x]['role'] == 'user' for x in item['evidence']):
+            raise ValueError('Entscheidung oder Vertagung braucht einen Benutzerbeitrag als Beleg')
+    if (not review['dialogue_complete'] or review['awaiting_reply']
+            or any(x['status'] == 'open' for x in items)):
+        return {'status': 'not_due', 'section_id': review['section_id'],
+                'reason': 'Abschnittsdialog läuft noch oder eine Antwort steht aus'}
+    # Eingabe unverändert lassen; Nachweis als eigenes Themengebiet mit sichern.
+    enriched = {**payload, 'topics': {**payload['topics'], 'section_dialogue': canonical(review)}}
+    result = save(repository, base, session, enriched, expected_head, **kwargs)
+    result['trigger'] = 'section_dialogue_completed'
+    result['section_id'] = review['section_id']
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='action', required=True)
@@ -327,6 +367,8 @@ def main():
     s.add_argument('--github-repo', required=True, help='owner/repo für gemeinsamen PR')
     s.add_argument('--author-name', default='GhostWriter')
     s.add_argument('--author-email', default='ghostwriter@users.noreply.github.com')
+    c = sub.add_parser('checkpoint', parents=[s], add_help=False, help='Nach abgeschlossenem Abschnittsdialog automatisch sichern')
+    c.add_argument('--review', required=True, help='JSON-Datei mit belegtem Abschluss der besprochenen Punkte')
     r = sub.add_parser('resume')
     r.add_argument('repository')
     r.add_argument('session')
@@ -340,10 +382,14 @@ def main():
     a.add_argument('--confirmed', action='store_true')
     args = parser.parse_args()
     try:
-        if args.action == 'save':
+        if args.action in ('save', 'checkpoint'):
             payload = json.loads(Path(args.input).read_text(encoding='utf-8'))
-            result = save(args.repository, args.base, args.session, payload, args.expected_head,
-                          github_repo=args.github_repo, author_name=args.author_name, author_email=args.author_email)
+            options = dict(github_repo=args.github_repo, author_name=args.author_name, author_email=args.author_email)
+            if args.action == 'checkpoint':
+                review = json.loads(Path(args.review).read_text(encoding='utf-8'))
+                result = section_checkpoint(args.repository, args.base, args.session, payload, args.expected_head, review, **options)
+            else:
+                result = save(args.repository, args.base, args.session, payload, args.expected_head, **options)
         elif args.action == 'accept':
             result = accept(args.repository, args.github_repo, args.session, args.expected_head,
                             args.expected_base, confirmed=args.confirmed)

@@ -45,6 +45,8 @@ session_backup:
   commit_policy: one_per_changed_coherent_topic
   pull_request_policy: one_per_session
   auto_merge_on_save: false
+  auto_save_trigger: section_dialogue_completed
+  auto_save_requires: [no_awaiting_reply, all_discussed_items_answered_decided_or_explicitly_deferred, message_evidence]
   accept_steps: [validate, diagnose_failure, attempt_safe_technical_repair, revalidate, merge]
   content_approval_granted: false
   manuscript_changes_allowed: false
