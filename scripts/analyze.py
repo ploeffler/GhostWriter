@@ -282,6 +282,36 @@ def plan(base, config, kind='characters', scope=None):
 
 # ---------- 2. KI-Aufrufe ----------
 
+def send_llm(req, adapter, core_plan=None):
+    """Identischer Transport, optional ausschließlich Metadaten nach stderr."""
+    capture = None
+    if os.environ.get('GHOSTWRITER_PROMPT_PROFILE') == '1':
+        try:
+            from prompt_profiler import Capture
+            capture = Capture(json.loads(req.data), adapter, core_plan=core_plan, transport_body=req.data)
+        except Exception:
+            print('Prompt-Profil konnte nicht vorbereitet werden.', file=sys.stderr)
+    try:
+        with urllib.request.urlopen(req, timeout=300) as response:
+            data = json.loads(response.read())
+    except Exception:
+        if capture is not None:
+            publish_profile(capture, None, succeeded=False)
+        raise
+    if capture is not None:
+        publish_profile(capture, data)
+    return data
+
+
+def publish_profile(capture, data, *, succeeded=True):
+    try:
+        from prompt_profiler import emit
+        emit(capture.finish(data, succeeded=succeeded))
+    except Exception:
+        # Profiling darf den Modelllauf nicht verändern oder Fehlertexte leaken.
+        print('Prompt-Profil konnte nicht ausgegeben werden.', file=sys.stderr)
+
+
 def call_llm(provider, key, model, system, user, kind='characters', step='extract'):
     """(antwort-text, input_tokens, output_tokens). GHOSTWRITER_FAKE_LLM: feste Antworten für Tests."""
     fake = os.environ.get('GHOSTWRITER_FAKE_LLM')
@@ -293,12 +323,24 @@ def call_llm(provider, key, model, system, user, kind='characters', step='extrac
         m = re.search(r'^BLOCK: (\S+)$', user, re.M)
         answer = (data.get('extract') or {}).get(m.group(1), {}) if m else data.get('answer', {})   # answer: ohne Kapitel
         return json.dumps(answer), len(user) // 4, 300
+    core_plan = None
+    if os.environ.get('GHOSTWRITER_PROMPT_PROFILE') == '1':
+        try:
+            from prompt_profiler import component
+            # Der Benutzertext enthält bereits kombinierten Kontext.
+            # Keine feinere Herkunft oder Regelpriorität erfinden.
+            core_plan = [
+                component(system, source='scripts/analyze.py:call_llm.system', kind='instruction',
+                          layer='core', scope='task', activation='model_call', position=0),
+                component(user, source='scripts/analyze.py:call_llm.user', kind='task_and_context',
+                          layer='core', scope='task', activation='model_call', position=1)]
+        except Exception:
+            print('Prompt-Core-Profil konnte nicht vorbereitet werden.', file=sys.stderr)
     if provider == 'anthropic':
         req = urllib.request.Request('https://api.anthropic.com/v1/messages', method='POST', data=json.dumps({
             'model': model, 'max_tokens': 8000, 'system': system, 'messages': [{'role': 'user', 'content': user}]}).encode(),
             headers={'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json'})
-        with urllib.request.urlopen(req, timeout=300) as r:
-            data = json.loads(r.read())
+        data = send_llm(req, 'anthropic-messages', core_plan)
         text = ''.join(b.get('text', '') for b in data.get('content') or [])
         u = data.get('usage') or {}
         return text, int(u.get('input_tokens') or 0), int(u.get('output_tokens') or 0)
@@ -306,8 +348,7 @@ def call_llm(provider, key, model, system, user, kind='characters', step='extrac
         'model': model, 'response_format': {'type': 'json_object'},
         'messages': [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}]}).encode(),
         headers={'authorization': f'Bearer {key}', 'content-type': 'application/json'})
-    with urllib.request.urlopen(req, timeout=300) as r:
-        data = json.loads(r.read())
+    data = send_llm(req, 'openai-chat', core_plan)
     u = data.get('usage') or {}
     return data['choices'][0]['message']['content'], int(u.get('prompt_tokens') or 0), int(u.get('completion_tokens') or 0)
 
