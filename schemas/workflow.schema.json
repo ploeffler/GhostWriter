@@ -173,7 +173,7 @@
       ],
       "properties": {
         "initial_status": {
-          "type": "string"
+          "enum": ["planned"]
         },
         "transitions": {
           "type": "array",
@@ -186,10 +186,10 @@
             ],
             "properties": {
               "from": {
-                "type": "string"
+                "enum": ["planned", "research", "brainstorming", "ready_to_write", "writing", "revision", "fact_check", "ready_for_approval", "approved"]
               },
               "to": {
-                "type": "string"
+                "enum": ["planned", "research", "brainstorming", "ready_to_write", "writing", "revision", "fact_check", "ready_for_approval", "approved"]
               },
               "trigger": {
                 "type": "string"
@@ -225,7 +225,7 @@
       ],
       "properties": {
         "initial_status": {
-          "type": "string"
+          "enum": ["planned"]
         },
         "transitions": {
           "type": "array",
@@ -238,10 +238,10 @@
             ],
             "properties": {
               "from": {
-                "type": "string"
+                "enum": ["planned", "in_progress", "ready_for_assembly", "assembly", "review", "ready_for_approval", "approved"]
               },
               "to": {
-                "type": "string"
+                "enum": ["planned", "in_progress", "ready_for_assembly", "assembly", "review", "ready_for_approval", "approved"]
               },
               "trigger": {
                 "type": "string"
@@ -273,7 +273,7 @@
       "required": [
         "issue_per_unit_of_work",
         "milestone_per_chapter_or_project_phase",
-        "issue_must_include",
+        "issue_must_include_when_created",
         "task_types",
         "approval_policy"
       ],
@@ -281,10 +281,12 @@
         "issue_per_unit_of_work": {
           "type": "boolean"
         },
+        "issue_creation": {"type": "string", "const": "optional_or_explicitly_requested"},
+        "milestone_creation": {"type": "string"},
         "milestone_per_chapter_or_project_phase": {
           "type": "boolean"
         },
-        "issue_must_include": {
+        "issue_must_include_when_created": {
           "type": "array",
           "items": {
             "type": "string"
@@ -575,6 +577,9 @@
               "const": "section"
             },
             "section_id_required": {
+              "const": "for_section_activity_only"
+            },
+            "project_level_activity_may_omit_section_id": {
               "const": true
             },
             "chapter_total": {
@@ -767,7 +772,10 @@
           ],
           "properties": {
             "records": {
-              "const": "backend_ai_api_calls"
+              "type": "array",
+              "items": {"enum": ["backend_ai_api_calls", "action_ai_api_calls"]},
+              "minItems": 2,
+              "uniqueItems": true
             },
             "excludes": {
               "type": "array",

@@ -301,12 +301,12 @@ class OmnibusTest(SharedBase):
         from test_matter import approve_chapter_1
         for br, tag in (('buch/eins', 'eins-auflage-1'), ('buch/zwei', 'zwei-auflage-1')):
             self.g('checkout', '-q', br)
-            approve_chapter_1(self.d)
             from render_view import load
             _, config = load(self.d)
             sec = self.d / config['structure']['chapters'][0]['sections'][0]['path']
             sec.write_text(sec.read_text(encoding='utf-8').replace('Der Brief lag dort sechs Monate.',
                                                                   'Der Brief lag in der [Waldhütte]{.glossar}.', 1), encoding='utf-8')
+            approve_chapter_1(self.d)
             self.g('add', '-A')
             self.g('commit', '-qm', 'Kapitel 1 freigegeben')
             self.g('tag', tag)

@@ -39,6 +39,7 @@ Geprüft werden:
 
 Endet mit Code 1, sobald ein Fehler gefunden wurde.
 """
+import hashlib
 import json
 import re
 import sys
@@ -221,6 +222,8 @@ def check_project(project_dir):
                 errors.append(f'{path}: Titel weicht von ghostwriter.yml ab')
             if head['number'] != f'{ci}.{si}':
                 errors.append(f'{path}: Nummer {head["number"]} statt {ci}.{si} laut Reihenfolge')
+            if head['status'] == 'approved' and (head.get('approvals') or {}).get('section') is not True:
+                errors.append(f'{path}: Status approved ohne approvals.section=true')
 
     matter_ids = set()
     seen_kinds = set()
@@ -456,6 +459,45 @@ def check_project(project_dir):
                     documented = ref and (entry['kind'], entry['id']) == (ref['kind'], ref['id'])
                     if entry['id'] not in known and not documented:
                         errors.append(f'{approvals_path}: Eintrag {i}: {art} {entry["id"]} unbekannt')
+                    if entry['kind'] in ('section', 'matter') and entry['action'] == 'granted' and not str(entry.get('note', '')).startswith('content_sha256='):
+                        errors.append(f'{approvals_path}: Abschnittsfreigabe {entry["id"]} ohne Manuskript-Fingerabdruck in note')
+
+                latest = {}
+                for entry in data.get('entries', []):
+                    latest[(entry['kind'], entry['id'])] = entry
+                for chapter in config['structure']['chapters']:
+                    chapter_record = latest.get(('chapter', chapter['id']))
+                    if chapter.get('status') == 'approved' and (not chapter_record or chapter_record.get('action') != 'granted'):
+                        errors.append(f'{chapter["id"]}: approved ohne letzte gültige Kapitelfreigabe in approvals.yml')
+                    elif chapter.get('status') != 'approved' and chapter_record and chapter_record.get('action') == 'granted':
+                        errors.append(f'{chapter["id"]}: Kapitelstatus nicht approved, aber Freigabe in approvals.yml nicht zurückgenommen')
+                    for section in chapter['sections']:
+                        head = section_file(base, section)[0]
+                        record = latest.get(('section', section['id']))
+                        if head.get('status') == 'approved':
+                            manuscript = section_file(base, section)[3]
+                            digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+                            if not record or record.get('action') != 'granted':
+                                errors.append(f'{section["path"]}: approved ohne letzte gültige Abschnittsfreigabe in approvals.yml')
+                            elif record.get('note') != 'content_sha256=' + digest:
+                                errors.append(f'{section["path"]}: Manuskript-Fingerabdruck weicht von der letzten Freigabe in approvals.yml ab')
+                        elif record and record.get('action') == 'granted':
+                            errors.append(f'{section["path"]}: Abschnittsfreigabe in approvals.yml nicht zurückgenommen')
+                for _, item in matter_items(config):
+                    head, _, _, manuscript = section_file(base, item)
+                    record = latest.get(('matter', item['id']))
+                    if head.get('status') == 'approved':
+                        digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+                        if (head.get('approvals') or {}).get('section') is not True:
+                            errors.append(f'{item["path"]}: Status approved ohne approvals.section=true')
+                        if not record or record.get('action') != 'granted':
+                            errors.append(f'{item["path"]}: freigegebener Vor-/Nachspann ohne letzte Freigabe in approvals.yml')
+                        elif record.get('note') != 'content_sha256=' + digest:
+                            errors.append(f'{item["path"]}: Manuskript-Fingerabdruck weicht von der letzten Freigabe ab')
+                    elif record and record.get('action') == 'granted':
+                        errors.append(f'{item["path"]}: Freigabe des Vor-/Nachspanns in approvals.yml nicht zurückgenommen')
+                    elif record and record.get('action') == 'granted':
+                        errors.append(f'{item["path"]}: Freigabe des Vor-/Nachspanns in approvals.yml nicht zurückgenommen')
     return errors
 
 

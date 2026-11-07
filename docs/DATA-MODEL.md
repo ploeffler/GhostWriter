@@ -54,7 +54,7 @@ repository/
 │   │   │       ├── img-<slug>.yml # Beschreibung: Bildunterschrift, Herkunft, Status
 │   │   │       └── run-001.md     # Bildauftrag (Prompt, Dienst, Varianten, Auswahl)
 │   │   └── costs/
-│   │       └── <section-id>.yml   # KI-API-Kosten über das Backend (nur dann)
+│   │       └── <section-id>.yml   # KI-API-Kosten aus Backend oder GitHub Actions (nur dann)
 │   └── 02-grundlagen/
 │       ├── README.md
 │       └── sections/
@@ -346,7 +346,7 @@ Darunter `## Beschreibung` und `## Notizen`. Abschnitte und Teile von Vor- und N
 
 ## Freigabe-Protokoll
 
-`approvals.yml` hält jede erteilte oder zurückgenommene Freigabe als eigenen Eintrag fest (`workflow.yml`: `record_approval_actor_and_timestamp`, `user_approval_record`). Einträge werden nur angehängt. Die Felder `approvals.writing` und `approvals.section` im Kopf der Abschnittsdatei und der Kapitelstatus zeigen den aktuellen Stand; das Protokoll zeigt, wer wann welchen Stand bestätigt hat. Schema: [`schemas/approvals.schema.json`](../schemas/approvals.schema.json); Ablauf: `START.md`, „Freigaben“.
+`approvals.yml` hält jede erteilte oder zurückgenommene Freigabe als eigenen Eintrag fest (`workflow.yml`: `record_approval_actor_and_timestamp`, `user_approval_record`). Einträge werden nur angehängt. Die Felder `approvals.writing` und `approvals.section` im Kopf der Abschnittsdatei und der Kapitelstatus zeigen den aktuellen Stand; das Protokoll zeigt, wer wann welchen Stand bestätigt hat. Abschnitts- und Vor-/Nachspann-Freigaben speichern im `note`-Feld zusätzlich `content_sha256=<sha256>` der von `section_file` gelesenen, außen getrimmten UTF-8-Fassung des Textes unter `## Manuskript`. Fehlt er oder stimmt er nicht mehr, ist der Abschnitt nicht freigegeben und darf nicht in eine Auflage gelangen. Vor einer Textänderung ist die Freigabe ausdrücklich zurückzunehmen. Schema: [`schemas/approvals.schema.json`](../schemas/approvals.schema.json); Ablauf: `START.md`, „Freigaben“.
 
 Verweist ein historischer Eintrag auf ein nicht mehr vorhandenes Ziel, kann er unter `historical_references` mit seiner **einbasierten** `entry`-Nummer, unverändertem `kind` und `id` sowie einer `reason` dokumentiert werden. Der Eintrag selbst bleibt unverändert. Die Markierung gilt nur für diesen konkreten Protokolleintrag und erteilt keine Freigabe; unbekannte, nicht dokumentierte Verweise bleiben Validierungsfehler. Vor dem Eintrag den Sachverhalt anhand der Historie prüfen; keine Zuordnung zu einem neuen Abschnitt erfinden.
 
