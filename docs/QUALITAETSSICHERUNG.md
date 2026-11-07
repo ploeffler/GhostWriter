@@ -49,6 +49,13 @@ Bei wesentlichen Änderungen an Handlung, Figuren, Erzählperspektive, Zeitstruk
 - Das Projektprofil und die verbindlichen Fakten-/Figurenunterlagen als Referenz verwenden.
 - Bei Bedarf eine vollständige lineare Schlusslektüre des Manuskripts durchführen.
 
+## Neues Material und Erkenntnis-Abgleich
+
+Für nachgereichte Anekdoten, Notizen, Quellen und Erkenntnisse gilt
+[Einpflegen und Nachziehen](NACHZIEHEN.md). Alle Abschnitte im gewählten Umfang
+abgleichen und nach dem Einpflegen den vollständigen betroffenen Zusammenhang
+prüfen. Eine reine Analyse ist keine abgeschlossene Überarbeitung.
+
 ## Korrekturschleife
 
 1. Prüfumfang und betroffene Textversion festhalten.

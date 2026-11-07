@@ -164,6 +164,21 @@ entities:
     fact_check: [disabled, optional, requested]
 
 runs:
+  catch_up:
+    commands: [einpflegen, nachziehen]
+    repeatable: true
+    immutable: true
+    execution: assistant_in_chat
+    instructions: docs/NACHZIEHEN.md
+    context_command: scripts/catch_up.py
+    scopes: [chapter, book]
+    path: "analysis/catch-up/run-{sequence}.md"
+    required_fields: [inputs, provider, model, source_version, section_coverage, findings, sources, change_plan, changes, open_questions, editorial_result]
+    requires_all_sections_in_scope: true
+    requires_research_for_unverified_claims: true
+    requires_existing_writing_approval_for_manuscript_changes: true
+    requires_editorial_review_after_changes: true
+    grants_approval: false
   research:
     repeatable: true
     immutable: true

@@ -574,6 +574,14 @@ Nach der Initialisierung wird jedes Kapitel abschnittsweise bearbeitet. Für jed
 8. Korrekturen abstimmen und einarbeiten.
 9. Ausdrückliche Abschnittsfreigabe.
 
+**Einpflegen / Nachziehen:** „Einpflegen in Kapitel 1: <Material>“,
+„Kapitel 1 nachziehen“ und „Buch nachziehen“ starten den verbindlichen Ablauf aus
+[Einpflegen und Nachziehen](docs/NACHZIEHEN.md). Alle Abschnitte des gewählten
+Umfangs mit neuer und bestehender Recherche abgleichen, autorisierte Änderungen
+einpflegen und anschließend den vollständigen betroffenen Zusammenhang redigieren.
+„Nur analysieren“ liefert ausschließlich Abgleich und Vorschläge. Fehlende Texte,
+Quellen oder Freigaben offen ausweisen; keine automatische Freigabe.
+
 **Kapitelüberarbeitung (KU):** Vor dem Anbieten und vor jeder Durchführung
 `python scripts/chapter_revision.py <projektordner> <kapitelnummer-oder-id> --json`
 auf dem aktuellen Lese-Stand ausführen. Sie ist nur verfügbar, wenn mindestens ein
