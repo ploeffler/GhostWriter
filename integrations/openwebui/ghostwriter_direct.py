@@ -1,7 +1,7 @@
 """
 title: GhostWriter Direkt
 description: Start und Bibliothek direkt ausführen, Gespräch an das Basismodell weitergeben.
-version: 1.3.0
+version: 1.4.0
 required_open_webui_version: 0.13.0
 requirements: pydantic
 """
@@ -157,6 +157,67 @@ class Pipe:
                 return None
         return None
 
+    def _status_answer(self, command, facts):
+        """Statusauskünfte aus echten Regeln beantworten, ohne generiertes Modellwissen."""
+        if not re.search(r"\b(?:status(?:werte?n?|es)?|zust[aä]nd\w*|states?)\b", command):
+            return None
+        # Änderungsaufträge sind keine Statusauskunft. Keine Freigabe erraten.
+        if re.search(r"\b(?:setz\w*|änder\w*|aender\w*|wechsel\w*|speicher\w*|markier\w*|freigeb\w*|genehmig\w*|set|change|update|save|mark|approve|cancel)\b", command):
+            return None
+        if not (re.search(r"\b(?:welch\w*|möglich\w*|moeglich\w*|erlaubt\w*|zulässig\w*|kann|könnt\w*|koennt\w*|which|what|allowed|possible|can|could)\b", command)
+                or re.fullmatch(r"(?:status(?:werte)?|zustände|zustaende|statuses)(?:\s+(?:(?:kapitel|chapter|abschnitt|section)\s*)?[0-9]+(?:\.[0-9]+)?)?[?.!]*", command)):
+            return None
+        chapter_match = re.search(r"\b(?:kapitel|chapter)\s*([0-9]+)\b", command)
+        section_match = re.search(r"\b(?:abschnitt|section)\s*([0-9]+(?:\.[0-9]+)?)\b", command)
+        numbers = re.findall(r"(?<![\w.])[0-9]+(?:\.[0-9]+)?(?![\w.])", command)
+        target = None
+        entity = None
+        chapters = facts.get("chapters", [])
+        if chapter_match and section_match:
+            return self._text("Bitte nach einem Kapitel oder einem Abschnitt fragen.", "Please ask about one chapter or section.")
+        if chapter_match:
+            entity = "chapter"
+            target = next((c for c in chapters if c.get("number") == int(chapter_match[1])), None)
+        elif section_match or (numbers and facts.get("level") == "chapter") or (numbers and "." in numbers[0]):
+            entity = "section"
+            number = section_match[1] if section_match else numbers[0]
+            if "." not in number and facts.get("chapter"):
+                number = str(facts["chapter"]["number"]) + "." + number
+            candidates = [facts["section"]] if facts.get("section") else facts.get("sections", [])
+            target = next((s for s in candidates if s.get("number") == number), None)
+        elif numbers and facts.get("level") == "book":
+            entity = "chapter"
+            target = next((c for c in chapters if str(c.get("number")) == numbers[0]), None)
+        elif facts.get("level") == "section":
+            entity, target = "section", facts.get("section")
+        elif facts.get("chapter"):
+            entity, target = "chapter", facts["chapter"]
+        if len(numbers) > 1 or not target or not entity:
+            return self._text("Bitte das gemeinte Kapitel oder den Abschnitt öffnen oder eindeutig nennen.",
+                              "Please open or unambiguously name the chapter or section.")
+        rules = facts.get("status_rules", {}).get(entity, {})
+        statuses = rules.get("statuses")
+        if not isinstance(statuses, list) or not statuses:
+            return self._text("Die Statusregeln sind nicht verfügbar. Bitte die Ansicht neu öffnen.",
+                              "Status rules are unavailable. Please reopen the view.")
+        labels = {"planned": ("geplant", "planned"), "in_progress": ("in Arbeit", "in progress"),
+                  "ready_for_assembly": ("bereit zum Zusammenführen", "ready for assembly"),
+                  "assembly": ("Zusammenführung", "assembly"), "review": ("Prüfung", "review"),
+                  "ready_for_approval": ("bereit zur Freigabe", "ready for approval"), "approved": ("freigegeben", "approved"),
+                  "research": ("Recherche", "research"), "brainstorming": ("Ideensammlung", "brainstorming"),
+                  "ready_to_write": ("bereit zum Schreiben", "ready to write"), "writing": ("Entwurf", "draft"),
+                  "revision": ("Überarbeitung", "revision"), "fact_check": ("Faktenprüfung", "fact check")}
+        def label(value):
+            return labels.get(value, (str(value), str(value)))[int(self.valves.INTERFACE_LANGUAGE == "en")]
+        name = self._text("Kapitel" if entity == "chapter" else "Abschnitt", "Chapter" if entity == "chapter" else "Section")
+        heading = name + " " + str(target["number"])
+        lines = [heading + self._text(" steht derzeit auf **", " is currently **") + label(target.get("status", "unknown")) + "**.", "",
+                 self._text("Vorgesehene Statuswerte:", "Defined statuses:"), ""]
+        lines += ["- " + label(value) + " (`" + str(value).replace("`", "") + "`)" for value in statuses]
+        lines += ["", self._text("Die Liste beschreibt die vorgesehenen Zustände. Ob ein Wechsel schon möglich ist, hängt von den Voraussetzungen und nötigen Freigaben ab. Es wurde nichts geändert.",
+                                "These are the defined states. A transition depends on its prerequisites and required approvals. Nothing was changed.")]
+        return "\n".join(lines)
+
     async def _forward(self, body, request, user_data, metadata):
         # Open-WebUI-Import erst im Weiterleitungspfad: die direkten Befehle
         # benötigen weder Ollama noch einen Modellaufruf.
@@ -264,6 +325,9 @@ class Pipe:
                 if not isinstance(current.get("conversation_context"), dict):
                     raise ValueError(self._text("Aktueller Buchkontext fehlt.", "Current book context is missing."))
             facts = current["conversation_context"] if current else {"level": "none", "selection": None}
+            status_answer = self._status_answer(command, facts)
+            if status_answer is not None:
+                return status_answer
             instructions = self._text(
                 "Du bist GhostWriter, der Schreibassistent. Antworte auf Deutsch, sofern der Benutzer keine andere Sprache wünscht. "
                 "Der folgende frisch gelesene Kontext bestimmt das aktuell geöffnete Buch und die aktuelle Ansicht. "

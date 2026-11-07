@@ -116,7 +116,7 @@ class DirectPipeTest(unittest.TestCase):
         scope = self.pipe._scope(initial, user, metadata)
         view = self.pipe._answer({'view': 'Buchübersicht', 'navigation_receipt': receipt}, initial, scope)
         body = {**initial, 'messages': [*initial['messages'], {'role': 'assistant', 'content': view},
-                                      {'role': 'user', 'content': 'welchen zustand könnte 1 schon bekommen?'}]}
+                                      {'role': 'user', 'content': 'Was sollte ich bei Kapitel 1 beachten?'}]}
         before = copy.deepcopy(body)
         context = {'level': 'book', 'book_title': 'Testbuch', 'chapters': [{'number': 1, 'title': 'Anfang', 'status': 'planned'}],
                    'status_rules': {'chapter': {'statuses': ['planned', 'in_progress']}}}
@@ -138,6 +138,29 @@ class DirectPipeTest(unittest.TestCase):
             answer = asyncio.run(self.pipe.pipe(body, __tools__=self.tools, __user__=user, __metadata__=metadata))
         self.assertIn('Aktualisierte Übersicht', answer)
         forward.assert_not_awaited()
+
+    def test_status_questions_use_only_actual_rules_and_resolve_view_numbers(self):
+        facts = {'level': 'book', 'chapters': [{'number': 1, 'status': 'planned'}],
+                 'status_rules': {'chapter': {'statuses': ['planned', 'in_progress', 'custom_review']},
+                                  'section': {'statuses': ['planned', 'writing', 'approved']}}}
+        for question in ['welche statuswerte kann kapitel 1 haben?', 'welchen zustand könnte 1 schon bekommen?', 'what statuses can chapter 1 have?']:
+            with self.subTest(question=question):
+                answer = self.pipe._status_answer(question, facts)
+                self.assertIn('custom_review', answer)
+                self.assertNotIn('completed', answer)
+                self.assertNotIn('cancelled', answer)
+                self.assertNotIn('`writing`', answer)
+        facts.update(level='chapter', chapter={'number': 1, 'status': 'planned'},
+                     sections=[{'number': '1.1', 'status': 'writing'}])
+        answer = self.pipe._status_answer('welchen status kann 1 haben?', facts)
+        self.assertIn('Abschnitt 1.1', answer)
+        self.assertIn('`writing`', answer)
+        self.assertNotIn('custom_review', answer)
+        self.assertIn('eindeutig', self.pipe._status_answer('welche statuswerte kann kapitel 99 haben?', facts))
+        self.assertIn('eindeutig', self.pipe._status_answer('welche statuswerte können kapitel 1 und 2 haben?', facts))
+        self.assertIsNone(self.pipe._status_answer('setze kapitel 1 auf status approved', facts))
+        self.assertIsNone(self.pipe._status_answer('kannst du den status ändern?', facts))
+        self.assertIsNone(self.pipe._status_answer('was sollte ich bei kapitel 1 beachten?', facts))
 
     def test_reload_passes_trusted_metadata_to_already_bound_tool(self):
         self.assertTrue(self.call('Start neu laden').endswith(VIEW))
