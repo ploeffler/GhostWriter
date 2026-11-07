@@ -445,6 +445,7 @@ class OpenWebUIToolTests(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         pipe = module.Pipe()
+        pipe._state_dir = Path(self.state.name)
         tools = {name: {'tool_id': 'github', 'spec': {'name': name}, 'callable': partial(getattr(self.tool, name),
                          __chat_id__='chat-1', __user__={'id': 'user-1'}, __id__='github')}
                  for name in ['read_start_md', 'show_library', 'open_book']}
@@ -453,10 +454,12 @@ class OpenWebUIToolTests(unittest.TestCase):
         with patch.object(self.tool, '_http', side_effect=self.navigation_http), patch.object(pipe, '_forward', new_callable=AsyncMock) as forward:
             for command in ['Start', '1', '1', '1', 'Übersicht', 'Buch 2']:
                 messages.append({'role': 'user', 'content': command})
-                output = asyncio.run(pipe.pipe({'model': 'direct', 'messages': messages}, __tools__=tools))
+                output = asyncio.run(pipe.pipe({'model': 'direct', 'messages': messages}, __tools__=tools, __user__={'id': 'user-1'}, __metadata__={'chat_id': 'chat-1'}))
                 messages.append({'role': 'assistant', 'content': output})
                 outputs.append(output)
             forward.assert_not_awaited()
+        self.assertNotIn('ghostwriter-nav:', '\n'.join(outputs))
+        self.assertNotIn('Lesestand:', '\n'.join(outputs))
         self.assertIn('Herzlich willkommen', outputs[0])
         self.assertIn('| 1 | Erstes Kapitel |', outputs[1])
         self.assertIn('| 1.1 | Erster Abschnitt |', outputs[2])

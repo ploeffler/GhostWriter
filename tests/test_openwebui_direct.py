@@ -1,4 +1,5 @@
 """Direkte Chat-Ausgabe: Start/Bibliothek dürfen keinen Modellaufruf benötigen."""
+import tempfile
 import asyncio
 import copy
 import importlib.util
@@ -29,6 +30,9 @@ class DirectPipeTest(unittest.TestCase):
         self.module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.module)
         self.pipe = self.module.Pipe()
+        self.state = tempfile.TemporaryDirectory()
+        self.addCleanup(self.state.cleanup)
+        self.pipe._state_dir = Path(self.state.name)
         self.start = AsyncMock(return_value=result(view=VIEW, content='Interne Regeln'))
         self.library = AsyncMock(return_value=result(view=VIEW))
         self.tools = self.bindings('github', self.start, self.library)
@@ -71,6 +75,37 @@ class DirectPipeTest(unittest.TestCase):
         self.assertIn('Bitte aus dieser Bibliothek wählen', output)
         self.assertIn(VIEW, output)
         forward.assert_not_awaited()
+
+    def test_clean_view_navigation_survives_restart_and_is_bound_to_chat_and_history(self):
+        receipt = 'eyJraW5kIjoiYm9vayJ9.signature'
+        body = {'model': 'direct', 'messages': [{'role': 'user', 'content': 'Buch 1'}]}
+        metadata = {'chat_id': 'chat-1'}
+        scope = self.pipe._scope(body, {'id': 'u'}, metadata)
+        result = {'view': '### Buch\n\nLesestand: `buch/test` · `abcdefg`\n\nKapitel\n\n<!-- ghostwriter-nav:' + receipt + ' -->',
+                  'navigation_receipt': receipt}
+        clean = self.pipe._answer(result, body, scope)
+        self.assertEqual(clean, '### Buch\n\n\nKapitel')
+        self.assertNotIn('ghostwriter-nav', clean)
+        history = {**body, 'messages': [*body['messages'], {'role': 'assistant', 'content': clean}, {'role': 'user', 'content': '1'}]}
+        restarted = self.module.Pipe()
+        restarted._state_dir = Path(self.state.name)
+        self.assertEqual(restarted._receipt(history, scope, latest_only=True), receipt)
+        other_scope = self.pipe._scope(body, {'id': 'u'}, {'chat_id': 'other'})
+        self.assertIsNone(restarted._receipt(history, other_scope))
+        changed = copy.deepcopy(history)
+        changed['messages'][0]['content'] = 'Buch 2'
+        self.assertIsNone(restarted._receipt(changed, scope))
+        changed = copy.deepcopy(history)
+        changed['messages'].insert(-1, {'role': 'assistant', 'content': 'Welche Zahl meinst du?'})
+        self.assertIsNone(restarted._receipt(changed, scope, latest_only=True))
+
+    def test_navigation_storage_failure_is_visible_without_leaking_receipt(self):
+        self.start.return_value = result(view=VIEW, navigation_receipt='eyJraW5kIjoibGlicmFyeSJ9.signature')
+        with patch.object(self.pipe, '_state', side_effect=OSError('PRIVATE_PATH')):
+            answer = self.call(__metadata__={'chat_id': 'c'})
+        self.assertIn('Navigation konnte nicht gespeichert werden', answer)
+        self.assertNotIn('signature', answer)
+        self.assertNotIn('PRIVATE_PATH', answer)
 
     def test_reload_passes_trusted_metadata_to_already_bound_tool(self):
         self.assertTrue(self.call('Start neu laden').endswith(VIEW))
