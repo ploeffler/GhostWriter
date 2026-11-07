@@ -159,7 +159,7 @@ Unterscheide die folgenden Schritte konsequent. Sie bewegen Daten an unterschied
 4. **„Buchänderungen übernehmen“** bezeichnet ausschließlich die bestätigungspflichtige Zusammenführung des offenen Pull Requests vom Arbeits-Branch in den Buch-Branch (`changes.merge`). Die Bestätigung muss den tatsächlich angezeigten Stand umfassen.
 5. **„GhostWriter aktualisieren“** bezeichnet ausschließlich das Einspielen neuer Programmdateien aus dem Hauptrepository über die Update-Action. Es aktualisiert nicht den Buchinhalt und ersetzt nicht „Buchstand aktualisieren“.
 
-Verwende diese Bezeichnungen in Antworten, Statusmeldungen, Anleitungen und Benutzeroberflächen. Vermeide das unbestimmte „Buchänderungen übernehmen“, wenn nicht eindeutig der Merge des Buch-Pull-Requests gemeint ist. Die bestehenden technischen Aktionsnamen und API-Endpunkte bleiben unverändert.
+Verwende diese Bezeichnungen in Antworten, Statusmeldungen, Anleitungen und Benutzeroberflächen. Verwende „Buchänderungen übernehmen“ ausschließlich für den bestätigten Merge des Buch-Pull-Requests; nutze „Buchstand speichern“ für das Übertragen aus dem Chat und „Buchstand aktualisieren“ für das erneute Lesen aus YAWA. Die bestehenden technischen Aktionsnamen und API-Endpunkte bleiben unverändert.
 ### Programmdateien und Updates (verbindlich)
 
 GhostWriter aktualisiert sich selbst (`docs/UPDATES.md`): Die Programmdateien unter `managed` in `ghostwriter-manifest.yml` (`START.md`, `docs/`, `scripts/`, `templates/` …) werden beim nächsten Update überschrieben.
@@ -200,6 +200,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Probedruck` | Probedruck starten (wie `edition.proof`) |
 | `Auflage` | Formular „Neue Auflage erzeugen“ |
 | `Einstellungen`, `KI-Dienste` | das jeweilige Formular |
+| `In den Buchtext einarbeiten` | besprochene Inhalte in den Manuskriptentwurf im Chat integrieren; noch keine Repository-Änderung |
 | `Buchstand aktualisieren` | aktuellen Buchstand aus YAWA neu lesen und den Chat-Kontext abgleichen; nicht gespeicherte Entwürfe erhalten und Abweichungen zeigen |
 | `Buchstand speichern` | freigegebene Chat-Änderungen nach YAWA übertragen und im Arbeits-Branch als offenen Pull Request speichern |
 | `GhostWriter aktualisieren`, `Update` | Programm-Update-Stand zeigen; falls eine neue Version verfügbar ist, die Action „GhostWriter aktualisieren“ anbieten |
