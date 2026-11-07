@@ -81,7 +81,7 @@ zusammenfassen: gespeichert, noch offen oder bereits übernommen. Die Bestätigu
 Kapitelfreigaben erhalten eigene, eindeutig bezeichnete Bestätigungen samt
 Prüfung ihrer Voraussetzungen und Freigabeprotokoll. Bei einem anderen
 zwischenzeitlichen Stand erneut vergleichen; bei Konflikt nicht automatisch
-übernehmen. Die Auswahl „nur Änderungen übernehmen“ erteilt keine Freigabe.
+übernehmen. Dieser Merge-Schritt erteilt keine Abschnitts- oder Kapitelfreigabe.
 
 ---
 
