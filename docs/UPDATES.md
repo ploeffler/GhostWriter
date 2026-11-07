@@ -28,7 +28,7 @@ Der tägliche Update-Lauf ergänzt die Actions-Zusammenfassung und veröffentlic
 
 ## Bibliothek: mehrere Bücher in einem Repository
 
-In einer Bibliothek (#36–#39) liegt auf dem Standard-Branch nur das Programm, jedes Buch auf einem eigenen Branch `buch/<slug>`. Die Action aktualisiert zuerst den Standard-Branch und danach jedes Buch einzeln; die Zusammenfassung zeigt eine Zeile je Buch. Welche Branches Bücher sind, entscheidet die Erkennungsregel in `scripts/library.py`: der Standard-Branch nur, wenn er Kapitel hat (Einzelbuch), jeder `buch/*`-Branch, sonst Branches mit Kapiteln. Arbeits-Branches (`ghostwriter/…`) und andere Branches werden nicht angefasst; offene Änderungen bekommen das Update mit dem nächsten „Änderungen übernehmen“. Ein Fehler in einem Buch hält die anderen nicht auf; für das betroffene Buch öffnet die Action ein Issue.
+In einer Bibliothek (#36–#39) liegt auf dem Standard-Branch nur das Programm, jedes Buch auf einem eigenen Branch `buch/<slug>`. Die Action aktualisiert zuerst den Standard-Branch und danach jedes Buch einzeln; die Zusammenfassung zeigt eine Zeile je Buch. Welche Branches Bücher sind, entscheidet die Erkennungsregel in `scripts/library.py`: der Standard-Branch nur, wenn er Kapitel hat (Einzelbuch), jeder `buch/*`-Branch, sonst Branches mit Kapiteln. Arbeits-Branches (`ghostwriter/…`) und andere Branches werden nicht angefasst; offene Änderungen bekommen das Update mit dem nächsten „Buchänderungen übernehmen“. Ein Fehler in einem Buch hält die anderen nicht auf; für das betroffene Buch öffnet die Action ein Issue.
 
 ## Von v0.5 auf v0.6
 
@@ -36,7 +36,7 @@ In einer Bibliothek (#36–#39) liegt auf dem Standard-Branch nur das Programm, 
 
 **Umwandeln in eine Bibliothek (optional):** Wer mehrere Bücher in einem Repository führen möchte, startet einmal die Action *Actions → In Bibliothek umwandeln → Run workflow* auf dem Standard-Branch. Ohne Eingabe ist das ein **Probelauf**: Er prüft alles und zeigt, was passieren würde, ändert aber nichts. Erst mit `UMWANDELN` im Feld *confirm*:
 
-1. Prüfen: Der Standard-Branch hat Kapitel; im Arbeits-Branch liegen keine offenen Änderungen (sonst zuerst im Chat „Änderungen übernehmen“); der Name `buch/<kurztitel>` ist frei (anderer Kurztitel über das Feld *title_short*).
+1. Prüfen: Der Standard-Branch hat Kapitel; im Arbeits-Branch liegen keine offenen Änderungen (sonst zuerst im Chat „Buchänderungen übernehmen“); der Name `buch/<kurztitel>` ist frei (anderer Kurztitel über das Feld *title_short*).
 2. Das Buch bekommt den Branch `buch/<kurztitel>` auf genau demselben Commit, also mit seiner ganzen Historie, und wird dort geprüft (Projektprüfung).
 3. Erst danach bekommt der Standard-Branch einen Commit „In Bibliothek umgewandelt“: Buchdateien (`chapters/`, `costs/`, `research/`, `editions/`, `approvals.yml`, Übersichtsdatei) entfernt, `ghostwriter.yml` wieder der Starter, `library.json` für das Bücherregal.
 
