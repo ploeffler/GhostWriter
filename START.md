@@ -139,6 +139,10 @@ Eine vorhandene Geschichte bzw. ein Manuskript wird ein Buch (Befehl `Als Buch i
 6. **Analysen:** Danach die Analysen anbieten (Auswahlkarte mit Kostenschätzung aus `analyze.py plan --kind …`; vorangehakt: Figuren, Kurzbeschreibung und Ziel, Stilprofil) und als Analyse im Hintergrund starten (Abschnitt „Analysen im Hintergrund“). Weitere Arten folgen mit #124.
 7. **Aufbewahrung:** Die Action räumt täglich auf: Ist die Frist abgelaufen (bzw. die erste Auflage erschienen), entfernt sie `import/original/` (Commit `Original des Imports entfernt …`). Sieben Tage vorher zeigt die Projektübersicht einen Hinweis.
 
+### Session sichern, laden und übernehmen
+
+Die Befehle `Session sichern` (auch `Chat sichern`, `Chat speichern`), `Session laden` und `Session übernehmen` führen den verbindlichen Ablauf in [Session-Sicherung](docs/SESSION-SICHERUNG.md) aus. Die Anweisung vor Ausführung lesen. Sichern: verfügbare Gespräche, Recherche, Brainstorming, Entscheidungen und Entwürfe mit einem Commit je geändertem Themengebiet und einem PR je Sitzung dauerhaft speichern. Laden: gespeicherten Kontext lesend wieder aufnehmen. Übernehmen: prüfen, fehlgeschlagene Checks oder Merge analysieren, sichere technische Reparatur versuchen, erneut prüfen und erst dann den Sitzungs-PR mergen. Erfolge erst nach bestätigtem Remote-Ergebnis melden. Kein Manuskript und keine inhaltliche Freigabe ändern; keine automatische Übernahme beim Sichern. Fehlende Werkzeuge und Sicherungslücken offen benennen. Für reine Sitzungsdateien gilt die in der Anweisung beschriebene begrenzte Ausnahme vor Strukturfreigabe; Buchdateien bleiben unverändert.
+
 ### Neuer Chat statt langem Verlauf
 
 Ein Chat lässt sich nicht leeren; jede Ansicht bleibt im Verlauf stehen. Der Projektstand liegt aber vollständig im Repository. Deshalb:
@@ -172,7 +176,7 @@ GhostWriter aktualisiert sich selbst (`docs/UPDATES.md`): Die Programmdateien un
 
 Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzform `gw:view.section section_id=…` oder, bei Formularen mit Eingaben, als Block `gw` mit JSON (Format in `templates/ui/BEFUELLUNG.md`). Werte die Daten aus und antworte mit der Ansicht oder dem Formular, das die Aktionstabelle in `templates/ui/BEFUELLUNG.md` nennt; Aktionen, die ein Formular öffnen (`….open`, `project.edit`), sofort und ohne Rückfrage. Nach Speichern, Abbrechen oder „nichts geändert“ zeige wieder die Ansicht, aus der das Formular kam („Nach dem Formular“ in `templates/ui/BEFUELLUNG.md`); nur bei einem Fehler bleibt das Formular. Freie Eingaben ohne Block bleiben erlaubt.
 
-**Befehle** (gelten jederzeit, in jeder Ansicht und auch in der Textfassung; Groß- und Kleinschreibung egal). Ein Befehl öffnet nur eine Ansicht oder ein Formular, er speichert nie etwas:
+**Befehle** (gelten jederzeit, in jeder Ansicht und auch in der Textfassung; Groß- und Kleinschreibung egal). Ansichts- und Formularbefehle speichern nichts; ausdrücklich beauftragte Aktionen wie „Probedruck“, „Session sichern“ und „Session übernehmen“ führen ihren beschriebenen Ablauf aus:
 
 | Eingabe | Wirkung |
 |---|---|
@@ -197,6 +201,9 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Als Buch importieren`, `Manuskript importieren` | mit angehängter Datei: Import als neues Buch (Abschnitt 0, „Manuskript importieren“) |
 | `Sammelband <Reihe>` | Formular „Sammelband“ der Serie (Abschnitt 0, „Serien“) |
 | `Serie <Titel>`, `Neue Serie` | Seite der Serie bzw. Formular „Neue Serie“ (Abschnitt 0, „Serien“) |
+| `Session sichern`, `Chat sichern`, `Chat speichern` | verfügbaren Gesprächsstand dauerhaft sichern (Abschnitt „Session sichern, laden und übernehmen“) |
+| `Session laden` | gesicherten Gesprächsstand lesend wieder aufnehmen |
+| `Session übernehmen` | Sicherungs-PR prüfen, Fehler analysieren, technische Reparatur versuchen, erneut prüfen und mergen |
 | `Hilfe` | diese Befehle und die Kürzel der zuletzt gezeigten Ansicht (`templates/ui/BEFUELLUNG.md`, „Textfassung“) |
 
 Befehle haben Vorrang vor Kürzeln nur, wenn sie ausgeschrieben sind (`Auflage`, nicht `A`). `Neues Buch` öffnet das Formular „Neues Buch“ (Abschnitt 0, „Neues Buch“); `Neues Buch: <Titel>` öffnet es mit dem Titel vorbelegt.
