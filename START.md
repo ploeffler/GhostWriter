@@ -206,7 +206,9 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Session sichern`, `Chat sichern`, `Chat speichern` | verfügbaren Gesprächsstand dauerhaft sichern (Abschnitt „Session sichern, laden und übernehmen“) |
 | `Session laden` | gesicherten Gesprächsstand lesend wieder aufnehmen |
 | `Session übernehmen` | Sicherungs-PR prüfen, Fehler analysieren, technische Reparatur versuchen, erneut prüfen und mergen |
-| `Hilfe` | diese Befehle und die Kürzel der zuletzt gezeigten Ansicht (`templates/ui/BEFUELLUNG.md`, „Textfassung“) |
+| `Hilfe`, `Hilfe Befehle`, `Hilfe Änderungspakete`, `Hilfe Session` | [Hilfe](docs/HILFE.md) lesen und passende Befehle, Beispielprompts bzw. Erklärung zeigen; bei `Hilfe` eine kurze Übersicht und die Kürzel der aktuellen Ansicht. Keine Schreibaktion. |
+
+**Hilfe:** `Hilfe` sowie die Themenhilfen nach `docs/HILFE.md` beantworten; keine neue Einrichtung und keine Speicherung auslösen. Auch `Help commands`, `Help changes`, `Help sessions` entsprechend der Bediensprache behandeln. In deutschen Chat-Ausgaben heißt PR „Änderungspaket“, mergen „übernehmen“ und gemergt „übernommen“, auch in Statusmeldungen. Technische Kennungen und GitHub-Menütexte unverändert lassen.
 
 Befehle haben Vorrang vor Kürzeln nur, wenn sie ausgeschrieben sind (`Auflage`, nicht `A`). `Neues Buch` öffnet das Formular „Neues Buch“ (Abschnitt 0, „Neues Buch“); `Neues Buch: <Titel>` öffnet es mit dem Titel vorbelegt.
 
