@@ -107,6 +107,38 @@ class DirectPipeTest(unittest.TestCase):
         self.assertNotIn('signature', answer)
         self.assertNotIn('PRIVATE_PATH', answer)
 
+    def test_free_question_receives_fresh_selected_context_before_user_message(self):
+        import base64
+        receipt = base64.urlsafe_b64encode(json.dumps({'kind': 'book'}).encode()).decode().rstrip('=') + '.sig'
+        user = {'id': 'u'}
+        metadata = {'chat_id': 'c'}
+        initial = {'model': 'direct', 'messages': [{'role': 'user', 'content': 'Buch 1'}]}
+        scope = self.pipe._scope(initial, user, metadata)
+        view = self.pipe._answer({'view': 'Buchübersicht', 'navigation_receipt': receipt}, initial, scope)
+        body = {**initial, 'messages': [*initial['messages'], {'role': 'assistant', 'content': view},
+                                      {'role': 'user', 'content': 'welchen zustand könnte 1 schon bekommen?'}]}
+        before = copy.deepcopy(body)
+        context = {'level': 'book', 'book_title': 'Testbuch', 'chapters': [{'number': 1, 'title': 'Anfang', 'status': 'planned'}],
+                   'status_rules': {'chapter': {'statuses': ['planned', 'in_progress']}}}
+        fresh = AsyncMock(return_value=result(conversation_context=context, changed=False))
+        self.tools['get_current_context'] = {'tool_id': 'github', 'spec': {'name': 'get_current_context'}, 'callable': fresh}
+        with patch.object(self.pipe, '_forward', new_callable=AsyncMock, return_value='Antwort') as forward:
+            answer = asyncio.run(self.pipe.pipe(body, __tools__=self.tools, __user__=user, __metadata__=metadata))
+        self.assertEqual(answer, 'Antwort')
+        fresh.assert_awaited_once_with(receipt=receipt)
+        sent = forward.await_args.args[0]['messages']
+        self.assertEqual(sent[-1], body['messages'][-1])
+        self.assertEqual(sent[-2]['role'], 'system')
+        self.assertIn('Testbuch', sent[-2]['content'])
+        self.assertIn('in_progress', sent[-2]['content'])
+        self.assertIn('keine vom Benutzer eingefügte Programmieraufgabe', sent[-2]['content'])
+        self.assertEqual(body, before)
+        fresh.return_value = result(changed=True, view='Aktualisierte Übersicht', navigation_receipt=receipt)
+        with patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
+            answer = asyncio.run(self.pipe.pipe(body, __tools__=self.tools, __user__=user, __metadata__=metadata))
+        self.assertIn('Aktualisierte Übersicht', answer)
+        forward.assert_not_awaited()
+
     def test_reload_passes_trusted_metadata_to_already_bound_tool(self):
         self.assertTrue(self.call('Start neu laden').endswith(VIEW))
         self.start.assert_awaited_once_with()
