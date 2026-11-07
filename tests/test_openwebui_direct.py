@@ -183,6 +183,35 @@ class DirectPipeTest(unittest.TestCase):
         self.assertEqual(self.pipe._prepare_forward(body, request, {})['options']['num_ctx'], 8192)
         self.assertNotIn('options', self.pipe._prepare_forward(body, object(), {}))
 
+    def test_conversation_provider_cannot_call_internal_navigation_tools(self):
+        users = types.ModuleType('open_webui.models.users')
+        users.Users = types.SimpleNamespace(get_user_by_id=AsyncMock(return_value=object()))
+        chat = types.ModuleType('open_webui.utils.chat')
+        chat.generate_chat_completion = AsyncMock(return_value='Textantwort')
+        body = {'model': 'direct', 'tools': [{'type': 'function', 'function': {'name': 'get_current_context'}}],
+                'tool_choice': 'required', 'parallel_tool_calls': True, 'tool_ids': ['github'],
+                'functions': [{'name': 'open_book'}], 'function_call': 'auto',
+                'messages': [{'role': 'system', 'content': 'Projektregeln'},
+                             {'role': 'assistant', 'content': '', 'tool_calls': [{'id': 'fake', 'function': {'name': 'get_current_context'}}]},
+                             {'role': 'tool', 'tool_call_id': 'fake', 'content': 'RECEIPT_FAILED'},
+                             {'role': 'function', 'name': 'open_book', 'content': 'LEGACY_TOOL_RESULT'},
+                             {'role': 'assistant', 'content': 'Vorherige Antwort', 'function_call': {'name': 'open_book'}},
+                             {'role': 'user', 'content': 'Worum geht es im Abschnitt?'}]}
+        metadata = {'chat_id': 'c', 'tools': {'get_current_context': 'BOUND_FUNCTION'}, 'tool_ids': ['github']}
+        before = copy.deepcopy((body, metadata))
+        with patch.dict(sys.modules, {'open_webui.models.users': users, 'open_webui.utils.chat': chat}):
+            answer = asyncio.run(self.pipe._forward(body, object(), {'id': 'u'}, metadata))
+        self.assertEqual(answer, 'Textantwort')
+        sent = chat.generate_chat_completion.await_args.args[1]
+        for key in ('tools', 'tool_choice', 'parallel_tool_calls', 'functions', 'function_call', 'tool_ids'):
+            self.assertNotIn(key, sent)
+            self.assertNotIn(key, sent['metadata'])
+        self.assertEqual([m['role'] for m in sent['messages']], ['system', 'assistant', 'user'])
+        self.assertNotIn('function_call', sent['messages'][1])
+        self.assertNotIn('RECEIPT_FAILED', str(sent))
+        self.assertEqual((body, metadata), before)
+        self.assertEqual(chat.generate_chat_completion.await_args.kwargs, {})
+
     def test_reload_passes_trusted_metadata_to_already_bound_tool(self):
         self.assertTrue(self.call('Start neu laden').endswith(VIEW))
         self.start.assert_awaited_once_with()
