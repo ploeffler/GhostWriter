@@ -7,8 +7,9 @@ Aufruf:
 Geprüft wird:
 1. Aktionen: Jede Aktion, die eine Vorlage in ghostwriter-ui schickt, steht in
    der Aktionstabelle von templates/ui/BEFUELLUNG.md. Schreibende Aktionen
-   (Spalte „API“ mit POST, PATCH, PUT oder DELETE) stehen auch in START.md, und
-   ihr Endpunkt steht in docs/API-CONTRACT.md.
+   (Spalte „API“ mit POST, PATCH, PUT oder DELETE) stehen in der vollständigen
+   START.md bzw. in den Anweisungen eines generierten Einstiegs; ihr Endpunkt
+   steht in docs/API-CONTRACT.md.
 2. Platzhalter: Jeder Platzhalter {{NAME}} einer Vorlage ist in BEFUELLUNG.md
    beschrieben.
 3. Datenmodell: Jedes Feld der obersten und zweiten Ebene aus ghostwriter.yml
@@ -44,6 +45,7 @@ DOCS = ['START.md', 'README.md', 'templates/ui/BEFUELLUNG.md', 'templates/ui/REA
 PLACEHOLDER_SKIP = {'HEAD_SHA'}
 # Aktionen ohne Zeile in der Aktionstabelle (reine Steuerung im Chat)
 ACTION_SKIP = set()
+GENERATED_START_MARKER = '<!-- GhostWriter: generierter Instanz-Einstieg, Format 1 -->'
 
 
 def read(rel):
@@ -67,6 +69,12 @@ def ui_templates(ui):
 
 def check_actions(ui, problems):
     bef, start, api = read('templates/ui/BEFUELLUNG.md'), read('START.md'), read('docs/API-CONTRACT.md')
+    if start.startswith(GENERATED_START_MARKER):
+        modules = ROOT / 'docs/start'
+        required = modules / 'schreiben-ins-repository.md'
+        if not required.is_file():
+            problems.append('Anweisung docs/start/schreiben-ins-repository.md fehlt beim generierten Einstieg')
+        start += '\n' + '\n'.join(p.read_text(encoding='utf-8') for p in sorted(modules.glob('*.md')))
     table = action_table(bef)
     sent = {}
     for t in ui_templates(ui):
@@ -85,7 +93,7 @@ def check_actions(ui, problems):
         if not re.search(r'\b(POST|PATCH|PUT|DELETE)\b', col):   # nur schreibende Aktionen
             continue
         if f'`{n}`' not in start:
-            problems.append(f'Schreibende Aktion `{n}` fehlt in START.md (Tabelle „Was jedes Formular schreibt“ bzw. Ablauf)')
+            problems.append(f'Schreibende Aktion `{n}` fehlt in START.md bzw. den zugehörigen Anweisungen')
         for path in re.findall(r'`(?:[A-Z]+ )?(…/[^`]*|/v1/[^`]*)`', col):
             full = path.replace('…/', '/v1/projects/{owner}/{repo}/')
             if full not in api:
@@ -169,6 +177,10 @@ def check_credit(problems):
         return
     for rel in DOCS:
         if not (ROOT / rel).is_file():
+            continue
+        # Der erzeugte Instanz-Einstieg ist keine vollständige Programmdoku.
+        # Alle anderen Dokumente und die zentrale START.md bleiben prüfpflichtig.
+        if rel == 'START.md' and read(rel).startswith(GENERATED_START_MARKER):
             continue
         tail = read(rel)[-700:]
         if text not in tail:
