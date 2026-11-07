@@ -508,7 +508,7 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertIn('Nur dieser eine Abschnitt', outputs[3])
         self.assertIn('| 1 | Erstes Kapitel |', outputs[4])
         self.assertNotIn('✗', '\n'.join(outputs))
-        messages.append({'role': 'user', 'content': 'Welche Statuswerte kann Kapitel 1 haben?'})
+        messages.append({'role': 'user', 'content': 'Was sollte ich bei Kapitel 1 beachten?'})
         with patch.object(self.tool, '_http', side_effect=self.navigation_http), patch.object(pipe, '_forward', new_callable=AsyncMock, return_value='Antwort mit Kontext') as forward:
             answer = asyncio.run(pipe.pipe({'model': 'direct', 'messages': messages}, __tools__=tools,
                                  __user__={'id': 'user-1'}, __metadata__={'chat_id': 'chat-1'}))
@@ -520,6 +520,17 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertEqual(facts['chapters'][0]['status'], 'in_progress')
         self.assertIn('assembly', facts['status_rules']['chapter']['statuses'])
         self.assertNotIn('ghostwriter-nav:', context_message['content'])
+        messages.append({'role': 'assistant', 'content': answer})
+        messages.append({'role': 'user', 'content': 'Welche Statuswerte kann Kapitel 1 haben?'})
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http), patch.object(pipe, '_forward', new_callable=AsyncMock) as forward:
+            answer = asyncio.run(pipe.pipe({'model': 'direct', 'messages': messages}, __tools__=tools,
+                                 __user__={'id': 'user-1'}, __metadata__={'chat_id': 'chat-1'}))
+        forward.assert_not_awaited()
+        self.assertIn('`ready_for_assembly`', answer)
+        self.assertIn('`approved`', answer)
+        self.assertNotIn('`completed`', answer)
+        self.assertNotIn('`cancelled`', answer)
+
 
 
 
