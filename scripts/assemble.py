@@ -57,6 +57,7 @@ Text gibt der Assistent nie im Chat aus (START.md, „Kein ganzes Buch im Chat�
 """
 import argparse
 import datetime
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -96,6 +97,18 @@ STATUS_DE = {'planned': 'geplant', 'research': 'Recherche', 'brainstorming': 'Id
              'fact_check': 'Faktencheck', 'ready_for_approval': 'bereit zur Freigabe', 'approved': 'freigegeben'}
 
 
+def latest_approval(base, kind, entity_id):
+    """Letzter append-only Freigabeeintrag für eine Entität."""
+    path = base / 'approvals.yml'
+    if not path.is_file():
+        return None
+    data = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+    for entry in reversed(data.get('entries') or []):
+        if entry.get('kind') == kind and entry.get('id') == entity_id:
+            return entry
+    return None
+
+
 def mark_markers(text):
     """Probedruck: Marker als Pandoc-Span [ … ]{.gwmarker}, damit sie hervorgehoben werden."""
     return MARKER_TEXT.sub(lambda m: '[' + m.group(0).replace('[', '\\[').replace(']', '\\]') + ']{.gwmarker}', text)
@@ -111,15 +124,27 @@ def chapter_markdown(base, chapter, number, proof=False):
     skipped, markers = [], []
     for si, s in enumerate(chapter['sections'], start=1):
         head, _, _, manuscript = section_file(base, s)
-        if head.get('status') != 'approved':
-            skipped.append(f'{number}.{si} {s["title"]} ({head.get("status")})')
+        approval = head.get('approvals') or {}
+        digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+        record = latest_approval(base, 'section', s['id'])
+        approved = (head.get('status') == 'approved'
+                    and approval.get('section') is True
+                    and record is not None
+                    and record.get('action') == 'granted'
+                    and record.get('note') == 'content_sha256=' + digest)
+        if not approved:
+            reason = ('Freigabe fehlt oder Manuskript seit Freigabe geändert'
+                      if head.get('status') == 'approved' else str(head.get('status')))
+            skipped.append(f'{number}.{si} {s["title"]} ({reason})')
             if not proof:
                 continue
         text = shift_headings(manuscript.strip(), 3)
         if proof:
             text = mark_markers(text) or '*(noch kein Text)*'
-            note = '' if head.get('status') == 'approved' else \
-                f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben]{{.gwstatus}}\n\n'
+            note = '' if approved else \
+                (f'[Stand: Freigabe fehlt oder Manuskript geändert, nicht freigegeben]{{.gwstatus}}\n\n'
+                 if head.get('status') == 'approved' else
+                 f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben]{{.gwstatus}}\n\n')
             text = note + text
         out += [f'## {s["title"]}', '', text, '']
         markers += [(f'{number}.{si}', m.group(0)) for m in MARKER_TEXT.finditer(manuscript)]
@@ -154,7 +179,14 @@ def matter_markdown(base, item, proof=False, config=None):
     """(Markdown, freigegeben, Marker) eines Teils von Vor- oder Nachspann (#57).
     Nicht freigegeben: leeres Markdown, außer im Probedruck (mit Statusvermerk)."""
     head, _, _, manuscript = section_file(base, item)
-    approved = head.get('status') == 'approved'
+    approval = head.get('approvals') or {}
+    digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+    record = latest_approval(base, 'matter', item['id'])
+    approved = (head.get('status') == 'approved'
+                and approval.get('section') is True
+                and record is not None
+                and record.get('action') == 'granted'
+                and record.get('note') == 'content_sha256=' + digest)
     if not approved and not proof:
         return '', False, []
     text = manuscript.strip()
@@ -176,7 +208,10 @@ def matter_markdown(base, item, proof=False, config=None):
     if proof:
         text = mark_markers(text) or '*(noch kein Text)*'
         if not approved:
-            text = f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben]{{.gwstatus}}\n\n' + text
+            status_note = ('Freigabe fehlt oder Manuskript seit Freigabe geändert'
+                           if head.get('status') == 'approved'
+                           else f'{STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben')
+            text = f'[Stand: {status_note}]{{.gwstatus}}\n\n' + text
     if kind == 'dedication':
         md = f'# {item["title"]} {{.unnumbered .unlisted .dedication epub:type=dedication}}\n\n::: widmung\n{text}\n:::\n'
     else:
@@ -235,7 +270,11 @@ def book_parts(base, config, proof=False):
     proof=True: alle Kapitel und Abschnitte (Probedruck)."""
     parts = []
     for i, ch in enumerate(config['structure']['chapters'], start=1):
-        if ch.get('status') != 'approved' and not proof:
+        chapter_approval = latest_approval(base, 'chapter', ch['id'])
+        chapter_approved = (ch.get('status') == 'approved'
+                            and chapter_approval is not None
+                            and chapter_approval.get('action') == 'granted')
+        if not chapter_approved and not proof:
             continue
         md, skipped, markers = chapter_markdown(base, ch, i, proof)
         parts.append((i, ch, md, skipped, markers))
