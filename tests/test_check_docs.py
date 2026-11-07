@@ -9,6 +9,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import check_docs
+import build_start
 
 
 class CheckDocsTest(unittest.TestCase):
@@ -45,6 +46,29 @@ class GeneratedStartTest(unittest.TestCase):
         self.write('docs/start/schreiben-ins-repository.md', 'Aktion fehlt\n')
         check_docs.check_actions(self.ui, problems)
         self.assertTrue(any('section.update' in message for message in problems))
+
+    def test_real_generated_starts_preserve_action_checks(self):
+        source = (ROOT / 'START.md').read_text(encoding='utf-8')
+        table = (ROOT / 'templates/ui/BEFUELLUNG.md').read_text(encoding='utf-8')
+        api = (ROOT / 'docs/API-CONTRACT.md').read_text(encoding='utf-8')
+        self.write('templates/ui/BEFUELLUNG.md', table)
+        self.write('docs/API-CONTRACT.md', api)
+        buttons = '\n'.join(f'<button data-a="{name}">'
+                            for name in check_docs.action_table(table))
+        self.write('ui/templates/test.html', buttons)
+        self.write('START.md', source)
+        canonical = []
+        check_docs.check_actions(self.ui, canonical)
+        for language in ('de', 'en'):
+            with self.subTest(language=language):
+                template = (ROOT / f'templates/start/{language}.md').read_text(encoding='utf-8')
+                outputs = build_start.render(source, template, repo='owner/books',
+                                             branch='buch/test', default_branch='main', config={})
+                for name, content in outputs.items():
+                    self.write(name, content)
+                problems = []
+                check_docs.check_actions(self.ui, problems)
+                self.assertEqual(problems, canonical)
 
     def test_missing_generated_write_instructions_are_reported(self):
         self.write('START.md', check_docs.GENERATED_START_MARKER + '\nEinstieg\n')
