@@ -1,5 +1,6 @@
 """Englische Kernansichten: keine Übersetzung von Buchdaten, keine geänderten Freigabegrenzen."""
 import copy
+import hashlib
 import json
 import re
 import shutil
@@ -81,15 +82,42 @@ class EnglishCoreViewsTest(unittest.TestCase):
         section = self.chapter(True)
         self.config['structure']['chapters'][0]['status'] = 'approved'
         self.save()
+        ledger = {'entries': [{
+            'kind': 'chapter', 'id': 'c1', 'action': 'granted',
+            'at': '2026-11-05T12:00:00Z', 'by': 'test', 'commit': '1234567',
+        }]}
+        ledger_path = self.base / 'approvals.yml'
+        ledger_path.write_text(yaml.safe_dump(ledger, allow_unicode=True, sort_keys=False))
         text = self.run_view('edition-create', '--language', 'en').stdout
         self.assertIn('approved chapters contain unapproved sections', text)
-        section.write_text(section.read_text().replace('status: writing', 'status: approved'))
+
+        source = section.read_text()
+        source = source.replace('status: writing\\n', 'status: approved\\napprovals:\\n  writing: true\\n  section: true\\n', 1)
+        manuscript = source.split('\\n## Manuskript\\n', 1)[1].strip()
+        digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+        section.write_text(source)
+        ledger['entries'].append({
+            'kind': 'section', 'id': 's1', 'action': 'granted',
+            'at': '2026-11-05T12:01:00Z', 'by': 'test', 'commit': '1234567',
+            'note': 'content_sha256=' + digest,
+        })
+        ledger_path.write_text(yaml.safe_dump(ledger, allow_unicode=True, sort_keys=False))
         before = section.read_bytes()
         text = self.run_view('edition-create', '--language', 'en').stdout
         self.assertIn('open markers in approved text: 1', text)
         self.assertNotIn('contain unapproved sections', text)
         self.assertEqual(before, section.read_bytes())
-        section.write_text(section.read_text().replace('[QUELLE PRÜFEN]', 'geprüfter Quelle'))
+
+        source = source.replace('[QUELLE PRÜFEN]', 'geprüfter Quelle')
+        manuscript = source.split('\\n## Manuskript\\n', 1)[1].strip()
+        digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+        section.write_text(source)
+        ledger['entries'].append({
+            'kind': 'section', 'id': 's1', 'action': 'granted',
+            'at': '2026-11-05T12:02:00Z', 'by': 'test', 'commit': '1234567',
+            'note': 'content_sha256=' + digest,
+        })
+        ledger_path.write_text(yaml.safe_dump(ledger, allow_unicode=True, sort_keys=False))
         text = self.run_view('edition-create', '--language', 'en').stdout
         self.assertNotIn('cannot be built', text)
         self.assertNotIn('⚠️', text)
