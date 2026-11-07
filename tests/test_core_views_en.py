@@ -92,8 +92,8 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertIn('approved chapters contain unapproved sections', text)
 
         source = section.read_text()
-        source = source.replace('status: writing\\n', 'status: approved\\napprovals:\\n  writing: true\\n  section: true\\n', 1)
-        manuscript = source.split('\\n## Manuskript\\n', 1)[1].strip()
+        source = source.replace('status: writing\n', 'status: approved\napprovals:\n  writing: true\n  section: true\n', 1)
+        manuscript = source.split('\n## Manuskript\n', 1)[1].strip()
         digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
         section.write_text(source)
         ledger['entries'].append({
@@ -109,7 +109,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertEqual(before, section.read_bytes())
 
         source = source.replace('[QUELLE PRÜFEN]', 'geprüfter Quelle')
-        manuscript = source.split('\\n## Manuskript\\n', 1)[1].strip()
+        manuscript = source.split('\n## Manuskript\n', 1)[1].strip()
         digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
         section.write_text(source)
         ledger['entries'].append({
