@@ -10,7 +10,7 @@ product_roadmap:
     exclusions: [ai_runs_scheduled_queue, full_end_to_end_workflow_automation, advanced_issue_and_milestone_orchestration, complete_fact_checking_automation]
   v0_5_steps:
     operating_path: chat_with_github_connection   # Weg A
-    later_path_considered: own_api_and_mcp        # Weg B, nach v0.5
+    later_path_considered: own_api_and_mcp        # Weg B, erst nach v1.0
     tracking: github_milestones_and_issues
     steps:
       - {version: "v0.1", goal: data_model_defined_and_validated}
@@ -21,17 +21,22 @@ product_roadmap:
       - {version: "v0.6", goal: library_one_installation_many_books_as_branches}   # #36–#41, Migration #59, README #46, öffentliches Programm-Repo #48
       - {version: "v0.7", goal: characters_and_image_generation}                  # Figuren #53, Bilderzeugung #54
       - {version: "v1.0", goal: complete_book_workflow_without_ai_provider_apis}                           # siehe v1_0
+      - {version: "v1.1", goal: external_docx_checkout_and_roundtrip}             # #209, D17
       - {version: "v1.5", goal: foreword_afterword_glossary_and_book_translation}   # #58, #75
   v1_0:
     purpose: complete_book_workflow_without_ai_provider_apis
     scope: chat_and_manual_handoff_without_ai_provider_connections
-    requires: [github_issue_and_milestone_orchestration, robust_approval_and_audit_controls, repeatable_research_and_fact_checking, complete_export_and_release_pipeline, workflow_validation_and_quality_gates, installable_web_app_pwa, offline_book_repository, own_backend_api, usage_limits_pause_automation, front_and_back_matter, output_options, program_i18n, book_ai_disclosure, cross_client_state_sync]
+    requires: [github_issue_and_milestone_orchestration, robust_approval_and_audit_controls, repeatable_research_and_fact_checking, complete_export_and_release_pipeline, workflow_validation_and_quality_gates, usage_limits_pause_automation, front_and_back_matter, output_options, program_i18n, book_ai_disclosure, cross_client_state_sync, external_image_research, reference_images_manual_handoff, reviewed_chat_analysis_results, existing_prompt_profiler]
+    approved_decisions: docs/ENTSCHEIDUNGEN-v1.0.md
+    implementation_orders: docs/AUFTRAEGE-v1.0.md
+    supported_clients: [chatgpt, codex, claude, openwebui]
+    display_changes_require_all_client_checks: true
     # Entscheidung 08.11.2026: keine KI-Anbieter-API-Verbindungen bis einschließlich v1.0.
-    exclusions: [ai_provider_api_connections, scheduled_provider_ai_runs, provider_usage_import, provider_quota_queries, direct_image_provider_calls, automatic_reference_image_delivery]
-    deferred_until_after_v1_0: [provider_parts_of_54_143_65_66_62_71_35_75_204, real_provider_api_acceptance_for_123_124]
+    exclusions: [own_backend_api, installable_web_app_pwa, offline_book_repository, prompt_compiler, automatic_prompt_shortening, external_docx_roundtrip, ai_provider_api_connections, scheduled_provider_ai_runs, provider_usage_import, provider_quota_queries, direct_image_provider_calls, automatic_reference_image_delivery]
+    deferred_until_after_v1_0: [own_service_19, web_app_35, offline_web_app_61, provider_parts_of_54_143_65_66_62_71_35_75_204, real_provider_api_acceptance_for_123_124, prompt_compiler_204]
     ai_execution: chat_or_copy_order_and_review_returned_results
     acceptance_requires_provider_credentials: false
-    # Issues: installable_web_app_pwa #35, offline_book_repository #61, own_backend_api #19,
+    # #19/#35/#61 erst nach v1.0, #209 ausdrücklich v1.1 (D01/D06/D17).
     #   Anbieterabhängige Teile von #65/#66 erst nach v1.0 (Entscheidung oben).
     #   cross_client_state_sync #179 (prioritärer Stabilitätsauftrag; zunächst Planung),
     #   usage_limits_pause_automation #62, front_and_back_matter #57, output_options #68, program_i18n #74, book_ai_disclosure #78

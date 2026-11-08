@@ -1,5 +1,12 @@
 # GhostWriter – technische Basisentscheidung
 
+Die [Entscheidung #169 vom 08.11.2026](ENTSCHEIDUNG-169.md) bestätigt den Arbeits-Branch bei Bedarf und präzisiert Lebenszyklus, Parallelität und Fehlerfälle. Sie ändert keine Branch-Namen und ist keine Behauptung eines bereits implementierten zentralen Schreibdienstes.
+
+
+## Versionsgrenze
+
+Nach [D01/D06](ENTSCHEIDUNGEN-v1.0.md) liegt das folgende Zielbild eines eigenen Verwaltungsdienstes vollständig nach v1.0. Bis einschließlich v1.0 bleiben die bestehenden GitHub-Verbindungen der unterstützten Clients maßgeblich; Hosting, neue Dienstanmeldung und zusätzliche Verwaltungsdatenbank blockieren die Lieferung nicht.
+
 ## Status
 
 **Hosting und Backend-Laufzeit sind offen.** Cloudflare Workers wurde als technische Basis zurückgenommen. Die externe Cloudflare-GitHub-Verbindung für dieses Repository wurde am 04.11.2026 deaktiviert. Das frühere Worker-Gerüst wurde aus dem Repository entfernt. Es gibt derzeit keinen produktiven oder lokalen GhostWriter-API-Dienst.

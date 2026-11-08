@@ -397,7 +397,13 @@
             },
             "acceptance_requires_provider_credentials": {
               "const": false
-            }
+            },
+            "approved_decisions": {"const": "docs/ENTSCHEIDUNGEN-v1.0.md"},
+            "implementation_orders": {"const": "docs/AUFTRAEGE-v1.0.md"},
+            "supported_clients": {
+              "const": ["chatgpt", "codex", "claude", "openwebui"]
+            },
+            "display_changes_require_all_client_checks": {"const": true}
           },
           "additionalProperties": false
         },

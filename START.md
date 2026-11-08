@@ -171,6 +171,8 @@ Unterscheide die folgenden Schritte konsequent. Sie bewegen Daten an unterschied
 Verwende diese Bezeichnungen in Antworten, Statusmeldungen, Anleitungen und Benutzeroberflächen. Verwende „Buchänderungen übernehmen“ ausschließlich für den bestätigten Merge des Buch-Pull-Requests; nutze „Buchstand speichern“ für das Übertragen aus dem Chat, „Buchstand aktualisieren“ für das erneute Lesen aus dem Buch-Repository und „Chat wechseln“ ausschließlich für die Kontextübergabe. Die bestehenden technischen Aktionsnamen und API-Endpunkte bleiben unverändert.
 ### Versionsplanung bis v1.0
 
+**Bestätigte Beschlüsse D01–D32:** [Entscheidungsprotokoll](docs/ENTSCHEIDUNGEN-v1.0.md) und [Arbeitsaufträge](docs/AUFTRAEGE-v1.0.md) haben Vorrang vor widersprechenden älteren Zielangaben. Eigene Web-App, eigener Verwaltungsdienst und Offline-Web-App sind nach v1.0 verschoben; externe DOCX-Rückführung kommt v1.1. Unterstützt: ChatGPT und Codex (Gruppe GPT), Claude und Open WebUI. Anzeigenänderungen in allen vier Umgebungen prüfen; fehlende Prüfungen nicht als bestanden melden. Technische Branch-Trennung bleibt in der normalen Bedienung unsichtbar; fachliche Speicher-/Übernahmezustände und Fehler bleiben verständlich sichtbar. D28–D32 regeln selbstständige Entwicklung und Übernahme; Produktrelease und Änderungen bestehender YAWA-Buchdaten bleiben gesondert zu bestätigen. Keine neue Entwicklerfreigabe aus Buchfreigaben ableiten.
+
 Verbindliche Entscheidung vom 08.11.2026: Bis einschließlich v1.0 sind keine Verbindungen zu KI-Anbieter-APIs vorgesehen. KI-Arbeit erfolgt im Chat oder über „Auftrag kopieren“ mit geprüfter Rückgabe. Anbieter-Schlüssel und echte Anbieteraufrufe sind keine v1.0-Abnahmevoraussetzung. Frühere API-Planungen sind nachrangig; Umfang und verschobene Aufgaben stehen in [der Roadmap](docs/WORKFLOW-MODEL.md#verbindliche-entscheidung-v10-ohne-ki-anbieter-apis). GitHub-Anbindung und eigene GhostWriter-Verwaltungs-API sind davon getrennt. Bestehender optionaler Anbieter-Code wird durch diese Planungsentscheidung nicht entfernt.
 
 ### Programmdateien und Updates (verbindlich)
@@ -245,6 +247,8 @@ Der Benutzer soll jederzeit sehen, was gerade mit dem Projekt passiert:
 Ein Widget kann nach dem Erscheinen keinen Fortschritt mehr anzeigen; die Statuszeilen stehen deshalb im Chat. In Chats, die Antworten erst am Ende zeigen, erscheinen sie gesammelt am Anfang der Antwort.
 
 ### Schreiben ins Repository (verbindlich)
+
+**Architekturentscheidung #169 (08.11.2026):** Den gemeinsamen Arbeits-Branch je Buch beibehalten, erst bei autorisierter Speicherung anlegen und nach vollständiger Übernahme entfernen. Öffnen und Lesen erzeugen keinen Arbeits-Branch. Namen und `changes.auto_merge` bleiben unverändert. Grenzen, Alternativen und Fehlerfälle stehen in [Entscheidung #169](docs/ENTSCHEIDUNG-169.md).
 
 Für gebündelte Abschnitts-, Überarbeitungs-, Abgleich- und Übernahmedialoge gelten zusätzlich die konkreten Schritte in [`docs/ARBEITSABLAEUFE.md`](docs/ARBEITSABLAEUFE.md).
 

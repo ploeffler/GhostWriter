@@ -1,5 +1,12 @@
 # GhostWriter API-Vertrag (Entwurf für die GPT-Action)
 
+Die [Entscheidung #169 vom 08.11.2026](ENTSCHEIDUNG-169.md) bestätigt den Arbeits-Branch bei Bedarf und präzisiert Lebenszyklus, Parallelität und Fehlerfälle. Sie ändert keine Branch-Namen und ist keine Behauptung eines bereits implementierten zentralen Schreibdienstes.
+
+
+## Versionsgrenze
+
+Dieser eigene Verwaltungsdienst ist nach [D01/D06](ENTSCHEIDUNGEN-v1.0.md) auf nach v1.0 verschoben. Der Vertrag bleibt Entwurf und ist keine v1.0-Implementierungspflicht. Bestehende fachliche Schutzregeln gelten auch für die vorhandenen Client-/GitHub-Schreibwege.
+
 ## Status
 Dieser Vertrag beschreibt die geplante Schnittstelle. Er ist noch keine laufende API und enthält keinen Produktiv-Host. Vor Aktivierung müssen ein HTTPS-Dienst, Authentifizierung und eine passende OpenAPI-Spezifikation implementiert werden.
 
@@ -128,6 +135,10 @@ Erfolgsantworten enthalten mindestens success, commit_sha, commit_url, updated_p
 - Kapitel-Freigabe nur nach Sichtung und ausdrücklicher Gesamtzustimmung.
 - Ein technischer API-Aufruf ersetzt niemals die Zustimmung des Benutzers.
 - Freigabe-Endpunkte verlangen `confirmed: true` aus der Bestätigung im Chat und hängen einen Eintrag an `approvals.yml` an (`kind`, `id`, `action`, `at`, `by`, `commit` = `expected_head_sha`); Schreib-Endpunkte ändern `approvals` nie.
+
+## Versionsgrenze
+
+Dieser eigene Verwaltungsdienst ist nach [D01/D06](ENTSCHEIDUNGEN-v1.0.md) auf nach v1.0 verschoben. Der Vertrag bleibt Entwurf und ist keine v1.0-Implementierungspflicht. Bestehende fachliche Schutzregeln gelten auch für die vorhandenen Client-/GitHub-Schreibwege.
 
 ## Statuscodes
 | HTTP | Bedeutung |
