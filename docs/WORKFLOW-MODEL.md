@@ -87,7 +87,8 @@ Der Weg zu v0.5 ist in fünf Stufen geteilt. Jede endet mit einer Abnahme im Cha
 |---|---|
 | v0.6 | Bibliothek: eine Installation, mehrere Bücher als Branches (#36–#41); automatische Migration der Datenstruktur (#59); README und Anleitung (#46); Programm-Repository öffentlich, Testbuch getrennt (#48); Abnahme nach [TESTPLAN-v0.6.md](TESTPLAN-v0.6.md) |
 | v0.7 | Figuren auf Buch-Ebene (#53) und Bilderzeugung (#54) |
-| v1.0 | Vollständiger Buchworkflow ohne KI-Anbieter-API-Verbindungen; eigene Schnittstelle für Verwaltung (#19), Web-App (#35) und Offline-Arbeit (#61) ohne direkte KI-Aufrufe; verfügbare Budget-/Limitdaten (#62), Vor-/Nachspann (#57), Ausgabeoptionen (#68), Mehrsprachigkeit (#74), KI-Angabe (#78) und clientübergreifender Standabgleich (#179, geplant) |
+| v1.0 | Vollständiger Buchworkflow in ChatGPT, Codex, Claude und Open WebUI; Standabgleich, beschlossene Sitzungssicherung, Bilder/Referenzen/Bildrecherche, Import und Chat-Analysen, Deutsch/Englisch, Datenseite und vorhandener Profiler. Keine eigene Web-App, kein eigener Verwaltungsdienst, keine KI-Anbieter-API-Anbindungen. Maßgeblich: [Beschlüsse D01–D32](ENTSCHEIDUNGEN-v1.0.md). |
+| v1.1 | Externe DOCX-Bearbeitung mit Checkout, Buchsperre und kontrollierter Rückführung (#209, D17) |
 | v1.5 | Vorwort, Nachwort, Glossar (#58); Übersetzung des Buchs mit Auflagen je Sprache (#75) |
 
 Jeder Schritt, der die Datenstruktur ändert, liefert eine Migration mit (#59); Doku und Programm prüft `scripts/check_docs.py` in `validate.yml`.
@@ -105,11 +106,15 @@ KI-Aufträge werden im Chat bearbeitet oder über „Auftrag kopieren“ an eine
 | #123 / #124 Analysen und Import | Import ohne KI sowie Chat-/Kopieraufträge mit geprüfter Rückgabe | Anbieteraufrufe im Hintergrund und Abnahme mit echten API-Schlüsseln |
 | #65 Warteschlange | Manuelle Auftragsverwaltung möglich | Zeitgesteuerte Anbieter-KI-Läufe |
 | #66 / #62 / #71 Kosten und Limits | Vorhandene Aufzeichnungen und verfügbare Grenzen; unbekannte Werte klar kennzeichnen | Anbieter-Nutzungsimport, Kontingentabfragen und vollständige automatische Abrechnung |
-| #35 Web-App | Buchverwaltung und Übergabe an den Chat | Direkte Modellaufrufe aus der App |
+| #19 / #35 / #61 | Bestehende Client-/GitHub-Wege nutzen; kein eigener Dienst | Eigener Verwaltungsdienst, eigene Web-App und Offline-Web-App |
 | #75 Übersetzung | Bestehende Einordnung nach v1.0 bleibt; Chat-/Kopierweg möglich | Automatisierte Anbieterläufe |
-| #204 Prompt-Tuning | Lokale Analyse sichtbarer Prompts und Requests | Neue Anbieteradapter, echte Provider-/Cache-Messungen als Abnahmepflicht |
+| #204 Prompt-Tuning | Vorhandenen Profiler abnehmen und Anweisungen nachvollziehbar ordnen | Compiler, automatische Kürzung und neue Anbieteradapter |
 
-Die eigene GhostWriter-API (#19), GitHub-Verbindungen und lokale Dateiverarbeitung sind davon getrennt. Sie werden durch diese Entscheidung nicht ausgeschlossen. Bestehender optionaler Anbieter-Code und historische Kostenaufzeichnungen werden durch die Planänderung nicht gelöscht; sie sind kein v1.0-Liefer- oder Abnahmekriterium. Neue Anbieteranbindungen und deren Live-Abnahme werden nach v1.0 geplant, ohne hier eine spätere Versionsnummer festzulegen.
+Die spätere Entscheidung D06/D01 verschiebt zusätzlich die eigene GhostWriter-API (#19), Web-App (#35) und Offline-Web-App (#61) auf nach v1.0. Bestehende GitHub-Verbindungen der Clients und lokale Dateiverarbeitung bleiben zulässig. Bestehender optionaler Anbieter-Code und historische Kostenaufzeichnungen werden durch die Planänderung nicht gelöscht; sie sind kein v1.0-Liefer- oder Abnahmekriterium. Neue Anbieteranbindungen und deren Live-Abnahme werden nach v1.0 geplant, ohne hier eine spätere Versionsnummer festzulegen.
+
+### Bestätigter Entwicklungsauftrag
+
+Die [Beschlüsse D01–D32](ENTSCHEIDUNGEN-v1.0.md) ersetzen widersprechende ältere Planungen. Die [Arbeitsaufträge](AUFTRAEGE-v1.0.md) legen Lieferfolge, Nachweise und offene technische Voraussetzungen fest. Änderungen an Anzeigen sind in ChatGPT, Codex, Claude und Open WebUI zu prüfen; unbekannte oder nicht ausführbare Tests bleiben offen. Reale Datenübernahme beschränkt sich auf YAWA; weitere Versionsfälle werden mit Testdaten geprüft. Änderungen bestehender YAWA-Buchdaten brauchen eine gesonderte Freigabe. Beschluss ist kein Implementierungsnachweis.
 
 ### Git als Produktvorteil
 
