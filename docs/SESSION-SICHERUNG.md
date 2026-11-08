@@ -1,5 +1,21 @@
 # Session sichern und übernehmen
 
+Deutsch · [English](SESSION-BACKUP.en.md)
+
+Der [grafische Speicherablauf](SPEICHERN.md) zeigt Gesprächssicherung und Buchänderungen nebeneinander. Diese Seite beschreibt die verbindlichen Ausführungsschritte der Gesprächssicherung. [Buchablauf](BUCHABLAUF.md) und [Erstellungskreislauf](ERSTELLUNGSKREISLAUF.md) erklären die Arbeit am Manuskript.
+
+## Zustände beim Sichern und Übernehmen
+
+| Zustand | Bedeutung |
+|---|---|
+| Vorbereitet | Beiträge und Ergebnisse sind erfasst, aber noch nicht dauerhaft im Repository gesichert. |
+| Gesichert, noch nicht übernommen | Die Übertragung ist bestätigt; das Änderungspaket bleibt offen. |
+| Prüfung läuft | **Session übernehmen** prüft Inhalt, aktuellen Stand und Voraussetzungen. |
+| Blockiert | Ein Fehler oder Konflikt bleibt offen; vorhandene Sicherungen bleiben erhalten. |
+| Gesichert und übernommen | Die bestätigte Übernahme hat die Sicherung in den vorgesehenen Zielstand eingefügt. |
+
+Das sind Speicherstände, keine Abschnitts- oder Kapitelzustände. **Session laden** ist aus einer offenen oder übernommenen Sicherung möglich und ändert den Speicherstand nicht. Keiner dieser Schritte erteilt eine inhaltliche Freigabe.
+
 ## Hauptbefehle und Bedeutung
 
 **Session sichern** (auch **Chat sichern**, **Chat speichern**) sichert die verfügbare Gesprächsarbeit dauerhaft: sichtbare Gesprächsbeiträge, Entscheidungen, Recherche mit Quellen, Brainstorming, Varianten, Entwürfe, Planungen und offene Punkte. Eine Kurzfassung allein reicht nicht. **Session laden** liest eine Sicherung zum Weiterarbeiten. **Session übernehmen** prüft die Sicherung, analysiert Fehler, versucht eine sichere technische Reparatur, prüft erneut und führt den zugehörigen Pull Request zusammen. Laden und Übernehmen sind verschiedene Aktionen.

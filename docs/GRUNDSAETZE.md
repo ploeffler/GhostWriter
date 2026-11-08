@@ -70,6 +70,7 @@ GhostWriter wurde mit Unterstützung von Claude (Anthropic) entwickelt; dieser H
 
 ## Unterlagen
 
+- Grafische Abläufe: [Buchablauf](BUCHABLAUF.md) · [Erstellungskreislauf](ERSTELLUNGSKREISLAUF.md) · [Speichern und Übernehmen](SPEICHERN.md)
 - [Anleitung](ANLEITUNG.md): Schritt für Schritt vom leeren Repository zur ersten Auflage
 - [So sieht es aus](DIALOGE.md): die Dialoge im Chat
 - [Qualitätssicherung](QUALITAETSSICHERUNG.md): allgemeine redaktionelle Prüfung und individuelles Buchprofil

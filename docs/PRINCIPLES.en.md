@@ -66,6 +66,7 @@ GhostWriter was developed with assistance from Claude (Anthropic); this acknowle
 ## Further reading
 
 - [Getting started](GETTING-STARTED.en.md) · [User guide](USER-GUIDE.en.md) · [Chat views](INTERFACES.en.md)
+- Visual workflows: [Book lifecycle](BOOK-LIFECYCLE.en.md) · [Creation cycle](CREATION-CYCLE.en.md) · [Saving and merging](SAVING.en.md)
 - [Quality assurance](QUALITY-ASSURANCE.en.md) · [Images and visual references](IMAGES-AND-REFERENCES.en.md)
 - [AI services](AI-SERVICES.en.md) · [Providers](PROVIDERS.en.md) · [Chat apps](CHAT-APPS.en.md) · [Connector setup](CONNECTOR-SETUP.en.md)
 - [Updates](UPDATES.en.md) · [Daily report](DAILY-SUMMARY.en.md)

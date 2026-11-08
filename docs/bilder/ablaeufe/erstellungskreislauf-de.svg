@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="2050" viewBox="0 0 2200 2050"><defs><marker id="blue" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3971AD"/></marker><marker id="purple" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#7865A5"/></marker></defs><rect width="2200" height="2050" fill="#FAFBFD"/><g font-family="DejaVu Sans, sans-serif">
+<text x="1100" y="80" text-anchor="middle" font-size="44" fill="#20324A" font-weight="700">Erstellungskreislauf eines Abschnitts</text>
+<text x="1100" y="126" text-anchor="middle" font-size="25" fill="#20324A" font-weight="400">Neue Ideen und Vorgaben können jederzeit zurück in die Arbeit führen.</text>
+<text x="1100" y="171" text-anchor="middle" font-size="21" fill="#52647B" font-weight="400">BLAU: Arbeit und Zustände   ·   GOLD: deine Entscheidung   ·   VIOLETT: neue Impulse und Rückwege</text>
+<path d="M 1100.0 350.0 A 650 650 0 0 1 1382.024430426413 414.37023586342764" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 1382.024430426413 414.37023586342764 A 650 650 0 0 1 1608.1904636042193 594.7316287918233" fill="none" stroke="#3971AD" stroke-width="4"/>
+<path d="M 1608.1904636042193 594.7316287918233 A 650 650 0 0 1 1733.7031429181852 855.3613929283956" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 1733.7031429181852 855.3613929283956 A 650 650 0 0 1 1733.7031429181852 1144.6386070716044" fill="none" stroke="#3971AD" stroke-width="4"/>
+<path d="M 1733.7031429181852 1144.6386070716044 A 650 650 0 0 1 1608.1904636042193 1405.2683712081769" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 1608.1904636042193 1405.2683712081769 A 650 650 0 0 1 1382.024430426413 1585.6297641365722" fill="none" stroke="#3971AD" stroke-width="4"/>
+<path d="M 1382.024430426413 1585.6297641365722 A 650 650 0 0 1 1100.0 1650.0" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 1100.0 1650.0 A 650 650 0 0 1 817.9755695735873 1585.6297641365725" fill="none" stroke="#3971AD" stroke-width="4"/>
+<path d="M 817.9755695735873 1585.6297641365725 A 650 650 0 0 1 591.8095363957807 1405.2683712081769" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 591.8095363957807 1405.2683712081769 A 650 650 0 0 1 466.29685708181455 1144.6386070716042" fill="none" stroke="#3971AD" stroke-width="4"/>
+<path d="M 466.29685708181455 1144.6386070716042 A 650 650 0 0 1 466.29685708181455 855.3613929283961" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 466.29685708181455 855.3613929283961 A 650 650 0 0 1 591.8095363957806 594.7316287918234" fill="none" stroke="#3971AD" stroke-width="4"/>
+<path d="M 591.8095363957806 594.7316287918234 A 650 650 0 0 1 817.9755695735871 414.37023586342764" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 817.9755695735871 414.37023586342764 A 650 650 0 0 1 1099.9999999999998 350.0" fill="none" stroke="#3971AD" stroke-width="4"/>
+<path d="M 1100 800 Q 1010 620 1100 440" fill="none" stroke="#7865A5" stroke-width="4" stroke-dasharray="9 7" marker-end="url(#purple)"/>
+<path d="M 1325 900 Q 1460 820 1540 680" fill="none" stroke="#7865A5" stroke-width="4" stroke-dasharray="9 7" marker-end="url(#purple)"/>
+<path d="M 905 1105 Q 825 1260 715 1190" fill="none" stroke="#7865A5" stroke-width="4" stroke-dasharray="9 7" marker-end="url(#purple)"/>
+<text x="1000" y="640" text-anchor="middle" font-size="20" fill="#7865A5" font-weight="400">Quellenfragen</text>
+<text x="1510" y="810" text-anchor="middle" font-size="20" fill="#7865A5" font-weight="400">Ideen / neue Richtung</text>
+<text x="850" y="1280" text-anchor="middle" font-size="20" fill="#7865A5" font-weight="400">Textkorrekturen</text>
+<path d="M 680 1180 Q 1510 1540 1950 1000 Q 2020 710 1825 630" fill="none" stroke="#7865A5" stroke-width="4" stroke-dasharray="9 7" marker-end="url(#purple)"/>
+<text x="1840" y="1470" text-anchor="middle" font-size="19" fill="#7865A5" font-weight="400">neu denken / Vorgaben ändern</text>
+<rect x="860.0" y="275.0" width="480" height="150" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
+<text x="1100.0" y="314.0" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Recherche</text>
+<text x="1100.0" y="349.0" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Quellen, Belege und offene Fragen</text>
+<text x="1100.0" y="405.0" text-anchor="middle" font-size="18" fill="#3971AD" font-weight="400">research</text>
+<rect x="1368.1904636042193" y="519.7316287918233" width="480" height="150" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
+<text x="1608.1904636042193" y="558.7316287918233" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Brainstorming</text>
+<text x="1608.1904636042193" y="593.7316287918233" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Ideen, Varianten und Vorgaben klären</text>
+<text x="1608.1904636042193" y="649.7316287918233" text-anchor="middle" font-size="18" fill="#3971AD" font-weight="400">brainstorming</text>
+<rect x="1493.7031429181852" y="1069.6386070716044" width="480" height="150" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
+<text x="1733.7031429181852" y="1108.6386070716044" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Grundlagen abstimmen</text>
+<text x="1733.7031429181852" y="1143.6386070716044" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Ergebnisse und Gliederung konsolidieren</text>
+<text x="1733.7031429181852" y="1199.6386070716044" text-anchor="middle" font-size="18" fill="#3971AD" font-weight="400">ready_to_write</text>
+<rect x="1142.024430426413" y="1510.6297641365722" width="480" height="150" rx="22" fill="#FFF2D8" stroke="#B37719" stroke-width="2.5"/>
+<text x="1382.024430426413" y="1549.6297641365722" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Schreiben freigeben</text>
+<text x="1382.024430426413" y="1584.6297641365722" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Deine ausdrückliche Schreibfreigabe</text>
+<text x="1382.024430426413" y="1640.6297641365722" text-anchor="middle" font-size="18" fill="#B37719" font-weight="400">Schreibfreigabe ≠ Abschnittsfreigabe</text>
+<rect x="577.9755695735873" y="1510.6297641365725" width="480" height="150" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
+<text x="817.9755695735873" y="1549.6297641365725" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Abschnitt schreiben</text>
+<text x="817.9755695735873" y="1584.6297641365725" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Entwurf aus abgestimmten Grundlagen</text>
+<text x="817.9755695735873" y="1640.6297641365725" text-anchor="middle" font-size="18" fill="#3971AD" font-weight="400">writing</text>
+<rect x="226.29685708181455" y="1069.6386070716042" width="480" height="150" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
+<text x="466.29685708181455" y="1108.6386070716042" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Überarbeiten und prüfen</text>
+<text x="466.29685708181455" y="1143.6386070716042" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Abstimmen; ganzen Abschnitt redigieren</text>
+<text x="466.29685708181455" y="1199.6386070716042" text-anchor="middle" font-size="18" fill="#3971AD" font-weight="400">revision</text>
+<rect x="351.8095363957806" y="519.7316287918234" width="480" height="150" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
+<text x="591.8095363957806" y="558.7316287918234" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Fassung gemeinsam beurteilen</text>
+<text x="591.8095363957806" y="593.7316287918234" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Änderungen besprechen oder freigeben</text>
+<text x="591.8095363957806" y="649.7316287918234" text-anchor="middle" font-size="18" fill="#3971AD" font-weight="400">ready_for_approval</text>
+<circle cx="1100" cy="1000" r="225" fill="#F0EDF9" stroke="#7865A5" stroke-width="3"/>
+<text x="1100" y="906" text-anchor="middle" font-size="34" fill="#594785" font-weight="700">Deine Eingaben</text>
+<text x="1100" y="952" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Neue Ideen · Material · Vorgaben</text>
+<text x="1100" y="982" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Rückmeldungen · Brainstorming</text>
+<text x="1100" y="1012" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">zu jedem Zeitpunkt</text>
+<text x="1100" y="1076" text-anchor="middle" font-size="22" fill="#594785" font-weight="400">Zur passenden Stelle zurückkehren,</text>
+<text x="1100" y="1105" text-anchor="middle" font-size="22" fill="#594785" font-weight="400">klären und weiterarbeiten.</text>
+<path d="M 450 540 Q 390 360 300 344" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<rect x="50.0" y="195.0" width="500" height="150" rx="22" fill="#E4F4ED" stroke="#2D8061" stroke-width="2.5"/>
+<text x="300" y="234.0" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Abschnitt ausdrücklich freigeben</text>
+<text x="300" y="269.0" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Du bestätigst genau diese Fassung.</text>
+<text x="300" y="325.0" text-anchor="middle" font-size="18" fill="#2D8061" font-weight="400">freigegeben · approved</text>
+<text x="270" y="440" text-anchor="middle" font-size="20" fill="#2D8061" font-weight="400">bewusster Ausstieg</text>
+<text x="700" y="440" text-anchor="middle" font-size="20" fill="#3971AD" font-weight="400">weiter klären / neue Recherche</text>
+<path d="M 300 1220 Q 150 1490 340 1760" fill="none" stroke="#7865A5" stroke-width="4" stroke-dasharray="9 7" marker-end="url(#purple)"/>
+<path d="M 130 1770 Q 40 1400 230 1225" fill="none" stroke="#7865A5" stroke-width="4" stroke-dasharray="9 7" marker-end="url(#purple)"/>
+<rect x="50.0" y="1772.5" width="620" height="155" rx="22" fill="#F0EDF9" stroke="#7865A5" stroke-width="2.5"/>
+<text x="360" y="1811.5" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Optional: Faktenprüfung</text>
+<text x="360" y="1846.5" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Bericht und Vorschläge → Korrekturen besprechen</text>
+<text x="360" y="1873.5" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Kein automatisches Ändern des Texts.</text>
+<text x="360" y="1907.5" text-anchor="middle" font-size="18" fill="#7865A5" font-weight="400">fact_check</text>
+<rect x="940.0" y="1772.5" width="1120" height="155" rx="22" fill="#F0EDF9" stroke="#7865A5" stroke-width="2.5"/>
+<text x="1500" y="1811.5" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Freigabe zurücknehmen, um erneut zu bearbeiten</text>
+<text x="1500" y="1846.5" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Nur mit ausdrücklicher Bestätigung; danach neue Schreibfreigabe.</text>
+<text x="1500" y="1873.5" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Speichern und Übernehmen sind im eigenen Diagramm erklärt.</text>
+<text x="1100" y="2010" text-anchor="middle" font-size="22" fill="#52647B" font-weight="400">Rückwege zeigen die Arbeitsschleifen; neue Recherche setzt einen späteren Abschnittszustand nicht automatisch zurück.</text>
+</g></svg>

@@ -33,6 +33,8 @@ Du hast eine Buchidee und willst sie wirklich schreiben, nicht nur darüber nach
 
 [Anleitung](docs/ANLEITUNG.md) · [Hilfe: Befehle und Beispielprompts](docs/HILFE.md) · [Grundsätze](docs/GRUNDSAETZE.md) · [So sieht es aus](docs/DIALOGE.md) · [KI-Dienste nutzen](docs/DIENSTE-NUTZEN.md) · [Updates](docs/UPDATES.md) · [Produktclip](https://github.com/ploeffler/GhostWriter/tree/main/media/produktclip) · [Alle Unterlagen](docs/GRUNDSAETZE.md#unterlagen)
 
+**Grafische Abläufe:** [Buchablauf](docs/BUCHABLAUF.md) · [Erstellungskreislauf](docs/ERSTELLUNGSKREISLAUF.md) · [Speichern und Übernehmen](docs/SPEICHERN.md)
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg"><img src="assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

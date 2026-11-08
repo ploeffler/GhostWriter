@@ -1,6 +1,14 @@
 # User guide: from an empty repository to the first edition
 
+[Deutsch](ANLEITUNG.md) · English
+
 This guide follows the German [Anleitung](ANLEITUNG.md). You need a GitHub account and an AI chat assistant, ideally with GitHub access and web research. You do not need to know Git. Say `Interface: English` to request English chat operation. All current views support native English output; some linked documentation remains in German.
+
+Three dedicated pages provide the visual workflows:
+
+- [Book lifecycle](BOOK-LIFECYCLE.en.md): from **New book**, through the repeated chapter circle, to a published edition.
+- [Creation cycle](CREATION-CYCLE.en.md): develop a section through research, brainstorming, new input and revision.
+- [Saving, merging and approving](SAVING.en.md): book changes, conversation backups, their states and separate confirmations.
 
 ## 1. Create a repository
 
@@ -32,13 +40,23 @@ The book structure is created only after you explicitly approve the outline. The
 
 The project overview lists chapters, status and costs. Open a chapter to see its sections; open a section to work on it.
 
+Work follows a [creation cycle](CREATION-CYCLE.en.md): introduce new ideas, requirements and material at any time, returning to research, brainstorming or revision as needed. Once its sections are approved, assemble, review and approve the chapter. Repeat this [chapter circle](BOOK-LIFECYCLE.en.md) for further chapters.
+
 - **Research:** Research a section or an entire chapter. Results and sources are proposals for your review.
-- **Writing:** Approve writing before a section is drafted. You can edit its text yourself.
+- **Writing:** Grant writing permission before a section is drafted. Approved text is protected: explicitly revoke section approval and grant new writing permission before editing it again.
 - **Front and back matter:** Add a dedication, foreword, prologue, epilogue, afterword, glossary or acknowledgements when needed. They are approved like sections; you write the dedication and acknowledgements yourself. Glossary entries are maintained individually and sorted alphabetically in the book.
 - **AI disclosure:** Decide whether and how the book mentions AI assistance. A proposed statement is included only after your confirmation.
 - **Output:** Set layout, fonts, spacing, running heads, formats, ISBN and publisher information in output settings. A proof shows the result. Cover options include spine, bleed, back-cover text and barcode; the EPUB uses the front cover.
 - **Save and apply:** Changes are collected until you choose to apply them, unless you enabled immediate application.
 - **Commands:** `Home`, `Overview`, `Chapter 3`, `Section 3.2`, `New chapter`, `Proof`, `Edition` and `Help` are English chat commands. German commands remain available.
+
+### Save change packages and merge them
+
+Related book changes are saved together in a change package (pull request). A confirmed upload means **saved, not yet merged**; **Apply changes** confirms the current package and merges it into the book version. Immediate application, if deliberately enabled, applies only to ordinary book changes.
+
+For conversation work, use **Save session** (`Session sichern`): messages, research, brainstorming, decisions, drafts and open questions are backed up separately from the manuscript. A completed section discussion also triggers this backup when no reply is pending and all discussed items are resolved or explicitly deferred. This is not continuous background saving.
+
+**Load session** (`Session laden`) reads the backup to resume work. **Merge session backup** (`Session übernehmen`) validates the package, diagnoses failures, attempts safe technical repair, revalidates and merges only after successful checks. It is never auto-merged on save. Neither saving nor merging grants section or chapter approval. See the [saving diagram and states](SAVING.en.md) and [session backup details](SESSION-BACKUP.en.md).
 
 ## 7. Approve
 
@@ -48,9 +66,13 @@ Approve a section when its text is ready. The confirmation warns about open revi
 
 Use **Proof** (`Probedruck`) to create a PDF of the current state for review or sharing. It includes all chapters, highlights open markers and is marked as a proof. It is not an edition and does not change the book's edition number.
 
+It uses the merged book version. Merge pending changes first if you want them included in the proof.
+
 ## 9. Create the first edition
 
-Once the desired chapters are approved, open **New edition** (`Neue Auflage`) and provide the name, publication date, formats and release notes. After your confirmation, GitHub builds a release with the chosen PDF, Word and e-book files. Published editions remain unchanged; corrections go into a later edition.
+Once the desired chapters are approved, open **New edition** (`Neue Auflage`) and provide the name, publication date, formats and release notes. At least one chapter must be approved; included sections must also be approved and free of unresolved markers. Merge pending book changes first.
+
+The assistant presents the release notes for approval and prepares a separate edition change package. You explicitly confirm its merge, even if immediate application is enabled. GitHub then builds the files and publishes the release and tag. A failed build is not a finished edition. Published editions remain unchanged; corrections go into a later edition. See the [book lifecycle](BOOK-LIFECYCLE.en.md) for the full path.
 
 ## 10. Resume later
 
