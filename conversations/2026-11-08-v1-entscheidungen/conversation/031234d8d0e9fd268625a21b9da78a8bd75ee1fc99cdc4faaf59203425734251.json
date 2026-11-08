@@ -1,0 +1,198 @@
+{
+  "context": {
+    "book_branch": "main",
+    "project": "GhostWriter – Programmentwicklung und v1.0-Entscheidungen",
+    "repository": "ploeffler/GhostWriter"
+  },
+  "coverage": {
+    "description": "Sichtbare fachliche Benutzerbeiträge und abschließende Assistentenantworten von der Statusfrage zu #202 bis zur ausdrücklichen Zustimmung zur öffentlichen Sitzungssicherung. Volltexte des Entscheidungsauftrags und der vorbereiteten Entscheidung #169 als Entwürfe erhalten.",
+    "gaps": [
+      "Laufende kurze Statusmeldungen und Werkzeugausgaben sind nicht als Gesprächstranskript enthalten; maßgebliche Ergebnisse und Quellen sind in den Themen gesichert.",
+      "Anfängliche Repository-Instruktionen und maschinelle Seiten-/Umgebungskontexte sind kein Bestandteil des fachlichen Gesprächs.",
+      "Keine verborgene App-Historie, nicht abgesendeten Eingaben oder binären Anhänge erfasst.",
+      "Der nachfolgende Prüf-/Übernahmeabschluss dieser Sicherung liegt zeitlich nach dem gesicherten Gesprächsstand."
+    ]
+  },
+  "messages": [
+    {
+      "content": "wie ist der stand von 202?",
+      "id": "m001",
+      "role": "user"
+    },
+    {
+      "content": "[PR #202](https://github.com/ploeffler/GhostWriter/pull/202) ist **noch offen und nicht übernommen**.\n\nEnthalten sind automatische Vorbereitung von Programmänderungen samt PR, einheitliche Begriffe für Buchaktionen und der Befehl „Chat wechseln“.\n\nAktuell stehen zwei Punkte aus:\n\n- GitHub meldet den PR als **nicht zusammenführbar**; Konflikte mit `main` müssen bereinigt werden.\n- Die [automatische Prüfung des aktuellen Stands](https://github.com/ploeffler/GhostWriter/actions/runs/42394710785) ist **fehlgeschlagen**. Die PR-Beschreibung ist hier veraltet: Sie behauptet noch, es gebe keine aktuelle Prüfung.\n\nAls Nächstes müssen die Konflikte und der Prüfungsfehler geklärt werden. Danach kann #202 zur Übernahme freigegeben werden.",
+      "id": "m002",
+      "role": "assistant"
+    },
+    {
+      "content": "bereinigen",
+      "id": "m003",
+      "role": "user"
+    },
+    {
+      "content": "[#202](https://github.com/ploeffler/GhostWriter/pull/202) ist bereinigt und konfliktfrei.\n\n- Lokale Tests erfolgreich: 360 Tests, 68 übersprungen.\n- Automatische GitHub-Prüfung erfolgreich.\n- Beschreibung aktualisiert; vorhandene lokale Änderungen bleiben unberührt.\n\nDas Änderungspaket ist bereit zur Übernahme, aber noch nicht in `main` übernommen.",
+      "id": "m004",
+      "role": "assistant"
+    },
+    {
+      "content": "übernehmen",
+      "id": "m005",
+      "role": "user"
+    },
+    {
+      "content": "[Änderungspaket #202](https://github.com/ploeffler/GhostWriter/pull/202) ist erfolgreich in `main` übernommen. Alle Prüfungen waren erfolgreich.\n\nBuch-Repositories erhalten die Änderungen über „GhostWriter aktualisieren“.",
+      "id": "m006",
+      "role": "assistant"
+    },
+    {
+      "content": "weiter 203",
+      "id": "m007",
+      "role": "user"
+    },
+    {
+      "content": "[Änderungspaket #203](https://github.com/ploeffler/GhostWriter/pull/203) ist bereinigt und geprüft.\n\n- Ablaufdiagramme und Git-Erklärungen präzisiert.\n- Mit dem aktuellen Hauptstand einschließlich #202 abgeglichen.\n- Alle GitHub-Prüfungen erfolgreich.\n\nBereit zur Übernahme, noch nicht in `main` übernommen.",
+      "id": "m008",
+      "role": "assistant"
+    },
+    {
+      "content": "übernehmen",
+      "id": "m009",
+      "role": "user"
+    },
+    {
+      "content": "[Änderungspaket #203](https://github.com/ploeffler/GhostWriter/pull/203) ist erfolgreich in `main` übernommen. Alle Prüfungen waren erfolgreich.",
+      "id": "m010",
+      "role": "assistant"
+    },
+    {
+      "content": "weiter mit 205",
+      "id": "m011",
+      "role": "user"
+    },
+    {
+      "content": "[#205](https://github.com/ploeffler/GhostWriter/pull/205) ist bereits umgesetzt und wurde deshalb geschlossen.\n\nDie Fassung in `main` enthält zusätzlich eine Prüfung gegen veraltete Freigaben. Alle 28 betroffenen Tests bestehen. Eine weitere Übernahme ist nicht nötig.",
+      "id": "m012",
+      "role": "assistant"
+    },
+    {
+      "content": "stichwort bilder recherche und integration",
+      "id": "m013",
+      "role": "user"
+    },
+    {
+      "content": "Dazu gibt es drei Bereiche:\n\n- **Bilder ins Buch integrieren:** Bereits vorhanden – speichern, im Text platzieren, Bildunterschrift, Freigabe und Ausgabe in PDF, DOCX und EPUB. Bezug: [#54](https://github.com/ploeffler/GhostWriter/issues/54).\n- **Referenzbilder für die Bilderzeugung:** Verwaltung vorhanden; vollständiger Upload und tatsächliche Übergabe der Bilder an den Bilddienst sind unter [#143](https://github.com/ploeffler/GhostWriter/issues/143) vorgesehen.\n- **Externe Bildrecherche:** Dafür habe ich keinen eigenen Auftrag gefunden. Es fehlt ein durchgängiger Ablauf: passende Bilder suchen, Quelle und Nutzungsrechte dokumentieren, Auswahl bestätigen und ins Buch einfügen.\n\nMeinst du vor allem diesen dritten Bereich – **Bilder recherchieren und anschließend ins Buch integrieren**?",
+      "id": "m014",
+      "role": "assistant"
+    },
+    {
+      "content": "also 54 ist umgesetzt? und es geht weiter mit 143?",
+      "id": "m015",
+      "role": "user"
+    },
+    {
+      "content": "**#54 ist teilweise umgesetzt**, meine vorige Aussage war zu pauschal.\n\n- **Fertig:** Bildauftrag, Hochladen, Freigeben, Einfügen sowie Ausgabe in PDF, DOCX und EPUB.\n- **Offen:** direkte Bilderzeugung über die API einschließlich Budgetprüfung sowie der Praxistest mit wiedererkennbaren Figuren. Deshalb bleibt [#54 offen](https://github.com/ploeffler/GhostWriter/issues/54#issuecomment-6604396133).\n\n**#143 ist der nächste Ausbau für Referenzbilder:** Upload-Oberfläche, Auswahl und tatsächliche Übergabe der Bilder an den Bilddienst. Dafür müssen zunächst API- und Speichergrenzen festgelegt werden. [#143](https://github.com/ploeffler/GhostWriter/issues/143)\n\nExterne **Bildrecherche** ist damit noch nicht abgedeckt.",
+      "id": "m016",
+      "role": "assistant"
+    },
+    {
+      "content": "alle aufgaben, die apis von den AI anbietern benötigen auflisten",
+      "id": "m017",
+      "role": "user"
+    },
+    {
+      "content": "Unter den **aktuell offenen Aufgaben** betreffen diese KI-Anbieter-APIs – teilweise nur für einen Teil der Funktion:\n\n| Aufgabe | Wofür die Anbieter-API benötigt wird | Stand / Alternative |\n|---|---|---|\n| [#54 Bilderzeugung](https://github.com/ploeffler/GhostWriter/issues/54) | Bilder direkt erzeugen, Kosten schätzen und Budgetgrenzen beachten | API-Weg offen; Erzeugen im Chat und Hochladen bereits möglich |\n| [#143 Referenzbilder](https://github.com/ploeffler/GhostWriter/issues/143) | Ausgewählte Bilddateien tatsächlich an den Bilddienst übergeben | Offen; Upload, Verwaltung und Auswahl sind davon getrennte Teile |\n| [#123 Figurenanalyse im Hintergrund](https://github.com/ploeffler/GhostWriter/issues/123) | Kapitel analysieren und Figuren über Kapitel hinweg abgleichen | Implementiert für Anthropic/OpenAI; Abnahme mit echtem Schlüssel noch offen |\n| [#124 Manuskriptimport mit Analysen](https://github.com/ploeffler/GhostWriter/issues/124) | KI-Gliederung und Hintergrundanalysen: Zusammenfassungen, Stil, Schauplätze, Zeitleiste, Kontinuität sowie weitere geplante Analysen | Teilweise implementiert; echte API-Abnahme offen. Reiner Import funktioniert ohne KI |\n| [#65 Zeitgesteuerte KI-Läufe](https://github.com/ploeffler/GhostWriter/issues/65) | Recherche und Schreiben ohne laufenden Benutzerchat ausführen | Geplant; alternativ Abarbeitung durch einen geeigneten Agenten |\n| [#66 Kostenabrechnung und Budget](https://github.com/ploeffler/GhostWriter/issues/66) | Verbrauchsdaten der Modellaufrufe übernehmen und Kosten zuordnen | Offene Backend-Erweiterung |\n| [#62 Limits und Automatikpause](https://github.com/ploeffler/GhostWriter/issues/62) | Anbieter-Kontingente oder Guthaben abfragen, soweit verfügbar; Bildaufträge vor Kostenüberschreitung sperren | Grundlegende Limitprüfung vorhanden; Anbieter-Abfragen offen |\n| [#71 Datenseite](https://github.com/ploeffler/GhostWriter/issues/71) | Anbieter-Kontingente anzeigen | Nur dieser Teil benötigt Anbieterdaten; abhängig von #62/#66 |\n| [#35 Eigene Web-App](https://github.com/ploeffler/GhostWriter/issues/35) | KI-Läufe direkt aus der Web-App ausführen | Nur die KI-Funktionen brauchen Anbieterzugriff; „Auftrag kopieren“ bleibt vorgesehen |\n| [#75 Buchübersetzung](https://github.com/ploeffler/GhostWriter/issues/75) | Automatisierte Übersetzungsläufe einschließlich Verbrauchserfassung | Geplant; Übersetzen im Chat ist grundsätzlich ein separater Weg |\n| [#204 Prompt-Profiler und -Compiler](https://github.com/ploeffler/GhostWriter/issues/204) | Reale API-Aufrufe, Tokenverbrauch und Cache-Nutzung messen; Anbieteradapter testen | Anbieterbezogene Teile brauchen API-Zugriff; Kernanalyse funktioniert auch ohne externe Anbieter |\n\n**#19 ist die gemeinsame GhostWriter-Schnittstelle**, aber keine KI-Anbieter-API an sich. Sie ist eine technische Voraussetzung für mehrere geplante Backend-Funktionen. [#19](https://github.com/ploeffler/GhostWriter/issues/19)\n\nDie offenen Aufgaben sind also **nicht vollständig durch fehlende API-Zugänge blockiert**: Viele enthalten unabhängig umsetzbare Oberflächen-, Verwaltungs- und Prüfaufgaben.",
+      "id": "m018",
+      "role": "assistant"
+    },
+    {
+      "content": "macht es sinn aufgaben udgl so umzubauen, dass wir bis v1.0 ohne diese anbindung auskommen?",
+      "id": "m019",
+      "role": "user"
+    },
+    {
+      "content": "**Ja. Für v1.0 halte ich das für sinnvoll**, wenn GhostWriter zunächst als Bucharbeitsplatz mit einem KI-Assistenten im Chat funktionieren soll. Anbieter-APIs könnten danach als zusätzliche Automatisierung folgen.\n\nDabei würde ich die Aufgaben **aufteilen**, statt API-Funktionen durch manuelle Abläufe als erledigt zu erklären:\n\n| Bis v1.0 | Späterer API-Ausbau |\n|---|---|\n| Recherche, Schreiben, Überarbeiten und Übersetzen im Chat oder über „Auftrag kopieren“ | Direkte, zeitgesteuerte und unbeaufsichtigte KI-Läufe |\n| Bilder hochladen, zuordnen, freigeben und ins Buch einfügen | Bilder direkt erzeugen und Referenzbilder automatisch an Bilddienste übergeben |\n| Analyseauftrag vorbereiten, Ergebnis zurücknehmen und prüfen | Ganzbuchanalysen automatisch im Hintergrund ausführen |\n| Tatsächliche Kosten als „nicht verfügbar“ oder ausdrücklich manuell erfasst kennzeichnen | Automatische Verbrauchsabrechnung und Anbieter-Kontingente |\n| Prompt-Aufbau lokal analysieren | Reale Anbieter-Tokens und Cache-Effekte messen |\n\nDaraus ergeben sich drei wichtige Entscheidungen:\n\n- **#54 und #143 teilen:** Bildverwaltung und Buchintegration bis v1.0; direkte Bilddienstanbindung später.\n- **#65, API-Teile von #66 und Anbieter-Kontingente aus #62 verschieben:** Ohne Anbieterzugriff lässt sich deren Kernversprechen nicht vollständig erfüllen.\n- **#35 klar eingrenzen:** Eine eigene Web-App kann ohne Anbieter-API Bücher verwalten und bearbeiten. Für KI-Arbeit braucht sie dann den Wechsel zum Chat samt kontrollierter Rückgabe.\n\nDie **eigene GhostWriter-Schnittstelle (#19)** muss davon getrennt bewertet werden: Anmeldung, Speicherung und Zusammenarbeit können sie weiterhin benötigen, auch ohne KI-Anbieteranbindung.\n\nMein Vorschlag: **v1.0 als vollständigen, geprüften Buchworkflow mit manueller KI-Übergabe definieren.** Bestehende API-Funktionen erhalten, aber für die v1.0-Abnahme keinen API-Schlüssel voraussetzen. Der wesentliche Nachteil bleibt der zusätzliche Kopier- und Rückgabeschritt, besonders bei langen Büchern.",
+      "id": "m020",
+      "role": "assistant"
+    },
+    {
+      "content": "diese entscheidung ind den weg speichern: für v1.0 keine api-verbindungen vorsehen",
+      "id": "m021",
+      "role": "user"
+    },
+    {
+      "content": "Die Entscheidung ist in [Änderungspaket #214](https://github.com/ploeffler/GhostWriter/pull/214) gespeichert:\n\n**Bis einschließlich v1.0 sind keine KI-Anbieter-API-Verbindungen vorgesehen.**\n\nRoadmap, Startanweisungen und Architektur sind angepasst; betroffene API-Teile auf später verschoben. Lokale Prüfungen bestehen, die GitHub-Prüfung läuft noch. Noch nicht in `main` übernommen.",
+      "id": "m022",
+      "role": "assistant"
+    },
+    {
+      "content": "übernehmen",
+      "id": "m023",
+      "role": "user"
+    },
+    {
+      "content": "[Änderungspaket #214](https://github.com/ploeffler/GhostWriter/pull/214) ist erfolgreich in `main` übernommen. Alle Prüfungen bestehen.\n\nDamit ist festgehalten: **Bis einschließlich v1.0 sind keine KI-Anbieter-API-Verbindungen vorgesehen.**",
+      "id": "m024",
+      "role": "assistant"
+    },
+    {
+      "content": "welche punkte sind bis v1.0 noch offen?",
+      "id": "m025",
+      "role": "user"
+    },
+    {
+      "content": "Nach der neuen Entscheidung bleiben bis v1.0 folgende offene Punkte. **Ein offenes Issue bedeutet dabei nicht immer fehlende Umsetzung – teilweise fehlt noch die Abnahme.**\n\n| Bereich | Noch offen |\n|---|---|\n| [#179 Standabgleich und Sitzungssicherung](https://github.com/ploeffler/GhostWriter/issues/179) | Veraltete Ansichten bei Clientwechsel oder Wiederaufnehmen erkennen, Eingaben erhalten und konkurrierende Änderungen sicher behandeln. Manuelle Sitzungssicherung und Sicherung nach Abschnittsdialog sind bereits umgesetzt. |\n| [#19 Eigene GhostWriter-Schnittstelle](https://github.com/ploeffler/GhostWriter/issues/19) | Anmeldung, Berechtigungen und Verwaltungszugriffe implementieren und bereitstellen – ohne KI-Anbieteranbindung. |\n| [#35 Installierbare Web-App](https://github.com/ploeffler/GhostWriter/issues/35) | Eigenständige Oberfläche mit Buchverwaltung, GitHub-Anmeldung und Übergabe der KI-Arbeit an den Chat. |\n| [#61 Offline-Arbeit](https://github.com/ploeffler/GhostWriter/issues/61) | Bücher lokal im Browser bearbeiten, Änderungen anschließend abgleichen und Konflikte behandeln. |\n| [#143 Referenzbilder](https://github.com/ploeffler/GhostWriter/issues/143) | Upload-Oberfläche, Zuordnung, Auswahl, Freigabe und nachvollziehbare manuelle Übergabe vervollständigen. Automatische Anbieterübergabe ist verschoben. |\n| [#54 Bilder](https://github.com/ploeffler/GhostWriter/issues/54) | Praxistest mit echten Bildern und wiedererkennbaren Figuren abschließen. Bildverwaltung und Buchausgabe sind bereits vorhanden. |\n| [#124 Import und Analysen](https://github.com/ploeffler/GhostWriter/issues/124) | Verbleibende Analysearten und den Chat-/Kopierweg mit geprüfter Rückgabe vervollständigen. API-Abnahmen sind verschoben. |\n| [#74 Mehrsprachigkeit](https://github.com/ploeffler/GhostWriter/issues/74) | Vollständigkeit von Deutsch/Englisch und Sprachwechsel abschließend prüfen; vieles ist bereits implementiert. |\n| [#71 Datenseite](https://github.com/ploeffler/GhostWriter/issues/71) | Vollständige Abnahme und später Anzeige des lokalen Abgleichstands. Die Anzeige verfügbarer Limits ist bereits umgesetzt. |\n| [#22 GitHub-Connector](https://github.com/ploeffler/GhostWriter/issues/22) | Den beschriebenen Connector-Weg einschließlich Formularspeicherung praktisch abnehmen und dokumentieren. |\n| [#18 / #41 Abnahmen](https://github.com/ploeffler/GhostWriter/issues/18) · [v0.6](https://github.com/ploeffler/GhostWriter/issues/41) | Noch offene Tests der früheren Versionen abschließen: vollständiger Schreib-/Freigabeablauf, Bibliothek, Updates, Befehle und Kapitelrecherche. |\n\n**Noch ohne eindeutige Versionszuordnung** sind [#204 Prompt-Tuning](https://github.com/ploeffler/GhostWriter/issues/204), [#209 externe DOCX-Bearbeitung mit Rückführung](https://github.com/ploeffler/GhostWriter/issues/209) und die Grundsatzentscheidung zum [Arbeits-Branch #169](https://github.com/ploeffler/GhostWriter/issues/169). Diese sollten wir nicht stillschweigend zu v1.0-Pflichten erklären.\n\n**Nach v1.0 verschoben** sind direkte Anbieteraufrufe, zeitgesteuerte Anbieter-KI-Läufe, automatische Anbieterabrechnung und Kontingentabfragen. Buchübersetzungen bleiben bei v1.5.\n\nDie Roadmap ist angepasst; **die einzelnen Issues enthalten teilweise noch die alten Ziele und Abnahmekriterien**. Als nächster Schritt sollten diese aufgeteilt und bereinigt werden, damit eine belastbare v1.0-Checkliste entsteht.",
+      "id": "m026",
+      "role": "assistant"
+    },
+    {
+      "content": "was ist mit 169",
+      "id": "m027",
+      "role": "user"
+    },
+    {
+      "content": "[#169](https://github.com/ploeffler/GhostWriter/issues/169) ist weiterhin offen. Es klärt, **ob der zusätzliche Arbeits-Branch pro Buch nötig ist oder vereinfacht werden soll**.\n\nDazu fehlen:\n\n- tatsächlichen Ablauf der Branch-Erzeugung nachvollziehen,\n- Nutzen und Nachteile bewerten,\n- Alternativen vergleichen,\n- Entscheidung dokumentieren und gegebenenfalls Programm und Anleitungen anpassen.\n\nDie Aufgabe braucht **keine KI-Anbieter-API**. Eine Versionszuordnung fehlt noch.\n\nIch würde sie **vor #19 und #35 entscheiden**, weil die eigene Schnittstelle und Web-App dieses Speichermodell übernehmen sollen. Änderungen daran wirken außerdem auf Standabgleich, Freigaben und Konfliktbehandlung.",
+      "id": "m028",
+      "role": "assistant"
+    },
+    {
+      "content": "169 entscheiden",
+      "id": "m029",
+      "role": "user"
+    },
+    {
+      "content": "weiter",
+      "id": "m030",
+      "role": "user"
+    },
+    {
+      "content": "Die Entscheidung zu #169 ist in [Änderungspaket #215](https://github.com/ploeffler/GhostWriter/pull/215) gespeichert:\n\n**Arbeits-Branch beibehalten, erst beim Speichern anlegen und nach vollständiger Übernahme entfernen.**\n\nAlternativen, tatsächlicher Ablauf und Fehlerfälle sind dokumentiert. Lokale Prüfungen bestehen; die GitHub-Prüfung steht noch aus. Noch nicht in `main` übernommen.",
+      "id": "m031",
+      "role": "assistant"
+    },
+    {
+      "content": "erstelle einen auftragin dem alle zu treffenden entscheidungen enthalten sind. hintergrund: wenn ich diese liste abgearbeitet habe, kann ohne mein zutun gecoded werden",
+      "id": "m032",
+      "role": "user"
+    },
+    {
+      "content": "Der [Entscheidungsauftrag für v1.0](/home/oe6pld/Dokumente/ChatGPT/GhostWriter/ENTSCHEIDUNGSAUFTRAG-v1.0.md) ist erstellt.\n\nEr enthält **32 Entscheidungspunkte** mit Empfehlungen: Lieferumfang, Oberflächen, Hosting, Anmeldung, Bilder, Sicherung, Offline-Arbeit, Tests und Entwicklungsbefugnisse.\n\nDu kannst mit `D01: …` bis `D32: …` antworten. Besonders wichtig sind **D28–D31**: Sie legen fest, was anschließend selbstständig entwickelt, geprüft, übernommen und veröffentlicht werden darf.\n\nDie Datei ist lokal gespeichert. Normale Implementierungsdetails können damit delegiert werden; unerwartete grundlegende Hindernisse bleiben rückfragepflichtig.",
+      "id": "m033",
+      "role": "assistant"
+    },
+    {
+      "content": "session übernehmen",
+      "id": "m034",
+      "role": "user"
+    },
+    {
+      "content": "Ich finde kein offenes Sitzungspaket für diesen Chat. Der Entscheidungsauftrag ist bisher nur lokal gespeichert.\n\nSoll ich diese Sitzung zuerst sichern und anschließend übernehmen? Ziel wäre das **öffentliche Repository `ploeffler/GhostWriter`**; die gesicherten Gesprächsinhalte wären dort sichtbar.",
+      "id": "m035",
+      "role": "assistant"
+    },
+    {
+      "content": "ja",
+      "id": "m036",
+      "role": "user"
+    }
+  ]
+}
