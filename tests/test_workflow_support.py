@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-from workflow_support import chapter_material, compare_book_work, historical_candidates
+from workflow_support import chapter_material, compare_book_work, historical_candidates, assess_write
 
 
 class MaterialTest(unittest.TestCase):
@@ -64,6 +64,82 @@ class CompareTest(unittest.TestCase):
             self.assertTrue(rows['work']['work_deleted'])
             with self.assertRaises(ValueError):
                 compare_book_work(base, '--help', work)
+
+
+class StaleWriteTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.git('init', '-q')
+        self.git('config', 'user.name', 'Test')
+        self.git('config', 'user.email', 'test@example.invalid')
+        (self.root / 'text.md').write_text('Ausgangstext')
+        (self.root / 'other.md').write_text('Andere Datei')
+        (self.root / 'ghostwriter.yml').write_text('Profil')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'Basis')
+        self.base = self.git('rev-parse', 'HEAD')
+
+    def git(self, *args):
+        return subprocess.run(['git', '-C', str(self.root), *args], check=True,
+                              capture_output=True, text=True).stdout.strip()
+
+    def change(self, path, value='neu'):
+        (self.root / path).write_text(value)
+        self.git('add', '.')
+        self.git('commit', '-qm', 'Geändert')
+        return self.git('rev-parse', 'HEAD')
+
+    def test_unchanged_and_other_file_changes_are_safe_to_prepare(self):
+        same = assess_write(self.root, self.base, self.base, ['text.md'])
+        self.assertEqual(same['state'], 'unchanged')
+        current = self.change('other.md')
+        before = self.git('status', '--porcelain')
+        result = assess_write(self.root, self.base, current, ['text.md'])
+        self.assertTrue(result['safe_to_prepare'])
+        self.assertEqual(result['state'], 'unrelated_changes')
+        self.assertEqual(result['current_head'], current)
+        self.assertEqual(before, self.git('status', '--porcelain'))
+
+    def test_changed_target_and_deleted_target_require_refresh(self):
+        current = self.change('text.md')
+        self.assertFalse(assess_write(self.root, self.base, current, ['text.md'])['safe_to_prepare'])
+        (self.root / 'text.md').unlink()
+        self.git('commit', '-qam', 'Entfernt')
+        result = assess_write(self.root, current, 'HEAD', ['text.md'])
+        self.assertEqual(result['affected_files'], ['text.md'])
+
+    def test_changed_context_requires_refresh_even_for_other_target(self):
+        current = self.change('ghostwriter.yml')
+        result = assess_write(self.root, self.base, current, ['text.md'])
+        self.assertEqual(result['state'], 'refresh_required')
+        self.assertEqual(result['context_changes'], ['ghostwriter.yml'])
+        self.assertFalse(result['safe_to_prepare'])
+
+    def test_diverged_branch_must_not_be_used_as_current_basis(self):
+        first = self.change('other.md')
+        self.git('checkout', '-q', '--detach', self.base)
+        second = self.change('text.md')
+        result = assess_write(self.root, first, second, ['new.md'])
+        self.assertEqual(result['state'], 'diverged')
+        self.assertFalse(result['safe_to_prepare'])
+
+    def test_directory_targets_include_changed_children_and_renames(self):
+        (self.root / 'folder').mkdir()
+        new = self.change('folder/child.md')
+        result = assess_write(self.root, self.base, new, ['folder'])
+        self.assertEqual(result['affected_files'], ['folder/child.md'])
+        self.git('mv', 'text.md', 'renamed.md')
+        self.git('commit', '-qm', 'Verschoben')
+        self.assertFalse(assess_write(self.root, new, 'HEAD', ['text.md'])['safe_to_prepare'])
+
+    def test_invalid_paths_and_options_are_rejected(self):
+        for paths in ([], ['../outside'], ['/tmp/file'], ['a//b'], ['a/./b']):
+            with self.assertRaises(ValueError):
+                assess_write(self.root, self.base, self.base, paths)
+        with self.assertRaises(ValueError):
+            assess_write(self.root, '--help', self.base, ['text.md'])
 
 
 if __name__ == '__main__':

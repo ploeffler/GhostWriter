@@ -124,6 +124,8 @@ Die aus der Softwareentwicklung kommende Versionsverwaltung ist ein ausdrücklic
 
 **Prioritärer Planungsauftrag [#179](https://github.com/ploeffler/GhostWriter/issues/179), im Zielumfang `cross_client_state_sync` für v1.0 erfasst; noch nicht umgesetzt.** Beim Wechsel zwischen Clients können Buchtext, Programm, Werkzeug, Anweisungen und lokale Kopien auf unterschiedlichen Ständen sein. GitHub bleibt die gemeinsame Quelle für gespeicherte Buchstände. Ein erfolgreich geladener Starttext ist ein Anweisungs-Snapshot und kein Nachweis, dass spätere Buchdaten aktuell sind.
 
+**Vorhandene technische Teilprüfung:** `scripts/workflow_support.py ... guard <expected> <current> <paths...>` prüft unveränderte, nicht betroffene, betroffene sowie divergierte Git-Stände schreibfrei. Änderungen an `ghostwriter.yml`, `workflow.yml`, `assistant.yml`, Manifest oder Update-Stand verlangen unabhängig von der Zieldatei eine Kontextaktualisierung. Der Assistent muss aktuelle Remote-Refs bereitstellen und beim späteren Schreiben den aktuellen Head atomar prüfen. Es gibt dadurch weder einen Hintergrundabgleich noch einen zusätzlichen Dienst; vollständige Live-Client-Abnahme bleibt offen.
+
 Für die Umsetzung untersuchen:
 
 - **Leichten Abgleich:** Zu Beginn einer neuen Arbeitsaufgabe, bei Client-/Buchwechsel und vor Schreiben oder Freigaben Repository, Buch-/Lesebranch, Head-SHA und passenden offenen PR prüfen. Änderungen anhand von Commit-Beziehungen erkennen; Zeitstempel allein reichen nicht.
