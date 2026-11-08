@@ -65,6 +65,8 @@ Sind die gewünschten Kapitel freigegeben, öffne **Neue Auflage**: Name, Ersche
 
 ## 10. Später weiterarbeiten
 
+Den gesamten redaktionellen Kreislauf und die Git-Wege – einschließlich der Arbeit am PC mit oder ohne lokalem Clone – zeigt [Buchworkflow und Git-Wege](BUCH-WORKFLOW.md).
+
 - **Neuer Chat:** In jedem Browser genügt der Link zu deinem Repository; ein Link auf ein Buch (`…/tree/buch/<kurztitel>`) öffnet direkt dessen Übersicht, ein Link auf eine Kapitel- oder Abschnittsdatei direkt diese Stelle. Lange Chats lieber neu beginnen; der gespeicherte Stand liegt im Repository.
 - **Client wechseln:** Repository, ausgewähltes Buch und offene Änderungen gegen GitHub neu prüfen lassen. Ein alter Chat oder lokaler Stand ist kein Nachweis für den aktuellen Buchstand. Nicht gespeicherte Eingaben vor dem Wechsel sichern. Ein verbesserter automatischer Abgleich ist [geplant](WORKFLOW-MODEL.md#standabgleich-zwischen-clients-geplant).
 - **Weitere Bücher:** jederzeit über **Neues Buch** im Bücherregal.

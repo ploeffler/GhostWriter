@@ -15,6 +15,8 @@ Du hast eine Buchidee und willst sie wirklich schreiben, nicht nur darüber nach
 
 **Schritt für Schritt.** Vom leeren Repository bis zur ersten gedruckten Auflage. Du weißt immer, wo dein Buch steht und was als Nächstes kommt. → [Anleitung](docs/ANLEITUNG.md)
 
+**Der ganze Buchkreislauf.** Redaktioneller Ablauf, grafischer Weg vom ersten Chat bis zur Übernahme im eigenen Repository und die Unterschiede zwischen GitHub-Verbindung und lokalem Git-Clone. → [Buchworkflow und Git-Wege](docs/BUCH-WORKFLOW.md)
+
 **Geführte Dialoge.** Übersichten, Formulare und Auswahlkarten erscheinen direkt im Chat. Du brauchst kein Git-Wissen und keine Konfigurationsdateien, nur klicken oder kurz antworten. → [So sieht es aus](docs/DIALOGE.md)
 
 **Versionierung aus der Softwareentwicklung.** Git hält jeden im Repository gespeicherten Stand deines Buchs fest: Änderungen vergleichen, frühere Fassungen wiederherstellen und Entwürfe getrennt vom übernommenen Text entwickeln. Jede Auflage bleibt einem genauen Buchstand zugeordnet. Diese Stärke nutzt GhostWriter für dein Manuskript. → [Versionsverlauf und Zusammenarbeit](docs/GRUNDSAETZE.md#versionierung-mit-git)
