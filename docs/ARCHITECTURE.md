@@ -89,6 +89,34 @@ Entschieden am 31.10.2026: GhostWriter v0.5 läuft über **Weg A**. Der KI-Assis
 - **Eine Oberfläche:** Die Vorlagen in `ghostwriter-ui` bekommen ihre Daten als JSON über `GW.render`; mit Weg B kommen dieselben Daten von der API.
 - **Contract mitpflegen:** Änderungen am Datenmodell werden im selben Schritt in `docs/API-CONTRACT.md` nachgetragen.
 
+## KI-Anbindung der eigenen App (Planungsstand 07.11.2026)
+
+Die installierbare GhostWriter-Web-App (#35) und die eigene Schnittstelle
+(#19) stellen nicht automatisch einen KI-Zugang bereit. Ein Chatfenster in der
+App ist zunächst eine Oberfläche; die GitHub-Anmeldung vermittelt Buchzugriff,
+keinen Zugang zu einem KI-Modell. Die konkrete KI-Anbindung der eigenen App ist
+noch als Architekturentscheidung auszuarbeiten, nicht als umgesetzt anzusehen.
+
+Drei Betriebswege unterscheiden:
+
+| Betriebsweg | KI-Anbindung |
+|---|---|
+| GhostWriter im vorhandenen KI-Chat | Der dortige Assistent bearbeitet die Projektdateien mit den verfügbaren Werkzeugen. GhostWriter ruft selbst kein Modell auf. |
+| Eigene App mit externem KI-Chat | GhostWriter bereitet einen vollständigen Abschnittsauftrag vor. Der Benutzer übergibt ihn an den gewählten Chat und bringt das Ergebnis zur Prüfung zurück. |
+| Eigene App mit integriertem KI-Chat | Erfordert eine ausdrücklich unterstützte Anbieteranbindung, üblicherweise eine Modell-API, oder ein lokal angebundenes Modell. Verfügbarkeit, Anmeldung und Abrechnung müssen für den gewählten Weg geklärt werden. |
+
+Ein vorhandenes Chat-Abo nicht als automatisch nutzbaren Zugang für die eigene
+App voraussetzen. Die Aufteilung in Abschnitte löst die Modellanbindung nicht.
+Für die weitere Planung festlegen, welche Betriebswege die App unterstützt,
+wie Auftragsübergabe und Rückgabe funktionieren und wie Buchstand, Kontext,
+Fehler und Freigaben über diese Wege erhalten bleiben. Einen anderen Anbieter
+nicht stillschweigend anstelle des gewählten Dienstes verwenden.
+
+Die abschnittsweise Übersetzung soll zunächst im vorhandenen KI-Chat möglich
+sein, ohne zusätzliche Übersetzungs-API oder Hintergrundlauf. Die dafür
+bestätigten Regeln stehen im
+[Workflow-Modell](WORKFLOW-MODEL.md#buchübersetzung-geplant).
+
 ## MVP-Grenze
 
 MVP:
@@ -114,4 +142,4 @@ Die Nennung eines Bausteins beschreibt den Repository-Stand bzw. das Zielmodell,
 
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

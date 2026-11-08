@@ -116,6 +116,42 @@ Die spätere Entscheidung D06/D01 verschiebt zusätzlich die eigene GhostWriter-
 
 Die [Beschlüsse D01–D32](ENTSCHEIDUNGEN-v1.0.md) ersetzen widersprechende ältere Planungen. Die [Arbeitsaufträge](AUFTRAEGE-v1.0.md) legen Lieferfolge, Nachweise und offene technische Voraussetzungen fest. Änderungen an Anzeigen sind in ChatGPT, Codex, Claude und Open WebUI zu prüfen; unbekannte oder nicht ausführbare Tests bleiben offen. Reale Datenübernahme beschränkt sich auf YAWA; weitere Versionsfälle werden mit Testdaten geprüft. Änderungen bestehender YAWA-Buchdaten brauchen eine gesonderte Freigabe. Beschluss ist kein Implementierungsnachweis.
 
+### Buchübersetzung (geplant)
+
+**Bestätigte Anforderungen vom 07.11.2026 zu #75; Umsetzung weiterhin für
+v1.5 geplant.** Eine Übersetzung darf ausschließlich von einer bestehenden
+**Auflage** ausgehen. Deren feststehender Buchstand ist die verbindliche
+Quelle; ein laufender Arbeitsstand ist keine zulässige Übersetzungsbasis.
+
+- **Ein Auftrag, ein Abschnitt:** Die Übersetzung ist pro Abschnitt im Chat
+  abarbeitbar, kein einzelner Großauftrag für das ganze Buch. Sie lässt sich
+  nach einem Abschnitt unterbrechen und später anhand des gespeicherten
+  Fortschritts fortsetzen.
+- **Im vorhandenen KI-Chat:** Der gewählte Chat-Dienst, beispielsweise Claude
+  oder GPT, führt den Abschnittsauftrag aus. Dafür ist keine zusätzliche
+  Übersetzungs-API erforderlich. Ein anderer Chat wird über Auftrag und
+  Ergebnisrückgabe eingebunden; kein stiller Anbieterwechsel.
+- **Kein Hintergrundlauf:** Der zuvor erwogene Übersetzungslauf über GitHub
+  Actions ist durch die abschnittsweise Bearbeitung im Chat ersetzt. Allgemeine
+  Pläne für zeitgesteuerte KI-Läufe bleiben davon unabhängig.
+- **Gemeinsamer Kontext:** Jeder Auftrag erhält neben dem Originalabschnitt
+  den erforderlichen Buch- und Kapitelkontext sowie einheitliche Vorgaben für
+  Zielsprache, Erzählstimme, Namen und Terminologie.
+- **Prüfung und Fortschritt:** Original und Übersetzung getrennt erhalten;
+  Ausgangsauflage, Abschnitt, Zielsprache, verwendeten Dienst und Bearbeitungs-
+  und Prüfstand nachvollziehbar zuordnen. Übersetzung prüfen und überarbeiten,
+  bevor sie zur eigenen Freigabe vorgelegt wird. Eine erzeugte Übersetzung
+  erhält keine automatische Freigabe. Vor Abschluss den vollständigen
+  betroffenen Zusammenhang gemäß den Qualitätsregeln prüfen.
+- **Sprachauflagen:** Die neue Sprachfassung bekommt ihre eigene Freigabe und
+  Auflage. Eine spätere Originalauflage ersetzt weder die festgehaltene
+  Übersetzungsbasis noch bereits freigegebene Übersetzungen automatisch.
+
+Die konkrete Datenstruktur, Speicherung und Bedienung sind noch auszuarbeiten.
+Diese Anforderungen sind keine bereits implementierte Übersetzungsfunktion.
+Die davon getrennte Anbindung eines integrierten KI-Chats in der eigenen App
+bleibt ein [offener Architekturpunkt](ARCHITECTURE.md#ki-anbindung-der-eigenen-app-planungsstand-07112026).
+
 ### Git als Produktvorteil
 
 Die aus der Softwareentwicklung kommende Versionsverwaltung ist ein ausdrücklicher Produktvorteil: präzise gespeicherte Änderungsschritte, vergleichbare Fassungen, gezielte Wiederherstellung, getrennte Entwürfe und die eindeutige Zuordnung jeder Auflage zu ihrem Buchstand. README und Grundlagen erklären diese Vorteile in Autorensprache; fehlendes Git-Fachwissen ist eine Frage der einfachen Bedienung. Die Dokumentationsarbeit knüpft an [#46](https://github.com/ploeffler/GhostWriter/issues/46) an. Versioniert sind gespeicherte Änderungen, nicht jeder noch ungespeicherte Chatentwurf.
@@ -210,4 +246,4 @@ Die Kostenfunktion muss auch dann nutzbar bleiben, wenn ein Anbieter keine Nutzu
 
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

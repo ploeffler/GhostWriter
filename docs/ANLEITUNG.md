@@ -10,6 +10,8 @@ Die drei grafischen Übersichten haben eigene Seiten:
 - [Erstellungskreislauf](ERSTELLUNGSKREISLAUF.md): einen Abschnitt mit Recherche, Brainstorming, neuen Eingaben und Überarbeitungen entwickeln.
 - [Speichern, Übernehmen und Freigeben](SPEICHERN.md): Buchänderungen und Gesprächssicherung, ihre Zustände und getrennten Bestätigungen.
 
+**Für textorientierte Bücher, nicht für Bildbände oder Fotobücher:** Eine Szene entspricht einem Abschnitt; pro Abschnitt höchstens ein Medium. Die geplanten Positionen, Textumfluss und Größenwahl erklärt [Medien im Abschnitt](MEDIENPLATZIERUNG.md).
+
 ## 1. Repository anlegen
 
 1. Öffne das [GhostWriter-Repository](https://github.com/ploeffler/GhostWriter) und wähle **Use this template → Create a new repository**.
@@ -92,4 +94,4 @@ Den gesamten redaktionellen Kreislauf und die Git-Wege – einschließlich der A
 
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

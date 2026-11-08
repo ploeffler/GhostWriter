@@ -53,7 +53,7 @@ GhostWriter und ghostwriter-ui dürfen geändert und in isolierten Testbranches 
 - Herkunft, Bildunterschrift, Alternativtext und Freigabestatus speichern. Figuren/Orte/Szenen/Abschnitte zuordnen. Upload aktiviert keine Referenz; Freigabe und Auswahl je Auftrag explizit.
 - Keine automatische Anbieterübergabe oder Behauptung tatsächlicher externer Verwendung. Referenz ist keine automatische Buchabbildung.
 
-**Bekannte Abweichung vor Umsetzung:** `scripts/images.py` verkleinert derzeit automatisch. D13 ist noch kein Implementierungsnachweis.
+**Aktualisierter Prüfstand vom 08.11.2026:** Originalschutz und ausdrücklich bestätigte Verkleinerung wurden lokal geprüft. Die frühere Aussage zur automatischen Verkleinerung ist überholt. Andere Medienlücken bleiben offen; siehe [Testbericht](../tests/evidence/2026-11-08-bilder/TESTBERICHT.md). Eine vollständige Vier-Client-Abnahme liegt damit nicht vor.
 
 **Fertig:** Grenzen, abgebrochene Bestätigung, unveränderte Originalbytes, getrennte Ableitung, Zuordnungen, Freigabe/Rücknahme und Bildausgabe testen; UI-Anteile in allen vier Clients abnehmen.
 
@@ -103,6 +103,27 @@ GhostWriter und ghostwriter-ui dürfen geändert und in isolierten Testbranches 
 
 **Fertig:** geprüfter Abschlussbericht und konkrete Releasevorlage, keine unerfüllten Pflichtfälle als bestanden.
 
+## A09 – Ergänzte Medien-, Umschlag- und Dokumentationsaufträge
+
+- A04 um die [bestätigten Medienvorgaben](MEDIENPLATZIERUNG.md) und die offenen Befunde des [lokalen Bildtests](../tests/evidence/2026-11-08-bilder/TESTBERICHT.md) ergänzen: Mengenbegrenzung, Grafikbeschriftung, Alternativtext, PDF-Zusammenhalt und Entwurfskennzeichnung. Sechs Positionen, Textumfluss und Breitenregler brauchen Umsetzung und getrennte Formatabnahme.
+- Hochgeladenen Coverentwurf für v1.0 nach dem [ergänzten Entscheidungsauftrag](../ENTSCHEIDUNGSAUFTRAG-v1.0.md#nachtrag-für-v10-umschlag-aus-hochgeladener-gestaltungsvorlage) verarbeiten: Analyse, Vorschlag, Vorschau, ausdrückliche Übernahme. Original erhalten und Unsicherheiten nennen.
+- Das [Bedienglossar](../UMSETZUNGSAUFTRAG-BEDIENGLOSSAR.md) als eigenen deutschen/englischen Dokumentationsblock umsetzen, vorhandene/geplante Funktionen klar unterscheiden.
+- Die [zentrale Dokumentationswebsite](../PLANUNGSNOTIZ-DOKUMENTATIONSWEBSITE.md) in v0.9.0 liefern; Quelldokumente, sechs vorhandene Grafiken und Sprachfassungen nutzen. Konkreten Veröffentlichungsweg erst technisch festlegen.
+- Die [vorgeschlagene Versionsfolge](../PLAN-v1.0-ZWISCHENVERSIONEN.md) nicht automatisch als bestätigte Roadmap einsetzen. Buch-Overlays bleiben eine [Planungsnotiz](../PLANUNGSNOTIZ-BUCH-OVERLAYS.md), DOCX-Metadaten gehören nach D17 zu v1.1.
+
+**Fertig:** Je Block Implementierungs- und praktische Abnahmenachweise; Aufnahme in diese Liste allein erklärt keine Funktion für fertig.
+
+## A10 – Vorhandene Skill-Unterstützung für v1.0 abgleichen
+
+**Bezug:** bestätigter Skill-Beschluss vom 8. November 2026 im [Entscheidungsprotokoll](ENTSCHEIDUNGEN-v1.0.md#beschluss-vom-8-november-2026-skill-unterstützung).
+
+- Vorhandene GhostWriter-Skills und Einstiegspfade für Claude und Codex inventarisieren und mit START.md, Buchprofil, Schreibablauf und Qualitätsprüfung abgleichen.
+- Gemeinsame fachliche Quellen verwenden; widersprüchliche Parallelregeln beseitigen. Tatsächliche Ladewege und Werkzeuggrenzen je Client dokumentieren und prüfen.
+- Mit synthetischen Buchdaten Einstieg, Profilübernahme, Schreiben/Überarbeiten und Qualitätsprüfung prüfen; ausdrückliche Buchfreigaben bleiben erforderlich.
+- Eigenständige Buch-Skills ab v1.1 schrittweise ausbauen; einzelne Lieferumfänge gesondert festlegen. Entwicklungsskills nach lokalem Bedarf, ohne feste Produktversionszusage.
+
+**Fertig:** Konsistente bestehende Unterstützung und dokumentierte praktische Nachweise für Claude und Codex; fehlende Clientprüfungen ausdrücklich offenhalten. Planungsaufnahme allein ist keine Implementierung.
+
 ## Verbindliche Testmatrix und noch offene Voraussetzungen
 
 | Umgebung | Pflicht bei Anzeigenänderungen | Verfügbarkeit zu Beginn dieser Planung |
@@ -118,4 +139,4 @@ Alle Ergebnisse nennen Commit/Version, Testart, Testdaten, Resultat und offene G
 
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

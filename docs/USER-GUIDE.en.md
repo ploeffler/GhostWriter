@@ -10,6 +10,8 @@ Three dedicated pages provide the visual workflows:
 - [Creation cycle](CREATION-CYCLE.en.md): develop a section through research, brainstorming, new input and revision.
 - [Saving, merging and approving](SAVING.en.md): book changes, conversation backups, their states and separate confirmations.
 
+**For text-led books, not photo books or picture-led collections:** One scene corresponds to one section, with at most one media item. See [media within a section](MEDIA-LAYOUT.en.md) for planned positions, wrapping and size controls.
+
 ## 1. Create a repository
 
 1. Open the [GhostWriter repository](https://github.com/ploeffler/GhostWriter) and select **Use this template → Create a new repository**.
@@ -84,4 +86,4 @@ The assistant presents the release notes for approval and prepares a separate ed
 
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

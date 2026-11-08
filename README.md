@@ -9,6 +9,8 @@
 
 > **Hinweis für KI-Assistenten:** Dies ist ein GhostWriter-Projekt. Lies zu Beginn eines neuen Chats [`START.md`](START.md), [`ghostwriter.yml`](ghostwriter.yml) und [`BUCHSTATUS.md`](BUCHSTATUS.md). Verwende START.md intern und rufe sie nach erfolgreichem Laden nicht bei jeder Nachricht erneut ab. Prüfe die tatsächlich vorhandenen GitHub-Branches und lade veränderliche Projektdaten für die aktuelle Aufgabe gezielt nach; `BUCHSTATUS.md` erklärt die Zuordnung von Buch- und Arbeits-Branches.
 
+**Für textorientierte Bücher:** GhostWriter ist nicht für Bildbände oder Fotobücher gedacht. Eine Szene entspricht einem Abschnitt; pro Abschnitt höchstens ein Medium. [Medienplatzierung und Textumfluss](docs/MEDIENPLATZIERUNG.md) sind als Anforderungen festgehalten und noch umzusetzen.
+
 ## GhostWriter – dein Buch, Schritt für Schritt
 
 Du hast eine Buchidee und willst sie wirklich schreiben, nicht nur darüber nachdenken. GhostWriter ist dein Arbeitsplatz dafür, direkt im Chat mit einem KI-Assistenten deiner Wahl. Er ordnet deine Gedanken zu Kapiteln und Abschnitten, recherchiert mit dir, macht Vorschläge und hält alles sauber fest. Schreiben, entscheiden und freigeben tust du.
@@ -35,6 +37,8 @@ Du hast eine Buchidee und willst sie wirklich schreiben, nicht nur darüber nach
 
 **Grafische Abläufe:** [Buchablauf](docs/BUCHABLAUF.md) · [Erstellungskreislauf](docs/ERSTELLUNGSKREISLAUF.md) · [Speichern und Übernehmen](docs/SPEICHERN.md)
 
+Planung und offene Arbeiten: [Gesammelter Stand bis v1.0](docs/PLANUNGSSTAND-v1.0.md).
+
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg"><img src="assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg"><img src="assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

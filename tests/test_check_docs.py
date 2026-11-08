@@ -17,6 +17,35 @@ class CheckDocsTest(unittest.TestCase):
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/check_docs.py')], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    def test_codex_credit_requires_its_own_line_in_both_languages(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'templates').mkdir()
+            (root / 'assets').mkdir()
+            (root / 'assets/logo.svg').write_text('<svg/>')
+            (root / 'templates/branding.yml').write_text(
+                'credit:\n  text: Claude Deutsch\n  text_en: Claude English\n'
+                '  codex_text: Codex Deutsch\n  codex_text_en: Codex English\n')
+            logo = '<img src="assets/logo.svg">'
+            with patch.object(check_docs, 'ROOT', root), patch.object(check_docs, 'DOCS', ['README.md', 'README.en.md']):
+                for suffix, language in [('', 'Deutsch'), ('.en', 'English')]:
+                    (root / f'README{suffix}.md').write_text(
+                        f'<p><sub>Claude {language}<br>Codex {language}</sub>{logo}</p>')
+                problems = []
+                check_docs.check_credit(problems)
+                self.assertEqual(problems, [])
+                for bad in ['Claude English', 'Claude English · Codex English', 'Codex English<br>Claude English']:
+                    with self.subTest(footer=bad):
+                        (root / 'README.en.md').write_text(f'<p><sub>{bad}</sub>{logo}</p>')
+                        problems = []
+                        check_docs.check_credit(problems)
+                        self.assertTrue(any('Codex-Hinweis' in message for message in problems))
+                (root / 'templates/test.md').write_text('Codex Deutsch')
+                problems = []
+                check_docs.check_credit(problems)
+                self.assertTrue(any('Buchvorlage templates/test.md' in message for message in problems))
+
+
 
 class GeneratedStartTest(unittest.TestCase):
     def setUp(self):

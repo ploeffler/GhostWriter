@@ -152,6 +152,15 @@ Beschluss D17 (bestätigt am 08.11.2026 durch „für version 1.1 vorsehen und �
 - Der geplante Umfang umfasst Bearbeitung in Word oder LibreOffice, Buchsperre/Checkout, Änderungsvergleich und ausdrücklich bestätigte Übernahme gemäß den bestehenden Anforderungen in #209.
 - Konkrete Programmversionen und die detaillierte Format-Abnahmematrix werden für die Umsetzung von v1.1 festgelegt; sie blockieren v1.0 nicht.
 
+Ergänzung vom 08.11.2026, ausdrücklich durch „nehmen wir dazu“ bestätigt:
+- Die ausgegebene DOCX-Arbeitskopie erhält eigene Dokumenteigenschaften zur Rückzuordnung: Buchkennung, Export-/Checkout-Kennung, Ausgangscommit, Hash des Ausgangsmanuskripts und Version des Metadatenformats. Die genaue Feldstruktur wird bei der Umsetzung festgelegt.
+- Der Hash ist ein Fingerabdruck und enthält nicht den Ausgangstext. Die zugehörige Ausgangsfassung bleibt im Repository erhalten. Der Hash bezieht sich auf eine festgelegte Manuskriptfassung, nicht auf die sich beim Speichern verändernden Bytes der gesamten DOCX-Datei. Hashverfahren und Normalisierung nachvollziehbar definieren.
+- Beständige Kapitel- und Abschnittskennungen im Dokument ergänzen die Dokumenteigenschaften für die Zuordnung einzelner Änderungen. Die genaue technische Ablage ist noch zu bestimmen und auf Erhalt beim Bearbeiten zu prüfen.
+- Dokumenteigenschaften sind veränderbare Zuordnungshilfen, kein alleiniger Echtheitsnachweis, keine Schreibberechtigung und keine Freigabe. Kennungen und Ausgangsstand beim Rückimport mit dem gespeicherten Checkout abgleichen.
+- Rückführung weiterhin durch Vergleich von Ausgangsfassung, bearbeiteter DOCX-Datei und aktuellem Buchstand, anschließend Vorschau und ausdrückliche Übernahmebestätigung. Die bestehenden Checkout-, Sperr- und Freigaberegeln bleiben wirksam.
+- Erhalt und Lesbarkeit der Eigenschaften und internen Kennungen nach Bearbeitung in Word und LibreOffice sowie nach „Speichern unter“ und relevanten Konvertierungen prüfen. Fehlende, beschädigte oder widersprüchliche Angaben verständlich melden; keine ungeprüfte Rückschreibung oder automatische Entsperrung.
+- Diese Ergänzung gehört zu v1.1. Sie ist eine bestätigte Anforderung, noch keine implementierte Funktion.
+
 ## E. Standabgleich, Sicherung und Datenlebenszyklus
 
 ## D18 – Konfliktverhalten
@@ -296,6 +305,27 @@ Die Umsetzung richtet sich nach [den Arbeitsaufträgen](AUFTRAEGE-v1.0.md). Tech
 
 Dieses Protokoll erteilt keine pauschale Autorisierung zum Löschen alter Originale, Zugriff auf Geheimnisse, echten Anbieteraufrufen oder Verändern bestehender YAWA-Inhalte. Die technische Branch-Trennung bleibt in der normalen Bedienung intern; relevante Speicher-/Übernahme-/Fehlerzustände bleiben sichtbar.
 
+## Ergänzungen aus dem Planungs- und Mediengespräch vom 08.11.2026
+
+- **Medien:** Eine Szene entspricht einem Abschnitt; höchstens ein Medium pro Abschnitt. GhostWriter ist für textorientierte Bücher gedacht, nicht für Bildbände/Fotobücher. Sechs Positionen (oben/unten × links/mittig/rechts) mit Textumfluss im Abschnitt und ein prozentualer Breitenregler sind bestätigt. Ein Bild vor/nach einem Textabschnitt kann einen eigenen Medienabschnitt erhalten. Anforderungen, keine Implementierungszusage: [Medienplatzierung](MEDIENPLATZIERUNG.md).
+- **Umschlag:** Für v1.0 vorgemerkt: hochgeladene Gestaltung analysieren und kontrolliert in buchbezogene Umschlageinstellungen umwandeln. Fertiges Coverbild und bearbeitbaren Nachbau unterscheiden; Vorschau und ausdrückliche Bestätigung bleiben nötig. Ausführlicher Umfang im [Entscheidungsauftrag](../ENTSCHEIDUNGSAUFTRAG-v1.0.md#nachtrag-für-v10-umschlag-aus-hochgeladener-gestaltungsvorlage).
+- **Bedienglossar:** Eigener Auftrag erteilt; kein Buchglossar. [Umsetzungsauftrag](../UMSETZUNGSAUFTRAG-BEDIENGLOSSAR.md).
+- **Dokumentationswebsite:** Eine zentrale deutsche/englische Programmwebsite aus docs/, keine Websites je Buchrepository. Zuordnung samt Aufbau und Veröffentlichung zu v0.9.0 bestätigt. Technische Umsetzung und konkrete produktive Bereitstellung stehen aus: [Planungsnotiz](../PLANUNGSNOTIZ-DOKUMENTATIONSWEBSITE.md).
+- **Versionsfolge und Overlays:** Die [Zwischenversionen](../PLAN-v1.0-ZWISCHENVERSIONEN.md) bleiben mit Ausnahme der Websitezuordnung ein Vorschlag. [Buch-Overlays](../PLANUNGSNOTIZ-BUCH-OVERLAYS.md) bleiben eine vorgemerkte Idee ohne Versionszusage.
+
+
+## Beschluss vom 8. November 2026: Skill-Unterstützung
+
+Vom Benutzer mit „so machen wir das“ bestätigt:
+
+- **v1.0:** Die vorhandene GhostWriter-Skill-Unterstützung prüfen und für Claude und Codex konsistent nutzbar machen. Einstieg, Buchprofil, Schreibablauf und Qualitätsprüfung verwenden dieselben fachlichen Regeln. Clientabhängiges Laden und verfügbare Werkzeuge praktisch prüfen; Unterstützung nicht allein aus dem Dateiformat ableiten.
+- **Ab v1.1:** Eigenständige Buch-Skills für Konzeption, Recherche, Schreiben/Überarbeiten, Kontinuität und Ausgabeprüfung schrittweise ausbauen. Einzelumfang und Abnahme je Skill festlegen; keine Zusage, alle Skills bereits mit v1.1 vollständig zu liefern.
+- Entwicklungsskills können nach Bedarf lokal eingesetzt werden und sind kein an eine Produktversion gebundenes Liefermerkmal.
+- Fachliche Regeln bleiben in einer gemeinsamen Quelle; Skill-Einstiege verweisen darauf. Buchinhalte und individuelle Vorgaben bleiben im Buchprojekt. Normale Buchaufträge sollen ohne Kenntnis von Skill-Namen funktionieren.
+
+Bestätigte Planung, noch keine Umsetzung oder praktische Abnahme. Keine GitHub-Übertragung durch diesen Beschluss beauftragt.
+
+
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
