@@ -74,6 +74,13 @@ class OutputOptionsTest(Base):
         self.assertIn('text-indent: 0', css)
         self.assertIn('line-height: 1.98', css)
 
+    def test_latex_plain_text_special_characters(self):
+        self.assertEqual(build_edition.latex_escape('OpenAI image_gen'), r'OpenAI image\_gen')
+        self.assertEqual(build_edition.latex_escape('A & 50% #1 $2 {x} ~ ^ ' + chr(92)),
+                         r'A \& 50\% \#1 \$2 \{x\} \textasciitilde{} \textasciicircum{} \textbackslash{}')
+        ts = dict(TYPESETTING_DEFAULT, running_heads='book')
+        self.assertIn(r'\lehead{Titel\_1}', build_edition.layout_tex(ts, {'title': 'Titel_1'}))
+
     def test_schema_and_isbn(self):
         self.set_options()
         self.assertEqual(validate_project.check_project(self.base), [])
@@ -116,6 +123,15 @@ class OutputTypesettingTest(Base):
                             '--out', str(out), *extra], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         return out, yaml.safe_load((out / 'edition.yml').read_text(encoding='utf-8'))
+
+    def test_pdf_imprint_with_provider_underscore(self):
+        approve_chapter_1(self.base)
+        self.set_options('ai_disclosure:\n  mode: custom\n  placement: imprint\n'
+                         '  text: "Bildnachweis: OpenAI image_gen"\n')
+        out, ed = self.build('--formats', 'pdf')
+        text = subprocess.run(['pdftotext', str(out / f'{ed["tag"]}.pdf'), '-'],
+                              capture_output=True, text=True, check=True).stdout
+        self.assertIn('OpenAI image_gen', text)
 
     def test_options_in_pdf_and_epub(self):
         approve_chapter_1(self.base)
