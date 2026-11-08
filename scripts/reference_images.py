@@ -8,7 +8,6 @@ import argparse
 import datetime
 import json
 import re
-import shutil
 import sys
 from pathlib import Path
 
@@ -40,7 +39,7 @@ def all_references(base):
 
 
 def add(base, file, caption, description="", purpose="", roles=None, origin="unknown",
-        license_info="", consent="", links=None):
+        license_info="", consent="", links=None, *, confirm_large_collection=False):
     src = Path(file)
     if not src.is_file():
         raise SystemExit(f"{file}: Datei fehlt")
@@ -54,15 +53,25 @@ def add(base, file, caption, description="", purpose="", roles=None, origin="unk
     for link in links:
         if link.get("kind") not in KINDS or not str(link.get("id", "")).strip():
             raise SystemExit("Jede Zuordnung braucht einen gültigen Typ und eine ID.")
-    folder = directory(base)
-    folder.mkdir(parents=True, exist_ok=True)
+    from media_policy import prepare_upload, safe_destination
+    data = prepare_upload(base, src, confirm_large_collection=confirm_large_collection)
+    from io import BytesIO
+    from PIL import Image
+    with Image.open(BytesIO(data)) as image:
+        if image.format not in ('PNG', 'JPEG'):
+            raise ValueError('Nur PNG oder JPEG.')
+        size = image.size
+        image.verify()
+    folder = safe_destination(base, 'reference-images')
     slug = tag_slug(caption)[:48].strip("-") or "bild"
     iid, n = f"ref-img-{slug}", 2
     taken = set(all_references(base))
-    while iid in taken:
+    while iid in taken or (folder / f"{iid}{ext}").exists():
         iid, n = f"ref-img-{slug}-{n}", n + 1
     dest = folder / f"{iid}{ext}"
-    shutil.copyfile(src, dest)
+    folder.mkdir(parents=True, exist_ok=True)
+    with dest.open('xb') as output:
+        output.write(data)
     now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     meta = {
         "id": iid, "file": dest.name, "caption": caption.strip(),
@@ -71,12 +80,7 @@ def add(base, file, caption, description="", purpose="", roles=None, origin="unk
         "license": license_info.strip(), "consent": consent.strip(),
         "created_at": now, "links": links
     }
-    try:
-        from PIL import Image
-        with Image.open(dest) as im:
-            meta["width_px"], meta["height_px"] = im.size
-    except ImportError:
-        pass
+    meta['width_px'], meta['height_px'] = size
     (folder / f"{iid}.yml").write_text(
         yaml.safe_dump(meta, allow_unicode=True, sort_keys=False, width=10**6),
         encoding="utf-8")
@@ -127,6 +131,7 @@ def main(argv=None):
     p = sub.add_parser("add")
     p.add_argument("file")
     p.add_argument("--caption", required=True)
+    p.add_argument("--confirm-large-collection", action="store_true")
     p.add_argument("--description", default="")
     p.add_argument("--purpose", default="")
     p.add_argument("--role", action="append", choices=sorted(ROLES), dest="roles")
@@ -146,7 +151,7 @@ def main(argv=None):
     base = Path(a.project)
     if a.command == "add":
         meta = add(base, a.file, a.caption, a.description, a.purpose, a.roles, a.origin,
-                   a.license, a.consent, a.link)
+                   a.license, a.consent, a.link, confirm_large_collection=a.confirm_large_collection)
         print(f"Referenz {meta['id']} gespeichert (nicht freigegeben).")
     elif a.command == "list":
         for meta, path, _ in all_references(base).values():
@@ -164,4 +169,7 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except (ValueError, OSError) as error:
+        raise SystemExit(str(error)) from None

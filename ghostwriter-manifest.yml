@@ -49,6 +49,7 @@ book:
   - chapters/
   - matter/                 # Vor- und Nachspann: Widmung, Prolog, Epilog, Danksagung (#57)
   - cover/                  # Umschlag: Bilder und Rückseitentexte (#68)
+  - reference-images/       # Originale und Metadaten visueller Referenzen (#143)
   - characters/             # Figuren (#53)
   - story/                  # Schauplätze und Zeitleiste (#124)
   - costs/
