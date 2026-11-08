@@ -1,0 +1,6 @@
+{"format":1,"project":{"title":"GhostWriter Export-Abnahme","title_short":"Exporttest","author":"GhostWriter Testdaten","current_edition":0,"cost":{"amount":null,"estimated":false,"text":"–"}},"workflow":{"current_chapter_id":"ch-01-endlich-eine-erklaerung","current_section_id":"sec-01-01-der-brief-der-sechs-monate"},
+"chapters":[
+{"id":"ch-01-endlich-eine-erklaerung","number":1,"title":"Synthetisches Testkapitel","subtitle":"","path":"chapters/01-endlich-eine-erklaerung","status":"in_progress","sections_total":1,"sections_approved":0,"cost":{"amount":null,"estimated":false,"text":"–"},"markers":{"anekdote":0,"quelle":1,"medizin":0,"recht":0,"kontinuitaet":0},"sections":[
+{"id":"sec-01-01-der-brief-der-sechs-monate","number":"1.1","title":"Der Brief, der sechs Monate auf dem Küchentisch lag","path":"chapters/01-endlich-eine-erklaerung/sections/01-der-brief-der-sechs-monate.md","status":"writing","fact_check":"optional","approvals":{"writing":false,"section":false},"has_goal":true,"has_summary":true,"cost":{"amount":null,"estimated":false,"text":"–"},"markers":{"anekdote":0,"quelle":1,"medizin":0,"recht":0,"kontinuitaet":0}}
+]}
+]}
