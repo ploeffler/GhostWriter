@@ -369,7 +369,7 @@
           ],
           "properties": {
             "purpose": {
-              "const": "full_product_expansion"
+              "const": "complete_book_workflow_without_ai_provider_apis"
             },
             "scope": {
               "type": "string"
@@ -379,6 +379,24 @@
               "items": {
                 "type": "string"
               }
+            },
+            "exclusions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "deferred_until_after_v1_0": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "ai_execution": {
+              "const": "chat_or_copy_order_and_review_returned_results"
+            },
+            "acceptance_requires_provider_credentials": {
+              "const": false
             }
           },
           "additionalProperties": false
@@ -715,7 +733,7 @@
           ],
           "properties": {
             "scope": {
-              "const": "automated_cost_accounting"
+              "const": "cost_transparency_without_provider_connections"
             },
             "includes": {
               "type": "array",

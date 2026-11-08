@@ -20,14 +20,19 @@ product_roadmap:
       - {version: "v0.5", goal: edition_and_export}
       - {version: "v0.6", goal: library_one_installation_many_books_as_branches}   # #36–#41, Migration #59, README #46, öffentliches Programm-Repo #48
       - {version: "v0.7", goal: characters_and_image_generation}                  # Figuren #53, Bilderzeugung #54
-      - {version: "v1.0", goal: full_product_expansion}                           # siehe v1_0
+      - {version: "v1.0", goal: complete_book_workflow_without_ai_provider_apis}                           # siehe v1_0
       - {version: "v1.5", goal: foreword_afterword_glossary_and_book_translation}   # #58, #75
   v1_0:
-    purpose: full_product_expansion
-    scope: complete_ghostwriter_target_capabilities
-    requires: [complete_workflow_automation, github_issue_and_milestone_orchestration, robust_approval_and_audit_controls, repeatable_research_and_fact_checking, complete_export_and_release_pipeline, workflow_validation_and_quality_gates, installable_web_app_pwa, offline_book_repository, own_backend_api, scheduled_ai_runs_and_queue, automated_cost_accounting_and_budget, usage_limits_pause_automation, front_and_back_matter, output_options, program_i18n, book_ai_disclosure, cross_client_state_sync]
+    purpose: complete_book_workflow_without_ai_provider_apis
+    scope: chat_and_manual_handoff_without_ai_provider_connections
+    requires: [github_issue_and_milestone_orchestration, robust_approval_and_audit_controls, repeatable_research_and_fact_checking, complete_export_and_release_pipeline, workflow_validation_and_quality_gates, installable_web_app_pwa, offline_book_repository, own_backend_api, usage_limits_pause_automation, front_and_back_matter, output_options, program_i18n, book_ai_disclosure, cross_client_state_sync]
+    # Entscheidung 08.11.2026: keine KI-Anbieter-API-Verbindungen bis einschließlich v1.0.
+    exclusions: [ai_provider_api_connections, scheduled_provider_ai_runs, provider_usage_import, provider_quota_queries, direct_image_provider_calls, automatic_reference_image_delivery]
+    deferred_until_after_v1_0: [provider_parts_of_54_143_65_66_62_71_35_75_204, real_provider_api_acceptance_for_123_124]
+    ai_execution: chat_or_copy_order_and_review_returned_results
+    acceptance_requires_provider_credentials: false
     # Issues: installable_web_app_pwa #35, offline_book_repository #61, own_backend_api #19,
-    #   scheduled_ai_runs_and_queue #65, automated_cost_accounting_and_budget #66,
+    #   Anbieterabhängige Teile von #65/#66 erst nach v1.0 (Entscheidung oben).
     #   cross_client_state_sync #179 (prioritärer Stabilitätsauftrag; zunächst Planung),
     #   usage_limits_pause_automation #62, front_and_back_matter #57, output_options #68, program_i18n #74, book_ai_disclosure #78
   delivery_policy:
@@ -122,8 +127,9 @@ cost_tracking:
     includes: [backend_api_cost_entry, optional_token_and_usage_entry, section_attribution, chapter_subtotals, project_total, actual_vs_estimated_label]
     cost_display_optional: true   # Kostenanzeigen sind keine Voraussetzung für Chat-Arbeit
   v1_0:
-    scope: automated_cost_accounting
-    includes: [provider_usage_import, model_specific_price_calculation, automatic_activity_attribution, currency_conversion, detailed_cost_reports, budget_thresholds_and_alerts]
+    scope: cost_transparency_without_provider_connections
+    includes: [existing_cost_records, actual_vs_estimated_label, unavailable_values_explicit, budget_thresholds_from_available_records]
+    # Automatischer Provider-Nutzungsimport und Anbieter-Kontingente erst nach v1.0.
   invariants:
     - every_billable_backend_or_action_ai_api_call_must_be_recorded_or_marked_unavailable
     - chat_work_via_subscription_creates_no_cost_entry

@@ -1,5 +1,9 @@
 # Ghostwriter – Architektur
 
+## Versionsentscheidung vom 08.11.2026
+
+Bis einschließlich v1.0 sind keine Verbindungen zu KI-Anbieter-APIs vorgesehen. KI-Arbeit erfolgt im Chat oder per „Auftrag kopieren“ mit geprüfter Rückgabe; Anbieterzugänge sind keine Voraussetzung der Abnahme. Die eigene GhostWriter-Schnittstelle und die GitHub-Anbindung sind davon getrennt. Frühere v1.0-Pläne für direkte KI-Aufrufe, zeitgesteuerte Anbieterläufe und automatische Anbieter-Verbrauchsabfragen sind auf die Zeit nach v1.0 verschoben. Maßgeblich sind die [Roadmap und Aufgabenabgrenzung](WORKFLOW-MODEL.md#verbindliche-entscheidung-v10-ohne-ki-anbieter-apis) und `workflow.yml`. Bestehender optionaler Code wird dadurch nicht entfernt.
+
 ## Produktidee
 
 Ghostwriter ist ein chatgesteuerter Schreib- und Rechercheworkflow. GitHub ist persistenter Projektspeicher und Versionsverwaltung; ein KI-Chat-Assistent übernimmt Dialog, Planung und inhaltliche Arbeit. Der Workflow ist anbieterunabhängig: Er setzt nur einen Assistenten voraus, der die Anweisungen in `START.md` befolgt.
