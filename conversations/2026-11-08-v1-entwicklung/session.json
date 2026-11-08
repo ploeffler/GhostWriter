@@ -1,0 +1,11 @@
+{
+  "base": "main",
+  "context": {
+    "book_branch": "main",
+    "project": "GhostWriter v1.0 – selbstständige Entwicklung",
+    "repository": "ploeffler/GhostWriter"
+  },
+  "format_version": 1,
+  "session": "2026-11-08-v1-entwicklung",
+  "source_commit": "b2fb436b37f0cadd448d767dcf0619ae21192787"
+}
