@@ -1,92 +1,69 @@
-data_version: 1   # Datenstruktur-Version des Buchs (scripts/migrate_project.py), nicht von Hand ändern
 project:
-  title: ""
-  title_short: ""          # Kurztitel für Badge, Listen und Auflagen-Namen
-  working_title: ""
-  subtitle: ""
-  author: ""
-  language: "de"
-  translations_planned: []   # geplante Übersetzungen als Sprachcodes, z. B. [en, fr]; nur Angabe, Umsetzung #75
-  description_short: ""   # ein Satz
-  description: ""          # ausführliche Beschreibung
-  target_audience: ""
-  book_type: ""
-  status: "concept"
-  current_edition: 0       # letzte erschienene Auflage, 0 = noch keine
-
+  title: GhostWriter Export-Abnahme
+  title_short: Exporttest
+  working_title: GhostWriter Export-Abnahme
+  subtitle: ''
+  author: GhostWriter Testdaten
+  language: de
+  description_short: ''
+  description: ''
+  target_audience: ''
+  book_type: ''
+  status: concept
+  current_edition: 0
 ai_settings:
-  hallucination_policy: "strict"
-  source_policy: "required"
-  uncertainty_policy: "explicit"
-  creativity: "balanced"
-  web_research: "research"
-
-# Welcher KI-Anbieter übernimmt welche Aufgabe?
-# provider: ID aus providers.yml, "chat" = aktueller Chat-Assistent, "" = noch nicht gewählt
-# model:    frei wählbarer Modellname des Anbieters ("" = Standardmodell des Anbieters)
-# Leere Rollen erben von `default`. Globale KI-Regeln (ai_settings) gelten für alle Anbieter.
-# available: Dienste, die du schon hast (IDs aus providers.yml). Nur diese werden Aufgaben
-#            zugeteilt; weitere später im Formular „KI-Dienste“ hinzufügen.
+  hallucination_policy: strict
+  source_policy: required
+  uncertainty_policy: explicit
+  creativity: balanced
+  web_research: research
 ai_providers:
-  available: []
   default:
-    provider: "chat"
-    model: ""
+    provider: chat
+    model: ''
   research:
-    provider: ""
-    model: ""
-    search_tools: []        # optional, IDs aus providers.yml > search_tools
+    provider: ''
+    model: ''
+    search_tools: []
   brainstorming:
-    provider: ""
-    model: ""
+    provider: ''
+    model: ''
   writing:
-    provider: ""
-    model: ""
+    provider: ''
+    model: ''
   revision:
-    provider: ""
-    model: ""
+    provider: ''
+    model: ''
   fact_check:
-    provider: ""
-    model: ""
+    provider: ''
+    model: ''
   queue_processing:
-    agent: "manual"         # ID aus providers.yml > queue_agents
-    model: ""
+    agent: manual
+    model: ''
   rules:
-    fact_check_independent_of_writing: recommended   # recommended | required | off
+    fact_check_independent_of_writing: recommended
     require_web_research_for_research_role: true
-
 workflow:
-  current_phase: "wizard"
-  current_chapter_id: null
-  current_section_id: null
+  current_phase: writing
+  current_chapter_id: ch-01-endlich-eine-erklaerung
+  current_section_id: sec-01-01-der-brief-der-sechs-monate
   require_section_writing_approval: true
   require_section_approval: true
   require_chapter_approval: true
-  fact_checking_default: "optional"
-
-updates:
-  auto: true          # neue GhostWriter-Versionen automatisch einspielen (docs/UPDATES.md)
-changes:
-  auto_merge: false   # gespeicherte Änderungen sofort übernehmen statt über „Änderungen übernehmen“ (START.md, Abschnitt 0)
-typesetting:
-  # Buchsatz für PDF, DOCX und EPUB der Auflagen (Projekteinstellungen)
-  page_size: a5        # a5 | 12x19 | 13.5x21.5 | a4
-  font: serif          # serif | sans
-  font_size: 11        # 10 | 10.5 | 11 | 11.5 | 12 (pt)
-  title_page: true     # Titelei: Titelseite
-  imprint: true        # Titelei: Impressum
-  toc: true            # Inhaltsverzeichnis
-  toc_depth: 1         # 1 = nur Kapitel, 2 = Kapitel und Abschnitte
-
-# Kapitel in Reihenfolge; Abschnitte je Kapitel in Reihenfolge.
-# Sichtbare Nummern ergeben sich aus der Reihenfolge, IDs bleiben stabil.
-#   - id: ch-01-einleitung
-#     title: "Einleitung"
-#     path: chapters/01-einleitung
-#     status: planned
-#     sections:
-#       - id: sec-01-01-zielsetzung
-#         title: "Zielsetzung"
-#         path: chapters/01-einleitung/sections/01-zielsetzung.md
+  fact_checking_default: optional
 structure:
-  chapters: []
+  chapters:
+  - id: ch-01-endlich-eine-erklaerung
+    title: Synthetisches Testkapitel
+    path: chapters/01-endlich-eine-erklaerung
+    status: in_progress
+    sections:
+    - id: sec-01-01-der-brief-der-sechs-monate
+      title: Der Brief, der sechs Monate auf dem Küchentisch lag
+      path: chapters/01-endlich-eine-erklaerung/sections/01-der-brief-der-sechs-monate.md
+typesetting:
+  page_size: a5
+  formats:
+  - pdf
+  - docx
+  - epub
