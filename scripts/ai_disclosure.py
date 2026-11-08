@@ -176,8 +176,8 @@ def apply(base, mode=None, placement=None, name_services=None, text=None, from_s
         s['placement'] = placement
     if name_services is not None:
         s['name_services'] = name_services
-    if (s['mode'], s['name_services']) != before and s['mode'] != 'custom':
-        s['text'] = ''   # Vorschlag neu bestätigen
+    if (s['mode'], s['name_services']) != before:
+        s['text'] = ''   # Wortlaut bei jeder Änderung neu bestätigen
     if s['mode'] == 'none' or clear:
         s['text'] = ''
     if from_suggestion:
