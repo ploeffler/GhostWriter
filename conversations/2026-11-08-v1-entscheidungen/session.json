@@ -1,0 +1,11 @@
+{
+  "base": "main",
+  "context": {
+    "book_branch": "main",
+    "project": "GhostWriter – Programmentwicklung und v1.0-Entscheidungen",
+    "repository": "ploeffler/GhostWriter"
+  },
+  "format_version": 1,
+  "session": "2026-11-08-v1-entscheidungen",
+  "source_commit": "745f0b7967ec2e9ee0e59cc0bb707250e874cf5a"
+}
