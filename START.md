@@ -246,6 +246,8 @@ Ein Widget kann nach dem Erscheinen keinen Fortschritt mehr anzeigen; die Status
 
 ### Schreiben ins Repository (verbindlich)
 
+**Architekturentscheidung #169 (08.11.2026):** Den gemeinsamen Arbeits-Branch je Buch beibehalten, erst bei autorisierter Speicherung anlegen und nach vollständiger Übernahme entfernen. Öffnen und Lesen erzeugen keinen Arbeits-Branch. Namen und `changes.auto_merge` bleiben unverändert. Grenzen, Alternativen und Fehlerfälle stehen in [Entscheidung #169](docs/ENTSCHEIDUNG-169.md).
+
 Für gebündelte Abschnitts-, Überarbeitungs-, Abgleich- und Übernahmedialoge gelten zusätzlich die konkreten Schritte in [`docs/ARBEITSABLAEUFE.md`](docs/ARBEITSABLAEUFE.md).
 
 Nach dem Einrichten ändert der Assistent das Buch nie direkt. Jede Änderung aus einem Formular wird zuerst ein Commit in einem Arbeits-Branch; übernommen wird sie erst, wenn der Benutzer in der Projektübersicht „Buchänderungen übernehmen“ bestätigt.

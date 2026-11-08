@@ -24,6 +24,8 @@ Bei jedem neuen Chat und bei jedem Wiedereinstieg:
 
 Ein Branch mit einem ähnlichen Namen ist nicht automatisch der passende Arbeits-Branch. Prüfe den exakten Namen, den offenen Pull Request und dessen Ziel-Branch. Andere Entwicklungs- oder Aufgaben-Branches sind nicht ohne weitere Hinweise als Manuskript-Branches zu behandeln.
 
+Die [Entscheidung #169](docs/ENTSCHEIDUNG-169.md) bestätigt dieses Modell: Arbeits-Branch erst bei Speicherung, nach vollständiger Übernahme entfernen. Verwaiste Branches nicht ungeprüft weiterverwenden oder löschen.
+
 ## Schutzregeln
 
 - Der Buch-Branch enthält den für das Buch übernommenen Stand.

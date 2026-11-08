@@ -1,5 +1,8 @@
 # GhostWriter API-Vertrag (Entwurf für die GPT-Action)
 
+Die [Entscheidung #169 vom 08.11.2026](ENTSCHEIDUNG-169.md) bestätigt den Arbeits-Branch bei Bedarf und präzisiert Lebenszyklus, Parallelität und Fehlerfälle. Sie ändert keine Branch-Namen und ist keine Behauptung eines bereits implementierten zentralen Schreibdienstes.
+
+
 ## Status
 Dieser Vertrag beschreibt die geplante Schnittstelle. Er ist noch keine laufende API und enthält keinen Produktiv-Host. Vor Aktivierung müssen ein HTTPS-Dienst, Authentifizierung und eine passende OpenAPI-Spezifikation implementiert werden.
 
