@@ -63,6 +63,21 @@
       "content": "PR #221 nach elf neuen Medientests, vollständiger lokaler Suite (371 Tests, zehn übersprungen) und GitHub-Prüfung #869 übernommen: 18b43f748dc15a301c8ef50ca5c5079d54fd9a93. Originalbilder bleiben unverändert, Verkleinerungen und Uploads ab der Warnschwelle brauchen ausdrückliche Bestätigung. Sitzung unmittelbar danach fortgeschrieben.",
       "id": "dev-010",
       "role": "assistant"
+    },
+    {
+      "content": "wie weit sind wir in % ungefähr?",
+      "id": "dev-011",
+      "role": "user"
+    },
+    {
+      "content": "Grob geschätzt 55–65 % bis zur geprüften v1.0, keine gemessene Fortschrittszahl. Vorhandene Buchverwaltung bildet Basis; Originalschutz übernommen; Standabgleich und API-freie Analysen in Arbeit; Oberflächen-/YAWA-Abnahme offen.",
+      "id": "dev-012",
+      "role": "assistant"
+    },
+    {
+      "content": "#222 nach acht gezielten Tests und erfolgreicher GitHub-CI #874 übernommen: 137465e927d647486bad08ce25eb93adb0982120. Schreibfreie Lesestandprüfung erkennt geänderte Ziele, Kontextregeln und divergierte Stände; kein Ersatz der atomaren Schreibprüfung. Sitzung unmittelbar danach gesichert.",
+      "id": "dev-013",
+      "role": "assistant"
     }
   ]
 }
