@@ -11,7 +11,7 @@ name: Manuskript importieren
 #   apply    Kapitel, Abschnitte und Teile anlegen (Status revision; Schreibfreigabe
 #            nur mit writing_approval, festgehalten in approvals.yml)
 # Gestartet aus dem Chat (START.md, „Manuskript importieren“) auf dem Buch-Branch.
-# Täglich: Originale nach Ablauf der Aufbewahrung entfernen (import.yml keep).
+# Originale bleiben bis zu einem ausdrücklichen Löschauftrag erhalten (D21).
 
 on:
   workflow_dispatch:
@@ -47,8 +47,6 @@ on:
         description: 'bei outline: auch starten, wenn weniger als 10 % des KI-Budgets übrig sind'
         type: boolean
         default: false
-  schedule:
-    - cron: '17 3 * * *'
 
 permissions:
   contents: write
@@ -115,33 +113,3 @@ jobs:
           git commit -q -m "$msg" -m "GhostWriter-Aktion: import.$STEP"
           git pull -q --rebase origin "$GITHUB_REF_NAME"
           git push -q origin "HEAD:$GITHUB_REF_NAME"
-
-  expire:
-    if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Abgelaufene Originale entfernen
-        run: |
-          pip install pyyaml jsonschema
-          [ -f scripts/import_book.py ] || exit 0
-          git config user.name GhostWriter
-          git config user.email ghostwriter@users.noreply.github.com
-          for ref in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/buch/); do
-            br=${ref#origin/}
-            git checkout -q -B "$br" "$ref"
-            [ -f import/import.yml ] || continue
-            if python scripts/import_book.py . expire | grep -q entfernt; then
-              git add -A import
-              git commit -q -m "Original des Imports entfernt (Aufbewahrung abgelaufen)" -m "GhostWriter-Aktion: import.expire"
-              git push -q origin "HEAD:$br"
-              echo "- $br: Original entfernt" >> "$GITHUB_STEP_SUMMARY"
-            fi
-          done

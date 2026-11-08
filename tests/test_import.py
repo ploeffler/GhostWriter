@@ -107,7 +107,12 @@ class ImportTest(unittest.TestCase):
         self.assertFalse(import_book.status(self.book, datetime.date(2026, 11, 20))['soon'])
         self.assertTrue(import_book.status(self.book, datetime.date(2026, 11, 30))['soon'])
         self.assertFalse(import_book.expire(self.book, datetime.date(2026, 12, 3)))
-        self.assertTrue(import_book.expire(self.book, datetime.date(2026, 12, 4)))
+        before = {p.relative_to(self.book): p.read_bytes()
+                  for p in (self.book / 'import').rglob('*') if p.is_file()}
+        self.assertFalse(import_book.expire(self.book, datetime.date(2026, 12, 4)))
+        self.assertEqual(before, {p.relative_to(self.book): p.read_bytes()
+                                 for p in (self.book / 'import').rglob('*') if p.is_file()})
+        self.assertTrue(import_book.expire(self.book, datetime.date(2026, 12, 4), confirmed=True))
         self.assertFalse((self.book / 'import/original').exists())
         self.assertTrue(import_book.status(self.book)['removed'])
 
@@ -207,6 +212,47 @@ class ImportTest(unittest.TestCase):
         import_book.convert(self.book, self.tmp / 'Strolchi.docx')
         with self.assertRaisesRegex(SystemExit, 'schon eine Gliederung'):
             import_book.outline_plan(self.book)
+
+
+class OriginalRetentionTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.book = Path(self.tmp.name)
+        original = self.book / 'import/original'
+        original.mkdir(parents=True)
+        (original / 'source.txt').write_bytes(b'Original unveraendert')
+        (self.book / 'ghostwriter.yml').write_text('project: {current_edition: 1}\n')
+
+    def set_info(self, **values):
+        info = {'source': 'import/original/source.txt', **values}
+        (self.book / 'import/import.yml').write_text(yaml.safe_dump(info))
+
+    def test_first_edition_never_deletes_without_current_confirmation(self):
+        self.set_info(keep='first_edition')
+        before = (self.book / 'import/import.yml').read_bytes()
+        self.assertTrue(import_book.status(self.book)['due'])
+        self.assertFalse(import_book.expire(self.book))
+        self.assertEqual(before, (self.book / 'import/import.yml').read_bytes())
+        self.assertEqual((self.book / 'import/original/source.txt').read_bytes(), b'Original unveraendert')
+
+    def test_legacy_expire_cli_is_read_only_without_confirmation(self):
+        self.set_info(keep='30', keep_until='2020-01-01')
+        result = subprocess.run([sys.executable, str(ROOT / 'scripts/import_book.py'),
+                                 str(self.book), 'expire'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((self.book / 'import/original/source.txt').exists())
+        self.assertNotIn('removed_at', yaml.safe_load((self.book / 'import/import.yml').read_text()))
+
+    def test_confirmed_removal_does_not_follow_original_folder_symlink(self):
+        self.set_info(keep='30', keep_until='2020-01-01')
+        original = self.book / 'import/original'
+        outside = self.book / 'outside'
+        original.rename(outside)
+        original.symlink_to(outside, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, 'symbolischer Link'):
+            import_book.expire(self.book, confirmed=True)
+        self.assertTrue((outside / 'source.txt').exists())
 
 
 if __name__ == '__main__':

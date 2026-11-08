@@ -689,12 +689,22 @@ def status(base, today=None):
     return out
 
 
-def expire(base, today=None):
+def expire(base, today=None, *, confirmed=False):
+    """Alte Fristen allein autorisieren keine Löschung (D21).
+
+    Der explizite Aufruf darf erst nach Benutzerauftrag mit confirmed=True
+    erfolgen. Historische Aufbewahrungsangaben bleiben nachvollziehbar.
+    """
+    if not confirmed:
+        return False
     st = status(base, today)
     if not st or st['removed'] or not st['due']:
         return False
     base = Path(base)
-    shutil.rmtree(base / 'import' / 'original', ignore_errors=True)
+    original = base / 'import' / 'original'
+    if (base / 'import').is_symlink() or original.is_symlink():
+        raise ValueError('Originalordner darf kein symbolischer Link sein')
+    shutil.rmtree(original)
     p = base / 'import' / 'import.yml'
     info = yaml.safe_load(p.read_text(encoding='utf-8')) or {}
     info['removed_at'] = (today or datetime.date.today()).isoformat()
@@ -713,6 +723,7 @@ def main(argv):
     ap.add_argument('--by', default='chat', help='bei apply --writing-approval: GitHub-Login (sonst chat)')
     ap.add_argument('--commit', help='bei apply --writing-approval: bestätigter Stand (sonst HEAD)')
     ap.add_argument('--today')
+    ap.add_argument('--confirmed', action='store_true', help='bei expire: ausdrücklichen Löschauftrag bestätigen')
     ap.add_argument('--json', action='store_true')
     a = ap.parse_args(argv[1:])
     base = Path(a.project)
@@ -761,7 +772,7 @@ def main(argv):
         st = status(base, today)
         print(json.dumps(st, ensure_ascii=False) if a.json else (st and json.dumps(st, ensure_ascii=False)) or 'kein Import')
         return 0
-    print('✓ Original entfernt (Aufbewahrung abgelaufen)' if expire(base, today) else 'nichts zu entfernen')
+    print('✓ Original entfernt (Aufbewahrung abgelaufen)' if expire(base, today, confirmed=a.confirmed) else 'nichts zu entfernen')
     return 0
 
 
