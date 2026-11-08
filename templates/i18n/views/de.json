@@ -1,6 +1,6 @@
 {
   "there_are_no_pending_changes": "Es gibt keine offenen Änderungen.",
-  "apply_changes": "### 🔀 Änderungen übernehmen",
+  "apply_changes": "### 🔀 Buchänderungen übernehmen",
   "apply_to_from_pull_request": "In `{p_a}` übernehmen: {p_b} aus `{p_c}` (Änderungspaket #{p_d}).",
   "change_date_commit": "| # | Änderung | Datum | Commit |",
   "the_changes_become_part_of_the_book_undoing_them_requires_another_change": "Danach gehören die Änderungen zum Buch; rückgängig machen geht nur mit einer neuen Änderung.",
@@ -419,7 +419,7 @@
   "view.data.no_edition_yet": "noch keine Auflage",
   "view.data.unknown": "unbekannt",
   "view.data.library": "Bücherregal",
-  "view.data.install_update": "Update einspielen",
+  "view.data.install_update": "GhostWriter aktualisieren",
   "view.matter.part_area_status": "| Teil | Bereich | Stand |",
   "view.matter.only_approved_parts_enter_an_edition_you": "Nur freigegebene Teile kommen in eine Auflage. Widmung und Danksagung schreibst du selbst; für Vorwort, Prolog, Epilog und Nachwort gibt es Recherche und Ghostwriting wie bei Abschnitten, fürs Glossar Vorschläge und Recherche je Begriff.",
   "view.matter.open": "öffnen",

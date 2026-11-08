@@ -77,11 +77,11 @@ sowie Bilder werden von dieser begrenzten Kandidatensuche nicht beurteilt.
 
 Zum Abschluss die tatsächlichen Dateien und Entscheidungen in Alltagssprache
 zusammenfassen: gespeichert, noch offen oder bereits übernommen. Die Bestätigung
-„Änderungen übernehmen“ übernimmt nur den gezeigten Stand. Abschnitts- und
+„Buchänderungen übernehmen“ übernimmt nur den gezeigten Stand. Abschnitts- und
 Kapitelfreigaben erhalten eigene, eindeutig bezeichnete Bestätigungen samt
 Prüfung ihrer Voraussetzungen und Freigabeprotokoll. Bei einem anderen
 zwischenzeitlichen Stand erneut vergleichen; bei Konflikt nicht automatisch
-übernehmen. Die Auswahl „nur Änderungen übernehmen“ erteilt keine Freigabe.
+übernehmen. Dieser Merge-Schritt erteilt keine Abschnitts- oder Kapitelfreigabe.
 
 ---
 

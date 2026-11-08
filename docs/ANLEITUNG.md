@@ -37,7 +37,7 @@ Die **Projektübersicht** zeigt alle Kapitel mit Status und Kosten; ein Klick ö
 - **Vor- und Nachspann:** Widmung, Vorwort, Prolog, Epilog, Nachwort, Glossar und Danksagung legst du bei Bedarf an (`Vor- und Nachspann` bzw. `Widmung`, `Glossar` …). Sie werden freigegeben wie Abschnitte; Widmung und Danksagung schreibst du selbst. Ins Glossar kommen Begriffe einzeln (`+ Begriff: Erklärung`), im Buch alphabetisch.
 - **KI-Angabe:** Ob im Buch steht, wie du KI genutzt hast, legst du selbst fest (`KI-Angabe`). GhostWriter schlägt einen Satz aus den tatsächlichen Läufen vor; ins Buch kommt er erst, wenn du ihn bestätigst.
 - **Ausgabe:** Wie Auflagen aussehen (Ränder, Schrift, Zeilenabstand, Kolumnentitel, Initialen, Formate, ISBN und Verlag im Impressum), stellst du im Formular `Ausgabe` ein; der nächste Probedruck zeigt es. Für den Druck gibt es dort auch das Profil deines Anbieters (KDP, BoD) und den **Umschlag** mit Rückenbreite, Beschnitt, Klappentext und ISBN-Strichcode; das EPUB bekommt dessen Vorderseite als Cover.
-- **Speichern und übernehmen:** Jede Änderung wird zuerst gesammelt; mit **Änderungen übernehmen** steht sie im Buch (oder sofort, wenn du das eingeschaltet hast).
+- **Speichern und übernehmen:** Jede Änderung wird zuerst gesammelt; mit **Buchänderungen übernehmen** steht sie im Buch (oder sofort, wenn du das eingeschaltet hast).
 - **Befehle** gehen immer: `Start`, `Übersicht`, `Kapitel 3`, `Abschnitt 3.2`, `Neues Kapitel`, `Probedruck`, `Auflage`, `Hilfe`.
 
 ### Änderungspakete schnüren und übernehmen
