@@ -362,6 +362,16 @@ def check_project(project_dir):
                 errors.append(f'{meta_path}: section_id {meta["section_id"]} statt {target["id"]} (Ordner)')
             if not (d / meta['file']).is_file():
                 errors.append(f'{d / meta["file"]}: fehlt')
+            if meta.get('original_file'):
+                from media_policy import safe_destination
+                try:
+                    original = safe_destination(base, Path(folder) / meta['original_file'])
+                    if not original.is_file():
+                        errors.append(f'{meta_path}: Originaldatei fehlt')
+                    elif hashlib.sha256(original.read_bytes()).hexdigest() != meta['original_sha256']:
+                        errors.append(f'{meta_path}: Original-Fingerabdruck stimmt nicht überein')
+                except (ValueError, OSError) as exc:
+                    errors.append(f'{meta_path}: Originaldatei nicht sicher lesbar: {exc}')
             for cid in meta.get('characters') or []:
                 if cid not in char_ids:
                     errors.append(f'{meta_path}: unbekannte Figur {cid}')
