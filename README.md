@@ -31,7 +31,7 @@ Du hast eine Buchidee und willst sie wirklich schreiben, nicht nur darüber nach
 
 ## Weiterlesen
 
-[Anleitung](docs/ANLEITUNG.md) · [Grundsätze](docs/GRUNDSAETZE.md) · [So sieht es aus](docs/DIALOGE.md) · [KI-Dienste nutzen](docs/DIENSTE-NUTZEN.md) · [Updates](docs/UPDATES.md) · [Produktclip](https://github.com/ploeffler/GhostWriter/tree/main/media/produktclip) · [Alle Unterlagen](docs/GRUNDSAETZE.md#unterlagen)
+[Anleitung](docs/ANLEITUNG.md) · [Hilfe: Befehle und Beispielprompts](docs/HILFE.md) · [Grundsätze](docs/GRUNDSAETZE.md) · [So sieht es aus](docs/DIALOGE.md) · [KI-Dienste nutzen](docs/DIENSTE-NUTZEN.md) · [Updates](docs/UPDATES.md) · [Produktclip](https://github.com/ploeffler/GhostWriter/tree/main/media/produktclip) · [Alle Unterlagen](docs/GRUNDSAETZE.md#unterlagen)
 
 ---
 

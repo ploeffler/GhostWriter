@@ -523,6 +523,10 @@ Kosteneinträge schreibt in v0.5 nur das Backend bzw. der Assistent nach einem k
 
 
 
+## Sitzungssicherungen
+
+`conversations/<session-id>/session.json` ordnet eine Session ihrem Projekt, ursprünglichen Zielbranch und Ausgangscommit zu. Je Thema (`conversation`, `decisions`, `research`, `brainstorming`, `drafts`, `planning`, `section_dialogue`) liegen `latest.json` und unveränderliche `<sha256>.json`-Snapshots vor. Sichtbare Gesprächsbeiträge, Quellen, Entscheidungen, Entwürfe und Lücken bleiben erhalten; keine internen Anweisungen oder Secret-Werte. Diese Daten sind eigene Projektdateien, kein Manuskript und keine Freigabe. Ein Sicherungsbranch `ghostwriter/chat/<session-id>` und ein gemeinsamer PR bündeln die Themen-Commits; keine automatische Übernahme. Befehle und Reparaturablauf stehen in [Session-Sicherung](SESSION-SICHERUNG.md).
+
 ## Dauerhafter Buchkontext
 
 `context/book.md` enthält die Buchzusammenfassung; `context/<chapter-id>.md` die jeweilige Kapitelzusammenfassung. Frontmatter: `source_commit` (vollständiger Commit-SHA des gelesenen Quellstands) und `source_digest` (SHA-256 aus dem Kontextplan). Inhalt, Aktualitätsprüfung und Startregel stehen in [CONTEXT.md](CONTEXT.md). Diese abgeleiteten Dateien ersetzen weder Manuskript noch Freigaben. Die feste Grenze von 15.000 Wörtern ist bis einschließlich v1.0 keine Projekteinstellung; Konfiguration folgt erst ab v1.1.

@@ -1244,7 +1244,7 @@ def project_view(base, config, args):
         lines = [f'### 📘 {values["PROJECT_TITLE"] or "Noch ohne Titel"}',
                  f'**{values["PROJECT_EDITION_TEXT"]}** · Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · KI-API-Kosten: **{values["PROJECT_COST"]}**', '']
         if changes:
-            lines += [f'> ⏳ **{values["PENDING_TEXT"]} noch nicht übernommen** (Pull Request #{changes["pull_request"]}) · `M` übernehmen', '']
+            lines += [f'> ⏳ **{values["PENDING_TEXT"]} noch nicht übernommen** (Änderungspaket #{changes["pull_request"]}) · `M` übernehmen', '']
         if ser:
             lines += [f'📚 {values["SERIES_TEXT"]} · `S` Serie', '']
         for a in analyses:
@@ -1282,9 +1282,9 @@ def project_view(base, config, args):
                 if sec['id'] == wf.get('current_section_id'):
                     items.append((f'{ci}.{si}', 'öffnen (zuletzt bearbeitet)'))
         if changes:
-            items.append(('M', 'Änderungen übernehmen'))
+            items.append(('M', 'Buchänderungen übernehmen'))
         if upd:
-            items.append(('U', 'Update einspielen'))
+            items.append(('U', 'GhostWriter aktualisieren'))
         if lib_count >= 2:
             items.append(('L', f'Bücherregal ({lib_count} Bücher)'))
         if ser:
@@ -3118,7 +3118,7 @@ def data_view(base, config, args):
     for b in lib.get('books') or []:
         pr = next((p for p in pulls if (p.get('head') or {}).get('ref') == b.get('work_branch')), None)
         pending = b.get('pending') or 0
-        pend_text = (view_message('view.data.pending', p_a=plural(pending, view_message('view.data.change'), view_message('view.data.changes'))) + (f' · Pull Request #{pr["number"]}' if pr else '')) if pending else view_message('view.data.no_pending_changes')
+        pend_text = (view_message('view.data.pending', p_a=plural(pending, view_message('view.data.change'), view_message('view.data.changes'))) + (f' · {"Pull Request" if UI.get("language") == "en" else "Änderungspaket"} #{pr["number"]}' if pr else '')) if pending else view_message('view.data.no_pending_changes')
         ed = b.get('last_edition')
         v = last_run(RUN_NAMES['validate'], b['branch'])
         pr_run = last_run(RUN_NAMES['proof'], b['branch'])

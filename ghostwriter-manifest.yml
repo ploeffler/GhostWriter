@@ -56,6 +56,7 @@ book:
   - ghostwriter-index.json
   - library.json            # Bücherregal einer Bibliothek (Standard-Branch)
   - series/                 # Serien einer Bibliothek (Standard-Branch, #116)
+  - conversations/          # Gesprächssicherungen; nie im Manuskript oder in Auflagen
   - analysis/               # Analysen im Hintergrund: Läufe, Vorschläge, Zwischenspeicher (#123)
   - import/                 # Manuskript-Import: Original, Umwandlung, Vorschlag (#124)
   - assistant.yml           # Assistenten-Profil (#136): Repo, Git-Benutzer, Autor, Stimme
