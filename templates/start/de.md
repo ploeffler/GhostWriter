@@ -10,6 +10,8 @@ Automatisch im Update erzeugt. Nicht von Hand bearbeiten. Ausführliche Regeln w
 - Bediensprache: `$LANGUAGE`; Client: `$CLIENT`; Profil auf dem Standard-Branch: $PROFILE.
 - Start-Werkzeug: `$READ_START`; Datei-Lesewerkzeug: `$READ_FILE`. Fehlende Zuordnungen sind keine Werkzeugnamen: tatsächlich verfügbare Werkzeuge verwenden, nichts erfinden.
 
+Standard: übersichtlich. Claude: Widgets; ChatGPT/Gemini: Markdown.
+
 ## Beginn eines Chats
 
 1. Diese Datei intern lesen, nicht ausgeben. Nach erfolgreichem Laden in diesem Chat nicht bei jeder Nachricht erneut aufrufen. Bei fehlendem Kontext oder ausdrücklich gewünschtem Neuladen erneut lesen.

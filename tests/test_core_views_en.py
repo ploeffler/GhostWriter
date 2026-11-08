@@ -36,6 +36,48 @@ class EnglishCoreViewsTest(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
         return r
 
+    def test_organized_summary_uses_file_approvals_without_writing(self):
+        section = self.chapter(True)
+        # Structure deliberately remains stale: the section file is authoritative.
+        section.write_text(section.read_text().replace('status: writing', 'status: approved'))
+        before = {p: p.read_bytes() for p in self.base.rglob('*') if p.is_file()}
+        for lang in ('de', 'en'):
+            for view in (('project',), ('chapter', '1')):
+                text = self.run_view(*view, '--language', lang, '--text').stdout
+                self.assertIn('▰' * 10, text)
+                self.assertIn('1 of 1 section' if lang == 'en' else '1 von 1 Abschnitt', text)
+                self.assertNotIn('**Next step:** `1.1`' if lang == 'en' else '**Nächster Schritt:** `1.1`', text)
+                self.assertIn('Chapter and edition approvals remain separate' if lang == 'en' else 'Kapitel- und Auflagenfreigaben bleiben gesondert', text)
+        self.assertEqual(before, {p: p.read_bytes() for p in self.base.rglob('*') if p.is_file()})
+
+    def test_summary_prefers_current_section_and_counts_partial_approval(self):
+        first = self.chapter(True)
+        second = first.with_name('02.md')
+        second.write_text(first.read_text().replace('id: s1', 'id: s2'))
+        self.config['structure']['chapters'][0]['sections'].append({
+            'id': 's2', 'title': 'Zweiter Abschnitt',
+            'path': 'chapters/01/sections/02.md', 'status': 'writing'})
+        self.config['workflow']['current_section_id'] = 's2'
+        self.save()
+        text = self.run_view('project', '--language', 'en').stdout
+        self.assertIn('**Next step:** `1.2` Open section', text)
+        first.write_text(first.read_text().replace('status: writing', 'status: approved'))
+        text = self.run_view('project', '--language', 'en').stdout
+        self.assertIn('▰▰▰▰▰▱▱▱▱▱ 1 of 2 sections', text)
+        self.assertIn('**In progress:** 1', text)
+        self.assertIn('**Next step:** `1.2` Open section', text)
+
+    def test_organized_empty_and_open_summary(self):
+        text = self.run_view('project', '--language', 'en').stdout
+        self.assertIn('**Approved:** – 0 of 0 sections', text)
+        self.assertIn('**Next step:** `N` Add chapter', text)
+        self.chapter(True)
+        text = self.run_view('chapter', '1', '--language', 'en').stdout
+        self.assertIn('▱' * 10, text)
+        self.assertIn('**Open:** 1 marker to check', text)
+        self.assertIn('**Next step:** `1.1` Open section', text)
+        self.assertIn('**More actions:**', text)
+
     def test_section_preserves_manuscript_and_approval_state(self):
         section = self.chapter(True)
         section.write_text(section.read_text().replace('status: writing\n', 'status: writing\nfact_check: optional\napprovals:\n  writing: false\n  section: false\n'))

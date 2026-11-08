@@ -119,20 +119,23 @@ def prepare(template, original, config, args):
 
 
 def menu(items):
-    return '**' + native('menu') + ':**  \n' + ' · '.join(f'`{code}` {label}' for code, label in items)
+    primary = ' · '.join(f'`{code}` {label}' for code, label in items[:3])
+    more = ' · '.join(f'`{code}` {label}' for code, label in items[3:])
+    return '**' + native('menu') + ':**  \n' + primary + ('\n\n**More actions:** ' + more if more else '')
 
 
 def cell(value):
     return str(value).replace('|', '\\|').replace('\n', ' ')
 
 
-def render(template, data, config, renderer):
+def render(template, data, config, renderer, base):
     if template in FORM_TEMPLATES:
         return render_form(template, data)
     if template == 'projektuebersicht':
         rows = data.get('CHAPTERS', [])
         lines = ['### 📘 ' + (data['PROJECT_TITLE'] or native('untitled')),
                  native('project_meta', edition=data['PROJECT_EDITION_TEXT'], author=data['PROJECT_AUTHOR'] or tr('ui.not_yet_set'), cost=data['PROJECT_COST']), '']
+        lines += renderer.overview_summary(base, config, language='en')
         if data.get('PENDING_COUNT'):
             lines += ['> ⏳ ' + native('pending', changes=data['PENDING_TEXT'], number=data['PENDING_PR']), '']
         if data.get('SERIES_TEXT'):
@@ -150,7 +153,7 @@ def render(template, data, config, renderer):
                 lines += ['**' + tr(label) + ':** ' + ' · '.join(m['MATTER_TITLE'] + ' (' + status(m['MATTER_STATUS']) + ')' for m in data[area]), '']
         if rows:
             lines += [native('project_table'), '|--:|---|--:|---|:-:|']
-            lines += [f'| {r["CHAPTER_NUMBER"]} | {cell(r["CHAPTER_TITLE"])} | {r["CHAPTER_COST"]} | {status(r["CHAPTER_STATUS"])} | `B{r["CHAPTER_NUMBER"]}` |' for r in rows]
+            lines += [f'| {r["CHAPTER_NUMBER"]} | {cell(r["CHAPTER_TITLE"])} | {r["CHAPTER_COST"]} | {renderer.STATUS_ICON.get(r["CHAPTER_STATUS"], "•")} {status(r["CHAPTER_STATUS"])} | `B{r["CHAPTER_NUMBER"]}` |' for r in rows]
             current = (config.get('workflow') or {}).get('current_chapter_id')
             chips = [('**`' + str(r['CHAPTER_NUMBER']) + '`**' if r['CHAPTER_ID'] == current else '`' + str(r['CHAPTER_NUMBER']) + '`') for r in rows]
             lines += ['', '**' + native('open_chapters') + ':** ' + ' '.join(chips)]
@@ -177,7 +180,8 @@ def render(template, data, config, renderer):
             lines += ['', '<sub>' + data['CREDIT_TEXT'] + '</sub>']
     elif template == 'kapitelansicht':
         rows = data.get('SECTIONS', [])
-        lines = [native('chapter_heading', number=data['CHAPTER_NUMBER'], title=data['CHAPTER_TITLE'])]
+        lines = [native('chapter_heading', number=data['CHAPTER_NUMBER'], title=data['CHAPTER_TITLE']), '']
+        lines += renderer.overview_summary(base, config, data['CHAPTER_NUMBER'], language='en')
         if data.get('CHAPTER_SUBTITLE'):
             lines += ['*' + data['CHAPTER_SUBTITLE'] + '*']
         for key, label in [('CHAPTER_GOAL', 'ui.chapter_goal'), ('CHAPTER_SUMMARY', 'ui.summary')]:
@@ -187,7 +191,7 @@ def render(template, data, config, renderer):
             lines += [native('chapter_table'), '|--:|---|---|--:|---|']
             for row in rows:
                 marks = ' '.join(renderer.MARKER_ICON[k] + ' ' + str(row['MARKERS_' + k.upper()]) for k in renderer.MARKER_ICON if row['MARKERS_' + k.upper()]) or '–'
-                lines += [f'| {row["SECTION_NUMBER"]} | {cell(row["SECTION_TITLE"])} | {marks} | {row["SECTION_COST"]} | {status(row["SECTION_STATUS"])} |']
+                lines += [f'| {row["SECTION_NUMBER"]} | {cell(row["SECTION_TITLE"])} | {marks} | {row["SECTION_COST"]} | {renderer.STATUS_ICON.get(row["SECTION_STATUS"], "•")} {status(row["SECTION_STATUS"])} |']
             lines += ['', native('marker_legend')]
         else:
             lines += [native('no_sections')]
@@ -240,7 +244,7 @@ def render(template, data, config, renderer):
                     lines += ['| | **' + cell(label) + '** | | | | |']
                 title = (row['BOOK_VOLUME_TEXT'] + ': ' if row['BOOK_VOLUME_TEXT'] else '') + row['BOOK_TITLE']
                 pending = ' · ⏳ ' + row['BOOK_PENDING_TEXT'] if row['BOOK_PENDING_TEXT'] else ''
-                lines += [f'| {i} | **{cell(title)}** ({cell(row["BOOK_TITLE_SHORT"])}){pending} | {row["BOOK_STATE_TEXT"]} | {row["BOOK_PROGRESS_TEXT"]} | {row["BOOK_EDITION_TEXT"]} | {row["BOOK_COST"]} |']
+                lines += [f'| {i} | **{cell(title)}** ({cell(row["BOOK_TITLE_SHORT"])}){pending} | {row["BOOK_STATE_TEXT"]} | {renderer.progress_bar(row["BOOK_APPROVED_SECTION_COUNT"], row["BOOK_SECTION_COUNT"])} {row["BOOK_PROGRESS_TEXT"]} | {row["BOOK_EDITION_TEXT"]} | {row["BOOK_COST"]} |']
         else:
             lines += [native('no_books')]
         if data.get('EMPTY_SERIES'):

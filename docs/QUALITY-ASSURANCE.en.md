@@ -208,6 +208,18 @@ The selection lasts for the current chat until changed. Do not present it as a s
 
 This guide describes the intended editorial behavior. It does not claim all checks are already automated. AI reviews can miss errors or produce incorrect findings; reliable sources and the author's decision govern disputed facts.
 
+
+### Shared organized display: Claude, ChatGPT and Gemini
+
+Default to “Display: organized” unless the user selected simple, extended or Text only. Display choice and answer detail remain independent. Keep a compact title and metadata area, followed by a ten-segment approval bar and exact approved/total section counts. With no sections, show 0 of 0 and no filled bar. Count other non-planned sections separately as in progress; the bar measures section approvals only, never publication readiness.
+
+Highlight open marker counts and preserve all warnings, pending changes and approval requirements. Offer one valid navigation shortcut: the current unapproved section, otherwise the first unapproved section, or creation for an empty outline. Keep the complete actions available below. Opening a section grants no approval. Use status words alongside symbols; never invent buttons, commands or missing data.
+
+Claude (Anthropic) uses existing GhostWriter widgets when supported by the actual client, with Markdown as fallback. The external widget templates are maintained separately; this rule does not claim their HTML has changed. ChatGPT (OpenAI) uses organized Markdown plus native elements only when actually supported. Gemini (Google) explicitly receives the same Markdown foundation, with additional native elements only when client support is confirmed. Provider or API availability alone does not establish display capabilities.
+
+Book and chapter text views calculate the summary from section files. The library adds the same bar to its existing approval counts. German and English share the calculation. Rendering does not change book files.
+
+
 ---
 
 <p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
