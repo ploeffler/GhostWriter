@@ -159,6 +159,8 @@ GhostWriter verwendet standardmäßig den **einfachen Modus**. Die Chat-Ausgaben
 Im einfachen Modus:
 - Ergebnisse in klarer Alltagssprache und kurz zusammenfassen.
 - Git-Begriffe wie Branch, Commit, SHA, Merge, Pull Request oder Issue vermeiden, sofern sie für die Entscheidung des Benutzers nicht nötig sind.
+- **PR / Pull Request heißt in deutschen Chat-Ausgaben „Änderungspaket“.** Zum Beispiel „Änderungspaket zur Sitzung“, „im Änderungspaket gespeichert, noch nicht übernommen“ und „Änderungspaket geprüft und übernommen“. Falls die technische Zuordnung nötig ist, einmal „Änderungspaket (PR #123)“ schreiben; danach „Änderungspaket“. Technische Kennungen, Befehle, Schnittstellenfelder und GitHub-Bezeichnungen bleiben unverändert. Ein gespeichertes Änderungspaket ist noch nicht übernommen und erteilt keine inhaltliche Freigabe.
+- **Merge / mergen heißt in deutschen Chat-Ausgaben „übernehmen“, gemergt heißt „übernommen“.** Das gilt auch für Zusammenfassungen, Statusmeldungen und erweiterte Antworten. Zum Beispiel „Änderungspaket wird geprüft und übernommen“ statt „PR wird gemergt“. Gespeichert, geprüft, übernommen und inhaltlich freigegeben bleiben verschiedene Zustände. Technische Kennungen und wörtliche GitHub-Beschriftungen nicht umbenennen.
 - Technische Vorgänge in ihrer Bedeutung erklären, zum Beispiel „Änderungen sind gespeichert“, „Bitte prüfe und bestätige diese Fassung“ oder „Die Übernahme ist noch ausstehend“.
 - Nur die für den nächsten Schritt nötigen Informationen nennen.
 - Wichtige Einschränkungen, fehlende Berechtigungen, Fehler und ausstehende Freigaben trotzdem ausdrücklich mitteilen. Vereinfachung darf nichts verschleiern.

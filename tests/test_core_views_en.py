@@ -1,5 +1,6 @@
 """Englische Kernansichten: keine Übersetzung von Buchdaten, keine geänderten Freigabegrenzen."""
 import copy
+import hashlib
 import json
 import re
 import shutil
@@ -81,15 +82,33 @@ class EnglishCoreViewsTest(unittest.TestCase):
         section = self.chapter(True)
         self.config['structure']['chapters'][0]['status'] = 'approved'
         self.save()
+        ledger = {'entries': [{'kind': 'chapter', 'id': 'c1', 'action': 'granted',
+                              'at': '2026-11-07T12:00:00Z', 'by': 'test', 'commit': '1234567'}]}
+        ledger_path = self.base / 'approvals.yml'
+        ledger_path.write_text(yaml.safe_dump(ledger))
+
+        def approve_current_text():
+            manuscript = section.read_text().split('## Manuskript\n', 1)[1].strip()
+            ledger['entries'].append({'kind': 'section', 'id': 's1', 'action': 'granted',
+                'at': '2026-11-07T12:01:00Z', 'by': 'test', 'commit': '1234567',
+                'note': 'content_sha256=' + hashlib.sha256(manuscript.encode()).hexdigest()})
+            ledger_path.write_text(yaml.safe_dump(ledger))
+
         text = self.run_view('edition-create', '--language', 'en').stdout
         self.assertIn('approved chapters contain unapproved sections', text)
-        section.write_text(section.read_text().replace('status: writing', 'status: approved'))
+        section.write_text(section.read_text().replace('status: writing',
+            'status: approved\napprovals:\n  writing: true\n  section: true'))
+        approve_current_text()
         before = section.read_bytes()
         text = self.run_view('edition-create', '--language', 'en').stdout
         self.assertIn('open markers in approved text: 1', text)
         self.assertNotIn('contain unapproved sections', text)
         self.assertEqual(before, section.read_bytes())
         section.write_text(section.read_text().replace('[QUELLE PRÜFEN]', 'geprüfter Quelle'))
+        # Der ältere Fingerabdruck darf den geänderten Text nicht mehr freigeben.
+        self.assertIn('approved chapters contain unapproved sections',
+                      self.run_view('edition-create', '--language', 'en').stdout)
+        approve_current_text()
         text = self.run_view('edition-create', '--language', 'en').stdout
         self.assertNotIn('cannot be built', text)
         self.assertNotIn('⚠️', text)

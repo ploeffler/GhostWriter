@@ -1,7 +1,7 @@
 {
   "there_are_no_pending_changes": "Es gibt keine offenen Änderungen.",
   "apply_changes": "### 🔀 Buchänderungen übernehmen",
-  "apply_to_from_pull_request": "In `{p_a}` übernehmen: {p_b} aus `{p_c}` (Pull Request #{p_d}).",
+  "apply_to_from_pull_request": "In `{p_a}` übernehmen: {p_b} aus `{p_c}` (Änderungspaket #{p_d}).",
   "change_date_commit": "| # | Änderung | Datum | Commit |",
   "the_changes_become_part_of_the_book_undoing_them_requires_another_change": "Danach gehören die Änderungen zum Buch; rückgängig machen geht nur mit einer neuen Änderung.",
   "ok_applies_x_cancels": "`OK` übernimmt · `X` bricht ab",
@@ -821,7 +821,7 @@
   "catalog.serpapi.note": "Ergebnisse klassischer Suchmaschinen inkl. Google Scholar.",
   "catalog.semantic_scholar.note": "Wissenschaftliche Literatur, kostenlos nutzbar.",
   "catalog.openalex.note": "Offener Katalog wissenschaftlicher Publikationen, kostenlos.",
-  "catalog.github_copilot_agent.note": "Issue in GitHub zuweisen; erstellt einen Pull Request.",
+  "catalog.github_copilot_agent.note": "Issue in GitHub zuweisen; erstellt ein Änderungspaket.",
   "catalog.openai_codex.note": "Auch als Partner-Agent direkt in GitHub zuweisbar (je nach Copilot-Plan).",
   "catalog.claude_code.note": "Auch als Partner-Agent direkt in GitHub zuweisbar (je nach Copilot-Plan).",
   "catalog.google_jules.note": "Asynchroner Agent, arbeitet mit GitHub-Repositories.",

@@ -1,7 +1,7 @@
 """
 title: GhostWriter Direkt
 description: Start und Bibliothek direkt ausführen, Gespräch an das Basismodell weitergeben.
-version: 1.6.0
+version: 1.7.0
 required_open_webui_version: 0.13.0
 requirements: pydantic
 """
@@ -10,14 +10,185 @@ import base64
 import re
 import hashlib
 import sqlite3
+import math
+import sys
+import threading
+import uuid
 from pathlib import Path
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
 
+# BEGIN GENERATED PROMPT PROFILER
+# Automatisch aus scripts/prompt_profiler.py; nicht von Hand ändern.
+def canonical(value):
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+
+
+def component(content, *, source, kind, scope='request', priority='unknown',
+              activation='submitted', layer='adapter', position=0):
+    """Text bleibt ausschließlich im temporären Plan; report() gibt ihn nie aus."""
+    return dict(content=content, source=source, kind=kind, scope=scope,
+                priority=priority, activation=activation, layer=layer, position=position)
+
+
+def request_plan(payload, adapter):
+    """Nur explizit übergebene Payloads; keine Header, Schlüssel oder Plattformabfragen."""
+    if adapter not in ('openai-chat', 'anthropic-messages', 'openwebui-pipe'):
+        raise ValueError('Unbekannter Adapter')
+    parts = []
+    if 'system' in payload:
+        parts.append(component(payload['system'], source='$.system', kind='system', position=len(parts)))
+    for i, message in enumerate(payload.get('messages', [])):
+        parts.append(component(message, source=f'$.messages[{i}]', kind=message.get('role', 'unknown'),
+                               position=len(parts)))
+    if 'tools' in payload:
+        parts.append(component(payload['tools'], source='$.tools', kind='tools', position=len(parts)))
+    return {'adapter': adapter, 'model': payload.get('model'), 'components': parts}
+
+
+def report(plan, payload):
+    """Neue Metadatenstruktur; weder Plan noch Payload werden verändert."""
+    rows, seen, duplicates = [], {}, []
+    for part in plan['components']:
+        content = part['content']
+        text = content if isinstance(content, str) else canonical(content)
+        digest = hashlib.sha256(text.encode('utf-8')).hexdigest()
+        row = {k: part[k] for k in ('source', 'kind', 'scope', 'priority', 'activation', 'layer', 'position')}
+        row.update(fingerprint=digest, characters=len(text), estimated_tokens=math.ceil(len(text) / 3.5))
+        if digest in seen:
+            duplicates.append({'kind': 'exact_duplicate', 'sources': [seen[digest], part['source']],
+                               'action': 'review_only'})
+        else:
+            seen[digest] = part['source']
+        rows.append(row)
+    serialized = canonical(payload)
+    return {'format_version': 1, 'adapter': plan['adapter'], 'model': plan['model'],
+            'measurement': {'method': 'characters_divided_by_3.5', 'status': 'estimated', 'tokenizer': None,
+                            'includes_serialization': True, 'model_framing': 'unknown',
+                            'multimodal_tokens': 'unknown'},
+            'visible_request': {'characters': len(serialized), 'estimated_tokens': math.ceil(len(serialized) / 3.5),
+                                'fingerprint': hashlib.sha256(serialized.encode('utf-8')).hexdigest()},
+            'components': rows, 'findings': duplicates,
+            'visibility': {'adapter_payload': 'supplied_snapshot', 'ghostwriter_core': 'unattributed',
+                           'platform_additions': 'unknown', 'provider_internal': 'unknown'},
+            'usage': {'prompt_tokens': None, 'completion_tokens': None, 'cache_read_tokens': None,
+                      'cache_write_tokens': None, 'cost': None, 'cost_status': 'unavailable'},
+            'limits': ['Keine semantische Konfliktanalyse', 'Keine Aussage über tatsächlichen Versand',
+                       'Keine Messung wiederholter Requests oder Cache-Effekte']}
+
+
+def count(value):
+    """Nur tatsächlich gelieferte nichtnegative Ganzzahlen gelten als Messwert."""
+    return value if type(value) is int and value >= 0 else None
+
+
+def provider_usage(response, adapter):
+    raw = response.get('usage') or {}
+    result = {'prompt_tokens': None, 'completion_tokens': None, 'cache_read_tokens': None,
+              'cache_write_tokens': None, 'uncached_input_tokens': None,
+              'cost': None, 'cost_status': 'unavailable', 'status': 'unavailable'}
+    if adapter == 'openai-chat':
+        details = raw.get('prompt_tokens_details') or {}
+        result.update(prompt_tokens=count(raw.get('prompt_tokens')),
+                      completion_tokens=count(raw.get('completion_tokens')),
+                      cache_read_tokens=count(details.get('cached_tokens')),
+                      cache_write_tokens=count(details.get('cache_write_tokens')))
+    elif adapter == 'anthropic-messages':
+        values = [count(raw.get(k)) for k in
+                  ('input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens')]
+        result.update(uncached_input_tokens=values[0], cache_write_tokens=values[1], cache_read_tokens=values[2],
+                      completion_tokens=count(raw.get('output_tokens')))
+        # Anthropic: input_tokens enthält Cache-Lese-/Schreib-Tokens nicht.
+        # Fehlende Felder bleiben unbekannt, statt sie als Null zu addieren.
+        if all(v is not None for v in values):
+            result['prompt_tokens'] = sum(values)
+    if any(result[k] is not None for k in ('prompt_tokens', 'completion_tokens', 'uncached_input_tokens',
+                                          'cache_read_tokens', 'cache_write_tokens')):
+        result['status'] = 'provider_reported'
+    return result
+
+
+class Capture:
+    """Erfasst vor Versand; hält nach Konstruktion keine Request-Volltexte."""
+    def __init__(self, payload, adapter, core_plan=None, transport_body=None):
+        self.metadata = report(request_plan(payload, adapter), payload)
+        self.metadata['call_id'] = uuid.uuid4().hex
+        if transport_body is not None:
+            self.metadata['transport_body'] = {
+                'bytes': len(transport_body),
+                'fingerprint': hashlib.sha256(transport_body).hexdigest()}
+        if core_plan is not None:
+            self.metadata['core_components'] = report(
+                {'adapter': adapter, 'model': payload.get('model'), 'components': core_plan}, payload)['components']
+            self.metadata['visibility']['ghostwriter_core'] = 'captured_call_arguments'
+        self.metadata['visibility']['adapter_payload'] = 'captured_before_transport'
+        self.metadata['limits'] = ['Keine semantische Konfliktanalyse',
+                                   'Provider-interne Verarbeitung bleibt unbekannt',
+                                   'Wiederholte Inhalte belegen keine Cache-Einsparung']
+
+    def finish(self, response=None, *, succeeded=True):
+        result = dict(self.metadata)
+        result['transport_status'] = 'response_received' if succeeded else 'failed'
+        result['usage'] = provider_usage(response or {}, result['adapter'])
+        return result
+
+
+_OUTPUT_LOCK = threading.Lock()
+
+
+def emit(result):
+    """Explizit eingeschaltete Metadaten nach stderr, nie Antwort-/Requesttexte."""
+    with _OUTPUT_LOCK:
+        print('GHOSTWRITER_PROFILE ' + canonical(result), file=sys.stderr)
+
+
+def aggregate(reports):
+    """Keine Volltexte nötig; fehlende Messwerte werden nicht als Null summiert."""
+    reports = list(reports)
+    totals = {}
+    for field in ('prompt_tokens', 'completion_tokens', 'cache_read_tokens', 'cache_write_tokens'):
+        values = [count(r.get('usage', {}).get(field)) for r in reports]
+        totals[field] = {'known_sum': sum(v for v in values if v is not None),
+                         'known_calls': sum(v is not None for v in values),
+                         'unknown_calls': sum(v is None for v in values)}
+    seen, repeated = set(), []
+    for index, entry in enumerate(reports):
+        current = set()
+        for row in entry['components']:
+            key = (row['fingerprint'], row['kind'])
+            if key in seen:
+                repeated.append({'call_index': index, 'source': row['source'],
+                                 'fingerprint': row['fingerprint'], 'characters': row['characters'],
+                                 'transport_status': entry.get('transport_status', 'unknown')})
+            current.add(key)
+        seen.update(current)
+    return {'calls': len(reports), 'usage': totals, 'repeated_components': repeated,
+            'cost_status': 'unavailable', 'cache_savings': 'unknown'}
+
+
+def openwebui_report(payload):
+    """Nur Modellfelder an der Pipe-Grenze; Metadaten können Callables enthalten."""
+    fields = {'model', 'messages', 'system', 'tools', 'options', 'stream', 'temperature',
+              'top_p', 'top_k', 'num_ctx', 'max_tokens', 'seed', 'stop', 'response_format'}
+    visible = {key: value for key, value in payload.items() if key in fields}
+    result = report(request_plan(visible, 'openwebui-pipe'), visible)
+    result['visibility']['adapter_payload'] = 'pipe_boundary_model_fields'
+    result['coverage'] = {'excluded_top_level_fields': len(set(payload) - fields),
+                          'complete_provider_request': False}
+    result['transport_status'] = 'not_observed'
+    result['limits'] = ['Pipe-Grenze vor Open-WebUI-Verarbeitung',
+                        'Metadaten und andere nicht erfasste Felder sind ausgeschlossen',
+                        'Provider-Request, Usage und Kosten bleiben unbekannt',
+                        'Keine semantische Konfliktanalyse']
+    return result
+# END GENERATED PROMPT PROFILER
+
+
 class Pipe:
     class Valves(BaseModel):
+        PROMPT_PROFILE: bool = Field(default=False, description="Prompt-Metadaten vor Modellweiterleitung im Serverprotokoll und als Status anzeigen; keine Volltexte.")
         BASE_MODEL: str = Field(default="llama3.2:3b", description="Basismodell für normale Gesprächsbeiträge; nicht diese Pipe selbst auswählen.")
         CONTEXT_LENGTH: int = Field(default=32768, ge=2048, le=131072, description="Ollama-Kontextlänge als Rückfallwert, wenn das Workspace-Modell keinen num_ctx-Wert übergibt.")
         TOOL_ID: str = Field(default="", description="Optional: ID des gebundenen GhostWriter-GitHub-Werkzeugs. Leer: genau eine passende Integration erforderlich.")
@@ -255,7 +426,33 @@ class Pipe:
             payload["options"] = options
         return payload
 
-    async def _forward(self, body, request, user_data, metadata):
+    def _profile_view(self, profile, json_output=False):
+        heading = self._text("Prompt-Profil (ohne Modellaufruf)", "Prompt profile (no model call)")
+        explanation = self._text(
+            "Sichtbarer Kontext vor Übergabe an Open WebUI. Tokens sind Schätzungen. "
+            "Spätere Plattformergänzungen, Providerwerte und Kosten sind unbekannt. "
+            "Die Diagnoseeingabe ist ausgeschlossen. Keine Buchdatei wurde geändert.",
+            "Visible context before handing off to Open WebUI. Token counts are estimates. "
+            "Later platform additions, provider usage and costs are unknown. "
+            "The diagnostic command is excluded. No book files were changed.")
+        if json_output:
+            return "### " + heading + "\n\n" + explanation + "\n\n```json\n" + json.dumps(profile, ensure_ascii=False, indent=2) + "\n```"
+        total = profile['visible_request']
+        lines = ["### " + heading, "", self._text("Umfang: etwa ", "Size: approximately ") +
+                 str(total['estimated_tokens']) + self._text(" Tokens (", " tokens (") +
+                 str(total['characters']) + self._text(" Zeichen, einschließlich Formatierung).", " characters, including formatting)."),
+                 "", self._text("| Reihenfolge | Rolle | Tokens, geschätzt |", "| Order | Role | Estimated tokens |"),
+                 "|---|---|---:|"]
+        labels = {'system': 'System', 'user': self._text('Benutzer', 'User'),
+                  'assistant': self._text('Assistent', 'Assistant'), 'tools': self._text('Werkzeuge', 'Tools')}
+        for row in profile['components']:
+            lines.append(f"| {row['position'] + 1} | {labels.get(row['kind'], self._text('Weitere', 'Other'))} | ~{row['estimated_tokens']} |")
+        lines += ["", self._text("Exakte Wiederholungen: ", "Exact duplicates: ") + str(len(profile['findings'])),
+                  "", explanation, "", self._text("Details mit Prüfsummen: **Prompt-Profil JSON**.",
+                                                   "Details with fingerprints: **Prompt profile JSON**.")]
+        return "\n".join(lines)
+
+    async def _forward(self, body, request, user_data, metadata, event_emitter=None):
         # Open-WebUI-Import erst im Weiterleitungspfad: die direkten Befehle
         # benötigen weder Ollama noch einen Modellaufruf.
         from open_webui.models.users import Users
@@ -276,6 +473,18 @@ class Pipe:
         if user is None:
             raise ValueError(self._text("Open-WebUI-Benutzer nicht verfügbar.", "Open WebUI user is unavailable."))
         payload = self._prepare_forward(body, request, metadata)
+        if self.valves.PROMPT_PROFILE:
+            try:
+                profile = openwebui_report(payload)
+                emit(profile)
+                if event_emitter is not None:
+                    await event_emitter({"type": "status", "data": {
+                        "description": self._text("Prompt-Profil: geschätzt ", "Prompt profile: estimated ") +
+                            str(profile['visible_request']['estimated_tokens']) +
+                            self._text(" Tokens an der Pipe-Grenze; Providerwerte unbekannt.",
+                                       " tokens at the pipe boundary; provider usage unknown."), "done": True}})
+            except Exception:
+                print("GhostWriter: Prompt-Profil nicht verfügbar.", file=sys.stderr)
         try:
             return await generate_chat_completion(request, payload, user)
         except Exception:
@@ -284,14 +493,15 @@ class Pipe:
             raise RuntimeError("Modellanfrage fehlgeschlagen") from None
 
     async def pipe(self, body: dict, __tools__: Optional[dict] = None, __user__: Optional[dict] = None,
-                   __metadata__: Optional[dict] = None, __request__=None, __task__: Optional[str] = None):
+                   __metadata__: Optional[dict] = None, __request__=None, __task__: Optional[str] = None,
+                   __event_emitter__=None):
         """Start/Bibliothek direkt beantworten; normale Beiträge an BASE_MODEL weitergeben."""
         try:
             metadata = __metadata__ or {}
             # Titel-/Folgefragen-Erzeugung hat eigene Aufgabenprompts. Niemals
             # anhand der dort ebenfalls vorhandenen letzten Chatnachricht starten.
             if __task__ or metadata.get("task"):
-                return await self._forward(body, __request__, __user__, metadata)
+                return await self._forward(body, __request__, __user__, metadata, __event_emitter__)
             command = self._user_text(body, metadata).strip().casefold()
             functions = self._functions(__tools__)
             scope = self._scope(body, __user__, metadata)
@@ -394,6 +604,16 @@ class Pipe:
             last_user = next((i for i in range(len(payload["messages"]) - 1, -1, -1)
                               if payload["messages"][i].get("role") == "user"), len(payload["messages"]))
             payload["messages"].insert(last_user, context_message)
+            if command in ("prompt-profil", "prompt profil", "prompt profile",
+                           "prompt-profil json", "prompt profil json", "prompt profile json"):
+                prepared = self._prepare_forward(payload, __request__, metadata)
+                # Der Diagnosebefehl ist keine Modellaufgabe und wird nicht mitgezählt.
+                diagnostic_index = next((i for i in range(len(prepared["messages"]) - 1, -1, -1)
+                                         if prepared["messages"][i].get("role") == "user"), None)
+                if diagnostic_index is not None:
+                    prepared["messages"] = [m for i, m in enumerate(prepared["messages"]) if i != diagnostic_index]
+                profile = openwebui_report(prepared)
+                return self._profile_view(profile, json_output=command.endswith(" json"))
             if command in ("kontext prüfen", "kontext pruefen", "check context"):
                 prepared = self._prepare_forward(payload, __request__, metadata)
                 selected = facts.get("section") or facts.get("chapter") or {}
@@ -407,7 +627,7 @@ class Pipe:
                          self._text("Das zeigt die vorbereitete Anfrage, nicht die vom Server tatsächlich genutzte Kontextlänge.",
                                     "This shows the prepared request, not the context length actually used by the server.")]
                 return "\n\n".join(lines)
-            return await self._forward(payload, __request__, __user__, metadata)
+            return await self._forward(payload, __request__, __user__, metadata, __event_emitter__)
         except ValueError as error:
             return "✗ " + str(error)
         except Exception:

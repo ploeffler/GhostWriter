@@ -139,6 +139,12 @@ Eine vorhandene Geschichte bzw. ein Manuskript wird ein Buch (Befehl `Als Buch i
 6. **Analysen:** Danach die Analysen anbieten (Auswahlkarte mit Kostenschätzung aus `analyze.py plan --kind …`; vorangehakt: Figuren, Kurzbeschreibung und Ziel, Stilprofil) und als Analyse im Hintergrund starten (Abschnitt „Analysen im Hintergrund“). Weitere Arten folgen mit #124.
 7. **Aufbewahrung:** Die Action räumt täglich auf: Ist die Frist abgelaufen (bzw. die erste Auflage erschienen), entfernt sie `import/original/` (Commit `Original des Imports entfernt …`). Sieben Tage vorher zeigt die Projektübersicht einen Hinweis.
 
+### Session sichern, laden und übernehmen
+
+Die Befehle `Session sichern` (auch `Chat sichern`, `Chat speichern`), `Session laden` und `Session übernehmen` führen den verbindlichen Ablauf in [Session-Sicherung](docs/SESSION-SICHERUNG.md) aus. Die Anweisung vor Ausführung lesen. Sichern: verfügbare Gespräche, Recherche, Brainstorming, Entscheidungen und Entwürfe mit einem Commit je geändertem Themengebiet und einem PR je Sitzung dauerhaft speichern. Laden: gespeicherten Kontext lesend wieder aufnehmen. Übernehmen: prüfen, fehlgeschlagene Checks oder Merge analysieren, sichere technische Reparatur versuchen, erneut prüfen und erst dann den Sitzungs-PR mergen. Erfolge erst nach bestätigtem Remote-Ergebnis melden. Kein Manuskript und keine inhaltliche Freigabe ändern; keine automatische Übernahme beim Sichern. Fehlende Werkzeuge und Sicherungslücken offen benennen. Für reine Sitzungsdateien gilt die in der Anweisung beschriebene begrenzte Ausnahme vor Strukturfreigabe; Buchdateien bleiben unverändert.
+
+**Automatisch nach Abschnittsdialog:** Sobald der Dialog über die offenen Punkte eines Abschnitts abgeschlossen ist, ohne noch ausstehende Antwort automatisch nach [Session-Sicherung](docs/SESSION-SICHERUNG.md) sichern (`chat_backup.py checkpoint`). Alle besprochenen Punkte müssen beantwortet, entschieden oder vom Benutzer ausdrücklich vertagt sein; keine offenen Fragen still als erledigt behandeln. Der Abschluss ist keine Abschnittsfreigabe. Die Sicherung braucht keinen weiteren Speicherbefehl, mergt aber nichts. Nur nach bestätigtem Remote-Erfolg kurz melden; bei fehlendem Ziel, Zugriff oder Sicherungsfehler den ungesicherten Stand offen benennen.
+
 ### Neuer Chat statt langem Verlauf
 
 Ein Chat lässt sich nicht leeren; jede Ansicht bleibt im Verlauf stehen. Der Projektstand liegt im Repository, der aktuelle Arbeitskontext kann zusätzlich im Chat liegen.
@@ -156,13 +162,13 @@ Tipp für den Benutzer: In einem claude.ai-Projekt mit Startprompt und Link als 
 Unterscheide die folgenden Schritte konsequent. Sie bewegen Daten an unterschiedlichen Stellen und dürfen sprachlich nicht zusammenfallen:
 
 1. **„In den Buchtext einarbeiten“** bedeutet: Inhalte aus Gespräch, Recherche oder Brainstorming in einen Manuskriptentwurf bzw. in die Buchstruktur einarbeiten. Das kann zunächst vollständig im Chat geschehen. Es ist dadurch **noch nichts im Repository gespeichert**; es entsteht weder ein Commit noch ein Pull Request.
-2. **„Buchstand speichern“** bedeutet: ausdrücklich zur Speicherung freigegebene Änderungen aus dem Chat in das Buch-Repository YAWA übertragen. Dafür gilt „Schreiben ins Repository“: Änderungen werden gesammelt im Arbeits-Branch gespeichert und erscheinen dort im offenen Pull Request. Nach erfolgreichem Speichern den Commit und den noch offenen PR nennen. Speichern ist nicht dasselbe wie das Einpflegen in den Text und nicht dasselbe wie das Mergen in den Buch-Branch.
+2. **„Buchstand speichern“** bedeutet: ausdrücklich zur Speicherung freigegebene Änderungen aus dem Chat in das Buch-Repository übertragen. Dafür gilt „Schreiben ins Repository“: Änderungen werden gesammelt im Arbeits-Branch gespeichert und erscheinen dort im offenen Pull Request. Nach erfolgreichem Speichern den Commit und den noch offenen PR nennen. Speichern ist nicht dasselbe wie das Einpflegen in den Text und nicht dasselbe wie das Mergen in den Buch-Branch.
 3. **„Buchstand aktualisieren“** bedeutet: den aktuellen Stand aus dem Buch-Repository erneut lesen und den im Chat geladenen Projekt- und Manuskriptkontext damit abgleichen. Das ist ein Lese-/Abgleichvorgang, erzeugt keinen Commit und keinen Pull Request. Nicht gespeicherte Chatentwürfe nicht stillschweigend verwerfen; Abweichungen und mögliche Konflikte kenntlich machen.
 4. **„Buchänderungen übernehmen“** bezeichnet ausschließlich die bestätigungspflichtige Zusammenführung des offenen Pull Requests vom Arbeits-Branch in den Buch-Branch (`changes.merge`). Die Bestätigung muss den tatsächlich angezeigten Stand umfassen.
 5. **„GhostWriter aktualisieren“** bezeichnet ausschließlich das Einspielen neuer Programmdateien aus dem Hauptrepository über die Update-Action. Es aktualisiert nicht den Buchinhalt und ersetzt nicht „Buchstand aktualisieren“.
 6. **„Chat wechseln“** bedeutet: den aktuellen Gesprächs- und Arbeitskontext einschließlich ausdrücklich markierter, noch nicht gespeicherter Entwürfe in eine kopierfertige Übergabe für einen neuen Chat übertragen. Es ist keine Speicher-, Commit-, PR-, Merge- oder Freigabeaktion.
 
-Verwende diese Bezeichnungen in Antworten, Statusmeldungen, Anleitungen und Benutzeroberflächen. Verwende „Buchänderungen übernehmen“ ausschließlich für den bestätigten Merge des Buch-Pull-Requests; nutze „Buchstand speichern“ für das Übertragen aus dem Chat, „Buchstand aktualisieren“ für das erneute Lesen aus YAWA und „Chat wechseln“ ausschließlich für die Kontextübergabe. Die bestehenden technischen Aktionsnamen und API-Endpunkte bleiben unverändert.
+Verwende diese Bezeichnungen in Antworten, Statusmeldungen, Anleitungen und Benutzeroberflächen. Verwende „Buchänderungen übernehmen“ ausschließlich für den bestätigten Merge des Buch-Pull-Requests; nutze „Buchstand speichern“ für das Übertragen aus dem Chat, „Buchstand aktualisieren“ für das erneute Lesen aus dem Buch-Repository und „Chat wechseln“ ausschließlich für die Kontextübergabe. Die bestehenden technischen Aktionsnamen und API-Endpunkte bleiben unverändert.
 ### Programmdateien und Updates (verbindlich)
 
 GhostWriter aktualisiert sich selbst (`docs/UPDATES.md`): Die Programmdateien unter `managed` in `ghostwriter-manifest.yml` (`START.md`, `docs/`, `scripts/`, `templates/` …) werden beim nächsten Update überschrieben.
@@ -187,7 +193,7 @@ GhostWriter aktualisiert sich selbst (`docs/UPDATES.md`): Die Programmdateien un
 
 Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzform `gw:view.section section_id=…` oder, bei Formularen mit Eingaben, als Block `gw` mit JSON (Format in `templates/ui/BEFUELLUNG.md`). Werte die Daten aus und antworte mit der Ansicht oder dem Formular, das die Aktionstabelle in `templates/ui/BEFUELLUNG.md` nennt; Aktionen, die ein Formular öffnen (`….open`, `project.edit`), sofort und ohne Rückfrage. Nach Speichern, Abbrechen oder „nichts geändert“ zeige wieder die Ansicht, aus der das Formular kam („Nach dem Formular“ in `templates/ui/BEFUELLUNG.md`); nur bei einem Fehler bleibt das Formular. Freie Eingaben ohne Block bleiben erlaubt.
 
-**Befehle** (gelten jederzeit, in jeder Ansicht und auch in der Textfassung; Groß- und Kleinschreibung egal). Ein Befehl öffnet nur eine Ansicht oder ein Formular, er speichert nie etwas:
+**Befehle** (gelten jederzeit, in jeder Ansicht und auch in der Textfassung; Groß- und Kleinschreibung egal). Ansichts- und Formularbefehle speichern nichts; ausdrücklich beauftragte Aktionen wie „Probedruck“, „Session sichern“ und „Session übernehmen“ führen ihren beschriebenen Ablauf aus:
 
 | Eingabe | Wirkung |
 |---|---|
@@ -204,8 +210,8 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Auflage` | Formular „Neue Auflage erzeugen“ |
 | `Einstellungen`, `KI-Dienste` | das jeweilige Formular |
 | `In den Buchtext einarbeiten` | besprochene Inhalte in den Manuskriptentwurf im Chat integrieren; noch keine Repository-Änderung |
-| `Buchstand aktualisieren` | aktuellen Buchstand aus YAWA neu lesen und den Chat-Kontext abgleichen; nicht gespeicherte Entwürfe erhalten und Abweichungen zeigen |
-| `Buchstand speichern` | freigegebene Chat-Änderungen nach YAWA übertragen und im Arbeits-Branch als offenen Pull Request speichern |
+| `Buchstand aktualisieren` | aktuellen Buchstand aus dem Buch-Repository neu lesen und den Chat-Kontext abgleichen; nicht gespeicherte Entwürfe erhalten und Abweichungen zeigen |
+| `Buchstand speichern` | freigegebene Chat-Änderungen in das Buch-Repository übertragen und im Arbeits-Branch als offenen Pull Request speichern |
 | `GhostWriter aktualisieren`, `Update` | Programm-Update-Stand zeigen; falls eine neue Version verfügbar ist, die Action „GhostWriter aktualisieren“ anbieten |
 | `Daten` | Seite „Daten“: Stand von Programm, Büchern und Repository (Abschnitt 0, „Daten“) |
 | `Profil` | Assistenten-Profil zeigen bzw. anlegen: Git-Benutzer, Autor, Standard-Erzählstimme (Abschnitt 0, „Assistenten-Profil“) |
@@ -215,7 +221,12 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Als Buch importieren`, `Manuskript importieren` | mit angehängter Datei: Import als neues Buch (Abschnitt 0, „Manuskript importieren“) |
 | `Sammelband <Reihe>` | Formular „Sammelband“ der Serie (Abschnitt 0, „Serien“) |
 | `Serie <Titel>`, `Neue Serie` | Seite der Serie bzw. Formular „Neue Serie“ (Abschnitt 0, „Serien“) |
-| `Hilfe` | diese Befehle und die Kürzel der zuletzt gezeigten Ansicht (`templates/ui/BEFUELLUNG.md`, „Textfassung“) |
+| `Session sichern`, `Chat sichern`, `Chat speichern` | verfügbaren Gesprächsstand dauerhaft sichern (Abschnitt „Session sichern, laden und übernehmen“) |
+| `Session laden` | gesicherten Gesprächsstand lesend wieder aufnehmen |
+| `Session übernehmen` | Sicherungs-PR prüfen, Fehler analysieren, technische Reparatur versuchen, erneut prüfen und mergen |
+| `Hilfe`, `Hilfe Befehle`, `Hilfe Änderungspakete`, `Hilfe Session` | [Hilfe](docs/HILFE.md) lesen und passende Befehle, Beispielprompts bzw. Erklärung zeigen; bei `Hilfe` eine kurze Übersicht und die Kürzel der aktuellen Ansicht. Keine Schreibaktion. |
+
+**Hilfe:** `Hilfe` sowie die Themenhilfen nach `docs/HILFE.md` beantworten; keine neue Einrichtung und keine Speicherung auslösen. Auch `Help commands`, `Help changes`, `Help sessions` entsprechend der Bediensprache behandeln. In deutschen Chat-Ausgaben heißt PR „Änderungspaket“, mergen „übernehmen“ und gemergt „übernommen“, auch in Statusmeldungen. Technische Kennungen und GitHub-Menütexte unverändert lassen.
 
 Befehle haben Vorrang vor Kürzeln nur, wenn sie ausgeschrieben sind (`Auflage`, nicht `A`). `Neues Buch` öffnet das Formular „Neues Buch“ (Abschnitt 0, „Neues Buch“); `Neues Buch: <Titel>` öffnet es mit dem Titel vorbelegt.
 

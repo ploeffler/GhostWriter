@@ -26,7 +26,7 @@ Klicke im Bücherregal auf **Neues Buch** (oder schreib `Neues Buch: <Titel>`). 
 
 Der Assistent führt dich durch die Fragen zu Thema, Ziel, Zielgruppe, Buchtyp, Sprache und Stil. Wo es feste Antwortmöglichkeiten gibt, erscheinen **Auswahlkarten** zum Anklicken; alles andere ist Gespräch. Gemeinsam entsteht die Gliederung: Kapitel, Abschnitte, ihre Ziele und Kurzbeschreibungen.
 
-Bis du die Gliederung ausdrücklich freigibst, wird im Repository nichts weiter angelegt. Danach überträgt der Assistent die Struktur in **einem** Commit; dabei fragt er auch, ob gespeicherte Änderungen künftig sofort übernommen werden sollen (einfacher, wenn du allein schreibst).
+Bis du die Gliederung ausdrücklich freigibst, werden keine weiteren Buchdateien angelegt. Eine ausdrücklich beauftragte Sitzungssicherung wird getrennt vom Manuskript gespeichert. Danach überträgt der Assistent die Struktur in **einem** Commit; dabei fragt er auch, ob gespeicherte Änderungen künftig sofort übernommen werden sollen (einfacher, wenn du allein schreibst).
 
 ## 6. Am Buch arbeiten
 
@@ -39,6 +39,14 @@ Die **Projektübersicht** zeigt alle Kapitel mit Status und Kosten; ein Klick ö
 - **Ausgabe:** Wie Auflagen aussehen (Ränder, Schrift, Zeilenabstand, Kolumnentitel, Initialen, Formate, ISBN und Verlag im Impressum), stellst du im Formular `Ausgabe` ein; der nächste Probedruck zeigt es. Für den Druck gibt es dort auch das Profil deines Anbieters (KDP, BoD) und den **Umschlag** mit Rückenbreite, Beschnitt, Klappentext und ISBN-Strichcode; das EPUB bekommt dessen Vorderseite als Cover.
 - **Speichern und übernehmen:** Jede Änderung wird zuerst gesammelt; mit **Buchänderungen übernehmen** steht sie im Buch (oder sofort, wenn du das eingeschaltet hast).
 - **Befehle** gehen immer: `Start`, `Übersicht`, `Kapitel 3`, `Abschnitt 3.2`, `Neues Kapitel`, `Probedruck`, `Auflage`, `Hilfe`.
+
+### Änderungspakete schnüren und übernehmen
+
+Zusammengehörige Änderungen werden zu einem **Änderungspaket** gebündelt. „Schnüren“ heißt, die Ergebnisse zu ordnen und dauerhaft als gemeinsames Paket zu speichern. „Übernehmen“ heißt, das geprüfte Paket in den vorgesehenen Projektstand einzufügen. Technisch heißen diese Schritte Pull Request (PR) und Merge; in Chat-Ausgaben verwenden wir Änderungspaket und übernehmen.
+
+Für Gesprächsarbeit schreibst du **Session sichern**: Recherche, Brainstorming, Entscheidungen, Entwürfe und offene Punkte werden mit einem Änderungsschritt je geändertem Themengebiet in einem gemeinsamen Paket gesichert. Nach Abschluss des Dialogs über offene Punkte eines Abschnitts geschieht diese Sicherung automatisch. **Session laden** liest den gesicherten Gesprächsstand; **Session übernehmen** prüft das Paket, analysiert bei Fehlern die Ursache, versucht eine sichere technische Reparatur und übernimmt nach erneuter erfolgreicher Prüfung. Ein offenes Paket ist bereits gespeichert, aber noch nicht übernommen. Weder Speichern noch Übernehmen erteilen eine Text- oder Kapitelfreigabe.
+
+Mit **Hilfe**, **Hilfe Befehle**, **Hilfe Änderungspakete** und **Hilfe Session** bekommst du passende Befehle und Beispielprompts. [Befehlsübersicht und Begriffe](HILFE.md) · [Sicherung und Übernahme im Detail](SESSION-SICHERUNG.md).
 
 ## 7. Freigeben
 

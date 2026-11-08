@@ -25,6 +25,59 @@ Eine freie Frage liest die benötigten Daten neu. Hat sich der Lesestand veränd
 
 Ab Direkt-Pipe **1.4** werden erkannte Fragen nach Kapitel- und Abschnittsstatus direkt aus den frisch gelesenen Regeln beantwortet, beispielsweise „Welche Statuswerte kann Kapitel 1 haben?“, „Welchen Zustand könnte 1 schon bekommen?“ und `Status Kapitel 1`. Die Ausgabe nennt den gespeicherten Zustand und ausschließlich die für diese Einheit definierten Statuswerte. Sie behauptet keine erfüllten Voraussetzungen und führt keine Änderung aus. Änderungsaufträge werden durch diese Auskunft nicht als erledigt behandelt. Andere freie Fragen verwenden weiterhin das Basismodell. Für dieses Update genügt die neue Direkt-Funktion; das GitHub-Werkzeug 1.4 bleibt kompatibel.
 
+### Prompt-Profil ohne bezahlte API (Direkt-Pipe 1.7)
+
+Die Direkt-Pipe **1.7.0** enthält den zentralen Prompt-Profiler bereits in der
+einzeln importierbaren Datei. Ein bestehendes lokales Ollama-Modell genügt;
+für diese Diagnose sind weder OpenAI-/Anthropic-Schlüssel noch zusätzliche
+Modellaufrufe erforderlich. Den vollständigen neuen Code aus
+[`ghostwriter_direct.py`](ghostwriter_direct.py) in der vorhandenen
+Open-WebUI-Funktion ersetzen, speichern und einen neuen Chat öffnen.
+Das offizielle GhostWriter-Repository-Update ersetzt einen bereits importierten
+Open-WebUI-Funktionscode nicht automatisch. GitHub-Werkzeug und bestehende
+Zugangseinstellungen bleiben für diese Änderung verwendbar.
+
+1. Mit **Start** und der Buchnavigation die gewünschte Buch-/Abschnittsansicht öffnen.
+2. **Prompt-Profil** senden; Englisch: **Prompt profile**.
+3. Die Pipe zeigt eine lesbare Übersicht direkt im Chat und ruft kein Modell auf.
+   **Prompt-Profil JSON** liefert zusätzlich den vollständigen Metadatenreport
+   mit Fundstellen und Prüfsummen; Englisch: **Prompt profile JSON**.
+
+Der Report nennt Reihenfolge, Rollen, Fundstellen, Prüfsummen, Zeichenumfang,
+geschätzte Tokens und exakte Wiederholungen. Manuskript, Gesprächsinhalte und
+interne Anweisungen werden nicht als Volltext ausgegeben. Die Diagnoseeingabe
+selbst wird aus der Messung entfernt; betrachtet wird der verbleibende Kontext.
+Der Report ist weiterhin vertraulich zu behandeln, da Prüfsummen bekannte
+Inhalte wiedererkennbar machen können. Die Chat-Anwendung kann die sichtbare
+Diagnoseantwort wie andere Nachrichten im Verlauf speichern.
+
+Für die Untersuchung **normaler Modellaufrufe** kann zusätzlich die Pipe-Valve
+`PROMPT_PROFILE` eingeschaltet werden (Vorgabe `false`). Dann entsteht vor jeder
+Weiterleitung ein Metadatenreport im Open-WebUI-Serverprotokoll mit Präfix
+`GHOSTWRITER_PROFILE `. Eine kurze Statusanzeige nennt die Tokenschätzung, sofern
+der Client Statusereignisse unterstützt. Die Modellantwort und ein vorhandener
+Antwortstream werden unverändert weitergereicht. Auch Hintergrundaufgaben können
+im eingeschalteten Zustand profiliert werden. Nach dem Test die Valve wieder
+ausschalten, wenn keine weiteren Reports gewünscht sind. Es gibt keinen
+zusätzlichen Modellaufruf durch das Profiling; die Kosten des gewählten
+Basismodells richten sich weiterhin nach dessen Betrieb/Zugang.
+
+**Messgrenze:** Erfasst werden unterstützte Modellfelder des vorbereiteten
+Payloads unmittelbar vor Übergabe an Open WebUI. Nicht erfasste Felder werden
+gezählt, ohne ihre Inhalte zu veröffentlichen; Metadaten und Callables bleiben
+ausgeschlossen. Spätere Filter, Presets, Ollama-Konvertierung, serverseitige
+Kürzung, Modell-Framing, echte Provider-Tokens und Kosten sind nicht gemessen.
+Es werden keine Antwortstreams mitgelesen und keine Cache-Einsparungen behauptet.
+Der Diagnosebefehl belegt keinen tatsächlich versandten Modellrequest.
+
+Entwicklung: Der markierte Profilerblock ist aus
+[`scripts/prompt_profiler.py`](../../scripts/prompt_profiler.py) erzeugt.
+Nach Änderungen am Core `python3 scripts/build_openwebui_profiler.py` ausführen;
+`--check` und der Profiler-Test prüfen die Übereinstimmung. Die installierbare
+Pipe benötigt dadurch keinen lokalen Repository-Pfad und keinen Download zur Laufzeit.
+Statusereignisse folgen der
+[Open-WebUI-Ereignisdokumentation](https://docs.openwebui.com/features/extensibility/plugin/development/events/).
+
 ### Kontextlänge bei der Weiterleitung an Ollama
 
 Direkt-Pipe **1.5** überträgt die am Pipe-Modell ankommenden Generierungsparameter wie `num_ctx` und `temperature` in `options` für den Ollama-Aufruf. Die Open-WebUI-Konvertierung erwartet sie dort; Parameter am Wurzelobjekt einer Pipe konnten bislang verloren gehen. Bereits vorhandene `options` haben Vorrang. Fehlt `num_ctx`, verwendet die neue Pipe-Valve `CONTEXT_LENGTH` standardmäßig **32768**. Für andere Provider bleibt die Weiterleitung unverändert.

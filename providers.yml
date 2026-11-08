@@ -302,7 +302,7 @@ queue_agents:
   - id: github_copilot_agent
     name: GitHub Copilot Coding Agent
     provider: microsoft_copilot
-    note: Issue in GitHub zuweisen; erstellt einen Pull Request.
+    note: Issue in GitHub zuweisen; erstellt ein Änderungspaket.
     url: https://docs.github.com/copilot
   - id: openai_codex
     name: OpenAI Codex
