@@ -66,7 +66,7 @@ Die GhostWriter-Produktversion und die Ausgabeversion eines Buches sind getrennt
   - AI-Läufe (Recherche, Brainstorming, Schreiben) nur im Modus „Sofort“ direkt im Chat; der Modus „Zeitgesteuert“ über die Cloud-Warteschlange folgt nach v0.5.
 
   Erweiterte Automatisierung darf die Basisnutzung nicht blockieren.
-- **GhostWriter v1.0** ist der geplante Vollausbau: vollständige Workflow-Automatisierung, GitHub-Issue-/Milestone-Steuerung, robuste Freigabe- und Auditmechanismen, wiederholbare Recherche und Faktenprüfung sowie vollständige Export- und Release-Pipeline.
+- **GhostWriter v1.0** umfasst einen vollständigen Buchworkflow ohne Verbindungen zu KI-Anbieter-APIs: KI-Arbeit erfolgt im Chat oder über „Auftrag kopieren“ mit geprüfter Rückgabe. GitHub-Steuerung, Freigabe- und Auditmechanismen sowie Export und Veröffentlichung bleiben Teil des Ziels.
 - Die Roadmap beschreibt den Zielumfang; Funktionen gelten erst nach Implementierung und Prüfung als umgesetzt.
 
 ### Stufen bis v0.5
@@ -87,10 +87,29 @@ Der Weg zu v0.5 ist in fünf Stufen geteilt. Jede endet mit einer Abnahme im Cha
 |---|---|
 | v0.6 | Bibliothek: eine Installation, mehrere Bücher als Branches (#36–#41); automatische Migration der Datenstruktur (#59); README und Anleitung (#46); Programm-Repository öffentlich, Testbuch getrennt (#48); Abnahme nach [TESTPLAN-v0.6.md](TESTPLAN-v0.6.md) |
 | v0.7 | Figuren auf Buch-Ebene (#53) und Bilderzeugung (#54) |
-| v1.0 | Vollausbau (siehe oben): eigene Schnittstelle bzw. Backend (#19), installierbare Web-App (#35) mit Offline-Arbeit am Buch (#61), zeitgesteuerte KI-Läufe und Warteschlange (#65), automatische Kostenabrechnung und Budget (#66), Limitwarnung – unter 10 % keine Automatik (#62), Widmung, Prolog, Epilog, Danksagung (#57), Ausgabeoptionen mit Satz, Umschlag und Druck (#68), Mehrsprachigkeit des Programms (#74), KI-Angabe im Buch als Einstellung je Buch (#78); clientübergreifender Standabgleich (#179, geplant) |
+| v1.0 | Vollständiger Buchworkflow ohne KI-Anbieter-API-Verbindungen; eigene Schnittstelle für Verwaltung (#19), Web-App (#35) und Offline-Arbeit (#61) ohne direkte KI-Aufrufe; verfügbare Budget-/Limitdaten (#62), Vor-/Nachspann (#57), Ausgabeoptionen (#68), Mehrsprachigkeit (#74), KI-Angabe (#78) und clientübergreifender Standabgleich (#179, geplant) |
 | v1.5 | Vorwort, Nachwort, Glossar (#58); Übersetzung des Buchs mit Auflagen je Sprache (#75) |
 
 Jeder Schritt, der die Datenstruktur ändert, liefert eine Migration mit (#59); Doku und Programm prüft `scripts/check_docs.py` in `validate.yml`.
+
+### Verbindliche Entscheidung: v1.0 ohne KI-Anbieter-APIs
+
+**Entschieden am 08.11.2026:** Bis einschließlich v1.0 werden keine Verbindungen zu KI-Anbieter-APIs vorgesehen. Die v1.0-Abnahme setzt weder Anbieter-Schlüssel noch kostenpflichtige Modellaufrufe voraus. Diese Entscheidung ersetzt frühere v1.0-Zuordnungen der betroffenen API-Teile.
+
+KI-Aufträge werden im Chat bearbeitet oder über „Auftrag kopieren“ an einen Dienst übergeben. Zurückgegebene Texte, Bilder und Analyseergebnisse werden geprüft und nur nach den bestehenden Speicher- und Freigaberegeln übernommen. Unbeaufsichtigte Ganzbuchläufe sind kein Ersatzversprechen dieses Wegs.
+
+| Aufgabe | Bis v1.0 | Erst nach v1.0 |
+|---|---|---|
+| #54 Bilder | Auftrag, Hochladen, Zuordnung, Freigabe, Einfügen und Ausgabe | Direkte Bilddienstaufrufe samt Kostenprüfung |
+| #143 Referenzbilder | Speicherung, Metadaten, Auswahl und Freigabe; manuelle Übergabe mit offen ausgewiesenem tatsächlichem Einsatz | Automatische Übergabe der Bildbytes an Anbieter |
+| #123 / #124 Analysen und Import | Import ohne KI sowie Chat-/Kopieraufträge mit geprüfter Rückgabe | Anbieteraufrufe im Hintergrund und Abnahme mit echten API-Schlüsseln |
+| #65 Warteschlange | Manuelle Auftragsverwaltung möglich | Zeitgesteuerte Anbieter-KI-Läufe |
+| #66 / #62 / #71 Kosten und Limits | Vorhandene Aufzeichnungen und verfügbare Grenzen; unbekannte Werte klar kennzeichnen | Anbieter-Nutzungsimport, Kontingentabfragen und vollständige automatische Abrechnung |
+| #35 Web-App | Buchverwaltung und Übergabe an den Chat | Direkte Modellaufrufe aus der App |
+| #75 Übersetzung | Bestehende Einordnung nach v1.0 bleibt; Chat-/Kopierweg möglich | Automatisierte Anbieterläufe |
+| #204 Prompt-Tuning | Lokale Analyse sichtbarer Prompts und Requests | Neue Anbieteradapter, echte Provider-/Cache-Messungen als Abnahmepflicht |
+
+Die eigene GhostWriter-API (#19), GitHub-Verbindungen und lokale Dateiverarbeitung sind davon getrennt. Sie werden durch diese Entscheidung nicht ausgeschlossen. Bestehender optionaler Anbieter-Code und historische Kostenaufzeichnungen werden durch die Planänderung nicht gelöscht; sie sind kein v1.0-Liefer- oder Abnahmekriterium. Neue Anbieteranbindungen und deren Live-Abnahme werden nach v1.0 geplant, ohne hier eine spätere Versionsnummer festzulegen.
 
 ### Git als Produktvorteil
 
@@ -178,7 +197,7 @@ Jeder kostenpflichtige KI-API-Aufruf über das Backend wird als eigener, unverä
 
 **v0.5:** Kosteneinträge für KI-API-Aufrufe über eine implementierte GhostWriter-API, optionale Token-/Nutzungsdaten, Abschnittszuordnung, Kapitelzwischensummen und Projektgesamtbetrag; Kennzeichnung tatsächlicher und geschätzter Kosten. Kostenanzeigen sind keine Voraussetzung für die Arbeit im Chat; ohne Backend-Aufrufe zeigen sie „–“.
 
-**v1.0:** automatischer Import von Provider-Nutzungsdaten, modellbezogene Preisberechnung, soweit technisch verfügbar automatische Zuordnung, Währungsumrechnung, detaillierte Berichte sowie Budgetgrenzen und Warnungen.
+**v1.0:** vorhandene Kostenaufzeichnungen nachvollziehbar anzeigen, tatsächliche und geschätzte Werte unterscheiden und Budgetgrenzen nur aus verfügbaren Daten berechnen. Kein automatischer Import von Anbieter-Nutzungsdaten oder Kontingenten; diese Erweiterungen folgen erst nach v1.0.
 
 Die Kostenfunktion muss auch dann nutzbar bleiben, wenn ein Anbieter keine Nutzungsdaten oder Rechnungswerte bereitstellt.
 

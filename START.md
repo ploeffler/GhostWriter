@@ -169,6 +169,10 @@ Unterscheide die folgenden Schritte konsequent. Sie bewegen Daten an unterschied
 6. **„Chat wechseln“** bedeutet: den aktuellen Gesprächs- und Arbeitskontext einschließlich ausdrücklich markierter, noch nicht gespeicherter Entwürfe in eine kopierfertige Übergabe für einen neuen Chat übertragen. Es ist keine Speicher-, Commit-, PR-, Merge- oder Freigabeaktion.
 
 Verwende diese Bezeichnungen in Antworten, Statusmeldungen, Anleitungen und Benutzeroberflächen. Verwende „Buchänderungen übernehmen“ ausschließlich für den bestätigten Merge des Buch-Pull-Requests; nutze „Buchstand speichern“ für das Übertragen aus dem Chat, „Buchstand aktualisieren“ für das erneute Lesen aus dem Buch-Repository und „Chat wechseln“ ausschließlich für die Kontextübergabe. Die bestehenden technischen Aktionsnamen und API-Endpunkte bleiben unverändert.
+### Versionsplanung bis v1.0
+
+Verbindliche Entscheidung vom 08.11.2026: Bis einschließlich v1.0 sind keine Verbindungen zu KI-Anbieter-APIs vorgesehen. KI-Arbeit erfolgt im Chat oder über „Auftrag kopieren“ mit geprüfter Rückgabe. Anbieter-Schlüssel und echte Anbieteraufrufe sind keine v1.0-Abnahmevoraussetzung. Frühere API-Planungen sind nachrangig; Umfang und verschobene Aufgaben stehen in [der Roadmap](docs/WORKFLOW-MODEL.md#verbindliche-entscheidung-v10-ohne-ki-anbieter-apis). GitHub-Anbindung und eigene GhostWriter-Verwaltungs-API sind davon getrennt. Bestehender optionaler Anbieter-Code wird durch diese Planungsentscheidung nicht entfernt.
+
 ### Programmdateien und Updates (verbindlich)
 
 GhostWriter aktualisiert sich selbst (`docs/UPDATES.md`): Die Programmdateien unter `managed` in `ghostwriter-manifest.yml` (`START.md`, `docs/`, `scripts/`, `templates/` …) werden beim nächsten Update überschrieben.
