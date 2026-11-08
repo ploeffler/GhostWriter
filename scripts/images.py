@@ -18,8 +18,8 @@ add legt ein Bild ab: chapters/<kapitel>/images/<abschnitt>/img-<slug>.<png|jpg>
 (bei Vor-/Nachspann matter/images/<mat-id>/), dazu img-<slug>.yml (Beschreibung,
 Schema schemas/image.schema.json) und den Lauf run-NNN.md (unveränderlich).
 Status ist zunächst `draft`; ins Buch kommt ein Bild erst nach der Freigabe
-(START.md, „Illustrationen“). Ist Pillow vorhanden, wird die längste Kante auf
-images.max_px (Vorgabe 3000) verkleinert, damit das Repository klein bleibt.
+(START.md, „Illustrationen“). Pillow prüft Uploads. images.max_px (Vorgabe 3000)
+begrenzt die Buchfassung; Verkleinerung nur nach Bestätigung, Original bleibt erhalten.
 --source: chat (im Chat erzeugt), copy (Auftrag bei einem anderen Dienst),
 own (eigenes Bild, nicht KI-erzeugt).
 
@@ -33,7 +33,6 @@ import argparse
 import datetime
 import hashlib
 import re
-import shutil
 import sys
 from pathlib import Path
 
@@ -152,7 +151,7 @@ def next_run(folder):
 
 
 def add(base, key, file, caption, alt='', prompt='', source='chat', provider='', model='', names=None,
-        variants=1, credit='', reference_ids=None):
+        variants=1, credit='', reference_ids=None, *, confirm_resize=False, confirm_large_collection=False):
     _, config = load(base)
     target, folder_rel = find_target(config, key)
     src = Path(file)
@@ -176,26 +175,48 @@ def add(base, key, file, caption, alt='', prompt='', source='chat', provider='',
                 'sha256': hashlib.sha256(ref_path.read_bytes()).hexdigest(),
                 'caption': ref['caption']
             })
-    folder = base / folder_rel
-    folder.mkdir(parents=True, exist_ok=True)
+    from media_policy import prepare_upload, safe_destination
+    data = prepare_upload(base, src, confirm_large_collection=confirm_large_collection)
+    max_px = int(settings(config)['max_px'])
+    if max_px < 1:
+        raise ValueError('Ungültige maximale Bildkante')
+    from io import BytesIO
+    from PIL import Image
+    with Image.open(BytesIO(data)) as image:
+        if image.format not in ('PNG', 'JPEG'):
+            raise ValueError('Nur PNG oder JPEG.')
+        size = image.size
+        image.verify()
+    resized = None
+    if max(size) > max_px:
+        if not confirm_resize:
+            raise ValueError('Verkleinerung ausdrücklich bestätigen; Original bleibt unverändert')
+        with Image.open(BytesIO(data)) as image:
+            image.thumbnail((max_px, max_px))
+            out = BytesIO()
+            image.save(out, format='JPEG' if ext == '.jpg' else 'PNG', **({'quality': 90} if ext == '.jpg' else {}))
+            resized = out.getvalue()
+            size = image.size
+        prepare_upload(base, src, additional_bytes=len(resized),
+                       confirm_large_collection=confirm_large_collection)
+    folder = safe_destination(base, folder_rel)
     taken = set(all_images(base, config))
     slug = tag_slug(caption or target['title'])[:40].strip('-') or 'bild'
     iid, n = f'img-{slug}', 2
-    while iid in taken:
+    while (iid in taken or (folder / f'{iid}{ext}').exists()
+           or (folder / 'originals' / f'{iid}{ext}').exists()):
         iid = f'img-{slug}-{n}'
         n += 1
     dest = folder / f'{iid}{ext}'
-    shutil.copyfile(src, dest)
-    max_px = int(settings(config)['max_px'])
-    try:   # verkleinern, wenn Pillow da ist (in den Actions nicht nötig: dort wird nur gelesen)
-        from PIL import Image
-        with Image.open(dest) as im:
-            if max(im.size) > max_px:
-                im.thumbnail((max_px, max_px))
-                im.save(dest, quality=90) if ext == '.jpg' else im.save(dest, optimize=True)
-    except ImportError:
-        pass
-    size = image_size(dest) or (None, None)
+    original_name = f'originals/{iid}{ext}' if resized is not None else dest.name
+    original = safe_destination(base, Path(folder_rel) / original_name)
+    folder.mkdir(parents=True, exist_ok=True)
+    original.parent.mkdir(parents=True, exist_ok=True)
+    with original.open('xb') as output:
+        output.write(data)
+    if resized is not None:
+        with dest.open('xb') as output:
+            output.write(resized)
     ids = []
     for nme in names or []:
         c = find_character(config, nme)
@@ -203,7 +224,8 @@ def add(base, key, file, caption, alt='', prompt='', source='chat', provider='',
             ids.append(c['id'])
     run = next_run(folder)
     meta = {'id': iid, 'section_id': target['id'], 'file': dest.name, 'caption': caption.strip(), 'alt': (alt or caption).strip(),
-            'status': 'draft', 'ai_generated': source != 'own', 'source': source}
+            'status': 'draft', 'ai_generated': source != 'own', 'source': source,
+            'original_file': original_name, 'original_sha256': hashlib.sha256(data).hexdigest()}
     if provider:
         meta['provider'] = provider
     if model:
@@ -252,6 +274,8 @@ def main(argv):
     ap.add_argument('--caption', default='')
     ap.add_argument('--alt', default='')
     ap.add_argument('--prompt', default='')
+    ap.add_argument('--confirm-resize', action='store_true', help='Verkleinerung bei unverändertem Original ausdrücklich bestätigen')
+    ap.add_argument('--confirm-large-collection', action='store_true', help='Upload ab 500 MB Bildbestand ausdrücklich bestätigen')
     ap.add_argument('--source', default='chat', choices=['chat', 'copy', 'own'])
     ap.add_argument('--provider', default='')
     ap.add_argument('--model', default='')
@@ -288,7 +312,8 @@ def main(argv):
     if not a.caption:
         ap.error('add braucht --caption (Bildunterschrift)')
     meta, folder = add(base, a.args[0], a.args[1], a.caption, a.alt, a.prompt, a.source, a.provider, a.model,
-                       a.characters, a.variants, a.credit, a.references)
+                       a.characters, a.variants, a.credit, a.references,
+                       confirm_resize=a.confirm_resize, confirm_large_collection=a.confirm_large_collection)
     print(f'✓ Bild {meta["id"]} abgelegt: {folder}/{meta["file"]} (Entwurf)')
     print(f'Im Text: ![](bild:{meta["id"]})')
     print(f'Commit-Nachricht: Bild „{meta["caption"]}“ abgelegt')
@@ -296,4 +321,7 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    try:
+        sys.exit(main(sys.argv))
+    except (ValueError, OSError) as error:
+        raise SystemExit(str(error)) from None
