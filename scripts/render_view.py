@@ -860,10 +860,62 @@ def status_text(st):
     return f'{STATUS_ICON.get(st, "•")} {STATUS_DE.get(st, st)}'
 
 
+def progress_bar(approved, total):
+    """Zehn Segmente; ohne Abschnitte keinen scheinbaren Fortschritt anzeigen."""
+    if not total:
+        return '–'
+    filled = min(10, max(0, approved * 10 // total))
+    return '▰' * filled + '▱' * (10 - filled)
+
+
+def overview_summary(base, config, cnum=None, language='de'):
+    """Freigaben aus Abschnittsdateien; Navigation erteilt keine Freigabe."""
+    chapters = config['structure']['chapters']
+    entries = []
+    for ci, ch in enumerate(chapters, 1):
+        if cnum is not None and ci != cnum:
+            continue
+        for si, section in enumerate(ch['sections'], 1):
+            head, _, _, manuscript = section_file(base, section)
+            entries.append((f'{ci}.{si}', section['id'], head['status'],
+                            sum(marker_counts(manuscript).values())))
+    approved = sum(e[2] == 'approved' for e in entries)
+    drafts = sum(e[2] not in ('approved', 'planned') for e in entries)
+    markers = sum(e[3] for e in entries)
+    en = language == 'en'
+    bar = progress_bar(approved, len(entries))
+    section_unit = 'section' if len(entries) == 1 else 'sections'
+    german_unit = 'Abschnitt' if len(entries) == 1 else 'Abschnitten'
+    lines = [f'**Approved:** {bar} {approved} of {len(entries)} {section_unit} · **In progress:** {drafts}' if en else
+             f'**Freigegeben:** {bar} {approved} von {len(entries)} {german_unit} · **In Arbeit:** {drafts}']
+    if markers:
+        marker_unit = 'marker' if markers == 1 else 'markers'
+        lines.append(f'**Open:** {markers} {marker_unit} to check' if en else f'**Offen:** {markers} Marker prüfen')
+    current = (config.get('workflow') or {}).get('current_section_id')
+    target = next((e for e in entries if e[1] == current and e[2] != 'approved'), None)
+    target = target or next((e for e in entries if e[2] != 'approved'), None)
+    if target:
+        lines.append(f'**Current:** {target[0]} · {display_status(target[2])}' if en else
+                     f'**Aktuell:** {target[0]} · {display_status(target[2])}')
+        lines.append(f'**Next step:** `{target[0]}` Open section' if en else
+                     f'**Nächster Schritt:** `{target[0]}` Abschnitt öffnen')
+    elif not entries:
+        key = 'N' if cnum is not None or not chapters else '1'
+        action = ('Add section' if cnum is not None else 'Add chapter' if not chapters else 'Open chapter') if en else ('Abschnitt anlegen' if cnum is not None else 'Kapitel anlegen' if not chapters else 'Kapitel öffnen')
+        lines.append(f'**Next step:** `{key}` {action}' if en else f'**Nächster Schritt:** `{key}` {action}')
+    else:
+        lines.append('**All sections approved.** Chapter and edition approvals remain separate.' if en else
+                     '**Alle Abschnitte freigegeben.** Kapitel- und Auflagenfreigaben bleiben gesondert.')
+    return lines + ['']
+
+
 def menu(items, intro=None):
     """items: [(kürzel, text)] -> Aktionszeile mit Kürzeln als Inline-Code."""
     intro = view_message('menu.prompt') if intro is None else intro
-    return f'**{intro}:**  \n' + ' · '.join(f'`{k}` {t}' for k, t in items)
+    primary = ' · '.join(f'`{k}` {t}' for k, t in items[:3])
+    more = ' · '.join(f'`{k}` {t}' for k, t in items[3:])
+    more_label = 'More actions' if UI.get('language') == 'en' else 'Weitere Aktionen'
+    return f'**{intro}:**  \n' + primary + (f'\n\n**{more_label}:** ' + more if more else '')
 
 
 def field_table(rows):
@@ -1243,6 +1295,7 @@ def project_view(base, config, args):
     if args.text:
         lines = [f'### 📘 {values["PROJECT_TITLE"] or "Noch ohne Titel"}',
                  f'**{values["PROJECT_EDITION_TEXT"]}** · Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · KI-API-Kosten: **{values["PROJECT_COST"]}**', '']
+        lines += overview_summary(base, config)
         if changes:
             lines += [f'> ⏳ **{values["PENDING_TEXT"]} noch nicht übernommen** (Änderungspaket #{changes["pull_request"]}) · `M` übernehmen', '']
         if ser:
@@ -1345,6 +1398,7 @@ def chapter_view(base, config, args, cnum):
             parts = [f'{MARKER_ICON[k]} {r["MARKERS_" + k.upper()]}' for k in MARKER_ICON if r['MARKERS_' + k.upper()]]
             return ' '.join(parts) or '–'
         lines = [f'### 📖 Kapitel {cnum} · {ch["title"]}']
+        lines += [''] + overview_summary(base, config, cnum)
         if values['CHAPTER_SUBTITLE']:
             lines += [f'*{values["CHAPTER_SUBTITLE"]}*']
         lines += ['', f'**Ziel des Kapitels:** {ch_goal or "*noch offen*"}', '',
@@ -2451,7 +2505,7 @@ def library_view(base, config, args):
                     out.append(f'| | {label} | | | | |')
                 vol = f'{r["BOOK_VOLUME_TEXT"]}: ' if r['BOOK_VOLUME_TEXT'] else ''
                 out.append(f'| {i} | {vol}**{r["BOOK_TITLE"]}** ({r["BOOK_TITLE_SHORT"]}){" · ⏳ " + r["BOOK_PENDING_TEXT"] if r["BOOK_PENDING_TEXT"] else ""} | '
-                           f'{"✅ eingerichtet" if r["BOOK_STATE"] == "ready" else "🚧 im Aufbau"} | {r["BOOK_PROGRESS_TEXT"]} | {r["BOOK_EDITION_TEXT"]} | {r["BOOK_COST"]} |')
+                           f'{"✅ eingerichtet" if r["BOOK_STATE"] == "ready" else "🚧 im Aufbau"} | {progress_bar(r["BOOK_APPROVED_SECTION_COUNT"], r["BOOK_SECTION_COUNT"])} {r["BOOK_PROGRESS_TEXT"]} | {r["BOOK_EDITION_TEXT"]} | {r["BOOK_COST"]} |')
         else:
             out += ['*Hier steht noch kein Buch.*']
         if empty_series:
@@ -3429,7 +3483,7 @@ def main():
         out = section_view(base, config, args, c, s)
     if language == 'en' and args.view not in view_i18n.DIRECT_VIEWS:
         data = render_view_en.prepare(out.template, out.data, config, args)
-        out = render_view_en.render(out.template, data, config, sys.modules[__name__]) if requested_text else fill(out.template + '.html', data)
+        out = render_view_en.render(out.template, data, config, sys.modules[__name__], base) if requested_text else fill(out.template + '.html', data)
     sys.stdout.write(out)
 
 

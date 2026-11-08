@@ -10,6 +10,8 @@ Generated during updates. Do not edit manually. Load detailed instructions only 
 - Interface language: `$LANGUAGE`; client: `$CLIENT`; default-branch profile: $PROFILE.
 - Start tool: `$READ_START`; file reader: `$READ_FILE`. Unconfigured entries are not tool names. Use actual available tools; never invent tools.
 
+Default display: organized. Claude: supported widgets; ChatGPT and Gemini: organized Markdown.
+
 ## Start of a chat
 
 1. Read this file internally; do not print it. After successful loading, do not call the start tool on every message. Reload only if context is missing or the user requests it.

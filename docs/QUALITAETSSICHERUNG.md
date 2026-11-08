@@ -207,6 +207,22 @@ Die Auswahl gilt für den laufenden Chat, bis sie geändert wird. Sie darf nicht
 
 Diese Anleitung beschreibt das redaktionelle Soll-Verhalten. Sie behauptet nicht, dass GhostWriter alle Prüfungen bereits automatisiert ausführt. KI-Prüfungen können Fehler übersehen oder falsche Hinweise geben; bei strittigen Fakten sind belastbare Quellen und die Entscheidung der Autorin oder des Autors maßgeblich.
 
+
+### Gemeinsame übersichtliche Ansicht: Claude, ChatGPT und Gemini
+
+Ohne ausdrücklich gewählten Darstellungsmodus gilt „übersichtlich“. Eine ausdrückliche Auswahl „einfach“, „erweitert“ oder „Nur Text“ bleibt wirksam; Antwortumfang und Darstellungsmodus bleiben unabhängig.
+
+- Buch- und Kapitelkopf: Titel, kompakter Arbeitsstand und Kosten; direkt darunter ein Balken mit zehn Segmenten und der genauen Anzahl freigegebener Abschnitte. Ohne Abschnitte „0 von 0“ und keinen gefüllten Balken zeigen. „In Arbeit“ zählt alle Abschnitte, die weder geplant noch freigegeben sind; dies ist keine Freigabe. Der Balken misst ausschließlich Abschnittsfreigaben, nicht Fertigstellung oder Veröffentlichung des Buchs.
+- Offene Marker mit Anzahl hervorheben. Warnungen, ausstehende Übernahmen und Freigaben weiterhin vollständig zeigen. Fehlende Daten ausdrücklich benennen; keine Zahlen schätzen.
+- Einen passenden nächsten Schritt mit vorhandenem Aktionskürzel zeigen: zuletzt bearbeiteter, noch nicht freigegebener Abschnitt, sonst erster offener Abschnitt; bei leerer Struktur die Anlage anbieten. Öffnen und Auswählen erteilt keine Freigabe. Vollständige Aktionen bleiben darunter erreichbar. Keine funktionslosen Schaltflächen oder neuen Befehle erfinden.
+- Status immer als Symbol und Wort darstellen. Tabellen knapp halten; lange Manuskripttexte bleiben normaler Lesetext.
+- **Claude (Anthropic):** bestehende GhostWriter-Widgets verwenden, wenn der konkrete Client sie unterstützt; dieselbe inhaltliche Gliederung anwenden. Bei fehlender Unterstützung auf Markdown zurückfallen. Die externen Widget-Vorlagen werden gesondert gepflegt; diese Vorgabe behauptet keine Änderung ihres HTML-Aufbaus.
+- **ChatGPT (OpenAI):** übersichtliches Markdown als gemeinsame Grundlage; native Auswahl- und Anzeigeelemente nur bei tatsächlich vorhandener Unterstützung ergänzen.
+- **Gemini (Google):** dieselbe Markdown-Grundansicht ausdrücklich unterstützen. Zusätzliche native Elemente nur bei bestätigter Unterstützung des konkreten Clients. API-Zugang oder Anbietername allein sagt nichts über die Chat-Darstellung aus.
+
+Die Textansichten von Buch und Kapitel berechnen diese Übersicht aus den Abschnittsdateien. Das Bücherregal ergänzt seine vorhandenen Freigabezahlen um denselben Balken. Deutsch und Englisch verwenden dieselbe Berechnung. Ansichten erzeugen keine Änderungen an Buchdateien.
+
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
