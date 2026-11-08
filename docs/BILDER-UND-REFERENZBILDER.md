@@ -2,6 +2,8 @@
 
 [English](IMAGES-AND-REFERENCES.en.md) · Deutsch
 
+**GhostWriter ist nicht für Bildbände oder Fotobücher gedacht. Eine Szene entspricht einem Abschnitt; je Abschnitt höchstens ein Medium.** Die sechs Positionen, Textumfluss und der Breiten-Schieberegler sind in [Medien im Abschnitt](MEDIENPLATZIERUNG.md) festgelegt. Diese neuen Layoutfunktionen und die technische Mengenbegrenzung sind noch nicht umgesetzt.
+
 ## Zweck und Geltungsbereich
 
 Diese Anforderung gilt für **alle GhostWriter-Bücher** und alle Buchtypen. Sie ergänzt die bestehende Illustrationsfunktion (#54) um eine eigenständige Verwaltung hochgeladener Bilder, die als visuelle Referenzen in spätere Erstellungsaufträge einbezogen werden können.
@@ -99,4 +101,4 @@ Insbesondere darf die technische Umsetzung nicht einfach jedes hochgeladene Refe
 
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

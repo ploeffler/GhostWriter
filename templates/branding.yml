@@ -30,3 +30,7 @@ colors:
 credit:
   text: "Entwickelt mit Unterstützung von Claude (Anthropic)"
   url: "https://claude.ai"
+
+  text_en: "Developed with support from Claude (Anthropic)"
+  codex_text: "Entwickelt mit Unterstützung von Codex (OpenAI)"
+  codex_text_en: "Developed with support from Codex (OpenAI)"

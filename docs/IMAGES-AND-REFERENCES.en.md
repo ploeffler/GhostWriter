@@ -2,6 +2,8 @@
 
 [Deutsch](BILDER-UND-REFERENZBILDER.md) · English
 
+**GhostWriter is not intended for photo books or picture-led collections. One scene corresponds to one section, with at most one media item per section.** [Media within a section](MEDIA-LAYOUT.en.md) specifies the six positions, text wrapping and percentage width slider. These new layout controls and the technical item limit are not implemented yet.
+
 ## Purpose and scope
 
 This requirement applies to every GhostWriter book and book type. It extends the existing illustration feature (#54) with separate management of uploaded images that may serve as visual references in later generation assignments.
@@ -97,4 +99,4 @@ Implementation must not simply treat every uploaded reference as an illustration
 
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

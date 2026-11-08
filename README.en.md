@@ -18,6 +18,8 @@ GhostWriter is a workspace for developing a book in a chat with an AI assistant.
 - **Version control from software development:** Git records every revision saved to your repository. Compare revisions, restore earlier passages and develop drafts separately from accepted text. Each edition is tied to an exact book state. See [version control with Git](docs/PRINCIPLES.en.md#version-control-with-git).
 - **You stay in control:** Sections require your approval. Sources should be documented and checked, and uncertainties made clear.
 
+**For text-led books:** GhostWriter is not intended for photo books or picture-led collections. One scene corresponds to one section, with at most one media item. [Media positioning and text wrapping](docs/MEDIA-LAYOUT.en.md) are confirmed requirements awaiting implementation.
+
 ## Quick start
 
 1. Create your own private repository from this template. See the [getting started guide](docs/GETTING-STARTED.en.md#1-create-a-repository).
@@ -34,4 +36,4 @@ Further localization work is tracked in [issue #74](https://github.com/ploeffler
 
 ---
 
-<p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg"><img src="assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg"><img src="assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

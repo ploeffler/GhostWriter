@@ -1,0 +1,70 @@
+{
+  "docx": {
+    "bilder": [
+      "word/media/rId10.png",
+      "word/media/rId15.png",
+      "word/media/rId20.png"
+    ],
+    "bildplatzierungen": 3,
+    "bilddateien_unveraendert": true,
+    "reines_referenzbild_ausgeschlossen": true,
+    "alternativtexte": [
+      {
+        "descr": "Strolchi am Gartentor",
+        "title": "",
+        "id": "11",
+        "name": "Picture"
+      },
+      {
+        "descr": "Drei Schritte im Bildtest",
+        "title": "",
+        "id": "16",
+        "name": "Picture"
+      },
+      {
+        "descr": "Eigenständige Grafik nach dem Textabschnitt",
+        "title": "",
+        "id": "21",
+        "name": "Picture"
+      }
+    ],
+    "ausfuehrlicher_alternativtext_erhalten": false
+  },
+  "epub": {
+    "bilder": [
+      "EPUB/media/file2.png",
+      "EPUB/media/file1.png",
+      "EPUB/media/file0.png"
+    ],
+    "bildplatzierungen": 3,
+    "bilddateien_unveraendert": true,
+    "reines_referenzbild_ausgeschlossen": true,
+    "alternativtexte": [
+      {
+        "src": "../media/file0.png",
+        "style": "width:100.0%",
+        "alt": "Strolchi am Gartentor"
+      },
+      {
+        "src": "../media/file1.png",
+        "style": "width:100.0%",
+        "alt": "Drei Schritte im Bildtest"
+      },
+      {
+        "src": "../media/file2.png",
+        "style": "width:100.0%",
+        "alt": "Eigenständige Grafik nach dem Textabschnitt"
+      }
+    ],
+    "ausfuehrlicher_alternativtext_erhalten": false
+  },
+  "probedruck": {
+    "entwurfskennzeichnungen": 3,
+    "veroeffentlichungswarnung": true
+  },
+  "pdf": {
+    "alle_drei_bildunterschriften": true,
+    "keine_entwurfswarnung_in_testauflage": true,
+    "bildliste": "page   num  type   width height color comp bpc  enc interp  object ID x-ppi y-ppi size ratio\n--------------------------------------------------------------------------------------------\n   3     0 image    1536  1024  rgb     3   8  image  no        64  0   355   355 2916K  63%\n   4     1 image    2400   900  rgb     3   8  image  no        70  0   554   554 69.2K 1.1%\n   5     2 image    2400   900  rgb     3   8  image  no        70  0   554   554 69.2K 1.1%\n"
+  }
+}

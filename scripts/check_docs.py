@@ -39,7 +39,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS = ['START.md', 'README.md', 'templates/ui/BEFUELLUNG.md', 'templates/ui/README.md'] + \
+DOCS = ['START.md', 'README.md', 'README.en.md', 'templates/ui/BEFUELLUNG.md', 'templates/ui/README.md'] + \
        sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'docs').glob('*.md'))
 # Platzhalter, die gw.js selbst setzt bzw. die kein Befüllen brauchen
 PLACEHOLDER_SKIP = {'HEAD_SHA'}
@@ -172,7 +172,8 @@ def check_credit(problems):
     path = ROOT / 'templates' / 'branding.yml'
     if not path.is_file():
         return
-    text = ((yaml.safe_load(path.read_text(encoding='utf-8')) or {}).get('credit') or {}).get('text', '')
+    credit = (yaml.safe_load(path.read_text(encoding='utf-8')) or {}).get('credit') or {}
+    text = credit.get('text', '')
     if not text:
         return
     for rel in DOCS:
@@ -182,9 +183,15 @@ def check_credit(problems):
         # Alle anderen Dokumente und die zentrale START.md bleiben prüfpflichtig.
         if rel == 'START.md' and read(rel).startswith(GENERATED_START_MARKER):
             continue
-        tail = read(rel)[-700:]
-        if text not in tail:
-            problems.append(f'Fußzeile „{text}“ fehlt am Ende von {rel}')
+        tail = read(rel)[-1000:]
+        english = rel.endswith('.en.md')
+        primary = credit.get('text_en', text) if english else text
+        codex = credit.get('codex_text_en', credit.get('codex_text', '')) if english else credit.get('codex_text', '')
+        if primary not in tail:
+            problems.append(f'Fußzeile „{primary}“ fehlt am Ende von {rel}')
+        if codex and (codex not in tail or primary not in tail or
+                      not re.search(re.escape(primary) + r'.*?<br\s*/?>\s*' + re.escape(codex), tail, re.S)):
+            problems.append(f'Codex-Hinweis fehlt als eigene Zeile unter dem Claude-Hinweis in {rel}')
         images = re.findall(r'(?:src|srcset)="([^"]+)"', tail)
         if not any(i.endswith('logo.svg') for i in images):
             problems.append(f'Logo unten rechts fehlt am Ende von {rel}')
@@ -192,7 +199,9 @@ def check_credit(problems):
             if not ((ROOT / rel).parent / i).is_file():
                 problems.append(f'Logo-Pfad in {rel} zeigt ins Leere: {i}')
     for p in sorted((ROOT / 'templates').glob('*.md')):
-        if text in p.read_text(encoding='utf-8'):
+        content = p.read_text(encoding='utf-8')
+        notices = [credit.get(key) for key in ('text', 'text_en', 'codex_text', 'codex_text_en')]
+        if any(notice and notice in content for notice in notices):
             problems.append(f'Buchvorlage templates/{p.name} enthält den Hinweis; er gehört nie ins Buch')
 
 

@@ -1,0 +1,13 @@
+{
+  "buch": "testbuch-ein-medium",
+  "abschnitte": 3,
+  "medien_je_abschnitt": [
+    1,
+    1,
+    1
+  ],
+  "nur_medium_abschnitt": "sec-test-nur-medium",
+  "projektpruefung": "bestanden",
+  "negativfall": "Vorheriger Test mit zwei Medien in einem Abschnitt wurde vom Programm akzeptiert. Mengenbegrenzung fehlt.",
+  "platzierung": "Aktuell volle Satzbreite; neue sechs Positionen, Textumfluss und Breitenregler nicht implementiert."
+}

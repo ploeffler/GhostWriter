@@ -1,0 +1,36 @@
+[
+  {
+    "file": "ch001.xhtml",
+    "images": []
+  },
+  {
+    "file": "ch002.xhtml",
+    "images": [
+      {
+        "src": "../media/file0.png",
+        "width": 1536,
+        "height": 1024,
+        "loaded": true,
+        "alt": "Strolchi am Gartentor"
+      },
+      {
+        "src": "../media/file1.png",
+        "width": 2400,
+        "height": 900,
+        "loaded": true,
+        "alt": "Drei Schritte im Bildtest"
+      },
+      {
+        "src": "../media/file2.png",
+        "width": 2400,
+        "height": 900,
+        "loaded": true,
+        "alt": "Eigenständige Grafik nach dem Textabschnitt"
+      }
+    ]
+  },
+  {
+    "file": "title_page.xhtml",
+    "images": []
+  }
+]

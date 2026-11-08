@@ -1,0 +1,62 @@
+[
+  {
+    "schritt": "Upload aktiviert keine Referenz",
+    "ergebnis": "bestanden",
+    "detail": ""
+  },
+  {
+    "schritt": "Explizite Testfreigabe und Referenzauswahl",
+    "ergebnis": "bestanden",
+    "detail": "testbuch/reference-images/ref-img-strolchi-referenz.png"
+  },
+  {
+    "schritt": "Bildauftrag enthält Figur, Stil und gewählte Referenz",
+    "ergebnis": "bestanden",
+    "detail": ""
+  },
+  {
+    "schritt": "Direkter SVG-Import",
+    "ergebnis": "nicht unterstützt",
+    "detail": "PNG/JPEG sind die derzeit unterstützten Buchformate; SVG wird verständlich abgelehnt."
+  },
+  {
+    "schritt": "Beschriftetes Diagramm als PNG speichern",
+    "ergebnis": "bestanden",
+    "detail": "PNG-Bytes unverändert; 2400 × 900 Pixel."
+  },
+  {
+    "schritt": "Diagrammauftrag mit Beschriftung",
+    "ergebnis": "Lücke",
+    "detail": "Der allgemeine Bildprompt verbietet Schrift auch bei einem ausdrücklich beschrifteten Diagramm. Codebasierte Erstellung und PNG-Import funktionieren separat."
+  },
+  {
+    "schritt": "Illustration speichern und genaue Referenzversion protokollieren",
+    "ergebnis": "bestanden",
+    "detail": "chapters/01-endlich-eine-erklaerung/images/sec-01-01-der-brief-der-sechs-monate/run-002.md"
+  },
+  {
+    "schritt": "Ausgabesperre bei nicht freigegebenen Bildern",
+    "ergebnis": "bestanden",
+    "detail": "Beide Entwurfsbilder blockieren die Auflage."
+  },
+  {
+    "schritt": "Probedruck kennzeichnet nicht freigegebene Bilder",
+    "ergebnis": "bestanden",
+    "detail": ""
+  },
+  {
+    "schritt": "Nach simulierten Bildfreigaben ist die Auflage baubar",
+    "ergebnis": "bestanden",
+    "detail": ""
+  },
+  {
+    "schritt": "Zurückgezogene Referenz für neue Aufträge gesperrt; alter Lauf unverändert",
+    "ergebnis": "bestanden",
+    "detail": ""
+  },
+  {
+    "schritt": "Projektprüfung des vollständigen Testbuchs",
+    "ergebnis": "bestanden",
+    "detail": ""
+  }
+]

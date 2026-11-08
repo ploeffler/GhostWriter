@@ -63,6 +63,8 @@ A link to `START.md` does not automatically load its contents. With a GitHub con
 
 GhostWriter was developed with assistance from Claude (Anthropic); this acknowledgement belongs in the documentation, not automatically in your book. You decide whether and how to disclose AI assistance in your book.
 
+**GhostWriter is intended for text-led books, not photo books or picture-led collections.** One scene corresponds to one section, with at most one media item. See [media within a section](MEDIA-LAYOUT.en.md) for the requirements and implementation status.
+
 ## Further reading
 
 - [Getting started](GETTING-STARTED.en.md) · [User guide](USER-GUIDE.en.md) · [Chat views](INTERFACES.en.md)
@@ -74,4 +76,4 @@ GhostWriter was developed with assistance from Claude (Anthropic); this acknowle
 
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

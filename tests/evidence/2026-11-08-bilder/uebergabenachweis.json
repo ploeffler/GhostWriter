@@ -1,0 +1,9 @@
+{
+  "dienst": "eingebaute Bildgenerierung im Chat",
+  "modell": "vom Werkzeug nicht ausgewiesen",
+  "referenzdatei": "testbuch/reference-images/ref-img-strolchi-referenz.png",
+  "uebergabe": "referenced_image_paths im tatsächlichen Werkzeugaufruf",
+  "ergebnis": "quellen/strolchi-szene.png",
+  "sichtpruefung": "Weißes anatomisch rechtes Ohr, grünes Halsband und dreieckiger Anhänger in Referenz und neuer Szene erkennbar erhalten.",
+  "einschraenkung": "Manuelle Übergabe durch den Assistenten; keine automatische Anbieter-API von GhostWriter und kein Nachweis beliebiger weiterer Dienste."
+}

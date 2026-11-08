@@ -2,6 +2,8 @@
 
 GhostWriter ist ein Werkzeug für Menschen, die ein Buch schreiben. Es nimmt dir Ordnung, Suche und Buchhaltung ab, damit du dich auf das Schreiben konzentrieren kannst. Was im Buch steht, entscheidest du.
 
+**GhostWriter ist für textorientierte Bücher gedacht, nicht für Bildbände oder Fotobücher.** Eine Szene entspricht einem Abschnitt; je Abschnitt höchstens ein Medium. [Medien im Abschnitt](MEDIENPLATZIERUNG.md) beschreibt die Vorgaben und ihren Umsetzungsstand.
+
 ## Was GhostWriter tut
 
 - **Ordnen:** Aus deiner Idee wird im Gespräch eine Gliederung aus Kapiteln und Abschnitten. Sie bleibt jederzeit änderbar.
@@ -83,4 +85,4 @@ GhostWriter wurde mit Unterstützung von Claude (Anthropic) entwickelt; dieser H
 
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a></sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
