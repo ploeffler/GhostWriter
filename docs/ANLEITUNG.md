@@ -1,6 +1,14 @@
 # Anleitung: vom leeren Repository zur ersten Auflage
 
+Deutsch · [English](USER-GUIDE.en.md)
+
 Diese Anleitung führt einmal durch den ganzen Weg. Du brauchst ein GitHub-Konto und einen KI-Chat-Assistenten, idealerweise mit GitHub-Verbindung und Internetrecherche. Git, die Versionsverwaltung aus der Softwareentwicklung, sichert die gespeicherten Buchstände und macht Änderungen vergleichbar und wiederherstellbar. Die Bedienung läuft im Chat; Git-Kenntnisse sind dafür nicht erforderlich.
+
+Die drei grafischen Übersichten haben eigene Seiten:
+
+- [Buchablauf](BUCHABLAUF.md): von **Neues Buch** über den wiederkehrenden Kapitelkreis zur fertigen Auflage.
+- [Erstellungskreislauf](ERSTELLUNGSKREISLAUF.md): einen Abschnitt mit Recherche, Brainstorming, neuen Eingaben und Überarbeitungen entwickeln.
+- [Speichern, Übernehmen und Freigeben](SPEICHERN.md): Buchänderungen und Gesprächssicherung, ihre Zustände und getrennten Bestätigungen.
 
 ## 1. Repository anlegen
 
@@ -32,8 +40,10 @@ Bis du die Gliederung ausdrücklich freigibst, werden keine weiteren Buchdateien
 
 Die **Projektübersicht** zeigt alle Kapitel mit Status und Kosten; ein Klick öffnet die **Kapitelansicht** mit ihren Abschnitten, ein weiterer den **Abschnitt**.
 
+Die Arbeit ist ein [Erstellungskreislauf](ERSTELLUNGSKREISLAUF.md): Du kannst jederzeit neue Ideen, Vorgaben und Material einbringen. Je nach Inhalt geht es zurück zu Recherche, Brainstorming oder Überarbeitung. Nach den Abschnittsfreigaben folgt die Prüfung und Freigabe des ganzen Kapitels; für weitere Kapitel wiederholt sich dieser [Kapitelkreis](BUCHABLAUF.md).
+
 - **Recherche:** je Abschnitt („Recherche sofort“) oder für ein ganzes Kapitel (Lupe neben Ziel und Kurzbeschreibung). Ergebnisse kommen mit Quellen und als Vorschlag.
-- **Schreiben:** Ein Abschnitt wird erst geschrieben, wenn du das Schreiben freigibst. Den Text kannst du jederzeit selbst ändern.
+- **Schreiben:** Ein Abschnitt wird erst geschrieben, wenn du das Schreiben freigibst. Bereits freigegebener Text bleibt geschützt: vor einer Änderung die Abschnittsfreigabe ausdrücklich zurücknehmen und eine neue Schreibfreigabe erteilen.
 - **Vor- und Nachspann:** Widmung, Vorwort, Prolog, Epilog, Nachwort, Glossar und Danksagung legst du bei Bedarf an (`Vor- und Nachspann` bzw. `Widmung`, `Glossar` …). Sie werden freigegeben wie Abschnitte; Widmung und Danksagung schreibst du selbst. Ins Glossar kommen Begriffe einzeln (`+ Begriff: Erklärung`), im Buch alphabetisch.
 - **KI-Angabe:** Ob im Buch steht, wie du KI genutzt hast, legst du selbst fest (`KI-Angabe`). GhostWriter schlägt einen Satz aus den tatsächlichen Läufen vor; ins Buch kommt er erst, wenn du ihn bestätigst.
 - **Ausgabe:** Wie Auflagen aussehen (Ränder, Schrift, Zeilenabstand, Kolumnentitel, Initialen, Formate, ISBN und Verlag im Impressum), stellst du im Formular `Ausgabe` ein; der nächste Probedruck zeigt es. Für den Druck gibt es dort auch das Profil deines Anbieters (KDP, BoD) und den **Umschlag** mit Rückenbreite, Beschnitt, Klappentext und ISBN-Strichcode; das EPUB bekommt dessen Vorderseite als Cover.
@@ -41,6 +51,8 @@ Die **Projektübersicht** zeigt alle Kapitel mit Status und Kosten; ein Klick ö
 - **Befehle** gehen immer: `Start`, `Übersicht`, `Kapitel 3`, `Abschnitt 3.2`, `Neues Kapitel`, `Probedruck`, `Auflage`, `Hilfe`.
 
 ### Änderungspakete schnüren und übernehmen
+
+Der [grafische Speicherablauf](SPEICHERN.md) zeigt die zwei Wege und die Zustände **vorbereitet**, **gespeichert**, **übernommen** und **inhaltlich freigegeben**. Sie bedeuten jeweils etwas anderes.
 
 Zusammengehörige Änderungen werden zu einem **Änderungspaket** gebündelt. „Schnüren“ heißt, die Ergebnisse zu ordnen und dauerhaft als gemeinsames Paket zu speichern. „Übernehmen“ heißt, das geprüfte Paket in den vorgesehenen Projektstand einzufügen. Technisch heißen diese Schritte Pull Request (PR) und Merge; in Chat-Ausgaben verwenden wir Änderungspaket und übernehmen.
 
@@ -59,9 +71,13 @@ Jede Freigabe ist eine eigene Bestätigung und wird protokolliert; zurücknehmen
 
 Im Formular **Neue Auflage** (oder mit `Probedruck`) entsteht ein PDF des aktuellen Stands zum Lesen oder Weitergeben, mit allen Kapiteln, offenen Markern hervorgehoben und dem Vermerk „Probedruck“. Es ist keine Auflage und ändert nichts.
 
+Enthalten ist der übernommene Buchstand. Noch offene Änderungen zuerst übernehmen, wenn sie im Probedruck erscheinen sollen.
+
 ## 9. Erste Auflage
 
-Sind die gewünschten Kapitel freigegeben, öffne **Neue Auflage**: Name, Erscheinungsdatum, Formate (PDF, Word, E-Book) und Release Notes. Nach deiner Bestätigung baut GitHub die Auflage und legt sie als Release mit Tag ab. Veröffentlichte Auflagen bleiben unverändert; Korrekturen kommen in die nächste.
+Sind die gewünschten Kapitel freigegeben, öffne **Neue Auflage**: Name, Erscheinungsdatum, Formate (PDF, Word, E-Book) und Release Notes. Mindestens ein Kapitel muss freigegeben sein; die enthaltenen Abschnitte müssen ebenfalls freigegeben und frei von offenen Markern sein. Offene Buchänderungen zuerst übernehmen.
+
+Der Assistent zeigt die Release Notes zur Freigabe und bereitet ein eigenes Änderungspaket für die Auflage vor. Dessen Übernahme bestätigst du ausdrücklich, auch bei eingeschaltetem „sofort übernehmen“. Erst danach baut GitHub die Dateien und veröffentlicht das Release mit Tag. Ein fehlgeschlagener Aufbau ist noch keine fertige Auflage. Veröffentlichte Auflagen bleiben unverändert; Korrekturen kommen in die nächste. Den Gesamtweg zeigt der [Buchablauf](BUCHABLAUF.md).
 
 ## 10. Später weiterarbeiten
 

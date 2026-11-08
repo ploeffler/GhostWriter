@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="2870" viewBox="0 0 1900 2870"><defs><marker id="blue" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3971AD"/></marker><marker id="purple" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#7865A5"/></marker></defs><rect width="1900" height="2870" fill="#FAFBFD"/><g font-family="DejaVu Sans, sans-serif">
+<text x="950" y="75" text-anchor="middle" font-size="43" fill="#20324A" font-weight="700">From a new book to a published edition</text>
+<text x="950" y="121" text-anchor="middle" font-size="25" fill="#20324A" font-weight="400">Set up once · Repeat the chapter cycle · Explicitly publish an edition</text>
+<path d="M 950 310 L 950 350" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 950 510 L 950 550" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 950 710 L 950 795" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<rect x="420.0" y="150.0" width="1060" height="160" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
+<text x="950" y="190.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Create a new book</text>
+<text x="950" y="229.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Working title; optional short title and author; a separate book branch.</text>
+<text x="950" y="289.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">Book: being set up</text>
+<rect x="420.0" y="350.0" width="1060" height="160" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
+<text x="950" y="390.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Develop the concept and outline</text>
+<text x="950" y="429.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Agree on topic, audience, style, chapters and sections.</text>
+<text x="950" y="489.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">Concept in conversation; no further book files yet</text>
+<rect x="420.0" y="550.0" width="1060" height="160" rx="22" fill="#FFF2D8" stroke="#B37719" stroke-width="2.5"/>
+<text x="950" y="590.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Explicitly approve the complete structure</text>
+<text x="950" y="629.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Then save and merge the structure.</text>
+<text x="950" y="689.0" text-anchor="middle" font-size="21" fill="#B37719" font-weight="400">Chapters and sections: planned</text>
+<path d="M 950.0 900.0 A 400 400 0 0 1 1296.4101615137756 1100.0" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 1296.4101615137756 1100.0 A 400 400 0 0 1 1296.4101615137756 1500.0" fill="none" stroke="#3971AD" stroke-width="4"/>
+<path d="M 1296.4101615137756 1500.0 A 400 400 0 0 1 950.0 1700.0" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 950.0 1700.0 A 400 400 0 0 1 603.5898384862245 1500.0" fill="none" stroke="#3971AD" stroke-width="4"/>
+<path d="M 603.5898384862245 1500.0 A 400 400 0 0 1 603.5898384862246 1100.0" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 603.5898384862246 1100.0 A 400 400 0 0 1 949.9999999999999 900.0" fill="none" stroke="#3971AD" stroke-width="4"/>
+<path d="M 274 1500 Q 140 1500 140 1750 Q 140 1810 270 1810" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<text x="950" y="1220" text-anchor="middle" font-size="35" fill="#3971AD" font-weight="700">Chapter by chapter</text>
+<text x="950" y="1270" text-anchor="middle" font-size="26" fill="#20324A" font-weight="400">Repeat this circle</text>
+<text x="950" y="1304" text-anchor="middle" font-size="26" fill="#20324A" font-weight="400">for every further chapter.</text>
+<text x="395" y="1140" text-anchor="middle" font-size="23" fill="#3971AD" font-weight="400">next</text>
+<text x="395" y="1171" text-anchor="middle" font-size="23" fill="#3971AD" font-weight="400">chapter</text>
+<text x="150" y="1645" text-anchor="middle" font-size="22" fill="#3971AD" font-weight="400">to the</text>
+<text x="150" y="1675" text-anchor="middle" font-size="22" fill="#3971AD" font-weight="400">edition</text>
+<rect x="525.0" y="800.0" width="850" height="200" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
+<text x="950" y="840.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Creation cycle for each section</text>
+<text x="950" y="879.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">See the separate circular diagram.</text>
+<text x="950" y="910.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Repeat until all sections in this chapter are approved.</text>
+<text x="950" y="979.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">Chapter: in_progress</text>
+<rect x="966.0" y="1400.0" width="660" height="200" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
+<text x="1296" y="1440.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Assemble and review the chapter</text>
+<text x="1296" y="1479.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">All sections approved → assemble</text>
+<text x="1296" y="1510.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Review → ready for chapter approval</text>
+<text x="1296" y="1554.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">ready_for_assembly → assembly</text>
+<text x="1296" y="1583.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">review → ready_for_approval</text>
+<rect x="274.0" y="1400.0" width="660" height="200" rx="22" fill="#FFF2D8" stroke="#B37719" stroke-width="2.5"/>
+<text x="604" y="1440.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Explicitly approve the chapter</text>
+<text x="604" y="1479.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">You confirm the assembled version.</text>
+<text x="604" y="1579.0" text-anchor="middle" font-size="21" fill="#B37719" font-weight="400">Chapter: approved</text>
+<path d="M 1550 1400 Q 1730 1090 1385 925" fill="none" stroke="#7865A5" stroke-width="4" stroke-dasharray="10 8" marker-end="url(#purple)"/>
+<text x="1680" y="1110" text-anchor="middle" font-size="21" fill="#7865A5" font-weight="400">if changes</text>
+<text x="1680" y="1139" text-anchor="middle" font-size="21" fill="#7865A5" font-weight="400">are needed</text>
+<path d="M 950 1910 L 950 1950" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 950 2140 L 950 2180" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<path d="M 950 2370 L 950 2410" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
+<rect x="270.0" y="1710.0" width="1360" height="200" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
+<text x="950" y="1750.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Request a new edition and check requirements</text>
+<text x="950" y="1789.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">At least one approved chapter; all included sections approved.</text>
+<text x="950" y="1820.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">No unresolved markers; merge pending book changes first.</text>
+<text x="950" y="1889.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">If blocked, return to the affected work</text>
+<rect x="270.0" y="1940.0" width="1360" height="200" rx="22" fill="#FFF2D8" stroke="#B37719" stroke-width="2.5"/>
+<text x="950" y="1980.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Prepare the edition and confirm its merge</text>
+<text x="950" y="2019.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Approve release notes; prepare a separate edition change package.</text>
+<text x="950" y="2050.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">You confirm the merge, even when auto-merge is enabled.</text>
+<text x="950" y="2119.0" text-anchor="middle" font-size="21" fill="#B37719" font-weight="400">Edition prepared; not published yet</text>
+<rect x="270.0" y="2170.0" width="1360" height="200" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
+<text x="950" y="2210.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Generate the output files</text>
+<text x="950" y="2249.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">After the merge, GitHub builds the selected formats.</text>
+<text x="950" y="2280.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">On failure, diagnose and fix; the edition is not ready yet.</text>
+<text x="950" y="2349.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">Build in progress</text>
+<rect x="270.0" y="2410.0" width="1360" height="180" rx="22" fill="#E4F4ED" stroke="#2D8061" stroke-width="2.5"/>
+<text x="950" y="2450.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Edition published</text>
+<text x="950" y="2489.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Release with tag and files · PDF / DOCX / EPUB</text>
+<text x="950" y="2569.0" text-anchor="middle" font-size="21" fill="#2D8061" font-weight="400">Published edition · this published version remains unchanged</text>
+<rect x="85.0" y="2650.0" width="1730" height="180" rx="22" fill="#F0EDF9" stroke="#7865A5" stroke-width="2.5"/>
+<text x="950" y="2690.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Other paths</text>
+<text x="950" y="2729.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Optional proof copy: a marked PDF of the merged version, not an edition.</text>
+<text x="950" y="2760.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Corrections / next edition: explicitly revoke affected approvals and resume chapter work.</text>
+</g></svg>
