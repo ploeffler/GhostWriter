@@ -99,6 +99,42 @@ def compare_book_work(base, book, work):
     return {'book_head': bsha, 'work_head': wsha, 'common_head': msha, 'files': rows}
 
 
+CONTEXT_PATHS = {'ghostwriter.yml', 'workflow.yml', 'assistant.yml',
+                 'ghostwriter-manifest.yml', '.ghostwriter/update.yml'}
+
+
+def assess_write(base, expected_ref, current_ref, paths):
+    """Schreibfreier Schutz gegen veraltete Formulare und geänderte Anweisungen.
+
+    Beide Refs müssen aus einem aktuellen Fetch bzw. bestätigten Remote-Stand
+    stammen. Das Ergebnis ersetzt keine atomare Ref-Prüfung beim Schreiben.
+    """
+    if not paths:
+        raise ValueError('Betroffene Dateipfade fehlen')
+    for path in paths:
+        if (not isinstance(path, str) or not path or path.startswith('/')
+                or '\\' in path or any(part in ('', '.', '..') for part in path.split('/'))):
+            raise ValueError('Ungültiger relativer Dateipfad')
+    def resolve(ref):
+        return git(base, 'rev-parse', '--verify', '--end-of-options', ref + '^{commit}').strip()
+    expected, current = resolve(expected_ref), resolve(current_ref)
+    result = {'expected_head': expected, 'current_head': current,
+              'safe_to_prepare': False, 'affected_files': [], 'context_changes': []}
+    if expected == current:
+        return {**result, 'state': 'unchanged', 'safe_to_prepare': True}
+    common = git(base, 'merge-base', expected, current).strip()
+    if common != expected:
+        return {**result, 'state': 'diverged'}
+    before, now = tree_files(base, expected), tree_files(base, current)
+    changed = {path for path in before.keys() | now.keys() if before.get(path) != now.get(path)}
+    affected = sorted(path for path in changed if any(
+        path == wanted or path.startswith(wanted + '/') or wanted.startswith(path + '/') for wanted in paths))
+    context = sorted(changed & CONTEXT_PATHS)
+    return {**result, 'state': 'refresh_required' if affected or context else 'unrelated_changes',
+            'safe_to_prepare': not affected and not context,
+            'affected_files': affected, 'context_changes': context}
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('project')
@@ -108,10 +144,16 @@ def main():
     compare = sub.add_parser('compare')
     compare.add_argument('book_ref')
     compare.add_argument('work_ref')
+    guard = sub.add_parser('guard')
+    guard.add_argument('expected_ref')
+    guard.add_argument('current_ref')
+    guard.add_argument('paths', nargs='+')
     sub.add_parser('historical-candidates')
     args = p.parse_args()
     try:
-        if args.action == 'compare':
+        if args.action == 'guard':
+            result = assess_write(args.project, args.expected_ref, args.current_ref, args.paths)
+        elif args.action == 'compare':
             result = compare_book_work(args.project, args.book_ref, args.work_ref)
         elif args.action == 'historical-candidates':
             base = Path(args.project)
