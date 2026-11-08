@@ -58,6 +58,11 @@
       "content": "PR #219 nach erfolgreicher CI #863 (42466301543) übernommen: b2fb436b37f0cadd448d767dcf0619ae21192787. Acht Importtests und Schema-/Workflow-/Dokumentationsprüfungen bestanden. Automatischer Entfernungslauf entfernt, expire ohne ausdrückliche Bestätigung schreibfrei. Sitzungssicherung folgt unmittelbar.",
       "id": "dev-009",
       "role": "assistant"
+    },
+    {
+      "content": "PR #221 nach elf neuen Medientests, vollständiger lokaler Suite (371 Tests, zehn übersprungen) und GitHub-Prüfung #869 übernommen: 18b43f748dc15a301c8ef50ca5c5079d54fd9a93. Originalbilder bleiben unverändert, Verkleinerungen und Uploads ab der Warnschwelle brauchen ausdrückliche Bestätigung. Sitzung unmittelbar danach fortgeschrieben.",
+      "id": "dev-010",
+      "role": "assistant"
     }
   ]
 }
