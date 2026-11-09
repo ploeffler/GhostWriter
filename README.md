@@ -15,6 +15,10 @@
 
 <p align="center"><a href="README.en.md">English</a> · <a href="docs/ANLEITUNG.md">Anleitung</a> · <a href="docs/HILFE.md">Hilfe</a></p>
 
+### Das nächste Kapitel wird groß.
+
+**GhostWriter nimmt Kurs auf 1.0.** Mehr Gestaltung, Manuskriptimport und ein durchgehend geprüfter Weg zum Buch. [Jetzt den Ausblick entdecken](docs/AUSBLICK-v1.0.md). Die Etappen sind ein Planungsvorschlag; Erweiterungen sind noch nicht als Gesamtumfang verfügbar.
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg"><img src="assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

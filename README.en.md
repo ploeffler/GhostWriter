@@ -15,6 +15,10 @@
 
 <p align="center"><a href="README.md">Deutsch</a> · <a href="docs/GETTING-STARTED.en.md">Getting started</a> · <a href="docs/USER-GUIDE.en.md">User guide</a></p>
 
+### The next chapter is getting bigger.
+
+**GhostWriter is heading towards 1.0.** More creative control, manuscript import and a thoroughly tested path to your book. [Explore what is ahead](docs/LOOKING-AHEAD-v1.0.en.md). The stages are a planning proposal; extensions are not yet available as a complete release.
+
 ---
 
 <p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg"><img src="assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
