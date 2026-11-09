@@ -1,0 +1,238 @@
+{
+  "pages": [
+    {
+      "id": "index",
+      "title": {
+        "de": "Dokumentation",
+        "en": "Documentation"
+      },
+      "source": {
+        "de": "WEBSITE-START.md",
+        "en": "WEBSITE-HOME.en.md"
+      }
+    },
+    {
+      "id": "guide",
+      "title": {
+        "de": "Einrichten & loslegen",
+        "en": "Set up & start"
+      },
+      "source": {
+        "de": "ANLEITUNG.md",
+        "en": "USER-GUIDE.en.md"
+      }
+    },
+    {
+      "id": "principles",
+      "title": {
+        "de": "Bedienung & Grundsätze",
+        "en": "Operation & principles"
+      },
+      "source": {
+        "de": "GRUNDSAETZE.md",
+        "en": "PRINCIPLES.en.md"
+      }
+    },
+    {
+      "id": "views",
+      "title": {
+        "de": "Ansichten im Chat",
+        "en": "Chat views"
+      },
+      "source": {
+        "de": "DIALOGE.md",
+        "en": "INTERFACES.en.md"
+      }
+    },
+    {
+      "id": "lifecycle",
+      "title": {
+        "de": "Buchablauf",
+        "en": "Book lifecycle"
+      },
+      "source": {
+        "de": "BUCHABLAUF.md",
+        "en": "BOOK-LIFECYCLE.en.md"
+      }
+    },
+    {
+      "id": "writing",
+      "title": {
+        "de": "Schreiben & Überarbeiten",
+        "en": "Writing & revision"
+      },
+      "source": {
+        "de": "ERSTELLUNGSKREISLAUF.md",
+        "en": "CREATION-CYCLE.en.md"
+      }
+    },
+    {
+      "id": "quality",
+      "title": {
+        "de": "Texte prüfen",
+        "en": "Reviewing text"
+      },
+      "source": {
+        "de": "QUALITAETSSICHERUNG.md",
+        "en": "QUALITY-ASSURANCE.en.md"
+      }
+    },
+    {
+      "id": "saving",
+      "title": {
+        "de": "Speichern & Übernehmen",
+        "en": "Saving & merging"
+      },
+      "source": {
+        "de": "SPEICHERN.md",
+        "en": "SAVING.en.md"
+      }
+    },
+    {
+      "id": "sessions",
+      "title": {
+        "de": "Gespräch sichern",
+        "en": "Conversation backups"
+      },
+      "source": {
+        "de": "SESSION-SICHERUNG.md",
+        "en": "SESSION-BACKUP.en.md"
+      }
+    },
+    {
+      "id": "images",
+      "title": {
+        "de": "Bilder & Referenzen",
+        "en": "Images & references"
+      },
+      "source": {
+        "de": "BILDER-UND-REFERENZBILDER.md",
+        "en": "IMAGES-AND-REFERENCES.en.md"
+      }
+    },
+    {
+      "id": "media",
+      "title": {
+        "de": "Geplante Mediengestaltung",
+        "en": "Planned media layout"
+      },
+      "source": {
+        "de": "MEDIENPLATZIERUNG.md",
+        "en": "MEDIA-LAYOUT.en.md"
+      }
+    },
+    {
+      "id": "settings",
+      "title": {
+        "de": "Einstellungen & Ausgabe",
+        "en": "Settings & output"
+      },
+      "source": {
+        "de": "EINSTELLUNGEN.md",
+        "en": "SETTINGS.en.md"
+      }
+    },
+    {
+      "id": "services",
+      "title": {
+        "de": "KI-Dienste nutzen",
+        "en": "Using AI services"
+      },
+      "source": {
+        "de": "DIENSTE-NUTZEN.md",
+        "en": "AI-SERVICES.en.md"
+      }
+    },
+    {
+      "id": "apps",
+      "title": {
+        "de": "Chat-Apps",
+        "en": "Chat apps"
+      },
+      "source": {
+        "de": "CHAT-APPS.md",
+        "en": "CHAT-APPS.en.md"
+      }
+    },
+    {
+      "id": "connector",
+      "title": {
+        "de": "Verbindung einrichten",
+        "en": "Connector setup"
+      },
+      "source": {
+        "de": "CONNECTOR-SETUP.md",
+        "en": "CONNECTOR-SETUP.en.md"
+      }
+    },
+    {
+      "id": "updates",
+      "title": {
+        "de": "Updates",
+        "en": "Updates"
+      },
+      "source": {
+        "de": "UPDATES.md",
+        "en": "UPDATES.en.md"
+      }
+    },
+    {
+      "id": "daily",
+      "title": {
+        "de": "Tagesübersicht",
+        "en": "Daily summary"
+      },
+      "source": {
+        "de": "DAILY-SUMMARY.md",
+        "en": "DAILY-SUMMARY.en.md"
+      }
+    },
+    {
+      "id": "help",
+      "title": {
+        "de": "Hilfe & Befehle",
+        "en": "Help & commands"
+      },
+      "source": {
+        "de": "HILFE.md",
+        "en": "HELP.en.md"
+      }
+    },
+    {
+      "id": "troubleshooting",
+      "title": {
+        "de": "Probleme lösen",
+        "en": "Troubleshooting"
+      },
+      "source": {
+        "de": "PROBLEME.md",
+        "en": "TROUBLESHOOTING.en.md"
+      }
+    }
+  ],
+  "repository_links": [
+    "START.md",
+    "templates/ui/BEFUELLUNG.md",
+    "docs/WORKFLOW-MODEL.md",
+    "docs/BUCH-WORKFLOW.md",
+    "docs/NACHZIEHEN.md",
+    "docs/ARBEITSABLAEUFE.md",
+    "docs/DATA-MODEL.md",
+    "docs/API-CONTRACT.md",
+    "docs/PROVIDERS.md",
+    "docs/PROVIDERS.en.md",
+    "docs/GETTING-STARTED.en.md",
+    "docs/ARCHITECTURE.md",
+    "docs/CONTEXT.md",
+    "docs/INTEGRATION.md",
+    "integrations/openwebui/README.md",
+    "providers.yml"
+  ],
+  "excluded_links": [
+    "ENTSCHEIDUNGSAUFTRAG-v1.0.md",
+    "docs/ENTSCHEIDUNGEN-v1.0.md",
+    "docs/AUFTRAEGE-v1.0.md",
+    "tests/evidence/2026-11-08-bilder/TESTBERICHT.md",
+    "media/produktclip/README.md"
+  ]
+}

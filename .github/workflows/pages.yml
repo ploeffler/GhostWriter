@@ -3,6 +3,11 @@ name: Beispielseiten veröffentlichen
 # Nur ausdrücklich von Hand starten; keine Veröffentlichung bei gewöhnlichen Pushes.
 on:
   workflow_dispatch:
+    inputs:
+      documentation:
+        description: 'Zentrale Dokumentation einbeziehen – nur nach ausdrücklicher Veröffentlichungsfreigabe'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -15,17 +20,27 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.repository == 'ploeffler/GhostWriter'
+    if: github.repository == 'ploeffler/GhostWriter' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        if: inputs.documentation
+        with:
+          python-version: '3.12'
+      - name: Dokumentationswerkzeuge installieren
+        if: inputs.documentation
+        run: pip install -r scripts/docsite/requirements.txt
+      - name: Freigegebenes Dokumentationspaket lokal aufbauen und prüfen
+        if: inputs.documentation
+        run: python scripts/package_docs_site.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: website
+          path: ${{ inputs.documentation && 'build/pages' || 'website' }}
       - name: GitHub Pages bereitstellen
         id: deployment
         uses: actions/deploy-pages@v4

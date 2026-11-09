@@ -23,3 +23,11 @@ Ist dieses Repository selbst `upstream.repo`, wird hier GhostWriter entwickelt; 
 - Tests: `python -m unittest discover -s tests -p "test_*.py"`
 - Doku: `python scripts/check_docs.py`
 - Commit-Nachrichten und Doku auf Deutsch.
+
+## Dokumentation wächst mit (verbindlich im Programm-Repository)
+
+Bei Änderungen an Funktionen, Bedienung, Einrichtung oder Abläufen die betroffenen Anleitungen im selben Änderungspaket nachziehen. Gemeinsame Inhaltsquelle ist `docs/`; die Website daraus erzeugen, keine unabhängig gepflegte Wiki-Fassung anlegen. Deutsch und Englisch, Beispiele, Grafiken, Navigation und Verweise gemeinsam pflegen; Planungen ausdrücklich kennzeichnen.
+
+Vor Upload Dokumentationscheck, lokalen Website-Aufbau und passende Tests ausführen. Zusätzlich die fachliche Übereinstimmung mit Implementierung, Freigaben und Grenzen prüfen und im PR betroffene Quellen, geprüfte Abläufe und offene Lücken nennen; automatische Links ersetzen die Fachprüfung nicht. Programmversion auf der Website aus dem Manifest anzeigen. Dokumentationsaktualisierung und bestätigten öffentlichen Stand als feste Release-Schritte behandeln. Einzelheiten und Abnahmekriterien: [Dokumentationspflege](docs/DOKUMENTATION-PFLEGE.md).
+
+Prüfen, Bauen, Hochladen, Mergen und Veröffentlichen bleiben getrennt. Ein Uploadauftrag erlaubt weder Merge noch Aktivierung. Öffentliche Bereitstellung nur nach ausdrücklicher Freigabe; keine private Bucharbeit veröffentlichen.
