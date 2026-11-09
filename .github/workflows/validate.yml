@@ -19,7 +19,9 @@ jobs:
           python-version: "3.12"
 
       - name: Abhängigkeiten installieren
-        run: pip install pyyaml jsonschema requests pydantic pillow
+        run: |
+          pip install pyyaml jsonschema requests pydantic pillow
+          pip install -r scripts/docsite/requirements.txt
 
       - name: workflow.yml gegen sein Schema prüfen
         run: |
@@ -92,6 +94,11 @@ jobs:
             echo "Übersichtsdatei aktuell oder nicht nötig"
           fi
 
+      - uses: actions/setup-node@v4
+        if: steps.kind.outputs.program == '1'
+        with:
+          node-version: '22'
+
       - name: Tests (Kontextplanung, Zusammenführung)
         if: steps.kind.outputs.program == '1'
         run: |
@@ -112,3 +119,7 @@ jobs:
           python scripts/check_docs.py --ui /tmp/ui $ms
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Dokumentationswebsite lokal aufbauen und prüfen (ohne Veröffentlichung)
+        if: steps.kind.outputs.program == '1'
+        run: python scripts/build_docs_site.py

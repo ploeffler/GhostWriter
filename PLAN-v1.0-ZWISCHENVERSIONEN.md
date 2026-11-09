@@ -1,6 +1,6 @@
 # Vorschlag für Zwischenversionen bis GhostWriter v1.0
 
-Stand: 8. November 2026. **Analyse und Versionsvorschlag, noch keine beschlossene neue Roadmap und kein Auftrag zur Umsetzung oder Veröffentlichung.** Zur Übernahme vorbereitet. Die Zuordnung der zentralen Dokumentationswebsite einschließlich Aufbau und Veröffentlichung zu v0.9.0 wurde am 8. November 2026 im Chat bestätigt; die übrige Lieferfolge bleibt ein Vorschlag.
+Stand: 8. November 2026. **Analyse und Versionsvorschlag, noch keine beschlossene neue Roadmap und kein Auftrag zur Umsetzung oder Veröffentlichung.** Zur Übernahme vorbereitet. Die Zuordnung der zentralen Dokumentationswebsite einschließlich Aufbau und Veröffentlichung zu v0.9.0 wurde am 8. November 2026 bestätigt; am 9. November wurde ihre technische Umsetzung als geprüfter PR vorgezogen beauftragt. Übernahme und Veröffentlichung bleiben gesperrt bis zur ausdrücklichen Freigabe. Die übrige Lieferfolge bleibt ein Vorschlag.
 
 ## Ergebnis
 
@@ -54,14 +54,14 @@ Die Aufgaben innerhalb einer Stufe können in mehrere zusammengehörige Änderun
 
 ## Dokumentationsstand für v0.9.0
 
-Die Aufnahme der zentralen Dokumentationswebsite samt Aufbau und Veröffentlichung in v0.9.0 ist am 8. November 2026 ausdrücklich bestätigt. Quelle bleibt `docs/` im Hauptrepository. Zu liefern sind Navigation, Suche, Sprachwechsel, lokale Vorschau und Prüfung sowie ein geeigneter Veröffentlichungsweg. Ob dafür ein GitHub-Ablauf verwendet wird, wird technisch festgelegt. Gemeint ist der Aufbau der Website aus vorhandenen Dokumenten, kein automatisches Neuschreiben der Anleitungen. Details: [Planungsnotiz zur Dokumentationswebsite](PLANUNGSNOTIZ-DOKUMENTATIONSWEBSITE.md).
+Die Aufnahme der zentralen Dokumentationswebsite samt Aufbau und Veröffentlichung in v0.9.0 ist am 8. November 2026 ausdrücklich bestätigt. Quelle bleibt `docs/` im Hauptrepository. Zu liefern sind Navigation, Suche, Sprachwechsel, lokale Vorschau und Prüfung sowie ein geeigneter Veröffentlichungsweg. Der vorbereitete Veröffentlichungsweg verwendet den vorhandenen ausschließlich manuellen Pages-Ablauf mit standardmäßig ausgeschaltetem Dokumentationsmodus; der Upload aktiviert nichts. Gemeint ist der Aufbau der Website aus vorhandenen Dokumenten, kein automatisches Neuschreiben der Anleitungen. Details: [Planungsnotiz zur Dokumentationswebsite](PLANUNGSNOTIZ-DOKUMENTATIONSWEBSITE.md).
 
 Vorhandene Grundlagen und Restarbeiten:
 
 - **Bereits eingespielt:** sechs deutsche/englische Grafiken für Buchablauf, Erstellungskreislauf und Speichern samt eigenen Seiten und Verweisen, Änderung #224. In der Website wiederverwenden, nicht als noch fehlende Neuerstellung planen.
 - **Lokal umgesetzt und geprüft:** zusätzliche Codex-Zeile unter dem Claude-Hinweis, angepasste gemeinsame Fußzeilenvorgaben und Dokumentationsprüfung. Noch nicht zu GitHub übertragen; vor der Übernahme den aktuellen Hauptstand abgleichen.
 - **Beauftragt, noch umzusetzen:** das Bedienglossar nach [Umsetzungsauftrag](UMSETZUNGSAUFTRAG-BEDIENGLOSSAR.md).
-- **Noch umzusetzen:** die zentrale Website, ihre technische Erstellung und der geprüfte Veröffentlichungsweg. Keine eigenen Websites für Buch-Repositories; private Buchdaten und interne Planungsunterlagen nicht ungeprüft veröffentlichen.
+- **Vorgezogen beauftragt am 9. November 2026:** zentrale Website, technische Erstellung, lokale Prüfungen und vorbereiteter manueller Veröffentlichungsweg als ein PR. Sichtprüfung mit Browser und tatsächliche Veröffentlichung bleiben gesondert freizugeben. Keine eigenen Websites für Buch-Repositories; private Buchdaten und interne Planungsunterlagen nicht ungeprüft veröffentlichen.
 
 Die Aufnahme der Veröffentlichung als Lieferziel ersetzt weder die Prüfung des konkreten öffentlichen Inhalts noch einen ausdrücklichen Übertragungsauftrag nach der lokalen Arbeitsregel. Hosting, öffentliche Adresse und etwaige Kosten bleiben vor einer tatsächlichen Bereitstellung zu klären.
 
@@ -94,3 +94,6 @@ Zeitgesteuerte KI-Anbieterläufe, neue Warteschlangen-/Serverinfrastruktur und a
 ## Nächster sinnvoller Schritt
 
 Nach Bestätigung oder Änderung dieser Lieferfolge einen konkreten Auftrag für **v0.6.1** erstellen: aktuelle Hauptbasis gegen die lokalen Änderungen abgleichen, die beschlossenen Schutzregeln und den tatsächlichen Arbeitsweg erfassen, veraltete Roadmap-Pflichten korrigieren und die Abnahmematrix anlegen. Die vorliegende Analyse ändert weder `workflow.yml` noch die offizielle Versionsnummer und legt keine GitHub-Meilensteine an.
+
+
+**Vorziehung, keine weitere Umplanung:** Der technische Dokumentationsblock wird vor v0.9.0 vorbereitet. Das ändert keine andere Versionsstufe, keine übrige Roadmap-Zusage und nicht die geltende Programmversion. Pflege-, Fachprüfungs- und Releasepflichten stehen in [Dokumentationspflege](docs/DOKUMENTATION-PFLEGE.md).

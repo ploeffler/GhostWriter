@@ -1,5 +1,7 @@
 # Hilfe: Befehle und Beispielprompts
 
+Deutsch · [English](HELP.en.md)
+
 Schicke **Hilfe** im Chat. Du erhältst eine kurze Befehlsübersicht und die Kürzel der aktuellen Ansicht. Mit **Hilfe Änderungspakete**, **Hilfe Session** oder **Hilfe Befehle** kannst du gezielt nachlesen. Hilfe liest nur; sie speichert, übernimmt und bestätigt nichts. Der Assistent nennt offen, wenn ein Befehl in der verwendeten Umgebung mangels Werkzeugen nicht ausführbar ist.
 
 ## Kurze Befehlsübersicht

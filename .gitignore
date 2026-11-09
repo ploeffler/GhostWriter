@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# Erzeugte Dokumentation; öffentliche Quellen bleiben unter docs/.
+/build/
+.venv-docs/
