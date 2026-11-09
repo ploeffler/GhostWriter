@@ -4,7 +4,7 @@
 
 <table align="center">
   <tr>
-    <td align="center"><a href="docs/GETTING-STARTED.en.md"><img src="assets/readme/ghostwriter.en.svg" alt="GhostWriter – overview" width="300" height="300"></a></td>
+    <td align="center"><a href="https://ploeffler.github.io/GhostWriter/index.en.html"><img src="assets/readme/ghostwriter.en.svg" alt="GhostWriter – overview" width="300" height="300"></a></td>
     <td align="center"><a href="https://ploeffler.github.io/GhostWriter/ghostwriter-startklar.en.html"><img src="assets/readme/startklar.en.svg" alt="Get GhostWriter ready" width="300" height="300"></a></td>
   </tr>
   <tr>
