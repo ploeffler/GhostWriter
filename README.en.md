@@ -13,6 +13,8 @@
   </tr>
 </table>
 
+<p align="center"><a href="https://ploeffler.github.io/GhostWriter/schreibpraxis/index.en.html">Writing with GhostWriter</a><br><sub>An example in six stages: from conversation and first draft to your own narrative voice.</sub></p>
+
 <p align="center"><a href="README.md">Deutsch</a> · <a href="docs/GETTING-STARTED.en.md">Getting started</a> · <a href="docs/USER-GUIDE.en.md">User guide</a></p>
 
 ### The next chapter is getting bigger.
