@@ -4,7 +4,10 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from shutil import copy2, copytree
 from unittest.mock import patch
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
@@ -16,6 +19,29 @@ class CheckDocsTest(unittest.TestCase):
     def test_data_model_runs_links(self):
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/check_docs.py')], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_planning_links_work_in_managed_book_files(self):
+        manifest = yaml.safe_load((ROOT / 'ghostwriter-manifest.yml').read_text(encoding='utf-8'))
+        planning_docs = [
+            'docs/AUFTRAEGE-v1.0.md',
+            'docs/ENTSCHEIDUNGEN-v1.0.md',
+            'docs/PLANUNGSSTAND-v1.0.md',
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            book = Path(tmp)
+            for entry in manifest['managed']:
+                source, target = ROOT / entry, book / entry
+                if source.is_dir():
+                    copytree(source, target)
+                elif source.is_file():
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    copy2(source, target)
+            for path in planning_docs:
+                self.assertTrue((book / path).is_file(), path)
+            problems = []
+            with patch.object(check_docs, 'ROOT', book), patch.object(check_docs, 'DOCS', planning_docs):
+                check_docs.check_links(problems)
+            self.assertEqual(problems, [], '\n'.join(problems))
 
     def test_codex_credit_requires_its_own_line_in_both_languages(self):
         with tempfile.TemporaryDirectory() as tmp:
