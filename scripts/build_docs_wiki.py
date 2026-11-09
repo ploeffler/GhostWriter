@@ -39,8 +39,9 @@ def page_link(page, lang):
     return quote(slug(page, lang), safe='-._')
 
 
-def footer(credit, lang):
-    return credit['text_en' if lang == 'en' else 'text'] + '<br>\n' + credit['codex_text_en' if lang == 'en' else 'codex_text']
+def footer(credit):
+    return (credit['text_en'] + ' [↗](https://claude.ai "Claude")<br>\n'
+            + credit['codex_text_en'] + ' [↗](https://openai.com/codex/ "Codex")')
 
 
 def build(output, root=ROOT):
@@ -110,7 +111,7 @@ def build(output, root=ROOT):
         sidebar += [f'- [{p["title"][lang]}]({page_link(p,lang)})' for p in cfg['pages']]
         sidebar += ['']
     (output/'_Sidebar.md').write_text('\n'.join(sidebar)+'\n')
-    (output/'_Footer.md').write_text(f'GhostWriter · {version} · [Website]({SITE})\n\n{footer(credit,"de")}\n\n{footer(credit,"en")}\n')
+    (output/'_Footer.md').write_text(f'GhostWriter · {version} · [Website]({SITE})\n\n{footer(credit)}\n')
     # Images are referenced from the same main-repository assets as the website.
     if (output/'assets').exists():
         shutil.rmtree(output/'assets')
@@ -136,7 +137,7 @@ def check(output, root=ROOT):
     for path in output.glob('*.md'):
         text = path.read_text()
         for notice in credits:
-            expected_count = 1 if path.name == '_Footer.md' else 0
+            expected_count = 1 if path.name == '_Footer.md' and notice in (credit['text_en'], credit['codex_text_en']) else 0
             if text.count(notice) != expected_count:
                 raise ValueError(f'{path.name}: KI-Hinweis nur einmal in der globalen Fußzeile erlaubt')
         links = re.findall(r'\]\(([^)]+)\)', text)

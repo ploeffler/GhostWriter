@@ -36,8 +36,14 @@ class WikiBuildTests(unittest.TestCase):
             self.assertFalse(list(output.glob('en-*.md')))
             for path in output.glob('*.md'):
                 text = path.read_text()
-                self.assertEqual(text.count('Entwickelt mit Unterstützung von Claude (Anthropic)'), 1 if path.name == '_Footer.md' else 0)
-                self.assertEqual(text.count('Entwickelt mit Unterstützung von Codex (OpenAI)'), 1 if path.name == '_Footer.md' else 0)
+                self.assertEqual(text.count('Developed with support from Claude (Anthropic)'), 1 if path.name == '_Footer.md' else 0)
+                self.assertEqual(text.count('Developed with support from Codex (OpenAI)'), 1 if path.name == '_Footer.md' else 0)
+            footer = (output/'_Footer.md').read_text()
+            self.assertEqual(footer.count('Claude (Anthropic)'), 1)
+            self.assertEqual(footer.count('Codex (OpenAI)'), 1)
+            self.assertNotIn('Entwickelt mit Unterstützung', footer)
+            self.assertIn('[↗](https://claude.ai "Claude")', footer)
+            self.assertIn('[↗](https://openai.com/codex/ "Codex")', footer)
             # A reintroduced duplicate must fail validation.
             home = output/'Home.md'
             home.write_text(home.read_text() + '\nEntwickelt mit Unterstützung von Codex (OpenAI)\n')
