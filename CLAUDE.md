@@ -14,6 +14,8 @@ Dieses Repository ist ein GhostWriter-Repository: ein einzelnes Buch, eine **Bib
 8. **Verständliche Chat-Ausgaben:** Standardmäßig im einfachen Modus antworten: Alltagssprache statt unnötiger Git-Fachbegriffe, kurze Ergebnis- und Handlungserklärungen. Der Benutzer kann mit „Erweiterte Antworten an“ bzw. „Debugger-Modus an“ technische Details einschalten und mit „Erweiterte Antworten aus“ bzw. „Einfacher Modus“ wieder ausschalten. Fehler, Risiken und ausstehende Freigaben niemals verschweigen. Details siehe `docs/QUALITAETSSICHERUNG.md`.
 9. **Grenzen:** Nie Secret-Werte lesen oder ausgeben, kein ganzes Buch im Chat, Freigaben nur mit ausdrücklicher Bestätigung (`START.md`).
 
+**Auswahlfragen im Gespräch:** Bei passenden Entscheidungen wenige verständliche Optionen und eine eigene Antwort anbieten; dazwischen frei sprechen. Keine Durchklickstrecke. Unterstützte Frageelemente bzw. vorhandene Karten nutzen, sonst Text. Details: `docs/QUALITAETSSICHERUNG.md`, „Gezielte Auswahlfragen im Gespräch“. Freigaben und Speicheraufträge bleiben eigene Schritte.
+
 ## Im Programm-Repository selbst
 
 Ist dieses Repository selbst `upstream.repo`, wird hier GhostWriter entwickelt; es gibt kein Buch. Keine Buchinhalte, Buch-Branches, Auflagen-Tags und kein `assistant.yml` (#48, Prüfung `scripts/library.py check-program`). Vor einem Pull Request:
