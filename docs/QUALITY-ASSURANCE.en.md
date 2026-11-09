@@ -232,6 +232,43 @@ Use short choice questions more often at useful decision points, particularly fo
 Example: “How would you like to develop chapter 1?” — “Bring my own text”, “Work scene by scene together” or “Discuss a complete chapter draft”, with room for a custom answer. Choosing clarifies the working method; it does not automatically start drafting or saving.
 
 
+## Reviewing large books section by section
+
+Perform book-wide editorial reviews one section at a time. Process source files
+locally where supported. Keep complete file collections and original/revised
+full-text snapshots out of chat tool output. Show progress, concise findings,
+source references and decisions in chat; keep detailed results in files.
+Use targeted patches and checks that report results rather than full texts.
+
+Review sections with the required character, time, place and research context.
+Then check chapter structure and transitions using those findings and targeted
+source passages. Finally compare plot threads, character development, timelines
+and contradictions across the book. Summaries alone cannot establish consistency.
+Verify suspected conflicts against original passages and recheck affected
+neighbours and wider relationships after changes. Disclose missing file access
+or execution support; do not claim a background job ran when it did not.
+
+API background analyses (`scripts/analyze.py`) send one section per extraction
+request, splitting long sections into parts of at most 12,000 manuscript
+characters. Paragraph and sentence boundaries are preferred, with a hard character
+split as fallback. Parts do not overlap; boundary-spanning observations require
+a targeted follow-up check. Front/back matter is processed per entry. Local
+language checks use whole sections without sending text to a provider.
+
+Verified results are cached per section/part; old chapter caches are ignored.
+Text, numbering, prompt, configured model/provider and known-character context
+changes invalidate affected entries. Chapter summaries and goals concatenate
+verified section descriptions; they are not separately generated chapter prose.
+Style variants identify sections.
+
+Merge calls contain extracted results only. Large result lists are compared in
+bounded batch pairs, including distant passages. This may require quadratically
+many calls; plan estimates are approximate, not guaranteed cost ceilings.
+Oversized individual result entries cause an explicit error. Exact quotation
+checks establish source presence, not interpretive correctness. These analyses
+do not replace a complete editorial review of a novel.
+
+
 ---
 
 <p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
