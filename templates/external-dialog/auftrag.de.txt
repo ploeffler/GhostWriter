@@ -1,0 +1,39 @@
+EXTERNER ARBEITSAUFTRAG
+
+Auftragskennung: {{eindeutige kurze Kennung}}
+Aufgabe: {{Recherche / Brainstorming / Schreiben / Überarbeitung / Prüfung / andere Aufgabe}}
+Gegenstand und Umfang: {{Projekt und betroffene Einheit}}
+Quellstand: {{Commit oder Versionskennung, falls vorhanden; sonst Datum und Beschreibung}}
+
+ZIEL
+{{Was soll dieser Auftrag konkret erreichen? Wie sieht ein brauchbares Ergebnis aus?}}
+
+KONTEXT
+{{Nur die für diese Aufgabe nötige Projektbeschreibung, Zielgruppe, Nachbarinhalte und Abgrenzungen. Du kannst nicht voraussetzen, dass die externe KI Repository oder andere Chats lesen kann.}}
+
+AUSGANGSMATERIAL
+{{Relevante Texte, belegte Angaben oder bereits bestätigte Antworten. Tatsachen, Erinnerungen, Deutungen und offene Fragen erkennbar unterscheiden. Quellen angeben, soweit vorhanden.}}
+
+BEREITS GEKLÄRT
+{{Welche Fragen sind beantwortet? Welche Entscheidungen gelten? Was soll nicht erneut allgemein erfragt werden?}}
+
+OFFEN
+{{Welche gezielten Fragen oder Unsicherheiten sind für den Auftrag noch wichtig? Unbekannte Gründe und Zeitpunkte nicht als Fakten einsetzen.}}
+
+STIL UND AUSGABE
+{{Perspektive, Erzählzeit, Stimme, Sprache, gewünschte Form und ungefährer Umfang; bei sachlichen Aufgaben passende Anforderungen statt Erzählstil angeben.}}
+
+KREATIVE FREIRÄUME UND QUELLEN
+{{Welche Erfindungen oder kreativen Ergänzungen sind ausdrücklich erlaubt? Standard: keine neuen Tatsachen über reale Personen oder Ereignisse erfinden. Welche Behauptungen benötigen überprüfbare Quellen? Falls keine Recherche möglich ist, diese Grenze offen benennen.}}
+
+ARBEITSWEISE
+{{Dialog oder direkte Bearbeitung; ohne andere Vorgabe: Dialog.}}
+- Im Dialog mit einer kurzen Einordnung und einer konkreten offenen Hauptfrage beginnen. Bereits beantwortete Fragen berücksichtigen. Antworten aufgreifen und gezielt vertiefen, statt einen starren Fragebogen abzuarbeiten.
+- Keine Gefühle, Motive, Ursachen oder Ereignisse voraussetzen, die nicht berichtet oder ausdrücklich zur kreativen Gestaltung freigegeben sind. Unsicherheiten und widersprüchliche Angaben sichtbar lassen.
+- Nachfragen sollen dem Auftrag dienen. Wenn genug Material vorhanden ist, die Ausarbeitung anbieten. Mit meiner Nachricht „Jetzt ausarbeiten“ das vereinbarte Ergebnis erstellen.
+- Bei direkter Bearbeitung nur dann zunächst nachfragen, wenn eine entscheidende Lücke oder ein Widerspruch eine zuverlässige Bearbeitung verhindert.
+
+GRENZEN
+Dies ist eine externe Bearbeitung zur Durchsicht. Keine Repository-Änderung, formelle Freigabe, Veröffentlichung oder Übernahme eines Änderungspakets behaupten oder ausführen. Gib als Ergebnis nur aus, was du tatsächlich bearbeitet oder geprüft hast; fehlenden Zugriff auf Kontext oder Quellen klar benennen.
+
+Beginne jetzt gemäß der vereinbarten Arbeitsweise.

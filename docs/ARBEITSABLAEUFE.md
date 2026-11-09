@@ -21,6 +21,10 @@ Der redaktionelle Buchkreislauf und der technische Weg vom Chat bis zur Übernah
   bündeln. Nicht ausgeführte Teilaktionen als solche melden. Änderungen eines
   zusammenhängenden Auftrags atomar im Arbeitsstand speichern.
 
+## Externen KI-Dialog vorbereiten und zurückbringen
+
+„Externen KI-Dialog für Abschnitt 2.3 vorbereiten“ oder „Externe Überarbeitung für Kapitel 2 vorbereiten“ lädt den [allgemeinen manuellen Ablauf](EXTERNER-KI-DIALOG.md). „Das ist die Rückgabe von Anbieter A zu Abschnitt 2.3“ startet den Abgleich mit Ausgangsauftrag und aktuellem Stand. Jede Auswertung endet mit einer begründeten Empfehlung. Vorbereitung und Rückgabe erteilen keine Freigabe und speichern nichts automatisch; keine Parseraktion vortäuschen.
+
 ## Abschnitt erstellen und speichern
 
 1. Abschnittsstand, Schreibfreigabe, Buchprofil und vorhandene Unterlagen lesen.

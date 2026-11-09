@@ -11,6 +11,8 @@ Schicke **Hilfe** im Chat. Du erhältst eine kurze Befehlsübersicht und die Kü
 | `Start` oder `Bibliothek` | Bücher anzeigen |
 | `Übersicht` | Aktuelles Buch anzeigen |
 | `Kapitel 2` oder `Abschnitt 2.3` | Gewünschte Stelle öffnen |
+| `Externen KI-Dialog für Abschnitt 2.3 vorbereiten` | Manuellen [externen Dialog](EXTERNER-KI-DIALOG.md) mit Auftrag, Kontext und offenen Fragen vorbereiten |
+| `Das ist die Rückgabe von Anbieter A zu Abschnitt 2.3` | Dialog und Ergebnis prüfen; begründete Empfehlung zeigen, noch nichts automatisch speichern |
 | `Neues Buch: Mein Titel` | Formular für ein neues Buch öffnen |
 | `Neues Kapitel` | Formular für ein neues Kapitel öffnen |
 | `Session sichern` | Gesprächsarbeit dauerhaft in einem Änderungspaket sichern |
