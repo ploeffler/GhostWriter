@@ -20,9 +20,9 @@ Wenn du für dein Buch **sofort übernehmen** (`changes.auto_merge: true`) bewus
 
 ## Gesprächsarbeit sichern und wieder aufnehmen
 
-**Session sichern** hält tatsächlich zugängliche Gesprächsbeiträge, Recherche, Brainstorming samt Varianten, Entscheidungen, Entwürfe, Planung und offene Punkte fest. Eine Kurzfassung ersetzt die eigentlichen Inhalte nicht. Je geändertem Themengebiet wird ein Änderungsschritt gespeichert; je Sitzung gibt es ein gemeinsames eigenes Änderungspaket.
+**Session sichern** hält tatsächlich zugängliche Gesprächsbeiträge, Recherche, Brainstorming samt Varianten, Entscheidungen, Entwürfe, Planung und offene Punkte fest. Eine Kurzfassung ersetzt die eigentlichen Inhalte nicht. Beim manuellen Sichern erhält jedes geänderte Themengebiet einen Änderungsschritt; automatische Antwortstände bündeln alle Themen in einem Commit. Je Sitzung gibt es ein gemeinsames Änderungspaket.
 
-Auch ein abgeschlossener Abschnittsdialog löst diesen Sicherungsweg aus: Es steht keine Antwort aus, und die besprochenen Punkte sind beantwortet, entschieden oder ausdrücklich vertagt. Das erledigt nicht automatisch sämtliche Aufgaben des Abschnitts und erteilt keine Abschnittsfreigabe. Es gibt keine zugesicherte zeitgesteuerte Hintergrundsicherung.
+Nach jeder ausgewerteten Abschnittsantwort wird ohne weitere Rückfrage ein gemeinsamer Commit mit Gespräch, Auswertung und Fragenstand hochgeladen und geprüft. Erst danach erscheinen Zusammenfassung und nächste Frage. Offene Fragen verhindern die Sicherung nicht. Der Abschnittsdialog erhält zusätzlich einen Abschlussnachweis, sobald alle besprochenen Punkte geklärt oder vertagt sind. Das ist keine Abschnittsfreigabe. Ohne ausführenden Assistenten und Schreibzugriff gibt es keine unabhängige Hintergrundsicherung.
 
 Nach bestätigter Übertragung ist die Sitzung **gesichert, noch nicht übernommen**. **Session übernehmen** beauftragt Prüfung, Fehleranalyse, einen sicheren technischen Reparaturversuch und erneute Prüfung. Nur bei Erfolg wird das Paket übernommen. „Sofort übernehmen“ gilt für Gesprächssicherungen nicht. Manuskript und inhaltliche Freigaben bleiben bei diesem Vorgang unverändert.
 

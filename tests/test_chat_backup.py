@@ -1,5 +1,7 @@
 """Sicherung über echten Git-Remote; Schutz vor Verlust, Rennen und fremden Änderungen."""
 import copy
+import contextlib
+import io
 import json
 import subprocess
 import sys
@@ -189,6 +191,114 @@ class BackupTest(unittest.TestCase):
         self.assertEqual(current, self.git('rev-parse', 'HEAD'))
 
 
+
+    def answer_review(self):
+        self.payload['messages'].append({'id': '3', 'role': 'user', 'content': 'Meine konkrete Antwort'})
+        self.payload['topics']['brainstorming'] = 'Antwort ausgewertet; nächste Frage noch offen.'
+        return {'section_id': 'sec-one', 'source_commit': self.base,
+                'answer_message_id': '3', 'dialogue_complete': False, 'awaiting_reply': True,
+                'items': [{'id': 'q1', 'question': 'Erste Frage', 'status': 'answered', 'evidence': ['3']},
+                          {'id': 'q2', 'question': 'Nächste Frage', 'status': 'open', 'evidence': ['2']}]}
+
+    def test_answer_checkpoint_uploads_one_commit_before_discussion_is_complete(self):
+        review = self.answer_review()
+        before = copy.deepcopy(self.payload)
+        first = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload, self.base, review)
+        self.assertTrue(first['reply_ready'])
+        self.assertEqual(first['trigger'], 'section_answer_evaluated')
+        self.assertEqual(first['answer_message_id'], '3')
+        self.assertEqual(len(first['commits']), 1)
+        self.assertEqual(self.payload, before)
+        restored = cb.resume(str(self.remote), 'test-session')
+        self.assertEqual(restored['topics']['conversation']['messages'], before['messages'])
+        self.assertEqual(json.loads(restored['topics']['section_answer']), review)
+        self.assertEqual(restored['topics']['brainstorming'], before['topics']['brainstorming'])
+        self.assertEqual(self.git('ls-remote', 'origin', 'refs/heads/main').split()[0], self.base)
+        # Retry the same evaluated reply: remote proof, no new commit or push.
+        real_run = cb.run
+        def no_push(*args, **kwargs):
+            self.assertNotEqual(args[:2], ('git', 'push'))
+            return real_run(*args, **kwargs)
+        with patch.object(cb, 'run', side_effect=no_push):
+            again = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload, first['head'], review)
+        self.assertEqual(again['commits'], [])
+        self.assertEqual(again['head'], first['head'])
+        self.assertTrue(again['reply_ready'])
+        # A later answer appends to this session rather than creating another branch.
+        self.payload['messages'] += [{'id': '4', 'role': 'assistant', 'content': 'Nächste Frage?'},
+                                     {'id': '5', 'role': 'user', 'content': 'Zweite Antwort'}]
+        self.payload['topics']['brainstorming'] += ' Zweite Antwort ausgewertet.'
+        review['answer_message_id'] = '5'
+        review['items'][1].update(status='answered', evidence=['5'])
+        second = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload, again['head'], review)
+        self.assertEqual(second['branch'], first['branch'])
+        count = cb.run('git', '--git-dir', str(self.remote), 'rev-list', '--count',
+                       self.base + '..refs/heads/' + second['branch'])
+        self.assertEqual(count, '2')
+
+    def test_answer_checkpoint_cli_outputs_receipt_only_after_upload(self):
+        review = self.answer_review()
+        payload_path, review_path = self.root/'input.json', self.root/'review.json'
+        payload_path.write_text(json.dumps(self.payload))
+        review_path.write_text(json.dumps(review))
+        output = io.StringIO()
+        real_run, pushes = cb.run, []
+        def transport(*args, **kwargs):
+            if args[:2] == ('git', 'push'):
+                self.assertEqual(output.getvalue(), '')
+                pushes.append(True)
+            return real_run(*args, **kwargs)
+        argv = ['chat_backup.py', 'answer-checkpoint', str(self.remote), 'test-session', str(payload_path),
+                '--review', str(review_path), '--base', 'main', '--expected-head', self.base,
+                '--github-repo', 'test/repo']
+        with patch.object(sys, 'argv', argv), patch.object(cb, 'run', side_effect=transport), \
+             patch.object(cb, 'open_pr', return_value='https://example.invalid/pr/1'), \
+             contextlib.redirect_stdout(output):
+            cb.main()
+        receipt = json.loads(output.getvalue())
+        self.assertEqual(len(pushes), 1)
+        self.assertTrue(receipt['reply_ready'])
+        self.assertEqual(receipt['head'], cb.resume(str(self.remote), 'test-session')['head'])
+
+    def test_answer_checkpoint_rejects_missing_old_or_already_answered_message(self):
+        review = self.answer_review()
+        for modify in ('missing', 'old', 'unreferenced', 'visible_reply'):
+            payload, changed = copy.deepcopy(self.payload), copy.deepcopy(review)
+            if modify == 'missing':
+                changed['answer_message_id'] = 'missing'
+            elif modify == 'old':
+                changed['answer_message_id'] = '1'
+            elif modify == 'unreferenced':
+                changed['items'][0]['evidence'] = ['1']
+            else:
+                payload['messages'].append({'id': '4', 'role': 'assistant', 'content': 'Bereits ausgegebene Zusammenfassung'})
+            with self.subTest(modify=modify), patch.object(cb, 'save') as save:
+                with self.assertRaises(ValueError):
+                    cb.answer_checkpoint(str(self.remote), 'main', 'test-session', payload, self.base, changed)
+                save.assert_not_called()
+
+    def test_answer_checkpoint_push_error_does_not_report_ready_and_can_retry(self):
+        review = self.answer_review()
+        real_run = cb.run
+        def failed_push(*args, **kwargs):
+            if args[:2] == ('git', 'push'):
+                raise ValueError('simulierter Uploadfehler')
+            return real_run(*args, **kwargs)
+        with patch.object(cb, 'run', side_effect=failed_push), self.assertRaises(ValueError):
+            cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload, self.base, review)
+        self.assertNotIn('ghostwriter/chat/', self.git('ls-remote', '--heads', 'origin'))
+        recovered = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload, self.base, review)
+        self.assertTrue(recovered['reply_ready'])
+        self.assertEqual(len(recovered['commits']), 1)
+
+    def test_answer_checkpoint_reports_uploaded_content_when_pr_creation_fails(self):
+        review = self.answer_review()
+        with patch.object(cb, 'open_pr', side_effect=ValueError('PR nicht erreichbar')):
+            result = cb.answer_checkpoint(str(self.remote), 'main', 'test-session',
+                                          self.payload, self.base, review, github_repo='test/repo')
+        self.assertEqual(result['status'], 'remote_saved_pr_pending')
+        self.assertTrue(result['reply_ready'])  # the reply is durably uploaded even if the PR is pending
+        self.assertEqual(cb.resume(str(self.remote), 'test-session')['head'], result['head'])
 
     def review(self):
         return {'section_id': 'sec-one', 'source_commit': self.base,

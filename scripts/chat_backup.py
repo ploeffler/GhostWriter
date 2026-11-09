@@ -12,7 +12,8 @@ from pathlib import Path
 
 LABELS = {'conversation': 'Gesprächsstand', 'decisions': 'Entscheidungen',
           'research': 'Recherche', 'brainstorming': 'Brainstorming',
-          'drafts': 'Entwürfe', 'planning': 'Planung', 'section_dialogue': 'Abschnittsdialog'}
+          'drafts': 'Entwürfe', 'planning': 'Planung', 'section_dialogue': 'Abschnittsdialog',
+          'section_answer': 'Abschnittsantwort'}
 
 
 def run(*args, cwd=None, timeout=60):
@@ -60,7 +61,7 @@ def validate(payload):
         raise ValueError('Doppelte Nachrichtenkennungen')
     topics = payload['topics']
     if not isinstance(topics, dict) or any(k not in LABELS or k == 'conversation' for k in topics):
-        raise ValueError('Themen: decisions, research, brainstorming, drafts, planning, section_dialogue')
+        raise ValueError('Themen: decisions, research, brainstorming, drafts, planning, section_dialogue, section_answer')
     if any(not isinstance(v, str) or not v.strip() for v in topics.values()):
         raise ValueError('Themeninhalte müssen nichtleere Texte sein')
     return {**topics, 'conversation': {k: payload[k] for k in ('context', 'coverage', 'messages')}}
@@ -89,7 +90,7 @@ def open_pr(repo, base, branch, session, work):
 
 
 def save(repository, base, session, payload, expected_head, *, github_repo=None,
-         author_name='GhostWriter', author_email='ghostwriter@users.noreply.github.com'):
+         author_name='GhostWriter', author_email='ghostwriter@users.noreply.github.com', atomic=False):
     """Vollständigen verfügbaren Snapshot übergeben; remote vor Erfolg bestätigen."""
     session = identifier(session)
     topics = validate(payload)  # vor jedem Schreibzugriff prüfen
@@ -136,7 +137,7 @@ def save(repository, base, session, payload, expected_head, *, github_repo=None,
             previous = json.loads(previous_path.read_text(encoding='utf-8'))['messages']
             if payload['messages'][:len(previous)] != previous:
                 raise ValueError('Frühere Beiträge fehlen oder wurden verändert; vollständigen Stand laden')
-        commits = []
+        commits, changed = [], []
         for topic, content in topics.items():
             folder = root / topic
             folder.mkdir(parents=True, exist_ok=True)
@@ -152,13 +153,20 @@ def save(repository, base, session, payload, expected_head, *, github_repo=None,
             git('add', '--', str(folder.relative_to(work)))
             if topic == 'conversation':
                 git('add', '--', str(manifest.relative_to(work)))
-            git('commit', '--quiet', '-m', f'Chat sichern: {LABELS[topic]} ({session})',
+            changed.append(topic)
+            if not atomic:
+                git('commit', '--quiet', '-m', f'Chat sichern: {LABELS[topic]} ({session})',
+                    '-m', 'GhostWriter-Aktion: chat.save')
+                commits.append({'topic': topic, 'commit': git('rev-parse', 'HEAD')})
+        if atomic and changed:
+            git('commit', '--quiet', '-m', f'Abschnittsantwort sichern ({session})',
                 '-m', 'GhostWriter-Aktion: chat.save')
-            commits.append({'topic': topic, 'commit': git('rev-parse', 'HEAD')})
+            commits.append({'topic': 'section_answer', 'topics': changed, 'commit': git('rev-parse', 'HEAD')})
         head = git('rev-parse', 'HEAD')
         # Compare-and-swap: auch einen während der Sicherung neu angelegten Branch erkennen.
         lease = f'--force-with-lease=refs/heads/{branch}:{existing or ""}'
-        git('push', '--quiet', lease, 'origin', f'HEAD:refs/heads/{branch}')
+        if commits:
+            git('push', '--quiet', lease, 'origin', f'HEAD:refs/heads/{branch}')
         observed = git('ls-remote', '--heads', 'origin', f'refs/heads/{branch}').split()
         if not observed or observed[0] != head:
             raise ValueError('Remote-Sicherung konnte nicht bestätigt werden')
@@ -315,10 +323,12 @@ def accept(repository, github_repo, session, expected_head, expected_base, *, co
             return diagnosis
 
 
-def section_checkpoint(repository, base, session, payload, expected_head, review, **kwargs):
-    """Ereignis nach abgeschlossenem Abschnittsdialog; keine Zeit-/Inaktivitätserkennung."""
+def validate_review(payload, review, *, answer=False):
+    """Gesprächsbelege prüfen, bevor ein Schreibzugriff möglich ist."""
     validate(payload)
     fields = {'section_id', 'source_commit', 'dialogue_complete', 'awaiting_reply', 'items'}
+    if answer:
+        fields.add('answer_message_id')
     if not isinstance(review, dict) or set(review) != fields:
         raise ValueError('Abschnittsdialog braucht section_id, source_commit, dialogue_complete, awaiting_reply, items')
     identifier(review['section_id'])
@@ -343,8 +353,30 @@ def section_checkpoint(repository, base, session, payload, expected_head, review
         if item['status'] in ('decided', 'deferred') and not any(
                 messages[x]['role'] == 'user' for x in item['evidence']):
             raise ValueError('Entscheidung oder Vertagung braucht einen Benutzerbeitrag als Beleg')
+    if answer:
+        answer_id = review['answer_message_id']
+        if (not isinstance(answer_id, str) or answer_id != payload['messages'][-1]['id']
+                or payload['messages'][-1]['role'] != 'user'
+                or not any(answer_id in item['evidence'] for item in items)):
+            raise ValueError('Antwortsicherung braucht die letzte Benutzerantwort als belegten aktuellen Beitrag')
+
+
+def answer_checkpoint(repository, base, session, payload, expected_head, review, **kwargs):
+    """Ausgewertete Antwort vor sichtbarer Folgeantwort sichern, auch bei offenen Fragen."""
+    validate_review(payload, review, answer=True)
+    enriched = {**payload, 'topics': {**payload['topics'], 'section_answer': canonical(review)}}
+    result = save(repository, base, session, enriched, expected_head, atomic=True, **kwargs)
+    result.update(trigger='section_answer_evaluated', section_id=review['section_id'],
+                  answer_message_id=review['answer_message_id'],
+                  reply_ready=result['status'] in ('remote_saved', 'remote_saved_pr_pending'))
+    return result
+
+
+def section_checkpoint(repository, base, session, payload, expected_head, review, **kwargs):
+    """Zusätzlicher Abschlussnachweis; Zwischenantworten über answer_checkpoint sichern."""
+    validate_review(payload, review)
     if (not review['dialogue_complete'] or review['awaiting_reply']
-            or any(x['status'] == 'open' for x in items)):
+            or any(x['status'] == 'open' for x in review['items'])):
         return {'status': 'not_due', 'section_id': review['section_id'],
                 'reason': 'Abschnittsdialog läuft noch oder eine Antwort steht aus'}
     # Eingabe unverändert lassen; Nachweis als eigenes Themengebiet mit sichern.
@@ -369,6 +401,8 @@ def main():
     s.add_argument('--author-email', default='ghostwriter@users.noreply.github.com')
     c = sub.add_parser('checkpoint', parents=[s], add_help=False, help='Nach abgeschlossenem Abschnittsdialog automatisch sichern')
     c.add_argument('--review', required=True, help='JSON-Datei mit belegtem Abschluss der besprochenen Punkte')
+    q = sub.add_parser('answer-checkpoint', parents=[s], add_help=False, help='Ausgewertete Antwort sofort und vor weiterer Chat-Ausgabe sichern')
+    q.add_argument('--review', required=True, help='JSON-Datei mit answer_message_id und belegtem Fragenstand')
     r = sub.add_parser('resume')
     r.add_argument('repository')
     r.add_argument('session')
@@ -382,12 +416,13 @@ def main():
     a.add_argument('--confirmed', action='store_true')
     args = parser.parse_args()
     try:
-        if args.action in ('save', 'checkpoint'):
+        if args.action in ('save', 'checkpoint', 'answer-checkpoint'):
             payload = json.loads(Path(args.input).read_text(encoding='utf-8'))
             options = dict(github_repo=args.github_repo, author_name=args.author_name, author_email=args.author_email)
-            if args.action == 'checkpoint':
+            if args.action in ('checkpoint', 'answer-checkpoint'):
                 review = json.loads(Path(args.review).read_text(encoding='utf-8'))
-                result = section_checkpoint(args.repository, args.base, args.session, payload, args.expected_head, review, **options)
+                checkpoint = answer_checkpoint if args.action == 'answer-checkpoint' else section_checkpoint
+                result = checkpoint(args.repository, args.base, args.session, payload, args.expected_head, review, **options)
             else:
                 result = save(args.repository, args.base, args.session, payload, args.expected_head, **options)
         elif args.action == 'accept':

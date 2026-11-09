@@ -44,8 +44,8 @@
 <title>s0</title>
 <path fill="#eaf2fc" stroke="#3971ad" stroke-width="1.3" d="M883.31,-692.74C883.31,-692.74 464.62,-692.74 464.62,-692.74 458.62,-692.74 452.62,-686.74 452.62,-680.74 452.62,-680.74 452.62,-614.7 452.62,-614.7 452.62,-608.7 458.62,-602.7 464.62,-602.7 464.62,-602.7 883.31,-602.7 883.31,-602.7 889.31,-602.7 895.31,-608.7 895.31,-614.7 895.31,-614.7 895.31,-680.74 895.31,-680.74 895.31,-686.74 889.31,-692.74 883.31,-692.74"/>
 <text xml:space="preserve" text-anchor="start" x="566.72" y="-667.02" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#20324a">GESPRÄCHSSICHERUNG</text>
-<text xml:space="preserve" text-anchor="start" x="502.22" y="-654.82" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">„Session sichern“ oder abgeschlossener Abschnittsdialog:</text>
-<text xml:space="preserve" text-anchor="start" x="468.47" y="-642.82" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">keine Antwort ausstehend; Punkte geklärt oder ausdrücklich vertagt.</text>
+<text xml:space="preserve" text-anchor="start" x="538.06" y="-654.82" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Nach jeder ausgewerteten Abschnittsantwort:</text>
+<text xml:space="preserve" text-anchor="start" x="475.56" y="-642.82" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Ohne Rückfrage sichern, dann Zusammenfassung / nächste Frage.</text>
 <text xml:space="preserve" text-anchor="start" x="476.72" y="-615.77" font-family="DejaVu Sans" font-size="11.00" fill="#3971ad">zugängliche Beiträge, Ergebnisse, Entscheidungen und Lücken erfassen</text>
 </g>
 <!-- input&#45;&gt;s0 -->
@@ -129,7 +129,7 @@
 <title>s1</title>
 <path fill="#eaf2fc" stroke="#3971ad" stroke-width="1.3" d="M863.31,-571.7C863.31,-571.7 492.62,-571.7 492.62,-571.7 486.62,-571.7 480.62,-565.7 480.62,-559.7 480.62,-559.7 480.62,-493.66 480.62,-493.66 480.62,-487.66 486.62,-481.66 492.62,-481.66 492.62,-481.66 863.31,-481.66 863.31,-481.66 869.31,-481.66 875.31,-487.66 875.31,-493.66 875.31,-493.66 875.31,-559.7 875.31,-559.7 875.31,-565.7 869.31,-571.7 863.31,-571.7"/>
 <text xml:space="preserve" text-anchor="start" x="607.84" y="-545.98" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#20324a">Session sichern</text>
-<text xml:space="preserve" text-anchor="start" x="522.72" y="-533.78" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Ein Änderungsschritt je geändertem Themengebiet.</text>
+<text xml:space="preserve" text-anchor="start" x="538.12" y="-533.78" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Je Antwort ein gemeinsamer Änderungsschritt.</text>
 <text xml:space="preserve" text-anchor="start" x="516.34" y="-521.78" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Ein eigenes gemeinsames Änderungspaket je Sitzung.</text>
 <text xml:space="preserve" text-anchor="start" x="496.47" y="-494.73" font-family="DejaVu Sans" font-size="11.00" fill="#3971ad">nach bestätigter Übertragung: gesichert, noch nicht übernommen</text>
 </g>
