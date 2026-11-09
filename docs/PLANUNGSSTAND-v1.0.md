@@ -6,13 +6,13 @@ Stand: 8. November 2026. Beschlüsse, Vorschläge und Prüfergebnisse sind getre
 |---|---|
 | [Bestätigte Beschlüsse](ENTSCHEIDUNGEN-v1.0.md) | Verbindlicher fachlicher Umfang einschließlich der ergänzten Medien-/Umschlag-/Websitevorgaben und DOCX-Metadaten für v1.1 |
 | [Arbeitsaufträge](AUFTRAEGE-v1.0.md) | Lieferblöcke und noch offene Abnahmen |
-| [Entscheidungsauftrag mit Gesprächsprotokoll](../ENTSCHEIDUNGSAUFTRAG-v1.0.md) | Historischer Fragen-/Antwortenkatalog; das bestätigte Protokoll hat bei Widersprüchen Vorrang |
-| [Zwischenversionen bis v1.0](../PLAN-v1.0-ZWISCHENVERSIONEN.md) | Vorschlag; Website für v0.9.0 bestätigt |
+| [Entscheidungsauftrag mit Gesprächsprotokoll](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/ENTSCHEIDUNGSAUFTRAG-v1.0.md) | Historischer Fragen-/Antwortenkatalog; das bestätigte Protokoll hat bei Widersprüchen Vorrang |
+| [Zwischenversionen bis v1.0](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/PLAN-v1.0-ZWISCHENVERSIONEN.md) | Vorschlag; Website für v0.9.0 bestätigt |
 | [Medienplatzierung Deutsch](MEDIENPLATZIERUNG.md) / [Englisch](MEDIA-LAYOUT.en.md) | Bestätigte Anforderungen, Layoutsteuerung und Mengenbegrenzung noch umzusetzen |
-| [Lokaler Bildtest](../tests/evidence/2026-11-08-bilder/TESTBERICHT.md) | Geprüfte Grundlagen und konkrete offene Fehler; keine vollständige Produktabnahme |
-| [Bedienglossar](../UMSETZUNGSAUFTRAG-BEDIENGLOSSAR.md) | Beauftragter Dokumentationsblock, kein Buchglossar |
-| [Zentrale Dokumentationswebsite](../PLANUNGSNOTIZ-DOKUMENTATIONSWEBSITE.md) | Technische Umsetzung am 9. November als geprüfter PR vorgezogen beauftragt; Merge und Aktivierung gesondert freizugeben |
-| [Buch-Overlays](../PLANUNGSNOTIZ-BUCH-OVERLAYS.md) | Vorgemerkte Idee ohne Versionszusage |
+| [Lokaler Bildtest](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/tests/evidence/2026-11-08-bilder/TESTBERICHT.md) | Geprüfte Grundlagen und konkrete offene Fehler; keine vollständige Produktabnahme |
+| [Bedienglossar](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/UMSETZUNGSAUFTRAG-BEDIENGLOSSAR.md) | Beauftragter Dokumentationsblock, kein Buchglossar |
+| [Zentrale Dokumentationswebsite](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/PLANUNGSNOTIZ-DOKUMENTATIONSWEBSITE.md) | Technische Umsetzung am 9. November als geprüfter PR vorgezogen beauftragt; Merge und Aktivierung gesondert freizugeben |
+| [Buch-Overlays](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/PLANUNGSNOTIZ-BUCH-OVERLAYS.md) | Vorgemerkte Idee ohne Versionszusage |
 | [BookyAI-Vergleich](BOOKYAI-VERGLEICH.md) | Datierte Recherche vom 07.11.2026, kein aktueller Praxistest |
 | [Prompt-Caching prüfen](PROMPT-CACHING.md) | Gespeicherter technischer Prüfablauf, kein Nachweis aktiver Cache-Nutzung |
 
