@@ -44,8 +44,8 @@
 <title>s0</title>
 <path fill="#eaf2fc" stroke="#3971ad" stroke-width="1.3" d="M817.31,-692.74C817.31,-692.74 423.38,-692.74 423.38,-692.74 417.38,-692.74 411.38,-686.74 411.38,-680.74 411.38,-680.74 411.38,-614.7 411.38,-614.7 411.38,-608.7 417.38,-602.7 423.38,-602.7 423.38,-602.7 817.31,-602.7 817.31,-602.7 823.31,-602.7 829.31,-608.7 829.31,-614.7 829.31,-614.7 829.31,-680.74 829.31,-680.74 829.31,-686.74 823.31,-692.74 817.31,-692.74"/>
 <text xml:space="preserve" text-anchor="start" x="510.09" y="-667.02" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#20324a">CONVERSATION BACKUP</text>
-<text xml:space="preserve" text-anchor="start" x="476.34" y="-654.82" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Save request or a completed section discussion:</text>
-<text xml:space="preserve" text-anchor="start" x="427.22" y="-642.82" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">no reply pending; discussed items resolved or explicitly deferred.</text>
+<text xml:space="preserve" text-anchor="start" x="510.07" y="-654.82" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">After each evaluated section answer:</text>
+<text xml:space="preserve" text-anchor="start" x="437.10" y="-642.82" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Save without asking, then show the summary / next question.</text>
 <text xml:space="preserve" text-anchor="start" x="460.59" y="-615.77" font-family="DejaVu Sans" font-size="11.00" fill="#3971ad">capture accessible messages, results, decisions and gaps</text>
 </g>
 <!-- input&#45;&gt;s0 -->
@@ -129,7 +129,7 @@
 <title>s1</title>
 <path fill="#eaf2fc" stroke="#3971ad" stroke-width="1.3" d="M776.06,-571.7C776.06,-571.7 464.62,-571.7 464.62,-571.7 458.62,-571.7 452.62,-565.7 452.62,-559.7 452.62,-559.7 452.62,-493.66 452.62,-493.66 452.62,-487.66 458.62,-481.66 464.62,-481.66 464.62,-481.66 776.06,-481.66 776.06,-481.66 782.06,-481.66 788.06,-487.66 788.06,-493.66 788.06,-493.66 788.06,-559.7 788.06,-559.7 788.06,-565.7 782.06,-571.7 776.06,-571.7"/>
 <text xml:space="preserve" text-anchor="start" x="545.34" y="-545.98" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#20324a">Save the session</text>
-<text xml:space="preserve" text-anchor="start" x="496.59" y="-533.78" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">One commit per changed coherent topic.</text>
+<text xml:space="preserve" text-anchor="start" x="483.28" y="-533.78" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">One combined commit per evaluated answer.</text>
 <text xml:space="preserve" text-anchor="start" x="468.47" y="-521.78" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">One separate shared change package per session.</text>
 <text xml:space="preserve" text-anchor="start" x="479.34" y="-494.73" font-family="DejaVu Sans" font-size="11.00" fill="#3971ad">after confirmed upload: backed up; not yet merged</text>
 </g>

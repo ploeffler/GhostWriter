@@ -20,11 +20,11 @@ Das sind Speicherstände, keine Abschnitts- oder Kapitelzustände. **Session lad
 
 **Session sichern** (auch **Chat sichern**, **Chat speichern**) sichert die verfügbare Gesprächsarbeit dauerhaft: sichtbare Gesprächsbeiträge, Entscheidungen, Recherche mit Quellen, Brainstorming, Varianten, Entwürfe, Planungen und offene Punkte. Eine Kurzfassung allein reicht nicht. **Session laden** liest eine Sicherung zum Weiterarbeiten. **Session übernehmen** prüft die Sicherung, analysiert Fehler, versucht eine sichere technische Reparatur, prüft erneut und führt den zugehörigen Pull Request zusammen. Laden und Übernehmen sind verschiedene Aktionen.
 
-Die Befehle sind durch den Assistenten ausgeführte Arbeitsabläufe; die verfügbaren Werkzeuge müssen Git-Schreibzugriff und für den PR die GitHub-CLI oder gleichwertige GitHub-Werkzeuge bereitstellen. Sie sind kein eingebauter Export der jeweiligen Chat-App. Der Assistent sichert nur tatsächlich zugängliche Inhalte, keine internen Anweisungen, Secrets oder nicht abgesendeten Eingaben. Fehlende frühere Beiträge und Anhänge werden ausdrücklich ausgewiesen. Automatische Sicherung erfolgt ausschließlich beim unten beschriebenen Abschluss eines Abschnittsdialogs durch den ausführenden Assistenten; keine zeitgesteuerte Hintergrundüberwachung und kein Zugriff auf verborgene Chat-Historie werden behauptet.
+Die Befehle sind durch den Assistenten ausgeführte Arbeitsabläufe; die verfügbaren Werkzeuge müssen Git-Schreibzugriff und für den PR die GitHub-CLI oder gleichwertige GitHub-Werkzeuge bereitstellen. Sie sind kein eingebauter Export der jeweiligen Chat-App. Der Assistent sichert nur tatsächlich zugängliche Inhalte, keine internen Anweisungen, Secrets oder nicht abgesendeten Eingaben. Fehlende frühere Beiträge und Anhänge werden ausdrücklich ausgewiesen. Automatische Sicherung erfolgt nach jeder ausgewerteten Antwort in einer Abschnitts-Fragerunde sowie zusätzlich bei deren Abschluss durch den ausführenden Assistenten; keine zeitgesteuerte Hintergrundüberwachung und kein Zugriff auf verborgene Chat-Historie werden behauptet.
 
 ## Ablage und Freigabegrenzen
 
-Je Sitzung eine beständige Kennung und genau ein Branch `ghostwriter/chat/<session-id>` mit einem gemeinsamen PR. Ziel ist der ausgewählte Buchbranch oder bei einem Programmgespräch der Programmbranch; Bücher niemals in den Bibliotheks-Standardbranch übernehmen. Dateien liegen ausschließlich unter `conversations/<session-id>/`. Ein Commit je geändertem zusammenhängendem Themengebiet: Recherche, Brainstorming, Entscheidungen, Entwürfe, Planung, Gesprächsstand. Zusammengehörige Inhalte gehören zusammen; keine Commits je Nachricht. Bereits gespeicherte Rechercheläufe referenzieren.
+Je Sitzung eine beständige Kennung und genau ein Branch `ghostwriter/chat/<session-id>` mit einem gemeinsamen PR. Ziel ist der ausgewählte Buchbranch oder bei einem Programmgespräch der Programmbranch; Bücher niemals in den Bibliotheks-Standardbranch übernehmen. Dateien liegen ausschließlich unter `conversations/<session-id>/`. Ein Commit je geändertem zusammenhängendem Themengebiet: Recherche, Brainstorming, Entscheidungen, Entwürfe, Planung, Gesprächsstand. Zusammengehörige Inhalte gehören zusammen; beim manuellen Sichern keine Commits je Nachricht. Die automatische Antwortsicherung bündelt dagegen jede ausgewertete Abschnittsantwort mit ihrem aktuellen Fragenstand und allen betroffenen Themen in genau einem Commit. Bereits gespeicherte Rechercheläufe referenzieren.
 
 Die Sicherung ist nach bestätigtem Push dauerhaft gespeichert, auch wenn der PR offen bleibt. `changes.auto_merge` gilt hier nicht. Erst **Session übernehmen** autorisiert Prüfung und Merge des benannten Sicherungs-PRs. Kein Manuskript, keine Struktur, kein Buchstatus und keine inhaltliche Freigabe werden dabei verändert. Es gilt als ausdrückliche, begrenzte Ausnahme für die Sitzungssicherung auch vor Strukturfreigabe; Buchdateien bleiben geschützt. Bei aktivem Buch-Checkout einen separaten, ausdrücklich gewählten Sitzungs-Speicher verwenden, der den gesperrten Buchbranch nicht ändert; nicht ungeprüft in den gesperrten Buchstand mergen. Bei unklarem Ziel nachfragen.
 
@@ -65,9 +65,58 @@ Eingabeformat (Themen sind frei formulierte Texte; nur nichtleere, tatsächlich 
 
 Der `context` bleibt pro Sitzung beständig; veränderliche Aufgaben und neue Quellenstände gehören in `planning`. Nachrichten-IDs dürfen nicht doppelt sein. `session.json` hält ursprünglichen Zielbranch und Ausgangscommit fest. Jedes Thema hat einen aktuellen Stand `latest.json` und unveränderliche, nach SHA-256 benannte Snapshots. Die gesamte Sicherung bleibt über Git nachvollziehbar. `resume` gibt Inhalte nur auf ausdrücklichen Ladeauftrag aus; der Assistent liest sie intern und antwortet mit einem kurzen Wiedereinstieg.
 
+## Antwort auswerten, sofort sichern, dann weiterantworten
+
+Während einer Frage-Antwort-Runde zur Bucherstellung oder zum Inhalt eines
+Abschnitts gilt nach **jeder Benutzerantwort** diese Reihenfolge:
+
+1. Antwort intern auswerten. Originalbeitrag, inhaltliche Einordnung und offenen
+   Fragenstand erfassen; Vorschläge nicht als bestätigte Entscheidungen ausgeben.
+2. **Ohne zusätzliche Bestätigung** einen gemeinsamen Commit mit dem vollständigen
+   verfügbaren Gesprächsstand und den betroffenen Themen erzeugen und hochladen.
+   Nicht auf die letzte Frage, ein „OK“, die Bestätigung einer Zusammenfassung
+   oder das Ende der Fragerunde warten. Offene Fragen blockieren diese Sicherung nicht.
+3. Den tatsächlichen Remote-Stand bestätigen. Erst danach im Chat die Auswertung,
+   Zusammenfassung, nächste Frage oder den Abschluss zeigen und die Sicherung kurz
+   benennen. Bei Uploadfehler zuerst klar „Antwort noch nicht gesichert“ melden,
+   den vorhandenen Stand erhalten und sicher erneut versuchen; keine normale
+   Fortsetzung als wäre gespeichert worden.
+
+Ziel, Sichtbarkeit, Zugriff und Sitzungskennung vor Beginn der Fragerunde klären.
+Keine erneute Speicherfreigabe je Antwort verlangen. Die Sicherung verändert nur
+`conversations/<session-id>/`, nicht Manuskript, Gliederung oder Freigaben. Kein
+automatischer Merge; ein gemeinsamer Sitzungsbranch und PR bleiben bestehen.
+
+```sh
+python3 scripts/chat_backup.py answer-checkpoint <git-url> <session-id> <eingabe.json> --review <antwortstand.json> --base <zielbranch> --expected-head <gelesener-sicherungs-head> --github-repo <owner/repo>
+```
+
+`antwortstand.json` verwendet die unten beschriebenen Felder des Dialogabschlusses
+und zusätzlich `answer_message_id`, die Kennung der gerade ausgewerteten letzten
+Benutzernachricht. Diese muss auch in den Punktbelegen vorkommen. Der aktuelle
+Gesprächsstand endet mit dieser Benutzerantwort; die noch nicht ausgegebene
+Auswertung steht in den Themen, nicht als vermeintlich schon gesendete Nachricht.
+`dialogue_complete: false`, `awaiting_reply: true` und offene Punkte sind erlaubt.
+Die geprüften Angaben liegen unter dem Thema `section_answer`. Ein unveränderter
+Wiederholungsaufruf erzeugt weder einen neuen Commit noch einen weiteren Push.
+
+`reply_ready: true` wird erst nach bestätigtem Upload zurückgegeben. Auch bei
+`remote_saved_pr_pending` sind die Inhalte gesichert: den fehlenden PR offen
+benennen und vervollständigen, keinen zweiten Sicherungsbranch anlegen. Bei
+Uploadfehler gibt es keine positive Quittung. Ein erneuter Aufruf nach einem
+Verbindungsabbruch muss zuerst den tatsächlichen Remote-Stand abgleichen.
+
+Mit GitHub-Schreibwerkzeugen ohne lokale Skriptausführung denselben Ablauf
+verwenden: verfügbare Originalbeiträge, Auswertung und Fragenstand gemeinsam
+vorbereiten, einen Tree/Commit erstellen, den Ref mit Standprüfung aktualisieren
+und die Remote-Inhalte prüfen. Keine dateiweisen Teil-Commits. Fehlt die Fähigkeit
+zum Schreiben, dies vor der Fragerunde mitteilen; keinen Schutz vor Guthabenende
+vortäuschen. Auch dieser Ablauf benötigt einen ausführenden Assistenten: Er kann
+einen Clientabbruch vor seinem Werkzeugaufruf nicht unabhängig auffangen.
+
 ## Automatisch sichern, wenn der Abschnittsdialog abgeschlossen ist
 
-Der Assistent löst die Sicherung **ohne zusätzlichen Speicherbefehl** aus, sobald der Dialog über die offenen Dinge eines Abschnitts fertig ist. Alle im aktuellen Dialog besprochenen Punkte müssen beantwortet, entschieden oder vom Benutzer ausdrücklich vertagt sein. Es darf keine Antwort auf eine noch gestellte Frage ausstehen. Bei unklarem Abschluss weiterarbeiten statt „fertig“ zu unterstellen. Nicht sämtliche Aufgaben des ganzen Abschnitts müssen erledigt sein; die Sicherung hält den tatsächlichen Stand samt Vertagungen fest. Keine automatische Abschnittsfreigabe und kein Merge.
+Zusätzlich zur Sicherung jeder Antwort löst der Assistent die Abschlusssicherung **ohne zusätzlichen Speicherbefehl** aus, sobald der Dialog über die offenen Dinge eines Abschnitts fertig ist. Alle im aktuellen Dialog besprochenen Punkte müssen beantwortet, entschieden oder vom Benutzer ausdrücklich vertagt sein. Es darf keine Antwort auf eine noch gestellte Frage ausstehen. Bei unklarem Abschluss weiterarbeiten statt „fertig“ zu unterstellen. Nicht sämtliche Aufgaben des ganzen Abschnitts müssen erledigt sein; die Sicherung hält den tatsächlichen Stand samt Vertagungen fest. Keine automatische Abschnittsfreigabe und kein Merge.
 
 Der Assistent führt eine Liste der besprochenen Punkte mit Verweisen auf verfügbare Nachrichten. Vertagungen und Entscheidungen brauchen einen Benutzerbeitrag als Beleg; bloße Vorschläge des Assistenten zählen nicht als bestätigte Entscheidungen. Nach der letzten Antwort den Abschluss gegen diese Liste prüfen, Gesprächsinhalte und Themen wie beim manuellen Sichern vollständig erfassen und denselben Sitzungsbranch und PR fortsetzen. Bei bereits übernommener Sitzung eine neue Kennung verwenden. Ziel, Vertraulichkeit und Zugriff müssen wie beim manuellen Sichern geklärt sein. Fehlendes Ziel oder fehlende Werkzeuge ausdrücklich nennen; nichts still in einem anderen Repository ablegen.
 

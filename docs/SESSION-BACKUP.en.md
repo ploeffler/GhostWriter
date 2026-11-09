@@ -14,7 +14,7 @@ These are assistant-executed workflows requiring authenticated Git and GitHub to
 
 ## Storage and privacy
 
-Each session uses a stable ID, one `ghostwriter/chat/<session-id>` branch and one shared pull request. Files are limited to `conversations/<session-id>/`. Each changed coherent topic gets one commit, rather than one commit per message. Existing messages are preserved unchanged; new ones are appended. An unchanged topic does not create another commit. Use a new session ID after the previous package was merged or closed.
+Each session uses a stable ID, one `ghostwriter/chat/<session-id>` branch and one shared pull request. Files are limited to `conversations/<session-id>/`. Each changed coherent topic gets one commit, rather than one commit per message during manual saves. Automatic section-answer backups bundle the evaluated reply, question state and all affected topics into one commit. Existing messages are preserved unchanged; new ones are appended. An unchanged topic does not create another commit. Use a new session ID after the previous package was merged or closed.
 
 Before the first backup, identify the target repository, branch and visibility. Private book discussions must not be saved in the public program repository. The target is the selected book branch, or the program branch for a program discussion. Book content must never be merged into the library's default branch. If a book is locked for external editing, use a separately and explicitly selected session store that does not change the locked book branch. An unclear target requires clarification.
 
@@ -28,9 +28,37 @@ Only confirmed upload means **backed up**. An open pull request does not mean th
 
 Backups do not modify manuscript files, structure, book status or content approvals. They are a limited exception permitting conversation storage before structure approval. Saving never merges the backup, including when `changes.auto_merge` is enabled.
 
+## Evaluate, upload, then reply
+
+During section question-and-answer work, evaluate each user answer internally,
+then commit and upload the available original messages, evaluation and current
+question state **without another confirmation**. Verify the remote version before
+showing the evaluation, summary, next question or conclusion. Do not wait for the
+last question or approval of a summary. Open questions do not block this backup.
+Identify the intended repository, visibility and access before starting the round.
+Saving does not modify the manuscript or grant approval and never merges a backup.
+
+Use `chat_backup.py answer-checkpoint` with the regular save arguments and a
+`--review` JSON file. It contains the section review fields plus
+`answer_message_id`: the latest available message must be that user answer, and
+the question evidence must reference it. Put the still-unpublished evaluation in
+topics, not in the message history. Incomplete discussions, pending replies and
+open items are allowed. The helper stores `section_answer` and creates one atomic
+commit for all changed topics. An unchanged retry creates no commit or push.
+
+Only a verified upload produces `reply_ready: true`. If PR creation is pending,
+report that separately: the content is already saved. If upload fails, report the
+unsaved answer before continuing; preserve the available content and reconcile
+the actual remote version before retrying. Do not claim a successful save.
+
+Without local execution, equivalent GitHub tools may upload the same complete
+snapshot in one atomic commit and verify it. Missing write access must be disclosed
+before the question round. The executing assistant must still call the tool;
+this cannot independently recover from a client or credit failure before that call.
+
 ## Automatic checkpoint after a section discussion
 
-The executing assistant also saves when a section discussion has finished: no reply is pending, and all discussed items are answered, decided or explicitly deferred. Decisions and deferrals need evidence in available user messages. This does not require every task in the section to be complete and does not grant section approval or merge anything.
+In addition to saving each answer, the executing assistant saves a completion record when a section discussion has finished: no reply is pending, and all discussed items are answered, decided or explicitly deferred. Decisions and deferrals need evidence in available user messages. This does not require every task in the section to be complete and does not grant section approval or merge anything.
 
 The `checkpoint` helper returns `not_due` without Git writes if the discussion is incomplete or an item remains open. Repeating an unchanged checkpoint creates no new commits. The trigger is evaluated by the executing assistant; it is not a timer, an inactivity detector or access to another chat's hidden history. Missing access or failed saving must be reported.
 
