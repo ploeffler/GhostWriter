@@ -56,6 +56,10 @@ Vor der **öffentlichen Freigabe** beide Sprachen gerendert ansehen: Desktop und
 
 Der vorbereitete Zielpfad ist `/GhostWriter/documentation/de/` bzw. `/en/` im bereits verwendeten Pages-Auftritt. Die Freigabe dieses PR allein aktiviert ihn nicht. Bis zur gesonderten Freigabe keine Pages-Action starten und keine Hosting-Einstellung ändern. Eine Rückkehr zum bisherigen Beispielauftritt wäre ein erneut ausdrücklich freizugebender manueller Lauf mit `documentation: false`.
 
+## Wiki-Aufbau
+
+Das veröffentlichte Wiki wird aus denselben Quellen erzeugt. Titel, globale Fußzeile, Sprachwechsel und Prüfungen sind in [Wiki-Gestaltung](WIKI-GESTALTUNG.md) und [Wiki appearance](WIKI-APPEARANCE.en.md) beschrieben. Der Aufbau veröffentlicht nichts automatisch.
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
