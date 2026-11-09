@@ -40,6 +40,49 @@ ist selbst kein Nachweis übertragener Tokens.
 
 `python3 -m unittest discover -s tests -p 'test_context.py'` prüft 15.000/15.001 Wörter, Kontextmangel, fehlende und nach Textänderung veraltete Zusammenfassungen, leere Manuskripte und Unicode-Wörter. Der Test läuft auch in der Prüf-Action. Ein realer Chat muss zusätzlich zeigen, dass die vorgesehenen Dateien tatsächlich gelesen und Einschränkungen korrekt gemeldet werden.
 
+## Große Bücher abschnittsweise prüfen
+
+Buchweite redaktionelle Prüfungen abschnittsweise ausführen. Originaldateien lokal
+verarbeiten, soweit die Arbeitsumgebung dies unterstützt; keine vollständige
+Dateisammlung und keine ursprünglichen/überarbeiteten Volltextkopien als
+Chat-Werkzeugausgabe erzeugen. Im Chat nur Fortschritt, kompakte Befunde,
+Fundstellen und erforderliche Entscheidungen anzeigen. Lokale Änderungen mit
+gezielten Patches bearbeiten; Prüfungen geben Ergebnisse statt Volltexte aus.
+
+Zuerst jeden Abschnitt mit den benötigten Figuren-, Zeit-, Orts- und
+Rechercheangaben prüfen. Befunde und Quellstand in Dateien festhalten. Danach
+Kapitelzusammenhang und Übergänge anhand der Abschnittsbefunde und gezielt
+nachgeladener Originalstellen prüfen. Abschließend Handlungsstränge,
+Figurenentwicklung, Zeitlinie und Widersprüche über das Buch abgleichen.
+Zusammenfassungen allein belegen keine Widerspruchsfreiheit. Verdächtige Stellen
+an den Originalen prüfen; nach Änderungen betroffene Nachbarstellen und
+übergreifende Zusammenhänge erneut prüfen. Fehlender Dateizugriff oder fehlende
+Ausführungsumgebung sind offenzulegen; keinen Hintergrundlauf vortäuschen.
+
+Die API-Hintergrundanalysen (`scripts/analyze.py`) übertragen pro Aufruf einen
+Abschnitt, bei Überlänge einen Teil mit höchstens 12.000 Manuskriptzeichen.
+Absatz- und Satzgrenzen werden bevorzugt; notfalls wird an der Zeichengrenze
+geteilt. Es gibt keine Überlappung: Beobachtungen über Teilgrenzen brauchen eine
+zusätzliche gezielte Prüfung. Vor-/Nachspann wird je Eintrag behandelt.
+Die rein lokale Sprachanalyse prüft vollständige Abschnitte ohne diese Teilung.
+
+Geprüfte Ergebnisse werden pro Abschnitt/Teil zwischengespeichert. Alte
+Kapitel-Caches werden nicht wiederverwendet. Änderungen an Text, Nummerierung,
+Analyseauftrag, konfiguriertem Modell/Anbieter oder bekannten Figuren (bei
+Figurenanalyse) machen betroffene Einträge ungültig. Kapitelkurzbeschreibungen
+und -ziele sind eine Zusammenstellung der geprüften Abschnittsangaben, keine
+zusätzliche freie Kapitelzusammenfassung. Stilvarianten nennen Abschnitte.
+
+Das Zusammenführen überträgt ausschließlich extrahierte Ergebnisse. Größere
+Ergebnislisten werden in begrenzten Gruppen paarweise verglichen, damit auch
+weit auseinanderliegende Stellen zusammenkommen. Das kann bei vielen Befunden
+quadratisch viele Aufrufe benötigen; die Planwerte sind grobe Schätzungen und
+keine garantierte Kostenobergrenze. Überlange einzelne Ergebniseinträge führen
+zu einem gemeldeten Fehler statt zu unbegrenzten Anfragen. Ein technischer
+Fundstellenabgleich bestätigt das Zitat, nicht die inhaltliche Interpretation.
+Diese Analysen ersetzen keine vollständige redaktionelle Romanprüfung.
+
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

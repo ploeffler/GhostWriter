@@ -13,24 +13,24 @@ Arten (`--kind`, Vorgabe characters; mehrere mit Komma):
   characters  Figuren (#123); übernommen mit scripts/characters.py apply
   summaries   Kurzbeschreibung und Ziel je Abschnitt und Kapitel (#124); übernommen in die Abschnittsdatei
               („## Ziel des Abschnitts“, „## Kurzbeschreibung“) bzw. die README.md des Kapitels
-  style       Stilprofil (Erzählperspektive, Zeitform, Anrede, Sprachebene, Ton, Stilmittel) je Kapitel, dazu
+  style       Stilprofil (Erzählperspektive, Zeitform, Anrede, Sprachebene, Ton, Stilmittel) je Abschnitt, dazu
               Zahlen ohne KI (Wörter je Satz, Anteil wörtlicher Rede); übernommen nach ghostwriter.yml (`style`)
   places      Schauplätze mit Art, Beschreibung und Abschnitten; andere Bezeichnungen desselben Orts über
               merge_model; übernommen nach story/places.yml
   timeline    Zeitleiste: Ereignisse je Abschnitt mit Zeitangabe aus dem Text; Zeitsprünge, Widersprüche und
               Unklares als Hinweisliste (merge_model, nur Verweise auf geprüfte Ereignisse); übernommen nach
               story/timeline.yml
-  continuity  Widersprüche: je Kapitel Tatsachen mit Fundstelle, über das ganze Buch Widersprüche (merge_model, nur
+  continuity  Widersprüche: je Abschnitt Tatsachen mit Fundstelle, über das ganze Buch Widersprüche (merge_model, nur
               zwischen geprüften Tatsachen); übernommen als Marker [KONTINUITÄT PRÜFEN: …] hinter der Fundstelle
   language    Sprachliche Auffälligkeiten ohne KI (lange Sätze, Wortwiederholungen, gleiche Satzanfänge,
               Füllwörter); übernommen als Hinweisliste nach story/hints.yml, der Text bleibt unverändert
 
 Läuft in der Action „Analyse im Hintergrund“ (analyse.yml), lokal genauso. Ablauf je Art:
-  1. Vorbereiten ohne KI: das Buch je Kapitel (Vor- und Nachspann als eigener
+  1. Vorbereiten ohne KI: das Buch je Abschnitt (Vor- und Nachspann je eigener
      Block, nicht bei summaries); je Block ein Fingerabdruck (SHA-256 des
      Textes). Blöcke, deren Fingerabdruck im Zwischenspeicher
      analysis/cache/<art>/ steht, werden nicht neu gelesen.
-  2. Je Block ein KI-Aufruf (parallel, `analysis.model`): Auftrag nur aus dem
+  2. Je Abschnitt bzw. begrenztem Teil ein KI-Aufruf (parallel, `analysis.model`): Auftrag nur aus dem
      Text, die Abschnitte als `### N.M`; jede Angabe mit wörtlicher Fundstelle
      (`evidence: [{field, where, quote}]`).
   3. Prüfung ohne KI: Eine Fundstelle zählt nur, wenn das Zitat wörtlich im
@@ -43,7 +43,7 @@ Läuft in der Action „Analyse im Hintergrund“ (analyse.yml), lokal genauso. 
      unterschiedliche Angaben (z. B. Alter) kommen als Widerspruch in die
      Liste, entschieden wird nichts. Kurzbeschreibungen: ohne KI in
      Buchreihenfolge (Kapitel, dann seine Abschnitte). Stilprofil: ohne KI je
-     Angabe der häufigste Wert (gewichtet nach Wörtern), abweichende Kapitel
+     Angabe der häufigste Wert (gewichtet nach Wörtern), abweichende Abschnitte
      als Varianten.
   5. Ablage: analysis/<art>/run-NNN.md (Lauf) und run-NNN.json (Vorschläge,
      `kind` und `items`), Kosten je Aufruf in costs/project.yml (source:
@@ -106,10 +106,10 @@ MERGE_SYSTEM = """Du bekommst Figuren, die in verschiedenen Kapiteln eines Buchs
 Namen und einem Satz. Gib an, welche Einträge dieselbe Person sind (z. B. Spitzname und voller Name). Nur wenn der
 Text das klar nahelegt; im Zweifel getrennt lassen. Antworte nur mit JSON: {"groups": [["Name A", "Name B"], …]}"""
 
-SUMMARIES_SYSTEM = """Du liest ein Kapitel eines Buchs. Die Abschnitte stehen unter Überschriften wie "### 1.2".
-Schreibe je Abschnitt und fürs ganze Kapitel:
+SUMMARIES_SYSTEM = """Du liest einen Abschnitt oder einen begrenzten Teil eines Buchs. Die Abschnitte stehen unter Überschriften wie "### 1.2".
+Schreibe für den vorliegenden Abschnitt bzw. Teil:
 - "short": Kurzbeschreibung, worum es geht (ein bis drei Sätze, sachlich, im Präsens);
-- "goal": Ziel, also was der Abschnitt bzw. das Kapitel für das Buch leistet (ein Satz; im Sachbuch: was der Leser
+- "goal": Ziel, also was der Abschnitt bzw. Teil für das Buch leistet (ein Satz; im Sachbuch: was der Leser
   danach weiß oder kann; in einer Geschichte: was sich für die Handlung oder die Figuren ändert).
 Regeln:
 - Nur aus dem Text. Nichts erfinden, nichts aus Weltwissen ergänzen, keine Wertung. Was der Text nicht hergibt,
@@ -117,10 +117,10 @@ Regeln:
 - Jede Angabe braucht mindestens eine Fundstelle: evidence = [{"field": "short|goal", "where": "<Abschnitt, z. B. 1.2>",
   """ + QUOTE_RULE + """}].
 Antworte nur mit JSON: {"sections": [{"where": "1.2", "short": "", "goal": "", "evidence": []}],
-"chapter": {"short": "", "goal": "", "evidence": []}}"""
+"chapter": {}}"""
 
 
-STYLE_SYSTEM = """Du liest ein Kapitel eines Buchs und beschreibst seinen Stil, nur aus dem Text:
+STYLE_SYSTEM = """Du liest einen Abschnitt oder einen begrenzten Teil eines Buchs und beschreibst seinen Stil, nur aus dem Text:
 - "perspective": Erzählperspektive: ich | du | wir | er/sie | auktorial | wechselnd
 - "tense": Zeitform des Erzählens: Präsens | Präteritum | Perfekt | wechselnd
 - "address": Anrede des Lesers: du | Sie | ihr | keine
@@ -151,7 +151,7 @@ PLACES_MERGE_SYSTEM = """Du bekommst Schauplätze, die in verschiedenen Kapiteln
 anderen Namen und einem Satz. Gib an, welche Einträge derselbe Ort sind (z. B. "das Haus am See" und "Seehaus"). Nur
 wenn der Text das klar nahelegt; im Zweifel getrennt lassen. Antworte nur mit JSON: {"groups": [["Name A", "Name B"], …]}"""
 
-TIMELINE_SYSTEM = """Du liest ein Kapitel eines Buchs und notierst, wann was geschieht, in der Reihenfolge des Textes.
+TIMELINE_SYSTEM = """Du liest einen Abschnitt oder einen begrenzten Teil eines Buchs und notierst, wann was geschieht, in der Reihenfolge des Textes.
 Je Ereignis:
 - "where": Abschnitt (z. B. "1.2");
 - "when": die Zeitangabe so, wie sie im Text steht oder sich daraus ergibt (z. B. "Sommer 1989", "drei Tage später",
@@ -172,7 +172,7 @@ Nur was sich aus den genannten Zeitangaben ergibt, nichts vermuten. Jede Stelle 
 Ereignisse. Antworte nur mit JSON: {"issues": [{"kind": "jump|contradiction|unclear", "events": [1, 2], "text": ""}]}"""
 
 
-CONTINUITY_SYSTEM = """Du liest ein Kapitel eines Buchs und notierst Tatsachen, die an anderer Stelle des Buchs nicht
+CONTINUITY_SYSTEM = """Du liest einen Abschnitt oder einen begrenzten Teil eines Buchs und notierst Tatsachen, die an anderer Stelle des Buchs nicht
 anders dargestellt werden dürfen: Alter, Aussehen, Verwandtschaft und Beziehungen von Personen; Namen; Orte und ihre
 Beschreibung; Daten, Jahreszahlen und Dauern; Zahlen und Mengen; Besitz und Eigenschaften von Dingen; feste
 Behauptungen im Sachbuch (z. B. "die Leitlinie empfiehlt …").
@@ -212,27 +212,42 @@ def pick_provider(s):
 
 # ---------- 1. Vorbereiten ----------
 
-def blocks(base, config, scope=None, matter=True):
-    """[(schlüssel, titel, {abschnitt: text})] je Kapitel; Vor- und Nachspann als Block „Vor- und Nachspann“."""
-    out = []
-    chapters = config['structure']['chapters']
+MAX_BLOCK_CHARS = 12000
+
+
+def text_parts(text, limit=MAX_BLOCK_CHARS):
+    """Begrenzte, verlustfreie Teile; Absatz-/Satzgrenzen bevorzugen."""
+    while len(text) > limit:
+        cut = text.rfind('\n\n', limit // 2, limit)
+        if cut < 0:
+            candidates = list(re.finditer(r'[.!?]\s+', text[:limit]))
+            cut = candidates[-1].end() if candidates and candidates[-1].end() >= limit // 2 else limit
+        else:
+            cut += 2
+        yield text[:cut]
+        text = text[cut:]
+    if text:
+        yield text
+
+
+def blocks(base, config, scope=None, matter=True, split=True):
+    """Ein Abschnitt je Block; überlange Abschnitte in begrenzte Teile zerlegen."""
     want = None if scope in (None, '', 'book', 'buch') else int(scope)
+    units = []
     if want is None and matter:
-        texts = {i['title']: section_file(base, i)[3] for _, i in matter_items(config)}
-        texts = {k: v for k, v in texts.items() if v.strip() and v.strip() != 'Noch nicht begonnen.'}
-        if texts:
-            out.append(('matter', 'Vor- und Nachspann', texts))
-    for ci, ch in enumerate(chapters, start=1):
+        units.extend((i['id'], i['title'], i) for _, i in matter_items(config))
+    for ci, ch in enumerate(config['structure']['chapters'], start=1):
         if want is not None and ci != want:
             continue
-        texts = {}
-        for si, s in enumerate(ch['sections'], start=1):
-            ms = section_file(base, s)[3].strip()
-            if ms and ms != 'Noch nicht begonnen.':
-                texts[f'{ci}.{si}'] = ms
-        if texts:
-            out.append((ch['id'], f'Kapitel {ci}: {ch["title"]}', texts))
-    return out
+        units.extend((s['id'], f'{ci}.{si}', s) for si, s in enumerate(ch['sections'], start=1))
+    for key, where, section in units:
+        ms = section_file(base, section)[3].strip()
+        if not ms or ms == 'Noch nicht begonnen.':
+            continue
+        parts = list(text_parts(ms)) if split else [ms]
+        for n, part in enumerate(parts, 1):
+            suffix = f'--part-{n:04d}' if len(parts) > 1 else ''
+            yield key + suffix, f'Abschnitt {where}' + (f' (Teil {n}/{len(parts)})' if suffix else ''), {where: part}
 
 
 def block_text(texts):
@@ -243,6 +258,17 @@ def fingerprint(texts):
     return hashlib.sha256(block_text(texts).encode('utf-8')).hexdigest()
 
 
+def extraction_fingerprint(base, config, kind, texts, context=None):
+    spec = KINDS[kind]
+    s = settings(config)
+    if context is None:
+        context = spec['context'](base, config) if spec['context'] else ''
+    if len(context) > MAX_BLOCK_CHARS:
+        raise ValueError('Figurenkontext ist zu groß; vor der Analyse gezielt eingrenzen.')
+    material = [fingerprint(texts), spec['system'], context, s.get('provider'), s.get('model')]
+    return hashlib.sha256(json.dumps(material, ensure_ascii=False).encode()).hexdigest()
+
+
 def cache_dir(base, kind):
     return Path(base) / 'analysis' / 'cache' / kind
 
@@ -251,7 +277,7 @@ def cached(base, kind, key, fp):
     p = cache_dir(base, kind) / f'{key}.json'
     if p.is_file():
         data = json.loads(p.read_text(encoding='utf-8'))
-        if data.get('fingerprint') == fp:
+        if data.get('version') == 2 and data.get('fingerprint') == fp:
             return data
     return None
 
@@ -259,25 +285,40 @@ def cached(base, kind, key, fp):
 def plan(base, config, kind='characters', scope=None):
     s = settings(config)
     spec = KINDS[kind]
-    rows, chars_new = [], 0
-    for key, title, texts in blocks(base, config, scope, spec['matter']):
-        fp = fingerprint(texts)
-        hit = cached(base, kind, key, fp) is not None
+    rows, chars_new, results = [], 0, {}
+    context = spec['context'](base, config) if spec['context'] else ''
+    for key, title, texts in blocks(base, config, scope, spec['matter'], split=not spec.get('local')):
+        fp = extraction_fingerprint(base, config, kind, texts, context)
+        data = cached(base, kind, key, fp)
+        hit = data is not None
+        if hit:
+            results[key] = data['items']
         n = len(block_text(texts))
         rows.append({'key': key, 'title': title, 'chars': n, 'cached': hit})
         if not hit:
             chars_new += n
     todo = [r for r in rows if not r['cached']]
     merge_in, merge_out = spec['merge_tokens']
-    tin = int(chars_new / CHARS_PER_TOKEN) + PROMPT_TOKENS * len(todo) + (merge_in if todo else 0)
-    tout = spec['output_tokens'] * len(todo) + (merge_out if todo else 0)
+    # A different scope may require a fresh merge even when all extractions are cached.
+    merge_needed = bool(todo)
+    if spec['merge'] and not todo and any(results.values()):
+        previous = sorted((Path(base) / 'analysis' / kind).glob('run-[0-9][0-9][0-9].json'))
+        previous = json.loads(previous[-1].read_text(encoding='utf-8')) if previous else {}
+        ordered = {k: results[k] for k in ordered_results(config, results)}
+        merge_model = s.get('merge_model') or PROVIDERS[s.get('provider') or 'anthropic']['merge_model']
+        digest = hashlib.sha256(json.dumps([ordered, merge_model], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        merge_needed = previous.get('result_digest') != digest
+    tin = int(chars_new / CHARS_PER_TOKEN) + PROMPT_TOKENS * len(todo) + (merge_in if merge_needed else 0)
+    tout = spec['output_tokens'] * len(todo) + (merge_out if merge_needed else 0)
     if spec.get('local'):   # ohne KI
         tin = tout = 0
     cost = None
     if s.get('price_input_per_mtok') is not None and s.get('price_output_per_mtok') is not None:
         cost = round(tin / 1e6 * float(s['price_input_per_mtok']) + tout / 1e6 * float(s['price_output_per_mtok']), 2)
     return {'kind': kind, 'label': spec['label'], 'scope': scope or 'book', 'blocks': rows, 'todo': len(todo),
-            'cached': len(rows) - len(todo), 'input_tokens': tin, 'output_tokens': tout, 'cost_estimate': cost}
+            'cached': len(rows) - len(todo), 'input_tokens': tin, 'output_tokens': tout, 'cost_estimate': cost,
+            'estimate_note': ('Zusammenführen großer Ergebnislisten kann zusätzliche paarweise Aufrufe benötigen; keine Kostenobergrenze.'
+                              if spec['merge'] else '')}
 
 
 # ---------- 2. KI-Aufrufe ----------
@@ -552,16 +593,21 @@ def summaries_combine(base, config, results, todo, prev, ask):
     """Kurzbeschreibungen: in Buchreihenfolge, je Kapitel erst das Kapitel, dann seine Abschnitte. → (vorschläge, md)"""
     items, body = [], ['## Vorschläge', '']
     for ci, ch in enumerate(config['structure']['chapters'], start=1):
-        res = results.get(ch['id'])
-        if not res:
-            continue
-        if res.get('chapter'):
-            items.append(dict(res['chapter'], level='chapter', target=ch['id'], number=str(ci), title=ch['title']))
-        for e in res.get('sections') or []:
-            si = int(e['where'].split('.')[1])
-            if si <= len(ch['sections']):
-                s = ch['sections'][si - 1]
-                items.append(dict(e, level='section', target=s['id'], number=e['where'], title=s['title']))
+        entries = []
+        for si, s in enumerate(ch['sections'], 1):
+            found = [e for k, r in results.items() if k == s['id'] or k.startswith(s['id'] + '--part-')
+                     for e in r.get('sections') or [] if e['where'] == f'{ci}.{si}']
+            if not found:
+                continue
+            entry = {f: ' '.join(dict.fromkeys(e[f] for e in found if e.get(f))) for f in ('short', 'goal')}
+            entry['evidence'] = [v for e in found for v in e['evidence']][:3]
+            entries.append(dict(entry, level='section', target=s['id'], number=f'{ci}.{si}', title=s['title']))
+        if entries:
+            # Transparente Zusammenstellung geprüfter Abschnittsergebnisse, kein erneuter Volltextaufruf.
+            chapter = {f: ' '.join(e[f] for e in entries if e.get(f)) for f in ('short', 'goal')}
+            chapter['evidence'] = [v for e in entries for v in e['evidence']][:3]
+            items.append(dict(chapter, level='chapter', target=ch['id'], number=str(ci), title=ch['title']))
+            items.extend(entries)
     for it in items:
         label = f'Kapitel {it["number"]}' if it['level'] == 'chapter' else it['number']
         body += [f'- **{label} {it["title"]}**' + (f' – Ziel: {it["goal"]}' if it.get('goal') else '')
@@ -571,7 +617,7 @@ def summaries_combine(base, config, results, todo, prev, ask):
     return {'items': items}, body
 
 
-# Stilprofil (#124): Angaben je Kapitel, Zahlen ohne KI
+# Stilprofil (#124): Angaben je Abschnitt, Zahlen ohne KI
 
 STYLE_FIELDS = ('perspective', 'tense', 'address', 'register', 'tone', 'features')
 STYLE_LISTS = ('tone', 'features')   # mehrere Werte, mit Komma
@@ -618,17 +664,24 @@ def verify_style(answer, texts):
 
 
 def block_labels(config):
-    labels = {'matter': 'Vor- und Nachspann'}
+    labels = {i['id']: i['title'] for _, i in matter_items(config)}
     for ci, ch in enumerate(config['structure']['chapters'], start=1):
         labels[ch['id']] = f'Kapitel {ci}'
+        for si, s in enumerate(ch['sections'], 1):
+            labels[s['id']] = f'Abschnitt {ci}.{si}'
     return labels
 
 
+def ordered_results(config, results):
+    return [k for key in block_labels(config) for k in sorted(results)
+            if k == key or k.startswith(key + '--part-')]
+
+
 def style_combine(base, config, results, todo, prev, ask):
-    """Stilprofil fürs ganze Buch: je Angabe der häufigste Wert (gewichtet nach Wörtern), abweichende Kapitel als
+    """Stilprofil fürs ganze Buch: je Angabe der häufigste Wert (gewichtet nach Wörtern), abweichende Abschnitte als
     Varianten; bei Ton und Stilmitteln die häufigsten Werte. Zahlen über alle Blöcke. → (vorschläge, md)"""
     labels = block_labels(config)
-    order = [k for k in labels if k in results]
+    order = ordered_results(config, results)
     total = {'words': 0, 'sentences': 0, 'dialogue_words': 0}
     for k in order:
         for x in total:
@@ -643,7 +696,7 @@ def style_combine(base, config, results, todo, prev, ask):
             for v in vals or []:
                 key = v.casefold()
                 tally[key] = tally.get(key, 0) + w
-                where.setdefault(key, (v, []))[1].append(labels[k])
+                where.setdefault(key, (v, []))[1].append(labels.get(k.split('--part-')[0], k))
                 ev.setdefault(key, []).extend(e for e in r.get('evidence') or [] if e['field'] == f)
         if not tally:
             continue
@@ -768,7 +821,7 @@ def timeline_combine(base, config, results, todo, prev, ask):
     Auffälligkeit verweist nur auf Ereignisse mit geprüfter Fundstelle. → (vorschläge, md)"""
     labels = block_labels(config)
     events = []
-    for k in [x for x in labels if x in results]:
+    for k in ordered_results(config, results):
         for e in results[k]:
             events.append(dict(e, n=len(events) + 1))
     issues = []
@@ -794,7 +847,7 @@ def timeline_combine(base, config, results, todo, prev, ask):
 TIMELINE_KIND_DE = {'jump': 'Zeitsprung', 'contradiction': 'Widerspruch', 'unclear': 'unklar'}
 
 
-# Widersprüche (#124): Tatsachen je Kapitel mit Fundstelle, Widersprüche über das ganze Buch
+# Widersprüche (#124): Tatsachen je Abschnitt mit Fundstelle, Widersprüche über das ganze Buch
 
 def verify_continuity(answer, texts):
     """Tatsachen: nur mit wörtlicher Fundstelle im genannten Abschnitt. → (tatsachen, verworfen)"""
@@ -818,7 +871,7 @@ def continuity_combine(base, config, results, todo, prev, ask):
     mindestens zwei geprüften Tatsachen bleiben. → (vorschläge, md)"""
     labels = block_labels(config)
     facts = []
-    for k in [x for x in labels if x in results]:
+    for k in ordered_results(config, results):
         for f in results[k]:
             facts.append(dict(f, n=len(facts) + 1))
     items = []
@@ -933,14 +986,14 @@ LANGUAGE_DE = {'long_sentence': 'Langer Satz', 'repetition': 'Wortwiederholung',
 def language_combine(base, config, results, todo, prev, ask):
     """Sprache: Hinweise in Buchreihenfolge. → (vorschläge, md)"""
     labels = block_labels(config)
-    items = [h for k in labels if k in results for h in results[k]]
+    items = [h for k in ordered_results(config, results) for h in results[k]]
     body = ['## Hinweise (ohne KI)', '']
     body += [f'- {h["where"]}: {LANGUAGE_DE[h["kind"]]} – {h["text"]} („{h["quote"]}“)' for h in items] or ['*keine*']
     return {'items': items}, body
 
 
 # Je Art: label (für Texte), offer (Hinweis in der Übersicht), icon (Tabler-Symbol), system (Auftrag je Block),
-# context (zusätzlicher Text vor dem Kapitel), verify, combine, matter (Vor- und Nachspann lesen), output_tokens
+# context (zusätzlicher Text vor dem Abschnitt), verify, combine, matter (Vor- und Nachspann lesen), output_tokens
 # (Schätzung je Block), merge_tokens (Schätzung Zusammenführen), merge (Zusammenführen mit merge_model).
 KINDS = {
     'characters': {'label': 'Figuren', 'offer': 'Figurenvorschläge', 'icon': 'user-search', 'system': EXTRACT_SYSTEM,
@@ -998,8 +1051,9 @@ def run(base, kind='characters', scope=None, now=None):
     folder.mkdir(parents=True, exist_ok=True)
     run_id = next_run(folder)
     todo, results, calls = [], {}, []
-    for bkey, title, texts in blocks(base, config, scope, spec['matter']):
-        fp = fingerprint(texts)
+    context = spec['context'](base, config) if spec['context'] else ''
+    for bkey, title, texts in blocks(base, config, scope, spec['matter'], split=not spec.get('local')):
+        fp = extraction_fingerprint(base, config, kind, texts, context)
         hit = cached(base, kind, bkey, fp)
         if hit:
             results[bkey] = hit['items']
@@ -1010,6 +1064,8 @@ def run(base, kind='characters', scope=None, now=None):
     model = s.get('model') or PROVIDERS[provider]['model']
     merge_model = s.get('merge_model') or PROVIDERS[provider]['merge_model']
     context = spec['context'](base, config) if spec['context'] else ''
+    if len(context) > MAX_BLOCK_CHARS:
+        raise ValueError('Figurenkontext ist zu groß; vor der Analyse gezielt eingrenzen.')
 
     def extract(job):
         bkey, title, texts, fp = job
@@ -1030,18 +1086,45 @@ def run(base, kind='characters', scope=None, now=None):
                 calls.append((model, tin, tout))
             cdir = cache_dir(base, kind)
             cdir.mkdir(parents=True, exist_ok=True)
-            (cdir / f'{bkey}.json').write_text(json.dumps({'fingerprint': fp, 'model': None if local else model, 'items': items},
+            (cdir / f'{bkey}.json').write_text(json.dumps({'version': 2, 'fingerprint': fp, 'model': None if local else model, 'items': items},
                                                           ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
+    results = {k: results[k] for k in ordered_results(config, results)}
+    result_digest = hashlib.sha256(json.dumps([results, merge_model], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     prev = sorted(folder.glob('run-[0-9][0-9][0-9].json'))
     prev = json.loads(prev[-1].read_text(encoding='utf-8')) if prev else None
+    reuse = prev and prev.get('result_digest') == result_digest
+    combine_todo = todo if todo else ([] if reuse else [True])
+    if spec['merge'] and combine_todo and any(results.values()) and not key:
+        provider, key = pick_provider(s)
 
     def ask(system, user):
-        text, tin, tout = call_llm(provider, key, merge_model, system, user, kind, 'merge')
-        calls.append((merge_model, tin, tout))
-        return text
+        # Compare every pair of bounded result batches, including distant chapters.
+        # Only extracted facts/events/names travel here, never the whole manuscript.
+        batches, lines, size = [], [], 0
+        for line in user.splitlines():
+            if len(line) > MAX_BLOCK_CHARS // 2:
+                raise ValueError('Ein Analyseergebnis ist zu lang zum sicheren Zusammenführen.')
+            if lines and size + len(line) + 1 > MAX_BLOCK_CHARS // 2:
+                batches.append('\n'.join(lines)); lines, size = [], 0
+            lines.append(line); size += len(line) + 1
+        if lines:
+            batches.append('\n'.join(lines))
+        requests = (batches[0],) if len(batches) == 1 else (
+            batches[i] + '\n' + batches[j] for i in range(len(batches)) for j in range(i + 1, len(batches)))
+        combined = {}
+        for request in requests:
+            text, tin, tout = call_llm(provider, key, merge_model, system, request, kind, 'merge')
+            calls.append((merge_model, tin, tout))
+            for field, values in parse_json(text).items():
+                if isinstance(values, list):
+                    target = combined.setdefault(field, [])
+                    for value in values:
+                        if value not in target:
+                            target.append(value)
+        return json.dumps(combined, ensure_ascii=False)
 
-    result, body = spec['combine'](base, config, results, todo, prev, ask)
-    suggestions = dict({'kind': kind, 'scope': scope or 'book', 'run': run_id, 'created_at': now}, **result)
+    result, body = spec['combine'](base, config, results, combine_todo, prev if reuse else None, ask)
+    suggestions = dict({'kind': kind, 'scope': scope or 'book', 'run': run_id, 'created_at': now, 'result_digest': result_digest}, **result)
     (folder / f'{run_id}.json').write_text(json.dumps(suggestions, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
     tin = sum(c[1] for c in calls)
     tout = sum(c[2] for c in calls)
@@ -1420,6 +1503,8 @@ def main(argv):
             cost = (f', geschätzt {p["cost_estimate"]:.2f} €'.replace('.', ',')) if p['cost_estimate'] is not None else ', Kosten ohne Preisangabe nicht schätzbar'
             print(f'{p["label"]}-Analyse ({p["scope"]}): {p["todo"]} von {len(p["blocks"])} Blöcken neu zu lesen, '
                   f'{p["cached"]} unverändert · etwa {p["input_tokens"]} Tokens Eingabe, {p["output_tokens"]} Ausgabe{cost}')
+            if p['estimate_note']:
+                print(p['estimate_note'])
         return 0
     if a.cmd == 'latest':
         head = latest(base, kinds[0])

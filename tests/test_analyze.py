@@ -33,12 +33,12 @@ class AnalyzeTest(unittest.TestCase):
         self.fake = self.tmp / 'fake.json'
         self.fake.write_text(json.dumps({
             'extract': {
-                chs[0]['id']: {'items': [
+                chs[0]['sections'][0]['id']: {'items': [
                     {'name': 'Opi', 'role': 'supporting', 'age': '78', 'appearance': 'grüner Hut', 'sections': ['1.1'],
                      'evidence': [{'field': 'name', 'where': '1.1', 'quote': q1}, {'field': 'age', 'where': '1.1', 'quote': q1},
                                   {'field': 'appearance', 'where': '1.1', 'quote': 'trug einen grünen Hut'}]},
                     {'name': 'Geist', 'evidence': [{'field': 'name', 'where': '1.1', 'quote': 'Der Geist erschien um Mitternacht'}]}]},
-                chs[1]['id']: {'items': [
+                chs[1]['sections'][0]['id']: {'items': [
                     {'name': 'Opa Karl', 'age': '80', 'evidence': [{'field': 'name', 'where': '2.1', 'quote': q2},
                                                                    {'field': 'age', 'where': '2.1', 'quote': q2}]}]}},
             'merge': {'groups': [['Opi', 'Opa Karl']]}}), encoding='utf-8')
@@ -67,6 +67,9 @@ class AnalyzeTest(unittest.TestCase):
         # zweiter Lauf ohne Änderung: alles aus dem Zwischenspeicher, keine Aufrufe
         _, config = load(self.base)
         self.assertEqual(analyze.plan(self.base, config)['todo'], 0)
+        scoped = analyze.plan(self.base, config, scope='1')
+        self.assertEqual(scoped['todo'], 0)
+        self.assertGreater(scoped['input_tokens'], 0)  # anderer Umfang braucht neues Zusammenführen
         with patch.object(analyze, 'call_llm', wraps=analyze.call_llm) as call:
             head2 = analyze.run(self.base)
         call.assert_not_called()
@@ -96,7 +99,7 @@ class AnalyzeTest(unittest.TestCase):
         extracts = [c for c in call.call_args_list if len(c.args) < 7 or c.args[6] != 'merge']
         self.assertEqual(head3['blocks_analysed'], 1)
         self.assertEqual(len(extracts), 1)
-        self.assertIn(config['structure']['chapters'][1]['id'], extracts[0].args[4])
+        self.assertIn(config['structure']['chapters'][1]['sections'][0]['id'], extracts[0].args[4])
 
     def test_summaries(self):
         _, config = load(self.base)
@@ -106,7 +109,7 @@ class AnalyzeTest(unittest.TestCase):
         q11 = ' '.join(s11.split()[10:18])
         q12 = ' '.join(s12.split()[10:18])
         data = json.loads(self.fake.read_text(encoding='utf-8'))
-        data['summaries'] = {'extract': {chs[0]['id']: {
+        data['summaries'] = {'extract': {chs[0]['sections'][0]['id']: {
             'sections': [{'where': '1.1', 'short': 'Ein Brief bleibt liegen.', 'goal': 'Der Leser erkennt sich wieder.',
                           'evidence': [{'field': 'short', 'where': '1.1', 'quote': q11}]},
                          {'where': '1.2', 'short': 'Erfunden.', 'evidence': [{'where': '1.2', 'quote': 'steht so nirgends im Text'}]},
@@ -161,12 +164,12 @@ class AnalyzeTest(unittest.TestCase):
         q2 = ' '.join(section_file(self.base, chs[1]['sections'][0])[3].split()[10:16])
         data = json.loads(self.fake.read_text(encoding='utf-8'))
         data['style'] = {'extract': {
-            chs[0]['id']: {'perspective': 'ich', 'tense': 'Präsens', 'tone': 'warm, direkt', 'register': 'gehoben',
+            chs[0]['sections'][0]['id']: {'perspective': 'ich', 'tense': 'Präsens', 'tone': 'warm, direkt', 'register': 'gehoben',
                            'evidence': [{'field': 'perspective', 'where': '1.1', 'quote': q1},
                                         {'field': 'tense', 'where': '1.1', 'quote': q1},
                                         {'field': 'tone', 'where': '1.1', 'quote': q1},
                                         {'field': 'register', 'where': '1.1', 'quote': 'nicht im Text vorhanden'}]},
-            chs[1]['id']: {'perspective': 'ich', 'tense': 'Präteritum', 'tone': 'warm',
+            chs[1]['sections'][0]['id']: {'perspective': 'ich', 'tense': 'Präteritum', 'tone': 'warm',
                            'evidence': [{'field': 'perspective', 'where': '2.1', 'quote': q2},
                                         {'field': 'tense', 'where': '2.1', 'quote': q2},
                                         {'field': 'tone', 'where': '2.1', 'quote': q2}]}}}
@@ -211,14 +214,14 @@ class AnalyzeTest(unittest.TestCase):
         q2 = ' '.join(t21.split()[10:18])
         data = json.loads(self.fake.read_text(encoding='utf-8'))
         data['places'] = {'extract': {
-            chs[0]['id']: {'items': [{'name': w, 'kind': 'Raum', 'short': 'erfunden', 'sections': ['1.1', '1.2'],
+            chs[0]['sections'][0]['id']: {'items': [{'name': w, 'kind': 'Raum', 'short': 'erfunden', 'sections': ['1.1', '1.2'],
                                       'evidence': [{'field': 'name', 'where': '1.1', 'quote': q1}]},
                                      {'name': 'Atlantis', 'evidence': [{'where': '1.1', 'quote': 'Atlantis liegt am Meer'}]}]}},
             'merge': {'groups': []}}
         data['timeline'] = {'extract': {
-            chs[0]['id']: {'events': [{'where': '1.1', 'when': 'eines Morgens', 'what': 'Ein Brief kommt.', 'evidence': [{'where': '1.1', 'quote': q1}]},
+            chs[0]['sections'][0]['id']: {'events': [{'where': '1.1', 'when': 'eines Morgens', 'what': 'Ein Brief kommt.', 'evidence': [{'where': '1.1', 'quote': q1}]},
                                       {'where': '1.2', 'when': '', 'what': 'Erfunden.', 'evidence': [{'where': '1.2', 'quote': 'gibt es nicht'}]}]},
-            chs[1]['id']: {'events': [{'where': '2.1', 'when': 'sechs Monate später', 'what': 'Der Termin.', 'evidence': [{'where': '2.1', 'quote': q2}]}]}},
+            chs[1]['sections'][0]['id']: {'events': [{'where': '2.1', 'when': 'sechs Monate später', 'what': 'Der Termin.', 'evidence': [{'where': '2.1', 'quote': q2}]}]}},
             'merge': {'issues': [{'kind': 'jump', 'events': [1, 2], 'text': 'Sechs Monate ohne Übergang.'},
                                  {'kind': 'contradiction', 'events': [99], 'text': 'verweist ins Leere'}]}}
         self.fake.write_text(json.dumps(data), encoding='utf-8')
@@ -264,9 +267,9 @@ class AnalyzeTest(unittest.TestCase):
         q2 = ' '.join(t21.split()[10:18])
         data = json.loads(self.fake.read_text(encoding='utf-8'))
         data['continuity'] = {'extract': {
-            chs[0]['id']: {'facts': [{'about': 'Brief', 'fact': 'lag sechs Monate', 'where': '1.1', 'quote': q1},
+            chs[0]['sections'][0]['id']: {'facts': [{'about': 'Brief', 'fact': 'lag sechs Monate', 'where': '1.1', 'quote': q1},
                                      {'about': 'X', 'fact': 'erfunden', 'where': '1.1', 'quote': 'steht nicht im Text'}]},
-            chs[1]['id']: {'facts': [{'about': 'Brief', 'fact': 'lag ein Jahr', 'where': '2.1', 'quote': q2}]}},
+            chs[1]['sections'][0]['id']: {'facts': [{'about': 'Brief', 'fact': 'lag ein Jahr', 'where': '2.1', 'quote': q2}]}},
             'merge': {'conflicts': [{'facts': [1, 2], 'text': 'Wie lange lag der Brief?'}, {'facts': [2], 'text': 'nur eine'},
                                     {'facts': [1, 7], 'text': 'ins Leere'}]}}
         self.fake.write_text(json.dumps(data), encoding='utf-8')
@@ -330,6 +333,62 @@ class AnalyzeTest(unittest.TestCase):
         analyze.run(self.base, 'language')
         analyze.apply(self.base, 'run-002', 'language', [])
         self.assertFalse(yaml.safe_load((self.base / 'story/hints.yml').read_text(encoding='utf-8'))['hints'])
+
+    def test_section_isolation_and_bounded_requests(self):
+        _, config = load(self.base)
+        chapter = config['structure']['chapters'][0]
+        sections = chapter['sections']
+        blocks = list(analyze.blocks(self.base, config, scope='1'))
+        self.assertTrue(all(len(texts) == 1 for _, _, texts in blocks))
+        self.assertEqual([key for key, _, _ in blocks], [s['id'] for s in sections
+                         if section_file(self.base, s)[3].strip() not in ('', 'Noch nicht begonnen.')])
+        # A change in one section does not invalidate its siblings.
+        analyze.run(self.base, 'style', scope='1')
+        path = self.base / sections[0]['path']
+        path.write_text(path.read_text() + '\nEin zusätzlicher Satz.\n')
+        plan = analyze.plan(self.base, config, 'style', scope='1')
+        self.assertEqual(plan['todo'], 1)
+        self.assertEqual([b['key'] for b in plan['blocks'] if not b['cached']], [sections[0]['id']])
+        # Long sections are losslessly split, every original character is covered.
+        long = ('Eine lange Szene. ' * 1700) + '\n\n' + ('Weitere Szene. ' * 1400)
+        path.write_text(path.read_text().split('## Manuskript')[0] + '## Manuskript\n\n' + long)
+        parts = [(key, texts) for key, _, texts in analyze.blocks(self.base, config, scope='1')
+                 if key.startswith(sections[0]['id'] + '--part-')]
+        self.assertGreater(len(parts), 1)
+        self.assertEqual(''.join(next(iter(texts.values())) for _, texts in parts), long.strip())
+        self.assertTrue(all(len(next(iter(texts.values()))) <= analyze.MAX_BLOCK_CHARS for _, texts in parts))
+        with patch.object(analyze, 'call_llm', wraps=analyze.call_llm) as call:
+            analyze.run(self.base, 'style', scope='1')
+        requests = [c.args[4] for c in call.call_args_list]
+        self.assertTrue(requests)
+        self.assertTrue(all(len(r) < analyze.MAX_BLOCK_CHARS + 500 for r in requests))
+        # Parts must remain included in the final weighted statistics.
+        result = json.loads((self.base / 'analysis/style/run-002.json').read_text())
+        expected = sum(analyze.text_stats(texts)['words'] for _, _, texts in analyze.blocks(self.base, config, scope='1'))
+        self.assertEqual(result['stats']['words'], expected)
+        # Prompt/model changes invalidate results as well.
+        updated = dict(config, analysis={'model': 'another-model'})
+        self.assertEqual(analyze.plan(self.base, updated, 'style', scope='1')['cached'], 0)
+
+    def test_bounded_merge_compares_distant_results(self):
+        _, config = load(self.base)
+        limit = analyze.MAX_BLOCK_CHARS
+        seen = []
+        def fake(provider, key, model, system, user, kind='characters', step='extract'):
+            if step == 'extract':
+                return '{}', 0, 0
+            seen.append(user)
+            return '{"conflicts": []}', 0, 0
+        # Use many verified facts to exercise batching rather than manuscript loading.
+        facts = [{'about': 'Person ' + str(i), 'fact': 'x' * 1000, 'where': '1.1', 'quote': 'Zitat'}
+                 for i in range(20)]
+        with patch.object(analyze, 'call_llm', side_effect=fake), patch.object(analyze, 'verify_continuity'):
+            spec = dict(analyze.KINDS['continuity'], verify=lambda answer, texts: (facts, 0))
+            with patch.dict(analyze.KINDS, {'continuity': spec}):
+                analyze.run(self.base, 'continuity', scope='1')
+        self.assertGreater(len(seen), 1)
+        self.assertTrue(all(len(request) <= limit for request in seen))
+        self.assertTrue(any('Person 0:' in request and 'Person 19:' in request for request in seen))
 
     def test_set_part(self):
         t = '# T\n\n## Ziel des Abschnitts\n\nOffen.\n\n## Kurzbeschreibung\n\nalt\n\n## Manuskript\n\nText\n'
