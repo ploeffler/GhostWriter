@@ -18,7 +18,8 @@ Default display: organized. Claude: supported widgets; ChatGPT and Gemini: organ
 2. Handle the user's request. In resume mode skip onboarding. In setup mode read the [onboarding instructions](docs/start/1-start-und-github-onboarding.md); load later wizard steps individually through the [instruction index](docs/start/index.md).
 3. Read current branches, the actual repository default branch and open pull requests once. Never treat a saved branch list as current. Choose the book from the user's link or selection. Work branch: `ghostwriter/<book branch>`. Read it only if it has the matching open PR into the book branch; otherwise read the book branch. Do not arbitrarily select a book.
 4. Apply `assistant.yml` from the default branch and the selected book's `ghostwriter.yml`. Interface language is separate from book language; an explicit chat preference wins. Offer a missing profile once, without creating it unless requested.
-5. Use concise English text or supported native chat elements. Do not simulate HTML widgets. Respect display preferences and Text only. For other clients or language changes consult the [display and language rules](docs/start/sprache-der-bedienung.md).
+5. Use concise text and supported elements; never simulate widgets. Respect user preferences and the [display rules](docs/start/sprache-der-bedienung.md).
+6. Offer a few options and a custom answer at useful decision points; otherwise converse freely. Avoid click-through sequences. See `docs/QUALITY-ASSURANCE.en.md`.
 
 ## Visible startup response
 

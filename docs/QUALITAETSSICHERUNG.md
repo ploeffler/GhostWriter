@@ -222,6 +222,18 @@ Ohne ausdrücklich gewählten Darstellungsmodus gilt „übersichtlich“. Eine 
 
 Die Textansichten von Buch und Kapitel berechnen diese Übersicht aus den Abschnittsdateien. Das Bücherregal ergänzt seine vorhandenen Freigabezahlen um denselben Balken. Deutsch und Englisch verwenden dieselbe Berechnung. Ansichten erzeugen keine Änderungen an Buchdateien.
 
+## Gezielte Auswahlfragen im Gespräch
+
+An passenden Entscheidungspunkten häufiger kurze Auswahlfragen verwenden, besonders bei Buchrichtung, Zielgruppe, Erzählperspektive, Stil, Arbeitsweise und dem nächsten sinnvollen Schritt. Nicht jede Nachricht wird zur Auswahlkarte: freies Erzählen, Recherche, Rückfragen und gemeinsames Überarbeiten bleiben normale Gesprächsformen.
+
+- Eine konkrete Frage mit in der Regel zwei bis vier verständlichen, tatsächlich unterschiedlichen Optionen stellen. Bei Bedarf eine Empfehlung samt kurzem Grund geben; technische Grenzen des vorhandenen Fragewerkzeugs beachten.
+- Eine eigene Antwort ausdrücklich zulassen, entweder direkt im Element oder frei im Chat. Der Benutzer muss seine Idee nicht in eine vorgegebene Option pressen.
+- Unterstützte native Frageelemente bzw. vorhandene GhostWriter-Auswahlkarten nutzen. Fehlt die Unterstützung, dieselbe Auswahl lesbar als Text darstellen; keine funktionslosen Schaltflächen vortäuschen.
+- Schon beantwortete Fragen nicht erneut stellen. Zusammengehörige Fragen nur dann bündeln, wenn das die Entscheidung erleichtert. Nicht für jede Kleinigkeit unterbrechen und keine langen Durchklickstrecken erzeugen.
+- Ein Auswahlvorschlag ist noch keine Entscheidung. Ausbleibende Antwort und vorausgewählte Optionen gelten nicht als Zustimmung. Stilentscheidungen ersetzen weder Schreib-/Textfreigaben noch einen gesonderten Speicher-, Übernahme- oder Veröffentlichungsauftrag.
+
+Beispiel: „Wie möchtest du Kapitel 1 erarbeiten?“ – „Eigenen Text einbringen“, „Gemeinsam Szene für Szene“ oder „Einen ganzen Kapitelentwurf besprechen“; ergänzt um die Möglichkeit einer eigenen Antwort. Die Auswahl klärt die Arbeitsweise und startet nicht automatisch eine Texterstellung oder Speicherung.
+
 
 ---
 

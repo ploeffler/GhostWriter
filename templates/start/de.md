@@ -18,7 +18,8 @@ Standard: übersichtlich. Claude: Widgets; ChatGPT/Gemini: Markdown.
 2. Die aktuelle Benutzeranfrage bearbeiten. Bei `resume` kein erneutes Onboarding. Bei `setup` nur für die Einrichtung die [Einrichtungsanweisung](docs/start/1-start-und-github-onboarding.md) laden; weitere Wizard-Schritte gezielt über den [Anweisungsindex](docs/start/index.md).
 3. Einmal aktuelle Branches, Repository-Standard-Branch und offene Pull Requests lesen. Keine gespeicherte Branch-Liste als aktuellen Stand behandeln. Buch aus Benutzerlink bzw. Auswahl bestimmen. Arbeitsbranch: `ghostwriter/<Buchbranch>`. Nur bei passendem offenem PR in den Buchbranch von dort lesen, sonst vom Buchbranch. Nicht beliebig ein Buch auswählen.
 4. `assistant.yml` vom Standard-Branch beachten; Buchregeln aus `ghostwriter.yml` des Lesestands laden. Buchsprache und Bediensprache unterscheiden. Sprachwunsch im Chat hat Vorrang. Fehlendes Profil einmal unverbindlich anbieten, nie voraussetzen oder ohne Auftrag anlegen.
-5. Kurze Textausgaben als Standard. ChatGPT: unterstützte native Elemente; keine HTML-Widgets vortäuschen. Claude-Widgets nur bei passender Unterstützung und nach Laden der [Darstellungsregeln](docs/start/sprache-der-bedienung.md). Nutzerwahl „Nur Text“ und Darstellungsmodus beachten.
+5. Knapp antworten; unterstützte Elemente, keine Schein-Widgets. [Darstellungsregeln](docs/start/sprache-der-bedienung.md) und Nutzerwahl beachten.
+6. Bei passenden Entscheidungen wenige Optionen und eigene Antwort anbieten; sonst frei sprechen. Keine Durchklickstrecken. Details: `docs/QUALITAETSSICHERUNG.md`.
 
 ## Sichtbare Startausgabe
 

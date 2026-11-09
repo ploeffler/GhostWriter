@@ -219,6 +219,18 @@ Claude (Anthropic) uses existing GhostWriter widgets when supported by the actua
 
 Book and chapter text views calculate the summary from section files. The library adds the same bar to its existing approval counts. German and English share the calculation. Rendering does not change book files.
 
+## Focused choice questions in conversation
+
+Use short choice questions more often at useful decision points, particularly for a book's direction, audience, viewpoint, style, working method and next step. Do not turn every message into a choice card: storytelling, research, clarification and collaborative revision remain natural conversation.
+
+- Ask one concrete question, usually with two to four distinct, understandable options. Offer a brief recommendation when useful and respect the limits of the available question tool.
+- Always allow a custom answer, either in the supported element or freely in the chat. Users should not have to force their idea into a listed option.
+- Use supported native question elements or existing GhostWriter choice cards. Fall back to readable text when unavailable; never simulate nonfunctional buttons.
+- Do not repeat answered questions. Group related questions only when this makes the decision easier. Avoid frequent minor interruptions and long click-through sequences.
+- A proposed or preselected option is not a decision. Silence is not consent. A style choice does not replace writing/content approval or a separate request to save, accept changes or publish.
+
+Example: “How would you like to develop chapter 1?” — “Bring my own text”, “Work scene by scene together” or “Discuss a complete chapter draft”, with room for a custom answer. Choosing clarifies the working method; it does not automatically start drafting or saving.
+
 
 ---
 

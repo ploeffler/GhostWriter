@@ -7,6 +7,8 @@ description: Wiedereinstieg in ein GhostWriter-Repository (Buch oder Bibliothek)
 
 Kurzfassung von `START.md`, Abschnitt 0. Bei Abweichungen gilt `START.md`. Diese Datei kommt mit jedem Update aus dem Hauptrepository; eigene Angaben gehören in `assistant.yml` und den daraus erzeugten persönlichen Skill.
 
+**Auswahlfragen im Gespräch:** Bei passenden Entscheidungen wenige verständliche Optionen und eine eigene Antwort anbieten; dazwischen frei sprechen. Keine Durchklickstrecke. Unterstützte Frageelemente bzw. vorhandene Karten nutzen, sonst Text. Details: `docs/QUALITAETSSICHERUNG.md`, „Gezielte Auswahlfragen im Gespräch“. Freigaben und Speicheraufträge bleiben eigene Schritte.
+
 ## 1. Repository feststellen
 
 - `owner/repo` aus dem Link des Benutzers bzw. `git remote get-url origin`; das ist der Wert für `--repo` bei jedem Aufruf von `scripts/render_view.py`.
