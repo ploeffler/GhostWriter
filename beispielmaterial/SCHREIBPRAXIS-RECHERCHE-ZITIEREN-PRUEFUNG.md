@@ -23,13 +23,17 @@ Bestanden:
 - 44 Stationsseiten: vollständige Gesprächs-, Ergebnis- und Tabellentexte gegenüber den Inhaltsdateien; Deutsch/Englisch mit identischen Stationen und Blockarten.
 - Sprachwechsel und Rückwechsel jeweils zur entsprechenden Station, Logo-Ziele zur passenden Übersicht, Folgentitel zum Anfang der eigenen Sprache, alle lokalen Links und Anker, aktive Station, Vor-/Zurück und Fortschritt.
 - Simulationshinweise an der vorgegebenen Position, gemeinsame Fußzeilen je Sprache, kein zurückgebliebener Hinweis auf einen rein deutschen Entwurf.
-- Beide Übersichten mit den drei bestehenden Kacheln in unveränderter Reihenfolge und einem zusätzlichen Abschnitt mit Textlinks zu Recherche und Zitieren.
+- Nach der Gestaltungskorrektur: beide Übersichten mit fünf vollständig anklickbaren Kacheln, je eigener Illustration, Einordnung und Beschreibung. Die bisherigen drei Folgen behalten ihre Reihenfolge; Recherche und Zitieren folgen als vierte und fünfte Kachel. Kein zusätzlicher Textlink-Abschnitt.
 - Bytegleicher Neuaufbau beider Folgen, Assets und Übersichten.
 - `python3 scripts/check_docs.py --ui /tmp/ghostwriter-docsite-ui`: bestanden einschließlich der verfügbaren UI-Prüfung.
 - `python3 -m unittest tests.test_check_docs tests.test_docs_site tests.test_build_docs_wiki`: 21 Tests, erfolgreich, davon ein umgebungsabhängiger Test übersprungen.
 - `python3 scripts/package_docs_site.py --output /tmp/gw-recherche-zitieren-pages`: bestanden, einschließlich zentraler Dokumentation und vorhandener Beispiele. Der Paketprüfer ist im aktuellen Hauptstand vorhanden; die frühere lokale Dateilücke ist damit für das Veröffentlichungspaket erledigt.
 - `python3 scripts/build_docs_wiki.py --output /tmp/gw-recherche-zitieren-wiki`: bestanden, 43 Seiten, Programmversion 0.6.0.
 - `git diff --check` sowie direkte Prüfung neuer Textdateien auf abschließende Leerzeichen und Dateiende: bestanden.
+
+## Korrektur der Übersicht
+
+Am 10. November 2026 nach Benutzerhinweis beide neuen Folgen in das gemeinsame Kachelraster aufgenommen. Die vorige Einbindung als separater Textabschnitt entsprach nicht der gewünschten Darstellung. Deutsch und Englisch sowie Erzeuger und Pflegehinweise gemeinsam korrigiert. Lokale Prüfung: je fünf Kacheln, korrekte Linkziele, unveränderte Reihenfolge der ersten drei Folgen, eigene SVG-Illustrationen, Fußzeilen und bytegleicher Neuaufbau.
 
 ## Ergebnis und Grenzen
 

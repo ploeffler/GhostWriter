@@ -17,7 +17,7 @@ python3 scripts/check_docs.py
 python3 scripts/package_docs_site.py
 ```
 
-Ohne `--publish` entsteht nur die Quellvorschau. Mit dem Schalter werden zusätzlich Website-Dateien **lokal** erzeugt; kein Upload oder Deploy. Der gemeinsame Erzeuger baut beide Folgen und Sprachen. Beide Übersichten ergänzen Textlinks mit Einordnung der neuen Folgen. Die bisherigen drei Kacheln bleiben erhalten. Logo führt zur Übersicht der jeweiligen Sprache, Folgentitel zum Folgenanfang und Sprachwechsel zur entsprechenden Station.
+Ohne `--publish` entsteht nur die Quellvorschau. Mit dem Schalter werden zusätzlich Website-Dateien **lokal** erzeugt; kein Upload oder Deploy. Der gemeinsame Erzeuger baut beide Folgen und Sprachen. Beide Übersichten zeigen alle fünf Folgen als vollständig anklickbare Kacheln mit Illustration, Einordnung und Beschreibung. Die bisherigen drei Folgen behalten ihre Reihenfolge; Recherche und Zitieren folgen als vierte und fünfte Kachel. Logo führt zur Übersicht der jeweiligen Sprache, Folgentitel zum Folgenanfang und Sprachwechsel zur entsprechenden Station.
 
 [Deutsch](index.html) · [English](index.en.html) · [Übersicht](../../website/schreibpraxis.html)
 
