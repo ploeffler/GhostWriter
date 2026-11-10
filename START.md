@@ -424,6 +424,10 @@ Referenzmaterial ist von Buchillustrationen getrennt und liegt unter `reference-
 4. **Auftrag protokollieren:** Beim Ablegen des erzeugten Bildes dieselben IDs mit `python scripts/images.py . add 3.2 <bilddatei> --caption "…" --references ref-img-…` übergeben. Das unveränderliche `run-NNN.md` hält Referenz-ID, Dateiname und SHA-256-Prüfsumme der konkreten Bilddatei fest. Damit ist nachvollziehbar, welche Bildversion ausgewählt war; dies ersetzt nicht die tatsächliche Übergabe der Bildbytes an den Bilddienst.
 5. **Wichtige technische Grenze:** Die Repository-Verwaltung, Metadaten, Freigabe, Rücknahme, Auswahlprüfung und Prompt-Zuordnung sind implementiert. Die aktuelle GhostWriter-API hat noch keinen Upload-Endpunkt und der vorhandene Bildauftrag übergibt die Binärdateien noch nicht automatisch an einen externen Bilddienst. Bis diese Integration fertig ist, darf GhostWriter nicht behaupten, eine Referenzdatei sei dem Bildmodell tatsächlich übergeben worden. Der Chat-Assistent muss die ausgewählten Dateien separat laden und an einen Bilddienst anhängen, der Bildreferenzen unterstützt; andernfalls ist die Einschränkung offenzulegen.
 
+### Analyseaufträge ohne Anbieter-API (v1.0)
+
+Für die bestätigten Analysearten den [Chat-/Dateiweg](docs/CHAT-ANALYSEN.md) verwenden: `scripts/chat_analysis.py` bereitet ein Kapitel mit gelesener Commitbasis vor und prüft Rückgaben ohne Anbieteraufruf. Gesamte Auftragsdatei bzw. deren Text inklusive `response_format` übergeben, ursprüngliche Datei getrennt als Basis behalten. `accept` speichert ausschließlich Vorschläge unter `analysis/chat-returns/`; nichts automatisch ins Buch übernehmen. Danach Ergebnisse im Chat auswählen und bestehende Speicher-/Freigaberegeln anwenden. Echte Anbieterläufe sind keine v1.0-Voraussetzung. Quellenprüfung im Chat bleibt erforderlich.
+
 ## Illustrationen (verbindlich, #54)
 
 Bilder zu Abschnitten entstehen im Chat oder bei einem anderen Dienst; der Weg über die API mit Kosten über das Backend kommt mit #19 (dann mit Budget-Sperre, siehe „Limits“).
