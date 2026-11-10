@@ -264,16 +264,16 @@ class EditionTest(SharedBase):
         from test_matter import approve_chapter_1
         self.g('tag', 'eins-auflage-1', 'buch/eins')   # Band 1 ist erschienen
         self.g('checkout', '-q', 'buch/zwei')
-        approve_chapter_1(self.d)
         from render_view import load
         _, config = load(self.d)
         sec = self.d / config['structure']['chapters'][0]['sections'][0]['path']
         sec.write_text(sec.read_text(encoding='utf-8').replace('Der Brief lag dort sechs Monate.',
                                                               'Der Brief lag in der [Waldhütte]{.glossar}.', 1), encoding='utf-8')
-        item = matter.add(self.d, 'glossary')
+        approve_chapter_1(self.d)   # erst nach der Textänderung: Freigabe ist an den Inhalt gebunden (#174)
+        matter.add(self.d, 'glossary')
         matter.glossary_set(self.d, 'Leine', 'Was Strolchi nicht mag')
-        gp = self.d / item['path']
-        gp.write_text(re.sub(r'(?m)^status: \w+', 'status: approved', gp.read_text(encoding='utf-8'), count=1), encoding='utf-8')
+        from test_matter import set_part
+        set_part(self.d, 'glossary')   # Freigabe mit Inhaltsprüfsumme im Protokoll (#174)
         out = Path(self.tmp.name, 'out')
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.d), '--edition', '1',
                             '--out', str(out), '--formats', 'pdf,epub'], capture_output=True, text=True)
