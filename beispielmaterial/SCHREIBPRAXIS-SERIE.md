@@ -9,6 +9,10 @@ Am 10. November 2026 vom Autor als gemeinsame Serie für diese Art HTML-Strecken
 
 - **Aus einer Idee wird ein Krimi:** `schreibpraxis-buchentwicklung/index.html`; zweisprachige Simulation zur inhaltsgestützten Konzeptentwicklung; Veröffentlichung ausdrücklich beauftragt, erste Kachel auf der Übersicht. Öffentliche Ausgabe unter `website/buchentwicklung/`.
 
+## Wiederverwendbare Vorlagen
+
+Zentraler Einstieg für neue Folgen: [Vorlagen und Bauanleitung](../templates/schreibpraxis/README.md), [English](../templates/schreibpraxis/README.en.md). Dort liegen Seiten-/Übersichts-/Kachelgerüste, Grundstil und wiederverwendbare Arbeitsaufträge. Die vorhandenen Folgen behalten ihre versionierten Erzeuger; Änderungen an den neuen Vorlagen bauen sie nicht automatisch um. Logo und Kopftext einer Folge führen zur sprachlich passenden Übersicht, der Folgentitel zum Folgenanfang.
+
 ## Gemeinsame Gestaltung
 
 Originales Federlogo aus `assets/logo.svg`, GhostWriter-Wortmarke als Text, Serienname darunter. Orange `#f07f2e` für Linie, Fortschritt und Hervorhebungen; dunkleres Orange `#b9551d` für lesbare Akzentschrift und Links. Warmer heller Hintergrund, dunkle Schrift, Serifenschrift für den großen Titel, Systemschrift für Navigation und Erläuterung.
