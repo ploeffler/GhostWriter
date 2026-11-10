@@ -35,6 +35,22 @@ class ChatAnalysisTest(unittest.TestCase):
         where, text = next(iter(request['snapshot']['texts'].items()))
         return {'where': where, 'quote': text[:40]}
 
+    def test_whole_chapter_with_all_sections_unsplit(self):
+        # analyze.blocks liefert seit #239 Abschnitte und Teilstücke; der Auftrag bleibt ein Kapitel.
+        long_text = ('Ein langer Satz für die Prüfung. ' * 600).strip()
+        _, config = ca.load(self.book)
+        first = config['structure']['chapters'][0]['sections'][0]
+        path = self.book / first['path']
+        before = path.read_text(encoding='utf-8').split('\n## Manuskript\n', 1)[0]
+        path.write_text(before + '\n## Manuskript\n\n' + long_text + '\n', encoding='utf-8')
+        request = self.prepare()
+        texts = request['snapshot']['texts']
+        self.assertEqual(sorted(texts, key=lambda k: int(k.split('.')[1])),
+                         [f'1.{i}' for i in range(1, 10)])
+        self.assertIn(long_text, texts['1.1'])
+        self.assertTrue(request['snapshot']['title'].startswith('Kapitel 1: '))
+        self.assertEqual(request['snapshot']['chapter_id'], 'ch-01-endlich-eine-erklaerung')
+
     def test_all_kinds_prepare_without_key_or_network_and_only_one_chapter(self):
         for kind in sorted(ca.KINDS):
             self.request = self.root / (kind + '.json')

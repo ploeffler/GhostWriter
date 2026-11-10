@@ -34,11 +34,18 @@ def digest(value):
 
 def snapshot(base, scope, references=()):
     _, config = load(Path(base))
-    selected = analyze.blocks(Path(base), config, str(scope), matter=False)
-    if len(selected) != 1:
+    chapters = config['structure']['chapters']
+    if not 1 <= int(scope) <= len(chapters):
         raise ValueError('Kapitel fehlt oder enthält keinen Manuskripttext')
-    key, title, texts = selected[0]
-    texts = dict(texts)
+    # analyze.blocks liefert je Abschnitt einen Block (#239); für den Chat-Auftrag
+    # das ganze Kapitel ungeteilt zusammenführen, damit Fundstellen „1.3“ eindeutig bleiben.
+    texts = {}
+    for _, _, part in analyze.blocks(Path(base), config, str(scope), matter=False, split=False):
+        texts.update(part)
+    if not texts:
+        raise ValueError('Kapitel fehlt oder enthält keinen Manuskripttext')
+    chapter = chapters[int(scope) - 1]
+    key, title = chapter['id'], f'Kapitel {scope}: {chapter["title"]}'
     for relative in references:
         path = Path(relative)
         if (not path.parts or path.is_absolute() or '..' in path.parts or path.parts[0] not in ('series', 'characters')
