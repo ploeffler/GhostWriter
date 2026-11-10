@@ -13,13 +13,11 @@
   </tr>
 </table>
 
-<p align="center"><a href="https://ploeffler.github.io/GhostWriter/schreibpraxis.en.html">Writing practice</a><br><sub>How conversations become your own texts – explore three examples.</sub></p>
+<p align="center"><a href="https://ploeffler.github.io/GhostWriter/schreibpraxis.en.html"><img src="assets/readme/schreibpraxis.en.svg" alt="Writing practice. Five walkthroughs show how conversations become your own texts – from developing a book to research and clear references. Real writing processes and clearly labelled simulations" width="696"></a></p>
+
+<p align="center"><a href="https://ploeffler.github.io/GhostWriter/ausblick-1-0.en.html"><img src="assets/readme/ausblick.en.svg" alt="The next chapter is getting bigger.. GhostWriter is heading towards 1.0. Explore the proposed stages, from reliable saving to more creative control for your book. Planning proposal · not yet available as a complete release" width="696"></a></p>
 
 <p align="center"><a href="README.md">Deutsch</a> · <a href="docs/GETTING-STARTED.en.md">Getting started</a> · <a href="docs/USER-GUIDE.en.md">User guide</a></p>
-
-### The next chapter is getting bigger.
-
-**GhostWriter is heading towards 1.0.** More creative control, manuscript import and a thoroughly tested path to your book. [Explore what is ahead](docs/LOOKING-AHEAD-v1.0.en.md). The stages are a planning proposal; extensions are not yet available as a complete release.
 
 ---
 

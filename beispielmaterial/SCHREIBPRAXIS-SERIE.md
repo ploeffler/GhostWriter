@@ -38,7 +38,7 @@ Bei Veröffentlichung beide Sprachen, stationsgleichen Sprachwechsel, Rückweg z
 
 ## Übersicht
 
-Zweisprachiger Einstieg: `website/schreibpraxis.html` und `website/schreibpraxis.en.html`, erzeugt mit `python3 scripts/build_writing_practice_index.py`. Fünf Text-/Illustrationskacheln führen in beiden Sprachen zu den Folgen; Recherche und Zitieren sind als vierte und fünfte Kachel gleichwertig eingebunden. README und HTML-Startseite verlinken die Übersicht als Text; dort keine zusätzliche Hauptkachel. Original-Logo in `website/assets/logo.svg`.
+Zweisprachiger Einstieg: `website/schreibpraxis.html` und `website/schreibpraxis.en.html`, erzeugt mit `python3 scripts/build_writing_practice_index.py`. Fünf Text-/Illustrationskacheln führen in beiden Sprachen zu den Folgen; Recherche und Zitieren sind als vierte und fünfte Kachel gleichwertig eingebunden. README und HTML-Startseite stellen Schreibpraxis und Versionsausblick in beiden Sprachen als gleich gestaltete Hinweisboxen dar. Die HTML-Startseiten verwenden den gemeinsamen Stil `outlook`. Der README-Aufbau übernimmt beide Boxen als vollständig verlinkte SVG-Grafiken aus den HTML-Texten: `python3 scripts/build_readme_callouts.py`. So bleiben Farben, Rahmen und Schriftgestaltung auch auf GitHub erhalten; Alternativtexte enthalten den vollständigen Inhalt. Keine zusätzliche Bildkachel im Hauptmenü. Original-Logo in `website/assets/logo.svg`.
 
 ---
 Entwickelt mit Unterstützung von Claude (Anthropic)

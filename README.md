@@ -13,13 +13,11 @@
   </tr>
 </table>
 
-<p align="center"><a href="https://ploeffler.github.io/GhostWriter/schreibpraxis.html">Schreibpraxis</a><br><sub>Wie aus Gesprächen eigene Texte werden – drei Beispiele zum Entdecken.</sub></p>
+<p align="center"><a href="https://ploeffler.github.io/GhostWriter/schreibpraxis.html"><img src="assets/readme/schreibpraxis.svg" alt="Schreibpraxis. Fünf Seitenstrecken zeigen, wie aus Gesprächen eigene Texte werden – von der Buchentwicklung bis zur Recherche und zum nachvollziehbaren Belegen. Tatsächliche Schreibprozesse und klar gekennzeichnete Simulationen" width="696"></a></p>
+
+<p align="center"><a href="https://ploeffler.github.io/GhostWriter/ausblick-1-0.html"><img src="assets/readme/ausblick.svg" alt="Das nächste Kapitel wird groß.. GhostWriter nimmt Kurs auf 1.0. Entdecke die vorgeschlagenen Etappen – von verlässlichem Speichern bis zu mehr Gestaltung für dein Buch. Planungsvorschlag · noch nicht als Gesamtumfang verfügbar" width="696"></a></p>
 
 <p align="center"><a href="README.en.md">English</a> · <a href="docs/ANLEITUNG.md">Anleitung</a> · <a href="docs/HILFE.md">Hilfe</a></p>
-
-### Das nächste Kapitel wird groß.
-
-**GhostWriter nimmt Kurs auf 1.0.** Mehr Gestaltung, Manuskriptimport und ein durchgehend geprüfter Weg zum Buch. [Jetzt den Ausblick entdecken](docs/AUSBLICK-v1.0.md). Die Etappen sind ein Planungsvorschlag; Erweiterungen sind noch nicht als Gesamtumfang verfügbar.
 
 ---
 
