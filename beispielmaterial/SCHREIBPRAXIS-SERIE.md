@@ -9,6 +9,13 @@ Am 10. November 2026 vom Autor als gemeinsame Serie für diese Art HTML-Strecken
 
 - **Aus einer Idee wird ein Krimi:** `schreibpraxis-buchentwicklung/index.html`; zweisprachige Simulation zur inhaltsgestützten Konzeptentwicklung; Veröffentlichung ausdrücklich beauftragt, erste Kachel auf der Übersicht. Öffentliche Ausgabe unter `website/buchentwicklung/`.
 
+## Recherche und Zitieren · zweisprachige Folgen
+
+- **Stimmt das so? – Eine Behauptung auf dem Prüfstand / Is that right? – Putting a claim to the test:** `schreibpraxis-recherche/index.html` und `index.en.html`; fünf Stationen je Sprache zur quellenbasierten Prüfung und Überarbeitung einer Erdbebenbehauptung. Website-Ausgabe unter `website/recherche/`.
+- **Das habe ich doch schon recherchiert – Eigenes wiederfinden und richtig zitieren / Haven’t we researched this before? – Finding your earlier work and citing it clearly:** `schreibpraxis-zitieren/index.html` und `index.en.html`; sechs Stationen je Sprache zu früheren Buchtexten, Eigenverweisen, Fachbelegen und Quellenlücken. Website-Ausgabe unter `website/zitieren/`.
+
+Am 10. November 2026 zunächst Deutsch lokal beauftragt, anschließend Englisch, beide Übersichten und Veröffentlichung nach erfolgreichen Prüfungen. Gemeinsamer Aufbau: `python3 scripts/build_research_writing_practice.py --publish` (nur lokale Dateien). Inhalte in `inhalt.json` und `content.en.json` der jeweiligen Folge. Beide Übersichten ergänzen Textlinks; die drei bestehenden Kacheln bleiben erhalten. Stationsgleicher Sprachwechsel, Logo-Link zur passenden Übersicht und Hinweis unter dem Menü auf jeder Seite. Gespräche und Buchfunde sind erfunden, die benannte Fachinformation ist tatsächlich geprüft. [Gemeinsamer Prüfvermerk](SCHREIBPRAXIS-RECHERCHE-ZITIEREN-PRUEFUNG.md). Veröffentlichung erst nach bestätigtem Deployment als abgeschlossen melden.
+
 ## Wiederverwendbare Vorlagen
 
 Zentraler Einstieg für neue Folgen: [Vorlagen und Bauanleitung](../templates/schreibpraxis/README.md), [English](../templates/schreibpraxis/README.en.md). Dort liegen Seiten-/Übersichts-/Kachelgerüste, Grundstil und wiederverwendbare Arbeitsaufträge. Die vorhandenen Folgen behalten ihre versionierten Erzeuger; Änderungen an den neuen Vorlagen bauen sie nicht automatisch um. Logo und Kopftext einer Folge führen zur sprachlich passenden Übersicht, der Folgentitel zum Folgenanfang.
@@ -31,7 +38,7 @@ Bei Veröffentlichung beide Sprachen, stationsgleichen Sprachwechsel, Rückweg z
 
 ## Übersicht
 
-Zweisprachiger Einstieg: `website/schreibpraxis.html` und `website/schreibpraxis.en.html`, erzeugt mit `python3 scripts/build_writing_practice_index.py`. Drei Text-/Illustrationskacheln führen zu den vorhandenen Folgen. README und HTML-Startseite verlinken die Übersicht als Text; dort keine zusätzliche Hauptkachel. Original-Logo in `website/assets/logo.svg`.
+Zweisprachiger Einstieg: `website/schreibpraxis.html` und `website/schreibpraxis.en.html`, erzeugt mit `python3 scripts/build_writing_practice_index.py`. Drei Text-/Illustrationskacheln führen zu den bisherigen Folgen; ein zusätzlicher Abschnitt mit Textlinks erschließt Recherche und Zitieren in beiden Sprachen. README und HTML-Startseite verlinken die Übersicht als Text; dort keine zusätzliche Hauptkachel. Original-Logo in `website/assets/logo.svg`.
 
 ---
 Entwickelt mit Unterstützung von Claude (Anthropic)

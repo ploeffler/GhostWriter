@@ -1,0 +1,274 @@
+{
+  "title": "Haven’t we researched this before? – Finding your earlier work and citing it clearly",
+  "slug": "zitieren",
+  "purpose": "For writers working on several books: distinguish earlier statements from their supporting evidence, choose a suitable reference and tell verbatim quotation from paraphrase.",
+  "notice": "The author, books, chapters, research folder and all dialogue are fictional. Only the explicitly linked expert source is real and has been read. No actual book collection was searched. Access across books requires genuinely accessible texts; this walkthrough does not promise an automatic search feature.",
+  "pages": [
+    {
+      "label": "1 · The memory",
+      "title": "“Haven’t we researched this before?”",
+      "lead": "Remembering an earlier book is a useful start — but not a reference yet.",
+      "blocks": [
+        {
+          "type": "message",
+          "text": "Haven’t we already researched earthquakes for one of my books? What did I write there?",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "I can search the texts and research material I actually have access to. Do you remember a book or another keyword besides “earthquake”?",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "message",
+          "text": "Probably “Wenn der Boden sich bewegt” [When the Ground Moves]. It was about whether a warning can be issued before an earthquake. For this example, you have the manuscript and my research folder for that book. The older travel book is not included.",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "Then I will search the supplied manuscript and that research folder for the German terms “Erdbeben”, “Frühwarnung” and “Vorhersage”. The travel book is outside the search. Not finding something here would not mean you never wrote about it elsewhere.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "result",
+          "title": "Search scope in this example",
+          "text": "One fictional manuscript and one fictional research folder are available. Another book is explicitly missing."
+        },
+        {
+          "type": "note",
+          "title": "A requirement for real work",
+          "text": "The following findings are constructed for the simulation. In a real task, the books and material must be accessible; an assistant’s recollection is no substitute for a search."
+        }
+      ],
+      "file": "index.en.html"
+    },
+    {
+      "label": "2 · The finding",
+      "title": "Separate the passage from its research",
+      "lead": "Answering “What did I write?” requires the wording and where it came from.",
+      "blocks": [
+        {
+          "type": "message",
+          "text": "In the example manuscript “Wenn der Boden sich bewegt”, chapter “Warnen, bevor es rüttelt”, section “Sekunden zählen”, the sentence reads: “Eine Frühwarnung beginnt, wenn das Beben bereits begonnen hat.” [An early warning begins once the earthquake has already started.] The associated research folder lists the Swiss Seismological Service FAQ. This manuscript version has no page number.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "message",
+          "text": "So I had already made the distinction correctly. Could I simply reuse my sentence?",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "First, what do you want to do with it: show your wording from that time, summarise your earlier explanation, or support the factual claim in the new book? Those purposes call for different references. I will also check the old source note against the source itself instead of accepting it unchecked.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "table",
+          "title": "Three layers of the finding",
+          "rows": [
+            [
+              "Your earlier text",
+              "A fictional verbatim manuscript excerpt. It shows what the author wrote in this example."
+            ],
+            [
+              "The earlier research",
+              "A fictional source note in the research folder. It is a lead to follow, not a present-day source check."
+            ],
+            [
+              "The expert source",
+              "The real SED FAQ [Q1]. It is actually opened and read for this draft."
+            ]
+          ]
+        },
+        {
+          "type": "note",
+          "title": "A precise location, not an invented page number",
+          "text": "The book title, chapter and section are entirely fictional. For a published edition, use the edition details and a verifiable location from the actual copy."
+        }
+      ],
+      "file": "01-fund.en.html"
+    },
+    {
+      "label": "3 · Which reference?",
+      "title": "Your own book or the underlying expert source?",
+      "lead": "Choose a reference according to what readers should be able to trace.",
+      "blocks": [
+        {
+          "type": "message",
+          "text": "I want to support the factual explanation in the new book. I also want readers to find the fuller discussion in my earlier book.",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "Then two separate references make sense: an expert source alongside the factual explanation, plus a reference to your own book for the fuller discussion. Your earlier book records your presentation; it does not replace a fresh check of the factual evidence.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "message",
+          "text": "Does that make the SED page the original research study?",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "No. We are reading the institutional expert information itself, rather than relying on your book’s account of it. But it is not an original study. If a claim depends on a particular research finding, we would need to obtain and check that study. For this basic explanation, we will use the clearly identified expert information.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "table",
+          "title": "Purpose and reference",
+          "rows": [
+            [
+              "“This is how I presented it then”",
+              "Refer to your own book with a verifiable location."
+            ],
+            [
+              "Explain a factual claim",
+              "Cite the suitable expert source actually read. Here, Q1."
+            ],
+            [
+              "Offer further reading",
+              "Mention your own book as well; keep factual support distinct from the reading recommendation."
+            ]
+          ]
+        },
+        {
+          "type": "result",
+          "title": "The decision in the dialogue",
+          "text": "The author chooses an expert reference plus a separate reference to their own work. The type of source is named accurately."
+        }
+      ],
+      "file": "02-verweis.en.html"
+    },
+    {
+      "label": "4 · Quote or paraphrase?",
+      "title": "How much of the earlier text should stay?",
+      "lead": "Verbatim reuse and a new formulation need different labels.",
+      "blocks": [
+        {
+          "type": "message",
+          "text": "First show me what a quotation from my own work would look like. Then I would prefer a short new formulation for the new book.",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "As a fictional quotation from your own work: “Eine Frühwarnung beginnt, wenn das Beben bereits begonnen hat.” — from your example manuscript “Wenn der Boden sich bewegt”, chapter “Warnen, bevor es rüttelt”, section “Sekunden zählen”. In English: “An early warning begins once the earthquake has already started” [translation for this walkthrough]. Quotation marks identify the borrowed wording. We could only add a real edition and page number after checking them.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "message",
+          "text": "As a new paraphrase: “Early warning systems respond to an earthquake that has already started. Under suitable conditions, they can warn more distant locations before stronger shaking arrives. [Q1]” This is newly worded text based on the expert information, not a verbatim quotation from it.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "message",
+          "text": "Use the new formulation. Keep the reference to my own work separate as further reading, not as evidence for the technology.",
+          "role": "Author"
+        },
+        {
+          "type": "result",
+          "title": "Selected form",
+          "text": "A paraphrased factual explanation with Q1, plus an explicitly separate reference to the earlier discussion."
+        },
+        {
+          "type": "note",
+          "title": "Agree the citation style",
+          "text": "This walkthrough demonstrates the editorial distinction. In a real book, footnotes and bibliography follow that book’s guidelines. Translations, omissions or changes within verbatim quotations must be made clear."
+        }
+      ],
+      "file": "03-formulieren.en.html"
+    },
+    {
+      "label": "5 · Missing material",
+      "title": "A gap in the evidence remains a gap",
+      "lead": "Not every old source note leads to an original you can read today.",
+      "blocks": [
+        {
+          "type": "message",
+          "text": "Suppose my folder also listed a study, but its full text was unavailable. Could we still list it as something we had read?",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "No. We can retain the old note as an unchecked research lead. For the new text, we use evidence whose relevant content we have actually checked, or obtain the missing text. A source known only through your book does not thereby become a source we have read ourselves.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "message",
+          "text": "Then leave the unchecked study out of this paragraph’s references. Mark it as open in the working notes.",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "That is the intended simulated working state. If an indirect citation were needed, it would have to be identified as such; we would never imply we had consulted the original ourselves. The checked expert information is sufficient for this paragraph.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "result",
+          "title": "Open, not invented",
+          "text": "The hypothetical study is not given an invented title, author, year or page number. No actual working note is saved."
+        },
+        {
+          "type": "note",
+          "title": "Your own book needs checking too",
+          "text": "If an earlier edition is unavailable, its exact wording or page reference remains open as well. The simulation does not replace that check."
+        }
+      ],
+      "file": "04-luecken.en.html"
+    },
+    {
+      "label": "6 · The new paragraph",
+      "title": "Keep factual support and your own reference distinct",
+      "lead": "The result is a usable draft and an honest account of the working state.",
+      "blocks": [
+        {
+          "type": "result",
+          "title": "Simulated sample text · paraphrase",
+          "text": "Early warning systems respond to an earthquake that has already started. Under suitable conditions, they can warn more distant locations before stronger shaking arrives; this does not guarantee a timely warning at every location. [Q1]"
+        },
+        {
+          "type": "note",
+          "title": "Separate reference to the author’s work · fictional example",
+          "text": "Further reading: In my manuscript “Wenn der Boden sich bewegt”, chapter “Warnen, bevor es rüttelt”, section “Sekunden zählen”, I explain this distinction in more detail. This reference is fictional, not a verifiable book source. Before real use, insert the actual edition and location."
+        },
+        {
+          "type": "message",
+          "text": "Now I can see what I had already written, what supports the new explanation and what the reference to my book is for. That is how I want the draft to look.",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "The draft and the selection are traceable within this example. No real books have been searched or changed. The missing study remains open; the reference to your own work must be checked against the actual edition before real use.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "table",
+          "title": "Final review of this walkthrough",
+          "rows": [
+            [
+              "Scope reviewed",
+              "All six stages, both text variants, the attribution of evidence and the limits of the search."
+            ],
+            [
+              "Result",
+              "Editorial review passed with notes as a simulation; the reference to the author’s own work is deliberately fictional."
+            ],
+            [
+              "Work remaining for a real book",
+              "Search the actual collection, check the edition and location, apply the citation style, and obtain or omit the missing literature."
+            ],
+            [
+              "No automatic changes",
+              "An author’s decision in the simulated dialogue is neither an actual save nor formal section approval."
+            ]
+          ]
+        },
+        {
+          "type": "link",
+          "url": "../recherche/index.en.html",
+          "label": "The connected example: check a claim →"
+        }
+      ],
+      "file": "05-ergebnis.en.html"
+    }
+  ]
+}
