@@ -17,7 +17,7 @@ python3 scripts/check_docs.py
 python3 scripts/package_docs_site.py
 ```
 
-Without `--publish`, only source previews are built. With it, website files are also prepared **locally**; nothing is uploaded or deployed. The shared generator builds both episodes in both languages. Both overview pages add text links and descriptions for the new episodes, keeping the three existing tiles. The logo links to the overview in the matching language, the episode title to its beginning, and the language switch to the corresponding stage.
+Without `--publish`, only source previews are built. With it, website files are also prepared **locally**; nothing is uploaded or deployed. The shared generator builds both episodes in both languages. Both overview pages show all five episodes as fully clickable illustrated tiles with a description and context. The existing three episodes keep their order; research and references are the fourth and fifth tiles. The logo links to the overview in the matching language, the episode title to its beginning, and the language switch to the corresponding stage.
 
 [English](index.en.html) · [Deutsch](index.html) · [Overview](../../website/schreibpraxis.en.html)
 
