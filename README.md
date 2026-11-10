@@ -13,9 +13,7 @@
   </tr>
 </table>
 
-<p align="center"><a href="https://ploeffler.github.io/GhostWriter/schreibpraxis/index.html">Schreiben mit GhostWriter</a><br><sub>Ein Beispiel in sechs Stationen: vom Gespräch über den Entwurf bis zur eigenen Erzählstimme.</sub></p>
-
-<p align="center"><a href="https://ploeffler.github.io/GhostWriter/augmentiert/index.html">Augmentiert arbeiten – Ein Brief, drei Schreibdialoge</a><br><sub>Ein simuliertes Beispiel: drei Schreibdialoge und die Entscheidungen des Menschen.</sub></p>
+<p align="center"><a href="https://ploeffler.github.io/GhostWriter/schreibpraxis.html">Schreibpraxis</a><br><sub>Wie aus Gesprächen eigene Texte werden – drei Beispiele zum Entdecken.</sub></p>
 
 <p align="center"><a href="README.en.md">English</a> · <a href="docs/ANLEITUNG.md">Anleitung</a> · <a href="docs/HILFE.md">Hilfe</a></p>
 

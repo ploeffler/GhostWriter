@@ -7,6 +7,8 @@ Am 10. November 2026 vom Autor als gemeinsame Serie für diese Art HTML-Strecken
 - **Vom Gespräch zum eigenen Text:** `schreiben-mit-ghostwriter/index.html`; deutsch/englisch veröffentlicht.
 - **Augmentiert arbeiten – Ein Brief, drei Schreibdialoge:** `schreibpraxis-augmentiert/index.html`; deutsch/englisch aus dem simulierten Drehbuch in PR #243 erstellt; Veröffentlichung am 10. November 2026 ausdrücklich beauftragt. Beide Sprachen unter website/augmentiert/ mit stationsgleichem Sprachwechsel.
 
+- **Aus einer Idee wird ein Krimi:** `schreibpraxis-buchentwicklung/index.html`; zweisprachige Simulation zur inhaltsgestützten Konzeptentwicklung; Veröffentlichung ausdrücklich beauftragt, erste Kachel auf der Übersicht. Öffentliche Ausgabe unter `website/buchentwicklung/`.
+
 ## Gemeinsame Gestaltung
 
 Originales Federlogo aus `assets/logo.svg`, GhostWriter-Wortmarke als Text, Serienname darunter. Orange `#f07f2e` für Linie, Fortschritt und Hervorhebungen; dunkleres Orange `#b9551d` für lesbare Akzentschrift und Links. Warmer heller Hintergrund, dunkle Schrift, Serifenschrift für den großen Titel, Systemschrift für Navigation und Erläuterung.
@@ -20,6 +22,12 @@ Dialoge sparsam und gut lesbar als Gespräch darstellen; Rollen sichtbar benenne
 Menschliche Beiträge wie Erfahrung, Antwort, Korrektur und Auswahl sichtbar machen. Nicht nur KI-Ausgaben präsentieren. Faktische Abläufe und Simulationen unterscheiden. Privates abstrahieren, Originalquellen nicht versehentlich veröffentlichen. Erklärtext, Gespräch und Ergebnis typografisch trennen.
 
 Bei Veröffentlichung beide Sprachen, stationsgleichen Sprachwechsel, Rückweg zur Website und Textlink auf der Startseite vorsehen. Keine zusätzliche Kachel ohne ausdrücklichen Gestaltungswunsch. Lokale Erstellung, Upload und Veröffentlichung bleiben getrennte Schritte.
+
+
+
+## Übersicht
+
+Zweisprachiger Einstieg: `website/schreibpraxis.html` und `website/schreibpraxis.en.html`, erzeugt mit `python3 scripts/build_writing_practice_index.py`. Drei Text-/Illustrationskacheln führen zu den vorhandenen Folgen. README und HTML-Startseite verlinken die Übersicht als Text; dort keine zusätzliche Hauptkachel. Original-Logo in `website/assets/logo.svg`.
 
 ---
 Entwickelt mit Unterstützung von Claude (Anthropic)
