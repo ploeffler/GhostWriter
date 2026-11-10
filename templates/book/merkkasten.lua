@@ -150,8 +150,21 @@ local function glossary_links(doc)
       content = c
     end
     if print_ then return pandoc.Span(content, pandoc.Attr('', { 'glossar' }, {})) end
+    if FORMAT:match('latex') and el.target:sub(1, 1) == '#' then
+      -- Feste PDF-Sprungziele „gl-…“: pandoc ab 3.6 schreibt sonst \hyperref/\label mit Ersatznamen
+      local c = { pandoc.RawInline('latex', '\\protect\\hyperlink{' .. el.target:sub(2) .. '}{') }
+      for _, i in ipairs(content) do table.insert(c, i) end
+      table.insert(c, pandoc.RawInline('latex', '}'))
+      return c
+    end
     el.content = content
     return el
+  end, Span = function(el)
+    -- Anker der Glossareinträge ([Begriff]{#gl-…}) im PDF als benanntes Sprungziel
+    if not (FORMAT:match('latex') and el.identifier:match('^gl%-')) then return nil end
+    local c = { pandoc.RawInline('latex', '\\protect\\hypertarget{' .. el.identifier .. '}{}') }
+    for _, i in ipairs(el.content) do table.insert(c, i) end
+    return c
   end })
 end
 

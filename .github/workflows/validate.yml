@@ -20,7 +20,7 @@ jobs:
 
       - name: Abhängigkeiten installieren
         run: |
-          pip install pyyaml jsonschema requests pydantic pillow
+          pip install pyyaml jsonschema requests pydantic pillow python-docx
           pip install -r scripts/docsite/requirements.txt
 
       - name: workflow.yml gegen sein Schema prüfen

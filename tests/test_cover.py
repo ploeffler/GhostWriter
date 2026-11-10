@@ -1,4 +1,5 @@
 """Tests für Umschlag und Druck (#68, Teil 2): Maße je Profil, EAN-13, Prüfung, Satz."""
+import re
 import shutil
 import struct
 import subprocess
@@ -158,7 +159,11 @@ class CoverProjectTest(unittest.TestCase):
         self.assertIn(f'Rücken {pages * 0.0635:.1f} mm bei {pages} Seiten', r.stdout)
         import zipfile
         with zipfile.ZipFile(out / f'{tag}.epub') as z:
-            self.assertTrue(any(n.endswith('cover-vorne.jpg') for n in z.namelist()))
+            # Titelbild als EPUB-3-cover-image; den Dateinamen vergibt pandoc (ab 3.6 „file0.jpg“)
+            opf = next(z.read(n).decode('utf-8') for n in z.namelist() if n.endswith('.opf'))
+            item = re.search(r'<item\b[^>]*properties="cover-image"[^>]*>', opf)
+            self.assertIsNotNone(item, 'Titelbild fehlt im EPUB')
+            self.assertIn('media-type="image/jpeg"', item.group(0))
 
 
 if __name__ == '__main__':
