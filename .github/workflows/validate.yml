@@ -114,7 +114,8 @@ jobs:
 
       - name: Satzpakete – heruntergeladene Pakete aus dem Cache
         if: steps.kind.outputs.program == '1'
-        uses: actions/cache@v4
+        id: satz-cache
+        uses: actions/cache/restore@v4
         with:
           path: ~/apt-satz
           key: ${{ steps.tex.outputs.key }}
@@ -131,6 +132,14 @@ jobs:
           sudo chown -R "$(id -u):$(id -g)" ~/apt-satz
           echo "Satzpakete in $(( $(date +%s) - start )) s, Cache $(du -sh ~/apt-satz | cut -f1)"
           pandoc --version | head -1; xelatex --version | head -1; pdftotext -v 2>&1 | head -1
+
+      - name: Satzpakete – Cache sichern
+        # Gleich nach der Installation, damit der Cache auch bei roten Tests entsteht
+        if: steps.kind.outputs.program == '1' && steps.satz-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/apt-satz
+          key: ${{ steps.tex.outputs.key }}
 
       - name: Tests (Kontextplanung, Zusammenführung)
         if: steps.kind.outputs.program == '1'
