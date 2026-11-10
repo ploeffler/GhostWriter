@@ -168,6 +168,7 @@ Der Token gehört wie jeder Schlüssel nie in den Chat oder in eine Datei (siehe
 - Liegt ein Buch als Branch im Hauptrepository (z. B. `test/test-book`), aktualisiert die Action dort nur Bücher nach der Erkennungsregel (`scripts/library.py`: `buch/*`-Branches, sonst Branches mit Kapiteln) außer `update.skip_branches` (`main`, `v*`, `ghostwriter/*` …), jeweils gegen `main`. In Forks und eigenen Repositorys prüft sie den Standard-Branch und alle Bücher (Abschnitt „Bibliothek“).
 - Ein Buch-Branch, auf dem eine Entwicklungsfassung getestet wird, bekommt sonst nachts wieder die Programmdateien von `main`. Deshalb in Entwicklungs-Branches `version` im Manifest sofort erhöhen (z. B. `0.4.0`); Bücher mit höherer Version werden nicht angefasst.
 - `tests/` gehört nicht zu `managed` und wird nicht verteilt. Tests und Testbücher (`tests/fixtures/`) prüft `validate.yml` deshalb nur im Hauptrepository; in Buch-Repositorys prüft sie nur das Buch selbst.
+- Im Hauptrepository installiert `validate.yml` vor den Tests die Satzpakete (pandoc, XeLaTeX, poppler-utils – dieselben wie Probedruck, Auflage und Sammelband). Die heruntergeladenen Pakete liegen in einem GitHub-Cache; installiert wird bei jedem Lauf. Ohne diese Pakete würden die PDF-, EPUB- und Import-Tests übersprungen statt geprüft.
 - Lokal testen: `GITHUB_REPOSITORY=owner/buch GHOSTWRITER_UPSTREAM_URL=<pfad-oder-url> python scripts/update_from_upstream.py --dry-run --status status.json`.
 
 ---

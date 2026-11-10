@@ -99,6 +99,39 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Satzpakete – Cache-Schlüssel
+        # PDF-/EPUB-Tests brauchen pandoc, XeLaTeX und poppler-utils (wie proof/edition/omnibus);
+        # ohne sie werden diese Tests übersprungen. Nur im Hauptrepository.
+        if: steps.kind.outputs.program == '1'
+        id: tex
+        env:
+          PAKETE: >-
+            pandoc texlive-xetex texlive-latex-recommended texlive-latex-extra texlive-lang-german
+            texlive-fonts-recommended fonts-texgyre lmodern poppler-utils
+        run: |
+          echo "pakete=$PAKETE" >> "$GITHUB_OUTPUT"
+          echo "key=satz-${ImageOS:-ubuntu}-$(echo "$PAKETE" | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
+      - name: Satzpakete – heruntergeladene Pakete aus dem Cache
+        if: steps.kind.outputs.program == '1'
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-satz
+          key: ${{ steps.tex.outputs.key }}
+
+      - name: Satzpakete installieren
+        if: steps.kind.outputs.program == '1'
+        run: |
+          start=$(date +%s)
+          mkdir -p ~/apt-satz/partial
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends -o Dir::Cache::Archives="$HOME/apt-satz" \
+            ${{ steps.tex.outputs.pakete }} >/dev/null
+          sudo rm -rf ~/apt-satz/partial ~/apt-satz/lock
+          sudo chown -R "$(id -u):$(id -g)" ~/apt-satz
+          echo "Satzpakete in $(( $(date +%s) - start )) s, Cache $(du -sh ~/apt-satz | cut -f1)"
+          pandoc --version | head -1; xelatex --version | head -1; pdftotext -v 2>&1 | head -1
+
       - name: Tests (Kontextplanung, Zusammenführung)
         if: steps.kind.outputs.program == '1'
         run: |
