@@ -311,6 +311,10 @@ Jeder Bildauftrag ist ein unveränderlicher Lauf `run-NNN.md` daneben (`runs.ill
 
 `scripts/images.py` setzt den Bild-Auftrag zusammen (`prompt`: Bildstil, Szene und die festen Bildmerkmale `visual` der Figuren aus #53), legt Bilder ab (`add`, verkleinert auf `max_px`) und listet sie.
 
+## Rückgaben von Chat-Analysen
+
+Der [Anbieter-API-freie Analyseweg](CHAT-ANALYSEN.md) verwendet `analysis/chat-returns/<request_id>/request.json` als unveränderte Auftragsbasis und nach Inhaltsfingerabdruck benannte Ergebnis-JSONs. Ein Ergebnis hat `status: proposal`, `verified`, `dropped_without_evidence`, `source_commit`, `chapter_id` und `external_claims_checked: false`. Es ist weder ein Manuskript noch ein Freigabeeintrag. Bestehende API-Analyseformate bleiben unverändert; neue Rückgaben werden nicht ungeprüft als deren offene Läufe ausgegeben.
+
 ## Projektweite visuelle Referenzen
 
 Referenzbilder sind keine Illustrationen und werden nicht automatisch in Manuskript oder Ausgabe übernommen. Sie liegen getrennt unter `reference-images/ref-img-<slug>.png|jpg` mit einer gleichnamigen YAML-Beschreibung nach [`schemas/reference-image.schema.json`](../schemas/reference-image.schema.json). Ein Bild kann mehrere Rollen (`visual_reference`, `book_image`) und mehrere Zuordnungen (Projekt, Person/Figur, Ort, Gegenstand, Szene, Kapitel, Abschnitt) haben.
