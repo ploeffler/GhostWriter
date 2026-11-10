@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="$LANG">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>$PAGE_TITLE · $EPISODE_TITLE</title>
+  <link rel="stylesheet" href="$STYLE_URL">
+  <link rel="alternate" hreflang="$OTHER_LANG" href="$OTHER_URL">
+</head>
+<body>
+  <header>
+    <a class="brand" href="$OVERVIEW_URL"><img src="$LOGO_URL" alt="" width="48" height="48"><span>GhostWriter<small>$SERIES_LABEL</small></span></a>
+    <span class="status"><a href="$OTHER_URL" lang="$OTHER_LANG">$OTHER_LABEL</a> · $PAGE_POSITION / $PAGE_COUNT</span>
+  </header>
+  <main class="layout">
+    <nav aria-label="$NAV_LABEL">
+      <a class="episode-title" href="$EPISODE_URL">$EPISODE_TITLE</a>
+      <ol>$NAV_ITEMS_HTML</ol>
+      $SIMULATION_NOTICE_HTML
+    </nav>
+    <article>
+      <div class="eyebrow">$STAGE_LABEL</div>
+      <h1>$PAGE_TITLE</h1>
+      <p class="lead">$LEAD</p>
+      $CONTENT_HTML
+      <div class="progress" aria-hidden="true"><span style="width:$PROGRESS_PERCENT%"></span></div>
+      <div class="pager">$PREVIOUS_LINK_HTML $NEXT_LINK_HTML</div>
+    </article>
+  </main>
+  <footer>
+    <p><a href="$OVERVIEW_URL">$OVERVIEW_LABEL</a></p>
+    <p>$CLAUDE_CREDIT<br>$CODEX_CREDIT</p>
+  </footer>
+</body>
+</html>
