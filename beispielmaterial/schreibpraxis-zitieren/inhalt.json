@@ -1,0 +1,274 @@
+{
+  "title": "Das habe ich doch schon recherchiert – Eigenes wiederfinden und richtig zitieren",
+  "slug": "zitieren",
+  "purpose": "Für Schreibende mit mehreren Büchern: frühere Aussagen und ihre Belege auseinanderhalten, die passende Art des Verweises wählen und wörtliche Übernahme von sinngemäßer Wiedergabe unterscheiden.",
+  "notice": "Autor, Bücher, Kapitel, Recherchemappe und alle Gesprächsbeiträge sind erfunden. Nur die ausdrücklich verlinkte Fachquelle ist real und wurde gelesen. Es wurde keine echte Bibliothek durchsucht. Buchübergreifender Zugriff setzt tatsächlich zugängliche Texte voraus; die Folge verspricht keine automatische Suchfunktion.",
+  "pages": [
+    {
+      "file": "index.html",
+      "label": "1 · Die Erinnerung",
+      "title": "„Haben wir das nicht schon recherchiert?“",
+      "lead": "Eine Erinnerung an ein früheres Buch ist ein guter Anfang – aber noch keine Fundstelle.",
+      "blocks": [
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Haben wir zum Thema Erdbeben nicht in einem meiner Bücher schon recherchiert? Was habe ich dort geschrieben?"
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Ich kann die Texte und Rechercheunterlagen durchsuchen, auf die ich tatsächlich Zugriff habe. Erinnerst du dich an ein Buch oder ein Stichwort außer „Erdbeben“?"
+        },
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Wahrscheinlich in „Wenn der Boden sich bewegt“. Es ging darum, ob man vor einem Beben warnen kann. Für dieses Beispiel liegen dir das Manuskript und meine Recherchemappe dazu vor. Das ältere Reisebuch ist nicht dabei."
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Dann suche ich im bereitgestellten Manuskript und in dieser Recherchemappe nach „Erdbeben“, „Frühwarnung“ und „Vorhersage“. Das Reisebuch bleibt außerhalb der Suche. Aus einem fehlenden Treffer hier dürfte ich nicht schließen, dass du anderswo nie darüber geschrieben hast."
+        },
+        {
+          "type": "result",
+          "title": "Suchumfang im Beispiel",
+          "text": "Ein erfundenes Manuskript und eine erfundene Recherchemappe sind verfügbar. Ein weiteres Buch fehlt ausdrücklich."
+        },
+        {
+          "type": "note",
+          "title": "Voraussetzung für echte Arbeit",
+          "text": "Die folgenden Funde sind für die Simulation konstruiert. Im echten Auftrag müssen Bücher und Unterlagen zugänglich sein; eine bloße Erinnerung des Assistenten ersetzt keine Suche."
+        }
+      ]
+    },
+    {
+      "file": "01-fund.html",
+      "label": "2 · Der Fund",
+      "title": "Textstelle und Recherche auseinanderhalten",
+      "lead": "Die Antwort auf „Was schrieb ich?“ braucht den Wortlaut und seine Herkunft.",
+      "blocks": [
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Im Beispielmanuskript „Wenn der Boden sich bewegt“, Kapitel „Warnen, bevor es rüttelt“, Abschnitt „Sekunden zählen“, steht: „Eine Frühwarnung beginnt, wenn das Beben bereits begonnen hat.“ In der zugehörigen Recherchemappe ist die FAQ des Schweizerischen Erdbebendienstes vermerkt. Eine Seitenzahl gibt es in dieser Manuskriptfassung nicht."
+        },
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Dann hatte ich das schon richtig unterschieden. Könnte ich meinen Satz einfach wiederverwenden?"
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Das ist zunächst eine Frage der Darstellung: Willst du deinen damaligen Wortlaut zeigen, deine frühere Erklärung zusammenfassen oder die fachliche Aussage für das neue Buch belegen? Dafür sind unterschiedliche Verweise sinnvoll. Den alten Quellenvermerk prüfe ich außerdem am Original, statt ihn ungeprüft zu übernehmen."
+        },
+        {
+          "type": "table",
+          "title": "Drei Ebenen des Fundes",
+          "rows": [
+            [
+              "Dein damaliger Text",
+              "Erfundener wörtlicher Manuskriptauszug. Er zeigt, was der Autor im Beispiel geschrieben hat."
+            ],
+            [
+              "Die damalige Recherche",
+              "Erfundener Quellenvermerk in der Recherchemappe. Er ist ein Suchhinweis, noch keine heutige Quellenprüfung."
+            ],
+            [
+              "Die Fachquelle",
+              "Reale SED-FAQ [Q1]. Sie wird für den jetzigen Entwurf tatsächlich aufgerufen und gelesen."
+            ]
+          ]
+        },
+        {
+          "type": "note",
+          "title": "Genaue Fundstelle statt erfundener Seitenzahl",
+          "text": "Buchtitel, Kapitel und Abschnitt sind hier vollständig fiktiv. Für eine veröffentlichte Ausgabe wären Ausgabe und nachprüfbare Fundstelle aus dem echten Exemplar zu übernehmen."
+        }
+      ]
+    },
+    {
+      "file": "02-verweis.html",
+      "label": "3 · Welcher Verweis?",
+      "title": "Eigenes Buch oder fachliche Originalquelle?",
+      "lead": "Der Verweis richtet sich danach, welche Aussage er für die Leser nachvollziehbar machen soll.",
+      "blocks": [
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Ich will die fachliche Erklärung im neuen Buch belegen. Gleichzeitig sollen Leser meine ausführlichere Darstellung im früheren Buch finden können."
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Dann passen zwei getrennte Hinweise: der Fachbeleg unmittelbar zur sachlichen Erklärung und ein zusätzlicher Eigenverweis zur ausführlicheren Darstellung. Dein früheres Buch dokumentiert deine Darstellung; es ersetzt die erneute Prüfung des fachlichen Belegs nicht."
+        },
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Und die SED-Seite ist dann die Originalstudie?"
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Nein. Wir lesen die institutionelle Fachinformation selbst, statt sie nur über dein Buch zu übernehmen. Sie ist aber keine Originalstudie. Wenn eine Aussage von einem bestimmten Forschungsergebnis abhängt, müssten wir die betreffende Studie beschaffen und prüfen. Für diese grundlegende Erklärung bleiben wir bei der klar benannten Fachinformation."
+        },
+        {
+          "type": "table",
+          "title": "Welche Absicht – welcher Nachweis?",
+          "rows": [
+            [
+              "„So habe ich das damals dargestellt“",
+              "Verweis auf das eigene Buch und eine überprüfbare Fundstelle."
+            ],
+            [
+              "Eine fachliche Aussage erklären",
+              "Die tatsächlich gelesene und passende Fachquelle angeben. Hier: Q1."
+            ],
+            [
+              "Zum Weiterlesen einladen",
+              "Eigenes Buch zusätzlich nennen; fachlichen Beleg und Leseempfehlung erkennbar trennen."
+            ]
+          ]
+        },
+        {
+          "type": "result",
+          "title": "Entscheidung im Dialog",
+          "text": "Der Autor wählt Fachbeleg plus ergänzenden Eigenverweis. Die Art der Quelle wird korrekt bezeichnet."
+        }
+      ]
+    },
+    {
+      "file": "03-formulieren.html",
+      "label": "4 · Zitat oder Wiedergabe?",
+      "title": "Wie viel vom früheren Text soll bleiben?",
+      "lead": "Wörtliche Übernahme und neue Formulierung brauchen unterschiedliche Kennzeichnung.",
+      "blocks": [
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Zeig mir erst, wie ein wörtliches Eigenzitat aussehen würde. Danach lieber eine neue, kurze Formulierung für das neue Buch."
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Als erfundenes Eigenzitat: „Eine Frühwarnung beginnt, wenn das Beben bereits begonnen hat.“ — aus deinem Beispielmanuskript „Wenn der Boden sich bewegt“, Kapitel „Warnen, bevor es rüttelt“, Abschnitt „Sekunden zählen“. Die Anführungszeichen kennzeichnen den übernommenen Wortlaut. Eine reale Ausgabe und deren Seitenzahl dürften wir erst nach Prüfung ergänzen."
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Als neue, sinngemäße Formulierung: „Frühwarnsysteme reagieren auf ein bereits begonnenes Beben. Sie können weiter entfernte Orte unter geeigneten Bedingungen vor den stärkeren Erschütterungen warnen. [Q1]“ Das ist eine eigene Formulierung auf Grundlage der Fachinformation, kein wörtliches Zitat aus ihr."
+        },
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Nimm die neue Formulierung. Den Eigenverweis möchte ich getrennt als Hinweis zum Weiterlesen, nicht als Beleg für die Technik."
+        },
+        {
+          "type": "result",
+          "title": "Gewählte Form",
+          "text": "Sinngemäße fachliche Erklärung mit Q1; zusätzlicher, ausdrücklich als solcher erkennbarer Hinweis auf die frühere Darstellung."
+        },
+        {
+          "type": "note",
+          "title": "Zitierweise festlegen",
+          "text": "Die Folge zeigt die redaktionelle Unterscheidung. Form der Fußnoten und Bibliografie richten sich im echten Buch nach dessen Vorgaben. Übersetzungen, Auslassungen oder Eingriffe in wörtliche Zitate müssten erkennbar sein."
+        }
+      ]
+    },
+    {
+      "file": "04-luecken.html",
+      "label": "5 · Wenn etwas fehlt",
+      "title": "Eine Quellenlücke bleibt eine Quellenlücke",
+      "lead": "Nicht jeder alte Quellenvermerk führt zu einem heute lesbaren Original.",
+      "blocks": [
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Angenommen, in meiner Mappe stünde noch eine Studie, aber der Volltext wäre nicht erreichbar. Können wir sie trotzdem als gelesen aufführen?"
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Nein. Wir können den alten Vermerk als ungeprüften Recherchehinweis festhalten. Für den neuen Text verwenden wir nur Belege, deren einschlägigen Inhalt wir tatsächlich prüfen konnten, oder beschaffen den fehlenden Text. Eine Quelle, die nur aus deinem Buch bekannt ist, wird dadurch nicht zur selbst gelesenen Quelle."
+        },
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Dann lassen wir die nicht geprüfte Studie aus dem Belegapparat dieses Absatzes. Markiere sie als offen in den Arbeitsnotizen."
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "So ist es für den simulierten Arbeitsstand vorgesehen. Ein gegebenenfalls nötiges Sekundärzitat müsste als solches kenntlich sein; wir würden nie den Eindruck erwecken, das Original selbst eingesehen zu haben. Für diesen Absatz reicht die geprüfte Fachinformation."
+        },
+        {
+          "type": "result",
+          "title": "Offen, nicht erfunden",
+          "text": "Die hypothetische Studie erhält hier weder einen erfundenen Titel noch Autor, Jahr oder Seitenzahl. Es wird keine tatsächliche Arbeitsnotiz gespeichert."
+        },
+        {
+          "type": "note",
+          "title": "Auch das eigene Buch ist zu prüfen",
+          "text": "Ist eine frühere Ausgabe nicht zugänglich, bleibt auch deren genauer Wortlaut oder Seitenbezug offen. Die Simulation ersetzt diese Prüfung nicht."
+        }
+      ]
+    },
+    {
+      "file": "05-ergebnis.html",
+      "label": "6 · Der neue Absatz",
+      "title": "Fachbeleg und Eigenverweis bleiben erkennbar",
+      "lead": "Am Ende stehen ein verwendbarer Entwurf und ein ehrlicher Arbeitsstand.",
+      "blocks": [
+        {
+          "type": "result",
+          "title": "Simulierte Textprobe · sinngemäße Wiedergabe",
+          "text": "Frühwarnsysteme reagieren auf ein bereits begonnenes Beben. Unter geeigneten Bedingungen können sie weiter entfernte Orte vor stärkeren Erschütterungen warnen; eine rechtzeitige Warnung an jedem Ort ist damit nicht garantiert. [Q1]"
+        },
+        {
+          "type": "note",
+          "title": "Separater Eigenverweis · fiktives Beispiel",
+          "text": "Zum Weiterlesen: In meinem Manuskript „Wenn der Boden sich bewegt“, Kapitel „Warnen, bevor es rüttelt“, Abschnitt „Sekunden zählen“, erläutere ich diese Unterscheidung ausführlicher. Dieser Verweis ist erfunden und keine nachprüfbare Buchquelle. Vor einer echten Nutzung sind reale Ausgabe und Fundstelle einzusetzen."
+        },
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Damit sehe ich, was ich schon geschrieben hatte, worauf die neue Erklärung beruht und wozu der Verweis auf mein Buch dient. So soll der Entwurf aussehen."
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Der Entwurf und die Auswahl sind im Beispiel nachvollziehbar. Es wurden keine echten Bücher durchsucht oder geändert. Die fehlende Studie bleibt offen; der Eigenverweis muss vor realer Verwendung anhand der tatsächlichen Ausgabe geprüft werden."
+        },
+        {
+          "type": "table",
+          "title": "Abschlussprüfung der Folge",
+          "rows": [
+            [
+              "Geprüfter Umfang",
+              "Alle sechs Stationen, beide Textvarianten, Quellenzuordnung und Suchgrenzen."
+            ],
+            [
+              "Ergebnis",
+              "Redaktionell bestanden mit Hinweisen als Simulation; der Eigenverweis ist absichtlich fiktiv."
+            ],
+            [
+              "Offene Arbeit im echten Buch",
+              "Tatsächliche Bibliothek durchsuchen, Ausgabe und Fundstelle prüfen, Zitierstil anwenden und fehlende Literatur beschaffen oder weglassen."
+            ],
+            [
+              "Keine automatische Übernahme",
+              "Autorenentscheidung im simulierten Dialog ist weder echte Speicherung noch formale Abschnittsfreigabe."
+            ]
+          ]
+        },
+        {
+          "type": "link",
+          "url": "../recherche/index.html",
+          "label": "Zum verbundenen Beispiel: Eine Behauptung überprüfen →"
+        }
+      ]
+    }
+  ]
+}

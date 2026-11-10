@@ -1,0 +1,228 @@
+{
+  "title": "Is that right? – Putting a claim to the test",
+  "slug": "recherche",
+  "purpose": "For writers with an existing nonfiction draft: define a claim that can be checked, assess sources and judge a reasoned revision in context.",
+  "notice": "All dialogue and sample manuscript passages are fictional. The linked expert source was actually read for this draft. The walkthrough illustrates one possible conversation, not a completed book task or an automated fact check.",
+  "pages": [
+    {
+      "label": "1 · The claim",
+      "title": "A sentence sounds convincing",
+      "lead": "A clear statement can promise more than its source supports.",
+      "blocks": [
+        {
+          "type": "message",
+          "text": "My nonfiction draft says: “Today, early warning systems can reliably predict earthquakes.” Please check that claim. If it is inaccurate, suggest a change with sources. Do not replace anything in the manuscript yet.",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "I will focus first on “predict”: do you mean an announcement before an earthquake begins, or a warning once it has already started? I also need the surrounding paragraph.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "message",
+          "text": "The paragraph reads: “Earthquakes often catch people unprepared. Today, early warning systems can reliably predict earthquakes. This means there is enough time to reach safety before every strong earthquake.” I mean a warning before the shaking can be felt.",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "Then we need to check two things: what an early warning system detects, and whether there really is enough time before every strong earthquake. I will keep those questions separate so that the revision does more than swap one word.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "result",
+          "title": "The task",
+          "text": "A distinction between terms and an absolute promise need checking. The full paragraph remains visible as context."
+        },
+        {
+          "type": "note",
+          "title": "What this teaches",
+          "text": "The follow-up changes the research task: both “predict” and “enough time before every strong earthquake” need checking."
+        }
+      ],
+      "file": "index.en.html"
+    },
+    {
+      "label": "2 · The source",
+      "title": "What does the source support?",
+      "lead": "A suitable source must address the particular claim made in the text.",
+      "blocks": [
+        {
+          "type": "message",
+          "text": "The Swiss Seismological Service at ETH Zurich distinguishes earthquake prediction from early warning in its FAQ. It explains that early warning processes measurements of an earthquake that has already started. A warning can reach more distant areas before the shaking arrives there. [Q1]",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "message",
+          "text": "Is that a research study? And does it let me keep the word “reliably”?",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "It is an expert overview from the seismological service, not an individual original research study. It suits the basic distinction. However, it does not establish an overall reliability rate or a promise for every location. For that, we would need to examine a particular system and its performance data.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "table",
+          "title": "Source and scope",
+          "rows": [
+            [
+              "Q1 · Publisher",
+              "Swiss Seismological Service (SED) at ETH Zurich; institutional expert information."
+            ],
+            [
+              "Location",
+              "FAQ “Can earthquakes be predicted?”, introduction and the “Earthquake early warning” section."
+            ],
+            [
+              "Currency",
+              "Accessed on 10 November 2026. The page consulted does not display a publication or revision date. The access date is not a publication date."
+            ],
+            [
+              "Scope",
+              "Basic principles and limits of early warning; not an exhaustive review of systems or recent research."
+            ]
+          ]
+        },
+        {
+          "type": "note",
+          "title": "Actually consulted",
+          "text": "The expert information is real and linked below. The conversation is simulated. No second confirming source or complete literature review is claimed."
+        }
+      ],
+      "file": "01-quellen.en.html"
+    },
+    {
+      "label": "3 · Finding and proposal",
+      "title": "Make the claim more precise",
+      "lead": "A useful revision explains which overstatement it removes.",
+      "blocks": [
+        {
+          "type": "message",
+          "text": "The sentence conflates prediction and early warning. The conclusion about “every” earthquake also goes beyond the source. I suggest: “Earthquake early warning systems detect an earthquake that has already started. Under suitable conditions, they can issue a warning before stronger shaking reaches a more distant location.” [Q1]",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "message",
+          "text": "That is more precise. But I do not want readers to assume they can always react in time, wherever they are.",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "Then let us add an explicit limit: “This does not guarantee a timely warning at every location.” We would remove the original final sentence. The source describes a limit related to distance; I will not add a specific number of seconds without reference to a particular system.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "table",
+          "title": "From finding to revision",
+          "rows": [
+            [
+              "“reliably predict”",
+              "Replace with detection of an earthquake that has already started."
+            ],
+            [
+              "“enough time before every…”",
+              "Remove; a warning at every location is not guaranteed."
+            ],
+            [
+              "New figures or success rates",
+              "Do not add: this task has not established sufficient evidence for them."
+            ]
+          ]
+        },
+        {
+          "type": "result",
+          "title": "Proposed change, not yet applied",
+          "text": "The source supports a more precise explanation. It does not become evidence for another blanket assurance of safety."
+        }
+      ],
+      "file": "02-befund.en.html"
+    },
+    {
+      "label": "4 · In context",
+      "title": "The author decides on the paragraph",
+      "lead": "Once the facts have been checked, the whole paragraph needs to work again.",
+      "blocks": [
+        {
+          "type": "message",
+          "text": "Include that limit. Keep the opening. Show me the full paragraph with a source reference at the relevant sentence ending.",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "A revised sample paragraph: “Earthquakes often catch people unprepared. Early warning systems detect an earthquake that has already started and, under suitable conditions, can issue a warning before stronger shaking reaches more distant locations. This does not guarantee a timely warning at every location. [Q1]”",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "message",
+          "text": "That is the passage I want to use. I would also like a brief explanation of prediction alongside it, but not squeezed into this paragraph.",
+          "role": "Author"
+        },
+        {
+          "type": "message",
+          "text": "The desired version of the paragraph has now been selected within this dialogue. The additional explanation remains a separate task. I have not changed a book file or formally approved a section.",
+          "role": "GhostWriter"
+        },
+        {
+          "type": "result",
+          "title": "Editorial review",
+          "text": "The full paragraph has been reread for terminology, reasoning and readability. The absolute promise is removed; the limitation appears alongside the explanation of the method."
+        },
+        {
+          "type": "note",
+          "title": "Sample manuscript text",
+          "text": "The sample is fictional. [Q1] is an unambiguous working reference here, not an established citation style for the book."
+        }
+      ],
+      "file": "03-absatz.en.html"
+    },
+    {
+      "label": "5 · Result and limits",
+      "title": "What was checked — and what remains open?",
+      "lead": "A review note makes the scope of the work clear.",
+      "blocks": [
+        {
+          "type": "table",
+          "title": "Review note for the simulated passage",
+          "rows": [
+            [
+              "Text reviewed",
+              "The full three-sentence original paragraph from stage 1 and the revised version from stage 4."
+            ],
+            [
+              "Finding",
+              "Prediction and early warning were conflated; the conclusion promised warning time for every strong earthquake."
+            ],
+            [
+              "Revision",
+              "Clarified the terms, removed the blanket promise, added a limit and a working reference."
+            ],
+            [
+              "Evidence",
+              "One institutional expert source actually consulted; accessed on 10 November 2026. No systematic literature review."
+            ],
+            [
+              "Open items",
+              "The separate explanation of prediction; a consistent citation style; current technical evidence if specific systems are discussed."
+            ],
+            [
+              "Result",
+              "Editorial review passed with notes for this sample passage. No judgement about the entire book, no saving and no formal approval."
+            ]
+          ]
+        },
+        {
+          "type": "result",
+          "title": "Apply this to your own text",
+          "text": "Define the claim, read a suitable source, separate findings from proposals, review the whole paragraph and record the author’s decision."
+        },
+        {
+          "type": "link",
+          "url": "../zitieren/index.en.html",
+          "label": "Continue with the example: find your earlier work and cite it clearly →"
+        }
+      ],
+      "file": "04-ergebnis.en.html"
+    }
+  ]
+}

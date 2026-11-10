@@ -1,0 +1,228 @@
+{
+  "title": "Stimmt das so? – Eine Behauptung auf dem Prüfstand",
+  "slug": "recherche",
+  "purpose": "Für Schreibende mit vorhandenem Sachtext: eine überprüfbare Behauptung eingrenzen, Quellen bewerten und eine begründete Überarbeitung im Zusammenhang beurteilen.",
+  "notice": "Alle Gesprächsbeiträge und Manuskriptproben sind erfunden. Die verlinkte Fachquelle wurde für diesen Entwurf tatsächlich gelesen. Die Folge zeigt einen möglichen Arbeitsdialog, keinen ausgeführten Buchauftrag oder automatischen Faktencheck.",
+  "pages": [
+    {
+      "file": "index.html",
+      "label": "1 · Die Behauptung",
+      "title": "Ein Satz klingt überzeugend",
+      "lead": "Eine klare Formulierung kann mehr versprechen, als ihre Quelle trägt.",
+      "blocks": [
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "In meinem Sachbuch steht: „Heute können Frühwarnsysteme Erdbeben zuverlässig vorhersagen.“ Bitte prüfe die Behauptung. Wenn sie so nicht stimmt, schlag eine Änderung mit Quellen vor. Noch nichts im Manuskript ersetzen."
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Ich prüfe dabei vor allem das Wort „vorhersagen“: Meinst du eine Ankündigung vor Beginn des Bebens oder eine Warnung, wenn das Beben bereits begonnen hat? Für den Abgleich brauche ich auch den Absatz."
+        },
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Der Absatz lautet: „Erdbeben treffen Menschen oft unvorbereitet. Heute können Frühwarnsysteme Erdbeben zuverlässig vorhersagen. Deshalb bleibt vor jedem starken Beben genug Zeit, sich in Sicherheit zu bringen.“ Ich meine eine Warnung vor den spürbaren Erschütterungen."
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Dann prüfen wir zwei Aussagen: Was ein Frühwarnsystem erkennt und ob wirklich vor jedem starken Beben genügend Zeit bleibt. Ich trenne diese Fragen, damit die Korrektur nicht nur ein Wort austauscht."
+        },
+        {
+          "type": "result",
+          "title": "Der Prüfauftrag",
+          "text": "Eine Begriffsklärung und ein absolutes Versprechen stehen zur Prüfung. Der ganze Absatz bleibt als Zusammenhang sichtbar."
+        },
+        {
+          "type": "note",
+          "title": "Was hier gelernt wird",
+          "text": "Die Rückfrage verändert den Rechercheauftrag: Neben „vorhersagen“ ist auch „vor jedem starken Beben genug Zeit“ zu prüfen."
+        }
+      ]
+    },
+    {
+      "file": "01-quellen.html",
+      "label": "2 · Die Quelle",
+      "title": "Was trägt die Fachquelle?",
+      "lead": "Eine passende Quelle muss genau die Behauptung behandeln, die im Text steht.",
+      "blocks": [
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Die FAQ des Schweizerischen Erdbebendienstes an der ETH Zürich unterscheidet Erdbebenvorhersage und Frühwarnung. Sie erläutert: Frühwarnung verarbeitet Messungen eines bereits begonnenen Bebens. Die Warnung kann weiter entfernte Gebiete vor den dort eintreffenden Erschütterungen erreichen. [Q1]"
+        },
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Ist das eine Forschungsstudie? Und kann ich damit das Wort „zuverlässig“ stehen lassen?"
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Es ist eine fachliche Übersicht des zuständigen Erdbebendienstes, keine einzelne Originalstudie. Für die grundlegende Unterscheidung ist sie passend. Sie belegt aber keine allgemeine Zuverlässigkeitsquote und kein Versprechen für jeden Ort. Dafür müssten wir ein bestimmtes System und dessen Leistungsdaten untersuchen."
+        },
+        {
+          "type": "table",
+          "title": "Quelle und Prüfgrenze",
+          "rows": [
+            [
+              "Q1 · Herkunft",
+              "Schweizerischer Erdbebendienst (SED) an der ETH Zürich; institutionelle Fachinformation."
+            ],
+            [
+              "Fundstelle",
+              "FAQ „Können Erdbeben vorhergesagt werden?“, Einleitung und Abschnitt „Erdbebenfrühwarnung“."
+            ],
+            [
+              "Aktualität",
+              "Abgerufen am 10. November 2026. Ein Veröffentlichungs- oder Änderungsdatum ist auf der gelesenen Seite nicht ausgewiesen. Das Abrufdatum ist kein Publikationsdatum."
+            ],
+            [
+              "Reichweite",
+              "Grundprinzip und Grenzen der Frühwarnung; keine umfassende Recherche aller Systeme oder neuer Forschungsarbeiten."
+            ]
+          ]
+        },
+        {
+          "type": "note",
+          "title": "Tatsächlich konsultiert",
+          "text": "Die Fachinformation ist real und unten verlinkt. Die Gesprächssituation ist simuliert. Es werden weder eine zweite Quellenbestätigung noch eine vollständige Literaturrecherche behauptet."
+        }
+      ]
+    },
+    {
+      "file": "02-befund.html",
+      "label": "3 · Befund und Vorschlag",
+      "title": "Die Aussage enger fassen",
+      "lead": "Ein guter Änderungsvorschlag zeigt, welche Übertreibung er beseitigt.",
+      "blocks": [
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Der Satz vermischt Vorhersage und Frühwarnung. Auch die Folgerung mit „vor jedem“ geht über die Quelle hinaus. Ich schlage vor: „Erdbebenfrühwarnsysteme erkennen ein bereits begonnenes Beben. Unter geeigneten Bedingungen können sie warnen, bevor die stärkeren Erschütterungen einen weiter entfernten Ort erreichen.“ [Q1]"
+        },
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Das ist genauer. Aber ich möchte den Lesern nicht suggerieren, dass sie überall noch rechtzeitig reagieren können."
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Dann ergänzen wir eine ausdrückliche Grenze: „Eine rechtzeitige Warnung an jedem Ort ist damit nicht garantiert.“ Den ursprünglichen Schlusssatz streichen wir. Die Quelle beschreibt eine räumliche Grenze der Frühwarnung; eine konkrete Zahl an Sekunden ergänze ich ohne Systembezug nicht."
+        },
+        {
+          "type": "table",
+          "title": "Vom Befund zur Änderung",
+          "rows": [
+            [
+              "„zuverlässig vorhersagen“",
+              "Ersetzen durch das Erkennen eines bereits begonnenen Bebens."
+            ],
+            [
+              "„vor jedem … genug Zeit“",
+              "Streichen; eine Warnung an jedem Ort ist nicht garantiert."
+            ],
+            [
+              "Neue Zahlen oder Erfolgsquoten",
+              "Nicht ergänzen: Dafür fehlt in diesem Prüfauftrag ein hinreichender Beleg."
+            ]
+          ]
+        },
+        {
+          "type": "result",
+          "title": "Änderungsvorschlag, noch keine Übernahme",
+          "text": "Die Quelle trägt eine präzisere Erklärung. Sie wird nicht zum Beleg für eine neue pauschale Sicherheitszusage."
+        }
+      ]
+    },
+    {
+      "file": "03-absatz.html",
+      "label": "4 · Im Zusammenhang",
+      "title": "Der Autor entscheidet über den Absatz",
+      "lead": "Nach der Sachprüfung muss auch der ganze Absatz wieder stimmen.",
+      "blocks": [
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "Nimm die Einschränkung dazu. Der Einstieg darf bleiben. Zeig mir den ganzen Absatz mit einem Quellenhinweis am passenden Satzende."
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Als überarbeitete Manuskriptprobe: „Erdbeben treffen Menschen oft unvorbereitet. Frühwarnsysteme erkennen ein Beben, das bereits begonnen hat, und können unter geeigneten Bedingungen warnen, bevor stärkere Erschütterungen weiter entfernte Orte erreichen. Eine rechtzeitige Warnung an jedem Ort ist damit nicht garantiert. [Q1]“"
+        },
+        {
+          "type": "message",
+          "role": "Autor",
+          "text": "So möchte ich die Passage verwenden. Die Vorhersage würde ich gern daneben kurz erklären, aber nicht noch in diesen Absatz packen."
+        },
+        {
+          "type": "message",
+          "role": "GhostWriter",
+          "text": "Für den Absatz ist die gewünschte Fassung damit im Dialog gewählt. Die zusätzliche Erklärung bleibt ein eigener Arbeitsauftrag. Ich habe keine Buchdatei verändert und keine Abschnittsfreigabe erteilt."
+        },
+        {
+          "type": "result",
+          "title": "Redaktioneller Abgleich",
+          "text": "Der vollständige Absatz wurde erneut auf Begriffe, Folgerung und Lesbarkeit geprüft. Das absolute Versprechen entfällt; die Einschränkung steht direkt beim erläuterten Verfahren."
+        },
+        {
+          "type": "note",
+          "title": "Manuskriptprobe",
+          "text": "Die Textprobe ist erfunden. [Q1] ist hier ein eindeutiger Arbeitsbeleg und noch kein festgelegter Zitierstil des Buchs."
+        }
+      ]
+    },
+    {
+      "file": "04-ergebnis.html",
+      "label": "5 · Ergebnis und Grenzen",
+      "title": "Was wurde geprüft – was bleibt offen?",
+      "lead": "Ein Prüfvermerk macht den Umfang der Arbeit nachvollziehbar.",
+      "blocks": [
+        {
+          "type": "table",
+          "title": "Prüfvermerk zur simulierten Passage",
+          "rows": [
+            [
+              "Geprüfter Text",
+              "Der vollständige dreisätzige Ausgangsabsatz aus Station 1 und die neue Fassung aus Station 4."
+            ],
+            [
+              "Befund",
+              "Vorhersage und Frühwarnung waren vermischt; der Schluss versprach eine Warnzeit für jedes starke Beben."
+            ],
+            [
+              "Korrektur",
+              "Begriffe präzisiert, pauschales Versprechen gestrichen, Einschränkung und Arbeitsbeleg ergänzt."
+            ],
+            [
+              "Quellenstand",
+              "Eine institutionelle Fachquelle tatsächlich konsultiert; Abruf am 10. November 2026. Keine systematische Literaturübersicht."
+            ],
+            [
+              "Offen",
+              "Die gesonderte Erklärung zur Vorhersage; einheitlicher Zitierstil; bei konkreten Systemaussagen deren aktuelle technische Belege."
+            ],
+            [
+              "Ergebnis",
+              "Redaktionell bestanden mit Hinweisen für diese Beispielpassage. Keine Aussage über das gesamte Buch, keine Speicherung und keine formale Freigabe."
+            ]
+          ]
+        },
+        {
+          "type": "result",
+          "title": "Zum eigenen Text mitnehmen",
+          "text": "Behauptung eingrenzen, passende Quelle lesen, Befund und Vorschlag trennen, den ganzen Absatz prüfen und die Entscheidung des Autors festhalten."
+        },
+        {
+          "type": "link",
+          "url": "../zitieren/index.html",
+          "label": "Mit dem Beispiel weiter: Eigenes wiederfinden und richtig zitieren →"
+        }
+      ]
+    }
+  ]
+}
