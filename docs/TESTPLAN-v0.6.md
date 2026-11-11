@@ -17,7 +17,7 @@ Legende: ✅ bestanden · ⏳ offen · — nicht anwendbar
 
 | Prüfung | Fork | Wo |
 |---|---|---|
-| Nächtliches bzw. von Hand gestartetes Update bringt 0.6.0; Buch unverändert | ⏳ | Actions → GhostWriter aktualisieren |
+| Nächtliches bzw. von Hand gestartetes Update bringt 0.6.x (aktuell 0.6.1); Buch unverändert | ⏳ | Actions → GhostWriter aktualisieren |
 | Migration der Datenversion gemeldet (Commit-Nachricht, Hinweis im Chat) | ⏳ | Chat |
 | Link auf das Repository zeigt weiter direkt die Projektübersicht (Einzelbuch) | ⏳ | Chat |
 | Arbeits-Branch `ghostwriter/main` wird vom Update nicht angefasst | ⏳ | Actions-Zusammenfassung |

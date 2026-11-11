@@ -3,7 +3,7 @@ id: ghostwriter-book-workflow
 language: de
 
 product_roadmap:
-  current_target: "v0.5"
+  current_target: "v0.6"   # Programmversion siehe ghostwriter-manifest.yml; Abnahme v0.6 in #41
   v0_5:
     purpose: usable_basics
     scope: [project_create_and_setup, chapter_create_and_setup, chapter_and_section_editing, book_edition_create, book_export_pdf_docx_epub, ai_runs_immediate_in_chat]

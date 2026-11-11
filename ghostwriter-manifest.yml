@@ -13,7 +13,7 @@ name: GhostWriter
 
 # Programmversion. Wird beim Merge eines Versionsschritts nach main erhöht.
 # Ein Buch wird nie auf eine ältere Version zurückgesetzt.
-version: 0.6.0
+version: 0.6.1
 
 upstream:
   repo: ploeffler/GhostWriter
