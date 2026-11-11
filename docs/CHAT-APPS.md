@@ -57,6 +57,16 @@ Dazu kommt je Repository das **Assistenten-Profil** `assistant.yml` mit dem dara
 
 **Grenzen:** Automatisch geladen wird das nur von Assistenten mit Zugriff auf das Repository, die diese Dateien auch lesen. In reinen Chat-Apps (ChatGPT, Gemini, Copilot, Claude ohne eingebundenes Repository) bleibt der Hinweis in `README.md` der Einstieg; der Assistent liest `START.md` und `assistant.yml` dann beim Wiedereinstieg selbst. In diese Dateien gehören keine Secrets und keine Manuskripttexte.
 
+## Skills auswählen (#261)
+
+Welcher Skill zu einer Aufgabe passt, entscheidet Claude anhand der Skill-Beschreibungen. Der Benutzer sieht das sonst nicht, und bei ähnlichen Beschreibungen ist die Wahl nicht eindeutig. Deshalb gilt für GhostWriter (`CLAUDE.md`, `AGENTS.md`, Skill `ghostwriter`):
+
+- **Wahl nennen:** Zu Beginn einer Aufgabe nennt Claude in einem Satz, welchen Skill es verwendet, oder dass keiner passt.
+- **Spezifischer vor allgemein:** Der persönliche Skill des Repositorys (`assistant.yml` → `skill`) geht vor dem allgemeinen Skill `ghostwriter`. `ghostwriter` ist für Buch- und Bibliotheks-Repositorys gedacht, nicht für Programmarbeit am Hauptrepository. Nur bei echter Mehrdeutigkeit fragt Claude einmal kurz nach.
+- **Nicht doppelt laden:** Jeder Ladevorgang setzt die ganze Anleitung erneut in den Verlauf. Das kostet Kontext, und der Verlauf wird früher zusammengefasst. Liegt die Anleitung im Gespräch noch vor, lädt Claude sie nicht erneut. Fehlt sie nach dem Zusammenfassen eines langen Verlaufs, lädt Claude sie neu und sagt das kurz.
+
+**Skills im Konto:** Skills, die im Claude-Konto liegen (nicht im Repository), kann GhostWriter nicht ändern. Haben zwei davon fast dieselbe Beschreibung (etwa ein älterer Skill für dieselbe Bibliothek neben dem erzeugten persönlichen Skill), den überzähligen in den Claude-Einstellungen unter „Skills“ entfernen. Eine Projektanweisung wie „Bestätige die Skillauswahl“ ist damit nicht mehr nötig, schadet aber nicht.
+
 ## Darstellung
 
 - **Claude** zeigt die Vorlagen als Inline-Widgets. Der Assistent gibt nur eine Ladezeile für `ghostwriter-ui` (fester Commit, über jsDelivr) und die Daten aus; das ist deutlich kürzer als die ganze Ansicht. Ein Klick schickt die festgelegte Nachricht in den Chat.

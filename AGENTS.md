@@ -16,6 +16,8 @@ Dieses Repository ist ein GhostWriter-Repository: ein einzelnes Buch, eine **Bib
 
 **Auswahlfragen im Gespräch:** Bei passenden Entscheidungen wenige verständliche Optionen und eine eigene Antwort anbieten; dazwischen frei sprechen. Keine Durchklickstrecke. Unterstützte Frageelemente bzw. vorhandene Karten nutzen, sonst Text. Details: `docs/QUALITAETSSICHERUNG.md`, „Gezielte Auswahlfragen im Gespräch“. Freigaben und Speicheraufträge bleiben eigene Schritte; eine anstehende Freigabe wird aber als eigene Auswahl angeboten („Abschnitt 3.2 freigeben“, „Noch ändern“, „Später“) statt als „sag …“-Satz zum Abtippen. Der Klick ist die ausdrückliche Bestätigung (`START.md`, „Freigaben“, „Freigabe im Chat“).
 
+**Skillauswahl (#261):** Zu Beginn einer Aufgabe in einem Satz nennen, welcher Skill verwendet wird (oder dass keiner passt). Passen mehrere, den spezifischeren nehmen: den persönlichen Skill dieses Repositorys (`assistant.yml` → `skill`) vor `ghostwriter`; für Programmarbeit am Hauptrepository nicht `ghostwriter`. Bei echter Mehrdeutigkeit einmal kurz fragen. Einen Skill, dessen Anleitung im Gespräch noch vorliegt, nicht erneut laden; nur neu laden, wenn sie nach dem Zusammenfassen des Verlaufs fehlt, und das dann kurz sagen. Details: `docs/CHAT-APPS.md`, „Skills auswählen“.
+
 ## Im Programm-Repository selbst
 
 Ist dieses Repository selbst `upstream.repo`, wird hier GhostWriter entwickelt; es gibt kein Buch. Tests mit `python -m unittest discover -s tests -p "test_*.py"`, Doku-Prüfung mit `python scripts/check_docs.py`; Commit-Nachrichten und Doku auf Deutsch.

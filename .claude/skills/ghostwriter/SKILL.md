@@ -1,11 +1,13 @@
 ---
 name: ghostwriter
-description: Wiedereinstieg in ein GhostWriter-Repository (Buch oder Bibliothek) – Repository und Schreibzugriff prüfen, Git-Benutzer setzen, Darstellungsmodus festlegen, Bücherregal bzw. Projektübersicht zeigen, Fehler ans Hauptrepository melden. Bei jedem ersten Aufruf eines GhostWriter-Repositorys verwenden.
+description: Wiedereinstieg in ein GhostWriter-Repository (Buch oder Bibliothek) – Repository und Schreibzugriff prüfen, Git-Benutzer setzen, Darstellungsmodus festlegen, Bücherregal bzw. Projektübersicht zeigen, Fehler ans Hauptrepository melden. Bei jedem ersten Aufruf eines GhostWriter-Buch- oder Bibliotheks-Repositorys verwenden; gibt es einen persönlichen Skill für dieses Repository, gilt er zusätzlich. Nicht für Programmarbeit am Hauptrepository.
 ---
 
 # GhostWriter: Wiedereinstieg
 
 Kurzfassung von `START.md`, Abschnitt 0. Bei Abweichungen gilt `START.md`. Diese Datei kommt mit jedem Update aus dem Hauptrepository; eigene Angaben gehören in `assistant.yml` und den daraus erzeugten persönlichen Skill.
+
+**Skillauswahl (#261):** Zu Beginn einer Aufgabe in einem Satz nennen, welcher Skill verwendet wird (oder dass keiner passt). Passen mehrere, den spezifischeren nehmen: den persönlichen Skill dieses Repositorys (`assistant.yml` → `skill`) vor `ghostwriter`; für Programmarbeit am Hauptrepository nicht `ghostwriter`. Bei echter Mehrdeutigkeit einmal kurz fragen. Einen Skill, dessen Anleitung im Gespräch noch vorliegt, nicht erneut laden; nur neu laden, wenn sie nach dem Zusammenfassen des Verlaufs fehlt, und das dann kurz sagen. Details: `docs/CHAT-APPS.md`, „Skills auswählen“.
 
 **Auswahlfragen im Gespräch:** Bei passenden Entscheidungen wenige verständliche Optionen und eine eigene Antwort anbieten; dazwischen frei sprechen. Keine Durchklickstrecke. Unterstützte Frageelemente bzw. vorhandene Karten nutzen, sonst Text. Details: `docs/QUALITAETSSICHERUNG.md`, „Gezielte Auswahlfragen im Gespräch“. Freigaben und Speicheraufträge bleiben eigene Schritte; eine anstehende Freigabe wird aber als eigene Auswahl angeboten („Abschnitt 3.2 freigeben“, „Noch ändern“, „Später“) statt als „sag …“-Satz zum Abtippen. Der Klick ist die ausdrückliche Bestätigung (`START.md`, „Freigaben“, „Freigabe im Chat“).
 

@@ -46,6 +46,16 @@ GhostWriter repositories include `CLAUDE.md`, `AGENTS.md` and the general `.clau
 
 Automatic loading depends on the assistant having repository access and actually supporting those files. Otherwise, the assistant must read `START.md` and `assistant.yml` as appropriate. Do not put secrets or manuscript text in these instruction files.
 
+## Choosing skills (#261)
+
+Claude picks a skill from the skill descriptions. Users normally do not see that choice, and similar descriptions make it ambiguous. GhostWriter therefore asks (`CLAUDE.md`, `AGENTS.md`, `ghostwriter` skill):
+
+- **Name the choice:** at the start of a task, Claude states in one sentence which skill it uses, or that none fits.
+- **Specific before general:** the repository's personal skill (`assistant.yml` → `skill`) comes before the general `ghostwriter` skill. `ghostwriter` is meant for book and library repositories, not for program work on the main repository. Claude asks once only if the choice is genuinely ambiguous.
+- **Do not load twice:** each load puts the whole instructions into the conversation again, which costs context and makes summarising happen sooner. If the instructions are still in the conversation, Claude does not reload them; if they were lost when a long conversation was summarised, Claude reloads them and says so briefly.
+
+**Account skills:** skills stored in the Claude account rather than in the repository cannot be changed by GhostWriter. If two of them have nearly the same description, remove the redundant one in Claude's settings under “Skills”. A project instruction such as “Confirm the skill choice” is then no longer needed but does no harm.
+
 ## Display
 
 Claude sessions that support inline widgets can use the pinned `ghostwriter-ui` script and data. Other sessions use text or their own supported native chat elements. Do not assume an app can display a widget merely because the template exists. The English chat mode currently uses text or native chat elements; all graphical templates also have English labels for explicitly selected previews.
