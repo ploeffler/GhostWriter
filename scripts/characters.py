@@ -65,7 +65,7 @@ def block(items):
         return ''
     out = ['characters:']
     for i in items:
-        name = yaml.safe_dump(i['name'], allow_unicode=True).splitlines()[0]
+        name = yaml.safe_dump(i['name'], allow_unicode=True, width=10**6).splitlines()[0]
         out += [f'- id: {i["id"]}', f'  name: {name}', f'  path: {i["path"]}']
     return '\n'.join(out) + '\n'
 
@@ -102,10 +102,10 @@ def add(base, name, role='main', short=''):
         n += 1
     item = {'id': cid, 'name': name, 'path': f'characters/{cid}.md'}
     tpl = (ROOT / 'templates' / 'character.md').read_text(encoding='utf-8')
-    qname = yaml.safe_dump(name, allow_unicode=True, default_style='"').splitlines()[0]
+    qname = yaml.safe_dump(name, allow_unicode=True, default_style='"', width=10**6).splitlines()[0]
     body = (tpl.replace('<char-ID>', cid).replace('"<NAME>"', qname).replace('# <NAME>', f'# {name}')
             .replace('role: main   # main (Hauptfigur) | supporting (Nebenfigur) | minor (Randfigur)', f'role: {role}')
-            .replace('short: ""', 'short: ' + yaml.safe_dump(short or '', allow_unicode=True, default_style='"').splitlines()[0]))
+            .replace('short: ""', 'short: ' + yaml.safe_dump(short or '', allow_unicode=True, default_style='"', width=10**6).splitlines()[0]))
     (base / 'characters').mkdir(exist_ok=True)
     (base / item['path']).write_text(body, encoding='utf-8')
     write_list(base, items + [item])

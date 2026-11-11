@@ -52,7 +52,7 @@ def area_block(key, items):
     """YAML-Block `  <key>:` mit den Einträgen, eingerückt wie structure.chapters."""
     out = [f'  {key}:']
     for i in items:
-        out += [f'  - id: {i["id"]}', f'    kind: {i["kind"]}', f'    title: {yaml.safe_dump(i["title"], allow_unicode=True).splitlines()[0]}',
+        out += [f'  - id: {i["id"]}', f'    kind: {i["kind"]}', f'    title: {yaml.safe_dump(i["title"], allow_unicode=True, width=10**6).splitlines()[0]}',
                 f'    path: {i["path"]}']
     return '\n'.join(out) + '\n'
 
@@ -91,7 +91,7 @@ def add(base, kind, title=None):
     if (yaml.safe_load(new)['structure'].get(MATTER_AREAS[area]) or []) != items:
         raise SystemExit('ghostwriter.yml ließ sich nicht sicher ändern; bitte von Hand eintragen.')
     tpl = (ROOT / 'templates' / 'matter.md').read_text(encoding='utf-8')
-    head = yaml.safe_dump(title, allow_unicode=True).splitlines()[0]
+    head = yaml.safe_dump(title, allow_unicode=True, width=10**6).splitlines()[0]
     body = re.sub(r'(?m)^kind: <ART>.*$', f'kind: {kind}', tpl.replace('<mat-ID>', item['id']))
     body = body.replace('"<TITEL>"', head).replace('# <TITEL>', f'# {title}')
     if kind == 'glossary':

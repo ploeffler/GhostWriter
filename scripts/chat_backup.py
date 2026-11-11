@@ -148,6 +148,9 @@ def pr_info(repo, number, cwd=None):
     return {'number': pr['number'], 'url': pr['html_url'], 'state': pr_state(pr),
             'headRefOid': pr['head']['sha'], 'headRefName': pr['head']['ref'],
             'baseRefOid': pr['base']['sha'], 'baseRefName': pr['base']['ref'],
+            # `base.sha` bleibt stehen, wenn der Zielbranch weiterrückt (#265); verglichen wird der echte Kopf.
+            'baseHeadOid': gh_api(repo, f'branches/{urllib.parse.quote(pr["base"]["ref"], safe="")}',
+                                  cwd=cwd)['commit']['sha'],
             'isCrossRepository': head_repo != pr['base']['repo']['full_name'],
             'mergeable': mergeable,
             'mergeStateStatus': str(pr.get('mergeable_state') or 'unknown').upper(),
@@ -333,7 +336,7 @@ def accept_once(repository, github_repo, session, expected_head, expected_base, 
     number = str(prs[0]['number'])
     pr = pr_info(github_repo, number)
     if (pr['isCrossRepository'] or pr['headRefName'] != branch or pr['headRefOid'] != expected_head
-            or pr['baseRefOid'] != expected_base or pr['mergeable'] != 'MERGEABLE'
+            or pr['baseHeadOid'] != expected_base or pr['mergeable'] != 'MERGEABLE'
             or pr['mergeStateStatus'] != 'CLEAN'):
         raise ValueError('PR-Stand geändert, konfliktbehaftet oder noch nicht übernehmbar')
     for check in pr.get('statusCheckRollup') or []:
@@ -406,7 +409,7 @@ def accept(repository, github_repo, session, expected_head, expected_base, *, co
             if pr['state'] == 'MERGED' and pr.get('mergeCommit'):
                 return {'status': 'merged', 'session': session, 'pr': pr['url'],
                         'commit': pr['mergeCommit']['oid'], 'recovery': 'Bereits erfolgten Merge bestätigt'}
-            if pr['baseRefOid'] != expected_base:
+            if pr['baseHeadOid'] != expected_base:
                 diagnosis.update(diagnosis='Zielstand geändert', next_step='Vergleich auf neuer Basis prüfen und bestätigen.')
                 return diagnosis
             if pr['mergeable'] == 'CONFLICTING':

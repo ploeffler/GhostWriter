@@ -84,7 +84,7 @@ class BackupTest(unittest.TestCase):
         def info(repo, number, cwd=None):
             if merged:
                 return {'state': 'MERGED', 'mergeCommit': {'oid': 'a' * 40}, 'url': 'pr/1'}
-            return {'headRefOid': first['head'], 'baseRefOid': self.base,
+            return {'headRefOid': first['head'], 'baseRefOid': self.base, 'baseHeadOid': self.base,
                     'baseRefName': 'main', 'headRefName': first['branch'],
                     'mergeable': 'MERGEABLE', 'mergeStateStatus': 'CLEAN', 'url': 'pr/1',
                     'isCrossRepository': False, 'statusCheckRollup': []}
@@ -111,8 +111,52 @@ class BackupTest(unittest.TestCase):
                 cb.accept_once(str(self.remote), 'test/repo', 'test-session', first['head'], self.base, confirmed=True)
 
 
+    def test_accept_after_target_branch_moved_on(self):
+        """#265: Zielbranch nach dem Anlegen des PRs weitergerückt, keine Konflikte."""
+        first = self.save()
+        self.git('checkout', '-q', 'main')
+        (self.work / 'kapitel.md').write_text('Anderes Änderungspaket')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'Andere Übernahme')
+        self.git('push', '-q', 'origin', 'main')
+        moved = self.git('rev-parse', 'HEAD')
+        merged = []
+        def info(repo, number, cwd=None):
+            if merged:
+                return {'state': 'MERGED', 'mergeCommit': {'oid': 'a' * 40}, 'url': 'pr/1'}
+            # GitHub meldet in `base.sha` weiter den alten Stand.
+            return {'state': 'OPEN', 'headRefOid': first['head'], 'baseRefOid': self.base, 'baseHeadOid': moved,
+                    'baseRefName': 'main', 'headRefName': first['branch'],
+                    'mergeable': 'MERGEABLE', 'mergeStateStatus': 'CLEAN', 'url': 'pr/1',
+                    'isCrossRepository': False, 'statusCheckRollup': []}
+        def api(repo, path, *fields, method='GET', **kwargs):
+            merged.append(path)
+        with patch.multiple(cb, find_prs=lambda *a, **k: [{'number': 1}], pr_info=info, gh_api=api):
+            result = cb.accept(str(self.remote), 'test/repo', 'test-session', first['head'], moved, confirmed=True)
+            self.assertEqual(result['status'], 'merged')
+            merged.clear()
+            stale = cb.accept(str(self.remote), 'test/repo', 'test-session', first['head'], self.base, confirmed=True)
+        self.assertEqual(stale['diagnosis'], 'Zielstand geändert')
+        self.assertEqual(merged, [])
+
+    def test_pr_info_reads_current_target_head(self):
+        pr = {'number': 1, 'html_url': 'pr/1', 'state': 'open', 'merged': False, 'merged_at': None,
+              'head': {'sha': 'b' * 40, 'ref': 'ghostwriter/chat/x', 'repo': {'full_name': 'o/r'}},
+              'base': {'sha': self.base, 'ref': 'buch/mein buch', 'repo': {'full_name': 'o/r'}},
+              'mergeable': True, 'mergeable_state': 'clean', 'merge_commit_sha': None}
+        calls = []
+        def api(repo, path, *fields, **kwargs):
+            calls.append(path)
+            if path.startswith('branches/'):
+                return {'commit': {'sha': 'c' * 40}}
+            return pr if path == 'pulls/1' else {}
+        with patch.object(cb, 'gh_api', side_effect=api):
+            info = cb.pr_info('o/r', '1')
+        self.assertEqual((info['baseRefOid'], info['baseHeadOid']), (self.base, 'c' * 40))
+        self.assertIn('branches/buch%2Fmein%20buch', calls)
+
     def test_recovery_reports_failed_check_without_merging(self):
-        pr = {'state': 'OPEN', 'headRefOid': self.base, 'baseRefOid': self.base,
+        pr = {'state': 'OPEN', 'headRefOid': self.base, 'baseRefOid': self.base, 'baseHeadOid': self.base,
               'mergeable': 'MERGEABLE', 'mergeStateStatus': 'BLOCKED', 'url': 'pr/1',
               'statusCheckRollup': [{'name': 'validate', 'conclusion': 'FAILURE', 'detailsUrl': 'run/1'}]}
         with patch.object(cb, 'accept_once', side_effect=ValueError('Check fehlgeschlagen')) as attempt, \
@@ -124,7 +168,7 @@ class BackupTest(unittest.TestCase):
         self.assertEqual(attempt.call_count, 1)
 
     def test_recovery_confirms_merge_after_connection_failure(self):
-        pr = {'state': 'MERGED', 'headRefOid': self.base, 'baseRefOid': self.base,
+        pr = {'state': 'MERGED', 'headRefOid': self.base, 'baseRefOid': self.base, 'baseHeadOid': self.base,
               'mergeCommit': {'oid': 'b' * 40}, 'url': 'pr/1'}
         with patch.object(cb, 'accept_once', side_effect=ValueError('Verbindung')) as attempt, \
              patch.object(cb, 'find_prs', return_value=[{'number': 1}]), \
@@ -134,7 +178,7 @@ class BackupTest(unittest.TestCase):
         self.assertEqual(attempt.call_count, 1)
 
     def test_recovery_retries_only_same_confirmed_head_and_base(self):
-        pr = {'state': 'OPEN', 'headRefOid': self.base, 'baseRefOid': self.base,
+        pr = {'state': 'OPEN', 'headRefOid': self.base, 'baseRefOid': self.base, 'baseHeadOid': self.base,
               'mergeable': 'MERGEABLE', 'mergeStateStatus': 'CLEAN', 'url': 'pr/1'}
         with patch.object(cb, 'accept_once', side_effect=[ValueError('Transport'), {'status': 'merged'}]) as attempt, \
              patch.object(cb, 'find_prs', return_value=[{'number': 1}]), \
@@ -142,7 +186,7 @@ class BackupTest(unittest.TestCase):
             result = cb.accept(str(self.remote), 'test/repo', 'test-session', self.base, self.base, confirmed=True)
         self.assertEqual(result['status'], 'merged')
         self.assertEqual(attempt.call_count, 2)
-        pr['baseRefOid'] = 'c' * 40
+        pr['baseHeadOid'] = 'c' * 40
         with patch.object(cb, 'accept_once', side_effect=ValueError('Neu')) as attempt, \
              patch.object(cb, 'find_prs', return_value=[{'number': 1}]), \
              patch.object(cb, 'pr_info', return_value=pr):
@@ -152,7 +196,7 @@ class BackupTest(unittest.TestCase):
 
 
     def test_recovery_waits_for_pending_checks_via_rest(self):
-        pr = {'state': 'OPEN', 'headRefOid': self.base, 'baseRefOid': self.base,
+        pr = {'state': 'OPEN', 'headRefOid': self.base, 'baseRefOid': self.base, 'baseHeadOid': self.base,
               'mergeable': 'UNKNOWN', 'mergeStateStatus': 'UNKNOWN', 'url': 'pr/1', 'statusCheckRollup': []}
         with patch.object(cb, 'accept_once', side_effect=[ValueError('noch offen'), {'status': 'merged'}]), \
              patch.object(cb, 'find_prs', return_value=[{'number': 1}]), \
@@ -186,6 +230,8 @@ class BackupTest(unittest.TestCase):
                 return json.dumps({'check_runs': [
                     {'name': 'validate', 'status': 'completed', 'conclusion': 'success', 'details_url': 'u'},
                     {'name': 'lang', 'status': 'in_progress', 'conclusion': None}]})
+            if '/branches/' in url:
+                return json.dumps({'commit': {'sha': 'd' * 40}})
             if url.endswith('/status'):
                 return json.dumps({'statuses': [{'context': 'ci', 'state': 'failure', 'target_url': 't'}]})
             return json.dumps(pull)
@@ -202,7 +248,7 @@ class BackupTest(unittest.TestCase):
                          ['SUCCESS', 'IN_PROGRESS', 'FAILURE'])
         self.assertTrue(cb.pending(info))
         fork = {**pull, 'head': {**pull['head'], 'repo': None}, 'mergeable': None}
-        with patch.object(cb, 'gh_api', side_effect=[fork, {}, {}]):
+        with patch.object(cb, 'gh_api', side_effect=[fork, {'commit': {'sha': 'd' * 40}}, {}, {}]):
             other = cb.pr_info('o/r', '7')
         self.assertTrue(other['isCrossRepository'])
         self.assertEqual(other['mergeable'], 'UNKNOWN')
