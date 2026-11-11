@@ -232,6 +232,16 @@ An passenden Entscheidungspunkten häufiger kurze Auswahlfragen verwenden, beson
 - Schon beantwortete Fragen nicht erneut stellen. Zusammengehörige Fragen nur dann bündeln, wenn das die Entscheidung erleichtert. Nicht für jede Kleinigkeit unterbrechen und keine langen Durchklickstrecken erzeugen.
 - Ein Auswahlvorschlag ist noch keine Entscheidung. Ausbleibende Antwort und vorausgewählte Optionen gelten nicht als Zustimmung. Stilentscheidungen ersetzen weder Schreib-/Textfreigaben noch einen gesonderten Speicher-, Übernahme- oder Veröffentlichungsauftrag.
 
+**Freigaben als Auswahl (#266):** Anstehende Freigaben – Schreibfreigabe, Abschnitts- und Kapitelfreigabe, Rücknahmen und „Änderungen übernehmen“ – werden ebenfalls als Auswahl angeboten statt als Aufforderung, einen Satz wie „sag ‚Abschnitt 3.2 freigeben‘“ abzutippen.
+
+- Die Optionen nennen die Freigabe genau („Abschnitt 3.2 freigeben“, „Noch ändern“, „Später“); eine eigene Antwort bleibt möglich.
+- Vorher die Prüfpunkte kurz nennen. Bei einem Hindernis (⛔) keine Freigabeoption anbieten.
+- Mehrere anstehende Freigaben in einem Element einzeln oder gemeinsam („Alle freigeben“) bestätigbar machen.
+- Der Klick auf die Freigabeoption ist die ausdrückliche Bestätigung und wird wie eine getippte Freigabe in `approvals.yml` festgehalten. Keine vorausgewählte Option, kein Zeitablauf, keine Freigabe ohne Klick oder eindeutige eigene Antwort.
+- Eine Freigabeoption schließt kein Speichern, Übernehmen oder Veröffentlichen mit ein; das bleibt je eine eigene Auswahl.
+
+Einzelheiten: `START.md`, „Freigaben“, „Freigabe im Chat“.
+
 Beispiel: „Wie möchtest du Kapitel 1 erarbeiten?“ – „Eigenen Text einbringen“, „Gemeinsam Szene für Szene“ oder „Einen ganzen Kapitelentwurf besprechen“; ergänzt um die Möglichkeit einer eigenen Antwort. Die Auswahl klärt die Arbeitsweise und startet nicht automatisch eine Texterstellung oder Speicherung.
 
 
