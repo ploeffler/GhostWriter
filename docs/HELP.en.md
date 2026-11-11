@@ -22,6 +22,7 @@ Enter **Help** in the chat for a short list of commands and shortcuts for the cu
 | `Images 2.3` | Manage section images |
 | `Output` or `Cover` | Open output options |
 | `Proof` | Build a preview; no published edition |
+| `Export manuscript` | PDF of the working state to download; planned content as bullet points |
 | `Edition` | Open the new-edition form |
 | `Text only` | Switch to text views |
 | `Simple mode` | Short, plain answers |

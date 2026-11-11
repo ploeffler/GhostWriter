@@ -113,6 +113,25 @@ function Div(el)
   return DivMatter(el)
 end
 
+-- „Manuskript ausgeben“ (#260, scripts/assemble.py): ::: geplant … ::: für Abschnitte ohne Text
+--   LaTeX/PDF: Kasten gwgeplant (header.tex) · DOCX: Absatzformat „Geplant“ · EPUB/HTML: <div class="geplant">
+local DivSigned = Div
+function Div(el)
+  if el.classes:includes('geplant') then
+    if FORMAT:match('latex') then
+      local out = { pandoc.RawBlock('latex', '\\begin{gwgeplant}') }
+      for _, b in ipairs(el.content) do table.insert(out, b) end
+      table.insert(out, pandoc.RawBlock('latex', '\\end{gwgeplant}'))
+      return out
+    elseif FORMAT:match('docx') then
+      el.attributes['custom-style'] = 'Geplant'
+      return el
+    end
+    return nil
+  end
+  return DivSigned(el)
+end
+
 -- Initialen am Kapitelanfang (#68, typesetting.initials; build_edition setzt -M gw-initials=true)
 --   Erster Absatz nach jeder Kapitelüberschrift (Ebene 1, nicht unnummeriert):
 --   LaTeX/PDF: \lettrine{E}{rstes} … · EPUB/HTML: <div class="initial"> (CSS ::first-letter) · DOCX: unverändert

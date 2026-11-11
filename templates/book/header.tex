@@ -20,3 +20,9 @@
 \newcommand{\gwstatus}[1]{{\sffamily\small\itshape\color{black!55}#1}}
 % Widmung (#57): eigene rechte Seite ohne Kopf und Seitenzahl, zentriert, kursiv
 \newenvironment{gwwidmung}{\cleardoubleemptypage\thispagestyle{empty}\null\vspace{0.22\textheight}\begin{center}\itshape}{\end{center}\cleardoubleemptypage}
+% „Manuskript ausgeben“ (#260): Kasten für Abschnitte ohne Text (Div geplant)
+\newtcolorbox{gwgeplant}{
+  breakable, enhanced, colback=black!2, colframe=black!30, boxrule=0.4pt, arc=1.5pt,
+  left=8pt, right=8pt, top=5pt, bottom=5pt, before skip=8pt, after skip=10pt,
+  fontupper=\small\sffamily, borderline west={2pt}{0pt}{black!45},
+}

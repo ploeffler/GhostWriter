@@ -37,6 +37,7 @@ Akzeptiere zusätzlich zu den deutschen Befehlen die folgenden englischen Entspr
 | `Front and back matter`, `Images 3.2` | `Vor- und Nachspann`, `Bilder 3.2` |
 | `Suggest characters`, `Characters`, `Character <Name>` | `Figuren vorschlagen`, `Figuren`, `Figur <Name>` |
 | `Proof`, `Edition`, `Settings`, `AI services` | `Probedruck`, `Auflage`, `Einstellungen`, `KI-Dienste` |
+| `Export manuscript`, `Export manuscript chapter 3` | `Manuskript ausgeben`, `Manuskript ausgeben Kapitel 3` |
 | `Update`, `Data`, `Profile`, `AI disclosure` | `Update`, `Daten`, `Profil`, `KI-Angabe` |
 | `Output`, `Output options`, `Cover` | `Ausgabe`, `Ausgabeoptionen`, `Umschlag` |
 | `Text only`, `Widgets` | `Nur Text`, `Widgets` |
@@ -201,7 +202,7 @@ GhostWriter aktualisiert sich selbst (`docs/UPDATES.md`): Die Programmdateien un
 
 Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzform `gw:view.section section_id=…` oder, bei Formularen mit Eingaben, als Block `gw` mit JSON (Format in `templates/ui/BEFUELLUNG.md`). Werte die Daten aus und antworte mit der Ansicht oder dem Formular, das die Aktionstabelle in `templates/ui/BEFUELLUNG.md` nennt; Aktionen, die ein Formular öffnen (`….open`, `project.edit`), sofort und ohne Rückfrage. Nach Speichern, Abbrechen oder „nichts geändert“ zeige wieder die Ansicht, aus der das Formular kam („Nach dem Formular“ in `templates/ui/BEFUELLUNG.md`); nur bei einem Fehler bleibt das Formular. Freie Eingaben ohne Block bleiben erlaubt.
 
-**Befehle** (gelten jederzeit, in jeder Ansicht und auch in der Textfassung; Groß- und Kleinschreibung egal). Ansichts- und Formularbefehle speichern nichts; ausdrücklich beauftragte Aktionen wie „Probedruck“, „Session sichern“ und „Session übernehmen“ führen ihren beschriebenen Ablauf aus:
+**Befehle** (gelten jederzeit, in jeder Ansicht und auch in der Textfassung; Groß- und Kleinschreibung egal). Ansichts- und Formularbefehle speichern nichts; ausdrücklich beauftragte Aktionen wie „Probedruck“, „Manuskript ausgeben“, „Session sichern“ und „Session übernehmen“ führen ihren beschriebenen Ablauf aus:
 
 | Eingabe | Wirkung |
 |---|---|
@@ -215,6 +216,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Figuren`, `Figur <Name>` | Liste der Figuren bzw. das Formular einer Figur (Abschnitt 0, „Figuren“) |
 | `Neues Kapitel` | Formular „Neues Kapitel“ |
 | `Probedruck` | Probedruck starten (wie `edition.proof`) |
+| `Manuskript ausgeben`, `Manuskript ausgeben Kapitel 3` | PDF des Arbeitsstands erzeugen und als Datei im Chat übergeben; Geplantes in Stichworten (wie `manuscript.export`, unten „Manuskript ausgeben“) |
 | `Auflage` | Formular „Neue Auflage erzeugen“ |
 | `Einstellungen`, `KI-Dienste` | das jeweilige Formular |
 | `In den Buchtext einarbeiten` | besprochene Inhalte in den Manuskriptentwurf im Chat integrieren; noch keine Repository-Änderung |
@@ -463,6 +465,14 @@ Eine Auflage ist ein unveränderlicher, veröffentlichter Stand des Buchs mit PD
 **Probedruck** (`edition.proof`, Knopf „Probedruck“ im Formular „Neue Auflage“; entschieden am 01.11.2026): ein PDF des aktuellen Stands zum Lesen oder Weitergeben, **keine Auflage**. Er enthält alle Kapitel und Abschnitte, auch nicht freigegebene (mit Vermerk „Stand: …, nicht freigegeben“), offene Marker farbig hervorgehoben und in jeder Fußzeile „Probedruck – nicht zur Veröffentlichung“. Starte die Action „Probedruck“ (`.github/workflows/proof.yml`, `workflow_dispatch` mit `ref` = Buch-Branch, Formate standardmäßig PDF) wie bei `update.apply`, oder gib den Link *Actions → Probedruck → Run workflow* mit dem Hinweis, dort unter *Use workflow from* den Branch des Buchs zu wählen (in einer Bibliothek nie den Standard-Branch). Danach den Link zum Lauf; die Dateien liegen dort 14 Tage unter *Artifacts*. Kein Tag, kein Release, `current_edition` bleibt. Offene Änderungen im Arbeits-Branch sind erst nach „Buchänderungen übernehmen“ enthalten; sag das dazu.
 
 Schlägt der Bau fehl (Fehler der Action), nenne den Grund aus dem Lauf. Die Auflagennummer ist dann schon erhöht; nach der Korrektur baut „Run workflow“ mit derselben Nummer die Auflage (solange es den Tag noch nicht gibt).
+
+**Manuskript ausgeben** (`manuscript.export`, Befehl `Manuskript ausgeben` bzw. `Manuskript ausgeben Kapitel N`, #260; entschieden am 11.11.2026: eigener Befehl, Probedruck bleibt unverändert): ein PDF des Arbeitsstands zum direkten Herunterladen, **keine Auflage**. Abschnitte mit Text erscheinen wie im Probedruck; Abschnitte ohne Manuskript (leer oder „Noch nicht begonnen.“) als Kasten **„Geplant“** mit Ziel und Kurzbeschreibung in Stichworten, erledigten Recherche- und Brainstorming-Läufen und offenen Fragen daraus. Die Stichworte stammen wörtlich aus den Buchdateien (`scripts/assemble.py`, ohne KI); nichts dazu erfinden oder umformulieren. Vorn steht die Übersicht „Arbeitsstand“, in jeder Fußzeile „Manuskript … – nicht zur Veröffentlichung“.
+
+1. **Hinweis vorher, in einem Satz:** Offene Änderungen im Arbeits-Branch sind erst nach „Buchänderungen übernehmen“ enthalten. Limits wie beim Probedruck prüfen (Actions-Minuten).
+2. **Starten:** Action „Manuskript ausgeben“ (`.github/workflows/manuscript.yml`, `workflow_dispatch` mit `ref` = Buch-Branch, in einer Bibliothek nie der Standard-Branch; Eingabe `chapter` = Kapitelnummer oder leer für das ganze Buch). Ohne Startmöglichkeit den Link *Actions → Manuskript ausgeben → Run workflow* geben.
+3. **Abholen und übergeben:** Lauf-ID ermitteln (`…/actions/workflows/manuscript.yml/runs?branch=<ref>`, neuester Lauf), dann `python scripts/fetch_artifact.py <owner/repo> --run <id> --wait --out <ordner>`. Das PDF **als Datei im Chat übergeben** (Claude: Datei senden; Codex: Datei im Arbeitsordner nennen bzw. anhängen). Der Buchtext erscheint dabei nie als Chatnachricht; die Regel „Kein ganzes Buch im Chat“ bleibt gewahrt, weil das PDF in der Action entsteht.
+4. **Ersatzweg:** Kann der Client keine Befehle ausführen oder keine Dateien übergeben (z. B. ChatGPT ohne Code-Umgebung, Open WebUI), den Link zum Lauf geben: Download unter *Artifacts*, 14 Tage, GitHub-Anmeldung nötig. Das offen so sagen, nicht als direkten Download ausgeben.
+5. **Fehler:** Schlägt der Lauf fehl oder fehlt das Artifact, den Grund aus dem Lauf nennen. Kein Tag, kein Release, `current_edition` bleibt.
 
 ### Freigaben (verbindlich)
 

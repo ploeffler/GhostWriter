@@ -25,6 +25,19 @@ The original assessment refers to [Anthropic's GitHub integration help](https://
 
 The historical plan delegates creation of edition tags and releases and attachment of PDF, DOCX and EPUB files to a GitHub Action after the corresponding changes are merged.
 
+## Handing over files in the chat (#260)
+
+"Export manuscript" builds the PDF in the "Manuskript ausgeben" action; the chat fetches it with `scripts/fetch_artifact.py` and hands it over as a file. As of 11 November 2026, **not yet tested in every app**:
+
+| App | Expected path |
+|---|---|
+| Claude with a working environment | Fetch the PDF and send it as a file in the chat |
+| Codex | Place the PDF in the working folder or attach it |
+| ChatGPT (GitHub connector) | Depends on the connector and code environment; otherwise a link to the run |
+| Open WebUI | Link to the run (`dispatch_workflow` starts `manuscript.yml`) |
+
+Without file handover, the link to the run remains: download under *Artifacts*, 14 days, GitHub sign-in required.
+
 ## Automatically loaded instructions
 
 GhostWriter repositories include `CLAUDE.md`, `AGENTS.md` and the general `.claude/skills/ghostwriter/SKILL.md`; program updates maintain them. An optional `assistant.yml` profile and its generated personal skill contain repository preferences such as Git identity, author and default narrative voice. Those belong to the book and are not overwritten by program updates.
