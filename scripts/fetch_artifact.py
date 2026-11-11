@@ -13,7 +13,11 @@ nie als Chatnachricht ausgegeben (START.md, „Kein ganzes Buch im Chat“).
 
 Zugriff: über die GitHub-CLI (`gh api`), sonst über GH_TOKEN bzw. GITHUB_TOKEN aus der
 Umgebung. Der Token wird nie ausgegeben. Ausgabe: je Datei eine Zeile `✓ <pfad>`;
-Exit-Code 1, wenn der Lauf fehlschlug oder das Artifact fehlt bzw. abgelaufen ist.
+Exit-Code 1, wenn der Lauf fehlschlug oder das Artifact fehlt bzw. abgelaufen ist;
+Exit-Code 2, wenn der Lauf erfolgreich war, die Datei aber nicht geladen werden kann
+(GitHub liefert Artifacts über einen eigenen Speicher aus, z. B. *.blob.core.windows.net,
+den manche Chat-Umgebungen sperren). Dann gilt der Ersatzweg: Link zum Lauf, Download
+unter *Artifacts* (START.md, „Manuskript ausgeben“).
 """
 import argparse
 import io
@@ -30,6 +34,10 @@ from pathlib import Path
 API = 'https://api.github.com'
 
 
+class DownloadError(Exception):
+    """Die Datei des Artifacts ist von hier aus nicht erreichbar."""
+
+
 def _token():
     return os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
 
@@ -39,6 +47,8 @@ def get(path, raw=False):
     if shutil.which('gh'):
         cmd = ['gh', 'api', path] + (['-H', 'Accept: application/vnd.github+json'] if not raw else [])
         out = subprocess.run(cmd, capture_output=True, check=False)
+        if out.returncode != 0 and raw:
+            raise DownloadError()
         if out.returncode != 0:
             raise SystemExit(f'GitHub: {out.stderr.decode("utf-8", "replace").strip() or "Fehler"} ({path})')
         return out.stdout if raw else json.loads(out.stdout)
@@ -48,8 +58,13 @@ def get(path, raw=False):
     req = urllib.request.Request(API + '/' + path.lstrip('/'))
     req.add_unredirected_header('Authorization', f'Bearer {token}')   # nicht an den Speicher-Link weitergeben
     req.add_header('Accept', 'application/vnd.github+json')
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        data = resp.read()
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            data = resp.read()
+    except OSError as e:
+        if raw:
+            raise DownloadError() from e
+        raise
     return data if raw else json.loads(data)
 
 
@@ -104,7 +119,13 @@ def main(argv):
     if not art:
         print(f'✗ Kein Artifact „{args.name}“ am Lauf (abgelaufen oder nicht erzeugt): {run.get("html_url")}')
         return 1
-    for f in extract(get(f'repos/{args.repo}/actions/artifacts/{art["id"]}/zip', raw=True), Path(args.out)):
+    try:
+        data = get(f'repos/{args.repo}/actions/artifacts/{art["id"]}/zip', raw=True)
+    except DownloadError:
+        print(f'✗ Das PDF ist fertig, kann aber von hier aus nicht geladen werden (Speicher von GitHub nicht '
+              f'erreichbar). Download unter Artifacts am Lauf (bis {str(art.get("expires_at", ""))[:10]}): {run.get("html_url")}')
+        return 2
+    for f in extract(data, Path(args.out)):
         print(f'✓ {f}')
     return 0
 

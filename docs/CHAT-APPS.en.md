@@ -38,6 +38,8 @@ The historical plan delegates creation of edition tags and releases and attachme
 
 Without file handover, the link to the run remains: download under *Artifacts*, 14 days, GitHub sign-in required.
 
+**Tested on 11 November 2026 (Claude in the cloud):** Building and starting work; fetching failed because GitHub serves artifacts from `*.blob.core.windows.net`, which the session blocks. Remedy: allow that address under *Settings → Capabilities*; otherwise use the link to the run.
+
 ## Automatically loaded instructions
 
 GhostWriter repositories include `CLAUDE.md`, `AGENTS.md` and the general `.claude/skills/ghostwriter/SKILL.md`; program updates maintain them. An optional `assistant.yml` profile and its generated personal skill contain repository preferences such as Git identity, author and default narrative voice. Those belong to the book and are not overwritten by program updates.

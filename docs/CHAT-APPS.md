@@ -43,6 +43,8 @@ Welcher Weg für v0.5 gilt, wird am Ende von v0.2 entschieden.
 
 Ohne Dateiübergabe bleibt der Link zum Lauf: Download unter *Artifacts*, 14 Tage, mit GitHub-Anmeldung.
 
+**Erprobt am 11.11.2026 (Claude in der Cloud):** Bau und Start funktionieren; das Abholen scheiterte, weil GitHub Artifacts über `*.blob.core.windows.net` ausliefert und die Sitzung diese Adresse sperrt. Abhilfe: die Adresse unter *Einstellungen → Fähigkeiten* erlauben, sonst gilt der Link zum Lauf.
+
 ## Automatisch geladene Hinweise (#136)
 
 Jedes GhostWriter-Repository bringt drei Einstiegsdateien mit, die mit jedem Update aus dem Hauptrepository kommen:
