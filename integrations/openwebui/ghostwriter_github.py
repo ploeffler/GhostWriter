@@ -693,15 +693,17 @@ class Tools:
         def op(t):
             if not self.valves.ALLOW_WORKFLOW_DISPATCH:
                 raise ValueError("Workflow-Start im Valve deaktiviert.")
-            if workflow_file not in ("proof.yml", "index.yml", "library.yml"):
-                raise ValueError("Nur proof.yml, index.yml und library.yml sind hier freigegeben. Veröffentlichung/Umwandlung bitte in GitHub starten.")
+            if workflow_file not in ("proof.yml", "manuscript.yml", "index.yml", "library.yml"):
+                raise ValueError("Nur proof.yml, manuscript.yml, index.yml und library.yml sind hier freigegeben. Veröffentlichung/Umwandlung bitte in GitHub starten.")
             inputs = json.loads(inputs_json)
             if not isinstance(inputs, dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in inputs.items()):
                 raise ValueError("inputs_json muss ein Objekt mit Zeichenketten sein.")
-            if workflow_file != "proof.yml" and inputs:
+            if workflow_file not in ("proof.yml", "manuscript.yml") and inputs:
                 raise ValueError("Dieser Workflow hat keine Eingabefelder.")
             if workflow_file == "proof.yml" and (set(inputs)-{"formats"} or any(f.strip() not in {"pdf", "pdf_print", "cover", "docx", "epub"} for f in inputs.get("formats", "pdf").split(","))):
                 raise ValueError("Ungültige Probedruck-Formate.")
+            if workflow_file == "manuscript.yml" and (set(inputs)-{"chapter"} or not re.fullmatch(r"\d*", inputs.get("chapter", ""))):
+                raise ValueError("Manuskript ausgeben: nur das Feld chapter mit einer Kapitelnummer.")
             self._http(t, "POST", self._repo(repo)+"/actions/workflows/"+workflow_file+"/dispatches", data={"ref": branch, "inputs": inputs}, expected=(204,))
             return {"accepted": True, "message": "Start angefordert; Erfolg mit list_workflow_runs prüfen.", "workflow": workflow_file, "branch": branch}
         return await self._run(op)

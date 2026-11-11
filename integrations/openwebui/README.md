@@ -270,7 +270,8 @@ Debug-Daten enthalten Repository- und Pfadnamen und sollten vor Weitergabe gepr�
   neuen Änderungen auf diesen Arbeits-Branch schreiben.
 - Der Commit-Autor wird durch GitHubs Token-Identität bestimmt. Ein abweichendes
   `assistant.yml`-Commitprofil wird hier noch nicht übernommen.
-- `dispatch_workflow` unterstützt ausschließlich `proof.yml`, `index.yml`, `library.yml`.
+- `dispatch_workflow` unterstützt ausschließlich `proof.yml`, `manuscript.yml` (Manuskript
+  ausgeben, #260; Eingabe nur `chapter`), `index.yml`, `library.yml`.
   Auflagenveröffentlichung, Import, Updates und Umwandlung bleiben in GitHub bzw.
   benötigen eine eigene Integration mit ihren jeweiligen Bestätigungsregeln.
 - Keine lokale Skriptausführung, Binärdatei-Uploads, Secret-Verwaltung oder vollständige

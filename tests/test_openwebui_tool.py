@@ -106,6 +106,18 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         http.assert_not_called()
 
+    def test_manuscript_dispatch_accepts_only_chapter_number(self):
+        self.tool.valves.ALLOW_WORKFLOW_DISPATCH = True
+        with patch.object(self.tool, "_http", return_value=None) as http:
+            ok = self.run_tool(self.tool.dispatch_workflow("owner/book", "manuscript.yml", "buch/x", '{"chapter": "3"}'))
+            bad = self.run_tool(self.tool.dispatch_workflow("owner/book", "manuscript.yml", "buch/x", '{"chapter": "3; rm"}'))
+            extra = self.run_tool(self.tool.dispatch_workflow("owner/book", "manuscript.yml", "buch/x", '{"formats": "pdf"}'))
+        self.assertTrue(ok["ok"])
+        self.assertFalse(bad["ok"])
+        self.assertFalse(extra["ok"])
+        self.assertEqual(http.call_count, 1)
+        self.assertIn("/actions/workflows/manuscript.yml/dispatches", http.call_args.args[2])
+
     def start(self, tool=None, chat="chat-1", user="user-1", messages=None, metadata=None):
         return (tool or self.tool).read_start_md(__chat_id__=chat, __user__={"id": user},
                                                 __messages__=messages if messages is not None else [],

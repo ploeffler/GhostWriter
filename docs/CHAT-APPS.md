@@ -30,6 +30,19 @@ Keiner der Wege legt verlässlich Tags und Releases an. Vorschlag: Eine Auflage 
 
 Welcher Weg für v0.5 gilt, wird am Ende von v0.2 entschieden.
 
+## Dateien im Chat übergeben (#260)
+
+„Manuskript ausgeben“ baut das PDF in der Action „Manuskript ausgeben“; der Chat holt es mit `scripts/fetch_artifact.py` ab und übergibt es als Datei. Stand 11.11.2026, **noch nicht in allen Apps praktisch geprüft**:
+
+| App | Erwarteter Weg |
+|---|---|
+| Claude mit Arbeitsumgebung | PDF abholen und als Datei im Chat senden |
+| Codex | PDF im Arbeitsordner ablegen bzw. anhängen |
+| ChatGPT (GitHub-Connector) | abhängig von Connector und Code-Umgebung; sonst Link zum Lauf |
+| Open WebUI | Link zum Lauf (`dispatch_workflow` startet `manuscript.yml`) |
+
+Ohne Dateiübergabe bleibt der Link zum Lauf: Download unter *Artifacts*, 14 Tage, mit GitHub-Anmeldung.
+
 ## Automatisch geladene Hinweise (#136)
 
 Jedes GhostWriter-Repository bringt drei Einstiegsdateien mit, die mit jedem Update aus dem Hauptrepository kommen:

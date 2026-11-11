@@ -75,6 +75,8 @@ Im Formular **Neue Auflage** (oder mit `Probedruck`) entsteht ein PDF des aktuel
 
 Enthalten ist der übernommene Buchstand. Noch offene Änderungen zuerst übernehmen, wenn sie im Probedruck erscheinen sollen.
 
+**Manuskript ausgeben:** Mit `Manuskript ausgeben` (oder `Manuskript ausgeben Kapitel 3` für ein Kapitel) entsteht ein PDF des Arbeitsstands, das du direkt im Chat herunterladen kannst. Abschnitte mit Text stehen darin wie im Probedruck. Abschnitte ohne Text erscheinen als Kasten „Geplant“: Ziel und Inhalt in Stichworten, was schon erledigt ist (Recherche, Brainstorming) und was noch offen ist. Die Stichworte kommen unverändert aus deinen Angaben; die KI schreibt nichts dazu. Vorn steht eine Übersicht, wie viele Abschnitte Text haben und wie viele noch geplant sind. Kann dein Chat keine Dateien übergeben, bekommst du stattdessen den Link zum Download auf GitHub (14 Tage).
+
 ## 9. Erste Auflage
 
 Sind die gewünschten Kapitel freigegeben, öffne **Neue Auflage**: Name, Erscheinungsdatum, Formate (PDF, Word, E-Book) und Release Notes. Mindestens ein Kapitel muss freigegeben sein; die enthaltenen Abschnitte müssen ebenfalls freigegeben und frei von offenen Markern sein. Offene Buchänderungen zuerst übernehmen.

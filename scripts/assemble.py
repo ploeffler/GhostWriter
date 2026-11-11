@@ -5,6 +5,7 @@ Aufruf:
   python scripts/assemble.py <projektordner> chapter <nummer|kapitel-id> [-o datei.md]
   python scripts/assemble.py <projektordner> book [-o datei.md] [--edition N] [--date JJJJ-MM-TT]
   python scripts/assemble.py <projektordner> check [--edition N]
+  python scripts/assemble.py <projektordner> manuscript [<kapitelnummer>] [-o datei.md]
 
 chapter  Ein Kapitel aus seinen freigegebenen Abschnitten (status approved), in
          der Reihenfolge aus ghostwriter.yml. Nicht freigegebene Abschnitte
@@ -18,6 +19,11 @@ check    Prüft, ob eine Auflage gebaut werden kann: mindestens ein freigegebene
          freigegebenen Text. Exit-Code 1 mit Liste der Gründe, sonst 0.
          Nicht freigegebene Teile von Vor- und Nachspann werden als Hinweis
          genannt (ⓘ), verhindern die Auflage aber nicht; sie fehlen darin.
+manuscript  Arbeitsstand für „Manuskript ausgeben“ (#260): alle Kapitel (oder eines)
+         wie im Probedruck; Abschnitte ohne Manuskript erscheinen als Block
+         „Geplant“ mit Ziel und Kurzbeschreibung in Stichworten, erledigten
+         Läufen und offenen Fragen aus Recherche und Brainstorming. Ohne KI,
+         nichts wird umformuliert. Das PDF baut scripts/build_edition.py --manuscript.
 
 Was ins Buch kommt: je Kapitel Titel, Untertitel (erste kursive Zeile der
 Kapitel-README), der Text unter „## Manuskript“ jeder freigegebenen
@@ -114,9 +120,108 @@ def mark_markers(text):
     return MARKER_TEXT.sub(lambda m: '[' + m.group(0).replace('[', '\\[').replace(']', '\\]') + ']{.gwmarker}', text)
 
 
-def chapter_markdown(base, chapter, number, proof=False):
+# „Manuskript ausgeben“ (#260): Abschnitte ohne Manuskript als Block „Geplant“ mit dem
+# geplanten Inhalt in Stichworten, ohne KI und ohne Umformulierung aus den Buchdateien.
+EMPTY_TEXT = {'', 'Noch nicht begonnen.', 'Offen.', 'Werden in separaten Laufdateien dokumentiert.'}
+RUN_KINDS = (('research', 'Recherchelauf', 'Rechercheläufe'), ('brainstorming', 'Brainstorminglauf', 'Brainstormingläufe'))
+
+
+def is_empty_text(text):
+    """Leer, Platzhalter der Vorlage („Noch nicht begonnen.“, „Offen.“) oder Vorlagentext in <…>."""
+    t = (text or '').strip()
+    return t in EMPTY_TEXT or bool(re.fullmatch(r'<[^<>]*>', t))
+
+
+def keywords(text):
+    """Stichpunkte aus einem Feld: vorhandene Aufzählungen übernehmen, Fließtext satzweise
+    zerlegen. Wörtlich, nichts wird umformuliert oder ergänzt."""
+    if is_empty_text(text):
+        return []
+    items = re.findall(r'(?m)^\s*(?:[-*+]|\d+[.)])\s+(.+)$', text)
+    if items:
+        return [i.strip() for i in items if i.strip()]
+    flat = re.sub(r'\s+', ' ', text).strip()
+    return [x.strip() for x in re.split(r'(?<=[.!?])\s+(?=[A-ZÄÖÜ0-9„"*])', flat) if x.strip()]
+
+
+def run_part(body, name):
+    m = re.search(rf'(?ms)^## {re.escape(name)}\s*\n(.*?)(?=^## |\Z)', body)
+    return m.group(1).strip() if m else ''
+
+
+def section_runs(base, chapter, section):
+    """Recherche- und Brainstorming-Läufe eines Abschnitts (workflow.yml → runs):
+    [(art, datum, kopf, text)]. Zuordnung über section_id im Kopf, sonst über den Ordnernamen
+    (Abschnitts-ID oder Dateiname); Kapitelrecherche (research/kapitel) gehört nicht dazu."""
+    stem = Path(section.get('path', '')).stem
+    found = []
+    for kind, _, _ in RUN_KINDS:
+        root = base / chapter['path'] / kind
+        if not root.is_dir():
+            continue
+        for f in sorted(root.glob('*/run-*.md')):
+            if f.parent.name == 'kapitel':
+                continue
+            text = f.read_text(encoding='utf-8')
+            m = re.match(r'\A---\n(.*?)\n---\n', text, re.S)
+            try:
+                head = (yaml.safe_load(m.group(1)) if m else {}) or {}
+            except yaml.YAMLError:
+                head = {}
+            sid = head.get('section_id')
+            if sid and not str(sid).startswith('<'):
+                if sid != section['id']:
+                    continue
+            elif f.parent.name not in (section['id'], stem):
+                continue
+            found.append((kind, str(head.get('date') or head.get('created_at') or '')[:10], head, text[m.end():] if m else text))
+    return found
+
+
+def md_list(items):
+    return '\n'.join(f'- {i}' for i in items)
+
+
+def plan_block(status, goal, summary, runs=()):
+    """Markdown-Block ::: geplant für einen Abschnitt ohne Manuskript; summary=None: Teil ohne
+    Kurzbeschreibung (Vor- und Nachspann)."""
+    status_text = STATUS_DE.get(status, status) if status else ''
+    head = '**Geplant**' + (f' · Stand: {status_text}' if status_text and status != 'planned' else '')
+    parts = []
+    goal_items, summary_items = keywords(goal), keywords(summary)
+    if goal_items:
+        parts.append('**Ziel**\n\n' + md_list(goal_items))
+    if summary_items:
+        parts.append('**Inhalt**\n\n' + md_list(summary_items))
+    done, open_points = [], []
+    for kind, label, plural in RUN_KINDS:
+        mine = [r for r in runs if r[0] == kind]
+        if mine:
+            dates = sorted(d for _, d, _, _ in mine if d)
+            done.append(f'{len(mine)} {label if len(mine) == 1 else plural}' + (f' (zuletzt {dates[-1]})' if dates else ''))
+    for kind, _, _, body in runs:
+        if kind == 'brainstorming':
+            done += [f'Ausgewählt: {x}' for x in keywords(run_part(body, 'Ausgewählte Ergebnisse'))]
+        open_points += keywords(run_part(body, 'Offene Fragen'))
+    seen = set()
+    open_points = [x for x in open_points if not (x in seen or seen.add(x))]
+    if parts or done or open_points:   # nur wenn schon etwas geplant ist; sonst „noch ohne Beschreibung“
+        missing = ([] if goal_items else ['Ziel noch nicht beschrieben']) + \
+                  ([] if summary_items or summary is None else ['Kurzbeschreibung noch nicht beschrieben'])
+        open_points = missing + open_points
+    if done:
+        parts.append('**Erledigt**\n\n' + md_list(done))
+    if open_points:
+        parts.append('**Offen**\n\n' + md_list(open_points))
+    if not parts:
+        head = '**Geplant** – noch ohne Beschreibung'
+    return '::: geplant\n' + '\n\n'.join([head] + parts) + '\n:::'
+
+
+def chapter_markdown(base, chapter, number, proof=False, plan=False):
     """(Markdown, ausgelassene Abschnitte, Marker) eines Kapitels.
-    proof=True (Probedruck): auch nicht freigegebene Abschnitte, mit Statusvermerk und hervorgehobenen Markern."""
+    proof=True (Probedruck): auch nicht freigegebene Abschnitte, mit Statusvermerk und hervorgehobenen Markern.
+    plan=True („Manuskript ausgeben“, #260, setzt proof voraus): Abschnitte ohne Manuskript als Block „Geplant“."""
     subtitle, sources = readme_parts(base, chapter)
     out = [f'# {chapter["title"]}', '']
     if subtitle:
@@ -139,6 +244,10 @@ def chapter_markdown(base, chapter, number, proof=False):
             if not proof:
                 continue
         text = shift_headings(manuscript.strip(), 3)
+        if plan and is_empty_text(manuscript):
+            _, goal, summary, _ = section_file(base, s)
+            out += [f'## {s["title"]}', '', plan_block(head.get('status'), goal, summary, section_runs(base, chapter, s)), '']
+            continue
         if proof:
             text = mark_markers(text) or '*(noch kein Text)*'
             note = '' if approved else \
@@ -175,7 +284,7 @@ def series_glossary_extra(base, config, entries):
     return [(x['term'], x['text']) for x in terms if x['term'].casefold() in refs and x['term'].casefold() not in have]
 
 
-def matter_markdown(base, item, proof=False, config=None):
+def matter_markdown(base, item, proof=False, config=None, plan=False):
     """(Markdown, freigegeben, Marker) eines Teils von Vor- oder Nachspann (#57).
     Nicht freigegeben: leeres Markdown, außer im Probedruck (mit Statusvermerk)."""
     head, _, _, manuscript = section_file(base, item)
@@ -205,6 +314,12 @@ def matter_markdown(base, item, proof=False, config=None):
     if kind in MATTER_SIGNED and (head.get('byline') or head.get('place_date')):
         sign = [x.strip() for x in (head.get('byline'), head.get('place_date')) if x and x.strip()]
         text += '\n\n::: signatur\n' + '\n'.join(f'| {x}' for x in sign) + '\n:::'
+    if plan and is_empty_text(text):   # „Manuskript ausgeben“ (#260)
+        goal = re.search(r'(?ms)^## Ziel\n\n(.*?)(?=^## |\Z)', (base / item['path']).read_text(encoding='utf-8'))
+        text = plan_block(head.get('status'), goal.group(1).strip() if goal else '', None)
+        if kind == 'dedication':
+            return f'# {item["title"]} {{.unnumbered}}\n\n{text}\n', approved, []
+        return f'# {item["title"]} {{.unnumbered .{kind} epub:type={kind}}}\n\n{text}\n', approved, []
     if proof:
         text = mark_markers(text) or '*(noch kein Text)*'
         if not approved:
@@ -219,10 +334,10 @@ def matter_markdown(base, item, proof=False, config=None):
     return md, approved, markers
 
 
-def matter_parts(base, config, proof=False):
+def matter_parts(base, config, proof=False, plan=False):
     """Vor- und Nachspann in Buchreihenfolge: [(bereich, eintrag, markdown, freigegeben, marker)].
     Ohne proof fehlen nicht freigegebene Teile im Markdown (leer), stehen aber in der Liste."""
-    return [(area, item, *matter_markdown(base, item, proof, config)) for area, item in matter_items(config)]
+    return [(area, item, *matter_markdown(base, item, proof or plan, config, plan)) for area, item in matter_items(config)]
 
 
 def with_disclosure(md, text):
@@ -265,20 +380,54 @@ def find_chapter(config, key):
     raise SystemExit(f'Kapitel {key} nicht gefunden')
 
 
-def book_parts(base, config, proof=False):
+def book_parts(base, config, proof=False, plan=False, only=None):
     """Freigegebene Kapitel: [(nummer, kapitel, markdown, ausgelassen, marker)].
-    proof=True: alle Kapitel und Abschnitte (Probedruck)."""
+    proof=True: alle Kapitel und Abschnitte (Probedruck). plan=True: wie proof, Abschnitte ohne
+    Manuskript als Block „Geplant“ (#260); only = Kapitelnummer, sonst alle."""
+    proof = proof or plan
     parts = []
     for i, ch in enumerate(config['structure']['chapters'], start=1):
+        if only is not None and i != only:
+            continue
         chapter_approval = latest_approval(base, 'chapter', ch['id'])
         chapter_approved = (ch.get('status') == 'approved'
                             and chapter_approval is not None
                             and chapter_approval.get('action') == 'granted')
         if not chapter_approved and not proof:
             continue
-        md, skipped, markers = chapter_markdown(base, ch, i, proof)
+        md, skipped, markers = chapter_markdown(base, ch, i, proof, plan)
         parts.append((i, ch, md, skipped, markers))
     return parts
+
+
+def manuscript_overview(base, config, only=None, date='', commit=''):
+    """Übersicht vorn im PDF „Manuskript“ (#260): je Kapitel Abschnitte mit Text, geplant,
+    freigegeben (Tabelle), Wörter in der Summe. Gibt (Markdown, Zahlen) zurück."""
+    rows, total = [], {'sections': 0, 'text': 0, 'planned': 0, 'approved': 0, 'words': 0}
+    for i, ch in enumerate(config['structure']['chapters'], start=1):
+        if only is not None and i != only:
+            continue
+        c = {'sections': 0, 'text': 0, 'planned': 0, 'approved': 0, 'words': 0}
+        for s in ch['sections']:
+            head, _, _, manuscript = section_file(base, s)
+            c['sections'] += 1
+            if is_empty_text(manuscript):
+                c['planned'] += 1
+            else:
+                c['text'] += 1
+                c['words'] += len(re.findall(r'\w+', manuscript))
+            if head.get('status') == 'approved':
+                c['approved'] += 1
+        rows.append(f'| {i} | {ch["title"]} | {c["text"]} | {c["planned"]} | {c["approved"]} |')
+        for k in total:
+            total[k] += c[k]
+    shown = f'{date[8:10]}.{date[5:7]}.{date[:4]}' if len(date) >= 10 else date
+    lines = ['# Arbeitsstand {.unnumbered .arbeitsstand}', '',
+             f'Manuskript vom {shown}' + (f', Commit {commit[:7]}' if commit else '') + '. Nicht zur Veröffentlichung.', '',
+             f'{total["sections"]} Abschnitte: {total["text"]} mit Text, {total["planned"]} geplant, '
+             f'{total["approved"]} freigegeben; etwa {total["words"]} Wörter.', '',
+             '| Nr. | Kapitel | Text | geplant | frei |', '|----:|' + '-' * 52 + '|------:|--------:|------:|'] + rows   # breit: Pandoc teilt die Satzbreite anteilig
+    return '\n'.join(lines) + '\n', total
 
 
 def metadata(config, edition, date):
@@ -386,7 +535,7 @@ def link_glossary(md, terms):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
-    ap.add_argument('what', choices=['chapter', 'book', 'check'])
+    ap.add_argument('what', choices=['chapter', 'book', 'check', 'manuscript'])
     ap.add_argument('key', nargs='?')
     ap.add_argument('-o', '--output')
     ap.add_argument('--edition', type=int)
@@ -395,7 +544,12 @@ def main(argv):
     base, config = load(args.project)
     edition = args.edition if args.edition is not None else (config['project'].get('current_edition') or 0)
 
-    if args.what == 'chapter':
+    if args.what == 'manuscript':
+        only = find_chapter(config, args.key)[0] if args.key else None
+        parts = book_parts(base, config, plan=True, only=only)
+        matter = [] if only else matter_parts(base, config, plan=True)
+        md = manuscript_overview(base, config, only, args.date)[0] + '\n' + book_body(parts, matter)
+    elif args.what == 'chapter':
         if not args.key:
             ap.error('chapter braucht eine Kapitelnummer oder -ID')
         num, ch = find_chapter(config, args.key)

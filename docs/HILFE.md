@@ -22,6 +22,7 @@ Schicke **Hilfe** im Chat. Du erhältst eine kurze Befehlsübersicht und die Kü
 | `Bilder 2.3` | Bilder des Abschnitts verwalten |
 | `Ausgabe` oder `Umschlag` | Ausgabeoptionen öffnen |
 | `Probedruck` | Vorschau bauen lassen; keine veröffentlichte Auflage |
+| `Manuskript ausgeben` | PDF des Arbeitsstands zum Herunterladen; Geplantes in Stichworten |
 | `Auflage` | Formular für eine neue Auflage öffnen |
 | `Nur Text` | Darstellung auf Text umstellen |
 | `Einfacher Modus` | Knappe, verständliche Antworten |

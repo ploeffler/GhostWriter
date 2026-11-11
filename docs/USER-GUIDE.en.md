@@ -70,6 +70,8 @@ Use **Proof** (`Probedruck`) to create a PDF of the current state for review or 
 
 It uses the merged book version. Merge pending changes first if you want them included in the proof.
 
+**Export manuscript:** `Export manuscript` (`Manuskript ausgeben`, or `Export manuscript chapter 3` for one chapter) creates a PDF of the working state that you can download directly in the chat. Sections with text appear as in the proof. Sections without text appear as a "Planned" box with the goal and content as bullet points, what has been done (research, brainstorming) and what is still open. The bullet points are taken unchanged from your entries; the AI adds nothing. An overview at the front shows how many sections have text and how many are still planned. If your chat cannot hand over files, you get the download link on GitHub instead (14 days).
+
 ## 9. Create the first edition
 
 Once the desired chapters are approved, open **New edition** (`Neue Auflage`) and provide the name, publication date, formats and release notes. At least one chapter must be approved; included sections must also be approved and free of unresolved markers. Merge pending book changes first.

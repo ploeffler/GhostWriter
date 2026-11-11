@@ -5,6 +5,7 @@ Aufruf:
   python scripts/build_edition.py <projektordner> --edition N [--out ordner] [--date JJJJ-MM-TT]
                                    [--formats pdf,docx,epub] [--allow-markers]
   python scripts/build_edition.py <projektordner> --proof [--out ordner] [--formats pdf]
+  python scripts/build_edition.py <projektordner> --manuscript [--chapter N] [--out ordner]
 
 Formate (--formats, sonst typesetting.formats): pdf (Bildschirm), pdf_print
 (Druck-PDF des Innenteils, <tag>-druck.pdf, mit print.crop_marks Schnittmarken),
@@ -17,6 +18,14 @@ auch nicht freigegebene (mit Vermerk „Stand: Entwurf, nicht freigegeben“),
 offene Marker farbig hervorgehoben, in der Fußzeile bzw. vorn der Hinweis
 „Probedruck – nicht zur Veröffentlichung“. Kein Tag, kein Release; die Action
 „Probedruck“ stellt die Dateien als Download bereit.
+
+--manuscript („Manuskript ausgeben“, #260) baut nur ein PDF des Arbeitsstands: wie
+der Probedruck, aber Abschnitte ohne Manuskript erscheinen als Kasten „Geplant“ mit
+Ziel und Kurzbeschreibung in Stichworten, erledigten Läufen und offenen Fragen
+(scripts/assemble.py, ohne KI); vorn eine Übersicht „Arbeitsstand“, in der Fußzeile
+„Manuskript … – nicht zur Veröffentlichung“. --chapter N nur Kapitel N (ohne Vor-
+und Nachspann). Datei <kurztitel>-manuskript-<datum>.pdf; die Action „Manuskript
+ausgeben“ stellt sie bereit, der Chat übergibt sie als Datei.
 
 Vor- und Nachspann (#57): freigegebene Teile aus matter/ (scripts/assemble.py).
 Die Widmung steht auf einer eigenen rechten Seite nach der Titelei, zentriert,
@@ -58,8 +67,8 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 BOOK = ROOT / 'templates' / 'book'
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from assemble import (book_body, book_parts, matter_notes, matter_parts, metadata, problems,  # noqa: E402
-                      resolve_images)
+from assemble import (book_body, book_parts, find_chapter, manuscript_overview, matter_notes,  # noqa: E402
+                      matter_parts, metadata, problems, resolve_images)
 from render_view import load, tag_slug  # noqa: E402
 import ai_disclosure  # noqa: E402
 import build_cover  # noqa: E402
@@ -283,7 +292,8 @@ def make_reference_docx(path, ts):
 
 
 def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedication, out, tag, formats, proof=False,
-           proof_note='', date='', series_line='', ser=None, extra_tex='', top_level='chapter'):
+           proof_note='', date='', series_line='', ser=None, extra_tex='', top_level='chapter',
+           footer_label='Probedruck'):
     """Setzt die Formate (pdf, pdf_print, cover, epub, docx) aus fertigem Markdown; gibt die Dateien zurück.
     Gemeinsam für Auflagen und den Sammelband (scripts/build_omnibus.py, #116)."""
     fonts = FONTS.get(ts['font'], FONTS['serif'])
@@ -360,7 +370,7 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
                 if series_line and ts.get('title_page'):   # Reihe über dem Titel (KOMA \subject)
                     extra_header.append(str(write('series.tex', '\\subject{' + series_line.replace('&', '\\&') + '}\n')))
                 if proof:
-                    note = ('\\ifoot*{\\footnotesize\\sffamily\\color{red!65!black}Probedruck ' + date[8:10] + '.'
+                    note = ('\\ifoot*{\\footnotesize\\sffamily\\color{red!65!black}' + footer_label + ' ' + date[8:10] + '.'
                             + date[5:7] + '.' + date[:4] + ' – nicht zur Veröffentlichung}\n')
                     if 'scrlayer-scrpage' in layout:   # eigene Kopf-/Fußzeilen bleiben, nur der Vermerk kommt dazu
                         extra_header.append(str(write('proof.tex', note)))
@@ -424,6 +434,9 @@ def main(argv):
     ap.add_argument('project')
     ap.add_argument('--edition', type=int)
     ap.add_argument('--proof', action='store_true', help='Probedruck des aktuellen Stands (keine Auflage)')
+    ap.add_argument('--manuscript', action='store_true',
+                    help='„Manuskript ausgeben“ (#260): PDF des Arbeitsstands, Geplantes in Stichworten')
+    ap.add_argument('--chapter', help='mit --manuscript: nur dieses Kapitel (Nummer oder ID)')
     ap.add_argument('--out', default='build')
     ap.add_argument('--date', default=datetime.date.today().isoformat())
     ap.add_argument('--formats', help='Formate, Komma-getrennt; ohne Angabe typesetting.formats (Vorgabe pdf,docx,epub)')
@@ -431,17 +444,22 @@ def main(argv):
     ap.add_argument('--allow-markers', action='store_true')
     args = ap.parse_args(argv[1:])
 
+    if args.chapter and not args.manuscript:
+        ap.error('--chapter nur mit --manuscript')
+    if args.manuscript:
+        args.proof, args.formats = True, 'pdf'
     if not args.proof and args.edition is None:
-        ap.error('--edition N oder --proof angeben')
+        ap.error('--edition N, --proof oder --manuscript angeben')
     base, config = load(args.project)
     if args.proof:
         args.edition = config['project'].get('current_edition') or 0
-    parts = book_parts(base, config, proof=args.proof)
-    matter = matter_parts(base, config, proof=args.proof)
+    only = find_chapter(config, str(args.chapter))[0] if args.chapter else None
+    parts = book_parts(base, config, proof=args.proof, plan=args.manuscript, only=only)
+    matter = [] if only else matter_parts(base, config, proof=args.proof, plan=args.manuscript)
     found = [] if args.proof else problems(parts, config, matter, base)
     blocking = [p for p in found if not (args.allow_markers and p.startswith('Offener Marker'))]
     if args.proof and not parts:
-        print('Probedruck: Das Buch hat noch keine Kapitel.')
+        print(('Manuskript' if args.manuscript else 'Probedruck') + ': Das Buch hat noch keine Kapitel.')
         return 1
     if blocking:
         print(f'Auflage {args.edition} kann nicht gebaut werden:')
@@ -463,7 +481,13 @@ def main(argv):
     release_name = wf['name_pattern'].format(title_short=short, edition=args.edition)
     tag = wf['tag_pattern'].format(title_short_slug=tag_slug(short), edition=args.edition)
     proof_note = ''
-    if args.proof:
+    shown = f'{args.date[8:10]}.{args.date[5:7]}.{args.date[:4]}'
+    if args.manuscript:
+        tag = f'{tag_slug(short)}-manuskript-{args.date}' + (f'-kapitel-{only}' if only else '')
+        release_name = f'{short} – Manuskript vom {shown}' + (f' (Kapitel {only})' if only else '')
+        proof_note = (f'Manuskript (Arbeitsstand) vom {shown} – nicht zur Veröffentlichung. '
+                      'Abschnitte ohne Text erscheinen als „Geplant“ mit dem geplanten Inhalt in Stichworten.')
+    elif args.proof:
         tag = f'{tag_slug(short)}-probedruck-{args.date}'
         release_name = f'{short} – Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]}'
         proof_note = (f'Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]} – nicht zur Veröffentlichung. '
@@ -472,11 +496,12 @@ def main(argv):
     out.mkdir(parents=True, exist_ok=True)
     disc = ai_disclosure.for_book(config)   # KI-Angabe (#78): (Ort, Wortlaut) oder None
     in_body = disc if disc and disc[0] != 'imprint' else None
-    body, used_images = resolve_images(base, config, book_body(parts, matter, in_body), args.proof)
+    overview = manuscript_overview(base, config, only, args.date, args.commit)[0] + '\n' if args.manuscript else ''
+    body, used_images = resolve_images(base, config, overview + book_body(parts, matter, in_body), args.proof)
     # PDF: Widmung vor dem Inhaltsverzeichnis (include-before), daher dort ohne Widmung im Text
     dedication = ''.join(m[2] for m in matter if m[1]['kind'] == 'dedication' and m[2])
-    body_pdf = resolve_images(base, config, book_body(parts, [m for m in matter if m[1]['kind'] != 'dedication'], in_body),
-                              args.proof)[0]
+    body_pdf = resolve_images(base, config, overview + book_body(parts, [m for m in matter if m[1]['kind'] != 'dedication'],
+                                                                 in_body), args.proof)[0]
     for note in image_notes(used_images, ts):
         print(f'ⓘ {note}')
     imprint = imprint_markdown(meta, release_name, args.commit, config.get('publication'))
@@ -498,12 +523,14 @@ def main(argv):
     common_meta['date'] = shown_date
     series_line = f'{ser["title"]} · Band {ser["volume"]}' if ser and ser.get('volume') else ''
     if args.proof:
-        common_meta['date'] = f'Probedruck · {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]}'
-        meta['edition_text'] = 'Probedruck'
+        label = 'Manuskript' if args.manuscript else 'Probedruck'
+        common_meta['date'] = f'{label} · {shown}'
+        meta['edition_text'] = label
         imprint = [release_name, proof_note] + ([f'Commit {args.commit[:7]}'] if args.commit else [])
     imprint += disc_lines
     results = render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedication, out, tag, args.formats,
-                     args.proof, proof_note, args.date, series_line, ser)
+                     args.proof, proof_note, args.date, series_line, ser,
+                     footer_label='Manuskript' if args.manuscript else 'Probedruck')
 
     (out / 'edition.yml').write_text(yaml.safe_dump({
         'edition': args.edition, 'name': release_name, 'tag': tag, 'date': args.date,
