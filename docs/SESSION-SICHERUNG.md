@@ -160,6 +160,8 @@ Dieser gesamte Ablauf liegt hinter **Session übernehmen**; kein zusätzlicher R
 python3 scripts/chat_backup.py accept <git-url> <session-id> --github-repo <owner/repo> --expected-head <gepruefter-pr-head> --expected-base <gepruefter-ziel-head> --confirmed
 ```
 
+`--expected-base` ist der **aktuelle** Kopf des Zielbranchs (zum Beispiel `gh api repos/<owner>/<repo>/branches/<ziel> --jq .commit.sha`), nicht `base.sha` aus der PR-Antwort. Dieser Wert bleibt stehen, wenn andere Übernahmen den Zielbranch weiterschieben; das Hilfsprogramm vergleicht deshalb mit dem echten Kopf des Zielbranchs (#265).
+
 Das Hilfsprogramm prüft Dateien und CI-Status, diagnostiziert fehlgeschlagene Checks und Merge-Probleme, wartet begrenzt auf ausstehende Checks, wiederholt bei unverändertem Stand einmal sicher und erkennt bereits erfolgte Merges. `blocked` / Exit-Code 2 gibt Diagnose und nächsten Schritt zurück. **Das ist ein Zwischenstand für den Assistenten, kein unmittelbarer Abbruch des Benutzerauftrags:** Der Assistent führt die gezielte Fehleranalyse und gegebenenfalls die oben beschriebenen Reparaturen aus. Das Programm verändert selbst keinen Quellcode und löst keine inhaltlichen Konflikte. Ohne ausführenden Assistenten sind solche Reparaturen nicht autonom.
 
 ---

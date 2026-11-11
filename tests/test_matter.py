@@ -112,6 +112,15 @@ class MatterTest(MatterBase):
             matter.add(self.base, 'prologue')
         self.assertEqual(matter.kind_of('Widmung'), 'dedication')
 
+    def test_long_title_stays_one_line(self):
+        """#263: dasselbe Muster wie bei den Figuren – langer Titel nicht umbrechen."""
+        title = 'Vorwort für alle, die mitten im Leben noch einmal ganz von vorn anfangen wollen, und für ihre Freunde'
+        item = matter.add(self.base, 'prologue', title)
+        cfg = yaml.safe_load((self.base / 'ghostwriter.yml').read_text(encoding='utf-8'))
+        self.assertEqual(cfg['structure']['front_matter'][0]['title'], title)
+        front = yaml.safe_load((self.base / item['path']).read_text(encoding='utf-8').split('---')[1])
+        self.assertEqual(front['title'], title)
+
     def test_validation_finds_problems(self):
         matter.add(self.base, 'dedication')
         path = self.base / 'matter/widmung.md'

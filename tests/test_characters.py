@@ -73,6 +73,19 @@ class CharacterTest(unittest.TestCase):
         sec = (self.base / config['structure']['chapters'][0]['sections'][0]['path']).read_text(encoding='utf-8')
         self.assertNotIn('characters:', sec)
 
+    def test_add_long_short_and_name_stay_one_line(self):
+        """#263: lange Kurzbeschreibung und langer Name nicht umbrechen."""
+        name = 'Die Frau im lila Steppmantel, die jeden Morgen am Marktplatz von Valletta Tauben füttert'
+        short = ('Über 80, laut, willensstark, peppig gekleidet, sehbehindert; trägt Neuigkeiten ins Viertel '
+                 'und weiß alles über alle')
+        item = characters.add(self.base, name, 'supporting', short)
+        text = (self.base / item['path']).read_text(encoding='utf-8')
+        front = yaml.safe_load(text.split('---')[1])
+        self.assertEqual((front['name'], front['short']), (name, short))
+        self.assertNotIn('\\\n', text)
+        _, config = load(self.base)
+        self.assertEqual(config['characters'][-1]['name'], name)
+
     def test_rename_keeps_id_and_validation(self):
         self.add_three()
         characters.update(self.base, 'char-opi', {'name': 'Opa Karl', 'short': ''})
