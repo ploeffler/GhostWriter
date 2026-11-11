@@ -994,5 +994,11 @@
   "book.chapter_one": "Kapitel",
   "book.chapters": "Kapitel",
   "library.edition_open": "Auflage öffnen",
-  "library.edition_branch": "Branch `{branch}`"
+  "library.edition_branch": "Branch `{branch}`",
+  "library.session.heading": "Offene Sitzungssicherungen",
+  "library.session.unknown": "unbekannt",
+  "library.session.origin": "Rechner: {device} · {os} · {client}",
+  "library.session.status_open": "Änderungspaket",
+  "library.session.status_pr_pending": "gesichert, Änderungspaket ausstehend",
+  "library.session.status_unknown": "Status nicht verfügbar"
 }

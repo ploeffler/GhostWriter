@@ -38,6 +38,24 @@ def identifier(value):
     return value
 
 
+ORIGIN_FIELDS = ('device', 'os', 'client', 'client_version')
+
+
+def origin_info(origin):
+    """Freiwillige Herkunftsangaben (#237): Gerätename/Alias, Betriebssystem, Client, Version.
+    Nur ausdrücklich übergebene Werte; keine IP-Adressen, Hardwarekennungen oder Hostnamen erfassen."""
+    out = {}
+    for key, value in (origin or {}).items():
+        if key not in ORIGIN_FIELDS:
+            raise ValueError('Herkunft: nur device, os, client, client_version')
+        if value in (None, ''):
+            continue
+        if not isinstance(value, str) or len(value) > 80 or not value.strip() or any(c in value for c in '\r\n\t'):
+            raise ValueError('Herkunftsangaben: einzeilige Texte bis 80 Zeichen')
+        out[key] = value.strip()
+    return out
+
+
 def canonical(value):
     return json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + '\n'
 
@@ -179,10 +197,12 @@ def open_pr(repo, base, branch, session, work):
 
 
 def save(repository, base, session, payload, expected_head, *, github_repo=None,
-         author_name='GhostWriter', author_email='ghostwriter@users.noreply.github.com', atomic=False):
+         author_name='GhostWriter', author_email='ghostwriter@users.noreply.github.com', atomic=False,
+         origin=None, now=None):
     """Vollständigen verfügbaren Snapshot übergeben; remote vor Erfolg bestätigen."""
     session = identifier(session)
     topics = validate(payload)  # vor jedem Schreibzugriff prüfen
+    origin = origin_info(origin)
     if not re.fullmatch(r'[0-9a-f]{40,64}', expected_head):
         raise ValueError('expected-head muss der vollständig gelesene Commit sein')
     branch = f'ghostwriter/chat/{session}'
@@ -227,20 +247,27 @@ def save(repository, base, session, payload, expected_head, *, github_repo=None,
             if payload['messages'][:len(previous)] != previous:
                 raise ValueError('Frühere Beiträge fehlen oder wurden verändert; vollständigen Stand laden')
         commits, changed = [], []
-        for topic, content in topics.items():
+        values = {topic: canonical(content) for topic, content in topics.items()}
+        pending = [t for t, v in values.items()
+                   if not ((root / t / 'latest.json').exists() and (root / t / 'latest.json').read_text(encoding='utf-8') == v)]
+        if pending:
+            # Zeitpunkt und Herkunft der zuletzt tatsächlich gespeicherten Fassung (#237); eine
+            # Wiederholung ohne Änderung oder ein gescheiterter Push setzt sie nicht neu.
+            saved_at = (now or datetime.datetime.now(datetime.timezone.utc)).astimezone(
+                datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+            info['last_saved'] = {'at': saved_at, 'origin': origin}
+        for topic, value in values.items():
+            if topic not in pending:
+                continue
             folder = root / topic
             folder.mkdir(parents=True, exist_ok=True)
             latest = folder / 'latest.json'
-            value = canonical(content)
-            if latest.exists() and latest.read_text(encoding='utf-8') == value:
-                continue
             digest = hashlib.sha256(value.encode('utf-8')).hexdigest()
             (folder / f'{digest}.json').write_text(value, encoding='utf-8')
             latest.write_text(value, encoding='utf-8')
-            if topic == 'conversation':
-                manifest.write_text(canonical(info), encoding='utf-8')
             git('add', '--', str(folder.relative_to(work)))
-            if topic == 'conversation':
+            if topic == pending[0]:  # Manifest mit dem ersten Commit dieser Sicherung
+                manifest.write_text(canonical(info), encoding='utf-8')
                 git('add', '--', str(manifest.relative_to(work)))
             changed.append(topic)
             if not atomic:
@@ -259,8 +286,9 @@ def save(repository, base, session, payload, expected_head, *, github_repo=None,
         observed = git('ls-remote', '--heads', 'origin', f'refs/heads/{branch}').split()
         if not observed or observed[0] != head:
             raise ValueError('Remote-Sicherung konnte nicht bestätigt werden')
+        last = info.get('last_saved') or {}
         result = {'status': 'remote_saved', 'session': session, 'branch': branch, 'head': head,
-                  'saved_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                  'saved_at': last.get('at'), 'origin': last.get('origin') or {},
                   'commits': commits, 'coverage': payload['coverage'], 'pr': None}
         if github_repo:
             try:
@@ -491,6 +519,10 @@ def main():
     s.add_argument('--github-repo', required=True, help='owner/repo für gemeinsamen PR')
     s.add_argument('--author-name', default='GhostWriter')
     s.add_argument('--author-email', default='ghostwriter@users.noreply.github.com')
+    s.add_argument('--device', help='freiwilliger Gerätename oder Alias (kein Hostname, #237)')
+    s.add_argument('--os', dest='os_name', help='Betriebssystem, soweit bekannt und freigegeben')
+    s.add_argument('--client', help='Client, z. B. „Claude Desktop“, „ChatGPT“')
+    s.add_argument('--client-version', help='Version des Clients, soweit bekannt')
     c = sub.add_parser('checkpoint', parents=[s], add_help=False, help='Nach abgeschlossenem Abschnittsdialog automatisch sichern')
     c.add_argument('--review', required=True, help='JSON-Datei mit belegtem Abschluss der besprochenen Punkte')
     q = sub.add_parser('answer-checkpoint', parents=[s], add_help=False, help='Ausgewertete Antwort sofort und vor weiterer Chat-Ausgabe sichern')
@@ -510,7 +542,9 @@ def main():
     try:
         if args.action in ('save', 'checkpoint', 'answer-checkpoint'):
             payload = json.loads(Path(args.input).read_text(encoding='utf-8'))
-            options = dict(github_repo=args.github_repo, author_name=args.author_name, author_email=args.author_email)
+            options = dict(github_repo=args.github_repo, author_name=args.author_name, author_email=args.author_email,
+                           origin={'device': args.device, 'os': args.os_name, 'client': args.client,
+                                   'client_version': args.client_version})
             if args.action in ('checkpoint', 'answer-checkpoint'):
                 review = json.loads(Path(args.review).read_text(encoding='utf-8'))
                 checkpoint = answer_checkpoint if args.action == 'answer-checkpoint' else section_checkpoint

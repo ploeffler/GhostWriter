@@ -6,7 +6,7 @@ For the diagram and a comparison with book changes, see [saving, merging and app
 
 ## Commands and scope
 
-- **Save session** (`Session sichern`, also `Chat sichern` or `Chat speichern`): preserve accessible conversation messages, research with sources, brainstorming, alternatives and rejected ideas, decisions, drafts, planning and open questions. A summary alone is insufficient.
+- **Save session** (`Session sichern`, also `Chat sichern` or `Chat speichern`): preserve accessible conversation messages, research with sources, brainstorming, alternatives and rejected ideas, decisions, drafts, planning and open questions. A summary alone is insufficient. `session.json` also records `last_saved` (#237): the UTC time of the last change that was actually saved (`at`) and the origin of that version (`origin`: `device`, `os`, `client`, `client_version`). The origin is voluntary and comes only from `--device` (device name or alias, not a hostname), `--os`, `--client` and `--client-version`; IP addresses, hardware IDs and hostnames are never collected. Manual saves, `checkpoint` and `answer-checkpoint` take the same options. Repeating a save without changes or a failed upload does not set a new time; older backups without `last_saved` remain loadable. The bookshelf lists open session backups under its title.
 - **Load session** (`Session laden`): read the saved conversation to resume work. This can read from an open backup package and does not merge it.
 - **Merge session backup** (`Session übernehmen`): validate the identified package, diagnose failures, attempt safe technical repair, revalidate and merge only after successful checks.
 
