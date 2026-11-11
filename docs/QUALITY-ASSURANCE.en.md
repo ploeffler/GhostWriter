@@ -229,6 +229,16 @@ Use short choice questions more often at useful decision points, particularly fo
 - Do not repeat answered questions. Group related questions only when this makes the decision easier. Avoid frequent minor interruptions and long click-through sequences.
 - A proposed or preselected option is not a decision. Silence is not consent. A style choice does not replace writing/content approval or a separate request to save, accept changes or publish.
 
+**Approvals as a choice (#266):** Pending approvals – writing approval, section and chapter approval, revocations and “accept changes” – are also offered as a choice instead of asking the user to type a sentence such as “say ‘approve section 3.2’”.
+
+- Options name the approval precisely (“Approve section 3.2”, “Change something first”, “Later”); a custom answer remains possible.
+- State the check points briefly beforehand. If there is a blocker (⛔), offer no approval option.
+- Several pending approvals can be confirmed in one element, individually or together (“Approve all”).
+- Clicking the approval option is the explicit confirmation and is recorded in `approvals.yml` like a typed approval. No preselected option, no timeout, no approval without a click or an unambiguous own answer.
+- An approval option never includes saving, accepting into the book or publishing; each remains a separate choice.
+
+Details: `START.md`, “Freigaben”, “Freigabe im Chat”.
+
 Example: “How would you like to develop chapter 1?” — “Bring my own text”, “Work scene by scene together” or “Discuss a complete chapter draft”, with room for a custom answer. Choosing clarifies the working method; it does not automatically start drafting or saving.
 
 

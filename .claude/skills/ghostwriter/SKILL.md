@@ -7,7 +7,7 @@ description: Wiedereinstieg in ein GhostWriter-Repository (Buch oder Bibliothek)
 
 Kurzfassung von `START.md`, Abschnitt 0. Bei Abweichungen gilt `START.md`. Diese Datei kommt mit jedem Update aus dem Hauptrepository; eigene Angaben gehören in `assistant.yml` und den daraus erzeugten persönlichen Skill.
 
-**Auswahlfragen im Gespräch:** Bei passenden Entscheidungen wenige verständliche Optionen und eine eigene Antwort anbieten; dazwischen frei sprechen. Keine Durchklickstrecke. Unterstützte Frageelemente bzw. vorhandene Karten nutzen, sonst Text. Details: `docs/QUALITAETSSICHERUNG.md`, „Gezielte Auswahlfragen im Gespräch“. Freigaben und Speicheraufträge bleiben eigene Schritte.
+**Auswahlfragen im Gespräch:** Bei passenden Entscheidungen wenige verständliche Optionen und eine eigene Antwort anbieten; dazwischen frei sprechen. Keine Durchklickstrecke. Unterstützte Frageelemente bzw. vorhandene Karten nutzen, sonst Text. Details: `docs/QUALITAETSSICHERUNG.md`, „Gezielte Auswahlfragen im Gespräch“. Freigaben und Speicheraufträge bleiben eigene Schritte; eine anstehende Freigabe wird aber als eigene Auswahl angeboten („Abschnitt 3.2 freigeben“, „Noch ändern“, „Später“) statt als „sag …“-Satz zum Abtippen. Der Klick ist die ausdrückliche Bestätigung (`START.md`, „Freigaben“, „Freigabe im Chat“).
 
 ## 1. Repository feststellen
 
