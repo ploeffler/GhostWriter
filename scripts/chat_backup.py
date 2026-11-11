@@ -7,6 +7,8 @@ import json
 import re
 import subprocess
 import tempfile
+import time
+import urllib.parse
 from pathlib import Path
 
 
@@ -22,8 +24,11 @@ def run(*args, cwd=None, timeout=60):
     except subprocess.TimeoutExpired:
         raise ValueError(f'{args[0]}: Zeitüberschreitung; tatsächlichen Stand prüfen') from None
     if result.returncode:
-        # Fremde Fehlermeldungen können Zugangsdaten oder Inhalte enthalten.
-        raise ValueError(f'{args[0]}: Vorgang fehlgeschlagen (Code {result.returncode})')
+        # Fremde Fehlermeldungen können Zugangsdaten oder Inhalte enthalten; nur den
+        # HTTP-Status von GitHub übernehmen, damit die Ursache sichtbar bleibt (#253).
+        status = re.search(r'\bHTTP (\d{3})\b', result.stderr or '')
+        hint = f', GitHub HTTP {status.group(1)}' if status else ''
+        raise ValueError(f'{args[0]}: Vorgang fehlgeschlagen (Code {result.returncode}{hint})')
     return result.stdout.strip()
 
 
@@ -67,9 +72,86 @@ def validate(payload):
     return {**topics, 'conversation': {k: payload[k] for k in ('context', 'coverage', 'messages')}}
 
 
+# GitHub nur über REST (`gh api`) ansprechen: `gh pr …` nutzt GraphQL, das in
+# Claude-Code-Sitzungen gesperrt ist (#253).
+
+def gh_api(repo, path, *fields, method='GET', query=None, cwd=None, timeout=60):
+    url = f'repos/{repo}/{path}' if path else f'repos/{repo}'
+    if query:
+        url += '?' + urllib.parse.urlencode(query, safe='/:')
+    args = ['gh', 'api', '-X', method, url]
+    for key, value in fields:
+        args += ['-f', f'{key}={value}']
+    output = run(*args, cwd=cwd, timeout=timeout)
+    return json.loads(output) if output else None
+
+
+def pr_state(pr):
+    if pr.get('merged') or pr.get('merged_at'):
+        return 'MERGED'
+    return str(pr.get('state', '')).upper()
+
+
+def find_prs(repo, branch, state='all', cwd=None):
+    """PRs eines Sitzungsbranchs im selben Repository, vereinheitlicht."""
+    owner = repo.split('/')[0]
+    prs = gh_api(repo, 'pulls', query={'head': f'{owner}:{branch}', 'state': state,
+                                       'per_page': 10}, cwd=cwd)
+    return [{'number': p['number'], 'url': p['html_url'], 'state': pr_state(p),
+             'baseRefName': p['base']['ref']} for p in prs or []]
+
+
 def session_prs(repo, branch, work):
-    return json.loads(run('gh', 'pr', 'list', '--repo', repo, '--head', branch, '--state', 'all',
-                          '--json', 'url,baseRefName,state', '--limit', '10', cwd=work))
+    return find_prs(repo, branch, 'all', cwd=work)
+
+
+def check_rollup(repo, sha, cwd=None):
+    """Check-Runs und Commit-Status im Format von `statusCheckRollup`."""
+    checks = []
+    runs = gh_api(repo, f'commits/{sha}/check-runs', query={'per_page': 100}, cwd=cwd) or {}
+    for item in runs.get('check_runs', []):
+        done = item.get('status') == 'completed'
+        checks.append({'name': item.get('name'), 'detailsUrl': item.get('details_url') or item.get('html_url'),
+                       'conclusion': str(item.get('conclusion') or '').upper() if done else None,
+                       'state': None if done else str(item.get('status') or 'queued').upper()})
+    status = gh_api(repo, f'commits/{sha}/status', cwd=cwd) or {}
+    for item in status.get('statuses', []):
+        checks.append({'context': item.get('context'), 'targetUrl': item.get('target_url'),
+                       'state': str(item.get('state') or '').upper()})
+    return checks
+
+
+def pr_info(repo, number, cwd=None):
+    """PR-Stand über REST; Felder wie bisher bei `gh pr view --json`."""
+    pr = gh_api(repo, f'pulls/{number}', cwd=cwd)
+    head_repo = (pr['head'].get('repo') or {}).get('full_name')
+    mergeable = {True: 'MERGEABLE', False: 'CONFLICTING'}.get(pr.get('mergeable'), 'UNKNOWN')
+    merged = pr_state(pr) == 'MERGED'
+    return {'number': pr['number'], 'url': pr['html_url'], 'state': pr_state(pr),
+            'headRefOid': pr['head']['sha'], 'headRefName': pr['head']['ref'],
+            'baseRefOid': pr['base']['sha'], 'baseRefName': pr['base']['ref'],
+            'isCrossRepository': head_repo != pr['base']['repo']['full_name'],
+            'mergeable': mergeable,
+            'mergeStateStatus': str(pr.get('mergeable_state') or 'unknown').upper(),
+            'mergeCommit': {'oid': pr['merge_commit_sha']} if merged and pr.get('merge_commit_sha') else None,
+            'statusCheckRollup': check_rollup(repo, pr['head']['sha'], cwd=cwd)}
+
+
+def pending(pr):
+    """Mergebarkeit noch unbekannt oder eine Prüfung läuft noch."""
+    return pr['mergeable'] == 'UNKNOWN' or any(
+        not c.get('conclusion') and c.get('state') in ('QUEUED', 'IN_PROGRESS', 'PENDING', 'WAITING', 'REQUESTED')
+        for c in pr.get('statusCheckRollup') or [])
+
+
+def wait_for_pr(repo, number, timeout=20, interval=3):
+    """Ausstehende Prüfungen und Mergebarkeit begrenzt abwarten (statt `gh pr checks --watch`)."""
+    deadline = time.monotonic() + timeout
+    pr = pr_info(repo, number)
+    while pending(pr) and time.monotonic() < deadline:
+        time.sleep(interval)
+        pr = pr_info(repo, number)
+    return pr
 
 
 def open_pr(repo, base, branch, session, work):
@@ -80,13 +162,20 @@ def open_pr(repo, base, branch, session, work):
         if prs[0]['state'] != 'OPEN':
             raise ValueError('Sitzungs-PR ist geschlossen; keine zweite PR automatisch anlegen')
         return prs[0]['url']
-    body = Path(work) / 'pr-body.txt'
-    body.write_text('Gesprächsarbeit dauerhaft gesichert: ein Commit je geändertem Themengebiet.\n\n'
-                    'Enthält verfügbare Gesprächsbeiträge, Ergebnisse und ausgewiesene Lücken. '
-                    'Keine Übernahme ins Manuskript und keine inhaltliche Freigabe. '
-                    'Dieser PR wird nicht automatisch zusammengeführt.\n', encoding='utf-8')
-    return run('gh', 'pr', 'create', '--repo', repo, '--base', base, '--head', branch,
-               '--title', f'Chat-Sicherung: {session}', '--body-file', str(body), cwd=work)
+    body = ('Gesprächsarbeit dauerhaft gesichert: ein Commit je geändertem Themengebiet.\n\n'
+            'Enthält verfügbare Gesprächsbeiträge, Ergebnisse und ausgewiesene Lücken. '
+            'Keine Übernahme ins Manuskript und keine inhaltliche Freigabe. '
+            'Dieser PR wird nicht automatisch zusammengeführt.\n')
+    try:
+        created = gh_api(repo, 'pulls', ('title', f'Chat-Sicherung: {session}'), ('head', branch),
+                         ('base', base), ('body', body), method='POST', cwd=work)
+        return created['html_url']
+    except ValueError:
+        # GitHub legt den PR bei 502 o. ä. manchmal trotzdem an: nachsehen statt doppelt anlegen.
+        prs = session_prs(repo, branch, work)
+        if len(prs) == 1 and prs[0]['state'] == 'OPEN' and prs[0]['baseRefName'] == base:
+            return prs[0]['url']
+        raise
 
 
 def save(repository, base, session, payload, expected_head, *, github_repo=None,
@@ -176,9 +265,10 @@ def save(repository, base, session, payload, expected_head, *, github_repo=None,
         if github_repo:
             try:
                 result['pr'] = open_pr(github_repo, base, branch, session, work)
-            except (ValueError, KeyError, TypeError, json.JSONDecodeError):
+            except (ValueError, KeyError, TypeError) as error:
                 result['status'] = 'remote_saved_pr_pending'
                 result['warning'] = 'Inhalte gesichert; PR noch nicht bestätigt. Erneut ausführen.'
+                result['cause'] = reason(error)
         return result
 
 
@@ -209,14 +299,11 @@ def accept_once(repository, github_repo, session, expected_head, expected_base, 
     if not all(re.fullmatch(r'[0-9a-f]{40,64}', x) for x in (expected_head, expected_base)):
         raise ValueError('Vollständige bestätigte Commit-Kennungen erforderlich')
     branch = f'ghostwriter/chat/{session}'
-    prs = json.loads(run('gh', 'pr', 'list', '--repo', github_repo, '--head', branch,
-                         '--state', 'open', '--json', 'number', '--limit', '10'))
+    prs = find_prs(github_repo, branch, 'open')
     if len(prs) != 1:
         raise ValueError('Genau ein offener Sitzungs-PR erforderlich')
     number = str(prs[0]['number'])
-    pr = json.loads(run('gh', 'pr', 'view', number, '--repo', github_repo, '--json',
-                        'headRefOid,baseRefName,headRefName,mergeable,mergeStateStatus,statusCheckRollup,isCrossRepository'))
-    pr['baseRefOid'] = run('gh', 'api', f'repos/{github_repo}/pulls/{number}', '--jq', '.base.sha')
+    pr = pr_info(github_repo, number)
     if (pr['isCrossRepository'] or pr['headRefName'] != branch or pr['headRefOid'] != expected_head
             or pr['baseRefOid'] != expected_base or pr['mergeable'] != 'MERGEABLE'
             or pr['mergeStateStatus'] != 'CLEAN'):
@@ -255,9 +342,10 @@ def accept_once(repository, github_repo, session, expected_head, expected_base, 
             if (latest.parent / f'{digest}.json').read_text(encoding='utf-8') != value:
                 raise ValueError('Sicherungsinhalt und archivierter Stand weichen ab')
     # Kopf beim Merge nochmals atomar durch GitHub prüfen; Branchschutz schützt die Basis.
-    run('gh', 'pr', 'merge', number, '--repo', github_repo, '--merge', '--match-head-commit', expected_head)
-    result = json.loads(run('gh', 'pr', 'view', number, '--repo', github_repo,
-                            '--json', 'state,mergeCommit,url'))
+    # `sha` entspricht `--match-head-commit`: GitHub lehnt bei verändertem Kopf ab.
+    gh_api(github_repo, f'pulls/{number}/merge', ('merge_method', 'merge'), ('sha', expected_head),
+           method='PUT')
+    result = pr_info(github_repo, number)
     if result['state'] != 'MERGED' or not result.get('mergeCommit'):
         raise ValueError('Zusammenführung noch nicht bestätigt')
     return {'status': 'merged', 'session': session, 'pr': result['url'],
@@ -276,14 +364,12 @@ def accept(repository, github_repo, session, expected_head, expected_base, *, co
                      'diagnosis': 'Prüfung oder Zugriff fehlgeschlagen',
                      'repair_attempted': False, 'next_step': 'Zugriff und Sicherungsdateien prüfen; nichts verworfen.'}
         try:
-            prs = json.loads(run('gh', 'pr', 'list', '--repo', github_repo, '--head',
-                                 f'ghostwriter/chat/{session}', '--state', 'all', '--json', 'number', '--limit', '10'))
+            diagnosis['cause'] = reason(error)
+            prs = find_prs(github_repo, f'ghostwriter/chat/{session}', 'all')
             if len(prs) != 1:
                 return diagnosis
             number = str(prs[0]['number'])
-            pr = json.loads(run('gh', 'pr', 'view', number, '--repo', github_repo, '--json',
-                                'state,headRefOid,mergeable,mergeStateStatus,mergeCommit,url,statusCheckRollup'))
-            pr['baseRefOid'] = run('gh', 'api', f'repos/{github_repo}/pulls/{number}', '--jq', '.base.sha')
+            pr = pr_info(github_repo, number)
             diagnosis['pr'] = pr['url']
             if pr['headRefOid'] != expected_head:
                 diagnosis.update(diagnosis='Sicherungsstand geändert', next_step='Neuen Stand sichten und bestätigen.')
@@ -314,13 +400,19 @@ def accept(repository, github_repo, session, expected_head, expected_base, *, co
             diagnosis['repair_attempted'] = True
             if pr['mergeStateStatus'] != 'CLEAN':
                 # Laufende Prüfungen kurz abwarten; fehlgeschlagene Tests nicht überspringen.
-                run('gh', 'pr', 'checks', number, '--repo', github_repo,
-                    '--watch', '--fail-fast', '--interval', '3', timeout=20)
+                wait_for_pr(github_repo, number)
             result = accept_once(repository, github_repo, session, expected_head, expected_base, confirmed=True)
             result['recovery'] = 'Nach automatischer Diagnose erneut geprüft und übernommen'
             return result
         except (ValueError, OSError, KeyError):
             return diagnosis
+
+
+def reason(error):
+    """Eigene Fehlermeldung zeigen; JSON-Fehler und Fremdtexte nur als Art."""
+    if isinstance(error, ValueError) and not isinstance(error, json.JSONDecodeError):
+        return str(error)
+    return type(error).__name__
 
 
 def validate_review(payload, review, *, answer=False):
@@ -435,7 +527,7 @@ def main():
             raise SystemExit(2)
     except (ValueError, OSError, KeyError) as exc:
         # Keine Inhalte aus fehlerhaftem JSON oder fremden Fehlermeldungen ausgeben.
-        parser.exit(1, f'Chat-Sicherung nicht abgeschlossen ({type(exc).__name__}). Eingaben und Zugriff prüfen.\n')
+        parser.exit(1, f'Chat-Sicherung nicht abgeschlossen ({reason(exc)}). Eingaben und Zugriff prüfen.\n')
 
 
 if __name__ == '__main__':
