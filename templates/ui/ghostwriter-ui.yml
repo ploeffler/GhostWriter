@@ -7,6 +7,6 @@
 # commit ist fest: So ändert sich keine Ansicht unbemerkt. Neue Fassungen von
 # ghostwriter-ui werden hier bewusst eingetragen.
 repo: ploeffler/ghostwriter-ui
-version: 0.43.1
-commit: 3ef72c0fd43d5834479d72c0c4ed71ed3b1f733b
-script: https://cdn.jsdelivr.net/gh/ploeffler/ghostwriter-ui@3ef72c0fd43d5834479d72c0c4ed71ed3b1f733b/dist/gw.min.js
+version: 0.44.0
+commit: 3cbe4518d2391dc03d8283ea40f027ea611ebff6
+script: https://cdn.jsdelivr.net/gh/ploeffler/ghostwriter-ui@3cbe4518d2391dc03d8283ea40f027ea611ebff6/dist/gw.min.js
