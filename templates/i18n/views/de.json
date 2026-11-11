@@ -992,5 +992,7 @@
   "book.section_one": "Abschnitt",
   "book.sections": "Abschnitte",
   "book.chapter_one": "Kapitel",
-  "book.chapters": "Kapitel"
+  "book.chapters": "Kapitel",
+  "library.edition_open": "Auflage öffnen",
+  "library.edition_branch": "Branch `{branch}`"
 }

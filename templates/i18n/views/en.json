@@ -992,5 +992,7 @@
   "book.section_one": "section",
   "book.sections": "sections",
   "book.chapter_one": "chapter",
-  "book.chapters": "chapters"
+  "book.chapters": "chapters",
+  "library.edition_open": "Open edition",
+  "library.edition_branch": "branch `{branch}`"
 }

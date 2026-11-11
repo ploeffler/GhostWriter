@@ -6,7 +6,7 @@ Die Bilder zeigen das Testbuch „ADHS im Erwachsenenleben“ und ein erfundenes
 
 ## Bücherregal
 
-Startseite deines Repositorys, wenn es mehrere Bücher enthält: Fortschritt, Auflage und offene Änderungen je Buch. „Öffnen“ zeigt die Projektübersicht, „Einrichtung fortsetzen“ führt in den Einstiegsdialog zurück.
+Startseite deines Repositorys, wenn es mehrere Bücher enthält: Fortschritt, Auflage und offene Änderungen je Buch. „Öffnen“ zeigt die Projektübersicht, „Einrichtung fortsetzen“ führt in den Einstiegsdialog zurück. Jedes Buch steht nur einmal im Regal; seine Auflagen erscheinen darunter als „Auflage 1“, „Auflage 2“ … und lassen sich einzeln öffnen (Release-Seite bzw. gespeicherter Auflagenstand). In der Textfassung haben sie Kürzel wie `2.1`.
 
 <img src="bilder/buecherregal.png" alt="Bücherregal mit zwei Büchern: eines eingerichtet mit Fortschrittsbalken, eines im Aufbau" width="640">
 

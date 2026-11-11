@@ -123,6 +123,11 @@ class ShelfTest(unittest.TestCase):
         shutil.copytree(ROOT / 'tests/fixtures/adhs', d, dirs_exist_ok=True)
         g('add', '.')
         g('commit', '-qm', 'Buch')
+        # Auflagen (#235): Tags 1, 2 und 10 (numerisch sortieren), Auflage 3 nur als Branch
+        for n in (2, 10, 1):
+            g('tag', f'adhs-im-erwachsenenleben-auflage-{n}')
+        g('branch', 'buch/adhs-auflage-3')
+        g('branch', 'buch/adhs-auflage-2')
         g('checkout', '-q', '-b', 'ghostwriter/buch/adhs')
         g('commit', '-q', '--allow-empty', '-m', 'Index neu gebaut', '-m', 'GhostWriter-Aktion: index.build')
         g('commit', '-q', '--allow-empty', '-m', 'Programm aktualisiert', '-m', 'GhostWriter-Aktion: update')
@@ -157,6 +162,40 @@ class ShelfTest(unittest.TestCase):
         self.assertNotIn('manuscript', json.dumps(self.data))
         out = subprocess.run(['git', 'worktree', 'list'], cwd=self.d, capture_output=True, text=True).stdout
         self.assertEqual(len(out.strip().splitlines()), 1, 'temporäre Worktrees bleiben übrig')
+
+    def test_editions_grouped_under_book(self):
+        books = {b['branch']: b for b in self.data['books']}
+        self.assertNotIn('buch/adhs-auflage-3', books, 'Auflagen-Branch ist kein eigenes Buch')
+        eds = books['buch/adhs']['editions']
+        self.assertEqual([e['number'] for e in eds], [1, 2, 3, 10])
+        self.assertEqual(eds[1]['tag'], 'adhs-im-erwachsenenleben-auflage-2')
+        self.assertEqual(eds[1]['branch'], 'buch/adhs-auflage-2', 'Tag und Branch derselben Auflage sind ein Eintrag')
+        self.assertEqual((eds[2]['tag'], eds[2]['branch']), ('', 'buch/adhs-auflage-3'))
+        self.assertTrue(eds[2]['date'])
+        self.assertEqual(books['buch/adhs']['last_edition']['number'], 10)
+        self.assertEqual(books['buch/garten']['editions'], [], 'Bücher ohne Auflage bleiben direkt offen')
+        self.assertEqual(library.duplicates(library.books(library.branch_configs('refs/heads', self.d), MANIFEST, 'main')), {},
+                         'Auflagen-Branches tragen den Kurztitel ihres Buchs, ohne als doppelt zu gelten')
+
+    def test_edition_branches_use_branch_identity(self):
+        found = [{'branch': b, 'slug': 's'} for b in
+                 ('buch/a', 'buch/a-auflage-2', 'buch/ab-auflage-1', 'buch/a-freigabe', 'buch/a-auflage-x', 'buch/b-auflage-1')]
+        self.assertEqual(library.edition_branches(found), {'buch/a-auflage-2': ('buch/a', 2)})
+
+    def test_shelf_editions_text_and_widget(self):
+        text = self.view(self.d, 'library', '--library', str(self.lib), '--text')
+        rows = [line for line in text.splitlines() if '↳' in line]
+        self.assertEqual([r.split('|')[1].strip() for r in rows], ['1.1', '1.2', '1.3', '1.10'])
+        self.assertIn('Branch `buch/adhs-auflage-3`', rows[2])
+        self.assertIn('`adhs-im-erwachsenenleben-auflage-10`', rows[3])
+        self.assertIn('`1.1–1.10` Auflage öffnen', text)
+        self.assertNotIn('adhs-auflage-3**', text)
+        widget = self.view(self.d, 'library', '--library', str(self.lib))
+        self.assertIn('"E_KEY":"1.3"', widget)
+        self.assertIn('"BOOK_EDITION_COUNT":4', widget)
+        en = self.view(self.d, 'library', '--library', str(self.lib), '--text', '--language', 'en')
+        self.assertIn('↳ Edition 3 · ', en)
+        self.assertIn('Open edition', en)
 
     def test_shelf_views(self):
         text = self.view(self.d, 'library', '--library', str(self.lib), '--text')
