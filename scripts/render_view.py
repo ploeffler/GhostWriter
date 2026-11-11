@@ -1628,12 +1628,33 @@ def changes_text(changes):
     return view_message('one_change') if n == 1 else view_message('many_changes', number=n)
 
 
+# Anzeigezeitzone ohne --timezone: Deutsch → Mitteleuropa, sonst UTC (#252).
+DEFAULT_TIMEZONES = {'de': 'Europe/Vienna'}
+
+
+def display_timezone():
+    import datetime
+    name = UI.get('timezone') or DEFAULT_TIMEZONES.get(str(UI.get('language') or 'de')[:2], 'UTC')
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo(name)
+    except Exception:  # unbekannte Zone oder fehlende tzdata: ehrlich als UTC zeigen
+        return datetime.timezone.utc
+
+
 def change_date(value):
+    """Commit-Zeitpunkt in Ortszeit; GitHub liefert UTC mit `Z` (#252)."""
     import datetime
     try:
-        return datetime.datetime.fromisoformat(str(value).replace('Z', '+00:00')).strftime('%Y-%m-%d, %H:%M' if UI.get('language') == 'en' else '%d.%m.%Y, %H:%M')
+        moment = datetime.datetime.fromisoformat(str(value).replace('Z', '+00:00'))
     except ValueError:
         return str(value or '')
+    pattern = '%Y-%m-%d, %H:%M' if UI.get('language') == 'en' else '%d.%m.%Y, %H:%M'
+    if moment.tzinfo is None:  # ohne Zeitzone: so zeigen, wie angegeben
+        return moment.strftime(pattern)
+    zone = display_timezone()
+    text = moment.astimezone(zone).strftime(pattern)
+    return f'{text} UTC' if str(zone) in ('UTC', 'Etc/UTC') else text  # UTC kenntlich machen
 
 
 def changes_merge_view(base, config, args):
@@ -3426,6 +3447,7 @@ def main():
     ap.add_argument('--revoke', action='store_true', help='bei approval-*: Freigabe zurücknehmen statt erteilen')
     ap.add_argument('--upstream', help='JSON-Datei mit dem Update-Stand (behind, upstream, version, installed) für die Projektübersicht')
     ap.add_argument('--limits', help='JSON-Datei von limits.py check --json (Projektübersicht: Hinweis Vorwarnung bzw. Automatik pausiert); ohne Angabe nur das KI-Budget aus costs/')
+    ap.add_argument('--timezone', help='Zeitzone für angezeigte Uhrzeiten (IANA, z. B. Europe/Vienna); ohne Angabe bei Deutsch Europe/Vienna, sonst UTC (#252)')
     ap.add_argument('--changes', help='JSON-Datei mit den offenen Änderungen (Pull Request, Branches, Commits) für Projektübersicht und changes-merge')
     ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
     ap.add_argument('--draft', help='bei chapter-research bzw. book-create: JSON mit noch nicht gespeicherten Werten (goal, summary, question, scope bzw. working_title, title_short, author, error)')
@@ -3452,6 +3474,7 @@ def main():
         profile = {}
     language = resolve_language(args.language, config, profile)
     UI['language'] = language
+    UI['timezone'] = args.timezone
     requested_text = args.text
     if language == 'en':
         if args.view not in (render_view_en.CLI_VIEWS | view_i18n.DIRECT_VIEWS) and (not args.ui_ref or args.text):

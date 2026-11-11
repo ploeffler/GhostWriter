@@ -94,6 +94,8 @@ Offene Änderungen sind die Commits im Arbeits-Branch `ghostwriter/<buch-branch>
  "commits": [{"sha": "…40 Zeichen…", "message": "Abschnitt 2.4 gespeichert\n\nGhostWriter-Aktion: section.update", "date": "2026-10-31T23:12:00+01:00"}]}
 ```
 
+`date` darf unverändert aus GitHub kommen (UTC mit `Z`, z. B. `2026-11-10T16:51:47Z`) oder einen Offset tragen. `render_view.py` rechnet die Uhrzeit in die Ortszeit um (#252): Kennt der Assistent die Zeitzone des Benutzers, übergibt er sie mit `--timezone <IANA-Name>` (z. B. `--timezone Europe/Vienna`). Ohne Angabe gilt bei Deutsch `Europe/Vienna` (MEZ/MESZ), sonst UTC; Uhrzeiten in UTC sind dann mit „UTC“ gekennzeichnet. Zeitpunkte ohne Zeitzone erscheinen wie angegeben.
+
 Gibt es keinen offenen Pull Request, gibt es keine offenen Änderungen; die Ansichten lesen dann vom Buch-Branch.
 
 ## Update-Stand
@@ -546,7 +548,7 @@ Auswahlkarten für feste Antwortmöglichkeiten im Einstiegsdialog (`START.md`, A
 | `PENDING_TEXT`, `PENDING_PR` | wie in der Projektübersicht |
 | `BOOK_BRANCH`, `WORK_BRANCH` | Buch-Branch und Arbeits-Branch (`ghostwriter/<buch-branch>`) |
 | `HEAD_SHA` | letzter Commit des Arbeits-Branchs; `gw.js` schickt ihn mit `changes.merge` zurück |
-| Block `CHANGES`: `CHANGE_MESSAGE`, `CHANGE_DATE`, `CHANGE_SHA` | je Commit des Pull Requests, älteste zuerst: erste Zeile der Commit-Nachricht, Datum `TT.MM.JJJJ, HH:MM`, Commit mit 7 Zeichen |
+| Block `CHANGES`: `CHANGE_MESSAGE`, `CHANGE_DATE`, `CHANGE_SHA` | je Commit des Pull Requests, älteste zuerst: erste Zeile der Commit-Nachricht, Datum `TT.MM.JJJJ, HH:MM` in Ortszeit (siehe „Offene Änderungen“), Commit mit 7 Zeichen |
 
 ### `abschnitt-anlegen.html`
 
