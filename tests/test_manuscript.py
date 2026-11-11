@@ -172,6 +172,22 @@ class FetchArtifactTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertTrue((Path(tmp) / 'buch-manuskript.pdf').is_file())
 
+    def test_main_download_blocked_gives_link(self):
+        responses = {
+            'repos/o/r/actions/runs/7': {'status': 'completed', 'conclusion': 'success', 'html_url': 'https://lauf'},
+            'repos/o/r/actions/runs/7/artifacts': {'artifacts': [{'name': 'manuskript', 'id': 9, 'expires_at': '2026-11-25T07:59:07Z'}]},
+        }
+        def get(path, raw=False):
+            if raw:
+                raise fetch_artifact.DownloadError()
+            return responses[path]
+        out = io.StringIO()
+        with mock.patch.object(fetch_artifact, 'get', side_effect=get), mock.patch('sys.stdout', out):
+            self.assertEqual(fetch_artifact.main(['x', 'o/r', '--run', '7']), 2)
+        self.assertIn('https://lauf', out.getvalue())
+        self.assertIn('2026-11-25', out.getvalue())
+        self.assertNotIn('blob.core', out.getvalue())
+
     def test_main_reports_failed_run(self):
         with mock.patch.object(fetch_artifact, 'get', return_value={'status': 'completed', 'conclusion': 'failure', 'html_url': 'u'}):
             out = io.StringIO()
