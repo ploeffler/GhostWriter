@@ -234,6 +234,7 @@ def render(template, data, config, renderer, base):
     elif template == 'buecherregal':
         rows = data.get('BOOKS', [])
         lines = ['### 📚 ' + tr('ui.library_2'), data['LIBRARY_NAME'] + ' · ' + data['BOOK_COUNT_TEXT'], '']
+        lines += renderer.session_lines(data.get('SESSIONS', []))
         if rows:
             lines += [native('library_table'), '|--:|---|---|---|---|--:|']
             group = None

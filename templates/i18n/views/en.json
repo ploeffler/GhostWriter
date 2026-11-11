@@ -994,5 +994,11 @@
   "book.chapter_one": "chapter",
   "book.chapters": "chapters",
   "library.edition_open": "Open edition",
-  "library.edition_branch": "branch `{branch}`"
+  "library.edition_branch": "branch `{branch}`",
+  "library.session.heading": "Open session backups",
+  "library.session.unknown": "unknown",
+  "library.session.origin": "Computer: {device} · {os} · {client}",
+  "library.session.status_open": "Change package",
+  "library.session.status_pr_pending": "saved, change package pending",
+  "library.session.status_unknown": "Status not available"
 }

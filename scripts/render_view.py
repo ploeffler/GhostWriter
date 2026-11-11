@@ -2511,6 +2511,41 @@ def edition_rows(rows, by_branch):
     return out
 
 
+def session_rows(data, by_branch, override=None):
+    """Offene Sitzungssicherungen für den Kopf des Bücherregals (#237); nur Metadaten.
+    override: frische Liste von `library.py sessions` (nach Sichern, Übernehmen, Verwerfen)."""
+    unknown = view_message('library.session.unknown')
+    rows = []
+    for x in (override if override is not None else data.get('sessions')) or []:
+        origin = x.get('origin') or {}
+        book = by_branch.get(x.get('base')) or by_branch.get(x.get('book_branch')) or {}
+        client = ' '.join(v for v in (origin.get('client'), origin.get('client_version')) if v)
+        status = x.get('status') or 'unknown'
+        rows.append({'SS_SESSION': x.get('session') or '', 'SS_TITLE': x.get('project') or x.get('session') or '',
+                     'SS_BOOK': book.get('title') or book.get('title_short') or x.get('book_branch') or x.get('base') or unknown,
+                     'SS_BOOK_BRANCH': x.get('base') or '', 'SS_BRANCH': x.get('branch') or '',
+                     'SS_TIME_TEXT': change_date(x['saved_at']) if x.get('saved_at') else unknown,
+                     'SS_DEVICE_TEXT': origin.get('device') or unknown, 'SS_OS_TEXT': origin.get('os') or unknown,
+                     'SS_CLIENT_TEXT': client or unknown, 'SS_STATUS': status, 'SS_PR': x.get('pr') or '',
+                     'SS_STATUS_TEXT': view_message('library.session.status_open') if status == 'open' else
+                     view_message('library.session.status_pr_pending') if status == 'pr_pending' else
+                     view_message('library.session.status_unknown')})
+    return rows
+
+
+def session_lines(sessions):
+    """Textfassung der Rubrik „Offene Sitzungssicherungen“ (de/en)."""
+    if not sessions:
+        return []
+    out = [f'**{view_message("library.session.heading")}** ({len(sessions)})']
+    for x in sessions:
+        status = f'[{x["SS_STATUS_TEXT"]}]({x["SS_PR"]})' if x['SS_PR'] else x['SS_STATUS_TEXT']
+        out.append(f'- **{x["SS_TITLE"]}** → {x["SS_BOOK"]} · {x["SS_TIME_TEXT"]} · '
+                   + view_message('library.session.origin', device=x['SS_DEVICE_TEXT'], os=x['SS_OS_TEXT'], client=x['SS_CLIENT_TEXT'])
+                   + f' · {status}')
+    return out + ['']
+
+
 def edition_keys(editions):
     keys = [e['E_KEY'] for e in editions]
     return keys[0] if len(keys) == 1 else f'{keys[0]}–{keys[-1]}'
@@ -2537,9 +2572,11 @@ def library_view(base, config, args):
     empty_series = [{'S_ID': s['id'], 'S_TITLE': s['title'], 'S_KEY': f'S{i}'} for i, s in enumerate(ser, start=1)
                     if not any(br in by_branch for br in s['volumes'])]
     editions = edition_rows(rows, by_branch)
+    override = json.loads(Path(args.sessions).read_text(encoding='utf-8')) if getattr(args, 'sessions', None) else None
+    sessions = session_rows(data, by_branch, override)
     count = plural(len(rows), 'Buch', 'Bücher') + (f' · {plural(len(ser), "Serie", "Serien")}' if ser else '')
     if args.text:
-        out = [f'### 📚 Bücherregal', f'{repo_label(args)} · {count}', '']
+        out = [f'### 📚 Bücherregal', f'{repo_label(args)} · {count}', ''] + session_lines(sessions)
         if rows:
             out += ['| # | Buch | Status | Fortschritt | Auflage | Kosten |', '|--:|---|---|---|---|--:|']
             group = None
@@ -2566,12 +2603,16 @@ def library_view(base, config, args):
         out += ['', '---', menu(items)]
         return '\n'.join(out) + '\n'
     blocks = {'BOOKS': rows}
+    if sessions:
+        blocks['SESSIONS'] = sessions
     if editions:
         blocks['EDITIONS'] = editions
     if empty_series:
         blocks['EMPTY_SERIES'] = empty_series
     return fill('buecherregal.html', {'LIBRARY_NAME': repo_label(args), 'BOOK_COUNT_NUMBER': len(rows), 'SERIES_COUNT_NUMBER': len(ser),
                                       'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
+                                      'SESSION_COUNT_NUMBER': len(sessions),
+                                      'SESSION_COUNT_TEXT': f'{view_message("library.session.heading")} ({len(sessions)})' if sessions else '',
                                       'UPDATED_TEXT': ''}, blocks)
 
 
@@ -3481,6 +3522,7 @@ def main():
     ap.add_argument('--changes', help='JSON-Datei mit den offenen Änderungen (Pull Request, Branches, Commits) für Projektübersicht und changes-merge')
     ap.add_argument('--head-sha', help='Commit des gelesenen Stands (HEAD_SHA); ohne Angabe der HEAD des Projektordners, wenn er ein Git-Repository ist')
     ap.add_argument('--draft', help='bei chapter-research bzw. book-create: JSON mit noch nicht gespeicherten Werten (goal, summary, question, scope bzw. working_title, title_short, author, error)')
+    ap.add_argument('--sessions', help='bei library: frische Liste offener Sitzungssicherungen (JSON von library.py sessions, #237) statt sessions aus library.json')
     ap.add_argument('--library', help='library.json vom Standard-Branch (Bücherregal; in der Projektübersicht ab 2 Büchern der Link „Bücherregal“)')
     ap.add_argument('--github', help='bei data: JSON mit Rohdaten der GitHub-API (repo, branches, pulls, runs), siehe BEFUELLUNG.md, „Daten“')
     ap.add_argument('--spec', help='bei choice: JSON-Datei oder JSON-Text mit einer eigenen Auswahl (Aufbau wie templates/wizard-choices.yml)')

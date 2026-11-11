@@ -213,6 +213,104 @@ class ShelfTest(unittest.TestCase):
         self.assertNotIn('LIBRARY_COUNT', self.view(fx, 'project'))
 
 
+class SessionShelfTest(unittest.TestCase):
+    """Offene Sitzungssicherungen im Bücherregal (#237): Metadaten, Status, Reihenfolge, Anzeige."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        d = self.d = self.tmp.name
+        self.g('init', '-q', '-b', 'main')
+        Path(d, 'ghostwriter.yml').write_text(STARTER_FILE.read_text(encoding='utf-8'), encoding='utf-8')
+        self.g('add', '.')
+        self.g('commit', '-qm', 'Starter')
+        self.g('checkout', '-q', '-b', 'buch/garten')
+        self.g('commit', '-q', '--allow-empty', '-m', 'Buch')
+        for name, last in [('s-old', None),
+                           ('s-a', {'at': '2026-11-10T16:51:47Z', 'origin': {'client': 'ChatGPT', 'os': 'iOS'}}),
+                           ('s-b', {'at': '2026-11-10T18:00:00Z', 'origin': {'device': 'Laptop', 'client': 'Claude Desktop', 'client_version': '1.2'}}),
+                           ('s-merged', {'at': '2026-11-10T20:00:00Z', 'origin': {}}),
+                           ('s-closed', {'at': '2026-11-10T21:00:00Z', 'origin': {}})]:
+            self.session(name, last)
+        self.g('checkout', '-q', 'buch/garten')
+        self.g('merge', '-q', '--no-ff', '-m', 'Session übernommen', 'ghostwriter/chat/s-merged')
+        self.g('checkout', '-q', 'main')
+        self.pulls = [{'head': {'ref': 'ghostwriter/chat/s-a'}, 'state': 'open', 'merged_at': None, 'html_url': 'https://github.com/o/r/pull/5'},
+                      {'head': {'ref': 'ghostwriter/chat/s-closed'}, 'state': 'closed', 'merged_at': None, 'html_url': 'pr/6'},
+                      {'head': {'ref': 'buch/garten'}, 'state': 'open', 'merged_at': None, 'html_url': 'pr/7'}]
+
+    def g(self, *a):
+        return subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=self.d, check=True,
+                              capture_output=True, text=True).stdout
+
+    def session(self, name, last):
+        self.g('checkout', '-q', '-b', f'ghostwriter/chat/{name}', 'buch/garten')
+        info = {'format_version': 1, 'session': name, 'base': 'buch/garten', 'source_commit': 'x',
+                'context': {'project': f'Gespräch {name}', 'book_branch': 'buch/garten'}}
+        if last is not None:
+            info['last_saved'] = last
+        folder = Path(self.d, 'conversations', name)
+        folder.mkdir(parents=True)
+        (folder / 'session.json').write_text(json.dumps(info), encoding='utf-8')
+        (folder / 'geheim.txt').write_text('Gesprächsinhalt', encoding='utf-8')
+        self.g('add', '.')
+        self.g('commit', '-qm', f'Chat sichern ({name})')
+
+    def test_status_order_and_metadata(self):
+        found = library.session_backups('refs/heads', self.d, self.pulls)
+        self.assertEqual([(x['session'], x['status']) for x in found],
+                         [('s-b', 'pr_pending'), ('s-a', 'open'), ('s-old', 'pr_pending')])
+        self.assertEqual(found[1]['pr'], 'https://github.com/o/r/pull/5')
+        self.assertEqual(found[0]['origin'], {'device': 'Laptop', 'client': 'Claude Desktop', 'client_version': '1.2'})
+        self.assertEqual((found[2]['saved_at'], found[2]['origin']), ('', {}), 'alte Sicherung ohne Herkunft bleibt sichtbar')
+        self.assertNotIn('Gesprächsinhalt', json.dumps(found), 'nur Metadaten')
+        unknown = library.session_backups('refs/heads', self.d)
+        self.assertEqual({x['status'] for x in unknown} | {x['session'] for x in unknown},
+                         {'unknown', 's-a', 's-b', 's-old', 's-closed'}, 'ohne PR-Daten: Status unbekannt, Übernahme per Git erkannt')
+
+    def test_accepting_one_session_removes_only_that_entry(self):
+        self.g('checkout', '-q', 'buch/garten')
+        self.g('merge', '-q', '--no-ff', '-m', 'Session übernommen', 'ghostwriter/chat/s-a')
+        self.g('checkout', '-q', 'main')
+        found = library.session_backups('refs/heads', self.d, self.pulls)
+        self.assertEqual([x['session'] for x in found], ['s-b', 's-old'])
+
+    def test_shelf_shows_sessions_under_title(self):
+        data = library.build_library('refs/heads', self.d, MANIFEST, self.pulls)
+        lib = Path(self.d, 'library.json')
+        lib.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+        run = lambda *a: subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), self.d, 'library',
+                                         '--library', str(lib), *a], capture_output=True, text=True, check=True).stdout
+        text = run('--text', '--timezone', 'Europe/Vienna')
+        lines = text.splitlines()
+        self.assertEqual(lines[3], '**Offene Sitzungssicherungen** (3)', 'direkt unter dem Titel')
+        self.assertIn('- **Gespräch s-b** → buch/garten · 10.11.2026, 19:00 · Rechner: Laptop · unbekannt · Claude Desktop 1.2 · gesichert, Änderungspaket ausstehend', lines)
+        self.assertIn('10.11.2026, 17:51 · Rechner: unbekannt · iOS · ChatGPT · [Änderungspaket](https://github.com/o/r/pull/5)', lines[5])
+        self.assertIn('Gespräch s-old** → buch/garten · unbekannt · Rechner: unbekannt · unbekannt · unbekannt', lines[6])
+        widget = run()
+        self.assertIn('"SESSION_COUNT_NUMBER":3', widget)
+        self.assertIn('"SS_STATUS":"open"', widget)
+        en = run('--text', '--language', 'en')
+        self.assertIn('**Open session backups** (3)', en)
+        self.assertIn('Status nicht verfügbar', subprocess.run(
+            [sys.executable, str(ROOT / 'scripts/render_view.py'), self.d, 'library', '--library', str(lib), '--text',
+             '--sessions', self.fresh()], capture_output=True, text=True, check=True).stdout)
+        self.assertNotIn('Offene Sitzungssicherungen', run('--text', '--sessions', self.fresh([])))
+
+    def fresh(self, value=None):
+        path = Path(self.d, 'sessions.json')
+        path.write_text(json.dumps(library.session_backups('refs/heads', self.d) if value is None else value), encoding='utf-8')
+        return str(path)
+
+    def test_sessions_command(self):
+        pulls = Path(self.d, 'pulls.json')
+        pulls.write_text(json.dumps(self.pulls), encoding='utf-8')
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/library.py'), 'sessions', '--namespace', 'refs/heads',
+                            '--repo', self.d, '--pulls', str(pulls)], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual([x['session'] for x in json.loads(r.stdout)], ['s-b', 's-a', 's-old'])
+
+
 class NewBookTest(unittest.TestCase):
     """Neues Buch (#38): Felder setzen ohne Formatverlust, Branch und ein Commit, Namensprüfung, Formular."""
 

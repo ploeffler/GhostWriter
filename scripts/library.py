@@ -5,7 +5,10 @@ Aufruf (im Repository, braucht alle Branches: git fetch origin '+refs/heads/*:re
   python scripts/library.py list [--json]       Bücher der Bibliothek
   python scripts/library.py name "<Kurztitel>"  Branch-Name, Tag-Slug und ob er schon vergeben ist
   python scripts/library.py check               Kurztitel bzw. Tag-Slugs eindeutig? (Exit 1 bei Doppelten)
-  python scripts/library.py build [--out library.json]   Übersicht der Bibliothek schreiben (#37)
+  python scripts/library.py build [--out library.json] [--pulls pulls.json]
+                                                Übersicht der Bibliothek schreiben (#37); mit
+                                                --pulls Status der Sitzungs-PRs (#237)
+  python scripts/library.py sessions [--pulls pulls.json]  offene Sitzungssicherungen (#237)
   python scripts/library.py check-program      Hauptrepository: keine Buchinhalte (#48); Fehler bei
                                                 Kapiteln/Auflagen auf dem Standard-Branch, bei
                                                 Buch-Branches und bei Auflagen-Tags
@@ -245,7 +248,62 @@ def pending_commits(book_ref, work_ref, cwd=ROOT):
     return count
 
 
-def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None):
+CHAT_PREFIX = 'ghostwriter/chat/'
+
+
+def pull_states(pulls):
+    """{head-branch: {state, url}} aus der REST-Liste `GET /pulls?state=all` (#237)."""
+    out = {}
+    for pr in pulls or []:
+        head = ((pr.get('head') or {}).get('ref')) or ''
+        if not head.startswith(CHAT_PREFIX):
+            continue
+        state = 'merged' if pr.get('merged_at') else str(pr.get('state') or '')
+        # Ein offener PR hat Vorrang vor älteren geschlossenen derselben Sitzung.
+        if head not in out or state == 'open':
+            out[head] = {'state': state, 'url': pr.get('html_url') or ''}
+    return out
+
+
+def session_backups(namespace='refs/remotes/origin', cwd=ROOT, pulls=None):
+    """Offene Sitzungssicherungen (#237): nur Metadaten aus conversations/<id>/session.json.
+
+    Übernommen (Sicherungsstand im Zielbranch enthalten oder PR gemergt) und verworfen
+    (PR ohne Merge geschlossen) fallen heraus, auch wenn der Branch noch existiert.
+    status: open (PR offen) | pr_pending (gesichert, Änderungspaket fehlt) | unknown (ohne
+    PR-Daten). Neueste Sicherung zuerst; ohne Zeitpunkt am Ende."""
+    states = None if pulls is None else pull_states(pulls)
+    out = []
+    for ref in git('for-each-ref', '--format=%(refname)', f'{namespace}/{CHAT_PREFIX}', cwd=cwd).split():
+        branch = ref[len(namespace) + 1:]
+        session = branch[len(CHAT_PREFIX):]
+        raw = subprocess.run(['git', 'show', f'{ref}:conversations/{session}/session.json'], cwd=cwd,
+                             capture_output=True, text=True)
+        try:
+            info = json.loads(raw.stdout) if raw.returncode == 0 else None
+        except ValueError:
+            info = None
+        if not isinstance(info, dict) or info.get('session') != session:
+            continue
+        base = str(info.get('base') or '')
+        base_ref = f'{namespace}/{base}'
+        if base and git('rev-parse', '-q', '--verify', base_ref, cwd=cwd).strip() and subprocess.run(
+                ['git', 'merge-base', '--is-ancestor', ref, base_ref], cwd=cwd, capture_output=True).returncode == 0:
+            continue  # bereits übernommen
+        pr = (states or {}).get(branch)
+        if pr and pr['state'] in ('merged', 'closed'):
+            continue  # übernommen oder bewusst verworfen
+        status = 'unknown' if states is None else ('open' if pr else 'pr_pending')
+        context = info.get('context') or {}
+        last = info.get('last_saved') or {}
+        out.append({'session': session, 'branch': branch, 'base': base,
+                    'project': str(context.get('project') or ''), 'book_branch': str(context.get('book_branch') or ''),
+                    'saved_at': last.get('at') or '', 'origin': last.get('origin') or {},
+                    'status': status, 'pr': (pr or {}).get('url', '')})
+    return sorted(out, key=lambda x: (x['saved_at'] != '', x['saved_at']), reverse=True)
+
+
+def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None, pulls=None):
     manifest = manifest or load_manifest()
     configs = branch_configs(namespace, cwd)
     out = []
@@ -263,7 +321,8 @@ def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None):
         entry['last_edition'] = last_edition(entry['slug'], cwd)
         out.append(entry)
     names = sorted({'GHOSTWRITER_UPDATE_TOKEN'} | {n for b in out for n in b.pop('secret_names', [])})
-    data = {'format': 1, 'program': program_info(cwd, manifest), 'secret_names': names, 'books': out}
+    data = {'format': 1, 'program': program_info(cwd, manifest), 'secret_names': names, 'books': out,
+            'sessions': session_backups(namespace, cwd, pulls)}
     ser = series_entries(cwd, out)
     if ser:
         data['series'] = ser
@@ -446,12 +505,13 @@ def load_manifest():
 
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('cmd', choices=['list', 'name', 'check', 'build', 'new', 'is', 'check-program'])
+    ap.add_argument('cmd', choices=['list', 'name', 'check', 'build', 'new', 'is', 'check-program', 'sessions'])
     ap.add_argument('title', nargs='?')
     ap.add_argument('--json', action='store_true')
     ap.add_argument('--namespace', default='refs/remotes/origin', help='Git-Namespace der Branches (Tests: refs/heads)')
     ap.add_argument('--repo', default=str(ROOT), help='Repository-Ordner (Standard: dieses)')
     ap.add_argument('--out', help='bei build: Zieldatei (sonst Ausgabe)')
+    ap.add_argument('--pulls', help='bei build und sessions: JSON von GET /repos/{o}/{r}/pulls?state=all (Status der Sitzungs-PRs, #237)')
     ap.add_argument('--short', default='', help='bei new: Kurztitel (sonst der Arbeitstitel)')
     ap.add_argument('--author', default='', help='bei new: Autor')
     ap.add_argument('--dir', default='.', help='bei is: Ordner mit ghostwriter.yml')
@@ -476,8 +536,12 @@ def main(argv):
         yes = is_book(a.title or '', cfg, manifest, default_branch(a.repo))
         print(f'{a.title}: {"Buch" if yes else "kein Buch"}')
         return 0 if yes else 1
+    pulls = json.loads(Path(a.pulls).read_text(encoding='utf-8')) if a.pulls else None
+    if a.cmd == 'sessions':
+        print(json.dumps(session_backups(a.namespace, a.repo, pulls), ensure_ascii=False, indent=2))
+        return 0
     if a.cmd == 'build':
-        data = build_library(a.namespace, a.repo, manifest)
+        data = build_library(a.namespace, a.repo, manifest, pulls)
         old = Path(a.out).read_text(encoding='utf-8') if a.out and Path(a.out).is_file() else None
         try:
             prev = (json.loads(old) or {}).get('secrets') if old else None

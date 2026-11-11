@@ -41,7 +41,7 @@ Gesprächsdaten sind vertraulich. Vor dem ersten Sichern Ziel und Sichtbarkeit d
 Das Hilfsprogramm spricht GitHub ausschließlich über die REST-Schnittstelle an (`gh api`), nicht über `gh pr …`. `gh pr` nutzt GraphQL, das in Claude-Code-Sitzungen gesperrt ist; Sichern, PR-Anlage und Übernehmen funktionieren dadurch in allen Clients (#253). Meldet GitHub beim Anlegen des PRs einen Fehler, prüft das Programm, ob der PR trotzdem entstanden ist, und legt keinen zweiten an.
 
 ```sh
-python3 scripts/chat_backup.py save <git-url> <session-id> <eingabe.json> --base <zielbranch> --expected-head <vollstaendiger-sha> --github-repo <owner/repo> --author-name <name> --author-email <email>
+python3 scripts/chat_backup.py save <git-url> <session-id> <eingabe.json> --base <zielbranch> --expected-head <vollstaendiger-sha> --github-repo <owner/repo> --author-name <name> --author-email <email> [--device <alias>] [--os <system>] [--client <client>] [--client-version <version>]
 python3 scripts/chat_backup.py resume <git-url> <session-id> [--base <zielbranch>]
 ```
 
@@ -65,7 +65,7 @@ Eingabeformat (Themen sind frei formulierte Texte; nur nichtleere, tatsächlich 
 }
 ```
 
-Der `context` bleibt pro Sitzung beständig; veränderliche Aufgaben und neue Quellenstände gehören in `planning`. Nachrichten-IDs dürfen nicht doppelt sein. `session.json` hält ursprünglichen Zielbranch und Ausgangscommit fest. Jedes Thema hat einen aktuellen Stand `latest.json` und unveränderliche, nach SHA-256 benannte Snapshots. Die gesamte Sicherung bleibt über Git nachvollziehbar. `resume` gibt Inhalte nur auf ausdrücklichen Ladeauftrag aus; der Assistent liest sie intern und antwortet mit einem kurzen Wiedereinstieg.
+Der `context` bleibt pro Sitzung beständig; veränderliche Aufgaben und neue Quellenstände gehören in `planning`. Nachrichten-IDs dürfen nicht doppelt sein. `session.json` hält ursprünglichen Zielbranch und Ausgangscommit fest, dazu `last_saved` (#237): Zeitpunkt der zuletzt tatsächlich gespeicherten Änderung in UTC (`at`) und die Herkunft dieser Fassung (`origin`: `device`, `os`, `client`, `client_version`). Die Herkunft ist freiwillig und kommt nur aus den Optionen `--device` (Gerätename oder Alias, kein Hostname), `--os`, `--client` und `--client-version`; automatisch erfasst werden weder IP-Adressen noch Hardwarekennungen oder Hostnamen. Manuelles Sichern, `checkpoint` und `answer-checkpoint` nehmen dieselben Optionen. Eine Wiederholung ohne Änderung und ein gescheiterter Upload setzen den Zeitpunkt nicht neu; ältere Sicherungen ohne `last_saved` bleiben ladbar. Jedes Thema hat einen aktuellen Stand `latest.json` und unveränderliche, nach SHA-256 benannte Snapshots. Die gesamte Sicherung bleibt über Git nachvollziehbar. `resume` gibt Inhalte nur auf ausdrücklichen Ladeauftrag aus; der Assistent liest sie intern und antwortet mit einem kurzen Wiedereinstieg.
 
 ## Antwort auswerten, sofort sichern, dann weiterantworten
 

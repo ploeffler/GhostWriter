@@ -243,6 +243,62 @@ class BackupTest(unittest.TestCase):
         self.assertEqual([c['topic'] for c in second['commits']], ['research'])
         self.assertEqual(second['status'], 'remote_saved')
 
+    def manifest(self):
+        return cb.resume(str(self.remote), 'test-session')['session']
+
+    def test_last_saved_time_and_origin_follow_real_changes(self):
+        import datetime
+        t1 = datetime.datetime(2026, 11, 10, 16, 51, 47, tzinfo=datetime.timezone.utc)
+        origin = {'device': 'Laptop Küche', 'os': 'Linux', 'client': 'Claude Desktop', 'client_version': '1.2'}
+        first = self.save(origin=origin, now=t1)
+        self.assertEqual(first['saved_at'], '2026-11-10T16:51:47Z')
+        self.assertEqual(self.manifest()['last_saved'], {'at': '2026-11-10T16:51:47Z', 'origin': origin})
+        # Wiederholung ohne Änderung: kein neuer Zeitpunkt, keine neue Herkunft
+        later = t1 + datetime.timedelta(hours=1)
+        again = self.save(first['head'], origin={'client': 'ChatGPT'}, now=later)
+        self.assertEqual(again['commits'], [])
+        self.assertEqual(again['saved_at'], '2026-11-10T16:51:47Z')
+        # Fehlgeschlagener Push: remote bleibt beim alten Zeitpunkt
+        self.payload['topics']['research'] = 'Neue Quelle'
+        real_run = cb.run
+        def failed_push(*args, **kwargs):
+            if args[:2] == ('git', 'push'):
+                raise ValueError('simulierter Uploadfehler')
+            return real_run(*args, **kwargs)
+        with patch.object(cb, 'run', side_effect=failed_push), self.assertRaises(ValueError):
+            self.save(first['head'], origin={'client': 'ChatGPT'}, now=later)
+        self.assertEqual(self.manifest()['last_saved']['at'], '2026-11-10T16:51:47Z')
+        # Echte Änderung von einem anderen Gerät: neuer Zeitpunkt, Herkunft der neuen Fassung
+        third = self.save(first['head'], origin={'client': 'ChatGPT'}, now=later)
+        self.assertEqual(self.manifest()['last_saved'], {'at': '2026-11-10T17:51:47Z', 'origin': {'client': 'ChatGPT'}})
+        self.assertEqual([c['topic'] for c in third['commits']], ['research'])
+
+    def test_old_backup_without_origin_stays_loadable(self):
+        first = self.save()
+        info = self.manifest()
+        self.assertEqual(info['last_saved']['origin'], {})
+        # Ältere Sicherung ohne last_saved (vor #237): Laden und Weitersichern gehen weiter
+        self.git('fetch', '-q', 'origin', first['branch'])
+        self.git('checkout', '-q', '-B', 'old', 'FETCH_HEAD')
+        path = self.work / 'conversations/test-session/session.json'
+        data = json.loads(path.read_text())
+        data.pop('last_saved')
+        path.write_text(cb.canonical(data))
+        self.git('commit', '-qam', 'alte Sicherung')
+        self.git('push', '-q', 'origin', f'HEAD:refs/heads/{first["branch"]}')
+        head = self.git('rev-parse', 'HEAD')
+        self.assertNotIn('last_saved', self.manifest())
+        unchanged = self.save(head)
+        self.assertIsNone(unchanged['saved_at'])
+        self.payload['topics']['research'] = 'Neu'
+        self.assertTrue(self.save(head)['saved_at'])
+
+    def test_origin_rejects_unknown_or_multiline_values(self):
+        for origin in ({'hostname': 'pc-123'}, {'device': 'a\nb'}, {'client': 'x' * 81}):
+            with self.subTest(origin=origin), self.assertRaises(ValueError):
+                self.save(origin=origin)
+        self.assertNotIn('ghostwriter/chat/', self.git('ls-remote', '--heads', 'origin'))
+
     def test_resume_after_merge_and_branch_cleanup(self):
         first = self.save()
         self.git('fetch', '-q', 'origin', first['branch'])
