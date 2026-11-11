@@ -19,7 +19,8 @@ Aufruf (im Repository, braucht alle Branches: git fetch origin '+refs/heads/*:re
 library.json (Action „Bücherregal aktualisieren“, auf dem Standard-Branch): je Buch
 Titel, Kurztitel, Branch, Status, Auflage, freigegebene Kapitel und Abschnitte,
 KI-API-Kosten, offene Änderungen im Arbeits-Branch, letzter Commit, Datenversion,
-„sofort übernehmen“, letzte Auflage (Tag); dazu Programmstand und, mit
+„sofort übernehmen“, letzte Auflage (Tag), alle Auflagen (Tags und Auflagen-Branches
+<buch-branch>-auflage-N, #235; diese Branches sind keine eigenen Einträge); dazu Programmstand und, mit
 SECRETS_PRESENT, welche Secrets hinterlegt sind (nur Namen, nie Werte; #71). Kein
 Manuskripttext und kein Zeitstempel des Laufs, damit sich die Datei nur ändert,
 wenn sich ein Buch ändert.
@@ -122,10 +123,40 @@ def books(branch_configs, manifest=None, default=None):
     return [describe(n, c, manifest) for n, c in sorted(branch_configs.items()) if is_book(n, c, manifest, default)]
 
 
+EDITION_SUFFIX = re.compile(r'-auflage-(\d+)')
+
+
+def edition_branches(book_list):
+    """{branch: (haupt-branch, N)} für Auflagenstände auf eigenen Branches (#235).
+
+    Ein Branch ist Auflage N eines Buchs, wenn er genau <buch-branch>-auflage-N heißt und
+    <buch-branch> selbst ein Buch ist. Die Zuordnung hängt am Branch (Buchidentität), nicht
+    am Titel; gleichnamige Bücher bleiben so getrennt. Freigabe- und Korrekturbranches
+    heißen anders und werden keine Auflagen."""
+    names = {b['branch'] for b in book_list}
+    out = {}
+    for name in names:
+        for main_branch in names:
+            m = EDITION_SUFFIX.fullmatch(name[len(main_branch):]) if name.startswith(main_branch) else None
+            if m and main_branch != name:
+                out[name] = (main_branch, int(m.group(1)))
+    return out
+
+
+def split_editions(book_list):
+    """(Bücher ohne Auflagen-Branches, {haupt-branch: [{number, branch}]})."""
+    eds = edition_branches(book_list)
+    grouped = {}
+    for name, (main_branch, number) in eds.items():
+        grouped.setdefault(main_branch, []).append({'number': number, 'branch': name})
+    return [b for b in book_list if b['branch'] not in eds], grouped
+
+
 def duplicates(book_list):
-    """{slug: [branches]} für Kurztitel, die mehr als ein Buch hat (Auflagen-Tags wären nicht eindeutig)."""
+    """{slug: [branches]} für Kurztitel, die mehr als ein Buch hat (Auflagen-Tags wären nicht eindeutig).
+    Auflagen-Branches eines Buchs tragen dessen Kurztitel und zählen nicht doppelt (#235)."""
     seen = {}
-    for b in book_list:
+    for b in split_editions(book_list)[0]:
         if b['slug']:
             seen.setdefault(b['slug'], []).append(b['branch'])
     return {k: v for k, v in seen.items() if len(v) > 1}
@@ -218,7 +249,8 @@ def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None):
     manifest = manifest or load_manifest()
     configs = branch_configs(namespace, cwd)
     out = []
-    for b in books(configs, manifest, default_branch(cwd)):
+    found, edition_refs = split_editions(books(configs, manifest, default_branch(cwd)))
+    for b in found:
         ref = f'{namespace}/{b["branch"]}'
         p = (configs[b['branch']] or {}).get('project') or {}
         entry = dict(b, author=p.get('author') or '')
@@ -227,6 +259,7 @@ def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None):
         entry['pending'] = pending_commits(ref, work, cwd)
         entry['updated_at'] = git('log', '-1', '--format=%cI', ref, cwd=cwd).strip()
         entry['last_commit'] = git('log', '-1', '--format=%s', ref, cwd=cwd).strip()
+        entry['editions'] = merge_editions(editions(entry['slug'], cwd), edition_refs.get(b['branch'], []), namespace, cwd)
         entry['last_edition'] = last_edition(entry['slug'], cwd)
         out.append(entry)
     names = sorted({'GHOSTWRITER_UPDATE_TOKEN'} | {n for b in out for n in b.pop('secret_names', [])})
@@ -252,18 +285,34 @@ def series_entries(cwd, book_list):
     return out
 
 
-def last_edition(slug, cwd=ROOT):
-    """Neueste Auflage eines Buchs aus den Tags <slug>-auflage-N: {tag, number, date} oder None."""
+def editions(slug, cwd=ROOT):
+    """Alle Auflagen eines Buchs aus den Tags <slug>-auflage-N, numerisch sortiert: [{tag, number, date}]."""
     if not slug:
-        return None
-    best = None
+        return []
+    found = []
     for tag in git('tag', '--list', f'{slug}-auflage-*', cwd=cwd).split():
         m = re.fullmatch(re.escape(slug) + r'-auflage-(\d+)', tag)
-        if m and (best is None or int(m.group(1)) > best[0]):
-            best = (int(m.group(1)), tag)
-    if not best:
-        return None
-    return {'tag': best[1], 'number': best[0], 'date': git('log', '-1', '--format=%cI', best[1], cwd=cwd).strip()}
+        if m:
+            found.append({'tag': tag, 'number': int(m.group(1)),
+                          'date': git('log', '-1', '--format=%cI', tag, cwd=cwd).strip()})
+    return sorted(found, key=lambda e: e['number'])
+
+
+def merge_editions(tags, branches, namespace='refs/remotes/origin', cwd=ROOT):
+    """Tags und Auflagen-Branches je Nummer zusammenführen: [{number, tag, date, branch}] (#235)."""
+    by_number = {e['number']: dict(e, branch='') for e in tags}
+    for e in branches:
+        entry = by_number.setdefault(e['number'], {'number': e['number'], 'tag': '', 'date': ''})
+        entry['branch'] = e['branch']
+        if not entry['date']:
+            entry['date'] = git('log', '-1', '--format=%cI', f'{namespace}/{e["branch"]}', cwd=cwd).strip()
+    return [by_number[n] for n in sorted(by_number)]
+
+
+def last_edition(slug, cwd=ROOT):
+    """Neueste Auflage eines Buchs aus den Tags <slug>-auflage-N: {tag, number, date} oder None."""
+    found = editions(slug, cwd)
+    return found[-1] if found else None
 
 
 def program_info(cwd=ROOT, manifest=None):
@@ -461,8 +510,13 @@ def main(argv):
         if a.json:
             print(json.dumps(found, ensure_ascii=False, indent=2))
         else:
+            eds = edition_branches(found)
             for b in found:
+                if b['branch'] in eds:
+                    continue
                 print(f'{b["branch"]:40} {"im Aufbau" if b["status"] == "setup" else "eingerichtet":12} {b["title_short"]}')
+                for name, (_, number) in sorted(((n, v) for n, v in eds.items() if v[0] == b['branch']), key=lambda x: x[1][1]):
+                    print(f'  {name:38} Auflage {number}')
             if not found:
                 print('keine Bücher gefunden')
         return 0

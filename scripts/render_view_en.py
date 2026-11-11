@@ -245,11 +245,15 @@ def render(template, data, config, renderer, base):
                 title = (row['BOOK_VOLUME_TEXT'] + ': ' if row['BOOK_VOLUME_TEXT'] else '') + row['BOOK_TITLE']
                 pending = ' · ⏳ ' + row['BOOK_PENDING_TEXT'] if row['BOOK_PENDING_TEXT'] else ''
                 lines += [f'| {i} | **{cell(title)}** ({cell(row["BOOK_TITLE_SHORT"])}){pending} | {row["BOOK_STATE_TEXT"]} | {renderer.progress_bar(row["BOOK_APPROVED_SECTION_COUNT"], row["BOOK_SECTION_COUNT"])} {row["BOOK_PROGRESS_TEXT"]} | {row["BOOK_EDITION_TEXT"]} | {row["BOOK_COST"]} |']
+                lines += [f'| {e["E_KEY"]} | ↳ {cell(e["E_TEXT"])}{" · " + cell(e["E_DETAIL"]) if e["E_DETAIL"] else ""} | | | | |'
+                          for e in data.get('EDITIONS', []) if e['E_BOOK_BRANCH'] == row['BOOK_BRANCH']]
         else:
             lines += [native('no_books')]
         if data.get('EMPTY_SERIES'):
             lines += ['', tr('ui.series_without_volumes') + ' ' + ', '.join(s['S_TITLE'] + ' (`' + s['S_KEY'] + '`)' for s in data['EMPTY_SERIES'])]
         items = [('1' if len(rows) == 1 else f'1–{len(rows)}', native('open_book'))] if rows else []
+        if data.get('EDITIONS'):
+            items.append((renderer.edition_keys(data['EDITIONS']), view_message('library.edition_open')))
         keys = {r.get('BOOK_SERIES_KEY') for r in rows if r.get('BOOK_SERIES_KEY')} | {s['S_KEY'] for s in data.get('EMPTY_SERIES', [])}
         if keys:
             items.append(('S1' if len(keys) == 1 else f'S1–S{len(keys)}', native('open_series')))

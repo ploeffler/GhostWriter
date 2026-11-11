@@ -16,7 +16,7 @@ English field names are mapped as described in `START.md`. For an edition, use `
 
 ## Bookshelf
 
-For a library with multiple books, the bookshelf shows each book's progress, edition and pending changes. Open a book to see its project overview, or continue setup for a book in progress.
+For a library with multiple books, the bookshelf shows each book's progress, edition and pending changes. Open a book to see its project overview, or continue setup for a book in progress. Each book appears once; its editions are listed below it as “Edition 1”, “Edition 2” … and can be opened individually (release page or stored edition state). In the text version they have keys such as `2.1`.
 
 <img src="bilder/buecherregal.png" alt="German bookshelf showing two books and their progress" width="640">
 

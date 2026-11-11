@@ -221,6 +221,8 @@ Startseite einer Bibliothek; Widget oder Text nach dem Darstellungsmodus. Erzeug
 | `BOOK_UPDATED_TEXT` | „zuletzt geändert am TT.MM.JJJJ“ bzw. „angelegt am …“ aus `updated_at` |
 | `BOOK_SERIES`, `BOOK_SERIES_TITLE`, `BOOK_SERIES_KEY`, `BOOK_VOLUME_TEXT` | Serie des Buchs (#116) aus `library.json` (`series`) bzw. `series/` auf dem Standard-Branch: ID, Reihentitel, Kürzel `S1`, `S2` … (Reihenfolge der Serien) und „Band N“; ohne Serie leer. Bücher einer Serie stehen zuerst, je Serie in Bandreihenfolge, danach die übrigen |
 | Block `EMPTY_SERIES`: `S_ID`, `S_TITLE`, `S_KEY` | Serien, zu denen noch kein Buch gehört; sonst Block weglassen |
+| `BOOK_KEY`, `BOOK_EDITION_COUNT` | Nummer des Buchs im Regal (Kürzel der Textfassung) und Zahl seiner Auflagen aus `editions` (#235) |
+| Block `EDITIONS`: `E_BOOK_BRANCH`, `E_BOOK_KEY`, `E_KEY`, `E_NUMBER`, `E_TEXT`, `E_DATE_TEXT`, `E_TAG`, `E_BRANCH`, `E_DETAIL` | je Auflage eines Buchs aus `library.json` (`editions`), in Regal- und dann numerischer Reihenfolge: Buch-Branch und Nummer des Buchs, Kürzel `<Buch>.<Auflage>`, „Auflage N“, Datum (Tag bzw. letzter Commit des Auflagen-Branchs), Tag, Auflagen-Branch (leer, wenn es keinen gibt), Kurzangabe für die Textfassung. Das Widget ordnet die Einträge über `E_BOOK_BRANCH` unter der Karte des Buchs an; die Textfassung zeigt sie als Zeilen „↳ Auflage N“ unter dem Buch. Ohne Auflagen Block weglassen |
 
 In der Projektübersicht kommt `LIBRARY_COUNT` (Zahl der Bücher, nur ab 2, sonst leer) aus derselben Datei (`--library`).
 
@@ -683,6 +685,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `view.library` | – | Bücherregal zeigen | Vorlage `buecherregal` (`render_view.py library --library library.json`) | – |
 | `view.data` | – | Seite „Daten“ zeigen | Daten sammeln und Vorlage `daten` (`render_view.py data`, `START.md`, „Daten“) | `GET /v1/projects/{owner}/{repo}` |
 | `library.book.open` | `branch` | Buch aus dem Bücherregal öffnen | Branch als Buch-Branch übernehmen, Projektübersicht zeigen; Buch im Aufbau: Einstiegsdialog fortsetzen | `GET /v1/projects/{owner}/{repo}` |
+| `library.edition.open` | `branch`, `edition` | Auflage eines Buchs aus dem Bücherregal öffnen (#235) | mit Tag: Name, Datum und Link zur Release-Seite zeigen; nur Auflagen-Branch: dessen Projektübersicht zum Nachlesen; nichts schreiben (`START.md`, „Bücherregal“) | – |
 | `library.book.create.open` | – | Formular „Neues Buch“ zeigen | Vorlage `buch-anlegen` (`render_view.py book-create`) | – |
 | `library.book.create` | `working_title`, `title_short`, `author`, `branch`, optional `series_id` | Neues Buch anlegen | Namen erneut prüfen, Branch und einen Commit anlegen (`START.md`, „Neues Buch“); mit `series_id` zusätzlich ein Commit auf dem Standard-Branch: als nächster Band der Serie (`START.md`, „Serien“); dann Einstiegsdialog auf dem neuen Branch | `POST /v1/projects/{owner}/{repo}/books` |
 | `view.series` | `series_id` | Seite einer Serie zeigen | Vorlage `serie` (`render_view.py series <ser-id>`) | – |

@@ -2493,6 +2493,29 @@ def library_series(base, data):
     return [dict(s, volumes=series.volumes(s)) for s in series.load_all(base).values()]
 
 
+def edition_rows(rows, by_branch):
+    """Auflagen je Buch als eigener Block, Kürzel <Buchnummer>.<Auflage> (#235).
+    Die Reihenfolge der Bücher folgt dem Regal; Bände einer Serie behalten ihre Auflagen."""
+    out = []
+    for i, r in enumerate(rows, 1):
+        r['BOOK_KEY'] = str(i)
+        eds = (by_branch.get(r['BOOK_BRANCH']) or {}).get('editions') or []
+        r['BOOK_EDITION_COUNT'] = len(eds)
+        for e in eds:
+            n = int(e['number'])
+            detail = [de_date(e.get('date'))] if e.get('date') else []
+            detail.append(f'`{e["tag"]}`' if e.get('tag') else view_message('library.edition_branch', branch=e['branch']))
+            out.append({'E_BOOK_BRANCH': r['BOOK_BRANCH'], 'E_BOOK_KEY': str(i), 'E_KEY': f'{i}.{n}', 'E_NUMBER': n,
+                        'E_TEXT': view_message('book.edition', number=n), 'E_DATE_TEXT': de_date(e.get('date')),
+                        'E_TAG': e.get('tag') or '', 'E_BRANCH': e.get('branch') or '', 'E_DETAIL': ' · '.join(detail)})
+    return out
+
+
+def edition_keys(editions):
+    keys = [e['E_KEY'] for e in editions]
+    return keys[0] if len(keys) == 1 else f'{keys[0]}–{keys[-1]}'
+
+
 def library_view(base, config, args):
     data = library_data(base, args)
     books = data.get('books') or []
@@ -2513,6 +2536,7 @@ def library_view(base, config, args):
             rows.append(dict(book_row(b), BOOK_SERIES='', BOOK_SERIES_TITLE='', BOOK_SERIES_KEY='', BOOK_VOLUME_TEXT=''))
     empty_series = [{'S_ID': s['id'], 'S_TITLE': s['title'], 'S_KEY': f'S{i}'} for i, s in enumerate(ser, start=1)
                     if not any(br in by_branch for br in s['volumes'])]
+    editions = edition_rows(rows, by_branch)
     count = plural(len(rows), 'Buch', 'Bücher') + (f' · {plural(len(ser), "Serie", "Serien")}' if ser else '')
     if args.text:
         out = [f'### 📚 Bücherregal', f'{repo_label(args)} · {count}', '']
@@ -2527,17 +2551,23 @@ def library_view(base, config, args):
                 vol = f'{r["BOOK_VOLUME_TEXT"]}: ' if r['BOOK_VOLUME_TEXT'] else ''
                 out.append(f'| {i} | {vol}**{r["BOOK_TITLE"]}** ({r["BOOK_TITLE_SHORT"]}){" · ⏳ " + r["BOOK_PENDING_TEXT"] if r["BOOK_PENDING_TEXT"] else ""} | '
                            f'{"✅ eingerichtet" if r["BOOK_STATE"] == "ready" else "🚧 im Aufbau"} | {progress_bar(r["BOOK_APPROVED_SECTION_COUNT"], r["BOOK_SECTION_COUNT"])} {r["BOOK_PROGRESS_TEXT"]} | {r["BOOK_EDITION_TEXT"]} | {r["BOOK_COST"]} |')
+                out += [f'| {e["E_KEY"]} | ↳ {e["E_TEXT"]}{" · " + e["E_DETAIL"] if e["E_DETAIL"] else ""} | | | | |'
+                        for e in editions if e['E_BOOK_BRANCH'] == r['BOOK_BRANCH']]
         else:
             out += ['*Hier steht noch kein Buch.*']
         if empty_series:
             out += ['', 'Serien ohne Band: ' + ', '.join(f'„{s["S_TITLE"]}“ (`{s["S_KEY"]}`)' for s in empty_series)]
         items = ([('1' if len(rows) == 1 else f'1–{len(rows)}', 'Buch öffnen')] if rows else [])
+        if editions:
+            items.append((edition_keys(editions), view_message('library.edition_open')))
         if ser:
             items.append(('S1' if len(ser) == 1 else f'S1–S{len(ser)}', 'Serie öffnen'))
         items += [('N', 'Neues Buch'), ('NS', 'Neue Serie'), ('D', 'Daten')]
         out += ['', '---', menu(items)]
         return '\n'.join(out) + '\n'
     blocks = {'BOOKS': rows}
+    if editions:
+        blocks['EDITIONS'] = editions
     if empty_series:
         blocks['EMPTY_SERIES'] = empty_series
     return fill('buecherregal.html', {'LIBRARY_NAME': repo_label(args), 'BOOK_COUNT_NUMBER': len(rows), 'SERIES_COUNT_NUMBER': len(ser),
