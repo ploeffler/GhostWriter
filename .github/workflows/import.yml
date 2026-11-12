@@ -25,10 +25,8 @@ on:
         description: 'bei convert: Pfad des Originals im Repository (import/original/…)'
         default: ''
       keep:
-        description: 'bei convert: Aufbewahrung des Originals'
-        type: choice
-        options: [first_edition, '30', '90', forever]
-        default: first_edition
+        description: 'veraltet, ohne Wirkung (D21): das Original bleibt bis zum ausdrücklichen Löschauftrag'
+        default: ''
       ops:
         description: 'bei edit: Änderungen als JSON-Liste'
         default: '[]'
@@ -84,7 +82,6 @@ jobs:
         env:
           STEP: ${{ inputs.step }}
           FILE: ${{ inputs.file }}
-          KEEP: ${{ inputs.keep }}
           OPS: ${{ inputs.ops }}
           WA: ${{ inputs.writing_approval }}
           BY: ${{ inputs.by }}
@@ -95,7 +92,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           case "$STEP" in
-            convert) python scripts/import_book.py . convert "$FILE" --keep "$KEEP" | tee -a "$GITHUB_STEP_SUMMARY"; msg="Manuskript umgewandelt: Vorschlag für die Gliederung" ;;
+            convert) python scripts/import_book.py . convert "$FILE" | tee -a "$GITHUB_STEP_SUMMARY"; msg="Manuskript umgewandelt: Vorschlag für die Gliederung" ;;
             edit)    python scripts/import_book.py . edit "$OPS" | tee -a "$GITHUB_STEP_SUMMARY"; msg="Import: Gliederung geändert" ;;
             outline) python scripts/import_book.py . outline --plan | tee -a "$GITHUB_STEP_SUMMARY"
                      if ! python scripts/limits.py . check && [ "$CONFIRM" != "true" ]; then

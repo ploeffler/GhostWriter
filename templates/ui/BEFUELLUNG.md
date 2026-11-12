@@ -384,7 +384,7 @@ Gliederung eines Manuskript-Imports prüfen (#124, `render_view.py import-previe
 |---|---|
 | `IMPORT_TITLE`, `IMPORT_AUTHOR`, `IMPORT_FORMAT` | `title`, `author` (Dokument-Eigenschaften bzw. einzelne oberste Überschrift), `format` |
 | `STATS_TEXT`, `LOSSLESS` | „N Kapitel, M Abschnitte, K Teile von Vor- und Nachspann · X von Y Wörtern übernommen“; `LOSSLESS` = `1`, wenn die Wortzahl der Umwandlung entspricht |
-| `KEEP_TEXT` | Aufbewahrung des Originals deutsch („bis zur ersten Auflage“, „30 Tage“, „90 Tage“, „dauerhaft“) |
+| `KEEP_TEXT` | Aufbewahrung des Originals deutsch: für neue Importe „bis zum ausdrücklichen Löschauftrag“ (D21); ältere Importe zeigen ihre frühere Frist („bis zur ersten Auflage“, „30 Tage“, „90 Tage“, „dauerhaft“), die nichts löscht |
 | `KINDS_TEXT` | Arten von Vor- und Nachspann als `kind=Name`, kommagetrennt (Auswahl „ist Teil …“) |
 | Block `WARNINGS`: `W_TEXT` | Hinweise der Umwandlung (PDF, Tabellen, Fußnoten, Bilder, sehr lange Abschnitte, keine Gliederung) |
 | `NO_STRUCTURE` | `1`, wenn das Dokument keine Gliederung hat (`structure: none`, ein Kapitel) und kein offener KI-Vorschlag da ist; dann der Knopf „Gliederung mit KI vorschlagen“ (`import.outline.start`) |
