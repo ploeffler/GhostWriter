@@ -28,6 +28,10 @@ Before that, the issue **“GhostWriter: Actions-Minuten knapp”** warns you (b
 
 If every run under **Actions** says “The job was not started because recent account payments have failed or your spending limit needs to be increased”, the month's Actions minutes are used up (2,000 for private repositories). Saving still works, but bookshelf, overview file, checks and editions resume only next month or after setting a spending limit in GitHub. Then run *Bücherregal aktualisieren* once by hand. See [updates](UPDATES.en.md).
 
+## Checks, overview or bookshelf do not start
+
+If these runs show as *skipped* under **Actions** and the repository variable `GHOSTWRITER_ACTIONS_PAUSED` is `true`, automation is paused because Actions minutes are low (issue “GhostWriter: Actions-Minuten knapp”). It resumes by itself next month; manual runs always work. To lift the pause earlier, delete the variable under *Settings → Secrets and variables → Actions*. See [updates](UPDATES.en.md).
+
 ## An image does not use my reference
 
 Storing a reference does not confirm that it was passed to an image service. The assistant must separately attach selected files to a service that supports references, or disclose the limitation. See [images and references](IMAGES-AND-REFERENCES.en.md).

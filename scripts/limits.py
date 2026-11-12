@@ -33,6 +33,13 @@ schreibt das Skript paused=true|false und text=… nach $GITHUB_OUTPUT, damit
 die folgenden Schritte übersprungen werden können, und eine Zeile in die
 Zusammenfassung. Ohne --automation: Exit-Code 3 bei pause, sonst 0.
 
+pause-flag --paused true|false (#62, #277): setzt bzw. löscht die Repository-Variable
+GHOSTWRITER_ACTIONS_PAUSED. Die automatischen Workflows (Prüfung, Übersicht,
+Bücherregal) fragen sie in ihrer Job-Bedingung ab und starten bei „true“ keinen
+Runner – die Pause kostet also selbst keine Minuten. Braucht einen Token mit
+Variablen-Schreibrecht (GH_TOKEN, z. B. GHOSTWRITER_UPDATE_TOKEN); ohne Recht
+schreibt das Skript flag=no_permission, und das Hinweis-Issue erklärt den Handgriff.
+
 --json schreibt den Stand für die Projektübersicht (render_view.py project
 --limits datei).
 """
@@ -54,6 +61,7 @@ DEFAULT = {'ai_budget_monthly': None, 'actions_minutes_monthly': None, 'pause_be
            'actions_minutes_warn_below': 300, 'actions_minutes_pause_below': 100}
 PRIVATE_MINUTES = 2000   # Free-Plan, private Repositorys (#277)
 MINUTES_ISSUE_TITLE = 'GhostWriter: Actions-Minuten knapp'
+PAUSE_VARIABLE = 'GHOSTWRITER_ACTIONS_PAUSED'
 LABEL = {'ai_budget': 'KI-Budget', 'actions_minutes': 'Actions-Minuten', 'api_rate': 'GitHub-API'}
 ISSUE_TITLE = 'GhostWriter-Automatik pausiert'
 
@@ -84,6 +92,25 @@ def month_costs(base, month):
 def gh_json(path):
     r = subprocess.run(['gh', 'api', path], capture_output=True, text=True)
     return json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else None
+
+
+def gh_call(args):
+    r = subprocess.run(['gh', *args], capture_output=True, text=True)
+    return r.returncode, r.stdout
+
+
+def sync_pause(repo, paused, call=gh_call):
+    """Repository-Variable PAUSE_VARIABLE an den Stand anpassen: set | cleared | unchanged | no_permission."""
+    path = f'repos/{repo}/actions/variables'
+    rc, out = call(['api', f'{path}/{PAUSE_VARIABLE}', '--jq', '.value'])
+    current = out.strip() if rc == 0 else None
+    if (current == 'true') == bool(paused):
+        return 'unchanged'
+    if paused:
+        args = (['api', '-X', 'PATCH', f'{path}/{PAUSE_VARIABLE}', '-f', 'value=true'] if current is not None else
+                ['api', '-X', 'POST', path, '-f', f'name={PAUSE_VARIABLE}', '-f', 'value=true'])
+        return 'set' if call(args)[0] == 0 else 'no_permission'
+    return 'cleared' if call(['api', '-X', 'DELETE', f'{path}/{PAUSE_VARIABLE}'])[0] == 0 else 'no_permission'
 
 
 def _seconds(run):
@@ -185,12 +212,22 @@ def summary(rows):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
-    ap.add_argument('cmd', choices=['check'])
+    ap.add_argument('cmd', choices=['check', 'pause-flag'])
+    ap.add_argument('--paused', choices=['true', 'false'], help='pause-flag: gewünschter Stand')
     ap.add_argument('--live', action='store_true', help='GitHub-API abfragen (Rate-Limit, Actions-Minuten)')
     ap.add_argument('--automation', action='store_true')
     ap.add_argument('--json')
     ap.add_argument('--month')
     a = ap.parse_args(argv[1:])
+    if a.cmd == 'pause-flag':
+        repo = os.environ.get('GITHUB_REPOSITORY')
+        result = sync_pause(repo, a.paused == 'true') if repo and a.paused else 'unchanged'
+        print({'set': f'Automatik angehalten ({PAUSE_VARIABLE}=true)', 'cleared': f'Automatik läuft wieder ({PAUSE_VARIABLE} gelöscht)',
+               'unchanged': 'Pausenstand unverändert', 'no_permission': f'{PAUSE_VARIABLE} nicht änderbar (Token ohne Variablen-Recht)'}[result])
+        if os.environ.get('GITHUB_OUTPUT'):
+            with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
+                f.write(f'flag={result}\n')
+        return 0
     base, config = load(a.project)
     month = a.month or datetime.date.today().strftime('%Y-%m')
     rows = evaluate(base, config, month, live_data(month) if a.live else None)
@@ -208,7 +245,8 @@ def main(argv):
             with open(gh_out, 'a', encoding='utf-8') as f:
                 f.write(f'paused={"true" if state == "pause" else "false"}\ntext={text}\n')
                 m = next((r for r in rows if r['key'] == 'actions_minutes'), None)
-                f.write(f'minutes_state={m["state"] if m else "ok"}\nminutes_text={m["text"] if m else ""}\n')
+                # unknown: nicht gemessen (kein Kontingent, API nicht erreichbar) – dann nichts ändern
+                f.write(f'minutes_state={m["state"] if m else "unknown"}\nminutes_text={m["text"] if m else ""}\n')
         if gh_sum and state != 'ok':
             with open(gh_sum, 'a', encoding='utf-8') as f:
                 f.write(f'## {"⏸ pausiert" if state == "pause" else "⚠ Vorwarnung"}\n\n{text}\n')

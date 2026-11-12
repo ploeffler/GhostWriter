@@ -66,6 +66,15 @@ jobs:
           [ -f scripts/limits.py ] || { echo "paused=false" >> "$GITHUB_OUTPUT"; exit 0; }
           python scripts/limits.py . check --automation --live
 
+      - name: Automatik anhalten bzw. fortsetzen
+        # #62/#277: GHOSTWRITER_ACTIONS_PAUSED nach den Actions-Minuten setzen bzw. löschen; dieser
+        # tägliche Lauf ist nie gesperrt und hebt die Pause im neuen Monat auf.
+        if: steps.limits.outputs.minutes_state != '' && steps.limits.outputs.minutes_state != 'unknown'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GHOSTWRITER_UPDATE_TOKEN || github.token }}
+        run: python scripts/limits.py . pause-flag --paused ${{ steps.limits.outputs.minutes_state == 'pause' }}
+
       - name: Hinweis-Issue „GhostWriter-Automatik pausiert“
         if: github.event_name == 'schedule'
         env:
