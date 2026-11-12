@@ -74,7 +74,49 @@ class LimitTest(unittest.TestCase):
         rows = limits.evaluate(self.base, config, '2026-11', {'actions_minutes_used': 1850, 'api_rate': (4900, 5000)})
         self.assertEqual([(r['key'], r['state']) for r in rows],
                          [('ai_budget', 'ok'), ('actions_minutes', 'pause'), ('api_rate', 'pause')])
-        self.assertEqual(rows[1]['text'], 'Actions-Minuten 8 % übrig (1850 von 2000 min verbraucht)')
+        self.assertEqual(rows[1]['text'], 'Actions-Minuten 8 % übrig (1850 von 2000 min verbraucht, noch 150 min)')
+
+    def test_minutes_left_absolute(self):
+        # #277: feste Restminuten greifen auch bei großem Kontingent (5 % von 3000 wären 150)
+        config = self.setup(1, extra={'actions_minutes_monthly': 3000, 'pause_below_percent': 0, 'warn_below_percent': 0})
+        state = lambda used: limits.evaluate(self.base, config, '2026-11', {'actions_minutes_used': used})[1]['state']
+        self.assertEqual([state(2500), state(2750), state(2950)], ['ok', 'warn', 'pause'])
+        config = self.setup(1, extra={'actions_minutes_monthly': 3000, 'pause_below_percent': 0, 'warn_below_percent': 0,
+                                      'actions_minutes_warn_below': None, 'actions_minutes_pause_below': 50})
+        self.assertEqual(limits.evaluate(self.base, config, '2026-11', {'actions_minutes_used': 2940})[1]['state'], 'ok')
+        self.assertEqual(limits.evaluate(self.base, config, '2026-11', {'actions_minutes_used': 2960})[1]['state'], 'pause')
+
+    def test_private_default_quota(self):
+        config = self.setup(1)
+        live = {'actions_minutes_used': 1950}
+        self.assertEqual([r['key'] for r in limits.evaluate(self.base, config, '2026-11', live)], ['ai_budget'])
+        os.environ['GHOSTWRITER_REPO_PRIVATE'] = 'true'
+        self.addCleanup(os.environ.pop, 'GHOSTWRITER_REPO_PRIVATE', None)
+        rows = limits.evaluate(self.base, config, '2026-11', live)
+        self.assertEqual((rows[1]['key'], rows[1]['total'], rows[1]['state']), ('actions_minutes', 2000, 'pause'))
+
+    def test_estimate_minutes(self):
+        run = lambda a, b, conclusion='success', status='completed': {
+            'status': status, 'conclusion': conclusion,
+            'run_started_at': f'2026-11-10T10:{a}Z', 'updated_at': f'2026-11-10T10:{b}Z'}
+        runs = [run('00:00', '00:30'), run('00:00', '01:01'), run('00:00', '00:00', 'skipped'),
+                run('00:00', '00:00', 'failure'),            # „job was not started“
+                run('00:00', '05:00', None, 'in_progress'), run('00:00', '02:00', 'cancelled')]
+        self.assertEqual(limits.estimate_minutes(runs), 1 + 2 + 2)
+
+    def test_month_runs_pages(self):
+        pages = {1: {'total_count': 230, 'workflow_runs': [{}] * 100}, 2: {'total_count': 230, 'workflow_runs': [{}] * 100},
+                 3: {'total_count': 230, 'workflow_runs': [{}] * 30}}
+        calls = []
+        def fake(path):
+            n = int(path.rsplit('page=', 1)[1]); calls.append(n); return pages[n]
+        orig = limits.gh_json
+        limits.gh_json = fake
+        try:
+            self.assertEqual(len(limits.month_runs('o/r', '2026-11')), 230)
+        finally:
+            limits.gh_json = orig
+        self.assertEqual(calls, [1, 2, 3])
 
     def test_automation_output(self):
         self.setup(9.5)

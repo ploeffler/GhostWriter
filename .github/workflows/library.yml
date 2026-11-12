@@ -49,6 +49,8 @@ on:
 permissions:
   contents: write
   pull-requests: read
+  actions: read     # Läufe des Monats für die Minutenprüfung (#277)
+  issues: write     # Hinweis-Issue „GhostWriter: Actions-Minuten knapp“
 
 concurrency:
   group: library
@@ -152,3 +154,40 @@ jobs:
             exit 0
           fi
           git push origin "HEAD:$BRANCH"
+
+      - name: Actions-Minuten prüfen
+        # #277: nach jedem Regal-Lauf, nicht nur einmal am Tag. Private Repositorys ohne eigene
+        # Angabe: 2000 Minuten; Vorwarnung unter 20 % bzw. 300 Restminuten, Pause unter 10 % bzw. 100.
+        if: steps.gate.outputs.skip != '1'
+        id: minutes
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GHOSTWRITER_REPO_PRIVATE: ${{ github.event.repository.private }}
+        run: python scripts/limits.py . check --automation --live
+
+      - name: "Hinweis-Issue „GhostWriter: Actions-Minuten knapp“"
+        if: steps.gate.outputs.skip != '1' && steps.minutes.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE: ${{ steps.minutes.outputs.minutes_state }}
+          TEXT: ${{ steps.minutes.outputs.minutes_text }}
+        run: |
+          title="GhostWriter: Actions-Minuten knapp"
+          num=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --jq ".[] | select(.title==\"$title\") | .number" | head -1)
+          if [ "$STATE" = "warn" ] || [ "$STATE" = "pause" ]; then
+            if [ "$STATE" = "pause" ]; then
+              folge="Die tägliche Update-Prüfung ist ausgesetzt. Bücherregal, Übersicht und Prüfung laufen weiter, bis das Kontingent leer ist; danach startet GitHub bis zum neuen Monat keinen Lauf mehr."
+            else
+              folge="Noch läuft alles. Ist das Kontingent leer, startet GitHub bis zum neuen Monat keinen Lauf mehr (Bücherregal, Übersicht, Prüfung, Auflagen)."
+            fi
+            body="$TEXT (Schätzung aus den Läufen dieses Repositorys im laufenden Monat)."$'\n\n'"$folge"$'\n\n'"Was hilft: seltener einzeln speichern, erledigte Arbeits-Branches aufräumen (Actions → Branches aufräumen) oder in den GitHub-Einstellungen (Settings → Billing and plans) ein Ausgabenlimit setzen. Andere private Repositorys desselben Kontos zählen mit. Kontingent und Grenzen: Projekteinstellungen → Limits, docs/UPDATES.md."
+            if [ -z "$num" ]; then
+              gh issue create --title "$title" --body "$body"
+            elif [ "$(gh api "repos/$GITHUB_REPOSITORY/issues/$num" --jq .body)" != "$body" ]; then
+              gh issue edit "$num" --body "$body"
+            fi
+          elif [ -n "$num" ]; then
+            gh issue close "$num" --comment "Wieder genug Actions-Minuten übrig (neuer Monat oder höheres Kontingent)."
+          fi

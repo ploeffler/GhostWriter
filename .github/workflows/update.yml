@@ -61,6 +61,7 @@ jobs:
         id: limits
         env:
           GH_TOKEN: ${{ github.token }}
+          GHOSTWRITER_REPO_PRIVATE: ${{ github.event.repository.private }}   # 2000 Minuten ohne eigene Angabe (#277)
         run: |
           [ -f scripts/limits.py ] || { echo "paused=false" >> "$GITHUB_OUTPUT"; exit 0; }
           python scripts/limits.py . check --automation --live

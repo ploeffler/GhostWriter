@@ -24,6 +24,8 @@ Schreiben braucht eine Schreibfreigabe. Bereits freigegebener Text muss vor Änd
 
 ## Bücherregal oder Übersicht bleiben alt
 
+Vorher warnt das Issue **„GhostWriter: Actions-Minuten knapp“** (unter 300 Restminuten bzw. 20 %).
+
 Zeigt jeder Lauf unter **Actions** *„The job was not started because recent account payments have failed or your spending limit needs to be increased“*, sind die Actions-Minuten des Monats aufgebraucht (privat 2000). Gespeichert wird weiter, aber Bücherregal, Übersichtsdatei, Prüfung und Auflagen laufen erst mit dem neuen Monat oder nach einem Ausgabenlimit in den GitHub-Einstellungen wieder. Danach *Bücherregal aktualisieren* einmal von Hand starten. Siehe [Updates](UPDATES.md), Abschnitt „Actions-Minuten privater Bibliotheken“.
 
 ## Ein Bild nutzt meine Referenz nicht

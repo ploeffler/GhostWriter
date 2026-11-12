@@ -24,6 +24,8 @@ Writing requires writing approval. Approved text must have its approval explicit
 
 ## The bookshelf or overview stays outdated
 
+Before that, the issue **“GhostWriter: Actions-Minuten knapp”** warns you (below 300 minutes or 20% left).
+
 If every run under **Actions** says “The job was not started because recent account payments have failed or your spending limit needs to be increased”, the month's Actions minutes are used up (2,000 for private repositories). Saving still works, but bookshelf, overview file, checks and editions resume only next month or after setting a spending limit in GitHub. Then run *Bücherregal aktualisieren* once by hand. See [updates](UPDATES.en.md).
 
 ## An image does not use my reference
