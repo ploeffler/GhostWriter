@@ -87,7 +87,7 @@ class ImportTest(unittest.TestCase):
                              capture_output=True, text=True, check=True).stdout
         data = json.loads(re.search(r'GW\.render\("import-vorschau",(.*)\)</script>', out).group(1))
         self.assertEqual([r['R_LABEL'] for r in data['ROWS']], ['Kapitel 1', '1.1', 'Kapitel 2', '2.1', '2.2'])
-        self.assertEqual(data['KEEP_TEXT'], '30 Tage')
+        self.assertEqual(data['KEEP_TEXT'], 'bis zum ausdrücklichen Löschauftrag')   # '30' ist ohne Wirkung (D21)
         # anlegen, ohne Schreibfreigabe
         info = import_book.apply(self.book)
         self.assertEqual((info['chapters'], info['sections'], info['writing_approval']), (2, 3, False))
@@ -103,9 +103,9 @@ class ImportTest(unittest.TestCase):
         self.assertFalse((self.book / 'approvals.yml').exists())
         with self.assertRaisesRegex(SystemExit, 'schon Kapitel'):
             import_book.apply(self.book)
-        # Aufbewahrung: 30 Tage
-        self.assertFalse(import_book.status(self.book, datetime.date(2026, 11, 20))['soon'])
-        self.assertTrue(import_book.status(self.book, datetime.date(2026, 11, 30))['soon'])
+        # Aufbewahrung: keine Frist, Entfernen nur auf ausdrücklichen Auftrag
+        self.assertFalse(import_book.status(self.book, datetime.date(2026, 11, 30))['soon'])
+        self.assertFalse(import_book.status(self.book, datetime.date(2027, 11, 30))['due'])
         self.assertFalse(import_book.expire(self.book, datetime.date(2026, 12, 3)))
         before = {p.relative_to(self.book): p.read_bytes()
                   for p in (self.book / 'import').rglob('*') if p.is_file()}
@@ -115,6 +115,15 @@ class ImportTest(unittest.TestCase):
         self.assertTrue(import_book.expire(self.book, datetime.date(2026, 12, 4), confirmed=True))
         self.assertFalse((self.book / 'import/original').exists())
         self.assertTrue(import_book.status(self.book)['removed'])
+
+    def test_convert_has_no_retention_deadline(self):
+        """D21: Neue Importe speichern keine Frist; eine alte Auswahl bleibt ohne Wirkung."""
+        import_book.convert(self.book, self.tmp / 'Strolchi.docx', keep='30')
+        info = yaml.safe_load((self.book / 'import' / 'import.yml').read_text(encoding='utf-8'))
+        self.assertEqual(info['keep'], 'until_deleted')
+        self.assertNotIn('keep_until', info)
+        st = import_book.status(self.book)
+        self.assertFalse(st['due'] or st['soon'])
 
     def test_overview_keeps_original_after_old_deadline(self):
         """D21: Nach Ablauf einer früheren Frist kündigt die Übersicht keine Entfernung an."""
@@ -142,7 +151,7 @@ class ImportTest(unittest.TestCase):
         entries = yaml.safe_load((self.book / 'approvals.yml').read_text(encoding='utf-8'))['entries']
         self.assertEqual(len(entries), 4 + 3)                           # 4 Abschnitte, 3 Teile
         self.assertEqual({(e['kind'], e['action'], e['by']) for e in entries}, {('writing', 'granted', 'ploeffler')})
-        self.assertEqual(import_book.status(self.book)['keep'], 'first_edition')
+        self.assertEqual(import_book.status(self.book)['keep'], 'until_deleted')
 
     def test_plain_text_and_pdf(self):
         txt = self.tmp / 'roh.txt'

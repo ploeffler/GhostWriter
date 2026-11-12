@@ -83,7 +83,9 @@ CHAPTER_LINE = re.compile(r'(?im)^[ \t]*((?:kapitel|chapter)[ \t]+[\w.]+.*)$')
 LONG_WORDS = 4000
 NO_STRUCTURE = ('Keine Gliederung erkannt: das Manuskript ist ein Kapitel. Kapitel lassen sich in der Vorschau teilen '
                 'oder mit KI vorschlagen.')
-KEEP = {'first_edition': 'bis zur ersten Auflage', '30': '30 Tage', '90': '90 Tage', 'forever': 'dauerhaft'}
+# Aufbewahrung des Originals. Seit D21 gilt für neue Importe nur until_deleted; die übrigen
+# Werte stehen noch in älteren import.yml und beschreiben frühere Fristen ohne Löschwirkung.
+KEEP = {'until_deleted': 'bis zum ausdrücklichen Löschauftrag', 'first_edition': 'bis zur ersten Auflage', '30': '30 Tage', '90': '90 Tage', 'forever': 'dauerhaft'}
 PDF_WARNING = ('PDF: Absätze, Hervorhebungen, Fußnoten und Bilder können verloren gehen; Kopf- und Fußzeilen, '
                'Seitenzahlen und Silbentrennung wurden entfernt, so gut es ging. DOCX oder ODT ist zuverlässiger.')
 
@@ -128,13 +130,15 @@ def pdf_text(path):
     return '\n\n'.join(p for p in paras if p) + '\n'
 
 
-def convert(base, src, keep='first_edition', today=None):
+def convert(base, src, keep=None, today=None):
+    """keep ist seit D21 ohne Wirkung (nur noch für ältere Aufrufe angenommen)."""
     base, src = Path(base), Path(src)
     fmt = FORMATS.get(src.suffix.lower())
     if not fmt:
         raise SystemExit(f'{src.name}: Format nicht unterstützt (DOCX, ODT, EPUB, HTML, Markdown, Text, PDF)')
-    if keep not in KEEP:
-        raise SystemExit(f'Aufbewahrung: {", ".join(KEEP)}')
+    if keep and keep != 'until_deleted':
+        print(f'Hinweis: Aufbewahrung „{keep}“ ist ohne Wirkung; das Original bleibt bis zum ausdrücklichen '
+              'Löschauftrag (D21).', file=sys.stderr)
     imp = base / 'import'
     (imp / 'original').mkdir(parents=True, exist_ok=True)
     orig = imp / 'original' / src.name
@@ -163,10 +167,8 @@ def convert(base, src, keep='first_edition', today=None):
     proposal['warnings'] = warnings + proposal['warnings']
     save_proposal(base, proposal)
     today = today or datetime.date.today()
-    info = {'source': f'import/original/{src.name}', 'format': fmt, 'imported_at': today.isoformat(), 'keep': keep,
+    info = {'source': f'import/original/{src.name}', 'format': fmt, 'imported_at': today.isoformat(), 'keep': 'until_deleted',
             'words': proposal['stats']['words_original']}
-    if keep in ('30', '90'):
-        info['keep_until'] = (today + datetime.timedelta(days=int(keep))).isoformat()
     (imp / 'import.yml').write_text(yaml.safe_dump(info, allow_unicode=True, sort_keys=False), encoding='utf-8')
     return proposal
 
@@ -690,15 +692,16 @@ def status(base, today=None):
 
 
 def expire(base, today=None, *, confirmed=False):
-    """Alte Fristen allein autorisieren keine Löschung (D21).
+    """Entfernt das Original nur auf ausdrücklichen Löschauftrag (D21).
 
-    Der explizite Aufruf darf erst nach Benutzerauftrag mit confirmed=True
-    erfolgen. Historische Aufbewahrungsangaben bleiben nachvollziehbar.
+    Der Aufruf darf erst nach Benutzerauftrag mit confirmed=True erfolgen; dann
+    ist eine Frist weder nötig noch hinderlich. Fristen allein löschen nichts.
+    Historische Aufbewahrungsangaben bleiben nachvollziehbar.
     """
     if not confirmed:
         return False
     st = status(base, today)
-    if not st or st['removed'] or not st['due']:
+    if not st or st['removed']:
         return False
     base = Path(base)
     original = base / 'import' / 'original'
@@ -718,7 +721,7 @@ def main(argv):
     ap.add_argument('cmd', choices=['convert', 'edit', 'outline', 'apply', 'status', 'expire'])
     ap.add_argument('--plan', action='store_true', help='bei outline: nur Umfang, Tokens und Kosten')
     ap.add_argument('args', nargs='*')
-    ap.add_argument('--keep', default='first_edition', choices=list(KEEP))
+    ap.add_argument('--keep', help='veraltet, ohne Wirkung (D21): das Original bleibt bis zum Löschauftrag')
     ap.add_argument('--writing-approval', action='store_true')
     ap.add_argument('--by', default='chat', help='bei apply --writing-approval: GitHub-Login (sonst chat)')
     ap.add_argument('--commit', help='bei apply --writing-approval: bestätigter Stand (sonst HEAD)')

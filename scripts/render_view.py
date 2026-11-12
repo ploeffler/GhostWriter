@@ -815,7 +815,7 @@ def view_service_names(ids, names):
 
 
 def view_import_keep(info):
-    values = {'first_edition': view_message('import.keep_first'), '30': view_message('import.keep_30'),
+    values = {'until_deleted': view_message('import.keep_until_deleted'), 'first_edition': view_message('import.keep_first'), '30': view_message('import.keep_30'),
               '90': view_message('import.keep_90'), 'forever': view_message('import.keep_forever')}
     return values.get(str(info.get('keep')), info.get('keep_text', ''))
 

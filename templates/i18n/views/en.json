@@ -982,6 +982,7 @@
   "update.installed": " (installed {version})",
   "import.cancel": "cancel",
   "import.view_outline": "> 🧭 **{text}** · `GV` view",
+  "import.keep_until_deleted": "until you ask for it to be deleted",
   "import.keep_first": "until the first edition",
   "import.keep_30": "30 days",
   "import.keep_90": "90 days",
