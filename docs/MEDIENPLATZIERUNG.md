@@ -6,7 +6,7 @@ Deutsch · [English](MEDIA-LAYOUT.en.md)
 
 ## Verbindliche Vorgaben
 
-Die folgenden Vorgaben wurden am 8. November 2026 bestätigt. Sie beschreiben das gewünschte Produktverhalten. Die Begrenzung auf ein Medium, die Platzierung mit Textumfluss und der Breitenregler sind im aktuellen Programm noch nicht umgesetzt.
+Die folgenden Vorgaben wurden am 8. November 2026 bestätigt. Sie beschreiben das gewünschte Produktverhalten. Die Begrenzung auf ein Medium ist umgesetzt; die Platzierung mit Textumfluss und der Breitenregler sind im aktuellen Programm noch nicht umgesetzt.
 
 ### Ein Medium je Abschnitt
 
@@ -39,7 +39,7 @@ Position und Breite bestimmen gemeinsam den Textumfluss. Fehlende Druckauflösun
 |---|---|
 | Illustration und Referenzbild | Aufnahme, Auswahl, Referenzprotokoll und Freigabeschranken vorhanden. |
 | Beschriftetes Diagramm | Separat erstellen und als PNG aufnehmen möglich; der allgemeine Bildprompt verbietet derzeit Schrift. |
-| Höchstens ein Medium | Noch keine technische Sperre: Der Negativtest mit zwei Bildern im selben Abschnitt wurde akzeptiert. |
+| Höchstens ein Medium | Umgesetzt: Projektprüfung (`validate_project.py`) und Ausgabe (Probedruck, Auflage) melden mehr als ein Medium im Abschnitt und ein mehrfach eingefügtes Bild als Fehler. Nicht eingefügte Varianten und Referenzbilder zählen nicht. |
 | Position und Textumfluss | Noch nicht umgesetzt; die Ausgabe setzt Bilder derzeit auf volle Satzbreite. |
 | Breitenregler | Noch keine Auswahl im Bildformular; die Ausgabe verwendet fest `width=100%`. |
 | Medienabschnitt im PDF | Inhalt wird ausgegeben; Überschrift und Grafik können auf verschiedene Seiten rutschen. Auch Entwurfsvermerke können sich vom Bild lösen. |

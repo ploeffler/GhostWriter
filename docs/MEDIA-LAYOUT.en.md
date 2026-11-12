@@ -6,7 +6,7 @@
 
 ## Confirmed requirements
 
-The following requirements were confirmed on 8 November 2026. They describe the intended product behaviour. The one-item limit, positioning with text wrapping and width slider have not yet been implemented.
+The following requirements were confirmed on 8 November 2026. They describe the intended product behaviour. The one-item limit is implemented; positioning with text wrapping and width slider have not yet been implemented.
 
 ### One media item per section
 
@@ -39,7 +39,7 @@ Position and width jointly determine text wrapping. Insufficient print resolutio
 |---|---|
 | Illustration and reference image | Import, selection, reference logging and approval gates exist. |
 | Labelled diagram | Can be created separately and imported as PNG; the general image prompt currently forbids text. |
-| At most one media item | No technical guard yet: the negative test with two images in one section was accepted. |
+| At most one media item | Implemented: project validation (`validate_project.py`) and output (proof, edition) report more than one media item in a section and an image inserted more than once as errors. Variants that are not inserted and reference images do not count. |
 | Position and text wrapping | Not implemented; images currently use the full text width. |
 | Width slider | No control in the image form yet; output uses a fixed `width=100%`. |
 | Media-only section in PDF | Content is exported, but heading and image can separate across pages. Draft warnings can also detach from their images. |
