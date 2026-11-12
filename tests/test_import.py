@@ -130,6 +130,10 @@ class ImportTest(unittest.TestCase):
         self.assertIn('nur auf ausdrücklichen Auftrag', out)
         self.assertNotIn('entfernt (Aufbewahrung', out)
         self.assertTrue((self.book / 'import' / 'original').is_dir())
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.book), 'project', '--text',
+                              '--language', 'en'], capture_output=True, text=True, check=True).stdout
+        self.assertIn('is kept, even after the earlier retention period (until 2020-01-01)', out)
+        self.assertNotIn('will be removed', out)
 
     def test_writing_approval(self):
         import_book.convert(self.book, self.tmp / 'Strolchi.docx')
