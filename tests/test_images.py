@@ -259,5 +259,50 @@ class ImageTest(unittest.TestCase):
         self.assertEqual(len(Document(str(out / f'{tag}.docx')).inline_shapes), 1)
 
 
+    def pdf_pages(self, args):
+        out = self.tmp / 'out'
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--out', str(out),
+                            '--formats', 'pdf'] + args, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        pdf = str(next(out.glob('*.pdf')))
+        info = subprocess.run(['pdfinfo', pdf], capture_output=True, text=True).stdout
+        n = int(next(l.split()[-1] for l in info.splitlines() if l.startswith('Pages:')))
+        pages = [subprocess.run(['pdftotext', '-f', str(i), '-l', str(i), pdf, '-'], capture_output=True,
+                                text=True).stdout.replace('\n', ' ') for i in range(1, n + 1)]
+        shutil.rmtree(out)
+        return lambda text: [i for i, p in enumerate(pages) if text in p]
+
+    @unittest.skipUnless(shutil.which('pandoc') and shutil.which('xelatex') and shutil.which('pdfinfo'),
+                         'pandoc, xelatex oder poppler-utils fehlen')
+    def test_pdf_keeps_media_with_heading_and_text_order(self):
+        """Bildtest 08.11.: Bild gleitet nicht weg; Überschrift, Bild und Entwurfsvermerk bleiben zusammen."""
+        png(self.tmp / 'bild.png', 1400, 2000)
+        meta, _ = self.add(caption='BILDUNTERSCHRIFT')
+        _, config = load(self.base)
+        sec1, sec2 = config['structure']['chapters'][0]['sections'][:2]
+        fill = '\n\n'.join(['Füllsatz mit etwas Text, damit die Seite voll wird und der Umbruch prüfbar ist. ' * 3] * 2)
+        p = self.base / sec1['path']
+        p.write_text(p.read_text(encoding='utf-8').replace('Der Brief lag dort sechs Monate.', fill + '\n\nVORTEXT.', 1),
+                     encoding='utf-8')
+        q = self.base / sec2['path']                       # reiner Medienabschnitt
+        pre, post = q.read_text(encoding='utf-8').split('## Manuskript\n', 1)
+        rest = post[post.index('\n## '):] if '\n## ' in post else ''
+        q.write_text(pre + f'## Manuskript\n\n![](bild:{meta["id"]})\n' + rest, encoding='utf-8')
+        approve_chapter_1(self.base)
+        find = self.pdf_pages(['--proof'])
+        page = find('BILDUNTERSCHRIFT')
+        self.assertEqual(len(page), 1)
+        self.assertIn(page[0], find(sec2['title']))       # Überschrift auf derselben Seite
+        self.assertIn(page[0], find('Bild: Entwurf, nicht freigegeben'))
+        # Text nach dem Bild steht nicht davor (keine Gleitplatzierung)
+        q.write_text(pre + f'## Manuskript\n\nVOR DEM BILD.\n\n![](bild:{meta["id"]})\n\nNACH DEM BILD.\n' + rest,
+                     encoding='utf-8')
+        approve_chapter_1(self.base)
+        self.approve(meta)
+        find = self.pdf_pages(['--edition', '1'])
+        self.assertLessEqual(find('VOR DEM BILD')[0], find('BILDUNTERSCHRIFT')[0])
+        self.assertLessEqual(find('BILDUNTERSCHRIFT')[0], find('NACH DEM BILD')[0])
+        self.assertEqual(find('Bild: Entwurf'), [])
+
 if __name__ == '__main__':
     unittest.main()
