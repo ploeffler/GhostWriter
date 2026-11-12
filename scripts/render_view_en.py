@@ -57,7 +57,9 @@ def prepare(template, original, config, args):
         for analysis in data.get('ANALYSES', []):
             analysis['A_TEXT'] = native('analysis', kind=analysis['A_KIND'], number=analysis.get('A_COUNT', 0), date=analysis.get('A_DATE', '')[:10])
         if data.get('IMPORT_SOURCE'):
-            data['IMPORT_TEXT'] = native('import_notice', name=data['IMPORT_SOURCE'], date=data.get('IMPORT_EXPIRES', ''))
+            exp = data.get('IMPORT_EXPIRES', '')   # D21: frühere Frist, das Original bleibt
+            data['IMPORT_TEXT'] = native('import_notice', name=data['IMPORT_SOURCE'],
+                                         date=f'until {exp}' if exp else 'until the first edition')
     elif template == 'kapitelansicht':
         sections = data.get('SECTIONS', [])
         total = len(sections)
