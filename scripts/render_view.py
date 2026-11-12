@@ -1271,15 +1271,16 @@ def project_view(base, config, args):
                  'A_COUNT': h.get('suggestions', 0), 'A_DATE': str(h.get('created_at') or ''),
                  'A_TEXT': f'{spec["offer"]} vom {de_date(str(h.get("created_at")))} liegen bereit ({h.get("suggestions", 0)})'}
                 for k, h, spec in open_runs]
-    try:   # Import (#124): Original wird bald entfernt
+    try:   # Import (#124): frühere Frist läuft ab – Original bleibt trotzdem (D21)
         import import_book
         imp = import_book.status(base)
     except Exception:   # noqa: BLE001
         imp = None
-    if imp and imp.get('soon') and not imp.get('removed'):
-        values['IMPORT_SOURCE'], values['IMPORT_EXPIRES'] = Path(imp['source']).name, imp['expires']
-        values['IMPORT_TEXT'] = (f'Das Original des Imports ({Path(imp["source"]).name}) wird am '
-                                 f'{de_date(imp["expires"])} entfernt (Aufbewahrung {imp["keep_text"]}).')
+    if imp and (imp.get('soon') or imp.get('due')) and not imp.get('removed'):
+        values['IMPORT_SOURCE'], values['IMPORT_EXPIRES'] = Path(imp['source']).name, imp['expires'] or ''
+        frist = f'bis {de_date(imp["expires"])}' if imp['expires'] else imp['keep_text']
+        values['IMPORT_TEXT'] = (f'Das Original des Imports ({Path(imp["source"]).name}) bleibt erhalten, auch nach '
+                                 f'der früheren Frist ({frist}). Entfernt wird es nur auf ausdrücklichen Auftrag.')
     ser, vol = book_series(base, args)
     if ser:   # Serie (#116): „Band 2 der Serie …“ mit Link
         values.update({'SERIES_ID': ser['id'], 'SERIES_TITLE': ser['title'], 'SERIES_VOLUME_NUMBER': vol,

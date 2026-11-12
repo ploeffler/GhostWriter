@@ -772,7 +772,7 @@ def main(argv):
         st = status(base, today)
         print(json.dumps(st, ensure_ascii=False) if a.json else (st and json.dumps(st, ensure_ascii=False)) or 'kein Import')
         return 0
-    print('✓ Original entfernt (Aufbewahrung abgelaufen)' if expire(base, today, confirmed=a.confirmed) else 'nichts zu entfernen')
+    print('✓ Original entfernt (ausdrücklicher Auftrag)' if expire(base, today, confirmed=a.confirmed) else 'nichts zu entfernen')
     return 0
 
 

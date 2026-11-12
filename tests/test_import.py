@@ -116,6 +116,21 @@ class ImportTest(unittest.TestCase):
         self.assertFalse((self.book / 'import/original').exists())
         self.assertTrue(import_book.status(self.book)['removed'])
 
+    def test_overview_keeps_original_after_old_deadline(self):
+        """D21: Nach Ablauf einer früheren Frist kündigt die Übersicht keine Entfernung an."""
+        import_book.convert(self.book, self.tmp / 'Strolchi.docx')
+        import_book.apply(self.book)
+        p = self.book / 'import' / 'import.yml'
+        info = yaml.safe_load(p.read_text(encoding='utf-8'))
+        info['keep_until'] = '2020-01-01'
+        p.write_text(yaml.safe_dump(info, allow_unicode=True, sort_keys=False), encoding='utf-8')
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.book), 'project', '--text'],
+                             capture_output=True, text=True, check=True).stdout
+        self.assertIn('bleibt erhalten, auch nach der früheren Frist (bis 01.01.2020)', out)
+        self.assertIn('nur auf ausdrücklichen Auftrag', out)
+        self.assertNotIn('entfernt (Aufbewahrung', out)
+        self.assertTrue((self.book / 'import' / 'original').is_dir())
+
     def test_writing_approval(self):
         import_book.convert(self.book, self.tmp / 'Strolchi.docx')
         import_book.apply(self.book, writing_approval=True, by='ploeffler', commit='abc1234')
