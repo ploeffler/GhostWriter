@@ -43,7 +43,7 @@ Position und Breite bestimmen gemeinsam den Textumfluss. Fehlende Druckauflösun
 | Position und Textumfluss | Noch nicht umgesetzt; die Ausgabe setzt Bilder derzeit auf volle Satzbreite. |
 | Breitenregler | Noch keine Auswahl im Bildformular; die Ausgabe verwendet fest `width=100%`. |
 | Medienabschnitt im PDF | Inhalt wird ausgegeben; Überschrift und Grafik können auf verschiedene Seiten rutschen. Auch Entwurfsvermerke können sich vom Bild lösen. |
-| Alternativtext | Gespeichert, aber bei DOCX und EPUB wird bisher die Bildunterschrift statt des ausführlichen Alternativtexts ausgegeben. |
+| Alternativtext | Umgesetzt: Weicht der gespeicherte Alternativtext von der Bildunterschrift ab, erhalten DOCX und EPUB ihn getrennt (Bildbeschreibung bzw. `alt`); die Bildunterschrift bleibt sichtbar. |
 
 Vor Abschluss der Umsetzung sind alle sechs Positionen, Größenänderungen, Seitenwechsel und Textumfluss in PDF, DOCX und EPUB zu prüfen. Nicht unterstützte Einstellungen müssen sichtbar gemeldet werden. Ein erfolgreiches Speichern allein ist kein Nachweis einer richtigen Platzierung.
 
