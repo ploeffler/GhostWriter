@@ -138,6 +138,21 @@ limits:
 
 Kontingente bei den KI-Anbietern selbst kommen mit dem Backend (#19, #66).
 
+### Actions-Minuten privater Bibliotheken (#277)
+
+Private Repositorys haben im Free-Plan **2000 Actions-Minuten im Monat**. Ist das Kontingent leer, startet GitHub keinen Lauf mehr; jeder Lauf endet mit dem Hinweis *„The job was not started because recent account payments have failed or your spending limit needs to be increased“*. Speichern geht weiter, aber Bücherregal (`library.json`), Übersichtsdatei, Prüfung und Auflagen bleiben stehen, bis der neue Monat beginnt oder in den GitHub-Einstellungen ein Ausgabenlimit gesetzt ist.
+
+Damit normale Schreibarbeit deutlich darunter bleibt, starten die Workflows nur, wenn es nötig ist:
+
+| Workflow | Läuft bei | Spart |
+|---|---|---|
+| Projektdateien prüfen (`validate.yml`) | Push auf den Standard-Branch oder `buch/*`, jeder Pull Request | Arbeits-Branches (`ghostwriter/*`, `codex/*` …) werden über ihren Pull Request geprüft, nicht bei jedem Push; reine Bot-Ausgaben (`ghostwriter-index.json`, `library.json`) lösen keine Prüfung aus; ein neuer Push bricht den älteren Lauf ab |
+| Übersichtsdatei aktualisieren (`index.yml`) | Push mit Buchdateien auf den Standard-Branch oder `buch/*` | Zwischenstände werden abgebrochen, Arbeits-Branches bekommen die Datei nach dem Merge |
+| Auflage veröffentlichen (`edition.yml`) | Push auf `ghostwriter.yml` im Standard-Branch oder `buch/*` | Arbeits-Branches starten keinen Runner |
+| Bücherregal aktualisieren (`library.yml`) | Push mit Buchdateien, eigener Pull Request geöffnet/geschlossen, Branch gelöscht, nach dem Update | kein eigener Lauf mehr beim Anlegen eines Branchs; ein neuer Lauf bricht den älteren ab |
+
+Ein übersprungener Lauf erscheint in der Actions-Liste als *skipped* und kostet keine Minute. Den Verbrauch zeigt GitHub unter **Settings → Billing and plans** des Kontos; mit `limits.actions_minutes_monthly` (oben) pausiert die tägliche Update-Prüfung rechtzeitig. Viele alte Arbeits-Branches verursachen keinen Verbrauch mehr, aufräumen lohnt sich trotzdem (Actions → *Branches aufräumen*).
+
 ## Token für private Hauptrepositorys und Workflow-Dateien
 
 (Für ein fremdes privates Hauptrepository gilt der klassische Token aus „Eigenes Buch anlegen“, Schritt 3.)

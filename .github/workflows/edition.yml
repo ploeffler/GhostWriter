@@ -27,6 +27,12 @@ concurrency:
 
 jobs:
   edition:
+    # Auflagen entstehen nur auf Buch-Branches (Standard-Branch eines Einzelbuchs oder buch/*);
+    # Arbeits-Branches starten keinen Runner (#277). Die genaue Prüfung folgt im Job.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.ref_name == github.event.repository.default_branch
+      || startsWith(github.ref_name, 'buch/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -22,6 +22,10 @@ Do not blindly overwrite or retry. Ask the assistant to read the current version
 
 Writing requires writing approval. Approved text must have its approval explicitly revoked and writing approved again before changes. An edition requires the relevant chapter and section approvals and resolved open markers. Ask for the specific blocker; request a **Proof** for reading. See the [user guide](USER-GUIDE.en.md).
 
+## The bookshelf or overview stays outdated
+
+If every run under **Actions** says “The job was not started because recent account payments have failed or your spending limit needs to be increased”, the month's Actions minutes are used up (2,000 for private repositories). Saving still works, but bookshelf, overview file, checks and editions resume only next month or after setting a spending limit in GitHub. Then run *Bücherregal aktualisieren* once by hand. See [updates](UPDATES.en.md).
+
 ## An image does not use my reference
 
 Storing a reference does not confirm that it was passed to an image service. The assistant must separately attach selected files to a service that supports references, or disclose the limitation. See [images and references](IMAGES-AND-REFERENCES.en.md).

@@ -3,7 +3,7 @@ name: Bücherregal aktualisieren
 # Schreibt library.json auf den Standard-Branch (scripts/library.py build, #37):
 # je Buch Titel, Status, Fortschritt, Auflage, Kosten, offene Änderungen. Kein
 # Manuskripttext. Läuft nach Pushes auf Buch- und Arbeits-Branches, wenn ein
-# Branch angelegt oder gelöscht wird, nach jedem Lauf „GhostWriter aktualisieren“
+# Branch gelöscht wird (ein neuer kommt mit einem Push), nach jedem Lauf „GhostWriter aktualisieren“
 # (damit u. a. neu hinterlegte Secrets auf der Seite „Daten“ erscheinen, #71) und
 # von Hand. Jeder relevante Push aktualisiert damit auch den Pending-Zähler im Bücherregal.
 # Offene Sitzungssicherungen (#237): Pushes auf conversations/** und Öffnen bzw.
@@ -11,6 +11,7 @@ name: Bücherregal aktualisieren
 # über die REST-API (nur lesend), ohne ihn zeigt das Regal „Status nicht verfügbar“.
 # Commits mit GITHUB_TOKEN
 # lösen keine weiteren Workflows aus, es gibt also keine Schleife.
+# Pull Requests aus Forks und von Bots (Dependabot) lösen keinen Lauf aus (#277).
 #
 # Im GhostWriter-Hauptrepository läuft sie nicht: library.json würde sonst mit
 # jedem Update in fremde Bibliotheken wandern.
@@ -38,7 +39,7 @@ on:
       - 'conversations/**'
   pull_request:
     types: [opened, reopened, closed]
-  create:
+  # Kein „create“: Ein neuer Branch kommt mit einem Push, der den Lauf ohnehin auslöst (#277).
   delete:
   workflow_run:
     workflows: ['GhostWriter aktualisieren']
@@ -55,6 +56,9 @@ concurrency:
 
 jobs:
   library:
+    if: >-
+      github.actor != 'dependabot[bot]'
+      && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

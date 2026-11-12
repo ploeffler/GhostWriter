@@ -22,6 +22,10 @@ Nicht blind erneut überschreiben. Lass den Assistenten den aktuellen Stand lese
 
 Schreiben braucht eine Schreibfreigabe. Bereits freigegebener Text muss vor Änderungen ausdrücklich zurückgenommen und erneut zum Schreiben freigegeben werden. Für eine Auflage müssen die erforderlichen Kapitel und Abschnitte freigegeben und offene Marker geklärt sein. Lass dir die konkrete Sperre nennen; zum Lesen kannst du einen **Probedruck** anfordern. Siehe [Anleitung](ANLEITUNG.md).
 
+## Bücherregal oder Übersicht bleiben alt
+
+Zeigt jeder Lauf unter **Actions** *„The job was not started because recent account payments have failed or your spending limit needs to be increased“*, sind die Actions-Minuten des Monats aufgebraucht (privat 2000). Gespeichert wird weiter, aber Bücherregal, Übersichtsdatei, Prüfung und Auflagen laufen erst mit dem neuen Monat oder nach einem Ausgabenlimit in den GitHub-Einstellungen wieder. Danach *Bücherregal aktualisieren* einmal von Hand starten. Siehe [Updates](UPDATES.md), Abschnitt „Actions-Minuten privater Bibliotheken“.
+
 ## Ein Bild nutzt meine Referenz nicht
 
 Eine gespeicherte Referenz ist noch keine bestätigte Übergabe an einen Bilddienst. Der Assistent muss die ausgewählten Dateien separat an einen Dienst übergeben, der Referenzen unterstützt, oder die Grenze nennen. Siehe [Bilder und Referenzen](BILDER-UND-REFERENZBILDER.md).
