@@ -24,10 +24,12 @@ permissions:
 jobs:
   validate:
     # Die Bedingung wird vor dem Start ausgewertet: Übersprungene Läufe kosten keine Minuten.
+    # GHOSTWRITER_ACTIONS_PAUSED: Automatik pausiert, Actions-Minuten fast aufgebraucht (#62, #277)
     if: >-
-      github.event_name != 'push'
-      || github.ref_name == github.event.repository.default_branch
-      || startsWith(github.ref_name, 'buch/')
+      vars.GHOSTWRITER_ACTIONS_PAUSED != 'true'
+      && (github.event_name != 'push'
+          || github.ref_name == github.event.repository.default_branch
+          || startsWith(github.ref_name, 'buch/'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

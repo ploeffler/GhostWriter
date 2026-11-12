@@ -126,6 +126,7 @@ class LimitTest(unittest.TestCase):
                             '--month', '2026-11'], capture_output=True, text=True, env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn('paused=true', out.read_text(encoding='utf-8'))
+        self.assertIn('minutes_state=unknown', out.read_text(encoding='utf-8'))   # ohne Messung nichts ändern
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/limits.py'), str(self.base), 'check', '--month', '2026-11'],
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 3)
@@ -156,3 +157,26 @@ class LimitTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+    def test_sync_pause(self):
+        # #62/#277: Variable nur bei Bedarf schreiben; ohne Recht no_permission
+        def fake(existing, ok=True):
+            calls = []
+            def call(args):
+                calls.append(' '.join(args))
+                if args[1].startswith('repos/') and '--jq' in args:
+                    return (0, existing + '\n') if existing is not None else (1, '')
+                return (0, '') if ok else (1, '')
+            return call, calls
+        call, calls = fake(None)
+        self.assertEqual(limits.sync_pause('o/r', True, call), 'set')
+        self.assertIn('-X POST repos/o/r/actions/variables -f name=GHOSTWRITER_ACTIONS_PAUSED -f value=true', calls[-1])
+        call, calls = fake('false')
+        self.assertEqual(limits.sync_pause('o/r', True, call), 'set')
+        self.assertIn('-X PATCH', calls[-1])
+        call, calls = fake('true')
+        self.assertEqual(limits.sync_pause('o/r', True, call), 'unchanged')
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(limits.sync_pause('o/r', False, fake('true')[0]), 'cleared')
+        self.assertEqual(limits.sync_pause('o/r', False, fake(None)[0]), 'unchanged')
+        self.assertEqual(limits.sync_pause('o/r', True, fake(None, ok=False)[0]), 'no_permission')

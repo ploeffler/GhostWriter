@@ -58,9 +58,13 @@ concurrency:
 
 jobs:
   library:
+    # Pausiert (GHOSTWRITER_ACTIONS_PAUSED, #62): nur noch nach dem täglichen Update und von Hand;
+    # dieser Lauf prüft die Minuten und hebt die Pause im neuen Monat wieder auf.
     if: >-
       github.actor != 'dependabot[bot]'
       && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      && (vars.GHOSTWRITER_ACTIONS_PAUSED != 'true'
+          || github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -166,6 +170,18 @@ jobs:
           GHOSTWRITER_REPO_PRIVATE: ${{ github.event.repository.private }}
         run: python scripts/limits.py . check --automation --live
 
+      - name: Automatik anhalten bzw. fortsetzen
+        # #62: In der Pausenstufe der Actions-Minuten setzt der Lauf GHOSTWRITER_ACTIONS_PAUSED,
+        # sonst löscht er sie. Braucht GHOSTWRITER_UPDATE_TOKEN mit Variablen-Recht.
+        if: >-
+          steps.gate.outputs.skip != '1' && steps.minutes.outcome == 'success'
+          && steps.minutes.outputs.minutes_state != 'unknown'
+        id: pause
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GHOSTWRITER_UPDATE_TOKEN || github.token }}
+        run: python scripts/limits.py . pause-flag --paused ${{ steps.minutes.outputs.minutes_state == 'pause' }}
+
       - name: "Hinweis-Issue „GhostWriter: Actions-Minuten knapp“"
         if: steps.gate.outputs.skip != '1' && steps.minutes.outcome == 'success'
         continue-on-error: true
@@ -173,12 +189,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           STATE: ${{ steps.minutes.outputs.minutes_state }}
           TEXT: ${{ steps.minutes.outputs.minutes_text }}
+          FLAG: ${{ steps.pause.outputs.flag }}
+          PAUSED_VAR: ${{ vars.GHOSTWRITER_ACTIONS_PAUSED }}
         run: |
           title="GhostWriter: Actions-Minuten knapp"
           num=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --jq ".[] | select(.title==\"$title\") | .number" | head -1)
           if [ "$STATE" = "warn" ] || [ "$STATE" = "pause" ]; then
             if [ "$STATE" = "pause" ]; then
-              folge="Die tägliche Update-Prüfung ist ausgesetzt. Bücherregal, Übersicht und Prüfung laufen weiter, bis das Kontingent leer ist; danach startet GitHub bis zum neuen Monat keinen Lauf mehr."
+              if [ "$FLAG" = "no_permission" ] && [ "$PAUSED_VAR" != "true" ]; then
+                folge="Die tägliche Update-Prüfung ist ausgesetzt. Prüfung, Übersicht und Bücherregal laufen noch weiter, weil der Lauf die Automatik nicht anhalten darf. Zum Anhalten unter https://github.com/$GITHUB_REPOSITORY/settings/variables/actions die Variable GHOSTWRITER_ACTIONS_PAUSED mit dem Wert true anlegen (oder GHOSTWRITER_UPDATE_TOKEN das Recht „Variables: Read and write“ geben); im neuen Monat wieder löschen."
+              else
+                folge="Die Automatik ist angehalten: Prüfung, Übersicht und Bücherregal starten nicht mehr von selbst, die tägliche Update-Prüfung setzt aus. Speichern, Auflagen und von Hand gestartete Läufe gehen weiter. Im neuen Monat läuft alles von selbst wieder an."
+              fi
             else
               folge="Noch läuft alles. Ist das Kontingent leer, startet GitHub bis zum neuen Monat keinen Lauf mehr (Bücherregal, Übersicht, Prüfung, Auflagen)."
             fi
@@ -188,6 +210,14 @@ jobs:
             elif [ "$(gh api "repos/$GITHUB_REPOSITORY/issues/$num" --jq .body)" != "$body" ]; then
               gh issue edit "$num" --body "$body"
             fi
-          elif [ -n "$num" ]; then
-            gh issue close "$num" --comment "Wieder genug Actions-Minuten übrig (neuer Monat oder höheres Kontingent)."
+          elif [ "$STATE" = "ok" ] && [ "$PAUSED_VAR" = "true" ] && [ "$FLAG" = "no_permission" ]; then
+            # Von Hand gesetzte Pause: Der Lauf darf sie nicht aufheben, also Bescheid geben
+            body="Wieder genug Actions-Minuten übrig. Die Automatik ist aber noch angehalten: Bitte unter https://github.com/$GITHUB_REPOSITORY/settings/variables/actions die Variable GHOSTWRITER_ACTIONS_PAUSED löschen. Danach schließt der nächste Lauf dieses Issue."
+            if [ -z "$num" ]; then
+              gh issue create --title "$title" --body "$body"
+            elif [ "$(gh api "repos/$GITHUB_REPOSITORY/issues/$num" --jq .body)" != "$body" ]; then
+              gh issue edit "$num" --body "$body"
+            fi
+          elif [ "$STATE" = "ok" ] && [ -n "$num" ]; then
+            gh issue close "$num" --comment "Wieder genug Actions-Minuten übrig (neuer Monat oder höheres Kontingent); die Automatik läuft wieder."
           fi

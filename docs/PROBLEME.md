@@ -28,6 +28,10 @@ Vorher warnt das Issue **„GhostWriter: Actions-Minuten knapp“** (unter 300 R
 
 Zeigt jeder Lauf unter **Actions** *„The job was not started because recent account payments have failed or your spending limit needs to be increased“*, sind die Actions-Minuten des Monats aufgebraucht (privat 2000). Gespeichert wird weiter, aber Bücherregal, Übersichtsdatei, Prüfung und Auflagen laufen erst mit dem neuen Monat oder nach einem Ausgabenlimit in den GitHub-Einstellungen wieder. Danach *Bücherregal aktualisieren* einmal von Hand starten. Siehe [Updates](UPDATES.md), Abschnitt „Actions-Minuten privater Bibliotheken“.
 
+## Prüfung, Übersicht oder Bücherregal starten nicht
+
+Stehen diese Läufe unter **Actions** als *skipped* und gibt es die Repository-Variable `GHOSTWRITER_ACTIONS_PAUSED` mit `true`, ist die Automatik wegen knapper Actions-Minuten angehalten (Issue „GhostWriter: Actions-Minuten knapp“). Sie läuft mit dem neuen Monat von selbst wieder an; von Hand gestartete Läufe gehen immer. Wer die Pause früher aufheben will, löscht die Variable unter *Settings → Secrets and variables → Actions*. Siehe [Updates](UPDATES.md).
+
 ## Ein Bild nutzt meine Referenz nicht
 
 Eine gespeicherte Referenz ist noch keine bestätigte Übergabe an einen Bilddienst. Der Assistent muss die ausgewählten Dateien separat an einen Dienst übergeben, der Referenzen unterstützt, oder die Grenze nennen. Siehe [Bilder und Referenzen](BILDER-UND-REFERENZBILDER.md).
