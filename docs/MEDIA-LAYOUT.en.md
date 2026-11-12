@@ -43,7 +43,7 @@ Position and width jointly determine text wrapping. Insufficient print resolutio
 | Position and text wrapping | Not implemented; images currently use the full text width. |
 | Width slider | No control in the image form yet; output uses a fixed `width=100%`. |
 | Media-only section in PDF | Content is exported, but heading and image can separate across pages. Draft warnings can also detach from their images. |
-| Alternative text | Stored, but DOCX and EPUB currently receive the caption rather than the full alternative description. |
+| Alternative text | Implemented: if the stored alternative text differs from the caption, DOCX and EPUB receive it separately (image description or `alt`); the caption stays visible. |
 
 Before implementation is complete, test all six positions, size changes, page breaks and text wrapping in PDF, DOCX and EPUB. Unsupported settings must be reported. Successful saving alone does not demonstrate correct placement.
 

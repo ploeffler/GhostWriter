@@ -151,6 +151,24 @@ class ImageTest(unittest.TestCase):
         config['images']['credit_in_imprint'] = False
         self.assertEqual(build_edition.image_credit(used, config), '')
 
+    def test_alt_text_separate_from_caption(self):
+        """Gespeicherter Alternativtext gelangt getrennt von der Bildunterschrift in die Ausgabe."""
+        meta, _ = self.add(alt='Ein alter Mann sitzt mit einem "kleinen" Hund auf einer Holzbank \\ im Park.')
+        self.place(meta['id'])
+        approve_chapter_1(self.base)
+        self.approve(meta)
+        _, config = load(self.base)
+        parts, mparts = assemble.book_parts(self.base, config), assemble.matter_parts(self.base, config)
+        md, _ = assemble.resolve_images(self.base, config, assemble.book_body(parts, mparts))
+        self.assertIn('![Opi und Strolchi auf der Bank](', md)
+        self.assertIn('alt="Ein alter Mann sitzt mit einem \\"kleinen\\" Hund auf einer Holzbank \\\\ im Park."', md)
+        if not shutil.which('pandoc'):
+            self.skipTest('pandoc fehlt')
+        html = subprocess.run(['pandoc', '-f', 'markdown', '-t', 'html'], input=md, capture_output=True,
+                              text=True, check=True).stdout
+        self.assertIn('alt="Ein alter Mann sitzt mit einem &quot;kleinen&quot; Hund auf einer Holzbank \\ im Park."', html)
+        self.assertIn('<figcaption>Opi und Strolchi auf der Bank</figcaption>', html)
+
     def test_views(self):
         meta, _ = self.add()
         run = lambda *a: subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), *a, '--text'],

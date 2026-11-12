@@ -295,7 +295,7 @@ id: img-opi-und-strolchi-auf-der-bank
 section_id: sec-01-01-…
 file: img-opi-und-strolchi-auf-der-bank.png
 caption: Opi und Strolchi auf der Bank   # Bildunterschrift
-alt: Opi und Strolchi auf der Bank       # Alternativtext (EPUB)
+alt: Opi und Strolchi auf der Bank       # Alternativtext (EPUB alt, DOCX Bildbeschreibung; Vorgabe: Bildunterschrift)
 status: draft                            # draft | approved
 ai_generated: true
 source: copy                             # chat (im Chat erzeugt) | copy (Auftrag bei einem anderen Dienst) | own (eigenes Bild)
