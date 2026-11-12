@@ -69,6 +69,27 @@ class ImageTest(unittest.TestCase):
         self.assertIn('- Strolchi: rotbrauner Mischling, weißer Fleck am rechten Ohr', other)
         self.assertNotIn('Opi', other)
 
+    def test_graphic_prompt_allows_requested_labels(self):
+        """Bildtest 08.11.: Grafikaufträge verlangen nicht „Ohne Schrift“."""
+        _, config = load(self.base)
+        prompt, _ = images.build_prompt(self.base, config, '1.1', 'Weg vom Hof zum Wald als Skizze', kind='graphic',
+                                        labels=['Hof', 'Wald', '2 km'])
+        self.assertIn('Grafik: Weg vom Hof zum Wald als Skizze', prompt)
+        self.assertIn('- „Hof“\n- „Wald“\n- „2 km“', prompt)
+        self.assertNotIn('Ohne Schrift', prompt)
+        plain, _ = images.build_prompt(self.base, config, '1.1', 'Ablauf als Schaubild', kind='graphic')
+        self.assertIn('Beschriftungen nur, wo sie zum Verständnis nötig sind', plain)
+        self.assertNotIn('Ohne Schrift', plain)
+        scene, _ = images.build_prompt(self.base, config, '1.1', 'Opi am Hafen')
+        self.assertIn('Ohne Schrift, Buchstaben oder Logos im Bild.', scene)
+        with self.assertRaisesRegex(SystemExit, 'nur bei Grafiken'):
+            images.build_prompt(self.base, config, '1.1', 'Opi am Hafen', labels=['Hafen'])
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/images.py'), str(self.base), 'prompt', '1.1',
+                              '--scene', 'Karte', '--kind', 'graphic', '--labels', 'Hof', 'Wald'],
+                             capture_output=True, text=True, check=True).stdout
+        self.assertIn('- „Wald“', out)
+        self.assertNotIn('Ohne Schrift', out)
+
     def test_prompt_requires_explicitly_approved_visual_references(self):
         ref = reference_images.add(
             self.base, self.tmp / 'bild.png', 'Opi Porträt',

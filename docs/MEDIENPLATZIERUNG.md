@@ -38,7 +38,7 @@ Position und Breite bestimmen gemeinsam den Textumfluss. Fehlende Druckauflösun
 | Teil | Tatsächlicher Stand |
 |---|---|
 | Illustration und Referenzbild | Aufnahme, Auswahl, Referenzprotokoll und Freigabeschranken vorhanden. |
-| Beschriftetes Diagramm | Separat erstellen und als PNG aufnehmen möglich; der allgemeine Bildprompt verbietet derzeit Schrift. |
+| Beschriftetes Diagramm | Umgesetzt: Grafikaufträge (`images.py prompt --kind graphic`, Beschriftungen mit `--labels`) lassen gewünschte Schrift zu; nur Illustrationen verlangen „Ohne Schrift“. Fertige Diagramme lassen sich weiterhin separat erstellen und als PNG aufnehmen. |
 | Höchstens ein Medium | Umgesetzt: Projektprüfung (`validate_project.py`) und Ausgabe (Probedruck, Auflage) melden mehr als ein Medium im Abschnitt und ein mehrfach eingefügtes Bild als Fehler. Nicht eingefügte Varianten und Referenzbilder zählen nicht. |
 | Position und Textumfluss | Noch nicht umgesetzt; die Ausgabe setzt Bilder derzeit auf volle Satzbreite. |
 | Breitenregler | Noch keine Auswahl im Bildformular; die Ausgabe verwendet fest `width=100%`. |

@@ -38,7 +38,7 @@ Position and width jointly determine text wrapping. Insufficient print resolutio
 | Part | Actual state |
 |---|---|
 | Illustration and reference image | Import, selection, reference logging and approval gates exist. |
-| Labelled diagram | Can be created separately and imported as PNG; the general image prompt currently forbids text. |
+| Labelled diagram | Implemented: graphic prompts (`images.py prompt --kind graphic`, labels via `--labels`) allow requested text; only illustrations ask for “no text”. Finished diagrams can still be created separately and imported as PNG. |
 | At most one media item | Implemented: project validation (`validate_project.py`) and output (proof, edition) report more than one media item in a section and an image inserted more than once as errors. Variants that are not inserted and reference images do not count. |
 | Position and text wrapping | Not implemented; images currently use the full text width. |
 | Width slider | No control in the image form yet; output uses a fixed `width=100%`. |

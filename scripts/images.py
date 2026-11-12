@@ -114,7 +114,14 @@ def character_lines(base, config, ids):
     return lines
 
 
-def build_prompt(base, config, key, scene, names=None, reference_ids=None):
+def build_prompt(base, config, key, scene, names=None, reference_ids=None, kind='illustration', labels=None):
+    """Bildauftrag. kind 'illustration' (Szene, ohne Schrift) oder 'graphic' (Diagramm, Karte,
+    Schaubild): bei einer Grafik sind die angegebenen Beschriftungen ausdrücklich erwünscht."""
+    if kind not in ('illustration', 'graphic'):
+        raise SystemExit('Art: illustration oder graphic')
+    labels = [str(l).strip() for l in (labels or []) if str(l).strip()]
+    if labels and kind != 'graphic':
+        raise SystemExit('Beschriftungen gibt es nur bei Grafiken (--kind graphic)')
     target, _ = find_target(config, key)
     if names:
         ids = []
@@ -129,7 +136,7 @@ def build_prompt(base, config, key, scene, names=None, reference_ids=None):
     parts = []
     if s['style']:
         parts.append(f'Stil: {s["style"]}')
-    parts.append(f'Szene: {scene.strip()}')
+    parts.append(f'Grafik: {scene.strip()}' if kind == 'graphic' else f'Szene: {scene.strip()}')
     chars = character_lines(base, config, ids)
     if chars:
         parts.append('Figuren (immer genau so darstellen):\n' + '\n'.join(chars))
@@ -141,7 +148,15 @@ def build_prompt(base, config, key, scene, names=None, reference_ids=None):
             detail = ref.get('description') or ref.get('purpose') or ref['caption']
             lines.append(f'- {ref["id"]} ({ref["caption"]}): {detail}')
         parts.append('Ausdrücklich ausgewählte visuelle Referenzen (Bilddateien zusätzlich an den Bilddienst übergeben):\n' + '\n'.join(lines))
-    parts.append('Ohne Schrift, Buchstaben oder Logos im Bild. Hochformat oder Querformat passend zur Szene.')
+    if kind == 'graphic':
+        if labels:
+            parts.append('Beschriftungen genau so und gut lesbar (keine weiteren Texte, keine Logos):\n'
+                         + '\n'.join(f'- „{l}“' for l in labels))
+        else:
+            parts.append('Beschriftungen nur, wo sie zum Verständnis nötig sind, gut lesbar und richtig geschrieben; keine Logos.')
+        parts.append('Klare, sachliche Darstellung. Hochformat oder Querformat passend zum Inhalt.')
+    else:
+        parts.append('Ohne Schrift, Buchstaben oder Logos im Bild. Hochformat oder Querformat passend zur Szene.')
     return '\n\n'.join(parts), ids
 
 
@@ -287,6 +302,9 @@ def main(argv):
     ap.add_argument('cmd', choices=['list', 'prompt', 'add', 'ref'])
     ap.add_argument('args', nargs='*')
     ap.add_argument('--scene', default='')
+    ap.add_argument('--kind', default='illustration', choices=['illustration', 'graphic'],
+                    help='bei prompt: Illustration (ohne Schrift) oder Grafik (Diagramm, Karte; Beschriftung erlaubt)')
+    ap.add_argument('--labels', nargs='*', default=[], help='bei prompt --kind graphic: gewünschte Beschriftungen')
     ap.add_argument('--references', nargs='*', default=[], help='freigegebene ref-img-IDs für Prompt und Auftragsprotokoll')
     ap.add_argument('--characters', nargs='*')
     ap.add_argument('--caption', default='')
@@ -313,7 +331,7 @@ def main(argv):
     if a.cmd == 'prompt':
         if not a.args or not a.scene:
             ap.error('prompt braucht Abschnitt und --scene')
-        print(build_prompt(base, config, a.args[0], a.scene, a.characters, a.references)[0])
+        print(build_prompt(base, config, a.args[0], a.scene, a.characters, a.references, a.kind, a.labels)[0])
         if a.references:
             from reference_images import select as select_reference_images
             print('\nDateien für die Referenzübergabe:')
