@@ -380,6 +380,9 @@ def check_project(project_dir):
             for iid in images.refs_in(path.read_text(encoding='utf-8')):
                 if iid not in image_ids:
                     errors.append(f'{path}: Bild {iid} gibt es nicht')
+    sections = {base / s['path'] for ch in config['structure']['chapters'] for s in ch['sections']}
+    errors += images.placement_problems([(str(path), path.read_text(encoding='utf-8'), path in sections)
+                                         for path in refs if path.is_file()])
 
     # Projektweite Referenzbilder bleiben von Buchillustrationen getrennt.
     reference_dir = base / 'reference-images'

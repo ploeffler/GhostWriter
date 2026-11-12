@@ -513,7 +513,14 @@ def image_problems(base, config, parts, matter):
                 out.append(f'Bild {iid} in {where} fehlt')
             elif hit[0].get('status') != 'approved':
                 out.append(f'Bild „{hit[0].get("caption") or iid}“ in {where} ist nicht freigegeben')
-    return out
+    placed = []   # höchstens ein Medium je Abschnitt, jedes Bild nur einmal (Medienplatzierung)
+    for num, ch, _, _, _ in parts:
+        for j, sec in enumerate(ch.get('sections') or [], start=1):
+            p = Path(base) / sec['path']
+            if p.is_file():
+                placed.append((f'Abschnitt {num}.{j}', p.read_text(encoding='utf-8'), True))
+    placed += [(item['title'], md, False) for _, item, md, approved, _ in matter if approved]
+    return out + images.placement_problems(placed)
 
 
 def glossary_terms(matter):

@@ -263,6 +263,24 @@ def refs_in(text):
     return [m.group(2) for m in IMAGE_REF.finditer(text or '')]
 
 
+def placement_problems(texts):
+    """Höchstens ein Medium je Abschnitt, jedes Bild nur einmal im Buch (D13, Medienplatzierung).
+
+    texts: [(wo, text, abschnitt?)]. Gezählt werden nur Verweise im Text; Varianten und
+    Referenzbilder ohne Verweis zählen nicht. Gibt Meldungen zurück."""
+    out, seen = [], {}
+    for where, text, is_section in texts:
+        ids = refs_in(text)
+        if is_section and len(ids) > 1:
+            out.append(f'{where}: {len(ids)} Medien im Abschnitt, erlaubt ist eines ({", ".join(ids)})')
+        for iid in ids:
+            if iid in seen:
+                out.append(f'{where}: Bild {iid} ist mehrfach eingefügt (auch in {seen[iid]})')
+            else:
+                seen[iid] = where
+    return out
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')

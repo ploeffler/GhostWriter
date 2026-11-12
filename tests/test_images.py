@@ -151,6 +151,39 @@ class ImageTest(unittest.TestCase):
         config['images']['credit_in_imprint'] = False
         self.assertEqual(build_edition.image_credit(used, config), '')
 
+    def test_one_medium_per_section(self):
+        """Zwei Medien im selben Abschnitt und doppelt eingefügte Bilder werden abgelehnt."""
+        first, _ = self.add()
+        second, _ = self.add(caption='Strolchi schläft')
+        self.place(first['id'])
+        self.assertEqual(validate_project.check_project(self.base), [])
+        self.place(second['id'])
+        errors = validate_project.check_project(self.base)
+        self.assertTrue(any('2 Medien im Abschnitt, erlaubt ist eines' in e for e in errors), errors)
+        approve_chapter_1(self.base)
+        self.approve(first)
+        self.approve(second)
+        _, config = load(self.base)
+        parts, mparts = assemble.book_parts(self.base, config), assemble.matter_parts(self.base, config)
+        self.assertIn('Abschnitt 1.1: 2 Medien im Abschnitt, erlaubt ist eines '
+                      f'({first["id"]}, {second["id"]})', assemble.problems(parts, config, mparts, self.base))
+
+    def test_same_image_twice(self):
+        meta, _ = self.add()
+        self.place(meta['id'])
+        _, config = load(self.base)
+        p = self.base / config['structure']['chapters'][0]['sections'][1]['path']
+        p.write_text(p.read_text(encoding='utf-8') + f'\n![](bild:{meta["id"]})\n', encoding='utf-8')
+        errors = validate_project.check_project(self.base)
+        self.assertTrue(any(f'Bild {meta["id"]} ist mehrfach eingefügt' in e for e in errors), errors)
+
+    def test_variants_do_not_count(self):
+        """Nicht eingefügte Varianten im selben Abschnitt sind keine Platzierung."""
+        meta, _ = self.add()
+        self.add(caption='Variante 2')
+        self.place(meta['id'])
+        self.assertEqual(validate_project.check_project(self.base), [])
+
     def test_views(self):
         meta, _ = self.add()
         run = lambda *a: subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), *a, '--text'],
