@@ -124,19 +124,40 @@ Ein Update von Hand: in GitHub unter *Actions → GhostWriter aktualisieren → 
 
 ## Limits: Automatik pausiert
 
-Vor dem Einspielen prüft die Action `scripts/limits.py check --live --automation`: das KI-Budget des Monats (`limits.ai_budget_monthly` gegen die Backend-API-Kosten in `costs/`), die GitHub-Actions-Minuten des Repositorys (`limits.actions_minutes_monthly`, etwa 2000 im Free-Plan bei privaten Repositorys) und das API-Rate-Limit des Tokens. Ist bei einem davon **weniger als 10 %** übrig, läuft die tägliche Prüfung nicht weiter: Der Schritt „Updates einspielen“ wird übersprungen, und die Action legt das Issue **„GhostWriter-Automatik pausiert“** an (bzw. aktualisiert es) mit dem Grund. Unter **20 %** steht eine Vorwarnung in der Zusammenfassung des Laufs und in der Projektübersicht.
+Vor dem Einspielen prüft die Action `scripts/limits.py check --live --automation`: das KI-Budget des Monats (`limits.ai_budget_monthly` gegen die Backend-API-Kosten in `costs/`), die GitHub-Actions-Minuten des Repositorys (`limits.actions_minutes_monthly`; in privaten Repositorys ohne eigene Angabe 2000 wie im Free-Plan) und das API-Rate-Limit des Tokens. Ist bei einem davon **weniger als 10 %** übrig, läuft die tägliche Prüfung nicht weiter: Der Schritt „Updates einspielen“ wird übersprungen, und die Action legt das Issue **„GhostWriter-Automatik pausiert“** an (bzw. aktualisiert es) mit dem Grund. Unter **20 %** steht eine Vorwarnung in der Zusammenfassung des Laufs und in der Projektübersicht.
 
 Weiter geht es von selbst, sobald wieder genug übrig ist – meist mit dem neuen Monat; dann schließt der nächste Lauf das Issue. Von Hand gestartete Läufe (*Run workflow*) laufen immer. Die Beträge stehen in **Projekteinstellungen → Limits**:
 
 ```yaml
 limits:
   ai_budget_monthly: 10          # € je Monat; fehlt = keine Prüfung
-  actions_minutes_monthly: 2000  # fehlt = keine Prüfung
+  actions_minutes_monthly: 2000  # fehlt = keine Prüfung, in privaten Repositorys 2000
+  actions_minutes_warn_below: 300   # Vorwarnung unter 300 Restminuten (null = aus)
+  actions_minutes_pause_below: 100  # Pause unter 100 Restminuten (null = aus)
   warn_below_percent: 20
   pause_below_percent: 10
 ```
 
+Bei den Actions-Minuten gilt die strengere Stufe aus Prozent und Restminuten. Bei 2000 Minuten greifen zuerst die Prozente (Vorwarnung ab 400, Pause ab 200 Restminuten); die festen Restminuten schützen größere Kontingente, bei denen 10 % erst spät kämen.
+
 Kontingente bei den KI-Anbietern selbst kommen mit dem Backend (#19, #66).
+
+### Actions-Minuten privater Bibliotheken (#277)
+
+Private Repositorys haben im Free-Plan **2000 Actions-Minuten im Monat**. Ist das Kontingent leer, startet GitHub keinen Lauf mehr; jeder Lauf endet mit dem Hinweis *„The job was not started because recent account payments have failed or your spending limit needs to be increased“*. Speichern geht weiter, aber Bücherregal (`library.json`), Übersichtsdatei, Prüfung und Auflagen bleiben stehen, bis der neue Monat beginnt oder in den GitHub-Einstellungen ein Ausgabenlimit gesetzt ist.
+
+Damit normale Schreibarbeit deutlich darunter bleibt, starten die Workflows nur, wenn es nötig ist:
+
+| Workflow | Läuft bei | Spart |
+|---|---|---|
+| Projektdateien prüfen (`validate.yml`) | Push auf den Standard-Branch oder `buch/*`, jeder Pull Request | Arbeits-Branches (`ghostwriter/*`, `codex/*` …) werden über ihren Pull Request geprüft, nicht bei jedem Push; reine Bot-Ausgaben (`ghostwriter-index.json`, `library.json`) lösen keine Prüfung aus; ein neuer Push bricht den älteren Lauf ab |
+| Übersichtsdatei aktualisieren (`index.yml`) | Push mit Buchdateien auf den Standard-Branch oder `buch/*` | Zwischenstände werden abgebrochen, Arbeits-Branches bekommen die Datei nach dem Merge |
+| Auflage veröffentlichen (`edition.yml`) | Push auf `ghostwriter.yml` im Standard-Branch oder `buch/*` | Arbeits-Branches starten keinen Runner |
+| Bücherregal aktualisieren (`library.yml`) | Push mit Buchdateien, eigener Pull Request geöffnet/geschlossen, Branch gelöscht, nach dem Update | kein eigener Lauf mehr beim Anlegen eines Branchs; ein neuer Lauf bricht den älteren ab |
+
+Ein übersprungener Lauf erscheint in der Actions-Liste als *skipped* und kostet keine Minute.
+
+**Rechtzeitig gewarnt:** Nach jedem Lauf *Bücherregal aktualisieren* schätzt `scripts/limits.py` den Verbrauch des Monats aus allen Läufen dieses Repositorys (je Lauf auf volle Minuten aufgerundet, wie GitHub abrechnet; übersprungene Läufe zählen nicht). Ist die Vorwarnstufe erreicht (unter 20 % oder unter 300 Restminuten), legt der Lauf das Issue **„GhostWriter: Actions-Minuten knapp“** an und hält es aktuell; GitHub benachrichtigt dich darüber. In der Pausenstufe (unter 10 % oder unter 100 Restminuten) setzt zusätzlich die tägliche Update-Prüfung aus. Mit dem neuen Monat schließt der nächste Lauf das Issue. Die Schätzung sieht nur dieses Repository: Andere private Repositorys desselben Kontos zählen beim Kontingent mit; dann `limits.actions_minutes_monthly` entsprechend kleiner einstellen. Den genauen Stand zeigt GitHub unter **Settings → Billing and plans**. Viele alte Arbeits-Branches verursachen keinen Verbrauch mehr, aufräumen lohnt sich trotzdem (Actions → *Branches aufräumen*).
 
 ## Token für private Hauptrepositorys und Workflow-Dateien
 

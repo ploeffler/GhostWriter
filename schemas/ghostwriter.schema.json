@@ -199,7 +199,9 @@
       "description": "Grenzen für die Automatik (#62): unter pause_below_percent pausiert, unter warn_below_percent Vorwarnung; fehlt = keine Grenzen",
       "properties": {
         "ai_budget_monthly": {"type": ["number", "null"], "minimum": 0, "description": "KI-Budget je Monat in Projektwährung; leer = kein eigenes Budget"},
-        "actions_minutes_monthly": {"type": ["integer", "null"], "minimum": 0, "description": "Actions-Minuten je Monat (z. B. 2000 bei privaten Repositorys im Free-Plan); leer = nicht prüfen"},
+        "actions_minutes_monthly": {"type": ["integer", "null"], "minimum": 0, "description": "Actions-Minuten je Monat (z. B. 2000 bei privaten Repositorys im Free-Plan); leer = nicht prüfen, in privaten Repositorys 2000"},
+        "actions_minutes_warn_below": {"type": ["integer", "null"], "minimum": 0, "description": "Vorwarnung, wenn weniger Actions-Minuten übrig sind (#277); fehlt = 300, null = keine"},
+        "actions_minutes_pause_below": {"type": ["integer", "null"], "minimum": 0, "description": "Automatik pausiert, wenn weniger Actions-Minuten übrig sind (#277); fehlt = 100, null = keine"},
         "pause_below_percent": {"type": "number", "minimum": 0, "maximum": 100},
         "warn_below_percent": {"type": "number", "minimum": 0, "maximum": 100}
       },

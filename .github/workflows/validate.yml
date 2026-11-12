@@ -1,8 +1,21 @@
 name: Projektdateien prüfen
 
+# Sparsam mit dem Actions-Kontingent (#277; privat 2000 Minuten im Monat):
+# Pushes nur auf dem Standard-Branch und auf Buch-Branches (buch/*) prüfen,
+# Arbeits-Branches über ihren Pull Request. Reine Bot-Ausgaben (Übersichtsdatei,
+# Bücherregal) lösen keine Prüfung aus. Ein neuer Push bricht den älteren Lauf
+# desselben Branchs bzw. PRs ab (außer auf dem Standard-Branch).
+
 on:
   push:
+    paths-ignore:
+      - 'ghostwriter-index.json'
+      - 'library.json'
   pull_request:
+
+concurrency:
+  group: validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref_name != github.event.repository.default_branch }}
 
 permissions:
   contents: read
@@ -10,6 +23,11 @@ permissions:
 
 jobs:
   validate:
+    # Die Bedingung wird vor dem Start ausgewertet: Übersprungene Läufe kosten keine Minuten.
+    if: >-
+      github.event_name != 'push'
+      || github.ref_name == github.event.repository.default_branch
+      || startsWith(github.ref_name, 'buch/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +39,11 @@ jobs:
       - name: Abhängigkeiten installieren
         run: |
           pip install pyyaml jsonschema requests pydantic pillow python-docx
-          pip install -r scripts/docsite/requirements.txt
+          # Website-Pakete nur im Hauptrepository (Dokumentationswebsite)
+          upstream=$(python -c "import yaml;print((yaml.safe_load(open('ghostwriter-manifest.yml')).get('upstream') or {}).get('repo',''))" 2>/dev/null || true)
+          if [ "$upstream" = "$GITHUB_REPOSITORY" ] || [ ! -f ghostwriter-manifest.yml ]; then
+            pip install -r scripts/docsite/requirements.txt
+          fi
 
       - name: workflow.yml gegen sein Schema prüfen
         run: |
