@@ -495,7 +495,11 @@ def resolve_images(base, config, md, proof=False):
         used.append(meta)
         caption = alt or meta.get('caption', '')
         note = '' if meta.get('status') == 'approved' else '\n\n[Bild: Entwurf, nicht freigegeben]{.gwstatus}'
-        return f'![{caption}]({path.resolve().as_posix()}){{#{iid} width=100%}}{note}'
+        attrs = f'#{iid}'
+        alt_text = ' '.join(str(meta.get('alt') or '').split())
+        if alt_text and alt_text != ' '.join(caption.split()):   # Alternativtext getrennt von der Bildunterschrift (DOCX descr, EPUB alt)
+            attrs += ' alt="' + alt_text.replace('\\', '\\\\').replace('"', '\\"') + '"'
+        return f'![{caption}]({path.resolve().as_posix()}){{{attrs} width=100%}}{note}'
     return images.IMAGE_REF.sub(sub, md), used
 
 
