@@ -494,12 +494,16 @@ def resolve_images(base, config, md, proof=False):
             return ''
         used.append(meta)
         caption = alt or meta.get('caption', '')
-        note = '' if meta.get('status') == 'approved' else '\n\n[Bild: Entwurf, nicht freigegeben]{.gwstatus}'
+        draft = meta.get('status') != 'approved'
         attrs = f'#{iid}'
         alt_text = ' '.join(str(meta.get('alt') or '').split())
-        if alt_text and alt_text != ' '.join(caption.split()):   # Alternativtext getrennt von der Bildunterschrift (DOCX descr, EPUB alt)
+        if draft:   # Vermerk steht in der Bildunterschrift und bleibt so im PDF beim Bild
+            alt_text = alt_text or ' '.join(caption.split())
+        if alt_text and (draft or alt_text != ' '.join(caption.split())):   # Alternativtext getrennt von der Bildunterschrift (DOCX descr, EPUB alt)
             attrs += ' alt="' + alt_text.replace('\\', '\\\\').replace('"', '\\"') + '"'
-        return f'![{caption}]({path.resolve().as_posix()}){{{attrs} width=100%}}{note}'
+        if draft:
+            caption = (caption + ' ' if caption else '') + '[Bild: Entwurf, nicht freigegeben]{.gwstatus}'
+        return f'![{caption}]({path.resolve().as_posix()}){{{attrs} width=100%}}'
     return images.IMAGE_REF.sub(sub, md), used
 
 

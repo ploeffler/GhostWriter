@@ -42,7 +42,7 @@ Position und Breite bestimmen gemeinsam den Textumfluss. Fehlende Druckauflösun
 | Höchstens ein Medium | Umgesetzt: Projektprüfung (`validate_project.py`) und Ausgabe (Probedruck, Auflage) melden mehr als ein Medium im Abschnitt und ein mehrfach eingefügtes Bild als Fehler. Nicht eingefügte Varianten und Referenzbilder zählen nicht. |
 | Position und Textumfluss | Noch nicht umgesetzt; die Ausgabe setzt Bilder derzeit auf volle Satzbreite. |
 | Breitenregler | Noch keine Auswahl im Bildformular; die Ausgabe verwendet fest `width=100%`. |
-| Medienabschnitt im PDF | Inhalt wird ausgegeben; Überschrift und Grafik können auf verschiedene Seiten rutschen. Auch Entwurfsvermerke können sich vom Bild lösen. |
+| Medienabschnitt im PDF | Umgesetzt: Bilder gleiten im PDF nicht mehr (`float`, Platzierung `H`), sondern stehen genau an ihrer Stelle. Überschrift und Bild bleiben auf derselben Seite, Text nach dem Bild rutscht nicht davor. Der Entwurfsvermerk im Probedruck steht in der Bildunterschrift und bleibt so beim Bild. |
 | Alternativtext | Umgesetzt: Weicht der gespeicherte Alternativtext von der Bildunterschrift ab, erhalten DOCX und EPUB ihn getrennt (Bildbeschreibung bzw. `alt`); die Bildunterschrift bleibt sichtbar. |
 
 Vor Abschluss der Umsetzung sind alle sechs Positionen, Größenänderungen, Seitenwechsel und Textumfluss in PDF, DOCX und EPUB zu prüfen. Nicht unterstützte Einstellungen müssen sichtbar gemeldet werden. Ein erfolgreiches Speichern allein ist kein Nachweis einer richtigen Platzierung.

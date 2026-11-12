@@ -42,7 +42,7 @@ Position and width jointly determine text wrapping. Insufficient print resolutio
 | At most one media item | Implemented: project validation (`validate_project.py`) and output (proof, edition) report more than one media item in a section and an image inserted more than once as errors. Variants that are not inserted and reference images do not count. |
 | Position and text wrapping | Not implemented; images currently use the full text width. |
 | Width slider | No control in the image form yet; output uses a fixed `width=100%`. |
-| Media-only section in PDF | Content is exported, but heading and image can separate across pages. Draft warnings can also detach from their images. |
+| Media-only section in PDF | Implemented: images no longer float in the PDF (`float`, placement `H`) but stay exactly where they are placed. Heading and image stay on the same page, and text after the image does not move before it. In proofs the draft note is part of the caption and stays with the image. |
 | Alternative text | Implemented: if the stored alternative text differs from the caption, DOCX and EPUB receive it separately (image description or `alt`); the caption stays visible. |
 
 Before implementation is complete, test all six positions, size changes, page breaks and text wrapping in PDF, DOCX and EPUB. Unsupported settings must be reported. Successful saving alone does not demonstrate correct placement.

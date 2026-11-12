@@ -13,6 +13,11 @@
 \setkomafont{chapter}{\Large\bfseries}
 \RedeclareSectionCommand[beforeskip=0pt,afterskip=2\baselineskip]{chapter}
 \renewcommand*{\chapterformat}{}
+% Bilder (Medienplatzierung): nicht gleiten lassen, sondern genau an ihrer Stelle setzen.
+% So bleiben Überschrift, Bild, Bildunterschrift und Entwurfsvermerk beieinander, und Text
+% nach dem Bild rutscht nicht davor.
+\usepackage{float}
+\floatplacement{figure}{H}
 \usepackage{booktabs}
 \renewcommand{\arraystretch}{1.15}
 % Probedruck: Marker und Statusvermerke (Span-Klassen gwmarker, gwstatus)
