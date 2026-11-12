@@ -84,6 +84,16 @@ MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August'
 DIV = {'standard': 'calc', 'classic': '9', 'modern': '13'}   # KOMA-Script: kleiner = breitere Ränder
 
 
+def latex_escape(text):
+    """Klartext in selbst erzeugten LaTeX-Blöcken als Text erhalten."""
+    replacements = {
+        '\\': r'\textbackslash{}', '&': r'\&', '%': r'\%', '#': r'\#',
+        '_': r'\_', '$': r'\$', '{': r'\{', '}': r'\}',
+        '~': r'\textasciitilde{}', '^': r'\textasciicircum{}',
+    }
+    return ''.join(replacements.get(char, char) for char in text)
+
+
 def is_sans(font):
     return FONTS.get(font, FONTS['serif'])[2] == 'sans-serif'
 
@@ -102,7 +112,7 @@ def layout_tex(ts, meta):
         out.append('\\usepackage{lettrine}\\setcounter{DefaultLines}{2}')
     heads, numbers = ts.get('running_heads', 'sections'), ts.get('page_numbers', 'header')
     if (heads, numbers) != ('sections', 'header'):
-        title = meta['title'].replace('&', '\\&').replace('%', '\\%').replace('#', '\\#')
+        title = latex_escape(meta['title'])
         cfg = ['\\usepackage[automark]{scrlayer-scrpage}', '\\clearpairofpagestyles']
         if heads == 'sections':
             cfg.append('\\automark[section]{chapter}\\ihead{\\headmark}')
@@ -339,7 +349,7 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
                 cmd += ['-M', 'gw-print=true']
             m = dict(common_meta)
             if kind == 'pdf':
-                lines = '\\\\\n'.join(l.replace('&', '\\&').replace('%', '\\%').replace('#', '\\#') for l in imprint)
+                lines = '\\\\\n'.join(latex_escape(l) for l in imprint)
                 imp, extra_header = '', []
                 if ts.get('imprint') and ts.get('title_page'):
                     # Impressum auf die Rückseite der Titelseite (KOMA-Script)
@@ -368,7 +378,7 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
                 if layout:
                     extra_header.append(str(write('layout.tex', layout)))
                 if series_line and ts.get('title_page'):   # Reihe über dem Titel (KOMA \subject)
-                    extra_header.append(str(write('series.tex', '\\subject{' + series_line.replace('&', '\\&') + '}\n')))
+                    extra_header.append(str(write('series.tex', '\\subject{' + latex_escape(series_line) + '}\n')))
                 if proof:
                     note = ('\\ifoot*{\\footnotesize\\sffamily\\color{red!65!black}' + footer_label + ' ' + date[8:10] + '.'
                             + date[5:7] + '.' + date[:4] + ' – nicht zur Veröffentlichung}\n')
