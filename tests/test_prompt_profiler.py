@@ -197,3 +197,13 @@ class PromptProfilerTests(unittest.TestCase):
     def test_single_file_pipe_uses_current_shared_core(self):
         import build_openwebui_profiler
         self.assertTrue(build_openwebui_profiler.build(check=True))
+
+    def test_origin_labels_are_explicit_and_allowlisted(self):
+        payload = {'messages': [{'role': 'system', 'content': 'Gleicher Text'}]}
+        unknown = profiler.openwebui_report(payload)
+        self.assertEqual(unknown['components'][0]['origin'], 'unknown')
+        supplied = profiler.openwebui_report(payload, [{'source': 'openwebui.input.messages', 'position': 4}])
+        self.assertEqual(supplied['components'][0]['origin_position'], 4)
+        invalid = profiler.openwebui_report(payload, [{'source': 'PRIVATE_ORIGIN'}])
+        self.assertEqual(invalid['components'][0]['origin'], 'unknown')
+        self.assertNotIn('PRIVATE_ORIGIN', json.dumps(invalid))

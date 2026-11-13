@@ -156,12 +156,20 @@ def aggregate(reports):
             'cost_status': 'unavailable', 'cache_savings': 'unknown'}
 
 
-def openwebui_report(payload):
+def openwebui_report(payload, origins=None):
     """Nur Modellfelder an der Pipe-Grenze; Metadaten können Callables enthalten."""
     fields = {'model', 'messages', 'system', 'tools', 'options', 'stream', 'temperature',
               'top_p', 'top_k', 'num_ctx', 'max_tokens', 'seed', 'stop', 'response_format'}
     visible = {key: value for key, value in payload.items() if key in fields}
     result = report(request_plan(visible, 'openwebui-pipe'), visible)
+    allowed = {'openwebui.input.messages', 'read_start_md.content', 'pipe.current_context'}
+    for row in result['components']:
+        match = row['source'].removeprefix('$.messages[').removesuffix(']')
+        label = origins[int(match)] if match.isdigit() and origins and int(match) < len(origins) else None
+        row['origin'] = label['source'] if isinstance(label, dict) and label.get('source') in allowed else 'unknown'
+        if isinstance(label, dict) and row['origin'] != 'unknown' and count(label.get('position')) is not None:
+            row['origin_position'] = label['position']
+    result['visibility']['ghostwriter_core'] = 'injected_sources_labeled' if origins else 'unattributed'
     result['visibility']['adapter_payload'] = 'pipe_boundary_model_fields'
     result['coverage'] = {'excluded_top_level_fields': len(set(payload) - fields),
                           'complete_provider_request': False}

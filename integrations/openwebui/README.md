@@ -14,7 +14,7 @@ Ein erfolgreiches Werkzeugergebnis beweist noch keine korrekte Modellantwort: Kl
 1. Das vorhandene GitHub-Werkzeug auf Version **1.6.0** aktualisieren und seine bisherigen Valves beibehalten. Die Pipe benötigt für Buchnavigation mindestens Version **1.3**, für das Gespräch über das geöffnete Buch **1.4** und für Darstellungsbefehle **1.5**; ab **1.6** gibt es den eigenen Open-WebUI-Einstieg.
 2. Im Administrationsbereich unter **Funktionen / Functions** eine Funktion anlegen, den vollständigen Code aus `ghostwriter_direct.py` einfügen, speichern und aktivieren. Sie wird als Pipe erkannt und erscheint als Modell **GhostWriter Direkt**.
 3. Dein eigenes Workspace-Modell **GhostWriter** bearbeiten: als Basismodell die neue Pipe **GhostWriter Direkt** wählen und weiterhin genau das vorhandene GhostWriter-GitHub-Werkzeug zuordnen. Eingebaute Werkzeuge und Erinnerungen bleiben für diese Konfiguration ausgeschaltet; Native bleibt eingestellt. Das Ollama-Basismodell selbst wird nicht verändert.
-4. In den **Valves der Pipe** bleibt `BASE_MODEL` auf `llama3.2:3b`. Dort kein Pipe-Modell auswählen. `TOOL_ID` bleibt bei genau einer passenden Integration leer; nur bei mehreren Integrationen die ID des gewünschten Werkzeugs eintragen. `INTERFACE_LANGUAGE` passend zum GitHub-Werkzeug auf `de` oder `en` stellen. Die Pipe braucht keinen eigenen GitHub-Token: Sie verwendet ausschließlich die von Open WebUI bereitgestellten, bereits autorisierten Werkzeugfunktionen.
+4. In den **Valves der Pipe** bleibt `BASE_MODEL` auf `llama3.2:3b`. Dort kein Pipe-Modell auswählen. `TOOL_ID` bleibt bei genau einer passenden Integration leer; nur bei mehreren Integrationen die ID des gewünschten Werkzeugs eintragen. `INTERFACE_LANGUAGE` passend zum GitHub-Werkzeug auf `de` oder `en` stellen. Die Pipe braucht keinen eigenen GitHub-Token: Sie verwendet ausschließlich die von Open WebUI bereitgestellten, bereits autorisierten Werkzeugfunktionen. `FIXED_TOOL_ID` bleibt auf `ghostwriter_github`, wenn das Werkzeug diese ID hat; dann lädt die Pipe es auch, wenn es im Chat ausgeschaltet ist (siehe „Werkzeug selbst nachladen“).
 5. Neuen Chat mit deinem Workspace-Modell öffnen und **Start** senden. Die Antwort muss genau Begrüßung plus Bibliotheksansicht sein. **Bibliothek** liefert danach die frisch gelesene Ansicht ohne weitere Begrüßung. `1` oder `Buch 1` öffnet das angezeigte Buch. In der Buchübersicht öffnet eine Nummer das Kapitel, in der Kapitelansicht den Abschnitt. Explizite Befehle sind `Übersicht`, `Kapitel 1` und `Abschnitt 1.1`; englisch `Book`, `Overview`, `Chapter`, `Section` mit denselben Nummern.
 
 Normale Gesprächsbeiträge werden an `BASE_MODEL` über den internen Open-WebUI-Provider weitergegeben. Dabei bleiben Benutzer- und Modellberechtigungen aktiv; Startanweisungen werden intern mitgeführt. Die Qualität dieser Modellantworten hängt weiterhin vom Basismodell ab. Im Gesprächspfad der Direkt-Pipe stehen dem Basismodell keine GitHub-Werkzeuge zur Verfügung; schreibende Buchbefehle sind dort nicht implementiert. Die angebotene Lese-Navigation wird direkt ausgeführt. Die Pipe ist keine vollständige GhostWriter-API und keine neue Freigabeinstanz. Hintergrundaufgaben wie Titelerzeugung lösen keinen Start aus. Werkzeugfehler werden angezeigt und nicht durch Modelltext ersetzt.
@@ -24,6 +24,44 @@ Ab Direkt-Pipe **1.3** mit GitHub-Werkzeug **1.4** erhält auch das freie Gespr�
 Eine freie Frage liest die benötigten Daten neu. Hat sich der Lesestand verändert, wird vor einer Modellantwort die neue Übersicht gezeigt und eine erneute Auswahl verlangt. Ohne zuordenbare Auswahl soll das Modell nachfragen. Die Kontextübergabe speichert keine Buchänderung und erteilt keine Freigabe. Sie verbessert die Grundlage der Modellantwort; ihre sprachliche und fachliche Qualität hängt weiterhin vom Basismodell ab. Nach Aktualisierung beider bestehenden Codeeinträge einen neuen Chat mit `Start` öffnen und nach der Buchwahl beispielsweise „Welche Statuswerte kann Kapitel 1 haben?“ fragen.
 
 Ab Direkt-Pipe **1.4** werden erkannte Fragen nach Kapitel- und Abschnittsstatus direkt aus den frisch gelesenen Regeln beantwortet, beispielsweise „Welche Statuswerte kann Kapitel 1 haben?“, „Welchen Zustand könnte 1 schon bekommen?“ und `Status Kapitel 1`. Die Ausgabe nennt den gespeicherten Zustand und ausschließlich die für diese Einheit definierten Statuswerte. Sie behauptet keine erfüllten Voraussetzungen und führt keine Änderung aus. Änderungsaufträge werden durch diese Auskunft nicht als erledigt behandelt. Andere freie Fragen verwenden weiterhin das Basismodell. Für dieses Update genügt die neue Direkt-Funktion; das GitHub-Werkzeug 1.4 bleibt kompatibel.
+
+### Buchnavigation wird trotz Werkzeugupdate nicht erkannt
+
+Ab Direkt-Pipe **1.9** zeigt **Navigation prüfen** (Englisch: **check navigation**)
+ohne GitHub- oder Modellaufruf, ob `read_start_md`, `show_library`, `open_book` und
+`get_current_context` tatsächlich als autorisierte Callables bei der Pipe ankommen.
+Der Report gibt keine Token, Inhalte oder Werkzeugkonfigurationen aus.
+
+Ein fehlendes `open_book` beweist nicht, dass der gespeicherte Werkzeugcode alt
+ist: Auch eine andere Zuordnung oder die von Open WebUI bereitgestellte
+Funktionsauswahl kann diese Funktion ausschließen. Die Diagnose benennt deshalb
+die fehlende Funktion und behauptet keine erkannte Werkzeugversion. Sind alle
+Funktionen vorhanden, ist als Nächstes die konkrete Antwort beim Öffnen und der
+Navigationskontext zu prüfen. Zugangsdaten bleiben im vorhandenen Werkzeug.
+
+### Werkzeug selbst nachladen (Direkt-Pipe 1.9)
+
+Open WebUI übergibt einer Pipe nur die Werkzeuge, die im Chat eingeschaltet sind. Ist das GitHub-Werkzeug dort aus, fehlten der Pipe bisher alle Funktionen. Ab 1.9 lädt die Pipe das Werkzeug aus der Valve **`FIXED_TOOL_ID`** (Vorgabe `ghostwriter_github`) dann selbst über die Open-WebUI-Funktion `get_tools`. Dabei gelten unverändert die Zugriffsrechte des Benutzers, der Aktivstatus des Werkzeugs und dessen gespeicherte Valves samt Token; die Pipe sieht den Token nicht.
+
+- Ist bereits eine vollständige GhostWriter-Integration im Chat aktiv, lädt die Pipe nichts nach.
+- `Navigation prüfen` zeigt an, wenn das Werkzeug von der Pipe selbst geladen wurde.
+- Weicht die Werkzeug-ID ab (in Open WebUI unter **Arbeitsbereich → Werkzeuge** sichtbar), `FIXED_TOOL_ID` anpassen. Leer schaltet das Nachladen ab.
+- Schlägt das Nachladen fehl, nennt die Antwort den Weg (Werkzeug einschalten oder `FIXED_TOOL_ID` setzen) ohne technische Einzelheiten; im Serverprotokoll steht nur eine allgemeine Zeile.
+
+Diese Funktion stammt aus einer lokal erprobten Fassung 1.8.1, die nie hochgeladen wurde; sie ist in 1.9.0 mit Tests übernommen. `get_tools` ist eine interne Open-WebUI-Funktion; bei einem Open-WebUI-Update kann sich ihre Schnittstelle ändern.
+
+### Herkunft der Nachrichten (Direkt-Pipe 1.9)
+
+Die Profiler-Übersicht und der JSON-Report kennzeichnen die Herkunft jeder
+Nachricht: `read_start_md.content` für neu eingefügte Startanweisungen,
+`pipe.current_context` für den aktuellen Kontext samt Gesprächsregeln und
+`openwebui.input.messages` für bereits von Open WebUI übergebene Nachrichten.
+Bei letzteren bleibt die ursprüngliche Position erhalten, auch wenn die Pipe
+Toolnachrichten entfernt. Der Diagnosebefehl wird mit seiner Herkunftszeile aus
+der Vorschau entfernt. Herkunft wird bei der Zusammenstellung erfasst, nicht
+anhand ähnlicher Texte erraten. Die Herkunft einer vom Chat gelieferten
+Systemnachricht vor Eintritt in die Pipe bleibt unbekannt. Der zusammengesetzte
+aktuelle Kontext wird noch nicht in Regeln und Buchdaten zerlegt.
 
 ### Prompt-Profil ohne bezahlte API (Direkt-Pipe 1.7)
 
@@ -119,7 +157,7 @@ Die Darstellungs- und Antwortmodusbefehle aus `START.md` führt die Pipe direkt 
 
 Fehlt die Übersichtsdatei oder passt sie nicht zur Kapitelstruktur, steht das in der Ansicht; Freigaben, Kosten und Marker werden dann nicht geschätzt. Die Übersichtsdatei wird von der Action „Übersichtsdatei aktualisieren“ erzeugt und kann direkt nach einem Push kurz hinterherhinken. Ansichten schreiben nichts und erteilen keine Freigaben.
 
-Für das Update **beide** Codeeinträge ersetzen: Direkt-Funktion 1.8.0 und GitHub-Werkzeug 1.5.0 (Valves bleiben). Mit Werkzeug 1.4 meldet die Pipe bei Darstellungsbefehlen, dass das Werkzeug aktualisiert werden muss; Navigation und Gespräch funktionieren weiter. Freie Gesprächsbeiträge erfahren über die Systemanweisung die aktuelle Darstellung und die verfügbaren Befehle, damit das Modell sie nicht mehr für nicht vorhanden erklärt; das bleibt eine Anweisung, keine Garantie für die Modellantwort.
+Für das Update **beide** Codeeinträge ersetzen: Direkt-Funktion ab 1.8.0 (aktuell 1.9.0) und GitHub-Werkzeug ab 1.5.0 (aktuell 1.6.0); die Valves bleiben. Mit Werkzeug 1.4 meldet die Pipe bei Darstellungsbefehlen, dass das Werkzeug aktualisiert werden muss; Navigation und Gespräch funktionieren weiter. Freie Gesprächsbeiträge erfahren über die Systemanweisung die aktuelle Darstellung und die verfügbaren Befehle, damit das Modell sie nicht mehr für nicht vorhanden erklärt; das bleibt eine Anweisung, keine Garantie für die Modellantwort.
 
 ### Auswahl und aktuelle Buchstände
 

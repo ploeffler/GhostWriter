@@ -66,7 +66,7 @@ class DirectPipeTest(unittest.TestCase):
     def test_book_request_with_old_tool_is_not_sent_to_model(self):
         with patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
             output = self.call('Buch 1')
-        self.assertIn('Version 1.3', output)
+        self.assertIn('open_book', output)
         forward.assert_not_awaited()
 
     def test_number_without_view_context_refreshes_library_instead_of_guessing(self):
@@ -152,6 +152,68 @@ class DirectPipeTest(unittest.TestCase):
         self.assertIn('`Darstellung: erweitert`', system)
         self.assertIn('nie für nicht verfügbar', system)
         self.assertIn('aktuell „übersichtlich“', system)
+
+    def fake_openwebui(self, loaded=None, error=None):
+        """open_webui.models.users / open_webui.utils.tools für _ensure_tools nachbilden."""
+        calls = []
+
+        class User:
+            def model_dump(self):
+                return {'id': 'user-1', 'role': 'user'}
+
+        class Users:
+            @staticmethod
+            async def get_user_by_id(user_id):
+                return User() if user_id == 'user-1' else None
+
+        async def get_tools(request, tool_ids, user, extra):
+            calls.append((tool_ids, extra))
+            if error:
+                raise error
+            return loaded or {}
+        modules = {name: types.ModuleType(name) for name in
+                   ('open_webui', 'open_webui.models', 'open_webui.models.users', 'open_webui.utils', 'open_webui.utils.tools')}
+        modules['open_webui.models.users'].Users = Users
+        modules['open_webui.utils.tools'].get_tools = get_tools
+        return patch.dict(sys.modules, modules), calls
+
+    def test_fixed_tool_is_loaded_by_pipe_only_when_not_enabled_in_chat(self):
+        request = types.SimpleNamespace(app=types.SimpleNamespace(state=types.SimpleNamespace(MODELS={})))
+        loaded = {name: {**entry, 'tool_id': 'ghostwriter_github'} for name, entry in self.tools.items()}
+        modules, calls = self.fake_openwebui(loaded)
+        with modules, patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
+            output = asyncio.run(self.pipe.pipe({'model': 'direct', 'messages': [{'role': 'user', 'content': 'Start'}]},
+                                 __tools__={}, __user__={'id': 'user-1'}, __metadata__={'chat_id': 'c'}, __request__=request))
+            diagnostic = asyncio.run(self.pipe.pipe({'model': 'direct', 'messages': [{'role': 'user', 'content': 'Navigation prüfen'}]},
+                                     __tools__={}, __user__={'id': 'user-1'}, __metadata__={'chat_id': 'c'}, __request__=request))
+            # Im Chat bereits eingeschaltet: nichts nachladen.
+            self.call('Bibliothek', __metadata__={'chat_id': 'c'}, __request__=request)
+        forward.assert_not_awaited()
+        self.assertIn(VIEW, output)
+        self.assertIn('wurde von der Pipe selbst geladen', diagnostic)
+        self.assertEqual(len(calls), 2)
+        tool_ids, extra = calls[0]
+        self.assertEqual(tool_ids, ['ghostwriter_github'])
+        self.assertEqual(extra['__chat_id__'], 'c')
+        self.assertEqual(extra['__user__'], {'id': 'user-1', 'role': 'user'})
+
+    def test_fixed_tool_disabled_or_failing_shows_hint_without_details(self):
+        request = types.SimpleNamespace(app=types.SimpleNamespace(state=types.SimpleNamespace(MODELS={})))
+        modules, calls = self.fake_openwebui(error=RuntimeError('PRIVATE_PATH token=geheim'))
+        with modules, patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward, \
+                patch('sys.stderr', new_callable=lambda: __import__('io').StringIO()) as stderr:
+            failed = asyncio.run(self.pipe.pipe({'model': 'direct', 'messages': [{'role': 'user', 'content': 'Start'}]},
+                                 __tools__={}, __user__={'id': 'user-1'}, __metadata__={'chat_id': 'c'}, __request__=request))
+            self.pipe.valves.FIXED_TOOL_ID = ''
+            disabled = asyncio.run(self.pipe.pipe({'model': 'direct', 'messages': [{'role': 'user', 'content': 'Start'}]},
+                                   __tools__={}, __user__={'id': 'user-1'}, __metadata__={'chat_id': 'c'}, __request__=request))
+        forward.assert_not_awaited()
+        self.assertEqual(len(calls), 1)
+        for output in (failed, disabled):
+            self.assertIn('FIXED_TOOL_ID', output)
+            self.assertNotIn('PRIVATE_PATH', output)
+            self.assertNotIn('geheim', output)
+        self.assertNotIn('geheim', stderr.getvalue())
 
     def test_free_question_receives_fresh_selected_context_before_user_message(self):
         import base64
@@ -441,6 +503,38 @@ class DirectPipeTest(unittest.TestCase):
         self.assertIn('Prompt-Profil JSON', answer)
         self.assertNotIn('```json', answer)
         self.assertNotIn('Interne Regeln', answer)
+
+    def test_navigation_diagnostic_reports_supplied_functions_without_calls(self):
+        with patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
+            answer = self.call('Navigation prüfen')
+        self.assertIn('| `open_book` | fehlt |', answer)
+        self.assertIn('| `read_start_md` | ja |', answer)
+        self.start.assert_not_awaited()
+        self.library.assert_not_awaited()
+        forward.assert_not_awaited()
+        opener = AsyncMock()
+        context = AsyncMock()
+        self.tools['open_book'] = {'tool_id': 'github', 'spec': {'name': 'open_book'}, 'callable': opener}
+        self.tools['get_current_context'] = {'tool_id': 'github', 'spec': {'name': 'get_current_context'}, 'callable': context}
+        answer = self.call('Navigation prüfen')
+        self.assertIn('| `open_book` | ja |', answer)
+        self.assertIn('| `get_current_context` | ja |', answer)
+        opener.assert_not_awaited()
+        context.assert_not_awaited()
+
+    def test_profile_origin_tracks_injection_and_filtered_message_positions(self):
+        body = {'model': 'direct', 'messages': [
+            {'role': 'system', 'content': 'Externe Vorgabe'},
+            {'role': 'tool', 'content': 'Nicht weitergeben'},
+            {'role': 'user', 'content': 'Prompt-Profil JSON'}]}
+        before = copy.deepcopy(body)
+        answer = asyncio.run(self.pipe.pipe(body, __tools__=self.tools, __user__={'id': 'u'}))
+        profile = json.loads(answer.split('```json\n')[1].split('\n```')[0])
+        self.assertEqual([r['origin'] for r in profile['components']],
+                         ['read_start_md.content', 'openwebui.input.messages', 'pipe.current_context'])
+        self.assertEqual(profile['components'][1]['origin_position'], 0)
+        self.assertEqual(body, before)
+        self.assertNotIn('Externe Vorgabe', answer)
 
 
 if __name__ == '__main__':
