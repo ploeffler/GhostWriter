@@ -25,6 +25,17 @@ The original assessment refers to [Anthropic's GitHub integration help](https://
 
 The historical plan delegates creation of edition tags and releases and attachment of PDF, DOCX and EPUB files to a GitHub Action after the corresponding changes are merged.
 
+## Reading copy next to the view (#289)
+
+For the chapter and section views the assistant creates the text as a Markdown file with `scripts/assemble.py … reading N` or `N.M` and hands it over next to the view, again after every change (`START.md`, "Lesefassung"). As of 13 November 2026:
+
+| App | Path |
+|---|---|
+| Claude with a working environment | Send the file with display "render": it opens in the side panel, nothing is downloaded (tested in YAWA) |
+| Codex | Name the file in the working folder |
+| ChatGPT (GitHub connector) | Not yet: the connector is read-only and `assemble.py` does not run; planned via the "Manuskript ausgeben" action (#289, part 2) |
+| Open WebUI | Not yet; section text stays in the view as before |
+
 ## Handing over files in the chat (#260)
 
 "Export manuscript" builds the PDF in the "Manuskript ausgeben" action; the chat fetches it with `scripts/fetch_artifact.py` and hands it over as a file. As of 11 November 2026, **not yet tested in every app**:

@@ -6,6 +6,7 @@ Aufruf:
   python scripts/assemble.py <projektordner> book [-o datei.md] [--edition N] [--date JJJJ-MM-TT]
   python scripts/assemble.py <projektordner> check [--edition N]
   python scripts/assemble.py <projektordner> manuscript [<kapitelnummer>] [-o datei.md]
+  python scripts/assemble.py <projektordner> reading <kapitel|kapitel.abschnitt> [-o datei.md|ordner]
 
 chapter  Ein Kapitel aus seinen freigegebenen Abschnitten (status approved), in
          der Reihenfolge aus ghostwriter.yml. Nicht freigegebene Abschnitte
@@ -24,6 +25,11 @@ manuscript  Arbeitsstand für „Manuskript ausgeben“ (#260): alle Kapitel (od
          „Geplant“ mit Ziel und Kurzbeschreibung in Stichworten, erledigten
          Läufen und offenen Fragen aus Recherche und Brainstorming. Ohne KI,
          nichts wird umformuliert. Das PDF baut scripts/build_edition.py --manuscript.
+reading  Lesefassung zur Kapitel- bzw. Abschnittsansicht (#289): der Arbeitsstand
+         eines Kapitels (5) oder Abschnitts (5.1) als lesbares Markdown, ohne
+         Pandoc-Vermerke, mit Abschnittsnummern in den Überschriften und einer
+         Statuszeile. Auch nicht freigegebener Text, ohne KI, nichts umformuliert.
+         -o mit einem Ordner schreibt Kapitel-05-<slug>.md bzw. Abschnitt-5.1-<slug>.md.
 
 Was ins Buch kommt: je Kapitel Titel, Untertitel (erste kursive Zeile der
 Kapitel-README), der Text unter „## Manuskript“ jeder freigegebenen
@@ -60,12 +66,14 @@ bestätigt oder ihr Ort nicht vorhanden, verhindert das die Auflage.
 
 Dieses Skript läuft nur in GitHub Actions oder lokal; den zusammengeführten
 Text gibt der Assistent nie im Chat aus (START.md, „Kein ganzes Buch im Chat“).
+Die Lesefassung (reading) übergibt er als Datei neben der Ansicht, nicht als Chattext.
 """
 import argparse
 import datetime
 import hashlib
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 import yaml
@@ -218,25 +226,31 @@ def plan_block(status, goal, summary, runs=()):
     return '::: geplant\n' + '\n\n'.join([head] + parts) + '\n:::'
 
 
-def chapter_markdown(base, chapter, number, proof=False, plan=False):
+def section_approved(base, section, head, manuscript):
+    """Freigegeben: Status approved, Abschnittsfreigabe gesetzt und der letzte Freigabeeintrag passt zum Text."""
+    approval = head.get('approvals') or {}
+    digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+    record = latest_approval(base, 'section', section['id'])
+    return (head.get('status') == 'approved'
+            and approval.get('section') is True
+            and record is not None
+            and record.get('action') == 'granted'
+            and record.get('note') == 'content_sha256=' + digest)
+
+
+def chapter_markdown(base, chapter, number, proof=False, plan=False, numbered=False):
     """(Markdown, ausgelassene Abschnitte, Marker) eines Kapitels.
     proof=True (Probedruck): auch nicht freigegebene Abschnitte, mit Statusvermerk und hervorgehobenen Markern.
-    plan=True („Manuskript ausgeben“, #260, setzt proof voraus): Abschnitte ohne Manuskript als Block „Geplant“."""
+    plan=True („Manuskript ausgeben“, #260, setzt proof voraus): Abschnitte ohne Manuskript als Block „Geplant“.
+    numbered=True (Lesefassung, #289): Kapitel- und Abschnittsnummer in den Überschriften."""
     subtitle, sources = readme_parts(base, chapter)
-    out = [f'# {chapter["title"]}', '']
+    out = [f'# {number} {chapter["title"]}' if numbered else f'# {chapter["title"]}', '']
     if subtitle:
         out += [f'*{subtitle}*', '']
     skipped, markers = [], []
     for si, s in enumerate(chapter['sections'], start=1):
         head, _, _, manuscript = section_file(base, s)
-        approval = head.get('approvals') or {}
-        digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
-        record = latest_approval(base, 'section', s['id'])
-        approved = (head.get('status') == 'approved'
-                    and approval.get('section') is True
-                    and record is not None
-                    and record.get('action') == 'granted'
-                    and record.get('note') == 'content_sha256=' + digest)
+        approved = section_approved(base, s, head, manuscript)
         if not approved:
             reason = ('Freigabe fehlt oder Manuskript seit Freigabe geändert'
                       if head.get('status') == 'approved' else str(head.get('status')))
@@ -246,7 +260,7 @@ def chapter_markdown(base, chapter, number, proof=False, plan=False):
         text = shift_headings(manuscript.strip(), 3)
         if plan and is_empty_text(manuscript):
             _, goal, summary, _ = section_file(base, s)
-            out += [f'## {s["title"]}', '', plan_block(head.get('status'), goal, summary, section_runs(base, chapter, s)), '']
+            out += [f'## {number}.{si} {s["title"]}' if numbered else f'## {s["title"]}', '', plan_block(head.get('status'), goal, summary, section_runs(base, chapter, s)), '']
             continue
         if proof:
             text = mark_markers(text) or '*(noch kein Text)*'
@@ -255,7 +269,7 @@ def chapter_markdown(base, chapter, number, proof=False, plan=False):
                  if head.get('status') == 'approved' else
                  f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben]{{.gwstatus}}\n\n')
             text = note + text
-        out += [f'## {s["title"]}', '', text, '']
+        out += [f'## {number}.{si} {s["title"]}' if numbered else f'## {s["title"]}', '', text, '']
         markers += [(f'{number}.{si}', m.group(0)) for m in MARKER_TEXT.finditer(manuscript)]
     if sources:
         clean = re.sub(r'(?m)^Status aller Einträge:.*\n?', '', sources).strip()
@@ -263,6 +277,62 @@ def chapter_markdown(base, chapter, number, proof=False, plan=False):
             out += ['## Quellen {.unnumbered .sources}', '', mark_markers(clean) if proof else clean, '']
             markers += [(f'{number} Quellen', m.group(0)) for m in MARKER_TEXT.finditer(clean)]
     return '\n'.join(out).rstrip() + '\n', skipped, markers
+
+
+# Lesefassung (#289): Markdown für die Seitenansicht des Chats, ohne Pandoc-Vermerke.
+def readable(md):
+    """Pandoc-Attribute des Probedrucks in lesbares Markdown umsetzen: Statusvermerk als Zitatzeile,
+    Marker fett, Glossar- und andere Spans als reiner Text, Klassen an Überschriften und Blöcken weg."""
+    md = re.sub(r'\[(Stand: [^\]]*)\]\{\.gwstatus\}', r'> *\1*', md)
+    md = re.sub(r'\[((?:\\.|[^\]\\])*)\]\{\.gwmarker\}',
+                lambda m: '**' + m.group(1).replace('\\[', '[').replace('\\]', ']') + '**', md)
+    md = re.sub(r'(?<!!)\[([^\[\]]+)\]\{\.[^}]*\}', r'\1', md)
+    md = re.sub(r'(?m)^(#{1,6} .*?)\s*\{[^{}]*\}\s*$', r'\1', md)
+    md = re.sub(r'(?m)^:::.*\n', '', md)
+    return re.sub(r'\n{3,}', '\n\n', md)
+
+
+def file_slug(text):
+    """Klein, ASCII, Bindestriche (wie library.slug)."""
+    t = (text or '').translate(str.maketrans({'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'Ä': 'ae', 'Ö': 'oe', 'Ü': 'ue', 'ß': 'ss'}))
+    t = unicodedata.normalize('NFKD', t).encode('ascii', 'ignore').decode()
+    return re.sub(r'[^a-z0-9]+', '-', t.lower()).strip('-')
+
+
+def status_line(base, section, head, manuscript):
+    if section_approved(base, section, head, manuscript):
+        return 'freigegeben'
+    if head.get('status') == 'approved':
+        return 'Freigabe fehlt oder Manuskript geändert, nicht freigegeben'
+    return f'{STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben'
+
+
+def reading_markdown(base, config, key, date=''):
+    """(Dateiname, Markdown) der Lesefassung eines Kapitels („5“) oder Abschnitts („5.1“)."""
+    stand = f' · Stand {date}' if date else ''
+    if '.' in key:
+        c, _, n = key.partition('.')
+        cnum, ch = find_chapter(config, c)
+        if not n.isdigit() or not 1 <= int(n) <= len(ch['sections']):
+            raise SystemExit(f'Abschnitt {key} nicht gefunden')
+        snum = int(n)
+        s = ch['sections'][snum - 1]
+        head, _, _, manuscript = section_file(base, s)
+        text = '*(noch kein Text)*' if is_empty_text(manuscript) else shift_headings(manuscript.strip(), 3)
+        md = '\n'.join([f'# {cnum}.{snum} {s["title"]}', '',
+                         f'*Kapitel {cnum} „{ch["title"]}“ · {status_line(base, s, head, manuscript)}{stand}*', '',
+                         '## Manuskript', '', mark_markers(text), ''])
+        return f'Abschnitt-{cnum}.{snum}-{file_slug(s["title"])}.md', readable(md)
+    cnum, ch = find_chapter(config, key)
+    states = []
+    for s in ch['sections']:
+        head, _, _, manuscript = section_file(base, s)
+        states.append(status_line(base, s, head, manuscript))
+    done = sum(1 for x in states if x == 'freigegeben')
+    body = chapter_markdown(base, ch, cnum, proof=True, plan=True, numbered=True)[0]
+    title, _, rest = body.partition('\n')
+    md = '\n'.join([title, '', f'*Lesefassung · {done} von {len(states)} Abschnitten freigegeben{stand}*', rest])
+    return f'Kapitel-{cnum:02d}-{file_slug(ch["title"])}.md', readable(md)
 
 
 def series_glossary_extra(base, config, entries):
@@ -550,7 +620,7 @@ def link_glossary(md, terms):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
-    ap.add_argument('what', choices=['chapter', 'book', 'check', 'manuscript'])
+    ap.add_argument('what', choices=['chapter', 'book', 'check', 'manuscript', 'reading'])
     ap.add_argument('key', nargs='?')
     ap.add_argument('-o', '--output')
     ap.add_argument('--edition', type=int)
@@ -559,6 +629,19 @@ def main(argv):
     base, config = load(args.project)
     edition = args.edition if args.edition is not None else (config['project'].get('current_edition') or 0)
 
+    if args.what == 'reading':
+        if not args.key:
+            ap.error('reading braucht eine Kapitelnummer (5) oder Abschnittsnummer (5.1)')
+        name, md = reading_markdown(base, config, args.key, args.date)
+        out = Path(args.output) if args.output else None
+        if out is not None and out.is_dir():
+            out = out / name
+        if out is None:
+            sys.stdout.write(md)
+        else:
+            out.write_text(md, encoding='utf-8')
+            print(out, file=sys.stderr)
+        return 0
     if args.what == 'manuscript':
         only = find_chapter(config, args.key)[0] if args.key else None
         parts = book_parts(base, config, plan=True, only=only)

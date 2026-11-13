@@ -197,6 +197,7 @@ GhostWriter aktualisiert sich selbst (`docs/UPDATES.md`): Die Programmdateien un
 2. Zusammenführen und Export laufen nur über die GitHub Action, nicht im Chat.
 3. Lesen für Prüfungen ist erlaubt, wenn nötig; das Ergebnis im Chat ist ein Bericht, kein Volltext.
 4. Ganze Dateien gibt es nur als Release-Download auf ausdrückliche Anforderung.
+5. Ausnahme **Lesefassung** (#289): Den Arbeitsstand *eines* Kapitels bzw. Abschnitts darf der Assistent mit `scripts/assemble.py … reading` zusammenführen und **als Datei** neben der Ansicht übergeben, nie als Chatnachricht und nie das ganze Buch (Abschnitt „Lesefassung“).
 
 ### Nachrichten aus den Vorlagen
 
@@ -208,7 +209,8 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 |---|---|
 | `Start`, `Bibliothek` | Startseite: das Bücherregal, wenn das Repository eine Bibliothek ist (Abschnitt 0, „Bücherregal“), sonst die Projektübersicht |
 | `Übersicht` | Projektübersicht des aktuellen Buchs |
-| `Kapitel 3`, `Abschnitt 3.2` | Kapitel- bzw. Abschnittsansicht |
+| `Kapitel 3`, `Abschnitt 3.2` | Kapitel- bzw. Abschnittsansicht, dazu die Lesefassung als Datei (Abschnitt „Lesefassung“) |
+| `Lesefassung aus`, `Lesefassung an` | Lesefassung neben Kapitel- und Abschnittsansicht für den laufenden Chat ab- bzw. wieder einschalten (Standard: an) |
 | `Widmung`, `Vorwort`, `Prolog`, `Epilog`, `Nachwort`, `Glossar`, `Danksagung` | der Teil des Vor- oder Nachspanns; fehlt er, die Liste „Vor- und Nachspann“ mit dem Angebot, ihn anzulegen (Abschnitt 0, „Vor- und Nachspann“) |
 | `Vor- und Nachspann` | Liste aller Teile, vorhandene und anlegbare |
 | `Bilder 3.2` | Bilder eines Abschnitts: Liste, neuer Bild-Auftrag, Freigaben (Abschnitt 0, „Illustrationen“) |
@@ -473,6 +475,14 @@ Schlägt der Bau fehl (Fehler der Action), nenne den Grund aus dem Lauf. Die Auf
 3. **Abholen und übergeben:** Lauf-ID ermitteln (`…/actions/workflows/manuscript.yml/runs?branch=<ref>`, neuester Lauf), dann `python scripts/fetch_artifact.py <owner/repo> --run <id> --wait --out <ordner>`. Das PDF **als Datei im Chat übergeben** (Claude: Datei senden; Codex: Datei im Arbeitsordner nennen bzw. anhängen). Der Buchtext erscheint dabei nie als Chatnachricht; die Regel „Kein ganzes Buch im Chat“ bleibt gewahrt, weil das PDF in der Action entsteht.
 4. **Ersatzweg:** Kann der Client keine Befehle ausführen oder keine Dateien übergeben (z. B. ChatGPT ohne Code-Umgebung, Open WebUI) oder meldet `fetch_artifact.py` Exit-Code 2 (Speicher von GitHub, `*.blob.core.windows.net`, in der Umgebung gesperrt; bei Claude-Sitzungen in der Cloud freischaltbar unter *Einstellungen → Fähigkeiten*), den Link zum Lauf geben: Download unter *Artifacts*, 14 Tage, GitHub-Anmeldung nötig. Das offen so sagen, nicht als direkten Download ausgeben.
 5. **Fehler:** Schlägt der Lauf fehl oder fehlt das Artifact, den Grund aus dem Lauf nennen. Kein Tag, kein Release, `current_edition` bleibt.
+
+**Lesefassung** (#289; entschieden am 13.11.2026 nach Rückmeldung aus der Bibliothek YAWA): Zur Kapitelansicht (`chapter N`) und zur Abschnittsansicht (`section N.M`) übergibt der Assistent den zusammenhängenden Text als Markdown-Datei, damit der Autor ihn neben dem Chat mitlesen kann, während Übersicht, Änderungen und Freigaben im Chat laufen.
+
+1. **Erzeugen:** `python scripts/assemble.py <projekt> reading N -o <ordner>` bzw. `reading N.M`; das Skript schreibt `Kapitel-05-<slug>.md` bzw. `Abschnitt-5.1-<slug>.md`. Grundlage ist der **aktuelle Lesestand**: der Arbeits-Branch `ghostwriter/<buch>`, wenn es offene Änderungen gibt, sonst der Buch-Branch. Ohne KI, nichts wird umformuliert. Die Datei enthält auch nicht freigegebenen Text mit Statuszeile, offene Marker fett, Abschnittsnummern in den Überschriften, keine Pandoc-Vermerke. Abschnitte ohne Text erscheinen beim Kapitel als „Geplant“ in Stichworten (wie bei „Manuskript ausgeben“).
+2. **Übergeben:** als Datei, wo der Client es kann in der **Seitenansicht** statt als Download (Claude: Datei senden mit Darstellung „anzeigen“; Codex: Datei im Arbeitsordner nennen). Auf dem Rechner des Autors wird dabei nichts gespeichert. Bei der Abschnittsansicht in der Textfassung `render_view.py section N.M --text --ohne-manuskript` verwenden, damit der Text nicht zusätzlich als lange Chatnachricht erscheint; im Widget bleibt der Text wie bisher.
+3. **Nach jeder Änderung neu:** Nach jedem gespeicherten Commit, der Text oder Status (z. B. Freigabe) des angezeigten Kapitels bzw. Abschnitts ändert, kommt die Lesefassung ungefragt neu, mit demselben Dateinamen.
+4. **Abschalten:** `Lesefassung aus` gilt für den laufenden Chat bis `Lesefassung an`, wie die Darstellungsmodi.
+5. **Ohne Skriptausführung** (z. B. ChatGPT mit nur lesendem GitHub-Connector, Open WebUI): keine Lesefassung; nur die Ansicht wie bisher, bei Abschnitten mit dem Text. Ein Weg über die Action „Manuskript ausgeben“ ist geplant (#289, Teil 2).
 
 ### Freigaben (verbindlich)
 

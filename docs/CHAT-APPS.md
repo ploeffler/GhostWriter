@@ -45,6 +45,17 @@ Ohne Dateiübergabe bleibt der Link zum Lauf: Download unter *Artifacts*, 14 Tag
 
 **Erprobt am 11.11.2026 (Claude in der Cloud):** Bau und Start funktionieren; das Abholen scheiterte, weil GitHub Artifacts über `*.blob.core.windows.net` ausliefert und die Sitzung diese Adresse sperrt. Abhilfe: die Adresse unter *Einstellungen → Fähigkeiten* erlauben, sonst gilt der Link zum Lauf.
 
+## Lesefassung neben der Ansicht (#289)
+
+Zur Kapitel- und Abschnittsansicht erzeugt der Assistent mit `scripts/assemble.py … reading N` bzw. `N.M` den Text als Markdown-Datei und übergibt sie neben der Ansicht, nach jeder Änderung neu (`START.md`, „Lesefassung“). Stand 13.11.2026:
+
+| App | Weg |
+|---|---|
+| Claude mit Arbeitsumgebung | Datei senden mit Darstellung „anzeigen“: öffnet sich in der Seitenansicht, nichts wird heruntergeladen (in YAWA erprobt) |
+| Codex | Datei im Arbeitsordner nennen |
+| ChatGPT (GitHub-Connector) | noch nicht: der Connector liest nur, `assemble.py` läuft nicht; geplant über die Action „Manuskript ausgeben“ (#289, Teil 2) |
+| Open WebUI | noch nicht; Abschnittstext wie bisher in der Ansicht |
+
 ## Automatisch geladene Hinweise (#136)
 
 Jedes GhostWriter-Repository bringt drei Einstiegsdateien mit, die mit jedem Update aus dem Hauptrepository kommen:
