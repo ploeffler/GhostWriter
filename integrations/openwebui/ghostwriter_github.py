@@ -1,7 +1,7 @@
 """
 title: GhostWriter GitHub
 description: GitHub lesen und Aufgaben als gemeinsamen Commit speichern.
-version: 1.6.0
+version: 1.7.0
 requirements: requests,pydantic,pyyaml
 """
 import asyncio
@@ -898,8 +898,15 @@ class Tools:
                 raise ValueError("Dieser Workflow hat keine Eingabefelder.")
             if workflow_file == "proof.yml" and (set(inputs)-{"formats"} or any(f.strip() not in {"pdf", "pdf_print", "cover", "docx", "epub"} for f in inputs.get("formats", "pdf").split(","))):
                 raise ValueError("Ungültige Probedruck-Formate.")
-            if workflow_file == "manuscript.yml" and (set(inputs)-{"chapter"} or not re.fullmatch(r"\d*", inputs.get("chapter", ""))):
-                raise ValueError("Manuskript ausgeben: nur das Feld chapter mit einer Kapitelnummer.")
+            if workflow_file == "manuscript.yml":
+                fmt = inputs.get("format", "pdf")
+                key = inputs.get("chapter", "")
+                if set(inputs)-{"chapter", "format"} or fmt not in ("pdf", "md"):
+                    raise ValueError("Manuskript ausgeben: nur chapter und format (pdf oder md).")
+                if fmt == "pdf" and not re.fullmatch(r"\d*", key):
+                    raise ValueError("Manuskript ausgeben: chapter ist eine Kapitelnummer oder leer.")
+                if fmt == "md" and not re.fullmatch(r"\d+(\.\d+)?", key):
+                    raise ValueError("Lesefassung (format md): chapter ist ein Kapitel (5) oder Abschnitt (5.1), nie das ganze Buch.")
             self._http(t, "POST", self._repo(repo)+"/actions/workflows/"+workflow_file+"/dispatches", data={"ref": branch, "inputs": inputs}, expected=(204,))
             return {"accepted": True, "message": "Start angefordert; Erfolg mit list_workflow_runs prüfen.", "workflow": workflow_file, "branch": branch}
         return await self._run(op)

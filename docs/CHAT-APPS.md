@@ -53,8 +53,10 @@ Zur Kapitel- und Abschnittsansicht erzeugt der Assistent mit `scripts/assemble.p
 |---|---|
 | Claude mit Arbeitsumgebung | Datei senden mit Darstellung „anzeigen“: öffnet sich in der Seitenansicht, nichts wird heruntergeladen (in YAWA erprobt) |
 | Codex | Datei im Arbeitsordner nennen |
-| ChatGPT (GitHub-Connector) | noch nicht: der Connector liest nur, `assemble.py` läuft nicht; geplant über die Action „Manuskript ausgeben“ (#289, Teil 2) |
-| Open WebUI | noch nicht; Abschnittstext wie bisher in der Ansicht |
+| ChatGPT (GitHub-Connector) | Action „Manuskript ausgeben“ mit `format md` (der Autor startet sie über den Link, der Connector liest nur), dann die Datei vom Branch `lesefassung/<buch>` lesen und im Schreibblock bzw. Canvas zeigen; sonst Abschnitt als Markdown, Kapitel als Link. **Noch nicht praktisch geprüft** |
+| Open WebUI | `dispatch_workflow` (`format md`, Werkzeug ab 1.7), danach `read_file` vom Branch `lesefassung/<buch>`. **Noch nicht praktisch geprüft** |
+
+Der Branch `lesefassung/<buch>` enthält nur die zuletzt erzeugten Lesefassungen je Kapitel bzw. Abschnitt und wird nie gemergt. Die Datei zeigt den Stand beim Start der Action; nach einer Änderung kommt sie nur neu, wenn die Action erneut läuft. Jeder Lauf kostet etwa eine Actions-Minute (ohne TeX).
 
 ## Automatisch geladene Hinweise (#136)
 

@@ -33,8 +33,10 @@ For the chapter and section views the assistant creates the text as a Markdown f
 |---|---|
 | Claude with a working environment | Send the file with display "render": it opens in the side panel, nothing is downloaded (tested in YAWA) |
 | Codex | Name the file in the working folder |
-| ChatGPT (GitHub connector) | Not yet: the connector is read-only and `assemble.py` does not run; planned via the "Manuskript ausgeben" action (#289, part 2) |
-| Open WebUI | Not yet; section text stays in the view as before |
+| ChatGPT (GitHub connector) | "Manuskript ausgeben" action with `format md` (the author starts it via the link; the connector is read-only), then read the file from the `lesefassung/<book>` branch and show it in a writing block or Canvas; otherwise a section as Markdown, a chapter as a link. **Not yet tested in practice** |
+| Open WebUI | `dispatch_workflow` (`format md`, tool 1.7 or later), then `read_file` from the `lesefassung/<book>` branch. **Not yet tested in practice** |
+
+The `lesefassung/<book>` branch only holds the latest reading copies per chapter or section and is never merged. The file shows the state when the action started; after a change it is only refreshed if the action runs again. Each run costs about one Actions minute (no TeX).
 
 ## Handing over files in the chat (#260)
 

@@ -87,5 +87,35 @@ class ReadingTests(unittest.TestCase):
         self.assertIn('Lesefassung', short)
 
 
+class ManuscriptWorkflowTests(unittest.TestCase):
+    """#289 Teil 2: „Manuskript ausgeben“ mit format md."""
+    def setUp(self):
+        self.wf = yaml.safe_load((ROOT / '.github/workflows/manuscript.yml').read_text(encoding='utf-8'))
+        self.steps = self.wf['jobs']['manuscript']['steps']
+
+    def test_format_input(self):
+        on = self.wf.get('on', self.wf.get(True))
+        fmt = on['workflow_dispatch']['inputs']['format']
+        self.assertEqual(fmt['options'], ['pdf', 'md'])
+        self.assertEqual(fmt['default'], 'pdf')
+
+    def test_md_skips_tex_and_pdf_skips_reading(self):
+        by_name = {s.get('name') or s.get('with', {}).get('name'): s for s in self.steps}
+        self.assertEqual(by_name['Abhängigkeiten']['if'], "inputs.format != 'md'")
+        self.assertEqual(by_name['Manuskript bauen']['if'], "inputs.format != 'md'")
+        reading = by_name['Lesefassung (md)']
+        self.assertEqual(reading['if'], "inputs.format == 'md'")
+        self.assertIn('assemble.py . reading', reading['run'])
+        self.assertIn('lesefassung/$book', reading['run'])
+        self.assertIn('nie das ganze Buch', reading['run'])
+
+    def test_key_check_rejects_book_and_garbage(self):
+        run = next(s['run'] for s in self.steps if s.get('name') == 'Lesefassung (md)')
+        check = run.split('mkdir -p lesefassung')[0].replace('pip install -q pyyaml', '')
+        for key, ok in (('5', True), ('5.1', True), ('', False), ('5;rm', False), ('5.', False), ('.1', False), ('5.1.2', False)):
+            r = subprocess.run(['bash', '-c', check], env={'KEY': key, 'PATH': '/usr/bin:/bin'}, capture_output=True)
+            self.assertEqual(r.returncode == 0, ok, key)
+
+
 if __name__ == '__main__':
     unittest.main()

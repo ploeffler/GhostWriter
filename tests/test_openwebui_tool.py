@@ -138,6 +138,23 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertEqual(http.call_count, 1)
         self.assertIn("/actions/workflows/manuscript.yml/dispatches", http.call_args.args[2])
 
+    def test_manuscript_dispatch_reading_copy(self):
+        # #289 Teil 2: format md braucht Kapitel oder Abschnitt, nie das ganze Buch
+        self.tool.valves.ALLOW_WORKFLOW_DISPATCH = True
+        with patch.object(self.tool, "_http", return_value=None) as http:
+            chapter = self.run_tool(self.tool.dispatch_workflow("owner/book", "manuscript.yml", "ghostwriter/buch/x", '{"chapter": "5", "format": "md"}'))
+            section = self.run_tool(self.tool.dispatch_workflow("owner/book", "manuscript.yml", "buch/x", '{"chapter": "5.1", "format": "md"}'))
+            book = self.run_tool(self.tool.dispatch_workflow("owner/book", "manuscript.yml", "buch/x", '{"chapter": "", "format": "md"}'))
+            pdf_section = self.run_tool(self.tool.dispatch_workflow("owner/book", "manuscript.yml", "buch/x", '{"chapter": "5.1"}'))
+            other = self.run_tool(self.tool.dispatch_workflow("owner/book", "manuscript.yml", "buch/x", '{"chapter": "5", "format": "docx"}'))
+        self.assertTrue(chapter["ok"])
+        self.assertTrue(section["ok"])
+        self.assertFalse(book["ok"])
+        self.assertFalse(pdf_section["ok"])
+        self.assertFalse(other["ok"])
+        self.assertEqual(http.call_count, 2)
+        self.assertEqual(http.call_args.kwargs["data"]["inputs"], {"chapter": "5.1", "format": "md"})
+
     def start(self, tool=None, chat="chat-1", user="user-1", messages=None, metadata=None):
         return (tool or self.tool).read_start_md(__chat_id__=chat, __user__={"id": user},
                                                 __messages__=messages if messages is not None else [],
