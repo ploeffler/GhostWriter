@@ -7,6 +7,9 @@ name: Übersichtsdatei aktualisieren
 
 on:
   push:
+    # Arbeits-Branches starten gar keinen Lauf (auch keinen übersprungenen): weniger
+    # Läufe, weniger E-Mails von GitHub (#287). Liste wie PATTERN in cleanup.yml.
+    branches-ignore: ['ghostwriter/**', 'feat/**', 'fix/**', 'docs/**', 'ui/**', 'chore/**', 'media/**', 'test/**', 'codex/**', 'claude/**', 'release/**', 'dependabot/**']
     paths:
       - 'ghostwriter.yml'
       - 'chapters/**'

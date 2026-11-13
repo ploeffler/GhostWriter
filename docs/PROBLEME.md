@@ -32,6 +32,10 @@ Zeigt jeder Lauf unter **Actions** *„The job was not started because recent ac
 
 Stehen diese Läufe unter **Actions** als *skipped* und gibt es die Repository-Variable `GHOSTWRITER_ACTIONS_PAUSED` mit `true`, ist die Automatik wegen knapper Actions-Minuten angehalten (Issue „GhostWriter: Actions-Minuten knapp“). Sie läuft mit dem neuen Monat von selbst wieder an; von Hand gestartete Läufe gehen immer. Wer die Pause früher aufheben will, löscht die Variable unter *Settings → Secrets and variables → Actions*. Siehe [Updates](UPDATES.md).
 
+## Ich bekomme sehr viele E-Mails von GitHub
+
+GitHub schickt eine Nachricht zu jedem Workflow-Lauf, den du ausgelöst hast – beim Schreiben also zu fast jedem Speichern. Unter **GitHub → Settings → Notifications → System → Actions** *Only notify for failed workflows* wählen oder *Email* ausschalten. Abgebrochene Läufe (*cancelled*) sind gewollt: Ein neuerer Lauf ersetzt den älteren. Seit #287 starten Arbeits-Branches keine Läufe mehr. Siehe [Updates](UPDATES.md).
+
 ## Ein Bild nutzt meine Referenz nicht
 
 Eine gespeicherte Referenz ist noch keine bestätigte Übergabe an einen Bilddienst. Der Assistent muss die ausgewählten Dateien separat an einen Dienst übergeben, der Referenzen unterstützt, oder die Grenze nennen. Siehe [Bilder und Referenzen](BILDER-UND-REFERENZBILDER.md).

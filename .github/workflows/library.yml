@@ -2,10 +2,11 @@ name: Bücherregal aktualisieren
 
 # Schreibt library.json auf den Standard-Branch (scripts/library.py build, #37):
 # je Buch Titel, Status, Fortschritt, Auflage, Kosten, offene Änderungen. Kein
-# Manuskripttext. Läuft nach Pushes auf Buch- und Arbeits-Branches, wenn ein
+# Manuskripttext. Läuft nach Pushes auf Buch-Branches und dem Standard-Branch, wenn ein
 # Branch gelöscht wird (ein neuer kommt mit einem Push), nach jedem Lauf „GhostWriter aktualisieren“
 # (damit u. a. neu hinterlegte Secrets auf der Seite „Daten“ erscheinen, #71) und
-# von Hand. Jeder relevante Push aktualisiert damit auch den Pending-Zähler im Bücherregal.
+# von Hand. Pushes auf Arbeits-Branches starten keinen Lauf (#287); den Pending-Zähler
+# aktualisieren das Öffnen und Schließen des Pull Requests.
 # Offene Sitzungssicherungen (#237): Pushes auf conversations/** und Öffnen bzw.
 # Schließen eines Pull Requests aktualisieren die Rubrik; den PR-Status liest der Lauf
 # über die REST-API (nur lesend), ohne ihn zeigt das Regal „Status nicht verfügbar“.
@@ -18,7 +19,10 @@ name: Bücherregal aktualisieren
 
 on:
   push:
-    branches-ignore: ['v*', 'dependabot/**']
+    # Arbeits-Branches starten gar keinen Lauf (auch keinen übersprungenen): weniger
+    # Läufe, weniger E-Mails von GitHub (#287). Liste wie PATTERN in cleanup.yml.
+    # Offene Änderungen zeigt das Regal nach dem Öffnen bzw. Schließen des Pull Requests.
+    branches-ignore: ['ghostwriter/**', 'feat/**', 'fix/**', 'docs/**', 'ui/**', 'chore/**', 'media/**', 'test/**', 'codex/**', 'claude/**', 'release/**', 'dependabot/**', 'v*']
     paths:
       - 'README.md'
       - 'ghostwriter.yml'
