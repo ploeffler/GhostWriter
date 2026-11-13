@@ -1490,7 +1490,10 @@ def section_view(base, config, args, cnum, snum):
         if hints:
             lines += [f'**Sprachliche Hinweise ({len(hints)})** – nur zur Durchsicht, der Text bleibt unverändert'] + \
                      [f'- {h["H_KIND_TEXT"]}: {h["H_TEXT"]}' + (f' („{h["H_QUOTE"]}“)' if h['H_QUOTE'] else '') for h in hints] + ['']
-        lines += ['---', '', ms, '', '---']
+        if getattr(args, 'no_manuscript', False):   # Lesefassung kommt als Datei mit (#289)
+            lines += ['Manuskript: in der Lesefassung ' + f'`Abschnitt-{cnum}.{snum}-…md`' + ' neben dieser Ansicht.', '']
+        else:
+            lines += ['---', '', ms, '', '---']
         items = [('T', 'Text ändern (geänderten Text schicken)'), ('F', 'Ziel, Kurzbeschreibung, Faktencheck'
                                                                   + (', Figuren' if chars else '')),
                  ('FS', 'Schreibfreigabe zurücknehmen' if head['approvals']['writing'] else 'Schreiben freigeben'),
@@ -3517,6 +3520,8 @@ def main():
     ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
+    ap.add_argument('--ohne-manuskript', '--no-manuscript', dest='no_manuscript', action='store_true',
+                    help='bei section --text: Manuskript weglassen, weil die Lesefassung als Datei mitkommt (#289)')
     ap.add_argument('--language', help='Bediensprache de/en; Englisch für die migrierten Ansichten und Formulare')
     ap.add_argument('--repo', help='owner/name des Buch-Repositorys; ohne Angabe aus GITHUB_REPOSITORY bzw. git remote origin (#134)')
     ap.add_argument('--branch', default='main')

@@ -648,8 +648,8 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | Aktion | Daten | Bedeutung | Antwort des Assistenten | Endpunkt in `docs/API-CONTRACT.md` (Weg B) |
 |---|---|---|---|---|
 | `view.project` | – | Projektübersicht zeigen | Vorlage `projektuebersicht` (`render_view.py project`) | `GET /v1/projects/{owner}/{repo}` |
-| `view.chapter` | `chapter_id` | Kapitelansicht zeigen | Vorlage `kapitelansicht` (`render_view.py chapter N`) | `GET /v1/projects/{owner}/{repo}` |
-| `view.section` | `section_id` | Abschnittsformular zeigen | Vorlage `abschnitt-bearbeiten` (`render_view.py section N.M`) | `GET /v1/projects/{owner}/{repo}` |
+| `view.chapter` | `chapter_id` | Kapitelansicht zeigen, dazu die Lesefassung als Datei (`assemble.py … reading N`, START.md „Lesefassung“, #289) | Vorlage `kapitelansicht` (`render_view.py chapter N`) | `GET /v1/projects/{owner}/{repo}` |
+| `view.section` | `section_id` | Abschnittsformular zeigen, dazu die Lesefassung als Datei (`assemble.py … reading N.M`, #289) | Vorlage `abschnitt-bearbeiten` (`render_view.py section N.M`; Textfassung mit Lesefassung: `--text --ohne-manuskript`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.matter` | `matter_id` (leer = alle Teile) | Teil von Vor- oder Nachspann zeigen bzw. die Liste „Vor- und Nachspann“ (#57) | Vorlage `teil-bearbeiten` (`render_view.py matter <teil>`) bzw. `vor-nachspann` (`render_view.py matter`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.images` | `section_id` (auch `mat-…`) | Bilder eines Abschnitts zeigen (#54) | Vorlage `bilder` (`render_view.py images <N.M|id>`) | `GET /v1/projects/{owner}/{repo}` |
 | `image.prompt` | `section_id`, `scene`, `characters` (optional) | Bild-Auftrag zusammensetzen | `python scripts/images.py . prompt …` (bei Diagramm, Karte, Schaubild `--kind graphic --labels …`); Prompt zeigen, dann im Chat erzeugen oder als „Auftrag kopieren“ ausgeben (`START.md`, „Illustrationen“); nichts schreiben | – |

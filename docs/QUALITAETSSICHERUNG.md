@@ -201,6 +201,8 @@ Der Benutzer kann jederzeit wechseln:
 - **„Darstellung: erweitert“** – ausführliche strukturierte Ansichten und zusätzliche Diagramme oder interaktive Elemente, sofern sinnvoll und unterstützt.
 - **„Nur Text“** – ausschließlich Text und Markdown.
 
+**Lesefassung** (#289): Zur Kapitel- und Abschnittsansicht kommt der Text als Markdown-Datei in der Seitenansicht, nach jeder Text- oder Statusänderung neu. „Lesefassung aus“ bzw. „Lesefassung an“ schaltet sie für den laufenden Chat, unabhängig vom Darstellungsmodus. Ablauf: `START.md`, „Lesefassung“.
+
 Die Auswahl gilt für den laufenden Chat, bis sie geändert wird. Sie darf nicht als dauerhaft gespeicherte Projekteinstellung dargestellt werden, solange keine entsprechende Funktion vorhanden ist.
 
 ## Automatische Sprachprüfung (LanguageTool)
