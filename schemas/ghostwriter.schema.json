@@ -161,7 +161,7 @@
         "page_numbers": {"enum": ["header", "footer_center", "footer_outer"]},
         "initials": {"type": "boolean"},
         "glossary_marks": {"enum": ["arrow", "italic", "none"]},
-        "formats": {"type": "array", "items": {"enum": ["pdf", "pdf_print", "cover", "docx", "epub"]}, "minItems": 1, "uniqueItems": true}
+        "formats": {"type": "array", "items": {"enum": ["pdf", "pdf_print", "booklet", "cover", "docx", "epub"]}, "minItems": 1, "uniqueItems": true}
       },
       "additionalProperties": false
     },

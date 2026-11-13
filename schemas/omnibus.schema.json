@@ -27,7 +27,7 @@
     "afterword": {"type": "string", "description": "Nachwort zum Sammelband (Markdown)"},
     "publication": {"type": "object", "description": "wie publication in ghostwriter.yml (isbn_print, isbn_ebook, publisher, rights)"},
     "typesetting": {"type": "object", "description": "abweichender Satz; sonst wie Band 1"},
-    "formats": {"type": "array", "items": {"enum": ["pdf", "pdf_print", "cover", "epub", "docx"]}},
+    "formats": {"type": "array", "items": {"enum": ["pdf", "pdf_print", "booklet", "cover", "epub", "docx"]}},
     "current_edition": {"type": "integer", "minimum": 0}
   },
   "additionalProperties": false

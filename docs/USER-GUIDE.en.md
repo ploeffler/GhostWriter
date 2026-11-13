@@ -48,7 +48,7 @@ Work follows a [creation cycle](CREATION-CYCLE.en.md): introduce new ideas, requ
 - **Writing:** **Allow writing** before a section is drafted. A **finalized** section is locked: explicitly **reopen** it and allow writing again before editing it.
 - **Front and back matter:** Add a dedication, foreword, prologue, epilogue, afterword, glossary or acknowledgements when needed. They are finalized like sections; you write the dedication and acknowledgements yourself. Glossary entries are maintained individually and sorted alphabetically in the book.
 - **AI disclosure:** Decide whether and how the book mentions AI assistance. A proposed statement is included only after your confirmation.
-- **Output:** Set layout, fonts, spacing, running heads, formats, ISBN and publisher information in output settings. A proof shows the result. Cover options include spine, bleed, back-cover text and barcode; the EPUB uses the front cover.
+- **Output:** Set layout, fonts, spacing, running heads, formats, ISBN and publisher information in output settings. A proof shows the result. Cover options include spine, bleed, back-cover text and barcode; the EPUB uses the front cover. For home printing, choose the **Booklet** format: the PDF arranges the pages so you print the sheets double-sided (flip on short edge), stack them and fold them in the middle – with page size A5, A4 sheets become an A5 booklet. No booklet feature in the printer driver is needed.
 - **Save and apply:** Changes are collected until you choose to apply them, unless you enabled immediate application.
 - **Commands:** `Home`, `Overview`, `Chapter 3`, `Section 3.2`, `New chapter`, `Proof`, `Edition` and `Help` are English chat commands. German commands remain available.
 
