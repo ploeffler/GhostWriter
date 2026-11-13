@@ -1,7 +1,7 @@
 """
 title: GhostWriter GitHub
 description: GitHub lesen und Aufgaben als gemeinsamen Commit speichern.
-version: 1.5.0
+version: 1.6.0
 requirements: requests,pydantic,pyyaml
 """
 import asyncio
@@ -32,6 +32,7 @@ class Tools:
         START_BRANCH: str = Field(default="", description="Branch für den Einstieg; leer verwendet den tatsächlichen Standard-Branch.")
         INTERFACE_LANGUAGE: Literal["de", "en"] = Field(default="de", description="Sprache der fertigen Bibliotheksansicht.")
         START_STATE_DIR: str = Field(default="/app/backend/data/ghostwriter", description="Persistenter Startzustand je Benutzer und Chat im Open-WebUI-Datenvolume.")
+        START_VARIANT: Literal["openwebui", "standard"] = Field(default="openwebui", description="openwebui: zuerst den kurzen Open-WebUI-Einstieg docs/start/einstieg-openwebui.md laden, sonst START.md; standard: immer START.md.")
         MAX_START_BYTES: int = Field(default=16384, ge=1024, le=65536, description="Maximale Größe des kurzen Instanz-Einstiegs. Vollständige START.md vorher per GhostWriter-Update kürzen lassen.")
         DEBUG: bool = Field(default=False, description="HTTP-Status, Dauer und Request-ID ausgeben; keine Header oder Dateiinhalte.")
         TIMEOUT: int = Field(default=30, ge=5, le=120)
@@ -678,7 +679,13 @@ class Tools:
                     if fetched:
                         selected = branch or self._http(trace, "GET", root)["default_branch"]
                         try:
-                            data = self._read_utf8(trace, repo, "START.md", selected, self.valves.MAX_START_BYTES)
+                            data = None
+                            if self.valves.START_VARIANT == "openwebui":
+                                # Eigener Einstieg ohne Widgets, Skripte und Schreibabläufe (#204).
+                                data = self._read_utf8(trace, repo, "docs/start/einstieg-openwebui.md", selected,
+                                                       self.valves.MAX_START_BYTES, missing_ok=True)
+                            if data is None:
+                                data = self._read_utf8(trace, repo, "START.md", selected, self.valves.MAX_START_BYTES)
                         except ValueError as error:
                             raise ValueError(str(error) + " Für den Einstieg ist die kurze, im GhostWriter-Update erzeugte START.md erforderlich.") from None
                         if self.valves.GITHUB_TOKEN in data["content"]:

@@ -71,7 +71,7 @@ Welcher Skill zu einer Aufgabe passt, entscheidet Claude anhand der Skill-Beschr
 
 - **Claude** zeigt die Vorlagen als Inline-Widgets. Der Assistent gibt nur eine Ladezeile für `ghostwriter-ui` (fester Commit, über jsDelivr) und die Daten aus; das ist deutlich kürzer als die ganze Ansicht. Ein Klick schickt die festgelegte Nachricht in den Chat.
 - **ChatGPT** zeigt diese Widgets nicht. Dort gibt der Assistent die Textfassung aus `templates/ui/BEFUELLUNG.md` aus: Markdown mit Tabellen und Symbolen, Aktionen als Kürzel (`2`, `2.4`, `P`, `X` …), die der Benutzer per Antwort wählt. Echte Formulare in ChatGPT gingen nur über eine eigene App mit MCP-Server (Apps SDK), siehe Weg B.
-- **Open WebUI** zeigt keine Widgets. Die Pipe „GhostWriter Direkt“ erzeugt alle Ansichten selbst als Markdown und schaltet „Darstellung: einfach / übersichtlich / erweitert“, „Nur Text“ und den Antwortmodus ohne Modellaufruf um (ab Pipe 1.8 mit GitHub-Werkzeug 1.5, #282). Einzelheiten: [Open-WebUI-Anleitung](../integrations/openwebui/README.md#darstellung-und-antwortmodus-direkt-pipe-18-werkzeug-15).
+- **Open WebUI** zeigt keine Widgets. Die Pipe „GhostWriter Direkt“ erzeugt alle Ansichten selbst als Markdown und schaltet „Darstellung: einfach / übersichtlich / erweitert“, „Nur Text“ und den Antwortmodus ohne Modellaufruf um (ab Pipe 1.8 mit GitHub-Werkzeug 1.5, #282). Das Gesprächsmodell erhält ab Werkzeug 1.6 einen eigenen kurzen Einstieg `docs/start/einstieg-openwebui.md` statt der allgemeinen `START.md` (#204). Einzelheiten: [Open-WebUI-Anleitung](../integrations/openwebui/README.md#darstellung-und-antwortmodus-direkt-pipe-18-werkzeug-15).
 
 ---
 

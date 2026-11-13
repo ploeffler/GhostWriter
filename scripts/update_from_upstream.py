@@ -238,15 +238,18 @@ def expected_start(base, up_rev, branch):
     config = yaml.safe_load(show(base, 'ghostwriter.yml') or '{}') or {}
     profile = start_profile(base)
     language = ((config.get('interface') or {}).get('language') or profile.get('interface_language') or 'de')
-    name = 'en' if language.split('-')[0] == 'en' else 'de'
-    template = show(up_rev, f'templates/start/{name}.md')
+    main_name, openwebui_name = (build_start.template_names(language) if hasattr(build_start, 'template_names')
+                                 else (f"templates/start/{'en' if language.split('-')[0] == 'en' else 'de'}.md", None))
+    template = show(up_rev, main_name)
+    openwebui = show(up_rev, openwebui_name) if openwebui_name else None
     source = show(up_rev, 'START.md')
     if template is None or source is None:
         raise RuntimeError('START.md nicht erzeugt: zentrale Quelle oder Einstiegsvorlage fehlt.')
     try:
+        extra = {'openwebui_template': openwebui} if openwebui is not None else {}
         return build_start.render(source, template, repo=repo, branch=branch,
                                   default_branch=default_branch(), config=config, profile=profile,
-                                  library_present=start_library(base))
+                                  library_present=start_library(base), **extra)
     except ValueError as error:
         raise RuntimeError(f'START.md nicht erzeugt: {error}') from error
 

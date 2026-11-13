@@ -60,7 +60,7 @@ Claude picks a skill from the skill descriptions. Users normally do not see that
 
 Claude sessions that support inline widgets can use the pinned `ghostwriter-ui` script and data. Other sessions use text or their own supported native chat elements. Do not assume an app can display a widget merely because the template exists. The English chat mode currently uses text or native chat elements; all graphical templates also have English labels for explicitly selected previews.
 
-**Open WebUI** shows no widgets. The “GhostWriter Direkt” pipe renders every view itself as Markdown and switches `Display: simple / organized / extended`, `Text only` and the answer mode without a model call (pipe 1.8 with GitHub tool 1.5, #282). Details (German): [Open WebUI guide](../integrations/openwebui/README.md#darstellung-und-antwortmodus-direkt-pipe-18-werkzeug-15).
+**Open WebUI** shows no widgets. The “GhostWriter Direkt” pipe renders every view itself as Markdown and switches `Display: simple / organized / extended`, `Text only` and the answer mode without a model call (pipe 1.8 with GitHub tool 1.5, #282). From tool 1.6 the conversation model receives its own short start file `docs/start/einstieg-openwebui.md` instead of the general `START.md` (#204). Details (German): [Open WebUI guide](../integrations/openwebui/README.md#darstellung-und-antwortmodus-direkt-pipe-18-werkzeug-15).
 
 ---
 
