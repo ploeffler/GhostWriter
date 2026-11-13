@@ -11,7 +11,7 @@ Ein erfolgreiches Werkzeugergebnis beweist noch keine korrekte Modellantwort: Kl
 
 ### Installation der Pipe (Open WebUI ab 0.13.0)
 
-1. Das vorhandene GitHub-Werkzeug auf Version **1.3.0** aktualisieren und seine bisherigen Valves beibehalten. Die Pipe benötigt für Buchnavigation Version **1.1.0**.
+1. Das vorhandene GitHub-Werkzeug auf Version **1.5.0** aktualisieren und seine bisherigen Valves beibehalten. Die Pipe benötigt für Buchnavigation mindestens Version **1.3**, für das Gespräch über das geöffnete Buch **1.4** und für Darstellungsbefehle **1.5**.
 2. Im Administrationsbereich unter **Funktionen / Functions** eine Funktion anlegen, den vollständigen Code aus `ghostwriter_direct.py` einfügen, speichern und aktivieren. Sie wird als Pipe erkannt und erscheint als Modell **GhostWriter Direkt**.
 3. Dein eigenes Workspace-Modell **GhostWriter** bearbeiten: als Basismodell die neue Pipe **GhostWriter Direkt** wählen und weiterhin genau das vorhandene GhostWriter-GitHub-Werkzeug zuordnen. Eingebaute Werkzeuge und Erinnerungen bleiben für diese Konfiguration ausgeschaltet; Native bleibt eingestellt. Das Ollama-Basismodell selbst wird nicht verändert.
 4. In den **Valves der Pipe** bleibt `BASE_MODEL` auf `llama3.2:3b`. Dort kein Pipe-Modell auswählen. `TOOL_ID` bleibt bei genau einer passenden Integration leer; nur bei mehreren Integrationen die ID des gewünschten Werkzeugs eintragen. `INTERFACE_LANGUAGE` passend zum GitHub-Werkzeug auf `de` oder `en` stellen. Die Pipe braucht keinen eigenen GitHub-Token: Sie verwendet ausschließlich die von Open WebUI bereitgestellten, bereits autorisierten Werkzeugfunktionen.
@@ -93,6 +93,33 @@ Direkt-Pipe **1.6** reicht keine Werkzeugdefinitionen, erzwungene Werkzeugwahl o
 Das GhostWriter-GitHub-Werkzeug muss dem Workspace-Modell weiterhin zugeordnet bleiben, damit die Pipe ihre direkten Befehle ausführen kann. Für dieses Update genügt die Direkt-Funktion 1.6. Nach der Aktualisierung in einem neuen Chat `Start` senden. Dieser Fix verhindert die Weitergabe der internen Werkzeugschnittstelle an den Gesprächsprovider; er beweist keine korrekte Inhaltsantwort des Basismodells. Freie Modellantworten schreiben keine Buchdateien. Schreibende Buchbefehle brauchen eine gesondert implementierte Ausführung und die vorgesehenen Freigaben.
 
 Technische Grundlage: [Pipe Functions](https://docs.openwebui.com/features/extensibility/plugin/functions/pipe/) und [reservierte Argumente](https://docs.openwebui.com/features/extensibility/plugin/development/reserved-args/) von Open WebUI. Der Pipe-Rückgabewert wird direkt als Chatantwort gespeichert; eine reine Tool-Rückgabe geht dagegen zunächst an das Modell. Die Schnittstellen wurden gegen den Quellstand v0.13.0 geprüft. Der tatsächliche Einbau in einer fremden Open-WebUI-Instanz muss dort einmal getestet werden.
+
+### Darstellung und Antwortmodus (Direkt-Pipe 1.8, Werkzeug 1.5)
+
+Die Darstellungs- und Antwortmodusbefehle aus `START.md` führt die Pipe direkt aus (#282). Das Basismodell wird dafür nicht aufgerufen; bis Pipe 1.7 gingen diese Befehle an das Modell, das sie nicht ausführen konnte und als „nicht verfügbar“ beantwortete.
+
+| Befehl (auch englisch) | Wirkung |
+|---|---|
+| `Darstellung: einfach` (`Display: simple`) | Listen statt Tabellen, ohne Repository-Zeile und Autor |
+| `Darstellung: übersichtlich` (`Display: organized`), `Standardansicht` | Standard, wie bisher |
+| `Darstellung: erweitert` (`Display: extended`) | zusätzliche Spalten und Angaben, siehe unten; Lesestand sichtbar |
+| `Nur Text` (`Text only`) | wie übersichtlich, ohne Symbole |
+| `Erweiterte Antworten an` / `Debugger-Modus an` (`Extended answers on`) | Lesestand (Branch, Commit) in Ansichten; das Modell nennt technische Angaben |
+| `Erweiterte Antworten aus` / `Einfacher Modus` (`Simple mode`) | zurück zu knappen Antworten |
+| `Widgets` | Hinweis, dass Open WebUI keine GhostWriter-Widgets zeigt |
+
+Übliche Umschreibungen wie „erweiterte Ansicht“, „ausführliche Ansicht“, „einfache Darstellung“ oder „extended view“ gelten als derselbe Befehl, aber nur als ganze Nachricht; eine Frage wie „Was zeigt die erweiterte Ansicht?“ bleibt eine Frage an das Modell. Die Einstellung gilt je Benutzer und Chat, wird in `navigation.sqlite3` gemerkt und bleibt nach einem Neustart erhalten. Sie ist keine Projekteinstellung. Nach dem Umschalten wird die zuletzt gezeigte Ansicht frisch in der neuen Darstellung angezeigt; Nummern funktionieren danach weiter. Ohne geöffnete Ansicht gilt die Einstellung ab der nächsten.
+
+**Erweitert zeigt:**
+
+- **Bibliothek:** Branch, Freigaben (`freigegeben/gesamt`) und Kosten je Buch aus `library.json`, dazu ein Freigabebalken über alle Bücher. Fehlen Freigabezahlen bei einem Buch, entfällt die Summe; es wird nichts als Null gezählt.
+- **Buch:** Freigabebalken, Kosten, Auflage und aktueller Abschnitt sowie je Kapitel Freigaben, Marker und Kosten aus `ghostwriter-index.json` am selben Lesestand.
+- **Kapitel:** Freigabebalken und je Abschnitt Stand, Schreib- und Abschnittsfreigabe, Faktenprüfung und Wörter aus den gerade gelesenen Abschnittsdateien; Marker und Kosten aus der Übersichtsdatei.
+- **Abschnitt:** Tabelle mit ID, Datei, Wörtern, Freigaben, Faktenprüfung, Figuren und weiteren einfachen Metadaten, dazu Marker und Kosten; danach der Abschnittstext.
+
+Fehlt die Übersichtsdatei oder passt sie nicht zur Kapitelstruktur, steht das in der Ansicht; Freigaben, Kosten und Marker werden dann nicht geschätzt. Die Übersichtsdatei wird von der Action „Übersichtsdatei aktualisieren“ erzeugt und kann direkt nach einem Push kurz hinterherhinken. Ansichten schreiben nichts und erteilen keine Freigaben.
+
+Für das Update **beide** Codeeinträge ersetzen: Direkt-Funktion 1.8.0 und GitHub-Werkzeug 1.5.0 (Valves bleiben). Mit Werkzeug 1.4 meldet die Pipe bei Darstellungsbefehlen, dass das Werkzeug aktualisiert werden muss; Navigation und Gespräch funktionieren weiter. Freie Gesprächsbeiträge erfahren über die Systemanweisung die aktuelle Darstellung und die verfügbaren Befehle, damit das Modell sie nicht mehr für nicht vorhanden erklärt; das bleibt eine Anweisung, keine Garantie für die Modellantwort.
 
 ### Auswahl und aktuelle Buchstände
 

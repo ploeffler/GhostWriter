@@ -107,6 +107,52 @@ class DirectPipeTest(unittest.TestCase):
         self.assertNotIn('signature', answer)
         self.assertNotIn('PRIVATE_PATH', answer)
 
+    def test_display_and_answer_commands_are_recognized_with_common_phrasings(self):
+        cases = {'Darstellung: erweitert': ('display', 'extended'), 'erweiterte ansicht': ('display', 'extended'),
+                 'Erweiterte Ansicht.': ('display', 'extended'), 'darstellung erweitert': ('display', 'extended'),
+                 'ausführliche Ansicht': ('display', 'extended'), 'Display: extended': ('display', 'extended'),
+                 'extended view': ('display', 'extended'), 'Darstellung : einfach': ('display', 'simple'),
+                 'Darstellung: übersichtlich': ('display', 'organized'), 'Standardansicht': ('display', 'organized'), 'Modus einfach': None,
+                 'normale Ansicht': ('display', 'organized'), 'Nur Text': ('display', 'text'),
+                 'Text only': ('display', 'text'), 'Widgets': ('widgets', None),
+                 'Erweiterte Antworten an': ('answers', 'extended'), 'Debugger-Modus an': ('answers', 'extended'),
+                 'Erweiterte Antworten aus': ('answers', 'simple'), 'Einfacher Modus': ('answers', 'simple'),
+                 'Extended answers on': ('answers', 'extended'), 'Simple mode': ('answers', 'simple'),
+                 'Was zeigt die erweiterte Ansicht?': None, 'Schreib den Text erweitert': None, 'text': None}
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(self.pipe._mode_command(text.casefold()), expected)
+
+    def test_display_with_old_tool_asks_for_update_and_never_reaches_model(self):
+        with patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
+            output = self.call('Darstellung: erweitert', __metadata__={'chat_id': 'c'})
+            answers = self.call('Erweiterte Antworten an', __metadata__={'chat_id': 'c'})
+            missing_chat = self.call('Nur Text')
+        self.assertIn('Version 1.5', output)
+        self.assertTrue(answers.startswith('Erweiterte Antworten an – gilt für diesen Chat.'))
+        self.assertIn('Chatkennung fehlt', missing_chat)
+        forward.assert_not_awaited()
+
+    def test_display_without_open_view_is_kept_for_the_next_view(self):
+        async def library(display='organized'):
+            return result(view='### Bibliothek ' + display, navigation_receipt='eyJraW5kIjoibGlicmFyeSJ9.sig')
+        self.tools['show_library']['callable'] = library
+        self.start.return_value = result(already_loaded=True)
+        with patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
+            switched = self.call('Darstellung: einfach', __metadata__={'chat_id': 'c'})
+            view = self.call('Bibliothek', __metadata__={'chat_id': 'c'})
+        forward.assert_not_awaited()
+        self.assertIn('gilt ab der nächsten Ansicht', switched)
+        self.assertEqual(view, '### Bibliothek simple')
+
+    def test_forwarded_question_knows_display_commands_exist(self):
+        with patch.object(self.pipe, '_forward', new_callable=AsyncMock, return_value='ok') as forward:
+            self.call('Was zeigt die erweiterte Ansicht?', __metadata__={'chat_id': 'c'})
+        system = '\n'.join(m['content'] for m in forward.await_args.args[0]['messages'] if m['role'] == 'system')
+        self.assertIn('`Darstellung: erweitert`', system)
+        self.assertIn('nie für nicht verfügbar', system)
+        self.assertIn('aktuell „übersichtlich“', system)
+
     def test_free_question_receives_fresh_selected_context_before_user_message(self):
         import base64
         receipt = base64.urlsafe_b64encode(json.dumps({'kind': 'book'}).encode()).decode().rstrip('=') + '.sig'
