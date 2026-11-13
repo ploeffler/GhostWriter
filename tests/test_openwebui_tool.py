@@ -32,6 +32,23 @@ class OpenWebUIToolTests(unittest.TestCase):
     def run_tool(self, coroutine):
         return json.loads(asyncio.run(coroutine))
 
+    def test_library_context_uses_direct_source_sha(self):
+        library = {'sha': 'a' * 40, 'books': [{'branch': 'buch/erstes'}], 'view': 'Bibliothek'}
+        selected = {'kind': 'library', 'sha': 'a' * 40, 'branches': ['buch/erstes']}
+        async def inline(op):
+            return op('test')
+        for changed in (False, True):
+            with self.subTest(changed=changed):
+                current = {**library, 'sha': ('b' if changed else 'a') * 40}
+                with patch.object(self.tool, '_run', side_effect=inline), \
+                     patch.object(self.tool, '_navigation_data', return_value=selected), \
+                     patch.object(self.tool, '_library_view', return_value=current), \
+                     patch.object(self.tool, '_signed_library', side_effect=lambda result, scope: result):
+                    result = asyncio.run(self.tool.get_current_context('receipt', __chat_id__='c', __user__={'id': 'u'}))
+                self.assertEqual(result['changed'], changed)
+                self.assertEqual(result['conversation_context']['level'], 'library')
+                self.assertEqual(result['conversation_context']['books'], library['books'])
+
     def test_url_and_debug_without_token(self):
         class Response:
             status_code = 200

@@ -1,7 +1,7 @@
 """
 title: GhostWriter GitHub
 description: GitHub lesen und Aufgaben als gemeinsamen Commit speichern.
-version: 1.4.0
+version: 1.4.1
 requirements: requests,pydantic,pyyaml
 """
 import asyncio
@@ -321,7 +321,7 @@ class Tools:
             selected = self._navigation_data(receipt, scope)
             if selected["kind"] == "library":
                 result = self._library_view(trace, repo)
-                result["changed"] = (selected.get("sha") != result["library_source"]["sha"] or
+                result["changed"] = (selected.get("sha") != result["sha"] or
                                      selected.get("branches") != [b["branch"] for b in result["books"]])
                 result["conversation_context"] = {"level": "library", "repo": repo, "books": result["books"]}
                 return self._signed_library(result, scope)

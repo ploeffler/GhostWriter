@@ -25,6 +25,33 @@ Eine freie Frage liest die benötigten Daten neu. Hat sich der Lesestand veränd
 
 Ab Direkt-Pipe **1.4** werden erkannte Fragen nach Kapitel- und Abschnittsstatus direkt aus den frisch gelesenen Regeln beantwortet, beispielsweise „Welche Statuswerte kann Kapitel 1 haben?“, „Welchen Zustand könnte 1 schon bekommen?“ und `Status Kapitel 1`. Die Ausgabe nennt den gespeicherten Zustand und ausschließlich die für diese Einheit definierten Statuswerte. Sie behauptet keine erfüllten Voraussetzungen und führt keine Änderung aus. Änderungsaufträge werden durch diese Auskunft nicht als erledigt behandelt. Andere freie Fragen verwenden weiterhin das Basismodell. Für dieses Update genügt die neue Direkt-Funktion; das GitHub-Werkzeug 1.4 bleibt kompatibel.
 
+### Buchnavigation wird trotz Werkzeugupdate nicht erkannt
+
+Ab Direkt-Pipe **1.7.1** zeigt **Navigation prüfen** (Englisch: **check navigation**)
+ohne GitHub- oder Modellaufruf, ob `read_start_md`, `show_library`, `open_book` und
+`get_current_context` tatsächlich als autorisierte Callables bei der Pipe ankommen.
+Der Report gibt keine Token, Inhalte oder Werkzeugkonfigurationen aus.
+
+Ein fehlendes `open_book` beweist nicht, dass der gespeicherte Werkzeugcode alt
+ist: Auch eine andere Zuordnung oder die von Open WebUI bereitgestellte
+Funktionsauswahl kann diese Funktion ausschließen. Die Diagnose benennt deshalb
+die fehlende Funktion und behauptet keine erkannte Werkzeugversion. Sind alle
+Funktionen vorhanden, ist als Nächstes die konkrete Antwort beim Öffnen und der
+Navigationskontext zu prüfen. Zugangsdaten bleiben im vorhandenen Werkzeug.
+
+### Herkunft der Nachrichten (Direkt-Pipe 1.8)
+
+Die Profiler-Übersicht und der JSON-Report kennzeichnen die Herkunft jeder
+Nachricht: `read_start_md.content` für neu eingefügte Startanweisungen,
+`pipe.current_context` für den aktuellen Kontext samt Gesprächsregeln und
+`openwebui.input.messages` für bereits von Open WebUI übergebene Nachrichten.
+Bei letzteren bleibt die ursprüngliche Position erhalten, auch wenn die Pipe
+Toolnachrichten entfernt. Der Diagnosebefehl wird mit seiner Herkunftszeile aus
+der Vorschau entfernt. Herkunft wird bei der Zusammenstellung erfasst, nicht
+anhand ähnlicher Texte erraten. Die Herkunft einer vom Chat gelieferten
+Systemnachricht vor Eintritt in die Pipe bleibt unbekannt. Der zusammengesetzte
+aktuelle Kontext wird noch nicht in Regeln und Buchdaten zerlegt.
+
 ### Prompt-Profil ohne bezahlte API (Direkt-Pipe 1.7)
 
 Die Direkt-Pipe **1.7.0** enthält den zentralen Prompt-Profiler bereits in der
