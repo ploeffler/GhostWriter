@@ -20,7 +20,7 @@ Nicht blind erneut überschreiben. Lass den Assistenten den aktuellen Stand lese
 
 ## Schreiben oder Auflage ist gesperrt
 
-Schreiben braucht eine Schreibfreigabe. Bereits freigegebener Text muss vor Änderungen ausdrücklich zurückgenommen und erneut zum Schreiben freigegeben werden. Für eine Auflage müssen die erforderlichen Kapitel und Abschnitte freigegeben und offene Marker geklärt sein. Lass dir die konkrete Sperre nennen; zum Lesen kannst du einen **Probedruck** anfordern. Siehe [Anleitung](ANLEITUNG.md).
+Schreiben muss erlaubt sein. Ein abgeschlossener Abschnitt ist gesperrt: vor Änderungen ausdrücklich **wieder öffnen** und Schreiben erneut erlauben. Für eine Auflage müssen die erforderlichen Kapitel und Abschnitte abgeschlossen und offene Marker geklärt sein. Lass dir die konkrete Sperre nennen; zum Lesen kannst du einen **Probedruck** anfordern. Siehe [Anleitung](ANLEITUNG.md).
 
 ## Bücherregal oder Übersicht bleiben alt
 

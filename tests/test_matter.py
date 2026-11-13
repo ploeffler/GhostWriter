@@ -170,17 +170,17 @@ class MatterTest(MatterBase):
         mparts = assemble.matter_parts(self.base, config)
         self.assertEqual(assemble.problems(assemble.book_parts(self.base, config), config, mparts), [])
         self.assertNotIn('# Epilog', assemble.book_body(assemble.book_parts(self.base, config), mparts))
-        self.assertEqual(assemble.matter_notes(mparts), ['Epilog ist nicht freigegeben und fehlt in der Auflage.'])
+        self.assertEqual(assemble.matter_notes(mparts), ['Epilog ist nicht abgeschlossen und fehlt in der Auflage.'])
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/assemble.py'), str(self.base), 'check'],
                              capture_output=True, text=True)
         self.assertEqual(out.returncode, 0, out.stdout)
-        self.assertIn('ⓘ Epilog ist nicht freigegeben', out.stdout)
+        self.assertIn('ⓘ Epilog ist nicht abgeschlossen', out.stdout)
         self.assertIn('3 Teile Vor-/Nachspann', out.stdout)
         # Probedruck: auch der nicht freigegebene Teil, mit Vermerk
         proof = assemble.book_body(assemble.book_parts(self.base, config, proof=True),
                                    assemble.matter_parts(self.base, config, proof=True))
         self.assertIn('# Epilog', proof)
-        self.assertRegex(proof, r'Stand: \w+, nicht freigegeben')
+        self.assertRegex(proof, r'Stand: \w+, nicht abgeschlossen')
 
     def test_marker_in_approved_part_blocks(self):
         self.add_all()
@@ -223,7 +223,7 @@ class MatterTest(MatterBase):
         listing = self.view('matter')
         self.assertIn('| Danksagung | Nachspann |', listing)
         confirm = self.view('approval-matter', 'epilog')
-        self.assertIn('Epilog freigeben', confirm)
+        self.assertIn('Epilog abschließen', confirm)
         self.assertIn('`OK` bestätigt', confirm)
         self.assertIn('⛔', self.view('approval-matter', 'widmung'))   # schon freigegeben
 

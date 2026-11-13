@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fügt freigegebene Abschnitte zu Kapiteln und zum Buch zusammen (#14).
+"""Fügt abgeschlossene (technisch: freigegebene, approved) Abschnitte zu Kapiteln und zum Buch zusammen (#14, Begriff #292).
 
 Aufruf:
   python scripts/assemble.py <projektordner> chapter <nummer|kapitel-id> [-o datei.md]
@@ -108,7 +108,7 @@ def shift_headings(text, top):
 
 STATUS_DE = {'planned': 'geplant', 'research': 'Recherche', 'brainstorming': 'Ideensammlung',
              'ready_to_write': 'bereit zum Schreiben', 'writing': 'Entwurf', 'revision': 'Überarbeitung',
-             'fact_check': 'Faktencheck', 'ready_for_approval': 'bereit zur Freigabe', 'approved': 'freigegeben'}
+             'fact_check': 'Faktencheck', 'ready_for_approval': 'bereit zum Abschluss', 'approved': 'abgeschlossen'}
 
 
 def latest_approval(base, kind, entity_id):
@@ -252,7 +252,7 @@ def chapter_markdown(base, chapter, number, proof=False, plan=False, numbered=Fa
         head, _, _, manuscript = section_file(base, s)
         approved = section_approved(base, s, head, manuscript)
         if not approved:
-            reason = ('Freigabe fehlt oder Manuskript seit Freigabe geändert'
+            reason = ('Abschluss fehlt oder Manuskript seit Abschluss geändert'
                       if head.get('status') == 'approved' else str(head.get('status')))
             skipped.append(f'{number}.{si} {s["title"]} ({reason})')
             if not proof:
@@ -265,9 +265,9 @@ def chapter_markdown(base, chapter, number, proof=False, plan=False, numbered=Fa
         if proof:
             text = mark_markers(text) or '*(noch kein Text)*'
             note = '' if approved else \
-                (f'[Stand: Freigabe fehlt oder Manuskript geändert, nicht freigegeben]{{.gwstatus}}\n\n'
+                (f'[Stand: Abschluss fehlt oder Manuskript geändert, nicht abgeschlossen]{{.gwstatus}}\n\n'
                  if head.get('status') == 'approved' else
-                 f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben]{{.gwstatus}}\n\n')
+                 f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht abgeschlossen]{{.gwstatus}}\n\n')
             text = note + text
         out += [f'## {number}.{si} {s["title"]}' if numbered else f'## {s["title"]}', '', text, '']
         markers += [(f'{number}.{si}', m.group(0)) for m in MARKER_TEXT.finditer(manuscript)]
@@ -301,10 +301,10 @@ def file_slug(text):
 
 def status_line(base, section, head, manuscript):
     if section_approved(base, section, head, manuscript):
-        return 'freigegeben'
+        return 'abgeschlossen'
     if head.get('status') == 'approved':
-        return 'Freigabe fehlt oder Manuskript geändert, nicht freigegeben'
-    return f'{STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben'
+        return 'Abschluss fehlt oder Manuskript geändert, nicht abgeschlossen'
+    return f'{STATUS_DE.get(head.get("status"), head.get("status"))}, nicht abgeschlossen'
 
 
 def reading_markdown(base, config, key, date=''):
@@ -328,10 +328,10 @@ def reading_markdown(base, config, key, date=''):
     for s in ch['sections']:
         head, _, _, manuscript = section_file(base, s)
         states.append(status_line(base, s, head, manuscript))
-    done = sum(1 for x in states if x == 'freigegeben')
+    done = sum(1 for x in states if x == 'abgeschlossen')
     body = chapter_markdown(base, ch, cnum, proof=True, plan=True, numbered=True)[0]
     title, _, rest = body.partition('\n')
-    md = '\n'.join([title, '', f'*Lesefassung · {done} von {len(states)} Abschnitten freigegeben{stand}*', rest])
+    md = '\n'.join([title, '', f'*Lesefassung · {done} von {len(states)} Abschnitten abgeschlossen{stand}*', rest])
     return f'Kapitel-{cnum:02d}-{file_slug(ch["title"])}.md', readable(md)
 
 
@@ -393,9 +393,9 @@ def matter_markdown(base, item, proof=False, config=None, plan=False):
     if proof:
         text = mark_markers(text) or '*(noch kein Text)*'
         if not approved:
-            status_note = ('Freigabe fehlt oder Manuskript seit Freigabe geändert'
+            status_note = ('Abschluss fehlt oder Manuskript seit Abschluss geändert'
                            if head.get('status') == 'approved'
-                           else f'{STATUS_DE.get(head.get("status"), head.get("status"))}, nicht freigegeben')
+                           else f'{STATUS_DE.get(head.get("status"), head.get("status"))}, nicht abgeschlossen')
             text = f'[Stand: {status_note}]{{.gwstatus}}\n\n' + text
     if kind == 'dedication':
         md = f'# {item["title"]} {{.unnumbered .unlisted .dedication epub:type=dedication}}\n\n::: widmung\n{text}\n:::\n'
@@ -435,7 +435,7 @@ def book_body(parts, matter, disclosure=None):
 
 def matter_notes(matter):
     """Hinweise (keine Hinderungsgründe): nicht freigegebene Teile fehlen in der Auflage."""
-    return [f'{item["title"]} ist nicht freigegeben und fehlt in der Auflage.'
+    return [f'{item["title"]} ist nicht abgeschlossen und fehlt in der Auflage.'
             for _, item, _, approved, _ in matter if not approved]
 
 
@@ -495,8 +495,8 @@ def manuscript_overview(base, config, only=None, date='', commit=''):
     lines = ['# Arbeitsstand {.unnumbered .arbeitsstand}', '',
              f'Manuskript vom {shown}' + (f', Commit {commit[:7]}' if commit else '') + '. Nicht zur Veröffentlichung.', '',
              f'{total["sections"]} Abschnitte: {total["text"]} mit Text, {total["planned"]} geplant, '
-             f'{total["approved"]} freigegeben; etwa {total["words"]} Wörter.', '',
-             '| Nr. | Kapitel | Text | geplant | frei |', '|----:|' + '-' * 52 + '|------:|--------:|------:|'] + rows   # breit: Pandoc teilt die Satzbreite anteilig
+             f'{total["approved"]} abgeschlossen; etwa {total["words"]} Wörter.', '',
+             '| Nr. | Kapitel | Text | geplant | fertig |', '|----:|' + '-' * 52 + '|------:|--------:|------:|'] + rows   # breit: Pandoc teilt die Satzbreite anteilig
     return '\n'.join(lines) + '\n', total
 
 
@@ -519,10 +519,10 @@ def problems(parts, config, matter=(), base=None):
         out.append('Das Buch hat noch keinen Titel; Name und Tag der Auflage entstehen aus dem (Kurz-)Titel.')
     if not parts:
         n = len(config['structure']['chapters'])
-        out.append(f'Kein Kapitel ist freigegeben (0 von {n}); eine Auflage enthält nur freigegebene Kapitel.')
+        out.append(f'Kein Kapitel ist abgeschlossen (0 von {n}); eine Auflage enthält nur abgeschlossene Kapitel.')
     for num, ch, _, skipped, markers in parts:
         if skipped:
-            out.append(f'Kapitel {num} „{ch["title"]}“ ist freigegeben, enthält aber nicht freigegebene Abschnitte: '
+            out.append(f'Kapitel {num} „{ch["title"]}“ ist abgeschlossen, enthält aber nicht abgeschlossene Abschnitte: '
                        + '; '.join(skipped))
         for where, marker in markers:
             out.append(f'Offener Marker in {where}: {marker}')
@@ -653,9 +653,9 @@ def main(argv):
         num, ch = find_chapter(config, args.key)
         md, skipped, markers = chapter_markdown(base, ch, num)
         for s in skipped:
-            print(f'ausgelassen (nicht freigegeben): {s}', file=sys.stderr)
+            print(f'ausgelassen (nicht abgeschlossen): {s}', file=sys.stderr)
         if markers:
-            print(f'{len(markers)} offene Marker im freigegebenen Text', file=sys.stderr)
+            print(f'{len(markers)} offene Marker im abgeschlossenen Text', file=sys.stderr)
     else:
         parts = book_parts(base, config)
         matter = matter_parts(base, config)

@@ -42,11 +42,11 @@ The book structure is created only after you explicitly approve the outline. The
 
 The project overview lists chapters, status and costs. Open a chapter to see its sections; open a section to work on it.
 
-Work follows a [creation cycle](CREATION-CYCLE.en.md): introduce new ideas, requirements and material at any time, returning to research, brainstorming or revision as needed. Once its sections are approved, assemble, review and approve the chapter. Repeat this [chapter circle](BOOK-LIFECYCLE.en.md) for further chapters.
+Work follows a [creation cycle](CREATION-CYCLE.en.md): introduce new ideas, requirements and material at any time, returning to research, brainstorming or revision as needed. Once its sections are finalized, assemble, review and finalize the chapter. Repeat this [chapter circle](BOOK-LIFECYCLE.en.md) for further chapters.
 
 - **Research:** Research a section or an entire chapter. Results and sources are proposals for your review.
-- **Writing:** Grant writing permission before a section is drafted. Approved text is protected: explicitly revoke section approval and grant new writing permission before editing it again.
-- **Front and back matter:** Add a dedication, foreword, prologue, epilogue, afterword, glossary or acknowledgements when needed. They are approved like sections; you write the dedication and acknowledgements yourself. Glossary entries are maintained individually and sorted alphabetically in the book.
+- **Writing:** **Allow writing** before a section is drafted. A **finalized** section is locked: explicitly **reopen** it and allow writing again before editing it.
+- **Front and back matter:** Add a dedication, foreword, prologue, epilogue, afterword, glossary or acknowledgements when needed. They are finalized like sections; you write the dedication and acknowledgements yourself. Glossary entries are maintained individually and sorted alphabetically in the book.
 - **AI disclosure:** Decide whether and how the book mentions AI assistance. A proposed statement is included only after your confirmation.
 - **Output:** Set layout, fonts, spacing, running heads, formats, ISBN and publisher information in output settings. A proof shows the result. Cover options include spine, bleed, back-cover text and barcode; the EPUB uses the front cover.
 - **Save and apply:** Changes are collected until you choose to apply them, unless you enabled immediate application.
@@ -58,11 +58,11 @@ Related book changes are saved together in a change package (pull request). A co
 
 For conversation work, use **Save session** (`Session sichern`): messages, research, brainstorming, decisions, drafts and open questions are backed up separately from the manuscript. A completed section discussion also triggers this backup when no reply is pending and all discussed items are resolved or explicitly deferred. This is not continuous background saving.
 
-**Load session** (`Session laden`) reads the backup to resume work. **Merge session backup** (`Session übernehmen`) validates the package, diagnoses failures, attempts safe technical repair, revalidates and merges only after successful checks. It is never auto-merged on save. Neither saving nor merging grants section or chapter approval. See the [saving diagram and states](SAVING.en.md) and [session backup details](SESSION-BACKUP.en.md).
+**Load session** (`Session laden`) reads the backup to resume work. **Merge session backup** (`Session übernehmen`) validates the package, diagnoses failures, attempts safe technical repair, revalidates and merges only after successful checks. It is never auto-merged on save. Neither saving nor merging finalizes a section or chapter. See the [saving diagram and states](SAVING.en.md) and [session backup details](SESSION-BACKUP.en.md).
 
-## 7. Approve
+## 7. Finalize
 
-Approve a section when its text is ready. The confirmation warns about open review markers; unresolved markers prevent inclusion in an edition. Approve a chapter when every section is approved and the chapter has been assembled and is ready for approval. Each approval requires its own confirmation and is recorded; it can also be revoked.
+**Finalize** a section (🔒) when its text is ready; it is then locked, and you **reopen** it to make changes. The confirmation warns about open review markers; unresolved markers prevent inclusion in an edition. Finalize a chapter when every section is finalized and the chapter has been assembled and is ready to finalize. Each finalize and reopen step requires its own confirmation and is recorded. (Earlier versions called this “approve” and “withdraw approval”.)
 
 ## 8. Produce a proof
 
@@ -70,13 +70,13 @@ Use **Proof** (`Probedruck`) to create a PDF of the current state for review or 
 
 It uses the merged book version. Merge pending changes first if you want them included in the proof.
 
-**Reading copy:** When you open a chapter or section, the assistant places its text next to the view as a file, in Claude in the side panel. You can read along while you change and approve things in the chat; the file is sent again after every change. It also shows unapproved text with its status and highlights open markers. `Lesefassung aus` (reading copy off) turns it off, `Lesefassung an` turns it back on. In ChatGPT and Open WebUI it is created by the "Manuskript ausgeben" action (format `md`) and has to be started again after changes; this path has not been tested in practice yet.
+**Reading copy:** When you open a chapter or section, the assistant places its text next to the view as a file, in Claude in the side panel. You can read along while you change and finalize things in the chat; the file is sent again after every change. It also shows text that is not finalized, with its status and highlights open markers. `Lesefassung aus` (reading copy off) turns it off, `Lesefassung an` turns it back on. In ChatGPT and Open WebUI it is created by the "Manuskript ausgeben" action (format `md`) and has to be started again after changes; this path has not been tested in practice yet.
 
 **Export manuscript:** `Export manuscript` (`Manuskript ausgeben`, or `Export manuscript chapter 3` for one chapter) creates a PDF of the working state that you can download directly in the chat. Sections with text appear as in the proof. Sections without text appear as a "Planned" box with the goal and content as bullet points, what has been done (research, brainstorming) and what is still open. The bullet points are taken unchanged from your entries; the AI adds nothing. An overview at the front shows how many sections have text and how many are still planned. If your chat cannot hand over files, you get the download link on GitHub instead (14 days).
 
 ## 9. Create the first edition
 
-Once the desired chapters are approved, open **New edition** (`Neue Auflage`) and provide the name, publication date, formats and release notes. At least one chapter must be approved; included sections must also be approved and free of unresolved markers. Merge pending book changes first.
+Once the desired chapters are finalized, open **New edition** (`Neue Auflage`) and provide the name, publication date, formats and release notes. At least one chapter must be finalized; included sections must also be finalized and free of unresolved markers. Merge pending book changes first.
 
 The assistant presents the release notes for approval and prepares a separate edition change package. You explicitly confirm its merge, even if immediate application is enabled. GitHub then builds the files and publishes the release and tag. A failed build is not a finished edition. Published editions remain unchanged; corrections go into a later edition. See the [book lifecycle](BOOK-LIFECYCLE.en.md) for the full path.
 

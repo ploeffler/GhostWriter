@@ -152,7 +152,7 @@ Die Befehle `Session sichern` (auch `Chat sichern`, `Chat speichern`), `Session 
 
 Ein Chat lässt sich nicht leeren; jede Ansicht bleibt im Verlauf stehen. Der Projektstand liegt im Repository, der aktuelle Arbeitskontext kann zusätzlich im Chat liegen.
 
-1. Schlage einen neuen Chat vor, wenn ein Abschnitt freigegeben ist, ein Kapitel abgeschlossen ist oder der Verlauf lang und unübersichtlich wird; höchstens einmal je Anlass, nicht bei jeder Antwort.
+1. Schlage einen neuen Chat vor, wenn ein Abschnitt oder ein Kapitel abgeschlossen ist oder der Verlauf lang und unübersichtlich wird; höchstens einmal je Anlass, nicht bei jeder Antwort.
 2. Gib dafür den Link mit, mit dem der neue Chat startet: `https://github.com/<owner>/<repo>/tree/<branch>` des aktuellen Projekts.
 3. Wenn du von dir aus einen neuen Chat vorschlägst, nenne vorher ungespeicherte Änderungen ausdrücklich und kläre, ob sie zuerst mit „Buchstand speichern“ gesichert werden sollen.
 4. Auf den ausdrücklichen Befehl **„Chat wechseln“** erstellst du sofort eine vollständige, kopierfertige Übergabe für einen neuen Chat. Sie enthält mindestens: aktives Buch und Repository, Buch-Branch und – soweit bekannt – Arbeits-Branch/PR, zuletzt bearbeitetes Kapitel und Abschnitt, erreichten Arbeitsstand, wichtige Entscheidungen, offene Fragen und nächste Aufgaben sowie relevante Quellen/Dateipfade. Ungespeicherte Entwürfe und Änderungen aus dem aktuellen Chat werden ausdrücklich als **nicht gespeichert** gekennzeichnet und in die Übergabe aufgenommen, damit sie im neuen Chat weiterbearbeitet werden können.
@@ -300,7 +300,7 @@ Was jedes Formular schreibt:
 | Teil von Vor- oder Nachspann anlegen | `matter.create` | `matter/<datei>.md` aus `templates/matter.md`, `ghostwriter.yml` (`structure.front_matter` bzw. `back_matter`), über `scripts/matter.py` | `Widmung angelegt` (mit eigenem Titel `Widmung „Titel“ angelegt`) | – | `POST …/matter` |
 | Teil von Vor- oder Nachspann bearbeiten | `matter.update` | Datei in `matter/` (Titel, Ziel, Manuskript, Status, bei Vorwort und Nachwort `byline`, `place_date`; nie `approvals`), bei neuem Titel auch `ghostwriter.yml` | `<Titel> gespeichert` | Text nur mit Schreibfreigabe; Freigaben nur über „Freigabe bestätigen“ | `PATCH …/matter/{matter_id}` |
 | Glossar: Begriffe | `matter.glossary.update` | `matter/glossar.md` (Manuskript, sortiert), über `scripts/matter.py glossary-set` bzw. `glossary-remove` | `Glossar: „Begriff“ eingetragen` / `… entfernt` / `Glossar: N Begriffe geändert` | Schreibfreigabe des Glossars | `PATCH …/matter/{matter_id}/glossary` |
-| Freigabe bestätigen | `approval.confirm` | Abschnittsdatei bzw. Datei in `matter/` (`approvals`, Status) bzw. `ghostwriter.yml` (Kapitelstatus), Status in der Kapitel-README, neuer Eintrag in `approvals.yml` | `Abschnitt N.M freigegeben`, `Schreiben für Abschnitt N.M freigegeben`, `Kapitel N freigegeben`, `Widmung freigegeben`, `Schreiben für Prolog freigegeben`; beim Zurücknehmen `Freigabe … zurückgenommen` | ausdrückliche Bestätigung (siehe „Freigaben“) | `POST`/`DELETE …/sections/{section_id}/writing-approval`, `…/sections/{section_id}/approve`, `…/chapters/{chapter_id}/approve` |
+| Freigabe bestätigen | `approval.confirm` | Abschnittsdatei bzw. Datei in `matter/` (`approvals`, Status) bzw. `ghostwriter.yml` (Kapitelstatus), Status in der Kapitel-README, neuer Eintrag in `approvals.yml` | `Abschnitt N.M abgeschlossen`, `Schreiben für Abschnitt N.M erlaubt`, `Kapitel N abgeschlossen`, `Widmung abgeschlossen`, `Schreiben für Prolog erlaubt`; beim Zurücknehmen `Abschnitt N.M wieder geöffnet`, `Kapitel N wieder geöffnet`, `Schreiben für Abschnitt N.M gesperrt` (#292; ältere Nachrichten „… freigegeben“ bleiben gültig) | ausdrückliche Bestätigung (siehe „Freigaben“) | `POST`/`DELETE …/sections/{section_id}/writing-approval`, `…/sections/{section_id}/approve`, `…/chapters/{chapter_id}/approve` |
 | Assistenten-Profil | `assistant.profile.save` | `assistant.yml` und `.claude/skills/<skill>/SKILL.md`; in einer Bibliothek auf dem **Standard-Branch** (siehe „Assistenten-Profil“) | `Assistenten-Profil angelegt` bzw. `Assistenten-Profil gespeichert` | ausdrückliches Ja | – (nur im Chat) |
 | Serie anlegen | `series.create` | `series/<ser-id>/series.yml` auf dem **Standard-Branch** (siehe „Serien“) | `Serie „Titel“ angelegt` | – | `POST …/series` |
 | Serie bearbeiten | `series.update` | `series/<ser-id>/series.yml` (Standard-Branch) | `Serie „Titel“ geändert` | – | `PATCH …/series/{series_id}` |
@@ -373,7 +373,7 @@ Widmung, Vorwort und Prolog stehen vor Kapitel 1, Epilog, Nachwort, Glossar und 
 3. **Bearbeiten** (`matter.update`, Kürzel `T`, `F`): wie ein Abschnitt. Text nur mit Schreibfreigabe; Freigaben nie beim Speichern. Ein neuer Titel ändert `title` in der Datei und in `ghostwriter.yml` im selben Commit; ID und Dateiname bleiben. Bei Vorwort und Nachwort gehören Verfasser (`byline`, nur wenn nicht der Autor) und Ort/Datum (`place_date`) in den Kopf der Datei, nie in den Text.
    **Glossar** (`matter.glossary.update`): Das Formular schickt `set` (neue oder geänderte Begriffe), `remove` (entfernte bzw. umbenannte) sowie `title`, `goal` und `intro` (Einleitung vor den Begriffen); umbenannte Begriffe zuerst entfernen, dann neu eintragen, alles in einem Commit. `matter.glossary.suggest` (Knopf bzw. `VB`) startet die Vorschläge (Punkt 4). In der Textfassung Einträge einzeln, `+ Begriff: Erklärung` nimmt auf, `Begriff: neue Erklärung` ändert, `- Begriff` entfernt (`python scripts/matter.py . glossary-set "Begriff" "Erklärung" [--new]` bzw. `glossary-remove "Begriff"`; beim Aufnehmen mit `--new`, damit kein Begriff doppelt entsteht). Das Skript schreibt die Liste sortiert zurück. Ein Commit je Eingabe des Benutzers, auch wenn sie mehrere Begriffe enthält (`Glossar: „Begriff“ eingetragen` bzw. `Glossar: N Begriffe geändert`). Schreibfreigabe wie bei jedem Teil.
 4. **Schreiben:** Vorwort, Prolog, Epilog und Nachwort können wie Abschnitte mit Recherche, Brainstorming und Ghostwriting entstehen (`RS`, `GS`; Lauf-Dateien unter `matter/research/<mat-id>/` bzw. `matter/writing/<mat-id>/`). Widmung und Danksagung sind persönlich: Der Assistent schlägt keinen Text vor und schreibt keinen, außer der Benutzer bittet ausdrücklich darum; dann mit dem Hinweis, dass es ein Vorschlag ist. Ein Vorwort einer anderen Person schreibt der Assistent nie in deren Namen. Verweise auf Glossar-Begriffe setzt der Assistent nur auf Wunsch und nur mit Schreibfreigabe des betroffenen Abschnitts, als `[Begriff]{.glossar}` bzw. `[Form]{.glossar term="Begriff"}` (`docs/DATA-MODEL.md`, „Vor- und Nachspann“); er schlägt vor, nur das erste Vorkommen je Kapitel zu markieren. Glossar: Auf `VB` schlägt der Assistent Begriffe aus dem freigegebenen Manuskript vor, die Leser vermutlich nachschlagen (Fachwörter, Abkürzungen), mit Fundstelle und Erklärungsentwurf, als Auswahl; aufgenommen wird nur, was der Benutzer auswählt. Auf `RS` recherchiert er die Erklärung eines Begriffs mit Quelle (Lauf-Datei wie oben).
-5. **Freigeben:** wie bei Abschnitten über „Freigabe bestätigen“ (Abschnitt 0, „Freigaben“): `render_view.py approval-writing <teil>` bzw. `approval-matter <teil>`, mit `--revoke` zum Zurücknehmen. Nur freigegebene Teile kommen in eine Auflage; nicht freigegebene fehlen darin, die Prüfung nennt sie als Hinweis. Offene Marker in einem freigegebenen Teil verhindern die Auflage. Der Probedruck zeigt alle Teile mit Statusvermerk.
+5. **Abschließen:** wie bei Abschnitten über die Bestätigung (Abschnitt 0, „Freigaben“): `render_view.py approval-writing <teil>` bzw. `approval-matter <teil>`, mit `--revoke` zum Zurücknehmen. Nur freigegebene Teile kommen in eine Auflage; nicht freigegebene fehlen darin, die Prüfung nennt sie als Hinweis. Offene Marker in einem freigegebenen Teil verhindern die Auflage. Der Probedruck zeigt alle Teile mit Statusvermerk.
 6. **Entfernen:** nur nach ausdrücklicher Bestätigung und mit dem Hinweis, dass der Text danach nur noch in der Historie steht; Eintrag in `ghostwriter.yml` und Datei im selben Commit entfernen (`<Teil> entfernt`). Freigabe-Einträge in `approvals.yml` bleiben.
 
 ### Figuren (verbindlich, #53)
@@ -486,11 +486,13 @@ Schlägt der Bau fehl (Fehler der Action), nenne den Grund aus dem Lauf. Die Auf
 
 ### Freigaben (verbindlich)
 
+**Begriffe in der Bedienung (#292, entschieden am 13.11.2026):** Im Gespräch, in Ansichten, Knöpfen und Commit-Nachrichten heißt die Abschnitts-, Kapitel- und Teilfreigabe **„abschließen“** (Zustand „abgeschlossen“, 🔒; Status `ready_for_approval` heißt „bereit zum Abschluss“), ihre Rücknahme **„wieder öffnen“**. Die Schreibfreigabe heißt **„Schreiben erlauben“** bzw. **„Schreiben sperren“** (Zustand „Schreiben erlaubt“/„gesperrt“). Englisch: *finalize*, *reopen*, *finalized*; *allow writing*, *lock writing*. Grund: „freigeben“ klingt nach Öffnen, sperrt den Text aber; und zwei gegensätzliche Dinge hießen „Freigabe“. „Freigabe“ bleibt für Bilder, Referenzbilder, Sammelband, Auflagen und Veröffentlichung, wo tatsächlich etwas ins Buch oder nach außen gelassen wird. Technisch ändert sich nichts: `approvals.yml`, `approvals.writing`, `approvals.section`, `kind`, `approval.open`/`approval.confirm`, Status `approved` und die Endpunkte bleiben; ältere Commit-Nachrichten („… freigegeben“) bleiben gültig. In dieser Datei steht „Freigabe“ weiter als Oberbegriff für diese Bestätigungen.
+
 Eine Freigabe entsteht nur durch eine eigene Bestätigung, nie beim Speichern eines Formulars und nie aus einer freien Formulierung, die der Assistent als Zustimmung deutet (`workflow.yml`: `approvals_require_explicit_user_confirmation`, `automation_must_not_infer_approval`).
 
-1. **Öffnen:** Die Knöpfe „Freigeben“ bzw. „Zurücknehmen“ im Abschnittsformular und „Kapitel freigeben“ in der Kapitelansicht schicken `approval.open` (Textfassung `FS`, `FA`, `FK`). Der Assistent antwortet mit der Vorlage `freigabe-bestaetigen` (`render_view.py approval-writing|approval-section N.M`, `approval-chapter N`, mit `--revoke` zum Zurücknehmen).
-2. **Prüfpunkte:** Die Bestätigung zeigt, was erfüllt ist (✅), was fehlt, aber nicht hindert (⚠️, etwa offene Marker oder fehlende Rechercheläufe), und was hindert (⛔). Hindernisse: Abschnittsfreigabe ohne Schreibfreigabe oder ohne Manuskript; Kapitelfreigabe, solange nicht alle Abschnitte freigegeben sind oder das Kapitel nicht auf `ready_for_approval` steht; Zurücknehmen der Schreibfreigabe, solange der Abschnitt freigegeben ist. Ein bereits freigegebener Abschnitt darf nicht bearbeitet werden: zuerst Abschnittsfreigabe ausdrücklich zurücknehmen, dann schreiben.
-3. **Bestätigen:** Erst „Freigeben“ bzw. „Zurücknehmen“ in der Bestätigung (Textfassung `OK`) schickt `approval.confirm` mit `expected_head_sha`. Das ist die ausdrückliche Bestätigung. Der Assistent prüft die Hindernisse erneut und schreibt dann nach „Schreiben ins Repository“ einen Commit.
+1. **Öffnen:** Die Knöpfe „Erlauben“/„Sperren“ (Schreiben) und „Abschließen“/„Wieder öffnen“ im Abschnittsformular sowie „Kapitel abschließen“ in der Kapitelansicht schicken `approval.open` (Textfassung `SE`/`SP` Schreiben erlauben/sperren, `AB`/`WO` abschließen/wieder öffnen, `AK` Kapitel abschließen; die früheren Kürzel `FS`, `FA`, `FK` bleiben gültig). Der Assistent antwortet mit der Vorlage `freigabe-bestaetigen` (`render_view.py approval-writing|approval-section N.M`, `approval-chapter N`, mit `--revoke` zum Zurücknehmen).
+2. **Prüfpunkte:** Die Bestätigung zeigt, was erfüllt ist (✅), was fehlt, aber nicht hindert (⚠️, etwa offene Marker oder fehlende Rechercheläufe), und was hindert (⛔). Hindernisse: Abschnittsfreigabe ohne Schreibfreigabe oder ohne Manuskript; Kapitelfreigabe, solange nicht alle Abschnitte freigegeben sind oder das Kapitel nicht auf `ready_for_approval` steht; Zurücknehmen der Schreibfreigabe, solange der Abschnitt freigegeben ist. Ein abgeschlossener Abschnitt darf nicht bearbeitet werden: zuerst ausdrücklich wieder öffnen, dann schreiben. Die Bestätigung sagt in einem Satz, dass der Text danach gesperrt ist und Änderungen nur nach „wieder öffnen“ gehen.
+3. **Bestätigen:** Erst der Bestätigen-Knopf („Abschließen“, „Wieder öffnen“, „Schreiben erlauben“ bzw. „Schreiben sperren“) in der Bestätigung (Textfassung `OK`) schickt `approval.confirm` mit `expected_head_sha`. Das ist die ausdrückliche Bestätigung. Der Assistent prüft die Hindernisse erneut und schreibt dann nach „Schreiben ins Repository“ einen Commit.
 4. **Was sich ändert:**
    - Schreibfreigabe: `approvals.writing: true`; steht der Abschnitt vor `writing`, wird der Status `writing`. Zurücknehmen: `approvals.writing: false`, Status bleibt.
    - Abschnittsfreigabe: `approvals.section: true`, Status `approved`. Der neue Eintrag in `approvals.yml` erhält im Feld `note` zusätzlich `content_sha256=<sha256>` der von `section_file` gelesenen, außen getrimmten UTF-8-Fassung des Manuskripttexts. Zurücknehmen: `approvals.section: false`, Status `revision`; war das Kapitel freigegeben, wird es `in_progress` und die Kapitel-Freigabe wird als `revoked` protokolliert. Eine Änderung des Manuskripts bei bestehender Abschnittsfreigabe ist unzulässig; nach der ausdrücklichen Rücknahme ist eine neue Schreibfreigabe erforderlich.
@@ -499,7 +501,7 @@ Eine Freigabe entsteht nur durch eine eigene Bestätigung, nie beim Speichern ei
    - Den Status des Abschnitts in der Abschnittsliste der Kapitel-README nachziehen.
 5. **Festhalten:** Jede erteilte oder zurückgenommene Freigabe bekommt im selben Commit einen neuen Eintrag am Ende von `approvals.yml` (Schema `schemas/approvals.schema.json`): `kind` (`writing`, `section`, `chapter`, `matter` für einen Teil von Vor- oder Nachspann, `image` für ein Bild; die Schreibfreigabe eines Teils ist `writing` mit seiner `mat-…`-ID), `id`, `action` (`granted`, `revoked`), `at` (Zeitpunkt mit Zeitzone), `by` (GitHub-Login, sonst `chat`), `commit` (der bestätigte Stand, also `expected_head_sha`). Bei `kind: section` oder `kind: matter` und `action: granted` zusätzlich `note: content_sha256=<sha256>` mit dem SHA-256 der UTF-8-Fassung des von `section_file` gelesenen, außen getrimmten Manuskripttexts speichern. Der Fingerabdruck steht nur im append-only Protokoll; Abschnittsdateien und bestehende Buch-Schemas bleiben unverändert. Einträge werden nie geändert oder gelöscht.
 
-**Freigabe im Chat (#266):** Steht im Gespräch eine Freigabe an (Schreib-, Abschnitts-, Kapitel- oder Teilfreigabe, Rücknahme, „Änderungen übernehmen“), bietet der Assistent sie als Auswahl an, soweit der Client ein Frageelement unterstützt, sonst als kurze Textauswahl. Keine Aufforderung „sag ‚… freigeben‘“. Die Optionen nennen die Freigabe genau, zum Beispiel „Abschnitt 3.2 freigeben“, „Noch ändern“, „Später“; eine eigene Antwort bleibt möglich. Vor der Frage die Prüfpunkte aus Schritt 2 kurz nennen (mindestens ⚠️ und ⛔); bei einem Hindernis keine Freigabeoption anbieten. Stehen mehrere Freigaben an (etwa drei Abschnitte nach einer Korrektur), in einem Element einzeln wählbar plus „Alle freigeben“. Der Klick auf eine Freigabeoption ist die ausdrückliche Bestätigung wie `OK` in `freigabe-bestaetigen` und wird genauso festgehalten (Schritt 5, `by` wie bei einer getippten Bestätigung). Danach Hindernisse und `expected_head_sha` erneut prüfen; hat sich der Stand seit der Frage geändert, neu fragen. Keine vorausgewählte Option, kein Zeitablauf, keine Freigabe ohne Klick oder eindeutige eigene Antwort. Eine Freigabeoption fasst nichts anderes mit zusammen: Speichern, Freigeben und „ins Buch übernehmen“ bleiben je eine eigene Auswahl.
+**Freigabe im Chat (#266):** Steht im Gespräch eine Freigabe an (Schreib-, Abschnitts-, Kapitel- oder Teilfreigabe, Rücknahme, „Änderungen übernehmen“), bietet der Assistent sie als Auswahl an, soweit der Client ein Frageelement unterstützt, sonst als kurze Textauswahl. Keine Aufforderung „sag ‚… abschließen‘“. Die Optionen nennen die Freigabe genau und mit den Begriffen von oben, zum Beispiel „Abschnitt 3.2 abschließen“, „Noch ändern“, „Später“ bzw. „Abschnitt 3.2 wieder öffnen“; eine eigene Antwort bleibt möglich. Vor der Frage die Prüfpunkte aus Schritt 2 kurz nennen (mindestens ⚠️ und ⛔); bei einem Hindernis keine Freigabeoption anbieten. Stehen mehrere Freigaben an (etwa drei Abschnitte nach einer Korrektur), in einem Element einzeln wählbar plus „Alle abschließen“. Der Klick auf eine Freigabeoption ist die ausdrückliche Bestätigung wie `OK` in `freigabe-bestaetigen` und wird genauso festgehalten (Schritt 5, `by` wie bei einer getippten Bestätigung). Danach Hindernisse und `expected_head_sha` erneut prüfen; hat sich der Stand seit der Frage geändert, neu fragen. Keine vorausgewählte Option, kein Zeitablauf, keine Freigabe ohne Klick oder eindeutige eigene Antwort. Eine Freigabeoption fasst nichts anderes mit zusammen: Speichern, Freigeben und „ins Buch übernehmen“ bleiben je eine eigene Auswahl.
 
 ## 1. Start und GitHub-Onboarding (verbindlich)
 
@@ -602,7 +604,7 @@ Recherche und Schreiben müssen nicht mit dem Anbieter erfolgen, mit dem gerade 
 - Kapitel und Abschnitte dürfen während des gesamten Projekts ergänzt, umbenannt, verschoben und neu geordnet werden.
 - Ein Abschnitt ist die kleinste eigenständige Recherche- und Schreibeinheit.
 - Interne IDs bleiben stabil; sichtbare Nummern ergeben sich aus der aktuellen Reihenfolge.
-- Ein Kapitel ist erst zur Zusammenführung bereit, wenn alle seine Abschnitte freigegeben sind.
+- Ein Kapitel ist erst zur Zusammenführung bereit, wenn alle seine Abschnitte abgeschlossen sind.
 
 ## 6. Konzeption und Iteration
 
@@ -642,12 +644,12 @@ Nach der Initialisierung wird jedes Kapitel abschnittsweise bearbeitet. Für jed
 1. Recherche (mehrere Läufe möglich).
 2. Brainstorming (mehrere Läufe möglich).
 3. Ergebnisse konsolidieren und Abschnittsgliederung vorschlagen.
-4. Schreibfreigabe einholen.
+4. Schreiben erlauben lassen (Schreibfreigabe).
 5. Manuskript erstellen.
 6. Überarbeiten (beliebig viele Runden).
 7. Optionales Fact-Checking gemäß Abschnittseinstellung.
 8. Korrekturen abstimmen und einarbeiten.
-9. Ausdrückliche Abschnittsfreigabe.
+9. Abschnitt ausdrücklich abschließen lassen.
 
 **Einpflegen / Nachziehen:** „Einpflegen in Kapitel 1: <Material>“,
 „Kapitel 1 nachziehen“ und „Buch nachziehen“ starten den verbindlichen Ablauf aus
@@ -669,12 +671,12 @@ das vollständige Kapitel gemäß `docs/QUALITAETSSICHERUNG.md` prüfen und die
 Vorschläge zeigen; keine formale Freigabe erteilen. Nach Änderungen vor dem
 Ausführen erneut prüfen. Eine Abschnittsprüfung bleibt unabhängig davon möglich.
 
-Erst wenn alle Abschnitte eines Kapitels freigegeben sind:
+Erst wenn alle Abschnitte eines Kapitels abgeschlossen sind:
 1. Kapitel zusammenführen.
 2. Übergänge, roten Faden, Wiederholungen und Widersprüche prüfen.
 3. Kapitel als Ganzes überarbeiten.
-4. Kapitel zur Gesamtfreigabe vorlegen.
-5. Erst nach ausdrücklicher Freigabe Kapitelstatus auf `approved` setzen.
+4. Kapitel zum Abschluss vorlegen.
+5. Erst nach ausdrücklicher Bestätigung („Kapitel abschließen“) Kapitelstatus auf `approved` setzen.
 
 Fact-Checking ist optional pro Abschnitt. Es erstellt zunächst einen Prüfbericht und überschreibt das Manuskript nicht automatisch.
 
@@ -690,8 +692,8 @@ Vor strukturellen Änderungen:
 - Auswirkungen auf Nummerierung und Verweise erklären;
 - stabile IDs beibehalten, soweit möglich;
 - bei Löschen oder Aufteilen bestehende Inhalte und Recherchehistorie sichern und Bestätigung einholen;
-- bei Änderungen an einem bereits freigegebenen Kapitel dessen Kapitelstatus wieder auf `in_progress` setzen;
-- bereits freigegebene Texte nicht stillschweigend verändern.
+- bei Änderungen an einem abgeschlossenen Kapitel dessen Kapitelstatus wieder auf `in_progress` setzen;
+- abgeschlossene Texte nicht stillschweigend verändern.
 
 ## 10. Transparenz
 
@@ -699,7 +701,7 @@ Kennzeichne jederzeit:
 - was recherchiert und belegt ist;
 - was eine Interpretation oder ein Vorschlag ist;
 - was noch ungeprüft oder unsicher ist;
-- welche Abschnitte und Kapitel freigegeben sind;
+- welche Abschnitte und Kapitel abgeschlossen sind;
 - welche Arbeitsschritte noch offen sind.
 
 ---

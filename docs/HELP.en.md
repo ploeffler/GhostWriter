@@ -40,7 +40,9 @@ A **pull request** (change package) groups related saved changes. Preparing a pa
 | Saved in the repository / package saved | Named content successfully uploaded and confirmed; the package may still be open |
 | Checked | The stated checks were performed; merging is not yet confirmed |
 | Merged | The checked package was successfully included in the intended project version |
-| Approved | A separate explicit decision about text, a chapter, an image or an edition |
+| Finalized | A separate explicit decision that a section, part or chapter is done; its text is then locked until you reopen it (formerly “approved”) |
+| Approved | A separate explicit decision about an image, an omnibus or an edition |
+| Writing allowed | The assistant may write or change this section's text |
 
 A successful save message must follow confirmed upload and name its scope. “Section saved” does not automatically mean “conversation backed up”. A session backup saves conversation work without changing the manuscript. Merging does not grant content approval. Normal book changes may merge immediately if that option was explicitly enabled; session packages still require **Merge session backup**.
 
@@ -57,7 +59,7 @@ These are ordinary requests, not shortcuts around approvals:
 - “Incorporate this material in chapter 2: <new notes or material>.”
 - “Review chapter 2 against the research. Analyze only.”
 
-In an open section, **RS** starts immediate research and **GS** starts immediate ghostwriting (writing approval required). **M** opens confirmation for collected changes in the book overview when changes exist. Shortcuts depend on the last displayed view; the full mapping is in [text views and shortcuts](../templates/ui/BEFUELLUNG.md#textfassung-ohne-widgets). See the [user guide](USER-GUIDE.en.md) for the full process.
+In an open section, **RS** starts immediate research and **GS** starts immediate ghostwriting (writing must be allowed). **M** opens confirmation for collected changes in the book overview when changes exist. Shortcuts depend on the last displayed view; the full mapping is in [text views and shortcuts](../templates/ui/BEFUELLUNG.md#textfassung-ohne-widgets). See the [user guide](USER-GUIDE.en.md) for the full process.
 
 ## Help output in the chat
 

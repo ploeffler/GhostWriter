@@ -58,7 +58,7 @@ class AssembleTests(unittest.TestCase):
     def test_nothing_approved_blocks_edition(self):
         _, config = load(self.base)
         found = assemble.problems(assemble.book_parts(self.base, config), config)
-        self.assertTrue(found and found[0].startswith('Kein Kapitel ist freigegeben'))
+        self.assertTrue(found and found[0].startswith('Kein Kapitel ist abgeschlossen'))
 
     def test_chapter_contains_only_approved_sections_in_order(self):
         ch = self.approve(1, sections={1, 3})
@@ -81,9 +81,9 @@ class AssembleTests(unittest.TestCase):
         _, config = load(self.base)
         md, skipped, _ = assemble.chapter_markdown(self.base, config['structure']['chapters'][0], 1)
         self.assertNotIn('Nach der Freigabe eingefügter Text.', md)
-        self.assertTrue(any('Freigabe fehlt oder Manuskript seit Freigabe geändert' in item for item in skipped))
+        self.assertTrue(any('Abschluss fehlt oder Manuskript seit Abschluss geändert' in item for item in skipped))
         found = assemble.problems(assemble.book_parts(self.base, config), config)
-        self.assertTrue(any('nicht freigegebene Abschnitte' in item for item in found), found)
+        self.assertTrue(any('nicht abgeschlossene Abschnitte' in item for item in found), found)
 
     def test_markers_block_and_clean_chapter_passes(self):
         self.approve(1, strip_markers=False)
@@ -120,7 +120,7 @@ class EmptyProjectTest(unittest.TestCase):
         _, config = load(self.EMPTY)
         found = assemble.problems(assemble.book_parts(self.EMPTY, config), config)
         self.assertTrue(any(x.startswith('Das Buch hat noch keinen Titel') for x in found))
-        self.assertTrue(any(x.startswith('Kein Kapitel ist freigegeben') for x in found))
+        self.assertTrue(any(x.startswith('Kein Kapitel ist abgeschlossen') for x in found))
 
     def test_edition_form_blocks_without_junk_name(self):
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.EMPTY), 'edition-create', '--text'],

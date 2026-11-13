@@ -14,7 +14,7 @@ Ein Abschnitt entsteht im Austausch. Neue Ideen, Vorgaben, Material und Rückmel
 
 Zu Beginn ist der Abschnitt **geplant** (`planned`). Du bringst Ziel, Fragen und Material ein. Recherche liefert Quellen, Belege, Widersprüche und offene Fragen. Beim Brainstorming besprichst du Ideen, Varianten und Vorgaben mit dem Assistenten. Gemeinsam konsolidiert ihr die Ergebnisse und die Abschnittsgliederung.
 
-Erst mit deiner ausdrücklichen **Schreibfreigabe** wird daraus ein Textentwurf. Der Assistent überarbeitet ihn mit dir und prüft den gesamten Abschnitt. Bei Auswirkungen auf andere Abschnitte oder Kapitel wird der entsprechende Zusammenhang mitgeprüft. Die [Qualitätssicherung](QUALITAETSSICHERUNG.md) gilt für jede Schreib- und Überarbeitungsrunde.
+Erst wenn du das **Schreiben ausdrücklich erlaubst**, wird daraus ein Textentwurf. Der Assistent überarbeitet ihn mit dir und prüft den gesamten Abschnitt. Bei Auswirkungen auf andere Abschnitte oder Kapitel wird der entsprechende Zusammenhang mitgeprüft. Die [Qualitätssicherung](QUALITAETSSICHERUNG.md) gilt für jede Schreib- und Überarbeitungsrunde.
 
 Die Grafik zeigt typische Arbeitswege. Ihre Rückpfeile bedeuten keine automatische Rücksetzung eines gespeicherten Abschnittszustands: Zusätzliche Recherche kann beispielsweise während einer Überarbeitung stattfinden, ohne den Abschnitt wieder auf `research` zu setzen. Recherche- und Brainstormingläufe sind wiederholbar; frühere Läufe werden erhalten.
 
@@ -23,12 +23,12 @@ Die Grafik zeigt typische Arbeitswege. Ihre Rückpfeile bedeuten keine automatis
 | `planned` | Geplant; Ziel, Fragen und Material werden geklärt. |
 | `research` | Recherche läuft. |
 | `brainstorming` | Ideen und Varianten werden entwickelt. |
-| `ready_to_write` | Ergebnisse und Gliederung sind konsolidiert; die Schreibfreigabe steht noch aus. |
-| `writing` | Der Abschnitt wird mit ausdrücklicher Schreibfreigabe geschrieben. |
+| `ready_to_write` | Ergebnisse und Gliederung sind konsolidiert; Schreiben ist noch nicht erlaubt. |
+| `writing` | Schreiben ist ausdrücklich erlaubt; der Abschnitt wird geschrieben. |
 | `revision` | Der Entwurf wird überarbeitet und vollständig geprüft. |
 | `fact_check` | Eine angeforderte Faktenprüfung erstellt einen Bericht und Korrekturvorschläge. |
-| `ready_for_approval` | Die Fassung liegt zur ausdrücklichen Abschnittsfreigabe vor. |
-| `approved` | Genau diese Textfassung ist ausdrücklich freigegeben. |
+| `ready_for_approval` | Bereit zum Abschluss: Die Fassung liegt zum ausdrücklichen Abschließen vor. |
+| `approved` | Abgeschlossen: Genau diese Textfassung ist ausdrücklich bestätigt und gesperrt. |
 
 ## Neue Impulse an der passenden Stelle aufnehmen
 
@@ -41,9 +41,9 @@ Nicht jede Rückmeldung erfordert den ganzen Kreis. Eine kleine sprachliche Korr
 
 ## Den Kreis bewusst verlassen und wieder öffnen
 
-Wenn die überarbeitete Fassung bereit ist, bestätigst du die **Abschnittsfreigabe** ausdrücklich. Sie gilt für genau diesen Manuskriptstand und ist etwas anderes als die vorherige Schreibfreigabe. Ein positives Prüfergebnis oder das [Speichern und Übernehmen](SPEICHERN.md) ersetzt sie nicht. Offene Marker werden bei der Freigabe als Warnung gezeigt und verhindern später die Aufnahme in eine Auflage.
+Wenn die überarbeitete Fassung bereit ist, **schließt** du den Abschnitt ausdrücklich **ab**. Das gilt für genau diesen Manuskriptstand und ist etwas anderes, als das Schreiben zu erlauben. Ein positives Prüfergebnis oder das [Speichern und Übernehmen](SPEICHERN.md) ersetzt sie nicht. Offene Marker werden beim Abschließen als Warnung gezeigt und verhindern später die Aufnahme in eine Auflage.
 
-Freigegebener Text bleibt geschützt. Für spätere Textänderungen musst du zuerst die Abschnittsfreigabe ausdrücklich zurücknehmen; der Abschnitt geht in `revision` zurück. Vor dem nächsten Schreibvorgang ist eine neue Schreibfreigabe erforderlich. Sind alle Abschnitte eines Kapitels freigegeben, geht es im [Buchablauf](BUCHABLAUF.md) mit Kapitelzusammenführung und Kapitelfreigabe weiter.
+Abgeschlossener Text ist gesperrt. Für spätere Textänderungen musst du den Abschnitt zuerst ausdrücklich **wieder öffnen**; er geht in `revision` zurück. Vor dem nächsten Schreibvorgang musst du das Schreiben erneut erlauben. Sind alle Abschnitte eines Kapitels abgeschlossen, geht es im [Buchablauf](BUCHABLAUF.md) mit Kapitelzusammenführung und Kapitelabschluss weiter.
 
 ---
 

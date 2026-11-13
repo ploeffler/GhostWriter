@@ -849,13 +849,13 @@ def fill(template, values, blocks=None):
 # ---------- Textfassung (Chats ohne Widgets) ----------
 
 STATUS_DE = {'planned': 'geplant', 'in_progress': 'in Arbeit', 'ready_for_assembly': 'bereit zum Zusammenführen',
-             'assembly': 'wird zusammengeführt', 'review': 'Durchsicht', 'ready_for_approval': 'bereit zur Freigabe',
-             'approved': 'freigegeben', 'research': 'Recherche', 'brainstorming': 'Ideensammlung',
+             'assembly': 'wird zusammengeführt', 'review': 'Durchsicht', 'ready_for_approval': 'bereit zum Abschluss',
+             'approved': 'abgeschlossen', 'research': 'Recherche', 'brainstorming': 'Ideensammlung',
              'ready_to_write': 'bereit zum Schreiben', 'writing': 'Schreiben', 'revision': 'Überarbeitung',
              'fact_check': 'Faktencheck'}
 STATUS_ICON = {'planned': '⚪', 'research': '🔎', 'brainstorming': '💡', 'ready_to_write': '🟦', 'writing': '✏️',
                'in_progress': '✏️', 'revision': '🔁', 'fact_check': '🔍', 'review': '🔍', 'ready_for_assembly': '🟡',
-               'assembly': '🧩', 'ready_for_approval': '🟡', 'approved': '✅'}
+               'assembly': '🧩', 'ready_for_approval': '🟡', 'approved': '🔒'}
 MARKER_ICON = {'anekdote': '💬', 'quelle': '📚', 'medizin': '🩺', 'recht': '⚖️', 'kontinuitaet': '🔗'}
 MARKER_LEGEND = 'Marker: 💬 Anekdote · 📚 Quelle prüfen · 🩺 Medizin prüfen · ⚖️ Recht prüfen · 🔗 Kontinuität prüfen'
 
@@ -890,8 +890,8 @@ def overview_summary(base, config, cnum=None, language='de'):
     bar = progress_bar(approved, len(entries))
     section_unit = 'section' if len(entries) == 1 else 'sections'
     german_unit = 'Abschnitt' if len(entries) == 1 else 'Abschnitten'
-    lines = [f'**Approved:** {bar} {approved} of {len(entries)} {section_unit} · **In progress:** {drafts}' if en else
-             f'**Freigegeben:** {bar} {approved} von {len(entries)} {german_unit} · **In Arbeit:** {drafts}']
+    lines = [f'**Finalized:** {bar} {approved} of {len(entries)} {section_unit} · **In progress:** {drafts}' if en else
+             f'**Abgeschlossen:** {bar} {approved} von {len(entries)} {german_unit} · **In Arbeit:** {drafts}']
     if markers:
         marker_unit = 'marker' if markers == 1 else 'markers'
         lines.append(f'**Open:** {markers} {marker_unit} to check' if en else f'**Offen:** {markers} Marker prüfen')
@@ -908,8 +908,8 @@ def overview_summary(base, config, cnum=None, language='de'):
         action = ('Add section' if cnum is not None else 'Add chapter' if not chapters else 'Open chapter') if en else ('Abschnitt anlegen' if cnum is not None else 'Kapitel anlegen' if not chapters else 'Kapitel öffnen')
         lines.append(f'**Next step:** `{key}` {action}' if en else f'**Nächster Schritt:** `{key}` {action}')
     else:
-        lines.append('**All sections approved.** Chapter and edition approvals remain separate.' if en else
-                     '**Alle Abschnitte freigegeben.** Kapitel- und Auflagenfreigaben bleiben gesondert.')
+        lines.append('**All sections finalized.** Finalizing the chapter and approving an edition remain separate steps.' if en else
+                     '**Alle Abschnitte abgeschlossen.** Kapitelabschluss und Auflagenfreigabe bleiben eigene Schritte.')
     return lines + ['']
 
 
@@ -1048,8 +1048,9 @@ def matter_view(base, config, args):
         lines += ['---', '', ms or view_message('view.matter.no_text_yet'), '', '---']
         items = [('T', view_message('view.matter.edit_text_send_the_revised_text')),
                  ('F', view_message('view.matter.title_goal_byline_place_and_date') if kind in MATTER_SIGNED else view_message('view.matter.title_and_goal'))]
-    items += [('FS', view_message('view.matter.withdraw_writing_permission') if head['approvals']['writing'] else view_message('view.matter.grant_writing_permission')),
-              ('FA', view_message('view.matter.withdraw_approval') if head['approvals']['section'] else view_message('view.matter.approve', p_a=item["title"]))]
+    # Kürzel #292: SE/SP Schreiben erlauben/sperren, AB/WO abschließen/wieder öffnen (FS, FA bleiben Aliase)
+    items += [('SP', view_message('view.matter.withdraw_writing_permission')) if head['approvals']['writing'] else ('SE', view_message('view.matter.grant_writing_permission')),
+              ('WO', view_message('view.matter.withdraw_approval')) if head['approvals']['section'] else ('AB', view_message('view.matter.approve', p_a=item["title"]))]
     if kind in MATTER_RESEARCH:
         items.append(('RS', view_message('view.matter.research_each_term') if kind == 'glossary' else view_message('view.matter.research_now')))
     if kind in MATTER_GHOSTWRITING:
@@ -1419,7 +1420,7 @@ def chapter_view(base, config, args, cnum):
         lines += ['', '---']
         items = [(f'{cnum}.1' + (f'–{cnum}.{n}' if n > 1 else ''), 'Abschnitt öffnen')] if rows else []
         if values['CHAPTER_APPROVABLE']:
-            items.append(('FK', 'Kapitel freigeben'))
+            items.append(('AK', 'Kapitel abschließen'))   # #292, FK bleibt Alias
         if revision_ready:
             items.append(('KU', 'Kapitel überarbeiten'))
         items += [('B', 'Kapitel bearbeiten'), ('Z', 'Ziel, Kurzbeschreibung, Kapitelrecherche'), ('N', 'Neuer Abschnitt'),
@@ -1478,7 +1479,7 @@ def section_view(base, config, args, cnum, snum):
                  '| | |', '|---|---|',
                  f'| Ziel | {goal or "*offen*"} |', f'| Kurzbeschreibung | {summary or "*offen*"} |',
                  f'| Faktencheck | {view_labels('FC_TEXT').get(head["fact_check"], head["fact_check"])} |',
-                 f'| Schreibfreigabe | {yn(head["approvals"]["writing"])} |', f'| Abschnitt freigegeben | {yn(head["approvals"]["section"])} |']
+                 f'| Schreiben erlaubt | {yn(head["approvals"]["writing"])} |', f'| Abschnitt abgeschlossen | {yn(head["approvals"]["section"])} |']
         if chars:
             names = {c['id']: c['name'] for c in chars}
             lines.append(f'| Figuren | {", ".join(names.get(c, c) for c in in_section) or "–"} |')
@@ -1496,8 +1497,8 @@ def section_view(base, config, args, cnum, snum):
             lines += ['---', '', ms, '', '---']
         items = [('T', 'Text ändern (geänderten Text schicken)'), ('F', 'Ziel, Kurzbeschreibung, Faktencheck'
                                                                   + (', Figuren' if chars else '')),
-                 ('FS', 'Schreibfreigabe zurücknehmen' if head['approvals']['writing'] else 'Schreiben freigeben'),
-                 ('FA', 'Abschnittsfreigabe zurücknehmen' if head['approvals']['section'] else 'Abschnitt freigeben'),
+                 ('SP', 'Schreiben sperren') if head['approvals']['writing'] else ('SE', 'Schreiben erlauben'),
+                 ('WO', 'Abschnitt wieder öffnen') if head['approvals']['section'] else ('AB', 'Abschnitt abschließen'),
                  ('RS', 'Recherche sofort'), ('GS', 'Ghostwriting sofort'), ('BI', 'Bilder'), ('FV', '👤 Figuren aus dem Text vorschlagen')]
         if prev_id:
             items.append((f'{cnum}.{snum - 1}', '← vorheriger'))
@@ -1843,7 +1844,8 @@ def approval_view(base, config, args, kind):
     if args.text:
         icon = {'ok': '✅', 'warn': '⚠️', 'block': '⛔'}
         blocked = any(x['CHECK_STATE'] == 'block' for x in checks)
-        lines = [f'### {"↩️" if revoke else "✅"} {title}', '', view_message('version', p_a=f'{label}', p_b=f"{values['HEAD_SHORT']}"), '']
+        head_icon = (('🔓' if revoke else '🔒') if kind in ('section', 'chapter', 'matter') else ('↩️' if revoke else '✅'))   # #292
+        lines = [f'### {head_icon} {title}', '', view_message('version', p_a=f'{label}', p_b=f"{values['HEAD_SHORT']}"), '']
         if checks:
             lines += [f'- {icon[x["CHECK_STATE"]]} {x["CHECK_TEXT"]}' for x in checks] + ['']
         lines += [effect, '', '---',
@@ -2019,9 +2021,9 @@ OUTPUT_LABELS = {
 FIXED_RULES = [('ai_settings', 'hallucination_policy', 'Halluzinationen'), ('ai_settings', 'source_policy', 'Quellen'),
                ('ai_settings', 'uncertainty_policy', 'Unsicherheiten'), ('ai_settings', 'creativity', 'Kreativität'),
                ('ai_settings', 'web_research', 'Internetrecherche'),
-               ('workflow', 'require_section_writing_approval', 'Schreibfreigabe je Abschnitt'),
-               ('workflow', 'require_section_approval', 'Freigabe je Abschnitt'),
-               ('workflow', 'require_chapter_approval', 'Freigabe je Kapitel')]
+               ('workflow', 'require_section_writing_approval', 'Schreiben je Abschnitt erlauben'),
+               ('workflow', 'require_section_approval', 'Abschluss je Abschnitt'),
+               ('workflow', 'require_chapter_approval', 'Abschluss je Kapitel')]
 FIXED_TEXT = {'strict': 'strikt ausgeschlossen', 'required': 'Pflicht', 'explicit': 'ausdrücklich kennzeichnen',
               'balanced': 'ausgewogen', 'research': 'bei Rechercheaufträgen', True: 'Pflicht', False: 'aus'}
 FC_TEXT = {'disabled': 'aus', 'optional': 'optional', 'requested': 'angefordert'}

@@ -1,7 +1,7 @@
 """
 title: GhostWriter Direkt
 description: Start und Bibliothek direkt ausführen, Gespräch an das Basismodell weitergeben.
-version: 1.9.0
+version: 1.9.1
 required_open_webui_version: 0.13.0
 requirements: pydantic
 """
@@ -307,8 +307,8 @@ class Pipe:
 
     def _navigation_diagnostic(self, tools):
         lines = [self._text("### Navigation prüfen", "### Check navigation"), "",
-                 self._text("Direkt-Pipe: 1.9.0. Prüfung ohne Modell- oder GitHub-Aufruf.",
-                            "Direct pipe: 1.9.0. Check without model or GitHub calls."), ""]
+                 self._text("Direkt-Pipe: 1.9.1. Prüfung ohne Modell- oder GitHub-Aufruf.",
+                            "Direct pipe: 1.9.1. Check without model or GitHub calls."), ""]
         try:
             functions = self._functions(tools)
         except ValueError as error:
@@ -591,7 +591,7 @@ class Pipe:
         labels = {"planned": ("geplant", "planned"), "in_progress": ("in Arbeit", "in progress"),
                   "ready_for_assembly": ("bereit zum Zusammenführen", "ready for assembly"),
                   "assembly": ("Zusammenführung", "assembly"), "review": ("Prüfung", "review"),
-                  "ready_for_approval": ("bereit zur Freigabe", "ready for approval"), "approved": ("freigegeben", "approved"),
+                  "ready_for_approval": ("bereit zum Abschluss", "ready to finalize"), "approved": ("abgeschlossen", "finalized"),
                   "research": ("Recherche", "research"), "brainstorming": ("Ideensammlung", "brainstorming"),
                   "ready_to_write": ("bereit zum Schreiben", "ready to write"), "writing": ("Entwurf", "draft"),
                   "revision": ("Überarbeitung", "revision"), "fact_check": ("Faktenprüfung", "fact check")}

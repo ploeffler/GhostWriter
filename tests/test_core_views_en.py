@@ -47,7 +47,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
                 self.assertIn('▰' * 10, text)
                 self.assertIn('1 of 1 section' if lang == 'en' else '1 von 1 Abschnitt', text)
                 self.assertNotIn('**Next step:** `1.1`' if lang == 'en' else '**Nächster Schritt:** `1.1`', text)
-                self.assertIn('Chapter and edition approvals remain separate' if lang == 'en' else 'Kapitel- und Auflagenfreigaben bleiben gesondert', text)
+                self.assertIn('Finalizing the chapter and approving an edition remain separate steps' if lang == 'en' else 'Kapitelabschluss und Auflagenfreigabe bleiben eigene Schritte', text)
         self.assertEqual(before, {p: p.read_bytes() for p in self.base.rglob('*') if p.is_file()})
 
     def test_summary_prefers_current_section_and_counts_partial_approval(self):
@@ -69,7 +69,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
 
     def test_organized_empty_and_open_summary(self):
         text = self.run_view('project', '--language', 'en').stdout
-        self.assertIn('**Approved:** – 0 of 0 sections', text)
+        self.assertIn('**Finalized:** – 0 of 0 sections', text)
         self.assertIn('**Next step:** `N` Add chapter', text)
         self.chapter(True)
         text = self.run_view('chapter', '1', '--language', 'en').stdout
@@ -85,8 +85,8 @@ class EnglishCoreViewsTest(unittest.TestCase):
         text = self.run_view('section', '1.1', '--language', 'en').stdout
         self.assertIn('Originaltext mit [QUELLE PRÜFEN].', text)
         self.assertIn('Check source', text)
-        self.assertIn('Writing approval', text)
-        self.assertIn('`FS` Approve writing', text)
+        self.assertIn('Writing', text)
+        self.assertIn('`SE` Allow writing', text)
         self.assertIn('`K` To chapter', text)
         self.assertNotIn('Schreibfreigabe', text)
         self.assertEqual(before, section.read_bytes())
@@ -104,7 +104,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         text = self.run_view('edition-create', '--language', 'en').stdout
         self.assertIn('Create a new edition · Edition 1', text)
         self.assertIn('The book has no chapters yet.', text)
-        self.assertIn('no chapter has been approved yet', text)
+        self.assertIn('no chapter has been finalized yet', text)
         self.assertIn('Print PDF, Cover, EPUB', text)
         self.assertIn('`Date: YYYY-MM-DD`', text)
         self.assertIn('`Notes: …`', text)
@@ -137,18 +137,18 @@ class EnglishCoreViewsTest(unittest.TestCase):
             ledger_path.write_text(yaml.safe_dump(ledger))
 
         text = self.run_view('edition-create', '--language', 'en').stdout
-        self.assertIn('approved chapters contain unapproved sections', text)
+        self.assertIn('finalized chapters contain sections that are not finalized', text)
         section.write_text(section.read_text().replace('status: writing',
             'status: approved\napprovals:\n  writing: true\n  section: true'))
         approve_current_text()
         before = section.read_bytes()
         text = self.run_view('edition-create', '--language', 'en').stdout
-        self.assertIn('open markers in approved text: 1', text)
-        self.assertNotIn('contain unapproved sections', text)
+        self.assertIn('open markers in finalized text: 1', text)
+        self.assertNotIn('contain sections that are not finalized', text)
         self.assertEqual(before, section.read_bytes())
         section.write_text(section.read_text().replace('[QUELLE PRÜFEN]', 'geprüfter Quelle'))
         # Der ältere Fingerabdruck darf den geänderten Text nicht mehr freigeben.
-        self.assertIn('approved chapters contain unapproved sections',
+        self.assertIn('finalized chapters contain sections that are not finalized',
                       self.run_view('edition-create', '--language', 'en').stdout)
         approve_current_text()
         text = self.run_view('edition-create', '--language', 'en').stdout
@@ -162,8 +162,8 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertIn('the book has no title yet', self.run_view('edition-create', '--language', 'en').stdout)
         self.chapter(True)
         text = self.run_view('edition-create', '--language', 'en').stdout
-        self.assertIn('Chapters approved so far: 0 of 1', text)
-        self.assertIn('only approved chapters are included', text)
+        self.assertIn('Chapters finalized so far: 0 of 1', text)
+        self.assertIn('only finalized chapters are included', text)
         self.config['project']['language'] = 'en'
         self.save()
         self.assertIn('Neue Auflage erzeugen', self.run_view('edition-create', '--language', 'de', '--text').stdout)
@@ -205,7 +205,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         text = self.run_view('project-settings', '--text', '--language', 'en').stdout
         self.assertIn('Project settings', text)
         self.assertIn('changes require explicit confirmation', text)
-        self.assertIn('| Writing approval per section | required |', text)
+        self.assertIn('| Allow writing per section | required |', text)
         self.assertIn('| Fact check | requested |', text)
         self.assertIn('| Font size | 11.5 pt |', text)
         self.assertIn('| Apply changes immediately | yes |', text)
@@ -228,7 +228,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         text = self.run_view('library', '--text', '--language', 'en').stdout
         self.assertIn('Library', text)
         self.assertIn('Kapitel Beschreibung', text)
-        self.assertIn('1 of 2 sections approved', text)
+        self.assertIn('1 of 2 sections finalized', text)
         self.assertIn('Edition 2', text)
         self.assertIn('1 pending change', text)
         self.assertNotIn('1 pending changes', text)
@@ -253,7 +253,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertIn('Deutsche Kurzbeschreibung.', text)
         self.assertIn('Beschreibung Kapitel', text)
         self.assertNotIn('`KU`', text)
-        self.assertNotIn('`FK`', text)
+        self.assertNotIn('`AK`', text)
 
     def test_ready_chapter_retains_revision_action_and_raw_manuscript(self):
         section = self.chapter(True)
@@ -261,7 +261,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         text = self.run_view('chapter', '1', '--text', '--language', 'en').stdout
         self.assertIn('`KU` Revise chapter', text)
         self.assertIn('writing', text)
-        self.assertNotIn('`FK`', text)
+        self.assertNotIn('`AK`', text)
         self.assertEqual(section.read_bytes(), before)
         self.assertNotIn('Originaltext', text)
 
@@ -273,7 +273,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.save()
         before = section.read_bytes()
         text = self.run_view('chapter', '1', '--text', '--language', 'en').stdout
-        self.assertIn('`FK` Approve chapter', text)
+        self.assertIn('`AK` Finalize chapter', text)
         self.assertEqual(section.read_bytes(), before)
         self.assertEqual(yaml.safe_load((self.base / 'ghostwriter.yml').read_text())['structure']['chapters'][0]['status'], 'ready_for_approval')
 
@@ -389,13 +389,13 @@ class EnglishCoreViewsTest(unittest.TestCase):
             self.assertEqual('`OK` confirms' in text, not blocked)
             self.assertNotIn('freigegeben', text)
             self.assertEqual(section.read_bytes(), before)
-        self.assertIn('Withdraw section approval', text)
+        self.assertIn('Reopen section', text)
 
     def test_writing_and_chapter_approvals_explain_missing_prerequisites_in_english(self):
         section = self.chapter(True)
         section.write_text(section.read_text().replace('status: writing', 'status: writing\napprovals: {writing: false, section: false}'))
         text = self.run_view('approval-writing', '1.1', '--language', 'en').stdout
-        self.assertIn('Grant writing permission', text)
+        self.assertIn('Allow writing', text)
         self.assertIn('No research run yet', text)
         self.assertIn('No brainstorming run yet', text)
         for kind, count in [('research', 2), ('brainstorming', 1)]:
@@ -407,7 +407,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertIn('2 research runs available', text)
         self.assertIn('1 brainstorming run available', text)
         chapter = self.run_view('approval-chapter', '1', '--language', 'en').stdout
-        self.assertIn('Approve chapter', chapter)
+        self.assertIn('Finalize chapter', chapter)
         self.assertIn('in progress', chapter)
         self.assertIn('Complete the ⛔ items', chapter)
         self.assertNotIn('`OK` confirms', chapter)

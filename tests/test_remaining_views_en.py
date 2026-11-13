@@ -112,7 +112,7 @@ class RemainingViewsEnglishTest(unittest.TestCase):
         part = matter.add(self.base, 'foreword')
         before = self.snapshot()
         self.assertIn('Front and back matter', self.run_view('matter'))
-        self.assertIn('Writing approval', self.run_view('matter', 'foreword'))
+        self.assertIn('Writing allowed', self.run_view('matter', 'foreword'))
         self.assertIn('Figur {name}', self.run_view('characters'))
         text = self.run_view('characters', 'Figur {name}')
         self.assertIn('Supporting character', text)
