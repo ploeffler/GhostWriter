@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       formats:
-        description: 'Formate, kommagetrennt (pdf, pdf_print, cover, docx, epub); cover = Umschlag mit Hilfslinien'
+        description: 'Formate, kommagetrennt (pdf, pdf_print, booklet, cover, docx, epub); cover = Umschlag mit Hilfslinien'
         required: false
         default: 'pdf'
 

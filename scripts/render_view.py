@@ -436,6 +436,7 @@ def view_labels(name):
                 {
                     'pdf': view_message('labels.OUTPUT_LABELS.formats.1.pdf'),
                     'pdf_print': view_message('labels.OUTPUT_LABELS.formats.1.pdf_print'),
+                    'booklet': view_message('labels.OUTPUT_LABELS.formats.1.booklet'),
                     'cover': view_message('labels.OUTPUT_LABELS.formats.1.cover'),
                     'docx': 'DOCX',
                     'epub': 'EPUB',
@@ -1588,8 +1589,10 @@ def edition_create_view(base, config, args):
               'EDITION_TAG': br['tag_pattern'].format(title_short_slug=tag_slug(short), edition=n),
               'EDITION_DATE_DEFAULT': datetime.date.today().isoformat(), 'APPROVAL_WARNING_TEXT': warn}
     chosen = (config.get('typesetting') or {}).get('formats') or br['assets']   # Ausgabeoptionen (#68)
-    short = {'pdf_print': view_message('edition.print_pdf'), 'cover': view_message('edition.cover')}
-    formats = [{'FORMAT_LABEL': short.get(a, a.upper())} for a in ['pdf', 'pdf_print', 'cover', 'epub', 'docx'] if a in chosen]
+    short = {'pdf_print': view_message('edition.print_pdf'), 'booklet': view_message('edition.booklet'),
+             'cover': view_message('edition.cover')}
+    formats = [{'FORMAT_LABEL': short.get(a, a.upper())} for a in ['pdf', 'pdf_print', 'booklet', 'cover', 'epub', 'docx']
+               if a in chosen]
     if args.text:
         return '\n'.join([view_message('edition.heading', number=n), '', '| | |', '|---|---|',
                            view_message('edition.name_row', name=values['EDITION_NAME']),
@@ -2016,7 +2019,7 @@ OUTPUT_LABELS = {
     'title_page': ('Titelseite', None), 'imprint': ('Impressum', None), 'toc': ('Inhaltsverzeichnis', None),
     'toc_depth': ('Verzeichnistiefe', {1: 'nur Kapitel', 2: 'Kapitel und Abschnitte'}),
     'formats': ('Formate einer Auflage', {'pdf': 'PDF (Bildschirm)', 'pdf_print': 'Druck-PDF (Innenteil)',
-                                          'cover': 'Umschlag-PDF', 'docx': 'DOCX', 'epub': 'EPUB'}),
+                                          'booklet': 'Broschüre zum Selbstdrucken', 'cover': 'Umschlag-PDF', 'docx': 'DOCX', 'epub': 'EPUB'}),
 }
 FIXED_RULES = [('ai_settings', 'hallucination_policy', 'Halluzinationen'), ('ai_settings', 'source_policy', 'Quellen'),
                ('ai_settings', 'uncertainty_policy', 'Unsicherheiten'), ('ai_settings', 'creativity', 'Kreativität'),

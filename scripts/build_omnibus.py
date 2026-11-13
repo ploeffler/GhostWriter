@@ -3,7 +3,7 @@
 
 Aufruf (im Standard-Branch der Bibliothek, mit allen Branches und Tags):
   python scripts/build_omnibus.py <repo> <ser-id> --edition N [--out ordner] [--date JJJJ-MM-TT]
-                                  [--formats pdf,epub,docx,pdf_print,cover] [--commit SHA] [--check]
+                                  [--formats pdf,epub,docx,pdf_print,booklet,cover] [--commit SHA] [--check]
 
 Beschreibung des Sammelbands: series/<ser-id>/omnibus.yml (Schema
 schemas/omnibus.schema.json): Titel, Untertitel, Bände (Buch-Branch, optional

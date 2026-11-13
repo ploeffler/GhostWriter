@@ -897,7 +897,7 @@ class Tools:
                 raise ValueError("inputs_json muss ein Objekt mit Zeichenketten sein.")
             if workflow_file not in ("proof.yml", "manuscript.yml") and inputs:
                 raise ValueError("Dieser Workflow hat keine Eingabefelder.")
-            if workflow_file == "proof.yml" and (set(inputs)-{"formats"} or any(f.strip() not in {"pdf", "pdf_print", "cover", "docx", "epub"} for f in inputs.get("formats", "pdf").split(","))):
+            if workflow_file == "proof.yml" and (set(inputs)-{"formats"} or any(f.strip() not in {"pdf", "pdf_print", "booklet", "cover", "docx", "epub"} for f in inputs.get("formats", "pdf").split(","))):
                 raise ValueError("Ungültige Probedruck-Formate.")
             if workflow_file == "manuscript.yml":
                 fmt = inputs.get("format", "pdf")

@@ -157,7 +157,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `page_numbers` | `header` (oben außen), `footer_center`, `footer_outer` | `header` |
 | `initials` | Initiale am Anfang jedes nummerierten Kapitels | `false` |
 | `glossary_marks` | Kennzeichnung der Glossar-Verweise im Text: `arrow` (→ Begriff), `italic`, `none` | `arrow` |
-| `formats` | Formate einer Auflage: `pdf` (Bildschirm), `pdf_print` (Druck-PDF des Innenteils, `…-druck.pdf`), `cover` (Umschlag, `…-umschlag.pdf`), `docx`, `epub` | `pdf`, `docx`, `epub` |
+| `formats` | Formate einer Auflage: `pdf` (Bildschirm), `pdf_print` (Druck-PDF des Innenteils, `…-druck.pdf`), `booklet` (Broschüre zum Selbstdrucken, `…-broschuere.pdf`: je zwei Buchseiten auf einem Blatt A4 quer – bei Seitenformat A4 auf A3 –, in Falzreihenfolge, auf eine durch 4 teilbare Seitenzahl aufgefüllt; beidseitig über die kurze Kante drucken, aufeinanderlegen, in der Mitte falten), `cover` (Umschlag, `…-umschlag.pdf`), `docx`, `epub` | `pdf`, `docx`, `epub` |
 
 `font` erlaubt neben `serif` (TeX Gyre Pagella) und `sans` (TeX Gyre Heros) die freien Schriften `pagella`, `termes`, `bonum`, `schola`, `heros`, `adventor` (DOCX nimmt die verbreitete Entsprechung, z. B. Times New Roman für Termes; EPUB nur Serif bzw. serifenlos). Bücher ohne die neuen Felder (#68) sehen aus wie bisher; im DOCX wirken Zeilenabstand und Absätze nur, wenn sie ausdrücklich gesetzt sind. Bearbeitet werden alle Felder im Formular „Ausgabeoptionen“ (Befehl `Ausgabe`).
 

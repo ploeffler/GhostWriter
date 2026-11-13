@@ -10,8 +10,12 @@ Aufruf:
 Formate (--formats, sonst typesetting.formats): pdf (Bildschirm), pdf_print
 (Druck-PDF des Innenteils, <tag>-druck.pdf, mit print.crop_marks Schnittmarken),
 cover (Umschlag, <tag>-umschlag.pdf, scripts/build_cover.py; Rückenbreite aus
-der Seitenzahl des Innenteils), docx, epub (mit Cover aus der Vorderseite,
-wenn es `cover` gibt).
+der Seitenzahl des Innenteils), booklet (Broschüre zum Selbstdrucken,
+<tag>-broschuere.pdf: der Innenteil wie im Druck-PDF, ohne Schnittmarken, je zwei
+Buchseiten nebeneinander auf einem Blatt quer – A4 bei A5 und kleineren Formaten,
+A3 bei A4 – in Falzreihenfolge, mit Leerseiten auf eine durch 4 teilbare Seitenzahl
+aufgefüllt; beidseitig über die kurze Kante drucken, Blätter aufeinanderlegen,
+in der Mitte falten), docx, epub (mit Cover aus der Vorderseite, wenn es `cover` gibt).
 
 --proof baut einen Probedruck des aktuellen Stands: alle Kapitel und Abschnitte,
 auch nicht abgeschlossene (mit Vermerk „Stand: Entwurf, nicht abgeschlossen“),
@@ -82,6 +86,35 @@ FONTS = {'serif': ('TeX Gyre Pagella', 'Palatino Linotype', 'serif'), 'sans': ('
          'heros': ('TeX Gyre Heros', 'Arial', 'sans-serif'), 'adventor': ('TeX Gyre Adventor', 'Century Gothic', 'sans-serif')}
 MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
 DIV = {'standard': 'calc', 'classic': '9', 'modern': '13'}   # KOMA-Script: kleiner = breitere Ränder
+SHEETS = {'a4': (297, 210), 'a3': (420, 297)}   # Bogen der Broschüre, quer (Breite, Höhe in mm)
+
+
+def booklet_sheet(page_size):
+    """Bogen der Broschüre: A4 quer, wenn zwei Buchseiten nebeneinander passen, sonst A3 quer.
+    Passt das Format knapp nicht (13,5 × 21,5 cm), verkleinert pdfpages die Seiten leicht."""
+    return 'a3' if PAGE.get(page_size, PAGE['a5'])[0] > 160 else 'a4'
+
+
+def booklet_order(pages):
+    """Seitenfolge der Broschüre: je Bogen Vorderseite (links, rechts), Rückseite (links, rechts);
+    0 = Leerseite. Die Seitenzahl wird auf ein Vielfaches von 4 aufgefüllt."""
+    n = -(-max(pages, 1) // 4) * 4
+    order = []
+    for i in range(n // 4):
+        lo, hi = 2 * i + 1, n - 2 * i
+        order += [hi, lo, lo + 1, hi - 1]
+    return [p if p <= pages else 0 for p in order]
+
+
+def booklet_tex(interior, pages, page_size):
+    """LaTeX-Dokument, das den Innenteil als Broschüre ausschießt (pdfpages, in texlive-latex-recommended)."""
+    sw, sh = SHEETS[booklet_sheet(page_size)]
+    order = ','.join(str(p) if p else '{}' for p in booklet_order(pages))
+    return ('\\documentclass{article}\n'
+            f'\\usepackage[paperwidth={sw}mm,paperheight={sh}mm,margin=0mm]{{geometry}}\n'
+            '\\usepackage{pdfpages}\n\\begin{document}\n'
+            f'\\includepdf[pages={{{order}}},nup=2x1]{{{interior}}}\n'
+            '\\end{document}\n')
 
 
 def latex_escape(text):
@@ -304,7 +337,7 @@ def make_reference_docx(path, ts):
 def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedication, out, tag, formats, proof=False,
            proof_note='', date='', series_line='', ser=None, extra_tex='', top_level='chapter',
            footer_label='Probedruck'):
-    """Setzt die Formate (pdf, pdf_print, cover, epub, docx) aus fertigem Markdown; gibt die Dateien zurück.
+    """Setzt die Formate (pdf, pdf_print, booklet, cover, epub, docx) aus fertigem Markdown; gibt die Dateien zurück.
     Gemeinsam für Auflagen und den Sammelband (scripts/build_omnibus.py, #116)."""
     fonts = FONTS.get(ts['font'], FONTS['serif'])
     w, h = PAGE.get(ts['page_size'], PAGE['a5'])
@@ -316,16 +349,32 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
             (tmp / name).write_text(text, encoding='utf-8')
             return tmp / name
 
-        order = ['pdf', 'pdf_print', 'cover', 'epub', 'docx']
+        order = ['pdf', 'pdf_print', 'booklet', 'cover', 'epub', 'docx']
         wanted = [f.strip() for f in formats.split(',') if f.strip()]
         unknown = [f for f in wanted if f not in order]
         if unknown:
             raise SystemExit(f'Unbekannte Formate: {", ".join(unknown)} (möglich: {", ".join(order)})')
         fmts = sorted(set(wanted), key=order.index)
-        if 'cover' in fmts and not {'pdf', 'pdf_print'} & set(fmts):
+        crop = bool((config.get('print') or {}).get('crop_marks'))
+        if 'booklet' in fmts and ('pdf_print' not in fmts or crop):
+            fmts.insert(fmts.index('booklet'), '_print')   # Innenteil wie Druck-PDF, ohne Schnittmarken, nicht ausgeliefert
+        if 'cover' in fmts and not {'pdf', 'pdf_print', '_print'} & set(fmts):
             fmts.insert(0, '_pdf')   # Innenteil nur zum Zählen der Seiten (Rückenbreite), nicht ausgeliefert
-        interior = None
+        interior = print_interior = None
         for fmt in fmts:
+            if fmt == 'booklet':   # Broschüre: Innenteil ohne Schnittmarken, je zwei Seiten pro Bogen
+                src_pdf = print_interior or interior
+                pages = pdf_pages(src_pdf)
+                target = out / f'{tag}-broschuere.pdf'
+                shutil.copyfile(src_pdf, tmp / 'broschuere-innen.pdf')
+                tex = write('broschuere.tex', booklet_tex('broschuere-innen.pdf', pages, ts['page_size']))
+                run(['xelatex', '-interaction=nonstopmode', '-halt-on-error', tex.name], cwd=tmp)
+                shutil.copyfile(tmp / 'broschuere.pdf', target)
+                sheets = len(booklet_order(pages)) // 4
+                results.append(target)
+                print(f'✓ {target} ({target.stat().st_size // 1024} KB) · {pages} Seiten auf {sheets} '
+                      f'Blatt {booklet_sheet(ts["page_size"]).upper()} quer; beidseitig über die kurze Kante drucken')
+                continue
             if fmt == 'cover':   # Umschlag (#68): braucht die Seitenzahl des Innenteils
                 pages = pdf_pages(interior)
                 target = out / f'{tag}-umschlag.pdf'
@@ -335,9 +384,9 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
                 for n in dim['notes']:
                     print(f'ⓘ {n}')
                 continue
-            hidden = fmt == '_pdf'
-            kind = 'pdf' if fmt in ('pdf', 'pdf_print', '_pdf') else fmt
-            target = (tmp / 'innenteil.pdf') if hidden else \
+            hidden = fmt in ('_pdf', '_print')
+            kind = 'pdf' if fmt in ('pdf', 'pdf_print', '_pdf', '_print') else fmt
+            target = (tmp / f'innenteil{fmt.replace("_", "-")}.pdf') if hidden else \
                 out / (f'{tag}-druck.pdf' if fmt == 'pdf_print' else f'{tag}.{fmt}')
             cmd = ['pandoc', '--from', 'markdown+smart', '--lua-filter', str(BOOK / 'merkkasten.lua'),
                    f'--top-level-division={top_level}', '-o', str(target)]
@@ -345,7 +394,7 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
                 cmd += ['--toc', f'--toc-depth={int(ts.get("toc_depth", 1))}']
             # Glossar-Verweise (#107): Kennzeichnung; im Druck-PDF ohne Link
             cmd += ['-M', f'gw-glossary-marks={ts.get("glossary_marks", "arrow")}']
-            if fmt == 'pdf_print':
+            if fmt in ('pdf_print', '_print'):
                 cmd += ['-M', 'gw-print=true']
             m = dict(common_meta)
             if kind == 'pdf':
@@ -431,6 +480,8 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
             run(cmd + [str(src_path)], cwd=tmp)
             if kind == 'pdf':
                 interior = target
+                if fmt == '_print' or (fmt == 'pdf_print' and not crop):
+                    print_interior = target
             if hidden:
                 continue
             results.append(target)
