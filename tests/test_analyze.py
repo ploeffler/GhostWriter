@@ -296,6 +296,7 @@ class AnalyzeTest(unittest.TestCase):
 
     def test_language(self):
         os.environ.pop('GHOSTWRITER_FAKE_LLM')                         # ohne KI: kein Schlüssel nötig
+        os.environ.pop(analyze.LT_ENV, None)                           # ohne LanguageTool wie bisher
         env = {k: v for k, v in os.environ.items() if k not in ('ANTHROPIC_API_KEY', 'OPENAI_API_KEY')}
         _, config = load(self.base)
         sec = self.base / config['structure']['chapters'][0]['sections'][0]['path']
@@ -333,6 +334,111 @@ class AnalyzeTest(unittest.TestCase):
         analyze.run(self.base, 'language')
         analyze.apply(self.base, 'run-002', 'language', [])
         self.assertFalse(yaml.safe_load((self.base / 'story/hints.yml').read_text(encoding='utf-8'))['hints'])
+
+    def test_languagetool_hints(self):
+        text = '# Titel\n\nAnna ging ins Hauss. [QUELLE PRÜFEN: Hauss] Das Hauss war , leer und *schön* .\n'
+        plain = analyze.lt_plain(text)
+        self.assertEqual(len(plain), len(text))                         # Stellen bleiben gleich
+        self.assertNotIn('QUELLE', plain)
+        self.assertNotIn('#', plain)
+        self.assertNotIn('*', plain)
+
+        def hit(word, cat, rule='R', nth=0, reps=()):
+            off = [i for i in range(len(text)) if text.startswith(word, i)][nth]
+            return {'offset': off, 'length': len(word), 'message': f'Meldung zu {word}.',
+                    'replacements': [{'value': r} for r in reps], 'rule': {'id': rule, 'category': {'id': cat}}}
+        matches = [hit('Anna', 'TYPOS', 'SPELL'), hit('Hauss', 'TYPOS', 'SPELL', reps=('Haus', 'Hausse')),
+                   hit('Hauss', 'TYPOS', 'SPELL', nth=2),               # gleicher Fehler: nur einmal
+                   hit(' ,', 'PUNCTUATION', 'COMMA'), hit('schön', 'STYLE', 'STYLE'),   # Stil: nicht gemeldet
+                   {'offset': 10 ** 6, 'length': 3, 'rule': {'id': 'X', 'category': {'id': 'GRAMMAR'}}}]
+        hints = analyze.languagetool_hints(text, matches, ['Anna'])
+        self.assertEqual([h['kind'] for h in hints], ['spelling', 'punctuation'])
+        self.assertIn('„Hauss“ → „Haus“ / „Hausse“', hints[0]['text'])
+        for h in hints:                                                 # Fundstelle wörtlich aus dem Text
+            self.assertIn(analyze.norm(h['quote']), analyze.norm(text))
+        self.assertIn('Hauss', hints[0]['quote'])
+
+    def test_languagetool_settings(self):
+        _, config = load(self.base)
+        self.assertEqual(analyze.lt_language(config), 'de-DE')
+        config = dict(config, project=dict(config['project'], language='de-at'))
+        self.assertEqual(analyze.lt_language(config), 'de-AT')
+        config = dict(config, analysis={'languagetool': {'language': 'de-CH', 'words': ['Quasselstrippe'], 'disabled_rules': ['B', 'A']}})
+        self.assertEqual(analyze.lt_language(config), 'de-CH')
+        (self.base / 'story').mkdir(exist_ok=True)
+        (self.base / 'story/places.yml').write_text(yaml.safe_dump({'places': [
+            {'id': 'pl-hof', 'name': 'Gut Lindenhof', 'aliases': ['Lindenhof']}]}, allow_unicode=True), encoding='utf-8')
+        words = analyze.lt_words(self.base, config)
+        self.assertTrue({'Gut Lindenhof', 'Lindenhof', 'Quasselstrippe'} <= set(words), words)
+        with patch.dict(os.environ, {analyze.LT_ENV: ''}):
+            self.assertIsNone(analyze.languagetool_options(self.base, config))
+            self.assertEqual(analyze.language_context(self.base, config), '')
+        with patch.dict(os.environ, {analyze.LT_ENV: 'http://localhost:1'}):
+            opts = analyze.languagetool_options(self.base, config)
+            self.assertEqual(opts['disabled_rules'], ['A', 'B'])
+            self.assertTrue(analyze.language_context(self.base, config).startswith('languagetool:'))
+        self.assertEqual(validate_project.check_project(self.base), [])
+
+    def test_language_with_languagetool(self):
+        import http.server
+        import threading
+        import urllib.parse
+        os.environ.pop('GHOSTWRITER_FAKE_LLM')
+        _, config = load(self.base)
+        sec = self.base / config['structure']['chapters'][0]['sections'][0]['path']
+        sec.write_text(sec.read_text(encoding='utf-8').rstrip('\n') + '\n\nDas Hauss am Lindenhof war leer.\n', encoding='utf-8')
+        (self.base / 'story').mkdir(exist_ok=True)
+        (self.base / 'story/places.yml').write_text(yaml.safe_dump({'places': [{'id': 'pl-hof', 'name': 'Lindenhof'}]},
+                                                                   allow_unicode=True), encoding='utf-8')
+        seen = []
+
+        class Fake(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                form = urllib.parse.parse_qs(self.rfile.read(int(self.headers['Content-Length'])).decode('utf-8'))
+                text = form['text'][0]
+                seen.append(form['language'][0])
+                matches = [{'offset': m.start(), 'length': len(m.group()), 'message': 'Möglicher Tippfehler gefunden.',
+                            'replacements': [{'value': 'Haus'}] if m.group() == 'Hauss' else [],
+                            'rule': {'id': 'GERMAN_SPELLER_RULE', 'category': {'id': 'TYPOS'}}}
+                           for m in re.finditer(r'Hauss|Lindenhof', text)]
+                body = json.dumps({'matches': matches}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *a):
+                pass
+
+        server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Fake)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        analyze.run(self.base, 'language')                              # ohne LanguageTool
+        with patch.dict(os.environ, {analyze.LT_ENV: f'http://127.0.0.1:{server.server_address[1]}'}):
+            head = analyze.run(self.base, 'language')
+            self.assertEqual(head['blocks_cached'], 0)                  # andere Prüfung: Zwischenspeicher nicht genutzt
+            res = json.loads((self.base / 'analysis/language/run-002.json').read_text(encoding='utf-8'))
+            spell = [h for h in res['items'] if h['kind'] == 'spelling']
+            self.assertEqual([h['where'] for h in spell], ['1.1'])      # „Lindenhof“ ist ein eigenes Wort
+            self.assertIn('„Hauss“ → „Haus“', spell[0]['text'])
+            self.assertEqual(set(seen), {'de-DE'})
+            self.assertIn('LanguageTool (de-DE)', (self.base / 'analysis/language/run-002.md').read_text(encoding='utf-8'))
+            n = len(seen)
+            self.assertEqual(analyze.run(self.base, 'language')['blocks_analysed'], 0)   # unverändert: kein neuer Aufruf
+            self.assertEqual(len(seen), n)
+            idx = [i for i, h in enumerate(res['items']) if h['kind'] == 'spelling']
+            analyze.apply(self.base, 'run-002', 'language', [{'index': i} for i in idx])
+        hints = yaml.safe_load((self.base / 'story/hints.yml').read_text(encoding='utf-8'))['hints']
+        self.assertEqual([h['kind'] for h in hints], ['spelling'])
+        self.assertEqual(validate_project.check_project(self.base), [])
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'section', '1.1', '--text'],
+                             capture_output=True, text=True, check=True).stdout
+        self.assertIn('Rechtschreibung', out)
+        with patch.dict(os.environ, {analyze.LT_ENV: 'http://127.0.0.1:9'}):   # Server fehlt: klarer Fehler
+            sec.write_text(sec.read_text(encoding='utf-8') + '\nNoch ein Satz.\n', encoding='utf-8')
+            with self.assertRaises(RuntimeError):
+                analyze.run(self.base, 'language')
 
     def test_section_isolation_and_bounded_requests(self):
         _, config = load(self.base)

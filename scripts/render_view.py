@@ -603,6 +603,10 @@ def view_labels(name):
             'repetition': view_message('labels.LANGUAGE_DE.repetition'),
             'same_start': view_message('labels.LANGUAGE_DE.same_start'),
             'filler': view_message('labels.LANGUAGE_DE.filler'),
+            'spelling': view_message('labels.LANGUAGE_DE.spelling'),
+            'grammar': view_message('labels.LANGUAGE_DE.grammar'),
+            'punctuation': view_message('labels.LANGUAGE_DE.punctuation'),
+            'typography': view_message('labels.LANGUAGE_DE.typography'),
         }
     raise KeyError(name)
 

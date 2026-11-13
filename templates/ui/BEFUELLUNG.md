@@ -374,7 +374,7 @@ Auswahl „Sprachliche Hinweise“ aus einem Hintergrundlauf (#124, Art `languag
 |---|---|
 | `KIND`, `RUN_ID`, `RUN_TEXT`, `SCOPE_TEXT` | wie bei `kurzbeschreibung-vorschlag` (`KIND` = `language`) |
 | `SUGGEST_COUNT_TEXT`, `RULES_TEXT` | „N Hinweise“ und die Regeln (Satzlänge, Wiederholungen, Satzanfänge, Füllwörter) aus `analyze.py` |
-| Block `SUGGESTIONS`: `S_IDX`, `S_WHERE`, `S_KIND`, `S_KIND_TEXT`, `S_TEXT`, `S_QUOTE` | je Hinweis: Nummer, Abschnitt, `long_sentence`/`repetition`/`same_start`/`filler` und deutsch, Hinweis, Fundstelle |
+| Block `SUGGESTIONS`: `S_IDX`, `S_WHERE`, `S_KIND`, `S_KIND_TEXT`, `S_TEXT`, `S_QUOTE` | je Hinweis: Nummer, Abschnitt, `long_sentence`/`repetition`/`same_start`/`filler` bzw. mit LanguageTool (#280) `spelling`/`grammar`/`punctuation`/`typography` und deutsch, Hinweis, Fundstelle |
 
 ### `import-vorschau.html`
 

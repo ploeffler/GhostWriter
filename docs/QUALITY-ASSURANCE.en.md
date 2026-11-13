@@ -265,6 +265,19 @@ split as fallback. Parts do not overlap; boundary-spanning observations require
 a targeted follow-up check. Front/back matter is processed per entry. Local
 language checks use whole sections without sending text to a provider.
 
+In the Action, the language check (`kind: language`) also starts a
+LanguageTool server inside the runner (#280) and reports spelling, grammar,
+punctuation and typography, at most 15 hints per section, each with a verbatim
+quote and a suggestion where available. No AI, no key, no costs; the text does
+not leave the runner. The variant comes from `analysis.languagetool.language`
+(e.g. `de-AT`), otherwise `project.language` (`de` means `de-DE`). Character and
+place names and `analysis.languagetool.words` never count as typos;
+`analysis.languagetool.disabled_rules` switches off rules, e.g. for dialect in
+dialogue. LanguageTool style rules are not reported because the narrative voice
+takes precedence. Hints are recommendations only; the text stays unchanged. A
+local language model or image generation inside the runner is deliberately not
+provided: standard runners have no GPU.
+
 Verified results are cached per section/part; old chapter caches are ignored.
 Text, numbering, prompt, configured model/provider and known-character context
 changes invalidate affected entries. Chapter summaries and goals concatenate
