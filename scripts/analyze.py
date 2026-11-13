@@ -23,7 +23,9 @@ Arten (`--kind`, Vorgabe characters; mehrere mit Komma):
   continuity  Widersprüche: je Abschnitt Tatsachen mit Fundstelle, über das ganze Buch Widersprüche (merge_model, nur
               zwischen geprüften Tatsachen); übernommen als Marker [KONTINUITÄT PRÜFEN: …] hinter der Fundstelle
   language    Sprachliche Auffälligkeiten ohne KI (lange Sätze, Wortwiederholungen, gleiche Satzanfänge,
-              Füllwörter); übernommen als Hinweisliste nach story/hints.yml, der Text bleibt unverändert
+              Füllwörter); mit einem LanguageTool-Server (LANGUAGETOOL_URL, #280) zusätzlich Rechtschreibung,
+              Grammatik, Zeichensetzung und Typografie; übernommen als Hinweisliste nach story/hints.yml, der
+              Text bleibt unverändert
 
 Läuft in der Action „Analyse im Hintergrund“ (analyse.yml), lokal genauso. Ablauf je Art:
   1. Vorbereiten ohne KI: das Buch je Abschnitt (Vor- und Nachspann je eigener
@@ -73,6 +75,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -931,11 +934,16 @@ def short_quote(sentence, n=14):
     return ' '.join(w[:n])
 
 
-def check_language(texts):
+def check_language(texts, languagetool=None):
     """Sprachliche Auffälligkeiten je Abschnitt ohne KI: lange Sätze, Wortwiederholungen auf engem Raum, gleiche
-    Satzanfänge hintereinander, viele Füllwörter. Jede Fundstelle stammt wörtlich aus dem Text. → (hinweise, 0)"""
+    Satzanfänge hintereinander, viele Füllwörter; mit `languagetool` (#280) zuerst Rechtschreibung, Grammatik,
+    Zeichensetzung und Typografie. Jede Fundstelle stammt wörtlich aus dem Text. → (hinweise, 0)"""
     out = []
     for where, text in texts.items():
+        if languagetool:
+            lt = languagetool_hints(text, lt_check(languagetool['url'], languagetool['language'], lt_plain(text),
+                                                   languagetool['disabled_rules']), languagetool['words'])
+            out.extend(dict(h, where=where) for h in lt[:LT_HINTS_PER_SECTION])
         found = []
         sents = sentences(text)
         for snt in sents:
@@ -980,14 +988,129 @@ def check_language(texts):
 
 
 LANGUAGE_DE = {'long_sentence': 'Langer Satz', 'repetition': 'Wortwiederholung', 'same_start': 'Gleiche Satzanfänge',
-               'filler': 'Füllwörter'}
+               'filler': 'Füllwörter', 'spelling': 'Rechtschreibung', 'grammar': 'Grammatik',
+               'punctuation': 'Zeichensetzung', 'typography': 'Typografie'}
+
+
+# Rechtschreibung und Grammatik mit LanguageTool (#280): ein lokaler LanguageTool-Server (in der Action „Analyse im
+# Hintergrund“ im Runner gestartet), ohne KI, ohne Schlüssel und ohne Kosten. Nur aktiv, wenn LANGUAGETOOL_URL
+# gesetzt ist; sonst bleibt die Analyse „Sprache“ wie bisher. Kategorien, die nicht hierher gehören (Stil,
+# Redundanz, Umgangssprache …), werden nicht gemeldet: Stil prüfen die eigenen Regeln oben bzw. die Erzählstimme.
+
+LT_ENV = 'LANGUAGETOOL_URL'
+LT_HINTS_PER_SECTION = 15
+LT_TIMEOUT = 180
+LT_CATEGORIES = {'TYPOS': 'spelling', 'CASING': 'spelling', 'COMPOUNDING': 'spelling', 'GRAMMAR': 'grammar',
+                 'CONFUSED_WORDS': 'grammar', 'PUNCTUATION': 'punctuation', 'TYPOGRAPHY': 'typography'}
+LT_DEFAULT_VARIANT = {'de': 'de-DE', 'en': 'en-US'}
+
+
+def lt_language(config):
+    """Sprachcode für LanguageTool: analysis.languagetool.language, sonst project.language (de → de-DE)."""
+    lt = settings(config).get('languagetool') or {}
+    code = str(lt.get('language') or ((config or {}).get('project') or {}).get('language') or 'de').strip()
+    head, _, tail = code.replace('_', '-').partition('-')
+    return f'{head.lower()}-{tail.upper()}' if tail else LT_DEFAULT_VARIANT.get(head.lower(), head.lower())
+
+
+def lt_words(base, config):
+    """Eigene Wörter des Buchs, die nie als Tippfehler gelten: Figurennamen (und ihre Teile), Schauplätze samt
+    anderen Bezeichnungen aus story/places.yml und analysis.languagetool.words."""
+    names = [c.get('name') or '' for c in (config or {}).get('characters') or []]
+    path = story_file(base, 'places')
+    if path.is_file():
+        for pl in (yaml.safe_load(path.read_text(encoding='utf-8')) or {}).get('places') or []:
+            names += [pl.get('name') or ''] + list(pl.get('aliases') or [])
+    names += list((settings(config).get('languagetool') or {}).get('words') or [])
+    out = set()
+    for n in names:
+        n = ' '.join(str(n).split())
+        if n:
+            out.add(n)
+            out.update(w for w in words_of(n) if len(w) > 1)
+    return sorted(out, key=str.casefold)
+
+
+def languagetool_options(base, config):
+    """Einstellungen der LanguageTool-Prüfung oder None, wenn kein Server angegeben ist (LANGUAGETOOL_URL)."""
+    url = (os.environ.get(LT_ENV) or '').strip()
+    if not url:
+        return None
+    lt = settings(config).get('languagetool') or {}
+    return {'url': url, 'language': lt_language(config), 'disabled_rules': sorted(lt.get('disabled_rules') or []),
+            'words': lt_words(base, config)}
+
+
+def language_context(base, config):
+    """Fingerabdruck-Material der Analyse „Sprache“: ohne LanguageTool leer (wie bisher), mit LanguageTool Sprache,
+    abgeschaltete Regeln und eigene Wörter, damit ein Lauf mit anderen Einstellungen nicht den Zwischenspeicher nutzt."""
+    opts = languagetool_options(base, config)
+    if not opts:
+        return ''
+    return 'languagetool:' + json.dumps({k: opts[k] for k in ('language', 'disabled_rules', 'words')},
+                                        ensure_ascii=False, sort_keys=True)
+
+
+def lt_plain(text):
+    """Text für LanguageTool: Marker, Bild- und Linkziele, Überschriften- und Listenzeichen sowie Hervorhebungen durch
+    gleich viele Leerzeichen ersetzt; die Stellen (offset) passen damit weiter zum Originaltext."""
+    blank = lambda m: re.sub(r'\S', ' ', m.group())
+    t = re.sub(r'!?\[[^\]\n]*\]\([^)\n]*\)', blank, text)
+    t = re.sub(r'\[[^\]]*\]', blank, t)
+    t = re.sub(r'(?m)^[ \t]*(?:#+|[-*>]|\d+\.)[ \t]+', blank, t)
+    return re.sub(r'[*`]+', blank, t)
+
+
+def lt_check(url, language, text, disabled_rules=()):
+    """Antwort des LanguageTool-Servers (POST /v2/check) → Liste der Treffer (matches)."""
+    data = {'text': text, 'language': language}
+    if disabled_rules:
+        data['disabledRules'] = ','.join(disabled_rules)
+    req = urllib.request.Request(url.rstrip('/') + '/v2/check', data=urllib.parse.urlencode(data).encode('utf-8'),
+                                 headers={'Accept': 'application/json'}, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=LT_TIMEOUT) as r:
+            return json.loads(r.read().decode('utf-8')).get('matches') or []
+    except (OSError, ValueError) as e:
+        raise RuntimeError(f'LanguageTool unter {url} antwortet nicht ({e}). Ohne LanguageTool: {LT_ENV} leer lassen.') from e
+
+
+def languagetool_hints(text, matches, words=()):
+    """Treffer von LanguageTool → Hinweise {kind, text, quote}. Eigene Wörter (Namen, Orte) gelten nicht als
+    Tippfehler, gleiche Fehler (Regel und Wort) nur einmal, Fundstelle wörtlich aus dem Text."""
+    known = {w.casefold() for w in words}
+    out, seen = [], set()
+    for m in matches:
+        rule = m.get('rule') or {}
+        kind = LT_CATEGORIES.get((rule.get('category') or {}).get('id', ''))
+        off, n = int(m.get('offset') or 0), int(m.get('length') or 0)
+        bad = text[off:off + n]
+        if not kind or not bad.strip() or off < 0 or off + n > len(text):
+            continue
+        key = bad.strip().casefold()
+        if kind == 'spelling' and (key in known or (key.endswith('s') and key[:-1] in known)
+                                   or (key.endswith("'s") and key[:-2] in known)):
+            continue
+        if (rule.get('id'), key) in seen:
+            continue
+        seen.add((rule.get('id'), key))
+        msg = ' '.join((m.get('shortMessage') or m.get('message') or LANGUAGE_DE[kind]).split()).rstrip('.')
+        reps = [r.get('value') for r in m.get('replacements') or [] if (r.get('value') or '').strip()][:3]
+        info = f'{msg}: „{" ".join(bad.split())}“' + (' → ' + ' / '.join(f'„{r}“' for r in reps) if reps else '')
+        left = re.search(r'(?:\S+\s+){0,4}\S*$', text[:off]).group()
+        right = re.match(r'\S*(?:\s+\S+){0,4}', text[off + n:]).group()
+        out.append({'kind': kind, 'text': info, 'quote': ' '.join((left + bad + right).split())})
+    return out
 
 
 def language_combine(base, config, results, todo, prev, ask):
     """Sprache: Hinweise in Buchreihenfolge. → (vorschläge, md)"""
     labels = block_labels(config)
     items = [h for k in ordered_results(config, results) for h in results[k]]
-    body = ['## Hinweise (ohne KI)', '']
+    lt = languagetool_options(base, config)
+    body = ['## Hinweise (ohne KI)', '',
+            (f'Rechtschreibung und Grammatik: LanguageTool ({lt["language"]}), {len(lt["words"])} eigene Wörter.'
+             if lt else 'Rechtschreibung und Grammatik: nicht geprüft (kein LanguageTool-Server).'), '']
     body += [f'- {h["where"]}: {LANGUAGE_DE[h["kind"]]} – {h["text"]} („{h["quote"]}“)' for h in items] or ['*keine*']
     return {'items': items}, body
 
@@ -1016,7 +1139,9 @@ KINDS = {
                    'context': None, 'verify': verify_continuity, 'combine': continuity_combine, 'matter': True,
                    'output_tokens': 2000, 'merge_tokens': (6000, 800), 'merge': True},
     'language': {'label': 'Sprache', 'offer': 'Sprachliche Hinweise', 'icon': 'text-spellcheck', 'system': None,
-                 'context': None, 'verify': None, 'local': check_language, 'combine': language_combine, 'matter': True,
+                 'context': language_context, 'verify': None, 'local': check_language,
+                 'local_options': lambda base, config: {'languagetool': languagetool_options(base, config)},
+                 'combine': language_combine, 'matter': True,
                  'output_tokens': 0, 'merge_tokens': (0, 0), 'merge': False},
 }
 
@@ -1060,6 +1185,7 @@ def run(base, kind='characters', scope=None, now=None):
         else:
             todo.append((bkey, title, texts, fp))
     local = spec.get('local')   # Art ohne KI (Sprache): kein Schlüssel, keine Kosten
+    local_options = spec['local_options'](base, config) if local and spec.get('local_options') and todo else {}
     provider, key = pick_provider(s) if todo and not local else (s.get('provider') or 'anthropic', None)
     model = s.get('model') or PROVIDERS[provider]['model']
     merge_model = s.get('merge_model') or PROVIDERS[provider]['merge_model']
@@ -1070,7 +1196,7 @@ def run(base, kind='characters', scope=None, now=None):
     def extract(job):
         bkey, title, texts, fp = job
         if local:
-            items, dropped = local(texts)
+            items, dropped = local(texts, **local_options)
             return bkey, fp, items, dropped, 0, 0
         user = f'BLOCK: {bkey}\n\n' + (f'{context}\n\n' if context else '') + f'## {title}\n\n{block_text(texts)}'
         text, tin, tout = call_llm(provider, key, model, spec['system'], user, kind)

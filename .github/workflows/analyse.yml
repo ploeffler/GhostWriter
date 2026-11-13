@@ -6,7 +6,8 @@ name: Analyse im Hintergrund
 # geänderte Kapitel werden neu gelesen (Zwischenspeicher analysis/cache/).
 # Start von Hand (Run workflow, auf dem Buch-Branch) oder aus dem Chat
 # (START.md, „Analysen im Hintergrund“). Braucht das Secret ANTHROPIC_API_KEY bzw.
-# OPENAI_API_KEY. Kosten kommen nach costs/project.yml (source: action_api)
+# OPENAI_API_KEY (nicht für „Sprache“: Rechtschreibung und Grammatik prüft ein im Runner
+# gestarteter LanguageTool-Server, ohne KI und ohne Kosten, #280). Kosten kommen nach costs/project.yml (source: action_api)
 # und zählen zum KI-Budget; unter 10 % Rest startet der Lauf nur mit
 # confirm_low_budget (#62).
 
@@ -49,6 +50,52 @@ jobs:
 
       - name: Python-Abhängigkeiten
         run: pip install pyyaml jsonschema
+
+      # Rechtschreibung und Grammatik für „Sprache“ (#280): LanguageTool 6.6 (letzte feste Version, Prüfsumme
+      # geprüft) als lokaler Server; das Paket (~250 MB) bleibt im Zwischenspeicher der Actions.
+      - name: LanguageTool vorbereiten
+        id: lt
+        if: contains(inputs.kind, 'language')
+        run: echo "use=1" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        if: steps.lt.outputs.use == '1'
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: LanguageTool aus dem Zwischenspeicher
+        if: steps.lt.outputs.use == '1'
+        uses: actions/cache@v4
+        with:
+          path: ~/languagetool
+          key: languagetool-6.6
+
+      - name: LanguageTool starten
+        if: steps.lt.outputs.use == '1'
+        env:
+          LT_VERSION: '6.6'
+          LT_SHA256: 53600506b399bb5ffe1e4c8dec794fd378212f14aaf38ccef9b6f89314d11631
+        run: |
+          dir="$HOME/languagetool/LanguageTool-$LT_VERSION"
+          if [ ! -f "$dir/languagetool-server.jar" ]; then
+            mkdir -p "$HOME/languagetool"
+            zip="$RUNNER_TEMP/lt.zip"
+            curl -fsSL --retry 3 -o "$zip" "https://languagetool.org/download/LanguageTool-$LT_VERSION.zip" \
+              || curl -fsSL --retry 3 -o "$zip" "https://languagetool.org/download/archive/LanguageTool-$LT_VERSION.zip"
+            echo "$LT_SHA256  $zip" | sha256sum -c -
+            unzip -q "$zip" -d "$HOME/languagetool"
+          fi
+          nohup java -Xmx2g -cp "$dir/languagetool-server.jar" org.languagetool.server.HTTPServer \
+            --port 8081 > "$RUNNER_TEMP/languagetool.log" 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fs "http://localhost:8081/v2/languages" > /dev/null; then
+              echo "LANGUAGETOOL_URL=http://localhost:8081" >> "$GITHUB_ENV"; echo "LanguageTool läuft"; exit 0
+            fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/languagetool.log"
+          echo "::error::LanguageTool ist nicht gestartet."; exit 1
 
       - name: Nur Buch-Branches
         env:

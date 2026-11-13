@@ -203,6 +203,16 @@ Der Benutzer kann jederzeit wechseln:
 
 Die Auswahl gilt für den laufenden Chat, bis sie geändert wird. Sie darf nicht als dauerhaft gespeicherte Projekteinstellung dargestellt werden, solange keine entsprechende Funktion vorhanden ist.
 
+## Automatische Sprachprüfung (LanguageTool)
+
+Die Analyse „Sprache“ (Action „Analyse im Hintergrund“, `kind: language`) prüft ohne KI und ohne Kosten. Neben den eigenen Regeln (lange Sätze, Wortwiederholungen, gleiche Satzanfänge, Füllwörter) startet die Action einen LanguageTool-Server im Runner und meldet Rechtschreibung, Grammatik, Zeichensetzung und Typografie (#280). Der Buchtext verlässt dabei den Runner nicht.
+
+- **Sprachvariante:** `analysis.languagetool.language` (z. B. `de-AT`), sonst `project.language`; `de` gilt als `de-DE`.
+- **Eigene Wörter:** Figuren- und Ortsnamen (`story/places.yml` samt anderen Bezeichnungen) und `analysis.languagetool.words` gelten nie als Tippfehler.
+- **Ausnahmen:** `analysis.languagetool.disabled_rules` schaltet einzelne Regeln ab, etwa für Dialekt in wörtlicher Rede.
+- **Ergebnis:** höchstens 15 Hinweise je Abschnitt, jeder mit wörtlicher Fundstelle und, wenn vorhanden, einem Vorschlag. Übernommen wird nur, was im Chat ausgewählt ist, und nur als Hinweis (`story/hints.yml`); der Text bleibt unverändert. Stil- und Umgangssprache-Regeln von LanguageTool werden nicht gemeldet, weil die Erzählstimme Vorrang hat.
+- **Grenzen:** LanguageTool kennt nicht jedes Wort und keine Absicht. Ein Hinweis ist eine Empfehlung, keine Freigabe. Ein lokales Sprachmodell oder Bilderzeugung im Runner ist bewusst nicht vorgesehen: Standard-Runner haben keine Grafikkarte.
+
 ## Geltungsbereich und Grenzen
 
 Diese Anleitung beschreibt das redaktionelle Soll-Verhalten. Sie behauptet nicht, dass GhostWriter alle Prüfungen bereits automatisiert ausführt. KI-Prüfungen können Fehler übersehen oder falsche Hinweise geben; bei strittigen Fakten sind belastbare Quellen und die Entscheidung der Autorin oder des Autors maßgeblich.

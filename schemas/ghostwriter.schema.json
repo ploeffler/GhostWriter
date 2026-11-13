@@ -174,7 +174,17 @@
         "merge_model": {"type": "string", "description": "Modell fürs Zusammenführen (stärker)"},
         "price_input_per_mtok": {"type": ["number", "null"], "minimum": 0, "description": "Preis je 1 Mio. Eingabe-Tokens in Projektwährung"},
         "price_output_per_mtok": {"type": ["number", "null"], "minimum": 0, "description": "Preis je 1 Mio. Ausgabe-Tokens in Projektwährung"},
-        "parallel": {"type": "integer", "minimum": 1, "maximum": 16}
+        "parallel": {"type": "integer", "minimum": 1, "maximum": 16},
+        "languagetool": {
+          "type": "object",
+          "description": "Rechtschreib- und Grammatikprüfung der Analyse „Sprache“ mit LanguageTool (#280); fehlt = Vorgaben",
+          "properties": {
+            "language": {"type": "string", "pattern": "^[a-zA-Z]{2,3}([-_][a-zA-Z]{2,8})?$", "description": "Sprachvariante, z. B. de-AT; sonst aus project.language (de → de-DE)"},
+            "disabled_rules": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true, "description": "abgeschaltete LanguageTool-Regeln (IDs), z. B. für Dialekt in wörtlicher Rede"},
+            "words": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true, "description": "eigene Wörter, die nie als Tippfehler gelten; Figuren- und Ortsnamen kommen von selbst dazu"}
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     },
