@@ -1,7 +1,7 @@
 """
 title: GhostWriter GitHub
 description: GitHub lesen und Aufgaben als gemeinsamen Commit speichern.
-version: 1.4.0
+version: 1.5.0
 requirements: requests,pydantic,pyyaml
 """
 import asyncio
@@ -41,6 +41,26 @@ class Tools:
     def __init__(self):
         self.valves = self.Valves()
 
+    # Darstellungen der fertigen Ansichten (#282): einfach, übersichtlich (Standard),
+    # erweitert und „Nur Text“. Alle sind Markdown; Open WebUI hat keine Widgets.
+    DISPLAYS = ("simple", "organized", "extended", "text")
+
+    def _display(self, display):
+        value = (display or "organized").strip().casefold() if isinstance(display, str) else display
+        if value not in self.DISPLAYS:
+            raise ValueError("Unbekannte Darstellung; erlaubt sind simple, organized, extended und text.")
+        return value
+
+    @staticmethod
+    def _bar(done, total, english):
+        """Zehn Segmente; voll nur bei vollständiger Freigabe, leer nur ohne Freigabe."""
+        filled = round(10 * done / total) if total else 0
+        if total and 0 < done < total:
+            filled = min(max(filled, 1), 9)
+        label = (f"{done} of {total} sections approved" if english else
+                 f"{done} von {total} Abschnitten freigegeben")
+        return "▰" * filled + "▱" * (10 - filled) + " " + label
+
     def _repo(self, repo):
         if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
             raise ValueError("repo muss owner/repo sein, keine URL.")
@@ -61,8 +81,9 @@ class Tools:
         self._repo(repo)
         return repo
 
-    def _library_view(self, trace, repo, default_branch=None):
+    def _library_view(self, trace, repo, default_branch=None, display="organized"):
         """Liest bei jedem Aufruf neu; Buchdaten werden nie im Startzustand gespeichert."""
+        display = self._display(display)
         branch = default_branch or self._http(trace, "GET", self._repo(repo))["default_branch"]
         data = self._read_utf8(trace, repo, "library.json", branch)
         library = json.loads(data["content"])
@@ -79,7 +100,13 @@ class Tools:
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise ValueError(f"library.json: ungültiger Wert für {key}; Bibliothek nicht angezeigt.")
             return str(value)
+        def cost(book):
+            value = book.get("cost")
+            text = value.get("text") if isinstance(value, dict) else None
+            return cell(text) if isinstance(text, str) and text.strip() else "–"
         books, rows, branches = [], [], set()
+        approved_sum = total_sum = 0
+        complete_counts = True
         for number, book in enumerate(library["books"], 1):
             if not isinstance(book, dict) or not isinstance(book.get("branch"), str) or not book["branch"].strip():
                 raise ValueError("library.json: Buch ohne gültigen Branch; Bibliothek nicht angezeigt.")
@@ -94,16 +121,44 @@ class Tools:
             pending = count(book, "pending")
             if pending != "–" and int(pending):
                 state += (f" · {pending} pending change" + ("s" if int(pending) != 1 else "")) if english else f" · {pending} offene Änderung" + ("en" if int(pending) != 1 else "")
-            rows.append(f"| {number} | {cell(title)} | {count(book, 'chapters_total')} | {count(book, 'sections_total')} | {state} |")
+            approved, sections = count(book, "sections_approved"), count(book, "sections_total")
+            if display == "simple":
+                rows.append(f"{number}. {cell(title)} · {state}")
+            elif display == "extended":
+                share = f"{approved}/{sections}" if "–" not in (approved, sections) else "–"
+                if share == "–":
+                    complete_counts = False
+                else:
+                    approved_sum, total_sum = approved_sum + int(approved), total_sum + int(sections)
+                rows.append(f"| {number} | {cell(title)} | `{cell(book['branch'])}` | {count(book, 'chapters_total')} | "
+                            f"{sections} | {share} | {cost(book)} | {state} |")
+            else:
+                rows.append(f"| {number} | {cell(title)} | {count(book, 'chapters_total')} | {sections} | {state} |")
             books.append({"number": number, "title": title, "branch": book["branch"]})
-        lines = ["### 📚 " + ("Library" if english else "Bibliothek"), "", cell(repo), ""]
-        if rows:
+        icon = "" if display == "text" else "📚 "
+        lines = ["### " + icon + ("Library" if english else "Bibliothek"), ""]
+        if display != "simple":
+            lines += [cell(repo), ""]
+        hint = "Enter a number to open a book, or `New book`." if english else "Zum Öffnen die Nummer nennen oder `Neues Buch` wählen."
+        if rows and display == "simple":
+            lines += [*rows, "", hint]
+        elif rows and display == "extended":
+            if complete_counts:
+                lines += [self._bar(approved_sum, total_sum, english), ""]
+            else:
+                lines += ["Approval counts are incomplete in library.json; no total shown." if english else
+                          "Freigabezahlen in library.json unvollständig; keine Summe angezeigt.", ""]
+            lines += ["| No. | Book | Branch | Chapters | Sections | Approved | Cost | Status |" if english else
+                      "| Nr. | Buch | Branch | Kapitel | Abschnitte | Freigegeben | Kosten | Stand |",
+                      "|---|---|---|---|---|---|---|---|", *rows, "",
+                      ("Source: `library.json` on `" if english else "Quelle: `library.json` auf `") + branch + "` · `" + data["sha"][:7] + "`",
+                      "", hint]
+        elif rows:
             lines += ["| No. | Book | Chapters | Sections | Status |" if english else "| Nr. | Buch | Kapitel | Abschnitte | Stand |",
-                      "|---|---|---|---|---|", *rows, "",
-                      "Enter a number to open a book, or `New book`." if english else "Zum Öffnen die Nummer nennen oder `Neues Buch` wählen."]
+                      "|---|---|---|---|---|", *rows, "", hint]
         else:
             lines.append("No books yet. Choose `New book`." if english else "Noch keine Bücher. Wähle `Neues Buch`.")
-        return {"repo": repo, "branch": branch, "path": "library.json", "sha": data["sha"],
+        return {"repo": repo, "branch": branch, "path": "library.json", "sha": data["sha"], "display": display,
                 "books": books, "view": "\n".join(lines), "source_kind": "library_index",
                 "message": "Die fertige Ansicht aus view unverändert anzeigen. Bücher und Zahlen nicht selbst erfinden. Angaben stammen aus der gelesenen Bibliotheksdatei."}
 
@@ -143,20 +198,45 @@ class Tools:
         return self._navigation_view(result, {"kind": "library", "branches": [b["branch"] for b in result["books"]],
                                                "sha": result["sha"]}, scope)
 
-    async def show_library(self, __chat_id__: Optional[str] = None, __user__: Optional[dict] = None,
-                           __metadata__: Optional[dict] = None, __id__: Optional[str] = None) -> str:
+    async def show_library(self, display: str = "organized", __chat_id__: Optional[str] = None,
+                           __user__: Optional[dict] = None, __metadata__: Optional[dict] = None,
+                           __id__: Optional[str] = None) -> str:
         """Zeigt die echte Bibliothek für START_REPO. Bei „Bibliothek“, „Library“ oder „Home“ aufrufen.
         Liest library.json jedes Mal frisch vom tatsächlichen Standard-Branch, unabhängig von START_BRANCH.
+        display: simple, organized (Standard), extended oder text.
         Die fertige Markdown-Ansicht aus view unverändert anzeigen; books ordnet Nummern zu Branches zu.
         Bei einem Fehler keine leere Liste, Nullwerte oder Beispieldaten erfinden.
         """
         def op(trace):
             repo = self._instance_repo()
             scope = self._navigation_scope(repo, __chat_id__, __user__, __metadata__, __id__)
-            return self._signed_library(self._library_view(trace, repo), scope)
+            return self._signed_library(self._library_view(trace, repo, display=display), scope)
         return await self._run(op)
 
-    def _book_view(self, trace, repo, book_branch, chapter=0, section=0, expected_head=None):
+    def _book_index(self, trace, repo, head):
+        """Übersichtsdatei am selben Lesestand; fehlt oder ungültig → None (nichts schätzen)."""
+        data = self._read_utf8(trace, repo, "ghostwriter-index.json", head, missing_ok=True)
+        if data is None:
+            return None
+        try:
+            index = json.loads(data["content"])
+        except ValueError:
+            return None
+        if not isinstance(index, dict) or not isinstance(index.get("chapters"), list):
+            return None
+        chapters, sections = {}, {}
+        for ch in index["chapters"]:
+            if isinstance(ch, dict) and isinstance(ch.get("id"), str):
+                chapters[ch["id"]] = ch
+                for s in ch.get("sections") or []:
+                    if isinstance(s, dict) and isinstance(s.get("id"), str):
+                        sections[s["id"]] = s
+        return {"project": index.get("project") if isinstance(index.get("project"), dict) else {},
+                "workflow": index.get("workflow") if isinstance(index.get("workflow"), dict) else {},
+                "chapters": chapters, "sections": sections}
+
+    def _book_view(self, trace, repo, book_branch, chapter=0, section=0, expected_head=None, display="organized"):
+        display = self._display(display)
         root = self._repo(repo)
         library = self._library_view(trace, repo)
         if not any(book["branch"] == book_branch for book in library["books"]):
@@ -186,6 +266,8 @@ class Tools:
         if changed:
             chapter, section = 0, 0  # Keine Auswahl aus einer inzwischen umgeordneten Struktur erraten.
         english = self.valves.INTERFACE_LANGUAGE == "en"
+        simple, extended = display == "simple", display == "extended"
+        index = self._book_index(trace, repo, head) if extended else None
         def text(value):
             if not isinstance(value, str):
                 raise ValueError("Ungültiger Titel in der Projektdatei.")
@@ -202,24 +284,83 @@ class Tools:
             if not isinstance(value, str):
                 return "unbekannt" if not english else "unknown"
             return text(labels.get(value, (value, value))[int(english)])
+        def entry_cost(entry):
+            value = (entry or {}).get("cost")
+            label = value.get("text") if isinstance(value, dict) else None
+            return text(label) if isinstance(label, str) and label.strip() else "–"
+        def markers(entry):
+            values = (entry or {}).get("markers")
+            if not isinstance(values, dict):
+                return "–"
+            total = sum(v for v in values.values() if isinstance(v, int) and not isinstance(v, bool) and v > 0)
+            return str(total)
+        def yes(value):
+            return ("yes" if english else "ja") if value is True else ("no" if english else "nein") if value is False else "–"
+        def approvals(meta):
+            given = meta.get("approvals") if isinstance(meta.get("approvals"), dict) else {}
+            return (("Writing " if english else "Schreiben ") + yes(given.get("writing")) + " · " +
+                    ("Section " if english else "Abschnitt ") + yes(given.get("section")))
+        def words(body):
+            return len(re.findall(r"\w+", re.sub(r"(?m)^#+\s.*$", "", body)))
+        missing_index = ("No overview file (`ghostwriter-index.json`) at this reading state; approvals, costs and markers are not estimated."
+                         if english else
+                         "Keine Übersichtsdatei (`ghostwriter-index.json`) am Lesestand; Freigaben, Kosten und Marker werden nicht geschätzt.")
         title = text(cfg["project"].get("title") or cfg["project"].get("working_title") or book_branch)
-        context = {"repo": repo, "book_branch": book_branch, "reading_branch": reading, "sha": head,
+        context = {"repo": repo, "book_branch": book_branch, "reading_branch": reading, "sha": head, "display": display,
                    "book_title": cfg["project"].get("title") or cfg["project"].get("working_title"),
                    "book_language": cfg["project"].get("language"), "level": "book",
                    "chapters": [{"number": i, "id": c.get("id"), "title": c.get("title"), "status": c.get("status")}
                                 for i, c in enumerate(chapters, 1)]}
-        lines = ["### 📖 " + title, "", text(repo), "",
-                 ("Reading branch: " if english else "Lesestand: ") + "`" + reading + "` · `" + head[:7] + "`"]
+        lines = ["### " + ("" if display == "text" else "📖 ") + title, ""]
+        if not simple:
+            lines += [text(repo), ""]
+        lines += [("Reading branch: " if english else "Lesestand: ") + "`" + reading + "` · `" + head[:7] + "`"]
         if pulls:
             lines += [("Pending changes · PR #" if english else "Noch nicht übernommene Änderungen · PR #") + str(pulls[0]["number"])]
         if changed:
             lines += ["", "The book changed. Choose again from the updated overview." if english else
                       "Der Buchstand wurde inzwischen geändert. Bitte aus der aktualisierten Übersicht erneut wählen."]
         if chapter == 0:
-            lines += ["", ("Author: " if english else "Autor: ") + text(cfg["project"].get("author") or "–"), "",
-                      "| No. | Chapter | Sections | Status |" if english else "| Nr. | Kapitel | Abschnitte | Stand |", "|---|---|---|---|"]
-            for number, ch in enumerate(chapters, 1):
-                lines.append(f"| {number} | {text(ch.get('title') or '–')} | {len(ch['sections'])} | {status(ch.get('status'))} |")
+            if not simple:
+                lines += ["", ("Author: " if english else "Autor: ") + text(cfg["project"].get("author") or "–")]
+            if extended:
+                if index is None:
+                    lines += ["", missing_index]
+                else:
+                    found = [index["chapters"].get(c.get("id")) for c in chapters]
+                    if chapters and all(isinstance(c, dict) for c in found) and all(
+                            isinstance(c.get(k), int) for c in found for k in ("sections_approved", "sections_total")):
+                        lines += ["", self._bar(sum(c["sections_approved"] for c in found),
+                                                sum(c["sections_total"] for c in found), english)]
+                    else:
+                        lines += ["", "Overview file does not match the chapter structure; no total shown." if english else
+                                  "Übersichtsdatei passt nicht zur Kapitelstruktur; keine Summe angezeigt."]
+                    lines += [("Cost: " if english else "Kosten: ") + entry_cost(index["project"])]
+                    edition = index["project"].get("current_edition")
+                    if isinstance(edition, int) and not isinstance(edition, bool) and edition > 0:
+                        lines += [("Edition: " if english else "Auflage: ") + str(edition)]
+                    current = index["sections"].get(index["workflow"].get("current_section_id"))
+                    if current and isinstance(current.get("title"), str):
+                        lines += [("Current section: " if english else "Aktueller Abschnitt: ") +
+                                  text(str(current.get("number") or "")) + " " + text(current["title"])]
+            lines += [""]
+            if simple:
+                for number, ch in enumerate(chapters, 1):
+                    lines.append(f"{number}. {text(ch.get('title') or '–')} · {status(ch.get('status'))}")
+            elif extended:
+                lines += ["| No. | Chapter | Sections | Approved | Markers | Cost | Status |" if english else
+                          "| Nr. | Kapitel | Abschnitte | Freigegeben | Marker | Kosten | Stand |", "|---|---|---|---|---|---|---|"]
+                for number, ch in enumerate(chapters, 1):
+                    entry = (index or {}).get("chapters", {}).get(ch.get("id"))
+                    share = (f"{entry['sections_approved']}/{entry['sections_total']}"
+                             if isinstance(entry, dict) and isinstance(entry.get("sections_approved"), int)
+                             and isinstance(entry.get("sections_total"), int) else "–")
+                    lines.append(f"| {number} | {text(ch.get('title') or '–')} | {len(ch['sections'])} | {share} | "
+                                 f"{markers(entry)} | {entry_cost(entry)} | {status(ch.get('status'))} |")
+            else:
+                lines += ["| No. | Chapter | Sections | Status |" if english else "| Nr. | Kapitel | Abschnitte | Stand |", "|---|---|---|---|"]
+                for number, ch in enumerate(chapters, 1):
+                    lines.append(f"| {number} | {text(ch.get('title') or '–')} | {len(ch['sections'])} | {status(ch.get('status'))} |")
             if not chapters:
                 lines.append("No chapters yet." if english else "Noch keine Kapitel angelegt.")
             if chapters:
@@ -246,12 +387,32 @@ class Tools:
                     raise ValueError("Abschnitt mit ungültigen Metadaten.")
                 return metadata, raw[match.end():].strip()
             if section == 0:
-                lines += ["| No. | Section | Status |" if english else "| Nr. | Abschnitt | Stand |", "|---|---|---|"]
+                rows, approved = [], 0
                 for number, s in enumerate(ch["sections"], 1):
-                    meta, _ = section_data(s)
+                    meta, body = section_data(s)
+                    approved += meta.get("status") == "approved"
                     context["sections"].append({"number": f"{chapter}.{number}", "id": s.get("id"),
                                                 "title": s.get("title"), "status": meta.get("status")})
-                    lines.append(f"| {chapter}.{number} | {text(s.get('title') or '–')} | {status(meta.get('status'))} |")
+                    if simple:
+                        rows.append(f"{chapter}.{number} {text(s.get('title') or '–')} · {status(meta.get('status'))}")
+                    elif extended:
+                        entry = (index or {}).get("sections", {}).get(s.get("id"))
+                        rows.append(f"| {chapter}.{number} | {text(s.get('title') or '–')} | {status(meta.get('status'))} | "
+                                    f"{approvals(meta)} | {text(str(meta.get('fact_check') or '–'))} | {words(body)} | "
+                                    f"{markers(entry)} | {entry_cost(entry)} |")
+                    else:
+                        rows.append(f"| {chapter}.{number} | {text(s.get('title') or '–')} | {status(meta.get('status'))} |")
+                if extended:
+                    # Freigabebalken aus den gerade gelesenen Abschnittsdateien, nicht aus der Übersichtsdatei.
+                    lines += [self._bar(approved, len(ch["sections"]), english), ""]
+                    if index is None:
+                        lines += [missing_index, ""]
+                    lines += ["| No. | Section | Status | Approvals | Fact check | Words | Markers | Cost |" if english else
+                              "| Nr. | Abschnitt | Stand | Freigaben | Faktenprüfung | Wörter | Marker | Kosten |",
+                              "|---|---|---|---|---|---|---|---|"]
+                elif not simple:
+                    lines += ["| No. | Section | Status |" if english else "| Nr. | Abschnitt | Stand |", "|---|---|---|"]
+                lines += rows
                 if ch["sections"]:
                     lines += ["", f"`Section {chapter}.N` or a number · `Overview` · `Library`" if english else
                               f"`Abschnitt {chapter}.N` oder Nummer · `Übersicht` · `Bibliothek`"]
@@ -265,17 +426,41 @@ class Tools:
                 meta, body = section_data(s)
                 context.update(level="section", section={"number": f"{chapter}.{section}", "id": s.get("id"),
                                "title": s.get("title"), "status": meta.get("status")})
-                lines += [f"##### {chapter}.{section} {text(s.get('title') or '–')}", "", status(meta.get("status")), "", body,
+                lines += [f"##### {chapter}.{section} {text(s.get('title') or '–')}", "", status(meta.get("status"))]
+                if extended:
+                    entry = (index or {}).get("sections", {}).get(s.get("id"))
+                    known = {"id", "number", "title", "status", "fact_check", "approvals", "characters"}
+                    lines += ["", "| " + ("Field" if english else "Angabe") + " | " + ("Value" if english else "Wert") + " |", "|---|---|",
+                              f"| ID | `{text(str(s.get('id') or '–'))}` |",
+                              f"| {'File' if english else 'Datei'} | `{text(s['path'])}` |",
+                              f"| {'Words' if english else 'Wörter'} | {words(body)} |",
+                              f"| {'Approvals' if english else 'Freigaben'} | {approvals(meta)} |",
+                              f"| {'Fact check' if english else 'Faktenprüfung'} | {text(str(meta.get('fact_check') or '–'))} |"]
+                    characters = meta.get("characters")
+                    if isinstance(characters, list) and characters:
+                        lines.append(f"| {'Characters' if english else 'Figuren'} | " +
+                                     ", ".join(text(str(c)) for c in characters[:20]) + " |")
+                    for key in sorted(k for k in meta if isinstance(k, str) and k not in known):
+                        value = meta[key]
+                        # Nur einfache Werte (auch YAML-Datumsangaben); Listen und Objekte bleiben intern.
+                        if isinstance(value, (str, int, float, bool)) or hasattr(value, "isoformat"):
+                            lines.append(f"| {text(key)} | {text(str(value))[:120]} |")
+                    if entry is not None:
+                        lines += [f"| {'Markers' if english else 'Marker'} | {markers(entry)} |",
+                                  f"| {'Cost' if english else 'Kosten'} | {entry_cost(entry)} |"]
+                    else:
+                        lines += ["", missing_index]
+                lines += ["", body,
                           "", f"`Chapter {chapter}` · `Overview` · `Library`" if english else f"`Kapitel {chapter}` · `Übersicht` · `Bibliothek`"]
         return {"repo": repo, "book_branch": book_branch, "branch": reading, "sha": head, "chapter": chapter, "section": section,
-                "changed": changed, "view": "\n".join(lines), "conversation_context": context}
+                "changed": changed, "display": display, "view": "\n".join(lines), "conversation_context": context}
 
-    async def open_book(self, selection: str, receipt: str, __chat_id__: Optional[str] = None,
+    async def open_book(self, selection: str, receipt: str, display: str = "organized", __chat_id__: Optional[str] = None,
                         __user__: Optional[dict] = None, __metadata__: Optional[dict] = None,
                         __id__: Optional[str] = None) -> str:
         """Öffnet eine Nummer aus der angezeigten Bibliothek oder eine Buch-/Kapitel-/Abschnittsansicht.
         selection ist der unveränderte Navigationsbefehl, receipt die zugehörige Navigationsquittung.
-        Nur lesend. Kein Schreiben, keine Freigabe. Veränderte Strukturen werden nicht still umgedeutet.
+        display: simple, organized (Standard), extended oder text. Nur lesend. Kein Schreiben, keine Freigabe. Veränderte Strukturen werden nicht still umgedeutet.
         """
         def op(trace):
             repo = self._instance_repo()
@@ -304,29 +489,31 @@ class Tools:
                 elif command not in ("übersicht", "overview"):
                     raise ValueError("Unbekannte Navigation; bitte Bibliothek, Übersicht, Kapitel oder Abschnitt wählen.")
             result = self._book_view(trace, repo, book, chapter, section,
-                                     context.get("sha") if context["kind"] == "book" and command not in ("übersicht", "overview") else None)
+                                     context.get("sha") if context["kind"] == "book" and command not in ("übersicht", "overview") else None,
+                                     display=display)
             return self._navigation_view(result, {"kind": "book", "book_branch": book, "sha": result["sha"],
                                                   "chapter": result["chapter"], "section": result["section"]}, scope)
         return await self._run(op)
 
-    async def get_current_context(self, receipt: str, __chat_id__: Optional[str] = None,
+    async def get_current_context(self, receipt: str, display: str = "organized", __chat_id__: Optional[str] = None,
                                   __user__: Optional[dict] = None, __metadata__: Optional[dict] = None,
                                   __id__: Optional[str] = None) -> str:
         """Liest den ausgewählten Gesprächskontext frisch. Keine Statusänderung oder Freigabe.
         receipt stammt aus der zuletzt angezeigten Ansicht. Bei geändertem Lesestand erneut wählen.
+        display: simple, organized (Standard), extended oder text; zeigt dieselbe Auswahl in dieser Darstellung.
         """
         def op(trace):
             repo = self._instance_repo()
             scope = self._navigation_scope(repo, __chat_id__, __user__, __metadata__, __id__)
             selected = self._navigation_data(receipt, scope)
             if selected["kind"] == "library":
-                result = self._library_view(trace, repo)
-                result["changed"] = (selected.get("sha") != result["library_source"]["sha"] or
+                result = self._library_view(trace, repo, display=display)
+                result["changed"] = (selected.get("sha") != result["sha"] or
                                      selected.get("branches") != [b["branch"] for b in result["books"]])
                 result["conversation_context"] = {"level": "library", "repo": repo, "books": result["books"]}
                 return self._signed_library(result, scope)
             result = self._book_view(trace, repo, selected["book_branch"], selected.get("chapter", 0),
-                                     selected.get("section", 0), expected_head=selected.get("sha"))
+                                     selected.get("section", 0), expected_head=selected.get("sha"), display=display)
             workflow = yaml.safe_load(self._read_utf8(trace, repo, "workflow.yml", result["sha"])["content"])
             rules = {}
             if not isinstance(workflow, dict):
@@ -406,9 +593,11 @@ class Tools:
             output = output.replace(self.valves.GITHUB_TOKEN, "[TOKEN ENTFERNT]")
         return output
 
-    def _read_utf8(self, trace, repo, path, branch=None, max_bytes=None):
+    def _read_utf8(self, trace, repo, path, branch=None, max_bytes=None, missing_ok=False):
         d = self._http(trace, "GET", self._repo(repo)+"/contents/"+self._path(path),
-                       {"ref": branch} if branch else {})
+                       {"ref": branch} if branch else {}, expected=(200, 404) if missing_ok else (200,))
+        if missing_ok and isinstance(d, dict) and "type" not in d:
+            return None  # 404: Datei fehlt am Lesestand.
         if not isinstance(d, dict) or d.get("type") != "file":
             raise ValueError("Pfad ist keine normale Datei.")
         limit = self.valves.MAX_FILE_BYTES if max_bytes is None else max_bytes

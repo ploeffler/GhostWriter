@@ -351,6 +351,10 @@ class OpenWebUIToolTests(unittest.TestCase):
         if path.endswith('/contents/ghostwriter.yml'):
             self.assertIn(params['ref'], [self.nav_head, self.nav_work])
             return self.start_response(self.module.yaml.safe_dump(self.nav_config))
+        if path.endswith('/contents/ghostwriter-index.json'):
+            self.assertIn(params['ref'], [self.nav_head, self.nav_work])
+            index = getattr(self, 'nav_index', None)
+            return self.start_response(json.dumps(index)) if index else {'message': 'Not Found'}
         if '/contents/chapters/' in path:
             self.assertIn(params['ref'], [self.nav_head, self.nav_work])
             return self.start_response('---\nstatus: writing\n---\n## Manuskript\nNur dieser eine Abschnitt.')
@@ -554,6 +558,132 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertIn('`approved`', answer)
         self.assertNotIn('`completed`', answer)
         self.assertNotIn('`cancelled`', answer)
+
+
+    def display_fixture(self):
+        self.navigation_fixture()
+        self.nav_books[0].update(sections_approved=12, cost={'amount': 1.5, 'estimated': False, 'text': '1,50 €'})
+        self.nav_index = {'project': {'title': 'Tatsächlicher Buchtitel', 'current_edition': 2,
+                                      'cost': {'text': '3,20 €'}},
+                          'workflow': {'current_section_id': 'sec-1'},
+                          'chapters': [{'id': 'ch-1', 'number': 1, 'sections_total': 1, 'sections_approved': 0,
+                                        'cost': {'text': '2,00 €'}, 'markers': {'todo': 2, 'fact': 1},
+                                        'sections': [{'id': 'sec-1', 'number': '1.1', 'title': 'Erster Abschnitt',
+                                                      'cost': {'text': '2,00 €'}, 'markers': {'todo': 2, 'fact': 1}}]},
+                                       {'id': 'ch-2', 'number': 2, 'sections_total': 1, 'sections_approved': 1,
+                                        'cost': {'text': '1,20 €'}, 'markers': {}, 'sections': []}]}
+
+    def test_display_modes_change_only_the_presentation_of_the_same_data(self):
+        self.display_fixture()
+        scope = dict(__chat_id__='chat-1', __user__={'id': 'user-1'})
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http) as http:
+            organized = self.run_tool(self.tool.show_library(**scope))['result']['view']
+            simple = self.run_tool(self.tool.show_library(display='simple', **scope))['result']['view']
+            text = self.run_tool(self.tool.show_library(display='text', **scope))['result']['view']
+            extended = self.run_tool(self.tool.show_library(display='extended', **scope))['result']
+            invalid = self.run_tool(self.tool.show_library(display='widgets', **scope))
+        self.assertIn('| 1 | Erstes Buch | 15 | 45 |', organized)
+        self.assertIn('1. Erstes Buch · eingerichtet', simple)
+        self.assertNotIn('|', simple)
+        self.assertNotIn('📚', text)
+        self.assertIn('| 1 | Erstes Buch | `buch/erstes` | 15 | 45 | 12/45 | 1,50 € | eingerichtet |', extended['view'])
+        self.assertIn('| 2 | Zweites Buch | `buch/zweites` | – | – | – | – |', extended['view'])
+        # Fehlende Zahlen werden nicht als Null in eine Summe gerechnet.
+        self.assertIn('unvollständig; keine Summe', extended['view'])
+        self.assertEqual(extended['display'], 'extended')
+        self.assertFalse(invalid['ok'])
+        self.assertTrue(all(c.args[1] == 'GET' for c in http.call_args_list))
+
+    def test_extended_book_chapter_and_section_use_index_and_section_metadata(self):
+        self.display_fixture()
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http):
+            book = self.run_tool(self.tool.open_book('1', self.receipt(), display='extended',
+                                 __chat_id__='chat-1', __user__={'id': 'user-1'}))['result']
+            chapter = self.run_tool(self.tool.open_book('Kapitel 1', book['navigation_receipt'], display='extended',
+                                    __chat_id__='chat-1', __user__={'id': 'user-1'}))['result']
+            section = self.run_tool(self.tool.open_book('1', chapter['navigation_receipt'], display='extended',
+                                    __chat_id__='chat-1', __user__={'id': 'user-1'}))['result']
+            simple = self.run_tool(self.tool.open_book('Kapitel 1', book['navigation_receipt'], display='simple',
+                                   __chat_id__='chat-1', __user__={'id': 'user-1'}))['result']
+        self.assertIn('▰▰▰▰▰▱▱▱▱▱ 1 von 2 Abschnitten freigegeben', book['view'])
+        self.assertIn('Kosten: 3,20 €', book['view'])
+        self.assertIn('Auflage: 2', book['view'])
+        self.assertIn('Aktueller Abschnitt: 1.1 Erster Abschnitt', book['view'])
+        self.assertIn('| 1 | Erstes Kapitel | 1 | 0/1 | 3 | 2,00 € | in Arbeit |', book['view'])
+        self.assertIn('▱▱▱▱▱▱▱▱▱▱ 0 von 1 Abschnitten freigegeben', chapter['view'])
+        self.assertIn('| 1.1 | Erster Abschnitt | Entwurf |', chapter['view'])
+        self.assertIn('| Schreiben – · Abschnitt – | – | 4 | 3 | 2,00 € |', chapter['view'])
+        self.assertIn('| ID | `sec-1` |', section['view'])
+        self.assertIn('| Datei | `chapters/01-erstes/sections/01.md` |', section['view'])
+        self.assertIn('| Wörter | 4 |', section['view'])
+        self.assertIn('| Marker | 3 |', section['view'])
+        self.assertEqual(section['view'].count('Nur dieser eine Abschnitt'), 1)
+        self.assertEqual(section['conversation_context']['display'], 'extended')
+        self.assertIn('1.1 Erster Abschnitt · Entwurf', simple['view'])
+        self.assertNotIn('| Nr. |', simple['view'])
+
+    def test_extended_without_index_says_so_instead_of_estimating(self):
+        self.display_fixture()
+        self.nav_index = None
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http):
+            book = self.run_tool(self.tool.open_book('1', self.receipt(), display='extended',
+                                 __chat_id__='chat-1', __user__={'id': 'user-1'}))['result']
+        self.assertIn('Keine Übersichtsdatei', book['view'])
+        self.assertIn('| 1 | Erstes Kapitel | 1 | – | – | – | in Arbeit |', book['view'])
+        self.assertNotIn('▰', book['view'])
+
+    def test_display_and_answer_commands_run_in_pipe_without_model(self):
+        from functools import partial
+        self.display_fixture()
+        path = Path(__file__).resolve().parents[1] / 'integrations/openwebui/ghostwriter_direct.py'
+        spec = importlib.util.spec_from_file_location('display_pipe', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        pipe = module.Pipe()
+        pipe._state_dir = Path(self.state.name)
+        tools = {name: {'tool_id': 'github', 'spec': {'name': name}, 'callable': partial(getattr(self.tool, name),
+                         __chat_id__='chat-1', __user__={'id': 'user-1'}, __id__='github')}
+                 for name in ['read_start_md', 'show_library', 'open_book', 'get_current_context']}
+        messages, outputs = [], []
+        commands = ['Start', '1', 'Kapitel 1', '1', 'erweiterte ansicht', 'Übersicht', 'Darstellung: einfach',
+                    'Nur Text', 'Erweiterte Antworten an', '1', 'Widgets', 'Darstellung: übersichtlich', 'Einfacher Modus']
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http), \
+                patch.object(pipe, '_forward', new_callable=AsyncMock) as forward:
+            for command in commands:
+                messages.append({'role': 'user', 'content': command})
+                output = asyncio.run(pipe.pipe({'model': 'direct', 'messages': messages}, __tools__=tools,
+                                     __user__={'id': 'user-1'}, __metadata__={'chat_id': 'chat-1'}))
+                messages.append({'role': 'assistant', 'content': output})
+                outputs.append(output)
+            forward.assert_not_awaited()
+        out = dict(zip(commands, outputs))
+        self.assertNotIn('✗', '\n'.join(outputs))
+        self.assertTrue(out['erweiterte ansicht'].startswith('Darstellung: erweitert – gilt für diesen Chat.'))
+        self.assertIn('| ID | `sec-1` |', out['erweiterte ansicht'])
+        self.assertIn('Nur dieser eine Abschnitt', out['erweiterte ansicht'])
+        self.assertIn('Lesestand:', out['erweiterte ansicht'])
+        self.assertIn('Freigegeben', out['Übersicht'])
+        self.assertIn('1. Erstes Kapitel · in Arbeit', out['Darstellung: einfach'])
+        self.assertNotIn('Lesestand:', out['Darstellung: einfach'])
+        self.assertIn('Darstellung: Nur Text', out['Nur Text'])
+        self.assertNotIn('📖', out['Nur Text'])
+        self.assertIn('Lesestand:', out['Erweiterte Antworten an'])
+        # Nummern funktionieren nach dem Umschalten weiter und behalten die Darstellung.
+        self.assertIn('#### 1. Erstes Kapitel', out['1'])
+        self.assertNotIn('📖', out['1'])
+        self.assertIn('keine GhostWriter-Widgets', out['Widgets'])
+        self.assertIn('| 1.1 | Erster Abschnitt | Entwurf |', out['Darstellung: übersichtlich'])
+        self.assertNotIn('Lesestand:', out['Einfacher Modus'])
+        messages.append({'role': 'user', 'content': 'Darstellung: erweitert'})
+        with patch.object(self.tool, '_http', side_effect=self.navigation_http):
+            asyncio.run(pipe.pipe({'model': 'direct', 'messages': messages}, __tools__=tools,
+                        __user__={'id': 'user-1'}, __metadata__={'chat_id': 'chat-1'}))
+        restarted = module.Pipe()
+        restarted._state_dir = Path(self.state.name)
+        scope = restarted._scope({'model': 'direct'}, {'id': 'user-1'}, {'chat_id': 'chat-1'})
+        self.assertEqual(restarted._modes(scope)['display'], 'extended')
+        other_scope = restarted._scope({'model': 'direct'}, {'id': 'user-1'}, {'chat_id': 'chat-2'})
+        self.assertEqual(restarted._modes(other_scope), {'display': 'organized', 'answers': 'simple'})
 
 
 

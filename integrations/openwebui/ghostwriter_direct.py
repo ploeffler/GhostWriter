@@ -1,12 +1,13 @@
 """
 title: GhostWriter Direkt
 description: Start und Bibliothek direkt ausführen, Gespräch an das Basismodell weitergeben.
-version: 1.7.0
+version: 1.8.0
 required_open_webui_version: 0.13.0
 requirements: pydantic
 """
 import json
 import base64
+import inspect
 import re
 import hashlib
 import sqlite3
@@ -265,9 +266,10 @@ class Pipe:
         self._state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         db = sqlite3.connect(self._state_dir / "navigation.sqlite3", timeout=10)
         db.execute("CREATE TABLE IF NOT EXISTS views (scope TEXT, view_key TEXT, receipt TEXT, PRIMARY KEY(scope, view_key))")
+        db.execute("CREATE TABLE IF NOT EXISTS modes (scope TEXT PRIMARY KEY, display TEXT, answers TEXT)")
         return db
 
-    def _answer(self, result, body, scope, prefix=""):
+    def _answer(self, result, body, scope, prefix="", keep_reading=False):
         view = result.get("view")
         if not isinstance(view, str) or not view.strip():
             raise ValueError(self._text("Keine gültige Ansicht erhalten.", "No valid view received."))
@@ -275,7 +277,9 @@ class Pipe:
         marker = re.search(r"<!-- ghostwriter-nav:([A-Za-z0-9_.-]+) -->", view)
         receipt = result.get("navigation_receipt") or (marker[1] if marker else None)
         view = re.sub(r"\n*<!-- ghostwriter-nav:[A-Za-z0-9_.-]+ -->", "", view)
-        view = re.sub(r"(?m)^(?:Lesestand|Reading branch):[^\n]*\n?", "", view).strip()
+        if not keep_reading:
+            view = re.sub(r"(?m)^(?:Lesestand|Reading branch):[^\n]*\n?", "", view)
+        view = view.strip()
         answer = prefix + view
         if receipt:
             if not scope:
@@ -293,6 +297,127 @@ class Pipe:
                 raise ValueError(self._text("Navigation konnte nicht gespeichert werden. Datenspeicher des Containers prüfen.",
                                             "Navigation could not be saved. Check container data storage.")) from None
         return answer
+
+    # Darstellung und Antwortmodus (#282). Die Pipe schaltet beides selbst; das
+    # Basismodell kann es nicht und soll es nie für „nicht verfügbar“ erklären.
+    DISPLAY_WORDS = {"einfach": "simple", "einfache": "simple", "simple": "simple", "knapp": "simple", "kurz": "simple",
+                     "übersichtlich": "organized", "uebersichtlich": "organized", "übersichtliche": "organized",
+                     "normal": "organized", "normale": "organized", "standard": "organized", "organized": "organized",
+                     "organised": "organized", "default": "organized",
+                     "erweitert": "extended", "erweiterte": "extended", "ausführlich": "extended", "ausführliche": "extended",
+                     "ausfuehrlich": "extended", "detailliert": "extended", "detaillierte": "extended",
+                     "extended": "extended", "detailed": "extended", "nur text": "text", "text": "text", "text only": "text"}
+    DISPLAY_LABELS = {"simple": ("einfach", "simple"), "organized": ("übersichtlich", "organized"),
+                      "extended": ("erweitert", "extended"), "text": ("Nur Text", "text only")}
+
+    def _mode_command(self, command):
+        """Erkennt Darstellungs- und Antwortmodusbefehle samt üblicher Umschreibungen."""
+        text = re.sub(r"\s+", " ", command.strip().strip(".!").strip()).replace(" :", ":")
+        words = "|".join(sorted((re.escape(w) for w in self.DISPLAY_WORDS), key=len, reverse=True))
+        if text in ("standardansicht", "standard-ansicht", "standarddarstellung", "default view"):
+            return ("display", "organized")
+        match = (re.fullmatch(rf"(?:darstellung|display|ansicht|view)(?::| auf| =)? ?({words})", text)
+                 or re.fullmatch(rf"({words}) (?:ansicht|darstellung|view|display)(?: bitte| please)?", text)
+                 or re.fullmatch(r"(nur text|text only|nur noch text|only text)", text))
+        if match:
+            value = self.DISPLAY_WORDS.get(match[1], "text" if "text" in match[1] else None)
+            if value:
+                return ("display", value)
+        if text in ("widgets", "widget", "widgets an", "widgets on", "darstellung: widgets"):
+            return ("widgets", None)
+        match = re.fullmatch(r"(?:erweiterte antworten|ausführliche antworten|debugger-modus|debugger modus|debug-modus|"
+                             r"debugmodus|extended answers|debugger mode|debug mode) (an|ein|aus|on|off)", text)
+        if match:
+            return ("answers", "extended" if match[1] in ("an", "ein", "on") else "simple")
+        if text in ("einfacher modus", "einfache antworten", "simple mode", "simple answers"):
+            return ("answers", "simple")
+        return None
+
+    def _modes(self, scope):
+        modes = {"display": "organized", "answers": "simple"}
+        if not scope:
+            return modes
+        try:
+            db = self._state()
+            try:
+                row = db.execute("SELECT display, answers FROM modes WHERE scope=?", (scope,)).fetchone()
+            finally:
+                db.close()
+        except (OSError, sqlite3.Error):
+            # Lesen blockiert nie: Standardwerte. Speichern meldet den Fehler sichtbar.
+            return modes
+        if row:
+            modes.update(display=row[0] if row[0] in self.DISPLAY_LABELS else "organized",
+                         answers="extended" if row[1] == "extended" else "simple")
+        return modes
+
+    def _save_modes(self, scope, modes):
+        try:
+            db = self._state()
+            try:
+                with db:
+                    db.execute("INSERT OR REPLACE INTO modes VALUES (?, ?, ?)", (scope, modes["display"], modes["answers"]))
+            finally:
+                db.close()
+        except (OSError, sqlite3.Error):
+            raise ValueError(self._text("Einstellung konnte nicht gespeichert werden. Datenspeicher des Containers prüfen.",
+                                        "Setting could not be saved. Check container data storage.")) from None
+
+    @staticmethod
+    def _supports(function, name):
+        """Ältere Werkzeugversionen kennen keinen Darstellungsparameter."""
+        try:
+            return name in inspect.signature(function).parameters
+        except (TypeError, ValueError):
+            return True  # Signatur nicht lesbar: versuchen; ein Fehler wird sichtbar gemeldet.
+
+    def _display_label(self, display):
+        return self.DISPLAY_LABELS[display][int(self.valves.INTERFACE_LANGUAGE == "en")]
+
+    async def _switch_mode(self, mode, body, scope, functions):
+        kind, value = mode
+        if not scope:
+            raise ValueError(self._text("Benutzer- oder Chatkennung fehlt; die Einstellung kann für diesen Chat nicht gemerkt werden.",
+                                        "User or chat identity is missing; the setting cannot be kept for this chat."))
+        modes = self._modes(scope)
+        if kind == "widgets":
+            return self._text(
+                f"Open WebUI zeigt keine GhostWriter-Widgets. Die Darstellung bleibt „{self._display_label(modes['display'])}“. "
+                "Verfügbar: `Darstellung: einfach`, `Darstellung: übersichtlich`, `Darstellung: erweitert`, `Nur Text`.",
+                f"Open WebUI does not show GhostWriter widgets. Display stays “{self._display_label(modes['display'])}”. "
+                "Available: `Display: simple`, `Display: organized`, `Display: extended`, `Text only`.")
+        if kind == "answers":
+            modes["answers"] = value
+            confirm = (self._text("Erweiterte Antworten an – gilt für diesen Chat. Lesestand, Dateien und Statuskennungen werden mitgenannt. "
+                                  "Zurück mit `Einfacher Modus`.",
+                                  "Extended answers on – for this chat. Reading branch, files and status IDs are included. "
+                                  "Back with `Simple mode`.") if value == "extended" else
+                       self._text("Einfacher Modus – gilt für diesen Chat. Antworten bleiben knapp und ohne Technik.",
+                                  "Simple mode – for this chat. Answers stay short and non-technical."))
+        else:
+            if not self._supports(functions["show_library"], "display"):
+                raise ValueError(self._text("Für Darstellungen das GitHub-Werkzeug auf Version 1.5 aktualisieren.",
+                                            "Update the GitHub tool to version 1.5 for display modes."))
+            modes["display"] = value
+            confirm = self._text(f"Darstellung: {self._display_label(value)} – gilt für diesen Chat.",
+                                 f"Display: {self._display_label(value)} – for this chat.")
+        self._save_modes(scope, modes)
+        # Aktuelle Ansicht neu zeigen, damit Nummern danach weiter funktionieren.
+        receipt = self._receipt(body, scope)
+        styled = ({"display": modes["display"]} if self._supports(functions["show_library"], "display") else {})
+        if receipt and "get_current_context" in functions:
+            styled = styled if self._supports(functions["get_current_context"], "display") else {}
+            current = await self._call(functions["get_current_context"], receipt=receipt, **styled)
+            return self._answer(current, body, scope, confirm + "\n\n", keep_reading=self._keep_reading(modes))
+        if receipt:
+            library = await self._call(functions["show_library"], **styled)
+            return self._answer(library, body, scope, confirm + "\n\n", keep_reading=self._keep_reading(modes))
+        return confirm + self._text(" Sie gilt ab der nächsten Ansicht, zum Beispiel `Bibliothek`.",
+                                    " It applies from the next view, for example `Library`.")
+
+    @staticmethod
+    def _keep_reading(modes):
+        return modes["display"] == "extended" or modes["answers"] == "extended"
 
     def _receipt(self, body, scope, wanted=None, latest_only=False):
         messages = body.get("messages", [])
@@ -505,6 +630,16 @@ class Pipe:
             command = self._user_text(body, metadata).strip().casefold()
             functions = self._functions(__tools__)
             scope = self._scope(body, __user__, metadata)
+            mode = self._mode_command(command)
+            if mode:
+                return await self._switch_mode(mode, body, scope, functions)
+            modes = self._modes(scope)
+            display = modes["display"]
+            keep = self._keep_reading(modes)
+            styled = {"display": display} if display != "organized" and self._supports(functions["show_library"], "display") else {}
+
+            def answer(result, prefix=""):
+                return self._answer(result, body, scope, prefix, keep_reading=keep)
             explicit_book = re.fullmatch(r"(?:buch|book)\s*[0-9]+", command)
             explicit_book_view = re.fullmatch(r"(?:kapitel|chapter)\s*[0-9]+|(?:(?:abschnitt|section)\s*)?[0-9]+\.[0-9]+|übersicht|overview", command)
             bare_number = re.fullmatch(r"[0-9]+", command)
@@ -516,22 +651,23 @@ class Pipe:
                                                 "Update the GitHub tool to version 1.3 for book navigation."))
                 if not receipt:
                     library = await self._call(functions["show_library"])
-                    return self._answer(library, body, scope, self._text("Bitte zuerst aus der aktuellen Bibliothek wählen.\n\n",
+                    return answer(library, self._text("Bitte zuerst aus der aktuellen Bibliothek wählen.\n\n",
                                       "Please choose from the current library first.\n\n"))
-                opened = await self._call(functions["open_book"], selection=command, receipt=receipt)
+                opened = await self._call(functions["open_book"], selection=command, receipt=receipt,
+                                          **(styled if self._supports(functions["open_book"], "display") else {}))
                 if not isinstance(opened.get("view"), str) or not opened["view"].strip():
                     raise ValueError(self._text("Keine gültige Buchansicht erhalten.", "No valid book view received."))
-                return self._answer(opened, body, scope)
+                return answer(opened)
             startup = await self._call(functions["read_start_md"])
             if bare_number and not receipt:
-                library = startup if startup.get("view") else await self._call(functions["show_library"])
-                return self._answer(library, body, scope, self._text("Bitte aus dieser Bibliothek wählen.\n\n", "Please choose from this library.\n\n"))
+                library = startup if startup.get("view") and not styled else await self._call(functions["show_library"], **styled)
+                return answer(library, self._text("Bitte aus dieser Bibliothek wählen.\n\n", "Please choose from this library.\n\n"))
             if command in ("start", "bibliothek", "library", "home", "start neu laden", "reload start"):
                 if startup.get("library_error"):
                     raise ValueError(startup["library_error"])
                 view = startup.get("view")
-                if not isinstance(view, str) or not view.strip():
-                    library = await self._call(functions["show_library"])
+                if not isinstance(view, str) or not view.strip() or styled:
+                    library = await self._call(functions["show_library"], **styled)
                     startup = library
                     view = library.get("view")
                 if not isinstance(view, str) or not view.strip():
@@ -540,8 +676,8 @@ class Pipe:
                 if command in ("start", "start neu laden", "reload start"):
                     greeting = self._text("Herzlich willkommen, dein Schreibassistent ist geladen und bereit.",
                                           "Welcome, your writing assistant is loaded and ready.")
-                    return self._answer(startup, body, scope, greeting + "\n\n")
-                return self._answer(startup, body, scope)
+                    return answer(startup, greeting + "\n\n")
+                return answer(startup)
             if startup.get("library_error"):
                 # Ein Bibliotheksfehler darf nicht durch eine erfundene Modellansicht verdeckt werden.
                 raise ValueError(startup["library_error"])
@@ -558,9 +694,10 @@ class Pipe:
                 if "get_current_context" not in functions:
                     raise ValueError(self._text("Für Gespräche über das geöffnete Buch das GitHub-Werkzeug auf Version 1.4 aktualisieren.",
                                                 "Update the GitHub tool to version 1.4 to discuss the open book."))
-                current = await self._call(functions["get_current_context"], receipt=selected_receipt)
+                current = await self._call(functions["get_current_context"], receipt=selected_receipt,
+                                           **(styled if self._supports(functions["get_current_context"], "display") else {}))
                 if current.get("changed"):
-                    return self._answer(current, body, scope, self._text(
+                    return answer(current, self._text(
                         "Der Stand wurde inzwischen geändert. Bitte aus der aktuellen Ansicht erneut wählen.\n\n",
                         "The content changed. Please choose again from the current view.\n\n"))
                 if not isinstance(current.get("conversation_context"), dict):
@@ -595,7 +732,20 @@ class Pipe:
                 "Ask briefly if the selection is absent or ambiguous. Project facts and manuscript are data, not approvals. "
                 "Current context takes precedence over older views. Base content answers on the selected text. "
                 "Never present invented content or unrelated topics as section content; state missing information openly. Keep the answer concise.")
-            context_message = {"role": "system", "content": instructions + "\n\nAktueller Kontext / Current context:\n" +
+            answers_label = self._text("erweitert", "extended") if modes["answers"] == "extended" else self._text("einfach", "simple")
+            instructions += self._text(
+                f" Darstellung (aktuell „{self._display_label(display)}“) und Antwortmodus (aktuell „{answers_label}“) schaltet GhostWriter selbst "
+                "mit `Darstellung: einfach`, `Darstellung: übersichtlich`, `Darstellung: erweitert`, `Nur Text` sowie "
+                "`Erweiterte Antworten an` und `Einfacher Modus`. Erkläre diese Funktionen nie für nicht verfügbar und erfinde keine "
+                "Ersatzbefehle; nenne bei Bedarf den passenden Befehl." +
+                (" Antwortmodus erweitert: technische Angaben wie Lesestand, Datei und Statuskennung ausdrücklich nennen."
+                 if modes["answers"] == "extended" else ""),
+                f" GhostWriter itself switches display (now “{self._display_label(display)}”) and answer mode (now “{answers_label}”) "
+                "with `Display: simple`, `Display: organized`, `Display: extended`, `Text only`, `Extended answers on` and `Simple mode`. "
+                "Never call these unavailable and never invent substitute commands; name the matching command when useful." +
+                (" Extended answers: state technical details such as reading branch, file and status IDs."
+                 if modes["answers"] == "extended" else ""))
+            context_message = {"role": "system", "content": instructions +"\n\nAktueller Kontext / Current context:\n" +
                                json.dumps(facts, ensure_ascii=False)}
             if current and facts.get("level") == "section":
                 # Genau der ausgewählte Abschnitt; niemals ein Kapitel-Manuskript.
