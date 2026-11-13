@@ -57,6 +57,54 @@ class StartContentTest(unittest.TestCase):
         self.assertEqual(len(outputs), len(build_start.sections(SOURCE)) + 2)
         self.assertIn('was noch ungeprüft oder unsicher ist', '\n'.join(outputs.values()))
 
+    def test_openwebui_start_has_only_rules_that_apply_there(self):
+        for language in ('de', 'en'):
+            with self.subTest(language=language):
+                main_name, openwebui_name = build_start.template_names(language)
+                outputs = build_start.render(
+                    SOURCE, (ROOT / main_name).read_text(encoding='utf-8'), repo='owner/books', branch='main',
+                    default_branch='main', config={'interface': {'language': language}},
+                    openwebui_template=(ROOT / openwebui_name).read_text(encoding='utf-8'))
+                text = outputs[build_start.OPENWEBUI]
+                self.assertIn(build_start.MARKER, text)
+                self.assertIn('owner/books', text)
+                # Klein genug für MAX_START_BYTES (16 KB) und deutlich kürzer als START.md.
+                self.assertLess(len(text.encode('utf-8')), 6000)
+                self.assertLess(len(text), len(outputs['START.md']))
+                for absent in ('render_view', 'Widget-', '](', 'Head-SHA', 'commit', 'assistant.yml', 'GITHUB_TOKEN'):
+                    self.assertNotIn(absent, text)
+                for required in (('nie für nicht verfügbar', 'Never call these functions unavailable'),
+                                 ('weder Freigabe noch Speicherung', 'neither an approval nor a save'),
+                                 ('höchstens einen Abschnitt', 'at most one section'),
+                                 ('Nichts erfinden', 'Do not invent')):
+                    self.assertIn(required[language == 'en'], text)
+        self.assertNotIn(build_start.OPENWEBUI, self.render())
+
+    def test_openwebui_start_lists_only_commands_the_pipe_runs_itself(self):
+        import importlib.util
+        try:
+            import pydantic  # noqa: F401
+        except ImportError:
+            self.skipTest('Optionale Open-WebUI-Abhängigkeit pydantic fehlt')
+        spec = importlib.util.spec_from_file_location('gw_direct_start', ROOT / 'integrations/openwebui/ghostwriter_direct.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        pipe = module.Pipe()
+        navigation = re.compile(r'start|bibliothek|library|(?:buch|book) n|eine nummer|a number|übersicht|overview|'
+                                r'(?:kapitel|chapter) n|(?:abschnitt|section) n\.m|kontext prüfen|check context|'
+                                r'prompt-profil|prompt profile')
+        for language in ('de', 'en'):
+            text = (ROOT / build_start.template_names(language)[1]).read_text(encoding='utf-8')
+            block = text.split('\n## ')[2]
+            commands = re.findall(r'`([^`]+)`', block)
+            self.assertGreater(len(commands), 15)
+            for command in commands:
+                with self.subTest(language=language, command=command):
+                    lowered = command.casefold()
+                    status = pipe._status_answer(lowered.replace(' n', ' 1'), {'chapters': [{'number': 1}]})
+                    self.assertTrue(navigation.fullmatch(lowered) or pipe._mode_command(lowered) or status is not None,
+                                    command)
+
     def test_missing_client_and_invalid_instance(self):
         self.assertIn('`unknown`', self.render()['START.md'])
         for kw in ({'repo': ''}, {'profile': {'repo': 'other/book'}},
@@ -147,6 +195,7 @@ class StartUpdateTest(unittest.TestCase):
         self.assertEqual(git(self.repo, 'rev-list', '--count', f'{before}..{head}'), '1')
         text = git(self.repo, 'show', f'{head}:START.md')
         self.assertIn(build_start.MARKER, text)
+        self.assertIn('GhostWriter in Open WebUI', git(self.repo, 'show', f'{head}:{build_start.OPENWEBUI}'))
         self.assertIn('owner/books', text)
         self.assertIn('`setup`', text)
         self.assertEqual(self.apply()['status'], 'current')

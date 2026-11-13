@@ -11,7 +11,7 @@ Ein erfolgreiches Werkzeugergebnis beweist noch keine korrekte Modellantwort: Kl
 
 ### Installation der Pipe (Open WebUI ab 0.13.0)
 
-1. Das vorhandene GitHub-Werkzeug auf Version **1.5.0** aktualisieren und seine bisherigen Valves beibehalten. Die Pipe benötigt für Buchnavigation mindestens Version **1.3**, für das Gespräch über das geöffnete Buch **1.4** und für Darstellungsbefehle **1.5**.
+1. Das vorhandene GitHub-Werkzeug auf Version **1.6.0** aktualisieren und seine bisherigen Valves beibehalten. Die Pipe benötigt für Buchnavigation mindestens Version **1.3**, für das Gespräch über das geöffnete Buch **1.4** und für Darstellungsbefehle **1.5**; ab **1.6** gibt es den eigenen Open-WebUI-Einstieg.
 2. Im Administrationsbereich unter **Funktionen / Functions** eine Funktion anlegen, den vollständigen Code aus `ghostwriter_direct.py` einfügen, speichern und aktivieren. Sie wird als Pipe erkannt und erscheint als Modell **GhostWriter Direkt**.
 3. Dein eigenes Workspace-Modell **GhostWriter** bearbeiten: als Basismodell die neue Pipe **GhostWriter Direkt** wählen und weiterhin genau das vorhandene GhostWriter-GitHub-Werkzeug zuordnen. Eingebaute Werkzeuge und Erinnerungen bleiben für diese Konfiguration ausgeschaltet; Native bleibt eingestellt. Das Ollama-Basismodell selbst wird nicht verändert.
 4. In den **Valves der Pipe** bleibt `BASE_MODEL` auf `llama3.2:3b`. Dort kein Pipe-Modell auswählen. `TOOL_ID` bleibt bei genau einer passenden Integration leer; nur bei mehreren Integrationen die ID des gewünschten Werkzeugs eintragen. `INTERFACE_LANGUAGE` passend zum GitHub-Werkzeug auf `de` oder `en` stellen. Die Pipe braucht keinen eigenen GitHub-Token: Sie verwendet ausschließlich die von Open WebUI bereitgestellten, bereits autorisierten Werkzeugfunktionen.
@@ -141,6 +141,7 @@ Beim Öffnen werden Bibliothek, lebende Branches und offene Pull Requests neu ge
    - `START_BRANCH`: leer für den tatsächlichen Standard-Branch; sonst ausdrücklich gewählter Branch.
    - `INTERFACE_LANGUAGE`: `de` oder `en` für die fertige Bibliotheksansicht (Vorgabe Deutsch).
    - `START_STATE_DIR`: Vorgabe `/app/backend/data/ghostwriter`, im vorhandenen Open-WebUI-Datenvolume.
+   - `START_VARIANT`: Vorgabe `openwebui` lädt zuerst den eigenen Open-WebUI-Einstieg `docs/start/einstieg-openwebui.md` und nur, wenn er fehlt, die kurze `START.md`. `standard` lädt immer `START.md`.
    - `MAX_START_BYTES`: Vorgabe 16384 Bytes. Eine vollständige alte START.md wird abgewiesen; zuerst GhostWriter aktualisieren.
    - `DEBUG`: für die Einrichtung einschalten, danach nach Bedarf ausschalten.
    - `ALLOW_WORKFLOW_DISPATCH`: nur einschalten, wenn Probedruck oder Index-/Bibliotheksaktualisierung
@@ -165,13 +166,26 @@ Token niemals in Chat, Prompt, Buchdatei oder Repository speichern.
 
 Version 1.2.0 liefert die Bibliotheksansicht direkt mit dem ersten erfolgreichen `read_start_md`-Aufruf. Das Startwerkzeug benötigt keine normalen Modellparameter. Open WebUI liefert Chat-ID, Benutzerkennung und Verlauf über [reservierte Argumente](https://docs.openwebui.com/features/extensibility/plugin/development/reserved-args/). Ohne diese Kennungen wird nichts geladen; es gibt keinen gemeinsamen anonymen Zustand.
 
-Beim ersten erfolgreichen Aufruf wird der Standard-Branch ermittelt und dessen kurze `START.md` geladen (bei gesetztem `START_BRANCH` dieser Branch). Gespeichert werden nur diese Anweisungen, Datei-SHA, Branch und eine technische Quittung in `startup.sqlite3`, getrennt nach Benutzer, Chat, Werkzeug, Repository, Branch und Zugang. Der Token selbst wird nicht gespeichert. Die SQLite-Transaktion verhindert doppelte Abrufe durch parallele Aufrufe, auch über mehrere Werkzeuginstanzen im selben Datenvolume. Ein fehlgeschlagener Abruf setzt den Chat nicht auf „geladen“.
+Beim ersten erfolgreichen Aufruf wird der Standard-Branch ermittelt und dessen Einstieg geladen (bei gesetztem `START_BRANCH` dieser Branch). Ab Werkzeug **1.6** ist das `docs/start/einstieg-openwebui.md`, sonst die kurze `START.md` (siehe unten). Gespeichert werden nur diese Anweisungen, Datei-SHA, Branch und eine technische Quittung in `startup.sqlite3`, getrennt nach Benutzer, Chat, Werkzeug, Repository, Branch und Zugang. Der Token selbst wird nicht gespeichert. Die SQLite-Transaktion verhindert doppelte Abrufe durch parallele Aufrufe, auch über mehrere Werkzeuginstanzen im selben Datenvolume. Ein fehlgeschlagener Abruf setzt den Chat nicht auf „geladen“.
 
 Wenn der vollständige erfolgreiche Werkzeuginhalt bereits im übergebenen Chatverlauf steht, liefern weitere Aufrufe nur einen kurzen Status ohne Dateiinhalt und ohne GitHub-Anfrage. Fehlt der Inhalt später durch Kürzung des Kontexts, wird er aus dem gespeicherten Stand wiederhergestellt, ebenfalls ohne GitHub-Abruf. Benutzerzitate gelten nicht als Werkzeugquittung. Der Zustand übersteht einen Containerneustart, solange das Datenvolume erhalten bleibt.
 
 Die ausdrückliche Benutzernachricht **„Start neu laden“** oder **„Reload start“** fordert eine neue Fassung von GitHub an. Mehrere Werkzeugaufrufe für dieselbe Benutzer-Nachrichten-ID lösen nur einen neuen Abruf aus. Dabei wird die bisherige erfolgreiche Fassung erst nach erfolgreichem Lesen ersetzt. Ein neuer Chat lädt unabhängig neu.
 
 Ein Werkzeug kann die Entscheidung des Modells, es aufzurufen, nicht verhindern. Diese Sperre verhindert wiederholte GitHub-Initialisierungen und unnötige Volltextantworten bei vorhandenem Kontext; sie startet auch keinen leeren Chat von selbst. `read_file` bleibt ein allgemeines, ungepuffertes Lesewerkzeug. Für den Chatstart ausschließlich `read_start_md` verwenden.
+
+### Eigener Einstieg für Open WebUI (Werkzeug 1.6)
+
+Die kurze `START.md` ist für alle Chat-Programme geschrieben und nennt Widgets, `render_view.py`, Dateilinks und Schreibabläufe. Im Gesprächspfad der Pipe gibt es nichts davon: Das Basismodell hat keine Werkzeuge, und Ansichten erzeugt die Pipe. Kleine Modelle haben solche Regeln deshalb als Fähigkeiten missverstanden oder Funktionen für „nicht verfügbar“ erklärt (#282).
+
+Das Update erzeugt darum zusätzlich `docs/start/einstieg-openwebui.md` (#204, rund 2,5 KB statt 6,5 KB). Er nennt:
+
+- die Befehle, die die Pipe selbst ausführt (Navigation, Darstellung, Antwortmodus, Auskünfte), mit der Anweisung, sie nie für nicht verfügbar zu erklären,
+- die Aufgabe des Modells: Fragen zum geöffneten Buch beantworten, beim Schreiben und Überarbeiten mit Vorschlägen im Chat helfen,
+- was in Open WebUI noch fehlt (Speichern, Übernehmen, Freigaben, neues Buch, Sitzungen, Auflagen), mit der Anweisung, das offen zu sagen,
+- die Schutzregeln: keine erfundenen Inhalte, kein ganzes Kapitel, Vorschlag ist keine Freigabe.
+
+Das Werkzeug ab 1.6 lädt diese Datei mit `START_VARIANT = openwebui` (Vorgabe). Fehlt sie, weil das Buch-Repository noch kein Update mit dieser Vorlage hatte, lädt es wie bisher `START.md`. Welche Datei geladen wurde, steht im Werkzeugergebnis unter `path`. Bereits gestartete Chats behalten ihren gespeicherten Einstieg; nach dem Update **„Start neu laden“** senden oder einen neuen Chat öffnen. `Prompt-Profil` zeigt danach die kleinere Größe des Einstiegs im Request.
 
 ### Fertige Bibliotheksansicht
 

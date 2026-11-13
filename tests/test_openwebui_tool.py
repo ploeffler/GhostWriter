@@ -27,6 +27,9 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.state = tempfile.TemporaryDirectory()
         self.addCleanup(self.state.cleanup)
         self.tool.valves.START_STATE_DIR = self.state.name
+        # Bestehende Zählungen der Abrufe beziehen sich auf START.md; der
+        # Open-WebUI-Einstieg hat eigene Tests.
+        self.tool.valves.START_VARIANT = "standard"
         self.head = "a" * 40
 
     def run_tool(self, coroutine):
@@ -153,6 +156,24 @@ class OpenWebUIToolTests(unittest.TestCase):
             self.assertNotIn("content", second["result"])
             self.assertNotIn("view", second["result"])
             self.assertEqual(http.call_count, 3)
+
+    def test_openwebui_start_variant_is_preferred_and_falls_back_to_start_md(self):
+        self.tool.valves.START_VARIANT = "openwebui"
+        variant = "# Open-WebUI-Einstieg\nNur Regeln für die Pipe."
+        def http(trace, method, path, params=None, **kw):
+            if path.endswith("/contents/docs/start/einstieg-openwebui.md"):
+                self.assertEqual(kw.get("expected"), (200, 404))
+                return self.start_response(variant) if variant else {"message": "Not Found"}
+            return self.start_http(trace, method, path, params, **kw)
+        with patch.object(self.tool, "_http", side_effect=http):
+            first = self.run_tool(self.start())["result"]
+        self.assertEqual(first["path"], "docs/start/einstieg-openwebui.md")
+        self.assertEqual(first["content"], variant)
+        variant = None
+        with patch.object(self.tool, "_http", side_effect=http):
+            other = self.run_tool(self.start(chat="chat-2"))["result"]
+        self.assertEqual(other["path"], "START.md")
+        self.assertIn("Kurzer Einstieg", other["content"])
 
     def test_start_survives_new_tools_instance_and_restores_lost_context(self):
         with patch.object(self.tool, "_http", side_effect=self.start_http):

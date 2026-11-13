@@ -17,6 +17,8 @@ import yaml
 
 MARKER = '<!-- GhostWriter: generierter Instanz-Einstieg, Format 1 -->'
 DIRECTORY = 'docs/start'
+# Eigener kurzer Einstieg für die Open-WebUI-Pipe (#204): nur Regeln, die dort gelten.
+OPENWEBUI = f'{DIRECTORY}/einstieg-openwebui.md'
 REPO = re.compile(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+')
 
 
@@ -61,7 +63,7 @@ def module_links(text):
 
 
 def render(source, template, *, repo, branch, default_branch, config, profile=None,
-           library_present=False):
+           library_present=False, openwebui_template=None):
     if not isinstance(config, dict) or (profile is not None and not isinstance(profile, dict)):
         raise ValueError('Projekt und Assistenten-Profil müssen YAML-Objekte sein.')
     if MARKER in source:
@@ -114,7 +116,17 @@ def render(source, template, *, repo, branch, default_branch, config, profile=No
                   READ_FILE=tools.get('read_file', 'nicht konfiguriert / not configured'),
                   PROFILE='assistant.yml' if profile else 'nicht vorhanden / absent')
     outputs['START.md'] = Template(template).substitute(values)
+    if openwebui_template is not None:
+        if OPENWEBUI in outputs:
+            raise ValueError(f'Doppelte Anweisungsdatei: {OPENWEBUI}')
+        outputs[OPENWEBUI] = Template(openwebui_template).substitute(values)
     return outputs
+
+
+def template_names(language):
+    """Vorlagen für Bediensprache: (START.md, Open-WebUI-Einstieg)."""
+    name = 'en' if (language or 'de').split('-')[0] == 'en' else 'de'
+    return f'templates/start/{name}.md', f'templates/start/openwebui.{name}.md'
 
 
 def generate(base, *, repo, branch, default_branch, profile=None, library_present=False):
@@ -127,10 +139,13 @@ def generate(base, *, repo, branch, default_branch, profile=None, library_presen
     source = (base / 'START.md').read_text(encoding='utf-8')
     cfg = yaml.safe_load((base / 'ghostwriter.yml').read_text(encoding='utf-8')) or {} if (base / 'ghostwriter.yml').is_file() else {}
     language = ((cfg.get('interface') or {}).get('language') or (profile or {}).get('interface_language') or 'de')
-    template = (base / 'templates/start' / ('en.md' if language.split('-')[0] == 'en' else 'de.md')).read_text(encoding='utf-8')
+    main_name, openwebui_name = template_names(language)
+    template = (base / main_name).read_text(encoding='utf-8')
+    openwebui = base / openwebui_name
     outputs = render(source, template, repo=repo, branch=branch, default_branch=default_branch,
                      config=cfg, profile=profile,
-                     library_present=library_present or (base / 'library.json').is_file())
+                     library_present=library_present or (base / 'library.json').is_file(),
+                     openwebui_template=openwebui.read_text(encoding='utf-8') if openwebui.is_file() else None)
     for name, text in outputs.items():
         path = base / name
         path.parent.mkdir(parents=True, exist_ok=True)
