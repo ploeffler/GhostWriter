@@ -201,7 +201,7 @@ def render(template, data, config, renderer, base):
         span = number + '.1' + ('–' + number + '.' + str(len(rows)) if len(rows) > 1 else '')
         items = [(span, native('open_section'))] if rows else []
         if data.get('CHAPTER_APPROVABLE'):
-            items.append(('FK', tr('ui.approve_chapter')))
+            items.append(('AK', tr('ui.approve_chapter')))
         if data.get('CHAPTER_REVISION_READY'):
             items.append(('KU', tr('ui.revise_chapter_2')))
         items += [('B', tr('ui.edit_chapter_2')), ('Z', native('chapter_research')), ('N', tr('ui.new_section')), ('R', native('section_order')), ('FV', native('chapter_characters', number=data['CHAPTER_NUMBER'])), ('Ü', tr('ui.project_overview'))]
@@ -224,8 +224,8 @@ def render(template, data, config, renderer, base):
             lines += [f"- {r['H_KIND_TEXT']}: {r['H_TEXT']}" + (' (“' + r['H_QUOTE'] + '”)' if r['H_QUOTE'] else '') for r in data['HINTS']]
         lines += ['', '---', '', data['SECTION_MANUSCRIPT'], '', '---']
         items = [('T', view_message('section_ui.edit_text')), ('F', view_message('section_ui.section_fields')),
-                 ('FS', view_message('section_ui.revoke_writing' if data['APPROVAL_WRITING'] == 'true' else 'section_ui.grant_writing')),
-                 ('FA', view_message('section_ui.revoke_section' if data['APPROVAL_SECTION'] == 'true' else 'section_ui.grant_section')),
+                 ('SP', view_message('section_ui.revoke_writing')) if data['APPROVAL_WRITING'] == 'true' else ('SE', view_message('section_ui.grant_writing')),
+                 ('WO', view_message('section_ui.revoke_section')) if data['APPROVAL_SECTION'] == 'true' else ('AB', view_message('section_ui.grant_section')),
                  ('RS', view_message('section_ui.research_now')), ('GS', view_message('section_ui.ghostwriting_now')), ('BI', tr('ui.images')),
                  ('FV', tr('ui.suggest_characters_from_the_text'))]
         for direction, offset, key in [('PREV', -1, 'ui.previous_section'), ('NEXT', 1, 'ui.next_section')]:

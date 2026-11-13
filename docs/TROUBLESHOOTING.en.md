@@ -20,7 +20,7 @@ Do not blindly overwrite or retry. Ask the assistant to read the current version
 
 ## Writing or an edition is blocked
 
-Writing requires writing approval. Approved text must have its approval explicitly revoked and writing approved again before changes. An edition requires the relevant chapter and section approvals and resolved open markers. Ask for the specific blocker; request a **Proof** for reading. See the [user guide](USER-GUIDE.en.md).
+Writing must be allowed. A finalized section is locked: explicitly **reopen** it and allow writing again before changes. An edition requires the relevant chapters and sections to be finalized and open markers resolved. Ask for the specific blocker; request a **Proof** for reading. See the [user guide](USER-GUIDE.en.md).
 
 ## The bookshelf or overview stays outdated
 

@@ -4,7 +4,7 @@
 
 [User guide](USER-GUIDE.en.md) · [Book lifecycle](BOOK-LIFECYCLE.en.md) · **Creation cycle** · [Saving and merging](SAVING.en.md)
 
-A section develops through discussion. New ideas, requirements, material and feedback can trigger further research, brainstorming or revision at any time. Return to the relevant step rather than restarting the book. Explicit section approval is the exit from this circle.
+A section develops through discussion. New ideas, requirements, material and feedback can trigger further research, brainstorming or revision at any time. Return to the relevant step rather than restarting the book. Explicitly finalizing the section is the exit from this circle.
 
 ![Circular creation workflow with user input at its centre, feedback paths to research, brainstorming and revision, and an exit to section approval](bilder/ablaeufe/erstellungskreislauf-en.png)
 
@@ -27,8 +27,8 @@ The diagram shows typical work paths. Feedback arrows do not automatically reset
 | `writing` | Draft the section with explicit writing permission. |
 | `revision` | Revise and review the entire draft. |
 | `fact_check` | A requested fact-check produces a report and proposed corrections. |
-| `ready_for_approval` | Present the version for explicit section approval. |
-| `approved` | This exact manuscript version has been explicitly approved. |
+| `ready_for_approval` | Ready to finalize: present the version for explicit finalizing. |
+| `approved` | Finalized: this exact manuscript version has been explicitly confirmed and is locked. |
 
 ## Feed new input into the relevant step
 
@@ -41,9 +41,9 @@ Not every comment requires the whole circle. A minor wording correction can go s
 
 ## Deliberately leave and reopen the circle
 
-When the revised version is ready, explicitly confirm **section approval**. It applies to this exact manuscript version and is separate from writing permission. A positive review or [saving and merging](SAVING.en.md) cannot replace it. Approval warns about unresolved markers; those markers later block inclusion in an edition.
+When the revised version is ready, explicitly **finalize** the section. This applies to this exact manuscript version and is separate from allowing writing. A positive review or [saving and merging](SAVING.en.md) cannot replace it. Finalizing warns about unresolved markers; those markers later block inclusion in an edition.
 
-Approved text is protected. Before editing it again, explicitly revoke section approval; the section returns to `revision`. Grant new writing permission before the next writing operation. Once all sections of a chapter are approved, continue with assembly and chapter approval in the [book lifecycle](BOOK-LIFECYCLE.en.md).
+Finalized text is locked. Before editing it again, explicitly **reopen** the section; it returns to `revision`. Allow writing again before the next writing operation. Once all sections of a chapter are finalized, continue with assembly and finalizing the chapter in the [book lifecycle](BOOK-LIFECYCLE.en.md).
 
 ---
 

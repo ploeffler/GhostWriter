@@ -14,7 +14,7 @@ der Seitenzahl des Innenteils), docx, epub (mit Cover aus der Vorderseite,
 wenn es `cover` gibt).
 
 --proof baut einen Probedruck des aktuellen Stands: alle Kapitel und Abschnitte,
-auch nicht freigegebene (mit Vermerk „Stand: Entwurf, nicht freigegeben“),
+auch nicht abgeschlossene (mit Vermerk „Stand: Entwurf, nicht abgeschlossen“),
 offene Marker farbig hervorgehoben, in der Fußzeile bzw. vorn der Hinweis
 „Probedruck – nicht zur Veröffentlichung“. Kein Tag, kein Release; die Action
 „Probedruck“ stellt die Dateien als Download bereit.
@@ -501,7 +501,7 @@ def main(argv):
         tag = f'{tag_slug(short)}-probedruck-{args.date}'
         release_name = f'{short} – Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]}'
         proof_note = (f'Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]} – nicht zur Veröffentlichung. '
-                      'Enthält auch nicht freigegebene Abschnitte; offene Marker sind hervorgehoben.')
+                      'Enthält auch nicht abgeschlossene Abschnitte; offene Marker sind hervorgehoben.')
     out = Path(args.out).resolve()   # Pandoc läuft im Arbeitsordner, daher absolut
     out.mkdir(parents=True, exist_ok=True)
     disc = ai_disclosure.for_book(config)   # KI-Angabe (#78): (Ort, Wortlaut) oder None

@@ -40,7 +40,9 @@ Mit **Session sichern** wird dieses Paket geschnürt bzw. ergänzt. Nach abgesch
 | Im Repository gespeichert / Änderungspaket gespeichert | Benannte Inhalte erfolgreich übertragen und im Repository bestätigt; Paket kann noch offen sein |
 | Geprüft | Die genannten Prüfungen sind erfolgt; noch keine Übernahme zugesichert |
 | Übernommen | Das geprüfte Änderungspaket wurde erfolgreich in den vorgesehenen Projektstand übernommen (technisch: Merge) |
-| Freigegeben | Eigene ausdrückliche Entscheidung über einen Text, ein Kapitel, ein Bild oder eine Auflage |
+| Abgeschlossen | Eigene ausdrückliche Entscheidung, dass ein Abschnitt, Teil oder Kapitel fertig ist; der Text ist danach gesperrt, bis du ihn wieder öffnest (früher „freigegeben“) |
+| Freigegeben | Eigene ausdrückliche Entscheidung über ein Bild, einen Sammelband oder eine Auflage |
+| Schreiben erlaubt | Der Assistent darf den Text dieses Abschnitts schreiben oder ändern |
 
 Eine grüne Speichermeldung darf nur nach bestätigter Übertragung erscheinen und muss ihren Umfang nennen. „Abschnitt gespeichert“ bedeutet nicht automatisch „Gespräch gesichert“. Eine Sitzungssicherung speichert Gesprächsarbeit; sie ändert kein Manuskript. Eine Übernahme ersetzt keine inhaltliche Freigabe. Reguläre Buchänderungen können bei bewusst eingeschaltetem „sofort übernehmen“ direkt übernommen werden; Änderungspakete zu Sitzungen brauchen weiterhin **Session übernehmen**.
 
@@ -57,7 +59,7 @@ Diese Beispiele sind normale Arbeitsaufträge, keine Abkürzungen, die Freigaben
 - „Einpflegen in Kapitel 2: <neue Notiz oder Material>“
 - „Kapitel 2 nachziehen. Nur analysieren.“
 
-Für Recherche und Schreiben gibt es im geöffneten Abschnitt die Kürzel **RS** (Recherche sofort) und **GS** (Ghostwriting sofort; Schreibfreigabe erforderlich). **M** öffnet in der Buchübersicht die Bestätigung für gesammelte Änderungen, wenn welche vorhanden sind. Kürzel gelten im Kontext der zuletzt angezeigten Ansicht; die vollständige Zuordnung steht in [Textfassung und Kürzel](../templates/ui/BEFUELLUNG.md#textfassung-ohne-widgets). Weitere Abläufe: [Einpflegen und Nachziehen](NACHZIEHEN.md), [Anleitung](ANLEITUNG.md).
+Für Recherche und Schreiben gibt es im geöffneten Abschnitt die Kürzel **RS** (Recherche sofort) und **GS** (Ghostwriting sofort; Schreiben muss erlaubt sein). **M** öffnet in der Buchübersicht die Bestätigung für gesammelte Änderungen, wenn welche vorhanden sind. Kürzel gelten im Kontext der zuletzt angezeigten Ansicht; die vollständige Zuordnung steht in [Textfassung und Kürzel](../templates/ui/BEFUELLUNG.md#textfassung-ohne-widgets). Weitere Abläufe: [Einpflegen und Nachziehen](NACHZIEHEN.md), [Anleitung](ANLEITUNG.md).
 
 ## Ausgabe bei Hilfe im Chat
 

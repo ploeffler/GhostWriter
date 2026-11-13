@@ -660,14 +660,14 @@ class OpenWebUIToolTests(unittest.TestCase):
                                     __chat_id__='chat-1', __user__={'id': 'user-1'}))['result']
             simple = self.run_tool(self.tool.open_book('Kapitel 1', book['navigation_receipt'], display='simple',
                                    __chat_id__='chat-1', __user__={'id': 'user-1'}))['result']
-        self.assertIn('▰▰▰▰▰▱▱▱▱▱ 1 von 2 Abschnitten freigegeben', book['view'])
+        self.assertIn('▰▰▰▰▰▱▱▱▱▱ 1 von 2 Abschnitten abgeschlossen', book['view'])
         self.assertIn('Kosten: 3,20 €', book['view'])
         self.assertIn('Auflage: 2', book['view'])
         self.assertIn('Aktueller Abschnitt: 1.1 Erster Abschnitt', book['view'])
         self.assertIn('| 1 | Erstes Kapitel | 1 | 0/1 | 3 | 2,00 € | in Arbeit |', book['view'])
-        self.assertIn('▱▱▱▱▱▱▱▱▱▱ 0 von 1 Abschnitten freigegeben', chapter['view'])
+        self.assertIn('▱▱▱▱▱▱▱▱▱▱ 0 von 1 Abschnitten abgeschlossen', chapter['view'])
         self.assertIn('| 1.1 | Erster Abschnitt | Entwurf |', chapter['view'])
-        self.assertIn('| Schreiben – · Abschnitt – | – | 4 | 3 | 2,00 € |', chapter['view'])
+        self.assertIn('| Schreiben erlaubt – · Abgeschlossen – | – | 4 | 3 | 2,00 € |', chapter['view'])
         self.assertIn('| ID | `sec-1` |', section['view'])
         self.assertIn('| Datei | `chapters/01-erstes/sections/01.md` |', section['view'])
         self.assertIn('| Wörter | 4 |', section['view'])
@@ -717,7 +717,7 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertIn('| ID | `sec-1` |', out['erweiterte ansicht'])
         self.assertIn('Nur dieser eine Abschnitt', out['erweiterte ansicht'])
         self.assertIn('Lesestand:', out['erweiterte ansicht'])
-        self.assertIn('Freigegeben', out['Übersicht'])
+        self.assertIn('Abgeschlossen', out['Übersicht'])
         self.assertIn('1. Erstes Kapitel · in Arbeit', out['Darstellung: einfach'])
         self.assertNotIn('Lesestand:', out['Darstellung: einfach'])
         self.assertIn('Darstellung: Nur Text', out['Nur Text'])

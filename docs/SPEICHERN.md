@@ -38,12 +38,12 @@ Die folgenden Begriffe beschreiben den Speicherstand; sie sind keine zusätzlich
 | Gespeichert / gesichert, noch nicht übernommen | Die Übertragung ist bestätigt; das Änderungspaket ist noch offen. |
 | Prüfung läuft | Voraussetzungen, Inhalt und aktueller Stand werden geprüft; eine Übernahme ist noch nicht bestätigt. |
 | Übernommen | Das Paket ist nach bestätigter Übernahme im vorgesehenen Zielstand. |
-| Inhaltlich freigegeben | Eine gesonderte ausdrückliche Entscheidung bestätigt die konkrete Textfassung. |
+| Abgeschlossen | Eine gesonderte ausdrückliche Entscheidung bestätigt die konkrete Textfassung; der Text ist danach gesperrt (früher „inhaltlich freigegeben“). |
 | Nicht gespeichert / weiterhin offen / blockiert | Ein Vorgang ist fehlgeschlagen oder wartet auf Klärung; der tatsächliche erhaltene Stand muss genannt werden. |
 
-## Freigabe ist eine eigene Entscheidung
+## Abschließen ist eine eigene Entscheidung
 
-**Schreibfreigabe** erlaubt das Schreiben; **Abschnittsfreigabe** bestätigt die genaue Textfassung; **Kapitelfreigabe** bestätigt das zusammengeführte Kapitel. Keine dieser Freigaben entsteht allein durch Speichern, eine erfolgreiche technische Prüfung oder Übernehmen. Eine zulässige inhaltliche Freigabe kann auch im noch offenen Änderungspaket protokolliert werden; die Grafik verlangt keine vorherige Übernahme.
+**Schreiben erlauben** gibt den Abschnitt zum Schreiben frei; **Abschnitt abschließen** bestätigt die genaue Textfassung und sperrt sie; **Kapitel abschließen** bestätigt das zusammengeführte Kapitel. Rückgängig macht man beides mit **wieder öffnen**. Keine dieser Bestätigungen (technisch „Freigaben“, #292) entsteht allein durch Speichern, eine erfolgreiche technische Prüfung oder Übernehmen. Eine zulässige inhaltliche Freigabe kann auch im noch offenen Änderungspaket protokolliert werden; die Grafik verlangt keine vorherige Übernahme.
 
 ## Wenn etwas fehlschlägt
 

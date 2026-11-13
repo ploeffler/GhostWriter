@@ -28,15 +28,15 @@ The assistant asks about your subject, goals, audience, book type, language and 
 
 ## 5. Work on the book
 
-The project overview opens chapters; a chapter opens its sections. You can research a section or a whole chapter, then approve writing and edit the resulting text yourself. Front and back matter, an AI-use statement, output settings and cover options can be added when needed.
+The project overview opens chapters; a chapter opens its sections. You can research a section or a whole chapter, then allow writing and edit the resulting text yourself. Front and back matter, an AI-use statement, output settings and cover options can be added when needed.
 
 Changes are collected until you choose **Apply changes**, unless you enabled immediate application. English commands include `Home`, `Overview`, `Chapter 3`, `Section 3.2`, `New chapter`, `Proof`, `Edition` and `Help`. The German commands remain available.
 
-## 6. Approve and export
+## 6. Finalize and export
 
-Approve each section when it is ready. Open review markers must be resolved before the section can be included in an edition. Approve a chapter after all its sections are approved and the chapter has been assembled. Each approval requires a separate confirmation and can be revoked.
+Finalize each section when it is ready; it is then locked until you reopen it. Open review markers must be resolved before the section can be included in an edition. Finalize a chapter after all its sections are finalized and the chapter has been assembled. Each step requires a separate confirmation and can be undone with “reopen”.
 
-Use **Proof** to create a proof PDF of the current state. When the desired chapters are approved, choose **New edition**, select the details and formats, and confirm. GitHub builds the edition as a release; subsequent corrections go into a new edition.
+Use **Proof** to create a proof PDF of the current state. When the desired chapters are finalized, choose **New edition**, select the details and formats, and confirm. GitHub builds the edition as a release; subsequent corrections go into a new edition.
 
 ## 7. Return later
 

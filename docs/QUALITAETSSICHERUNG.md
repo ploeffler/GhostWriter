@@ -40,7 +40,7 @@ Wenn Änderungen Auswirkungen über den Abschnitt hinaus haben oder ein Kapitel 
 - Chronologie, Figurenentwicklung, Wissensstände, Ortswechsel und wiederkehrende Motive abgleichen.
 - Widersprüche, Wiederholungen, Lücken und unbeabsichtigte Doppelungen kapitelweit suchen.
 - Prüfen, ob alle Abschnitte denselben vereinbarten Stil und dieselben Projektregeln einhalten.
-- Sicherstellen, dass Änderungen keine bereits freigegebenen Inhalte unbemerkt entwerten.
+- Sicherstellen, dass Änderungen keine bereits abgeschlossenen Inhalte unbemerkt entwerten.
 
 ### Buchweite Prüfung
 
@@ -224,9 +224,9 @@ Diese Anleitung beschreibt das redaktionelle Soll-Verhalten. Sie behauptet nicht
 
 Ohne ausdrücklich gewählten Darstellungsmodus gilt „übersichtlich“. Eine ausdrückliche Auswahl „einfach“, „erweitert“ oder „Nur Text“ bleibt wirksam; Antwortumfang und Darstellungsmodus bleiben unabhängig.
 
-- Buch- und Kapitelkopf: Titel, kompakter Arbeitsstand und Kosten; direkt darunter ein Balken mit zehn Segmenten und der genauen Anzahl freigegebener Abschnitte. Ohne Abschnitte „0 von 0“ und keinen gefüllten Balken zeigen. „In Arbeit“ zählt alle Abschnitte, die weder geplant noch freigegeben sind; dies ist keine Freigabe. Der Balken misst ausschließlich Abschnittsfreigaben, nicht Fertigstellung oder Veröffentlichung des Buchs.
+- Buch- und Kapitelkopf: Titel, kompakter Arbeitsstand und Kosten; direkt darunter ein Balken mit zehn Segmenten und der genauen Anzahl abgeschlossener Abschnitte. Ohne Abschnitte „0 von 0“ und keinen gefüllten Balken zeigen. „In Arbeit“ zählt alle Abschnitte, die weder geplant noch freigegeben sind; dies ist keine Freigabe. Der Balken misst ausschließlich Abschnittsfreigaben, nicht Fertigstellung oder Veröffentlichung des Buchs.
 - Offene Marker mit Anzahl hervorheben. Warnungen, ausstehende Übernahmen und Freigaben weiterhin vollständig zeigen. Fehlende Daten ausdrücklich benennen; keine Zahlen schätzen.
-- Einen passenden nächsten Schritt mit vorhandenem Aktionskürzel zeigen: zuletzt bearbeiteter, noch nicht freigegebener Abschnitt, sonst erster offener Abschnitt; bei leerer Struktur die Anlage anbieten. Öffnen und Auswählen erteilt keine Freigabe. Vollständige Aktionen bleiben darunter erreichbar. Keine funktionslosen Schaltflächen oder neuen Befehle erfinden.
+- Einen passenden nächsten Schritt mit vorhandenem Aktionskürzel zeigen: zuletzt bearbeiteter, noch nicht abgeschlossener Abschnitt, sonst erster offener Abschnitt; bei leerer Struktur die Anlage anbieten. Öffnen und Auswählen erteilt keine Freigabe. Vollständige Aktionen bleiben darunter erreichbar. Keine funktionslosen Schaltflächen oder neuen Befehle erfinden.
 - Status immer als Symbol und Wort darstellen. Tabellen knapp halten; lange Manuskripttexte bleiben normaler Lesetext.
 - **Claude (Anthropic):** bestehende GhostWriter-Widgets verwenden, wenn der konkrete Client sie unterstützt; dieselbe inhaltliche Gliederung anwenden. Bei fehlender Unterstützung auf Markdown zurückfallen. Die externen Widget-Vorlagen werden gesondert gepflegt; diese Vorgabe behauptet keine Änderung ihres HTML-Aufbaus.
 - **ChatGPT (OpenAI):** übersichtliches Markdown als gemeinsame Grundlage; native Auswahl- und Anzeigeelemente nur bei tatsächlich vorhandener Unterstützung ergänzen.
@@ -244,11 +244,13 @@ An passenden Entscheidungspunkten häufiger kurze Auswahlfragen verwenden, beson
 - Schon beantwortete Fragen nicht erneut stellen. Zusammengehörige Fragen nur dann bündeln, wenn das die Entscheidung erleichtert. Nicht für jede Kleinigkeit unterbrechen und keine langen Durchklickstrecken erzeugen.
 - Ein Auswahlvorschlag ist noch keine Entscheidung. Ausbleibende Antwort und vorausgewählte Optionen gelten nicht als Zustimmung. Stilentscheidungen ersetzen weder Schreib-/Textfreigaben noch einen gesonderten Speicher-, Übernahme- oder Veröffentlichungsauftrag.
 
+**Begriffe (#292):** In Chat-Ausgaben heißt die Abschnitts-, Kapitel- und Teilfreigabe „abschließen“ (Zustand „abgeschlossen“), ihre Rücknahme „wieder öffnen“; die Schreibfreigabe heißt „Schreiben erlauben“ bzw. „Schreiben sperren“. „Freigabe“ bleibt für Bilder, Sammelband und Auflagen. Englisch: finalize, reopen, allow/lock writing.
+
 **Freigaben als Auswahl (#266):** Anstehende Freigaben – Schreibfreigabe, Abschnitts- und Kapitelfreigabe, Rücknahmen und „Änderungen übernehmen“ – werden ebenfalls als Auswahl angeboten statt als Aufforderung, einen Satz wie „sag ‚Abschnitt 3.2 freigeben‘“ abzutippen.
 
-- Die Optionen nennen die Freigabe genau („Abschnitt 3.2 freigeben“, „Noch ändern“, „Später“); eine eigene Antwort bleibt möglich.
+- Die Optionen nennen den Schritt genau und mit den Bedienbegriffen aus #292 („Abschnitt 3.2 abschließen“, „Abschnitt 3.2 wieder öffnen“, „Schreiben erlauben“, „Noch ändern“, „Später“); eine eigene Antwort bleibt möglich.
 - Vorher die Prüfpunkte kurz nennen. Bei einem Hindernis (⛔) keine Freigabeoption anbieten.
-- Mehrere anstehende Freigaben in einem Element einzeln oder gemeinsam („Alle freigeben“) bestätigbar machen.
+- Mehrere anstehende Freigaben in einem Element einzeln oder gemeinsam („Alle abschließen“) bestätigbar machen.
 - Der Klick auf die Freigabeoption ist die ausdrückliche Bestätigung und wird wie eine getippte Freigabe in `approvals.yml` festgehalten. Keine vorausgewählte Option, kein Zeitablauf, keine Freigabe ohne Klick oder eindeutige eigene Antwort.
 - Eine Freigabeoption schließt kein Speichern, Übernehmen oder Veröffentlichen mit ein; das bleibt je eine eigene Auswahl.
 

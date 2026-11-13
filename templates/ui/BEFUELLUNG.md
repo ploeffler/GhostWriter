@@ -60,7 +60,7 @@ Im Modus „Widget“ schreibt der Assistent keine fertige Ansicht, sondern nur 
 | Marker | Vorkommen von `[PLATZHALTER-ANEKDOTE`, `[QUELLE PRÜFEN`, `[MEDIZIN PRÜFEN`, `[RECHT PRÜFEN` im Manuskript (Teil unter `## Manuskript`); der Hinweis nach dem Doppelpunkt bis `]` ist `MARKER_TEXT` |
 | Marker-Text | `keine offenen Marker`, `1 offener Marker`, `N offene Marker` |
 | Anzahl Abschnitte | `1 Abschnitt`, `N Abschnitte` |
-| Freigegeben | `<Anzahl Abschnitte mit Status approved> von <Anzahl Abschnitte>` |
+| Abgeschlossen | `<Anzahl Abschnitte mit Status approved> von <Anzahl Abschnitte>` |
 | Gelesener Stand (`HEAD_SHA`) | vollständiger Commit-SHA des Stands, aus dem gelesen wurde: Arbeits-Branch, wenn es offene Änderungen gibt, sonst Buch-Branch (`START.md`, „Schreiben ins Repository“). Jede Vorlage bekommt ihn; `gw.js` hängt ihn an jede schreibende Aktion (auch `approval.confirm`) als `expected_head_sha` an |
 | Auflage | `project.current_edition` > 0: „Auflage N“, sonst „noch keine Auflage“ |
 | Sichtbare Nummern | Kapitel- und Abschnittsnummer aus der Reihenfolge in `structure.chapters` |
@@ -140,7 +140,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `CHAPTER_SUBTITLE` | erste kursive Zeile `*…*` in der `README.md` des Kapitels; sonst leer |
 | `CHAPTER_GOAL`, `CHAPTER_SUMMARY` | `## Ziel des Kapitels` und `## Kurzbeschreibung` der Kapitel-README („Offen.“ gilt als leer); nur Ausgabe, leer = „noch offen“. Der Knopf daneben öffnet die Kapitelrecherche |
 | `SECTION_COUNT_TEXT`, `MARKER_COUNT_TEXT`, `APPROVED_COUNT_TEXT` | wie oben, Marker über alle Abschnitte |
-| `CHAPTER_APPROVABLE` | `true`, wenn das Kapitel auf `ready_for_approval` steht und alle Abschnitte `approved` sind; sonst leer (dann fehlt der Knopf „Kapitel freigeben“) |
+| `CHAPTER_APPROVABLE` | `true`, wenn das Kapitel auf `ready_for_approval` steht und alle Abschnitte `approved` sind; sonst leer (dann fehlt der Knopf „Kapitel abschließen“) |
 | `CHAPTER_REVISION_READY` | `true`, wenn alle Abschnitte Manuskripttext und mindestens Status `writing` haben; sonst leer. Ermittelt mit `scripts/chapter_revision.py`; bei leerem Wert fehlt „Kapitel überarbeiten“. Vor der Durchführung den aktuellen Stand erneut prüfen. |
 | `CHAPTER_COST`, `CHAPTER_COST_HINT` | Kapitelkosten |
 | Block `SECTIONS`: `SECTION_ID`, `SECTION_NUMBER`, `SECTION_TITLE`, `SECTION_STATUS`, `SECTION_COST`, `MARKERS_ANEKDOTE`, `MARKERS_QUELLE`, `MARKERS_MEDIZIN`, `MARKERS_RECHT` | je Abschnitt; Status aus dem Kopf der Abschnittsdatei |
@@ -181,7 +181,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `EDITION_NUMBER` | `project.current_edition` + 1 |
 | `EDITION_NAME`, `EDITION_TAG` | `book_releases.name_pattern` bzw. `tag_pattern` aus `workflow.yml` |
 | `EDITION_DATE_DEFAULT` | heutiges Datum, `YYYY-MM-DD` |
-| `APPROVAL_WARNING_TEXT` | „Bisher sind N von M Kapiteln freigegeben; nur diese kommen in die Auflage.“; leer, wenn alle freigegeben sind (der Hinweis entfällt) |
+| `APPROVAL_WARNING_TEXT` | „Bisher abgeschlossen: N von M Kapiteln; nur abgeschlossene Kapitel kommen in die Auflage.“; leer, wenn alle abgeschlossen sind (der Hinweis entfällt) |
 | Block `FORMATS`: `FORMAT_LABEL` | `book_releases.assets`, in v0.5 PDF, DOCX, EPUB |
 
 ### `kapitel-bearbeiten.html`
@@ -195,7 +195,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `CHAPTER_ID`, `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_GOAL`, `CHAPTER_SUMMARY` | wie in der Kapitelansicht; nach einer Recherche die zuletzt gesendeten, noch nicht gespeicherten Werte (`--draft`) |
 | `RESEARCH_QUESTION`, `RESEARCH_SCOPE` | `question` und `scope` des letzten Laufs bzw. die gesendeten Werte; sonst leer |
 | `RESEARCH_TASK` | `goal`, `sections`, `summary` oder leer: gesendeter Wert, sonst `task` des letzten Laufs, sonst `goal`, solange das Ziel leer ist |
-| `SECTION_COUNT`, `SECTIONS_NOTE` | Zahl der vorhandenen Abschnitte und Hinweis, dass sie unverändert bleiben und neue ans Ende kommen (bei freigegebenem Kapitel: wird wieder „in Arbeit“) |
+| `SECTION_COUNT`, `SECTIONS_NOTE` | Zahl der vorhandenen Abschnitte und Hinweis, dass sie unverändert bleiben und neue ans Ende kommen (bei abgeschlossenem Kapitel: wird wieder „in Arbeit“) |
 | Block `SUGGESTED_SECTIONS`: `SUG_TITLE`, `SUG_SUMMARY` | Zeilen `- Titel: Kurzbeschreibung` unter `## Vorschlag: Abschnitte` des letzten Laufs, ohne Titel, die es im Kapitel schon gibt; leer = Bereich entfällt |
 | `PREV_CHAPTER`, `PREV_CHAPTER_LABEL`, `PREV_CHAPTER_SUMMARY`, `PREV_WEIGHT` | vorheriges Kapitel („Kapitel N · Titel“, Kurzbeschreibung); Gewichtung 0–3 aus gesendetem Wert bzw. letztem Lauf, sonst 2; ohne vorheriges Kapitel leer (Bereich entfällt) |
 | `NEXT_CHAPTER`, `NEXT_CHAPTER_LABEL`, `NEXT_CHAPTER_SUMMARY`, `NEXT_WEIGHT` | ebenso für das nächste Kapitel |
@@ -215,7 +215,7 @@ Startseite einer Bibliothek; Widget oder Text nach dem Darstellungsmodus. Erzeug
 | `UPDATED_TEXT` | derzeit leer (Bereich entfällt) |
 | Block `BOOKS`: `BOOK_BRANCH`, `BOOK_TITLE`, `BOOK_TITLE_SHORT`, `BOOK_AUTHOR_TEXT` | je Buch aus `library.json`: `branch`, `title`, `title_short`, „von <author>“ |
 | `BOOK_STATE`, `BOOK_STATE_TEXT` | `status`: `ready` „eingerichtet“ (hat Kapitel) bzw. `setup` „im Aufbau“ |
-| `BOOK_PROGRESS`, `BOOK_PROGRESS_TEXT` | Anteil `sections_approved`/`sections_total` in Prozent; „N von M Abschnitten freigegeben · K von L Kapiteln“, im Aufbau „Gliederung noch offen“ |
+| `BOOK_PROGRESS`, `BOOK_PROGRESS_TEXT` | Anteil `sections_approved`/`sections_total` in Prozent; „N von M Abschnitten abgeschlossen · K von L Kapiteln“, im Aufbau „Gliederung noch offen“ |
 | `BOOK_EDITION_TEXT`, `BOOK_COST` | `current_edition` („Auflage N“ bzw. „noch keine Auflage“), `cost.text` |
 | `BOOK_PENDING_TEXT` | `pending` > 0: „N Änderungen offen“ (Commits im Arbeits-Branch), sonst leer |
 | `BOOK_UPDATED_TEXT` | „zuletzt geändert am TT.MM.JJJJ“ bzw. „angelegt am …“ aus `updated_at` |
@@ -596,7 +596,7 @@ Im Modus „Nur Text“ (siehe „Darstellungsmodus“) bekommt der Chat dieselb
 Gestaltung:
 
 - **Überschrift** `###` mit Symbol: 📘 Projekt, 📖 Kapitel, ✏️ Abschnitt, 📜 Vor- und Nachspann, 📝 Bearbeiten, ➕ Anlegen, ↕️ Reihenfolge, ⚙️ Einstellungen, 📚 Auflage bzw. Bücherregal, 📗 Neues Buch, 🗂️ Daten, 🔀 Buchänderungen übernehmen, ✅ Freigeben, ↩️ Freigabe zurücknehmen, 🤖 KI-Dienste.
-- **Status** deutsch mit Symbol: ⚪ geplant, 🔎 Recherche, 💡 Ideensammlung, 🟦 bereit zum Schreiben, ✏️ Schreiben bzw. in Arbeit, 🔁 Überarbeitung, 🔍 Faktencheck bzw. Durchsicht, 🟡 bereit zur Freigabe, ✅ freigegeben.
+- **Status** deutsch mit Symbol: ⚪ geplant, 🔎 Recherche, 💡 Ideensammlung, 🟦 bereit zum Schreiben, ✏️ Schreiben bzw. in Arbeit, 🔁 Überarbeitung, 🔍 Faktencheck bzw. Durchsicht, 🟡 bereit zum Abschluss, 🔒 abgeschlossen (#292; technisch `approved`).
 - **Marker** als Symbol mit Anzahl: 💬 Anekdote, 📚 Quelle, 🩺 Medizin, ⚖️ Recht; darunter klein die Legende.
 - **Tabellen** für Listen und Felder; Zahlen und Kosten rechtsbündig.
 - **Aktionen** am Ende nach einer Trennlinie als Kürzel in Inline-Code: Zahlen öffnen Kapitel (`2`) oder Abschnitte (`2.4`), Buchstaben lösen Aktionen aus.
@@ -611,11 +611,13 @@ Gestaltung:
 | Projektübersicht, Kapitel, Abschnitt, Teil, Figuren, Serie | zusätzlich `FV` 👤 Figuren aus dem Text vorschlagen |
 | Projektübersicht | `FI` Figuren · `L` Bücherregal (nur ab zwei Büchern) · `S` Serie (nur bei einem Band einer Serie) · `1`–`N` Kapitel öffnen (📖) · `B1`–`BN` Kapitel bearbeiten (✎ in jeder Kapitelzeile, wie der Bearbeiten-Knopf der Kapitelansicht) · `N.M` zuletzt bearbeiteter Abschnitt · Titel eines Teils von Vor- oder Nachspann öffnet ihn (nur vorhandene) · `M` Buchänderungen übernehmen (nur bei offenen Änderungen) · `D` KI-Dienste · `P` Projektdaten · `N` Neues Kapitel · `R` Kapitelreihenfolge · `V` Vor- und Nachspann · `A` Neue Auflage · `E` Einstellungen |
 | Vor- und Nachspann | Titel eines Teils öffnet ihn · `+ Widmung` usw. legt einen fehlenden Teil an · `Ü` Übersicht |
-| Glossar | `+ Begriff: Erklärung` aufnehmen · `Begriff: neue Erklärung` ändern · `- Begriff` entfernen · `VB` Begriffe vorschlagen · `F` Titel, Ziel, Einleitung · `FS`, `FA` Freigaben · `RS` Recherche je Begriff · `Ü` Übersicht |
-| Teil des Vor- oder Nachspanns | `T` Text ändern · `F` Titel und Ziel (Vorwort, Nachwort: dazu Verfasser, Ort und Datum) · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` freigeben bzw. zurücknehmen · `RS`, `GS` Recherche bzw. Ghostwriting sofort (Vorwort, Prolog, Epilog, Nachwort) · `Ü` Übersicht |
-| Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `KU` Kapitel überarbeiten (nur bei vollständigem Manuskript) · `B` Kapitel bearbeiten · `Z` Ziel, Kurzbeschreibung, Kapitelrecherche · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `FK` Kapitel freigeben (nur wenn möglich) · `Ü` Übersicht |
-| Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck · `FS` Schreiben freigeben bzw. zurücknehmen · `FA` Abschnitt freigeben bzw. zurücknehmen · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
+| Glossar | `+ Begriff: Erklärung` aufnehmen · `Begriff: neue Erklärung` ändern · `- Begriff` entfernen · `VB` Begriffe vorschlagen · `F` Titel, Ziel, Einleitung · `SE`/`SP` Schreiben erlauben/sperren, `AB`/`WO` abschließen/wieder öffnen · `RS` Recherche je Begriff · `Ü` Übersicht |
+| Teil des Vor- oder Nachspanns | `T` Text ändern · `F` Titel und Ziel (Vorwort, Nachwort: dazu Verfasser, Ort und Datum) · `SE`/`SP` Schreiben erlauben bzw. sperren · `AB`/`WO` abschließen bzw. wieder öffnen · `RS`, `GS` Recherche bzw. Ghostwriting sofort (Vorwort, Prolog, Epilog, Nachwort) · `Ü` Übersicht |
+| Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `KU` Kapitel überarbeiten (nur bei vollständigem Manuskript) · `B` Kapitel bearbeiten · `Z` Ziel, Kurzbeschreibung, Kapitelrecherche · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `AK` Kapitel abschließen (nur wenn möglich) · `Ü` Übersicht |
+| Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck · `SE`/`SP` Schreiben erlauben bzw. sperren · `AB`/`WO` Abschnitt abschließen bzw. wieder öffnen · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
 | Formulare | `Feld: Wert` je Zeile · Ausgabeoptionen: `Ränder: klassisch`, `Formate: PDF, EPUB`, `ISBN E-Book: …` · KI-Angabe: `Angabe: kurz`, `Ort: Nachwort`, `Dienste nennen: ja`, `Text: …`, `OK` übernimmt den Vorschlag · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Buchänderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · Neues Buch: `Titel: …`, `Kurztitel: …`, `Autor: …` · Auswahl: `1b, 2a` (Frage und Buchstabe; bei Mehrfachauswahl `2a c`), eigene Antwort `1: Text`, `S` überspringt (nur wenn angeboten) · Kapitelrecherche: `Ziel: …`, `Kurzbeschreibung: …`, `Frage: …`, `Schwerpunkte: …`, `Aufgabe: Ziel|Abschnitte|Kurzbeschreibung|keine`, `Vorher: 0–3`, `Nachher: 0–3`, `VZ`/`VK` Vorschlag übernehmen, `AS 1, 3` vorgeschlagene Abschnitte anlegen · KI-Dienste: `+ id`, `- id`, `Aufgabe: id` · `X` bricht ab |
+
+Die früheren Kürzel `FS`, `FA` und `FK` werden weiter verstanden (#292).
 
 Ein Kürzel entspricht dem Klick auf den gleichnamigen Knopf; es gelten dieselbe Aktion, dieselben Statuszeilen und dieselbe Ausgangsansicht danach.
 
@@ -683,7 +685,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `series.omnibus.revoke` | `series_id` | Freigabe des Sammelbands zurücknehmen | `scripts/series.py omnibus-revoke <ser-id>`, ein Commit | `DELETE /v1/projects/{owner}/{repo}/series/{series_id}/omnibus/approve` |
 | `series.omnibus.publish` | `series_id` | Nächste Auflage des Sammelbands veröffentlichen | `scripts/series.py omnibus-publish <ser-id>` (Auflage + 1), ein Commit auf dem Standard-Branch; die Action „Sammelband veröffentlichen“ baut und veröffentlicht sie | `POST /v1/projects/{owner}/{repo}/series/{series_id}/omnibus/editions` |
 | `matter.glossary.update` | `matter_id`, `title`, `goal`, `intro`, `set` (Liste `{term, explanation}`), `remove` (Liste von Begriffen), `expected_head_sha` | Glossar-Einträge aufnehmen, ändern, entfernen (#58) | `scripts/matter.py glossary-set` (neue Begriffe mit `--new`) bzw. `glossary-remove`, ein Commit, danach das Glossar | `PATCH …/matter/{matter_id}/glossary` |
-| `matter.glossary.suggest` | `matter_id` | Begriffe aus dem freigegebenen Text vorschlagen (#58) | Vorschläge mit Fundstelle und Erklärungsentwurf als Auswahl zeigen (`START.md`, „Vor- und Nachspann“, Punkt 4); nichts schreiben | – |
+| `matter.glossary.suggest` | `matter_id` | Begriffe aus dem abgeschlossenen Text vorschlagen (#58) | Vorschläge mit Fundstelle und Erklärungsentwurf als Auswahl zeigen (`START.md`, „Vor- und Nachspann“, Punkt 4); nichts schreiben | – |
 | `view.library` | – | Bücherregal zeigen | Vorlage `buecherregal` (`render_view.py library --library library.json`) | – |
 | `view.data` | – | Seite „Daten“ zeigen | Daten sammeln und Vorlage `daten` (`render_view.py data`, `START.md`, „Daten“) | `GET /v1/projects/{owner}/{repo}` |
 | `library.book.open` | `branch` | Buch aus dem Bücherregal öffnen | Branch als Buch-Branch übernehmen, Projektübersicht zeigen; Buch im Aufbau: Einstiegsdialog fortsetzen | `GET /v1/projects/{owner}/{repo}` |
@@ -771,7 +773,7 @@ Statuszeilen, Ladetexte und Ergebniszeilen nach `START.md`, „Statusanzeige“.
 | `project.edit`, `project.settings.open`, alle `….open` | – | Formular wird vorbereitet | – |
 | `changes.merge.open` | → Lese offene Änderungen (Pull Request #NN) | Änderungen werden geladen | – |
 | `approval.open` | → Prüfe die Voraussetzungen für die Freigabe | Freigabe wird vorbereitet | – |
-| `approval.confirm` | → Prüfe die Voraussetzungen erneut · → Prüfe, ob sich die Dateien seit dem Lesen geändert haben · → Speichere die Freigabe und den Eintrag in approvals.yml (Commit im Arbeits-Branch) | – | ✓ Abschnitt N.M freigegeben, Commit `abc1234` · noch nicht übernommen (Pull Request #NN) |
+| `approval.confirm` | → Prüfe die Voraussetzungen erneut · → Prüfe, ob sich die Dateien seit dem Lesen geändert haben · → Speichere die Freigabe und den Eintrag in approvals.yml (Commit im Arbeits-Branch) | – | ✓ Abschnitt N.M abgeschlossen (bzw. wieder geöffnet, Schreiben erlaubt/gesperrt), Commit `abc1234` · noch nicht übernommen (Pull Request #NN) |
 | `project.update` | → Prüfe Eingaben · → Prüfe, ob sich die Dateien seit dem Lesen geändert haben · → Speichere Projektdaten (Commit im Arbeits-Branch) · → Prüfe Validierung | – | ✓ Projektdaten gespeichert, Commit `abc1234` · noch nicht übernommen (Pull Request #NN) |
 | `chapter.create` | → Lege Kapitel „Titel“ an · → Trage es in ghostwriter.yml ein · → Speichere (Commit) | – | ✓ Kapitel N „Titel“ angelegt, Commit `abc1234` |
 | `section.update` | → Prüfe, ob sich die Datei seit dem Lesen geändert hat · → Speichere Abschnitt N.M (Commit im Arbeits-Branch) | – | ✓ Abschnitt N.M gespeichert, Commit `abc1234` |
@@ -808,9 +810,9 @@ Freigaben gibt es nur über `approval.confirm` (`START.md`, „Freigaben“); `s
 
 Ohne ausdrücklich gewählten Darstellungsmodus gilt „übersichtlich“. Eine ausdrückliche Auswahl „einfach“, „erweitert“ oder „Nur Text“ bleibt wirksam; Antwortumfang und Darstellungsmodus bleiben unabhängig.
 
-- Buch- und Kapitelkopf: Titel, kompakter Arbeitsstand und Kosten; direkt darunter ein Balken mit zehn Segmenten und der genauen Anzahl freigegebener Abschnitte. Ohne Abschnitte „0 von 0“ und keinen gefüllten Balken zeigen. „In Arbeit“ zählt alle Abschnitte, die weder geplant noch freigegeben sind; dies ist keine Freigabe. Der Balken misst ausschließlich Abschnittsfreigaben, nicht Fertigstellung oder Veröffentlichung des Buchs.
+- Buch- und Kapitelkopf: Titel, kompakter Arbeitsstand und Kosten; direkt darunter ein Balken mit zehn Segmenten und der genauen Anzahl abgeschlossener Abschnitte. Ohne Abschnitte „0 von 0“ und keinen gefüllten Balken zeigen. „In Arbeit“ zählt alle Abschnitte, die weder geplant noch freigegeben sind; dies ist keine Freigabe. Der Balken misst ausschließlich Abschnittsfreigaben, nicht Fertigstellung oder Veröffentlichung des Buchs.
 - Offene Marker mit Anzahl hervorheben. Warnungen, ausstehende Übernahmen und Freigaben weiterhin vollständig zeigen. Fehlende Daten ausdrücklich benennen; keine Zahlen schätzen.
-- Einen passenden nächsten Schritt mit vorhandenem Aktionskürzel zeigen: zuletzt bearbeiteter, noch nicht freigegebener Abschnitt, sonst erster offener Abschnitt; bei leerer Struktur die Anlage anbieten. Öffnen und Auswählen erteilt keine Freigabe. Vollständige Aktionen bleiben darunter erreichbar. Keine funktionslosen Schaltflächen oder neuen Befehle erfinden.
+- Einen passenden nächsten Schritt mit vorhandenem Aktionskürzel zeigen: zuletzt bearbeiteter, noch nicht abgeschlossener Abschnitt, sonst erster offener Abschnitt; bei leerer Struktur die Anlage anbieten. Öffnen und Auswählen erteilt keine Freigabe. Vollständige Aktionen bleiben darunter erreichbar. Keine funktionslosen Schaltflächen oder neuen Befehle erfinden.
 - Status immer als Symbol und Wort darstellen. Tabellen knapp halten; lange Manuskripttexte bleiben normaler Lesetext.
 - **Claude (Anthropic):** bestehende GhostWriter-Widgets verwenden, wenn der konkrete Client sie unterstützt; dieselbe inhaltliche Gliederung anwenden. Bei fehlender Unterstützung auf Markdown zurückfallen. Die externen Widget-Vorlagen werden gesondert gepflegt; diese Vorgabe behauptet keine Änderung ihres HTML-Aufbaus.
 - **ChatGPT (OpenAI):** übersichtliches Markdown als gemeinsame Grundlage; native Auswahl- und Anzeigeelemente nur bei tatsächlich vorhandener Unterstützung ergänzen.

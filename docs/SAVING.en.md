@@ -38,12 +38,12 @@ These terms describe storage status; they are not additional section or chapter 
 | Saved / backed up, not yet merged | Upload is confirmed; the change package remains open. |
 | Checks running | Requirements, content and current version are being checked; the merge is not confirmed yet. |
 | Merged | The package is in its intended target after a confirmed merge. |
-| Content approved | A separate explicit decision confirms the exact manuscript version. |
+| Finalized | A separate explicit decision confirms the exact manuscript version and locks it (formerly “content approved”). |
 | Not saved / still pending / blocked | An operation failed or needs clarification; report the actual retained state. |
 
-## Approval is a separate decision
+## Finalizing is a separate decision
 
-**Writing permission** authorises drafting; **section approval** confirms the exact section text; **chapter approval** confirms the assembled chapter. Saving, successful technical checks and merging do not grant any of them. An eligible content approval can be recorded in an open change package; the diagram does not require merging first.
+**Allow writing** authorises drafting; **finalize section** confirms the exact section text and locks it; **finalize chapter** confirms the assembled chapter. **Reopen** undoes either. Saving, successful technical checks and merging do not grant any of them (technically they are approvals, #292). An eligible content approval can be recorded in an open change package; the diagram does not require merging first.
 
 ## If an operation fails
 

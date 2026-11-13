@@ -1,7 +1,7 @@
 """
 title: GhostWriter GitHub
 description: GitHub lesen und Aufgaben als gemeinsamen Commit speichern.
-version: 1.7.0
+version: 1.7.1
 requirements: requests,pydantic,pyyaml
 """
 import asyncio
@@ -58,8 +58,8 @@ class Tools:
         filled = round(10 * done / total) if total else 0
         if total and 0 < done < total:
             filled = min(max(filled, 1), 9)
-        label = (f"{done} of {total} sections approved" if english else
-                 f"{done} von {total} Abschnitten freigegeben")
+        label = (f"{done} of {total} sections finalized" if english else
+                 f"{done} von {total} Abschnitten abgeschlossen")
         return "▰" * filled + "▱" * (10 - filled) + " " + label
 
     def _repo(self, repo):
@@ -147,10 +147,10 @@ class Tools:
             if complete_counts:
                 lines += [self._bar(approved_sum, total_sum, english), ""]
             else:
-                lines += ["Approval counts are incomplete in library.json; no total shown." if english else
-                          "Freigabezahlen in library.json unvollständig; keine Summe angezeigt.", ""]
-            lines += ["| No. | Book | Branch | Chapters | Sections | Approved | Cost | Status |" if english else
-                      "| Nr. | Buch | Branch | Kapitel | Abschnitte | Freigegeben | Kosten | Stand |",
+                lines += ["Finalized counts are incomplete in library.json; no total shown." if english else
+                          "Abschlusszahlen in library.json unvollständig; keine Summe angezeigt.", ""]
+            lines += ["| No. | Book | Branch | Chapters | Sections | Finalized | Cost | Status |" if english else
+                      "| Nr. | Buch | Branch | Kapitel | Abschnitte | Abgeschlossen | Kosten | Stand |",
                       "|---|---|---|---|---|---|---|---|", *rows, "",
                       ("Source: `library.json` on `" if english else "Quelle: `library.json` auf `") + branch + "` · `" + data["sha"][:7] + "`",
                       "", hint]
@@ -277,8 +277,8 @@ class Tools:
             labels = {"planned": ("geplant", "planned"), "in_progress": ("in Arbeit", "in progress"),
                       "ready_for_assembly": ("bereit zum Zusammenführen", "ready for assembly"),
                       "assembly": ("Zusammenführung", "assembly"), "review": ("Prüfung", "review"),
-                      "ready_for_approval": ("bereit zur Freigabe", "ready for approval"),
-                      "approved": ("freigegeben", "approved"), "writing": ("Entwurf", "draft"),
+                      "ready_for_approval": ("bereit zum Abschluss", "ready to finalize"),
+                      "approved": ("abgeschlossen", "finalized"), "writing": ("Entwurf", "draft"),
                       "research": ("Recherche", "research"), "revision": ("Überarbeitung", "revision"),
                       "brainstorming": ("Ideensammlung", "brainstorming"), "ready_to_write": ("bereit zum Schreiben", "ready to write"),
                       "fact_check": ("Faktenprüfung", "fact check")}
@@ -299,8 +299,9 @@ class Tools:
             return ("yes" if english else "ja") if value is True else ("no" if english else "nein") if value is False else "–"
         def approvals(meta):
             given = meta.get("approvals") if isinstance(meta.get("approvals"), dict) else {}
-            return (("Writing " if english else "Schreiben ") + yes(given.get("writing")) + " · " +
-                    ("Section " if english else "Abschnitt ") + yes(given.get("section")))
+            # #292: Schreiben erlauben / Abschnitt abschließen statt zweier „Freigaben“
+            return (("Writing allowed " if english else "Schreiben erlaubt ") + yes(given.get("writing")) + " · " +
+                    ("Finalized " if english else "Abgeschlossen ") + yes(given.get("section")))
         def words(body):
             return len(re.findall(r"\w+", re.sub(r"(?m)^#+\s.*$", "", body)))
         missing_index = ("No overview file (`ghostwriter-index.json`) at this reading state; approvals, costs and markers are not estimated."
@@ -349,8 +350,8 @@ class Tools:
                 for number, ch in enumerate(chapters, 1):
                     lines.append(f"{number}. {text(ch.get('title') or '–')} · {status(ch.get('status'))}")
             elif extended:
-                lines += ["| No. | Chapter | Sections | Approved | Markers | Cost | Status |" if english else
-                          "| Nr. | Kapitel | Abschnitte | Freigegeben | Marker | Kosten | Stand |", "|---|---|---|---|---|---|---|"]
+                lines += ["| No. | Chapter | Sections | Finalized | Markers | Cost | Status |" if english else
+                          "| Nr. | Kapitel | Abschnitte | Abgeschlossen | Marker | Kosten | Stand |", "|---|---|---|---|---|---|---|"]
                 for number, ch in enumerate(chapters, 1):
                     entry = (index or {}).get("chapters", {}).get(ch.get("id"))
                     share = (f"{entry['sections_approved']}/{entry['sections_total']}"
@@ -408,8 +409,8 @@ class Tools:
                     lines += [self._bar(approved, len(ch["sections"]), english), ""]
                     if index is None:
                         lines += [missing_index, ""]
-                    lines += ["| No. | Section | Status | Approvals | Fact check | Words | Markers | Cost |" if english else
-                              "| Nr. | Abschnitt | Stand | Freigaben | Faktenprüfung | Wörter | Marker | Kosten |",
+                    lines += ["| No. | Section | Status | Writing/finalized | Fact check | Words | Markers | Cost |" if english else
+                              "| Nr. | Abschnitt | Stand | Schreiben/Abschluss | Faktenprüfung | Wörter | Marker | Kosten |",
                               "|---|---|---|---|---|---|---|---|"]
                 elif not simple:
                     lines += ["| No. | Section | Status |" if english else "| Nr. | Abschnitt | Stand |", "|---|---|---|"]
@@ -435,7 +436,7 @@ class Tools:
                               f"| ID | `{text(str(s.get('id') or '–'))}` |",
                               f"| {'File' if english else 'Datei'} | `{text(s['path'])}` |",
                               f"| {'Words' if english else 'Wörter'} | {words(body)} |",
-                              f"| {'Approvals' if english else 'Freigaben'} | {approvals(meta)} |",
+                              f"| {'Writing/finalized' if english else 'Schreiben/Abschluss'} | {approvals(meta)} |",
                               f"| {'Fact check' if english else 'Faktenprüfung'} | {text(str(meta.get('fact_check') or '–'))} |"]
                     characters = meta.get("characters")
                     if isinstance(characters, list) and characters:
