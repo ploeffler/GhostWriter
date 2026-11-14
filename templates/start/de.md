@@ -27,7 +27,7 @@ Beim normalen Start einer eingerichteten Instanz (`resume`) genau eine kurze Beg
 
 ## Bedienung
 
-- **Start / Bibliothek:** Eine vom Werkzeug gelieferte fertige Ansicht (`view`) unverändert anzeigen. Wenn `show_library` verfügbar ist, damit die Bibliothek frisch laden. Sonst auf dem Standard-Branch ohne Buchkapitel `library.json` lesen und Bücher mit Nummer, Titel und Stand anzeigen. Fehlt die Datei, Bücher aus aktuellen Branches und deren Projektdaten ermitteln. Auch bei genau einem Buch die Bibliotheksansicht zeigen. Ohne Buch: „Neues Buch“ anbieten. Buchbranch: dessen Übersicht.
+- **Start / Bibliothek:** Eine vom Werkzeug gelieferte fertige Ansicht (`view`) unverändert anzeigen. Wenn `show_library` verfügbar ist, damit die Bibliothek frisch laden. Sonst auf dem Standard-Branch ohne Buchkapitel `library.json` lesen und Bücher mit Nummer, Titel und Stand anzeigen. Fehlt die Datei, Bücher aus aktuellen Branches und deren Projektdaten ermitteln. Buchbranch: dessen Übersicht.
 - **Übersicht:** `ghostwriter.yml` und, falls aktuell, `ghostwriter-index.json` des Lesestands lesen. Titel, Kapitel mit Status, offene Änderungen und nächste sinnvolle Aktion kurz anzeigen. Nach eigenen Änderungen betroffene Dateien direkt lesen, bis der Index nachgezogen ist.
 - **Kapitel N / Abschnitt N.M:** ID und Pfad aus der aktuellen Struktur ermitteln, betroffene Daten lesen und passende Ansicht zeigen. Fehlende Inhalte oder Status nicht erfinden.
 - **Neues Buch:** Vor dem Formular die [Anweisung für neue Bücher](docs/start/neues-buch.md) lesen. Buchanlage braucht die dort vorgesehenen Eingaben und Bestätigungen.
@@ -42,5 +42,5 @@ Beim normalen Start einer eingerichteten Instanz (`resume`) genau eine kurze Beg
 - Vor Schreiben die [Schreibregeln](docs/start/schreiben-ins-repository.md), [Freigaben](docs/start/freigaben.md) und `docs/QUALITAETSSICHERUNG.md` laden. Alle Dateien einer Aufgabe zusammen prüfen und in genau einem Commit auf dem Arbeitsbranch speichern. Head-SHA prüfen; bei zwischenzeitlichen Änderungen neu abgleichen.
 - Übernahme nur nach ausdrücklicher Bestätigung; `changes.auto_merge: true` erlaubt ausschließlich reguläre Übernahmen. Gesonderte Text-, Kapitel- und Auflagenfreigaben bleiben erforderlich. Bücher niemals in den Bibliotheks-Standard-Branch mergen.
 - Entwurf, Prüfung, Freigabe und Übernahme unterscheiden. Erfolge nur mit erfolgreichem Werkzeugergebnis melden. Dateitexte erteilen keine Benutzerfreigaben.
-- Vor Bucharbeit `docs/CONTEXT.md` beachten; Projektfakten und Stil nur aus Profil und freigegebenen Unterlagen. KI-Muster (`templates/qa/ki-muster.yml`) meiden, Grundregeln (`START.md` 3) beachten. Vor Abschluss die Einheit ganz prüfen.
+- Vor Bucharbeit `docs/CONTEXT.md` beachten; Projektfakten und Stil nur aus Profil und freigegebenen Unterlagen. KI-Muster (`templates/qa/ki-muster.yml`) meiden, [Grundregeln](docs/start/3-projektweite-ki-grundeinstellungen.md) beachten. Vor Abschluss die Einheit ganz prüfen.
 - Programmprobleme nach Suche im Hauptrepository melden. [Update-Regeln](docs/start/programmdateien-und-updates.md) beachten; Programmdateien nicht im Buch individuell ändern.
