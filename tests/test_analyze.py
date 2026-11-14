@@ -425,7 +425,7 @@ class AnalyzeTest(unittest.TestCase):
             self.assertIn('#307', text if rel != 'templates/start/openwebui.de.md' else '#307', rel)
             self.assertIn('erwachsen', text, rel)
         for rel in ('templates/start/de.md', 'templates/start/en.md'):
-            self.assertIn('`START.md` 3', (ROOT / rel).read_text(encoding='utf-8'), rel)
+            self.assertIn('(docs/start/3-projektweite-ki-grundeinstellungen.md)', (ROOT / rel).read_text(encoding='utf-8'), rel)
         prompt = analyze.ai_patterns_prompt({'style': {'avoid': ['wie dem auch sei']}})
         self.assertIn('Ankündigender Schlusssatz', prompt)
         self.assertIn('„wie dem auch sei“', prompt)
