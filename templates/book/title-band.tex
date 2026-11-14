@@ -1,0 +1,21 @@
+% Titelseite „band“ (#310): dunkles Querband über die volle Seitenbreite (etwa 30–52 % der Höhe) mit Titel
+% weiß und Untertitel hell; Autor in Kapitälchen darüber. Das Band reicht 3 mm über den Seitenrand hinaus,
+% damit es im Druck-PDF bis in den Beschnitt geht. Band und Text als Hintergrund der Titelseite (eso-pic).
+\usepackage{eso-pic}
+\definecolor{gwband}{HTML}{1F2A44}
+\makeatletter
+\renewcommand*{\maketitle}[1][1]{%
+  \AddToShipoutPictureBG*{%
+    \AtPageLowerLeft{%
+      \put(\LenToUnit{-3mm},\LenToUnit{0.48\paperheight}){\color{gwband}\rule{\dimexpr\paperwidth+6mm\relax}{0.22\paperheight}}%
+      \put(0,\LenToUnit{0.59\paperheight}){\makebox[\paperwidth]{\parbox{0.8\paperwidth}{\centering\color{white}%
+        {\huge\bfseries\@title\par}%
+        \gw@ifset\@subtitle{\vspace{0.6em}{\large\itshape\color{white!85!gwband}\@subtitle\par}}}}}%
+      \put(0,\LenToUnit{0.76\paperheight}){\makebox[\paperwidth]{\large\scshape\@author}}%
+      \gw@ifset\@subject{\put(0,\LenToUnit{0.82\paperheight}){\makebox[\paperwidth]{\small\@subject}}}%
+    }}%
+  \begin{titlepage}\centering\null\vfill
+  \gw@ifset\@publishers{{\small\@publishers\par}}
+  \gw@ifset\@date{{\small\@date\par}}
+  \end{titlepage}\gw@titleback}
+\makeatother

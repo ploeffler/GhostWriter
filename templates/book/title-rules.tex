@@ -1,0 +1,16 @@
+% Titelseite „rules“ (#310): Autor in Kapitälchen oben, Titel groß zwischen zwei Linien, Untertitel kursiv.
+\makeatletter
+\renewcommand*{\maketitle}[1][1]{%
+  \begin{titlepage}\centering\null\vspace{0.05\textheight}
+  {\large\scshape\@author\par}
+  \vspace{0.18\textheight}
+  \gw@ifset\@subject{{\small\@subject\par}\vspace{0.8em}}
+  \rule{\textwidth}{0.8pt}\par\vspace{0.8em}
+  {\Huge\@title\par}\vspace{0.6em}
+  \rule{\textwidth}{0.4pt}\par
+  \gw@ifset\@subtitle{\vspace{0.8em}{\large\itshape\@subtitle\par}}
+  \vfill
+  \gw@ifset\@publishers{{\small\@publishers\par}}
+  \gw@ifset\@date{{\small\@date\par}}
+  \end{titlepage}\gw@titleback}
+\makeatother

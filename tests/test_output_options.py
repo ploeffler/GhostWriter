@@ -114,6 +114,46 @@ class OutputOptionsTest(Base):
         self.assertIn('Formular `Ausgabe`', self.view('project-settings'))
 
 
+class TitlePageAndProofMarkTest(Base):
+    """#309, #310: wählbare Titelseite und Kennzeichnung im Probedruck, ohne LaTeX geprüft."""
+
+    def test_classic_and_no_title_page_change_nothing(self):
+        ts = dict(TYPESETTING_DEFAULT)
+        self.assertEqual(ts['title_style'], 'classic')
+        self.assertEqual(build_edition.title_tex(ts), [])
+        self.assertEqual(build_edition.title_tex(dict(ts, title_style='band', title_page=False)), [])
+        files = build_edition.title_tex(dict(ts, title_style='rules'))
+        self.assertEqual([f.name for f in files], ['title-common.tex', 'title-rules.tex'])
+        for style in build_edition.TITLE_STYLES[1:]:
+            self.assertTrue((build_edition.BOOK / f'title-{style}.tex').is_file(), style)
+
+    def test_proof_marks(self):
+        ts = dict(TYPESETTING_DEFAULT)
+        line = build_edition.proof_tex(ts, 'Probedruck', '2026-11-14')
+        self.assertIn('{gwproof}', line)                      # eigene Zeile unter der Fußzeile (#309)
+        self.assertNotIn('\\ifoot', line)
+        self.assertIn('Probedruck · 14.11.2026', line)
+        box = build_edition.proof_tex(dict(ts, proof_mark='box'), 'Manuskript', '2026-11-14', 'abc1234def')
+        self.assertIn('MANUSKRIPT · 14.11.2026', box)
+        self.assertIn('Stand abc1234', box)
+        self.assertNotIn('AddToShipoutPictureBG', box)
+        self.assertIn('AddToShipoutPictureBG*', build_edition.proof_tex(dict(ts, proof_mark='watermark'), 'Probedruck', '2026-11-14'))
+        every = build_edition.proof_tex(dict(ts, proof_mark='watermark_all', title_page=False), 'Probedruck', '2026-11-14')
+        self.assertIn('AddToShipoutPictureBG{', every)
+        self.assertNotIn('maketitle', every)                  # ohne Titelseite nur Fußzeile und Wasserzeichen
+        with self.assertRaises(SystemExit):
+            build_edition.proof_tex(dict(ts, proof_mark='blink'), 'Probedruck', '2026-11-14')
+
+    def test_schema_and_text_form(self):
+        self.set_options('typesetting:\n  title_style: band\n  proof_mark: watermark\n')
+        self.assertEqual(validate_project.check_project(self.base), [])
+        form = self.view('output')
+        self.assertIn('| Gestaltung der Titelseite | mit Querband |', form)
+        self.assertIn('| Kennzeichnung im Probedruck | Rahmen und Wasserzeichen auf der Titelseite |', form)
+        self.set_options('  title_style: bunt\n')
+        self.assertTrue(validate_project.check_project(self.base))
+
+
 @unittest.skipUnless(shutil.which('pandoc') and shutil.which('xelatex') and shutil.which('pdffonts'),
                      'pandoc, xelatex oder pdffonts fehlen')
 class OutputTypesettingTest(Base):
@@ -160,6 +200,36 @@ class OutputTypesettingTest(Base):
         self.assertIn('p { text-indent: 0; margin-bottom: 0.7em; }', css)   # Absätze mit Abstand
         self.assertIn('urn:isbn:9783161484117', opf)
         self.assertIn('class="initial"', xhtml)
+
+    def pdf_text(self, pdf, page, layout=False):
+        return subprocess.run(['pdftotext', '-f', str(page), '-l', str(page)] + (['-layout'] if layout else []) + [str(pdf), '-'],
+                              capture_output=True, text=True, check=True).stdout
+
+    def test_title_styles_and_proof_marks(self):
+        """#309, #310: jede Titelseite und jede Kennzeichnung setzt ohne Fehler, die Titelseite bleibt eine Seite,
+        der Vermerk steht nie in derselben Zeile wie die Seitenzahl."""
+        pages = {}
+        cases = [('classic', 'line', 'footer_center'), ('rules', 'box', 'footer_outer'), ('modern', 'watermark', 'header'),
+                 ('spaced', 'watermark_all', 'footer_center'), ('band', 'line', 'footer_center')]
+        for style, mark, numbers in cases:
+            base = self.base.parent / f'buch-{style}'
+            shutil.copytree(self.base, base)
+            path = base / 'ghostwriter.yml'
+            path.write_text(path.read_text(encoding='utf-8') + f'typesetting:\n  page_size: 12x19\n  title_style: {style}\n'
+                            f'  proof_mark: {mark}\n  page_numbers: {numbers}\n', encoding='utf-8')
+            out = self.base.parent / f'out-{style}'
+            r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(base), '--proof', '--formats', 'pdf',
+                                '--out', str(out), '--date', '2026-11-14', '--commit', 'abc1234def'], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, style + r.stdout + r.stderr)
+            pdf = next(out.glob('*.pdf'))
+            pages[style] = int(subprocess.run(['pdfinfo', str(pdf)], capture_output=True, text=True).stdout.split('Pages:')[1].split()[0])
+            title = self.pdf_text(pdf, 1)
+            self.assertIn('ERWACHSENENLEBEN', title.replace(' ', '').upper(), style)   # gesperrt: Buchstaben einzeln
+            self.assertIn('PROBEDRUCK · 14.11.2026' if mark != 'line' else 'Probedruck · 14.11.2026', title, style)
+            toc = self.pdf_text(pdf, 3, layout=True)
+            note = [line.strip() for line in toc.splitlines() if 'Veröffentlichung' in line]
+            self.assertEqual(note, ['Probedruck 14.11.2026 – nicht zur Veröffentlichung'], style)   # eigene Zeile (#309)
+        self.assertEqual(len(set(pages.values())), 1, pages)   # Titelseite bleibt genau eine Seite
 
 
 if __name__ == '__main__':

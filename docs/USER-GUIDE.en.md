@@ -68,6 +68,8 @@ For conversation work, use **Save session** (`Session sichern`): messages, resea
 
 Use **Proof** (`Probedruck`) to create a PDF of the current state for review or sharing. It includes all chapters, highlights open markers and is marked as a proof. It is not an edition and does not change the book's edition number.
 
+The proof note appears on every page in its own red line below the page number, and on the title page. Choose its look on the title page under **Proof marking** in the output settings: a red line, a red box with date and version, or an additional “PROBEDRUCK” watermark on the title page or on every page. **Title page design** offers “with rules”, “modern”, “letter-spaced” and “with band” besides “classic”; it applies to the PDF, while EPUB and DOCX keep their title page. The form with preview images follows in a later update; until then use the text view (`Title page design: with rules`).
+
 It uses the merged book version. Merge pending changes first if you want them included in the proof.
 
 **Reading copy:** When you open a chapter or section, the assistant places its text next to the view as a file, in Claude in the side panel. You can read along while you change and finalize things in the chat; the file is sent again after every change. It also shows text that is not finalized, with its status and highlights open markers. `Lesefassung aus` (reading copy off) turns it off, `Lesefassung an` turns it back on. In ChatGPT and Open WebUI it is created by the "Manuskript ausgeben" action (format `md`) and has to be started again after changes; this path has not been tested in practice yet.
