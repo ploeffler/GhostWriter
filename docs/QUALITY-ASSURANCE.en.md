@@ -29,6 +29,7 @@ For every newly written or revised section:
 - Identify repetition, unnecessary duplication and unintended restatement.
 - Compare character voices, perspective, tense, tone and phrasing against project requirements.
 - Check grammar, spelling, punctuation and clarity.
+- Check the [ground rules for all book text](#ground-rules-for-all-book-text).
 - Look for AI-typical patterns, especially in the final sentence (see [Avoiding AI-typical patterns](#avoiding-ai-typical-patterns)).
 - Explicitly mark unresolved factual and source questions.
 
@@ -52,6 +53,20 @@ For major changes to plot, characters, narrative perspective, time structure or 
 - Check continuity across the book.
 - Use the project profile and binding fact/character material as references.
 - Perform a complete linear final reading of the manuscript when needed.
+
+## Ground rules for all book text
+
+These rules apply to every GhostWriter book, new and existing, as soon as the program update is in the library (#307). They are in `START.md` (section 3) and are not tied to any level; no setting relaxes them. A violation is at least **major**, rule 7 is **blocking**.
+
+1. **No inflated pathos.**
+2. **Take nothing from other authors’ works:** no sentences, characters, names or running gags. Attitude and tone may echo; the text stays original.
+3. **Take nothing from other books in the same library:** no phrasings, characters or gags, unless explicitly connected, for example in a series.
+4. **Write cleanly:** consistent spelling, punctuation and names. No deliberate mistakes to make a text seem human; voice, wit and rhythm do that.
+5. **No preface or afterword:** the assistant’s explanations belong in the chat, not in the manuscript.
+6. **Revising is not rewriting:** content and plot stay, only voice, rhythm and wording change, unless more is requested.
+7. **Characters in sexual scenes are adults:** all characters involved in sexual or erotic acts or described in a sexualized way are clearly at least 18 years old, and the text makes this clear. Memories of youth or school contain no sexual acts or descriptions, including flashbacks and allusions. This rule is a floor and applies even with confirmation.
+
+What belongs to the narrative voice or the book (perspective, dialect, humor, dramaturgy, sentence habits such as “verbs before nouns”) stays in the profile or book profile. Personal skills and book profiles need not repeat these ground rules.
 
 ## Avoiding AI-typical patterns
 

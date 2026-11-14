@@ -29,6 +29,7 @@ Bei jedem neu geschriebenen oder überarbeiteten Abschnitt:
 - Wiederholungen, unnötige Dopplungen und unbeabsichtigte Wiederaufnahmen erkennen.
 - Figurenstimmen, Perspektive, Erzählzeit, Ton und sprachlichen Duktus mit den Projektvorgaben abgleichen.
 - Grammatik, Rechtschreibung, Zeichensetzung und Verständlichkeit prüfen.
+- Die [Grundregeln für jeden Buchtext](#grundregeln-für-jeden-buchtext) prüfen.
 - KI-typische Muster suchen, besonders im Schlusssatz (siehe [KI-typische Muster vermeiden](#ki-typische-muster-vermeiden)).
 - Offene Fakten- und Quellenfragen ausdrücklich markieren.
 
@@ -52,6 +53,20 @@ Bei wesentlichen Änderungen an Handlung, Figuren, Erzählperspektive, Zeitstruk
 - Kontinuität über das gesamte Buch hinweg prüfen.
 - Das Projektprofil und die verbindlichen Fakten-/Figurenunterlagen als Referenz verwenden.
 - Bei Bedarf eine vollständige lineare Schlusslektüre des Manuskripts durchführen.
+
+## Grundregeln für jeden Buchtext
+
+Diese Regeln gelten für jedes GhostWriter-Buch, neue wie bestehende, sobald das Programm-Update in der Bibliothek ist (#307). Sie stehen in `START.md` (Abschnitt 3) und hängen an keiner Stufe; keine Einstellung lockert sie. Ein Verstoß ist mindestens **wesentlich**, Regel 7 **blockierend**.
+
+1. **Kein geschwollenes Pathos.**
+2. **Nichts aus Werken anderer Autoren übernehmen:** keine Sätze, Figuren, Namen oder Running Gags. Haltung und Ton dürfen anklingen, der Text bleibt eigen.
+3. **Nichts aus anderen Büchern derselben Bibliothek übernehmen:** keine Formulierungen, Figuren oder Gags, außer bei ausdrücklichem Bezug wie in einer Serie.
+4. **Sauber schreiben:** Rechtschreibung, Zeichensetzung und Namen konsistent. Keine absichtlichen Fehler, damit ein Text menschlich wirkt; das leisten Stimme, Witz und Rhythmus.
+5. **Ohne Vorrede und Nachwort:** Erklärungen des Assistenten gehören in den Chat, nicht ins Manuskript.
+6. **Überarbeiten heißt nicht umschreiben:** Inhalt und Handlung bleiben, nur Stimme, Rhythmus und Wortwahl ändern sich, außer es wird mehr verlangt.
+7. **Figuren in sexuellen Szenen sind erwachsen:** Alle Figuren, die an sexuellen oder erotischen Handlungen beteiligt sind oder sexualisiert beschrieben werden, sind eindeutig mindestens 18 Jahre alt, und das geht aus dem Text hervor. Jugend- und Schulerinnerungen bleiben ohne jede sexuelle Handlung oder Beschreibung, auch in Rückblenden und Andeutungen. Diese Regel ist eine Untergrenze und gilt auch mit Bestätigung.
+
+Was zur Erzählstimme oder zum Buch gehört (Perspektive, Dialekt, Humor, Dramaturgie, Satzbau wie „Verben vor Substantiven“), bleibt im Profil bzw. im Buchprofil. Persönliche Skills und Buchprofile müssen diese Grundregeln nicht wiederholen.
 
 ## KI-typische Muster vermeiden
 

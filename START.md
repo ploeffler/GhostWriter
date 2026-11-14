@@ -557,6 +557,14 @@ Regeln:
 - Widersprüchliche Quellen transparent dokumentieren.
 - Quellenangaben müssen auf tatsächlich konsultierte Quellen zurückgehen.
 - Jeder Text fürs Buch (Abschnitte, Vor- und Nachspann, Klappentext, Überarbeitungen) vermeidet KI-typische Muster (`docs/QUALITAETSSICHERUNG.md`, „KI-typische Muster vermeiden“, Liste `templates/qa/ki-muster.yml`, #305): kein Schlusssatz, der nur ankündigt, was später kommt; keine zusammenfassenden Formeln, KI-Floskeln, automatischen Dreierreihen von Adjektiven und keine erklärende Moral am Absatzende; dazu die Wendungen aus `style.avoid`. Keine Stufe lockert das.
+- Grundregeln für jeden Buchtext (#307), unabhängig von den Stufen; keine Stufe lockert sie:
+  - kein geschwollenes Pathos;
+  - nichts aus Werken anderer Autoren übernehmen (Sätze, Figuren, Namen, Running Gags); Haltung und Ton dürfen anklingen;
+  - nichts aus anderen Büchern derselben Bibliothek übernehmen (Formulierungen, Figuren, Gags), außer bei ausdrücklichem Bezug wie in einer Serie;
+  - sauber schreiben: Rechtschreibung, Zeichensetzung und Namen konsistent, keine absichtlichen Fehler, damit ein Text menschlich wirkt – das leisten Stimme, Witz und Rhythmus;
+  - Buchtext ohne Vorrede und Nachwort des Assistenten; Erklärungen gehören in den Chat, nicht ins Manuskript;
+  - bei einer Überarbeitung bleiben Inhalt und Handlung, nur Stimme, Rhythmus und Wortwahl ändern sich, außer es wird mehr verlangt;
+  - alle Figuren, die an sexuellen oder erotischen Handlungen beteiligt sind oder sexualisiert beschrieben werden, sind eindeutig erwachsen (mindestens 18 Jahre), und das geht aus dem Text hervor; Jugend- und Schulerinnerungen ohne jede sexuelle Handlung oder Beschreibung, auch nicht in Rückblenden oder Andeutungen.
 
 ### Stufen der Grundregeln (verbindlich, #300)
 
@@ -572,7 +580,7 @@ Die Grundregeln oben und die Freigabepflichten (`workflow.require_…`) werden i
 2. **Plan zeigen:** Für jede geänderte Gruppe `python scripts/rules.py . plan <gruppe> <stufe>`: was sich ändert und ob es **lockert** (schwächer als die Programmvorgabe in `workflow.yml`, `global_ai_policy`, bzw. als eine Freigabepflicht).
 3. **Verschärfen** oder zurück zur Vorgabe: ohne weitere Rückfrage `python scripts/rules.py . set <gruppe> <stufe>`, ein Commit `Grundregeln: <Gruppe> auf „<Stufe>“`.
 4. **Lockern nur mit eigener Bestätigung**, wie eine Freigabe (Abschnitt „Freigaben“): Bestätigung „Grundregeln lockern“ mit dem Plan in Alltagssprache und eigener Auswahl („Lockern bestätigen“ · „Abbrechen“). Die Auswahl in Schritt 1, ein Formular oder eine freie Formulierung („passt schon“) ist **keine** Bestätigung. Erst danach `python scripts/rules.py . set <gruppe> <stufe> --confirmed --by <Benutzer>`; das Skript hängt den Eintrag `kind: rules`, `id: rules-<gruppe>`, `action: granted` an `approvals.yml` an. Commit `Grundregeln: <Gruppe> auf „<Stufe>“ gelockert`. Die Rückkehr zur Vorgabe hält `action: revoked` fest.
-5. **Untergrenzen gelten immer**, auch mit Bestätigung: nichts als Tatsache erfinden, Unsicherheiten kennzeichnen, bei Rechercheaufträgen recherchieren, KI-typische Muster vermeiden, Abschnitte und Kapitel abschließen (Auflagen bauen nur auf abgeschlossenen Teilen). Wünscht der Benutzer weniger, das freundlich sagen und nicht ändern.
+5. **Untergrenzen gelten immer**, auch mit Bestätigung: nichts als Tatsache erfinden, Unsicherheiten kennzeichnen, bei Rechercheaufträgen recherchieren, KI-typische Muster vermeiden, Figuren in sexuellen oder sexualisierten Szenen eindeutig erwachsen (#307), Abschnitte und Kapitel abschließen (Auflagen bauen nur auf abgeschlossenen Teilen). Wünscht der Benutzer weniger, das freundlich sagen und nicht ändern.
 6. **Was die Stufen bedeuten:**
    - **Erzählung:** Erfundenes ist in der Handlung erlaubt (Figuren, Dialoge, Ereignisse). Echte Tatsachen – reale Orte, Geschichte, Medizin, Recht, Zitate, Quellen – werden weiterhin nicht erfunden und nach Möglichkeit belegt; Unsicherheiten dazu im Chat nennen, im Erzähltext nicht markieren.
    - **Zurückhaltend:** nah an Quellen und Vorgaben formulieren; Recherche bei jedem Schreibauftrag. **Frei:** mehr eigene Ideen, Bilder und Formulierungen; Fakten bleiben nach der Faktentreue-Stufe.
