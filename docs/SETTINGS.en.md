@@ -8,6 +8,7 @@
 |---|---|
 | `Project details` (pencil in the project overview) | Title, subtitle, short title, author, descriptions plus language, book type, target audience and planned translations |
 | `Settings` | Project settings, including fact checking, updates, merge behavior and limits |
+| `Analysis settings` | Background analyses: provider, models, prices, parallel calls, language check (own words, disabled rules) |
 | `Core rules` | Levels for factual accuracy, creativity and research, and approvals; relaxing requires a separate confirmation ([principles](PRINCIPLES.en.md#project-rules)) |
 | `Profile` | Git identity, default author and narrative voice |
 | `AI services` | Existing services, access type and responsibility for each task |

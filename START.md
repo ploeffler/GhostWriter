@@ -41,6 +41,7 @@ Akzeptiere zusätzlich zu den deutschen Befehlen die folgenden englischen Entspr
 | `Update`, `Data`, `Profile`, `AI disclosure` | `Update`, `Daten`, `Profil`, `KI-Angabe` |
 | `Core rules` | `Grundregeln` |
 | `Project details` | `Projektdaten` |
+| `Analysis settings` | `Analyse-Einstellungen` |
 | `Output`, `Output options`, `Cover` | `Ausgabe`, `Ausgabeoptionen`, `Umschlag` |
 | `Text only`, `Widgets` | `Nur Text`, `Widgets` |
 | `Import as book`, `Import manuscript` | `Als Buch importieren`, `Manuskript importieren` |
@@ -231,6 +232,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Profil` | Assistenten-Profil zeigen bzw. anlegen: Git-Benutzer, Autor, Standard-Erzählstimme (Abschnitt 0, „Assistenten-Profil“) |
 | `KI-Angabe` | Formular „KI-Angabe im Buch“ (Abschnitt 0, „KI-Angabe im Buch“) |
 | `Projektdaten` | Formular „Projektdaten bearbeiten“ (wie `project.edit`): Titel, Untertitel, Kurztitel, Autor, Beschreibungen, Sprache, Buchtyp, Zielgruppe, geplante Übersetzungen (#299) |
+| `Analyse-Einstellungen` | Formular „Analyse-Einstellungen“ (`render_view.py analysis-settings`, Textfassung mit `--text`): Anbieter, Modelle, Preise, gleichzeitige Aufrufe, Sprachprüfung; speichern mit `python scripts/analyze.py . settings-set '<json>'`, ein Commit `Analyse-Einstellungen geändert` (#299) |
 | `Grundregeln` | Stufen der Grundregeln wählen: Faktentreue, Kreativität und Recherche, Freigaben (Abschnitt 3, „Stufen der Grundregeln“) |
 | `Ausgabe`, `Ausgabeoptionen`, `Umschlag` | Formular „Ausgabeoptionen“: Satzspiegel, Schrift, Absätze, Titelei, Formate, Angaben im Impressum, Druck und Umschlag (Vorlage `ausgabeoptionen`, `render_view.py output`, Textfassung mit `--text`; #68) |
 | `Nur Text`, `Widgets` | Darstellungsmodus umschalten; `Widgets` nur bei Anbietern, die sie darstellen (`templates/ui/BEFUELLUNG.md`, „Darstellungsmodus“) |
@@ -285,6 +287,8 @@ Was jedes Formular schreibt:
 | Formular | Aktion | Dateien | Commit-Nachricht | Nötige Freigabe | Endpunkt (Weg B, `docs/API-CONTRACT.md`) |
 |---|---|---|---|---|---|
 | Projektdaten bearbeiten | `project.update` | `ghostwriter.yml` (`project.*`) | `Projektdaten geändert` | – | `PATCH /v1/projects/{owner}/{repo}` |
+| Analyse-Einstellungen | `project.analysis.update` | `ghostwriter.yml` (`analysis`, über `scripts/analyze.py settings-set`) | `Analyse-Einstellungen geändert` | – | `PATCH …/settings` |
+| Grundregeln | `project.rules.update` | `ghostwriter.yml` (`ai_settings`, `workflow.require_*`, `rules`) über `scripts/rules.py set`; beim Lockern zusätzlich `approvals.yml` | `Grundregeln: <Gruppe> auf „<Stufe>“` (gelockert: `… gelockert`) | – | `PATCH …/settings` |
 | KI-Angabe im Buch | `project.ai_disclosure.update` | `ghostwriter.yml` (`ai_disclosure`), über `scripts/ai_disclosure.py set` | `KI-Angabe geändert` | – | `PATCH …/settings` |
 | Ausgabeoptionen | `project.output.update` | `ghostwriter.yml` (`typesetting`, `publication`, `print`, `cover`), Texte der Rückseite in `cover/rueckseite.md` (aus `templates/cover-rueckseite.md`), hochgeladene Bilder unter `cover/`; nur geänderte Felder eintragen, Vorgaben nicht ausschreiben; danach `scripts/validate_project.py` (ISBN-Prüfziffer, Druckprofil, Bilder) | `Ausgabeoptionen geändert` | – | `PATCH …/settings` |
 | Projekteinstellungen | `project.settings.update` | `ghostwriter.yml` (`workflow.fact_checking_default`, `typesetting`, `updates`, `changes`, `limits`) | `Projekteinstellungen geändert` | – | `PATCH …/settings` |

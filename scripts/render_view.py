@@ -2305,6 +2305,7 @@ def project_settings_view(base, config, args):
                              view_message('settings.budget_row', p_a=lim.get("ai_budget_monthly") or "–"),
                              view_message('settings.minutes_row', p_a=lim.get("actions_minutes_monthly") or "–"),
                              view_message('settings.disclosure_row', p_a=ai_disc_text(config)),
+                             view_message('settings.analysis_row'),
                              view_message('settings.output_row'),
                              '', f'<sub>{upd_text} · Limits: {lim_sum}</sub>'] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', view_message('settings.form_hint')]) + '\n'
     def b(v):
@@ -2324,6 +2325,46 @@ def num_text(v):
     if v in (None, ''):
         return ''
     return str(int(v)) if float(v).is_integer() else str(v)
+
+
+def analysis_settings_view(base, config, args):
+    """Formular „Analyse-Einstellungen“ (#299), Vorlage analyse-einstellungen bzw. Textfassung."""
+    import analyze
+    a = config.get('analysis') or {}
+    lt = a.get('languagetool') or {}
+    num = lambda v: '' if v is None else (str(int(v)) if float(v) == int(v) else str(v))
+    lt_default = analyze.lt_language({'project': config.get('project') or {}})
+    values = {'ANALYSIS_PROVIDER': a.get('provider') or '', 'ANALYSIS_MODEL': a.get('model') or '',
+              'ANALYSIS_MERGE_MODEL': a.get('merge_model') or '',
+              'DEFAULT_MODEL_ANTHROPIC': analyze.PROVIDERS['anthropic']['model'],
+              'DEFAULT_MERGE_ANTHROPIC': analyze.PROVIDERS['anthropic']['merge_model'],
+              'DEFAULT_MODEL_OPENAI': analyze.PROVIDERS['openai']['model'],
+              'DEFAULT_MERGE_OPENAI': analyze.PROVIDERS['openai']['merge_model'],
+              'PRICE_INPUT': num(a.get('price_input_per_mtok')), 'PRICE_OUTPUT': num(a.get('price_output_per_mtok')),
+              'CURRENCY': 'EUR', 'PARALLEL': num(a.get('parallel')), 'LT_LANGUAGE': lt.get('language') or '',
+              'LT_LANGUAGE_DEFAULT': lt_default, 'LT_WORDS': '\n'.join(lt.get('words') or []),
+              'LT_RULES': '\n'.join(lt.get('disabled_rules') or [])}
+    if not args.text:
+        return fill('analyse-einstellungen.html', values)
+    prov = a.get('provider') or ''
+    default = view_message('view.analysis_settings.default')
+    dm = analyze.PROVIDERS[prov or 'anthropic']
+    rows = [(view_message('view.analysis_settings.provider'), prov or view_message('view.analysis_settings.automatic'),
+             'anthropic, openai, ' + view_message('view.analysis_settings.blank_automatic')),
+            (view_message('view.analysis_settings.model'), values['ANALYSIS_MODEL'] or f'{default} ({dm["model"]})', ''),
+            (view_message('view.analysis_settings.merge_model'), values['ANALYSIS_MERGE_MODEL'] or f'{default} ({dm["merge_model"]})', ''),
+            (view_message('view.analysis_settings.price_input'), values['PRICE_INPUT'] or '–', view_message('view.analysis_settings.price_hint')),
+            (view_message('view.analysis_settings.price_output'), values['PRICE_OUTPUT'] or '–', view_message('view.analysis_settings.price_hint')),
+            (view_message('view.analysis_settings.parallel'), values['PARALLEL'] or f'{default} (4)', '1–16'),
+            (view_message('view.analysis_settings.lt_language'), values['LT_LANGUAGE'] or f'{default} ({lt_default})', 'de-AT, en-GB …'),
+            (view_message('view.analysis_settings.lt_words'), ', '.join(lt.get('words') or []) or '–', view_message('view.analysis_settings.list_hint')),
+            (view_message('view.analysis_settings.lt_rules'), ', '.join(lt.get('disabled_rules') or []) or '–', view_message('view.analysis_settings.rules_hint'))]
+    esc = lambda v: str(v).replace('|', '\\|')
+    return '\n'.join([view_message('view.analysis_settings.heading'), '', view_message('view.analysis_settings.intro'), '',
+                      view_message('settings.fields_table'), '|---|---|---|']
+                     + [f'| {k} | {esc(v)} | {h} |' for k, v, h in rows]
+                     + ['', f"<sub>🔑 {view_message('view.analysis_settings.keys_hint')}</sub>", '',
+                        view_message('view.analysis_settings.form_hint')]) + '\n'
 
 
 def ai_disclosure_view(base, config, args):
@@ -3524,7 +3565,7 @@ FORMS = {'choice': choice_view, 'book-create': book_create_view, 'series-edit': 
          'approval-chapter': lambda b, c, a: approval_view(b, c, a, 'chapter'),
          'approval-matter': lambda b, c, a: approval_view(b, c, a, 'section'),
          'approval-image': lambda b, c, a: approval_view(b, c, a, 'image'),
-         'ai-disclosure': ai_disclosure_view, 'output': output_view}
+         'ai-disclosure': ai_disclosure_view, 'output': output_view, 'analysis-settings': analysis_settings_view}
 
 
 def git_head(base):
