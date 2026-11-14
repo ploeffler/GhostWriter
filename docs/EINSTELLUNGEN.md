@@ -7,6 +7,7 @@ Deutsch · [English](SETTINGS.en.md)
 | Im Chat | Dafür ist es da |
 |---|---|
 | `Einstellungen` | Projekteinstellungen, unter anderem Faktencheck, Updates, Übernahmeverhalten und Grenzen |
+| `Grundregeln` | Stufen für Faktentreue, Kreativität und Recherche sowie Freigaben; Lockern nur mit eigener Bestätigung ([Grundsätze](GRUNDSAETZE.md#projektregeln)) |
 | `Profil` | Git-Benutzer, Autor als Vorbelegung und Standard-Erzählstimme |
 | `KI-Dienste` | Vorhandene Dienste, Zugangsart und Zuständigkeit je Aufgabe |
 | `Ausgabe` oder `Umschlag` | Satz, Schrift, Absätze, Titelei, Formate, Impressum, Druckprofil und Umschlag |

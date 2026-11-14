@@ -28,7 +28,7 @@ A shared history does not mean every client has already loaded the same state. C
 
 ## Project rules
 
-Global AI settings in `ghostwriter.yml` apply to research, brainstorming, writing, revision and fact-checking. They must not be silently weakened:
+Global AI settings in `ghostwriter.yml` apply to research, brainstorming, writing, revision and fact-checking. They must not be silently weakened; the default is:
 
 | Rule | Value | Meaning |
 |---|---|---|
@@ -37,6 +37,8 @@ Global AI settings in `ghostwriter.yml` apply to research, brainstorming, writin
 | Uncertainty | `explicit` | Mark uncertain passages visibly. |
 | Creativity | `balanced` | Use examples and imagery without distorting facts. |
 | Web research | `research` | Search actively for research tasks; say when search is unavailable. |
+
+The **Core rules** command sets a level per group: **factual accuracy** (non-fiction or fiction), **creativity and research** (careful, balanced, free) and **approvals** (strict or quick, i.e. without writing permission per section). Tightening is always possible. **Relaxing** requires a separate confirmation and is recorded in the approval log. Floors always apply: facts are not invented, uncertainty is stated, research tasks are researched, sections and chapters are completed. With “fiction”, invented content is allowed in the story only; real places, history, medicine, law and quotations stay sourced.
 
 The book's `ai_providers` settings select services for individual tasks. See [providers](PROVIDERS.en.md) and [using AI services](AI-SERVICES.en.md).
 

@@ -79,7 +79,7 @@
           "const": "research"
         },
         "override_policy": {
-          "const": "only_add_stricter_rules"
+          "const": "stricter_freely_looser_with_confirmation"
         }
       },
       "additionalProperties": false

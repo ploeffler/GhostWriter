@@ -45,6 +45,16 @@
       },
       "additionalProperties": false
     },
+    "rules": {
+      "type": "object",
+      "description": "Gewählte Stufen der Grundregeln (#300, scripts/rules.py); die Werte selbst stehen in ai_settings und workflow.require_*. Lockern nur mit Bestätigung in approvals.yml (kind: rules)",
+      "properties": {
+        "facts": {"enum": ["nonfiction", "fiction"]},
+        "creativity": {"enum": ["careful", "balanced", "free"]},
+        "approvals": {"enum": ["strict", "quick"]}
+      },
+      "additionalProperties": false
+    },
     "ai_providers": {
       "type": "object",
       "required": ["default"],

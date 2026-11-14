@@ -99,6 +99,16 @@ def section_file(base, section):
     return head, ('' if goal == 'Offen.' else goal), ('' if summary == 'Offen.' else summary), manuscript
 
 
+def writing_waived(config):
+    """Stufe „Zügig“ der Grundregeln (#300): keine Schreibfreigabe je Abschnitt nötig."""
+    return (config.get('workflow') or {}).get('require_section_writing_approval') is False
+
+
+def writing_ok(config, approvals):
+    """Darf geschrieben werden? Schreibfreigabe erteilt oder durch die Stufe „Zügig“ nicht nötig."""
+    return bool(approvals.get('writing')) or writing_waived(config)
+
+
 # Vor- und Nachspann (#57, #58): Teile außerhalb der Kapitel, je eine Datei unter matter/.
 # Art → (Bereich, Vorgabetitel, Datei). Bereich: front = vor Kapitel 1, back = nach dem letzten Kapitel.
 # Die Reihenfolge hier ist die Reihenfolge im Buch.
@@ -443,6 +453,14 @@ def view_labels(name):
                 },
             ),
         }
+    if name == 'RULE_GROUPS':   # Stufen der Grundregeln (#300)
+        return {'facts': view_message('labels.RULE_GROUPS.facts'), 'creativity': view_message('labels.RULE_GROUPS.creativity'),
+                'approvals': view_message('labels.RULE_GROUPS.approvals')}
+    if name == 'RULE_LEVELS':
+        return {'nonfiction': view_message('labels.RULE_LEVELS.nonfiction'), 'fiction': view_message('labels.RULE_LEVELS.fiction'),
+                'careful': view_message('labels.RULE_LEVELS.careful'), 'balanced': view_message('labels.RULE_LEVELS.balanced'),
+                'free': view_message('labels.RULE_LEVELS.free'), 'strict': view_message('labels.RULE_LEVELS.strict'),
+                'quick': view_message('labels.RULE_LEVELS.quick')}
     if name == 'FIXED_TEXT':
         return {
             'strict': view_message('labels.FIXED_TEXT.strict'),
@@ -450,6 +468,12 @@ def view_labels(name):
             'explicit': view_message('labels.FIXED_TEXT.explicit'),
             'balanced': view_message('labels.FIXED_TEXT.balanced'),
             'research': view_message('labels.FIXED_TEXT.research'),
+            'standard': view_message('labels.FIXED_TEXT.standard'),
+            'recommended': view_message('labels.FIXED_TEXT.recommended'),
+            'normal': view_message('labels.FIXED_TEXT.normal'),
+            'conservative': view_message('labels.FIXED_TEXT.conservative'),
+            'creative': view_message('labels.FIXED_TEXT.creative'),
+            'mandatory': view_message('labels.FIXED_TEXT.mandatory'),
             True: view_message('labels.FIXED_TEXT.True'),
             False: view_message('labels.FIXED_TEXT.False'),
         }
@@ -1000,7 +1024,7 @@ def matter_view(base, config, args):
                   'MATTER_AREA_TEXT': area, 'MATTER_STATUS': head['status'], 'MATTER_GOAL': goal,
                   'MATTER_MANUSCRIPT': '' if kind == 'glossary' or ms in EMPTY_MANUSCRIPT else ms,
                   'MARKER_COUNT_TEXT': view_message('view.matter.no_open_markers') if not n else view_message('view.matter.open_marker', p_a=n, p_b=view_plural(n, 'r', german_singular=True)),
-                  'APPROVAL_WRITING': str(bool(head['approvals']['writing'])).lower(),
+                  'APPROVAL_WRITING': str(writing_ok(config, head['approvals'])).lower(),
                   'APPROVAL_SECTION': str(bool(head['approvals']['section'])).lower(),
                   'SIGNED': '1' if kind in MATTER_SIGNED else '', 'BYLINE': head.get('byline') or '',
                   'PLACE_DATE': head.get('place_date') or '', 'GLOSSARY': '1' if kind == 'glossary' else '',
@@ -1017,7 +1041,7 @@ def matter_view(base, config, args):
         return fill('teil-bearbeiten.html', values, blocks)
     lines = [f'### 📜 {item["title"]}', f'{area} · {display_status(head["status"])}', '',
              '| | |', '|---|---|', view_message('view.matter.goal', p_a=goal or view_message('view.matter.not_set')),
-             view_message('view.matter.writing_approval', p_a=yn(head["approvals"]["writing"])),
+             view_message('view.matter.writing_approval', p_a=yn(writing_ok(config, head["approvals"]))),
              view_message('view.matter.approved', p_a=yn(head["approvals"]["section"]))]
     if kind in MATTER_SIGNED:
         lines += [view_message('view.matter.byline', p_a=head.get("byline") or view_message('view.matter.the_book_s_author')),
@@ -1050,7 +1074,8 @@ def matter_view(base, config, args):
         items = [('T', view_message('view.matter.edit_text_send_the_revised_text')),
                  ('F', view_message('view.matter.title_goal_byline_place_and_date') if kind in MATTER_SIGNED else view_message('view.matter.title_and_goal'))]
     # Kürzel #292: SE/SP Schreiben erlauben/sperren, AB/WO abschließen/wieder öffnen (FS, FA bleiben Aliase)
-    items += [('SP', view_message('view.matter.withdraw_writing_permission')) if head['approvals']['writing'] else ('SE', view_message('view.matter.grant_writing_permission')),
+    items += ([] if writing_waived(config) else   # Stufe „Zügig“ (#300): kein Schreiben erlauben/sperren
+              [('SP', view_message('view.matter.withdraw_writing_permission')) if head['approvals']['writing'] else ('SE', view_message('view.matter.grant_writing_permission'))]) + [
               ('WO', view_message('view.matter.withdraw_approval')) if head['approvals']['section'] else ('AB', view_message('view.matter.approve', p_a=item["title"]))]
     if kind in MATTER_RESEARCH:
         items.append(('RS', view_message('view.matter.research_each_term') if kind == 'glossary' else view_message('view.matter.research_now')))
@@ -1465,7 +1490,7 @@ def section_view(base, config, args, cnum, snum):
               'SECTION_COST_HINT': cost_hint('Summe der Kosteneinträge', a, e),
               'SECTION_GOAL': goal, 'SECTION_SUMMARY': summary, 'SECTION_MANUSCRIPT': ms,
               'MARKER_COUNT_TEXT': 'keine offenen Marker' if not n else f'{n} offene{"r" if n == 1 else ""} Marker',
-              'FACT_CHECK': head['fact_check'], 'APPROVAL_WRITING': str(head['approvals']['writing']).lower(),
+              'FACT_CHECK': head['fact_check'], 'APPROVAL_WRITING': str(writing_ok(config, head['approvals'])).lower(),
               'APPROVAL_SECTION': str(head['approvals']['section']).lower(),
               'PREV_SECTION_ID': prev_id, 'PREV_SECTION_PROMPT': prev_text,
               'NEXT_SECTION_ID': next_id, 'NEXT_SECTION_PROMPT': next_text}
@@ -1480,7 +1505,7 @@ def section_view(base, config, args, cnum, snum):
                  '| | |', '|---|---|',
                  f'| Ziel | {goal or "*offen*"} |', f'| Kurzbeschreibung | {summary or "*offen*"} |',
                  f'| Faktencheck | {view_labels('FC_TEXT').get(head["fact_check"], head["fact_check"])} |',
-                 f'| Schreiben erlaubt | {yn(head["approvals"]["writing"])} |', f'| Abschnitt abgeschlossen | {yn(head["approvals"]["section"])} |']
+                 f'| Schreiben erlaubt | {yn(writing_ok(config, head["approvals"]))} |', f'| Abschnitt abgeschlossen | {yn(head["approvals"]["section"])} |']
         if chars:
             names = {c['id']: c['name'] for c in chars}
             lines.append(f'| Figuren | {", ".join(names.get(c, c) for c in in_section) or "–"} |')
@@ -1498,7 +1523,8 @@ def section_view(base, config, args, cnum, snum):
             lines += ['---', '', ms, '', '---']
         items = [('T', 'Text ändern (geänderten Text schicken)'), ('F', 'Ziel, Kurzbeschreibung, Faktencheck'
                                                                   + (', Figuren' if chars else '')),
-                 ('SP', 'Schreiben sperren') if head['approvals']['writing'] else ('SE', 'Schreiben erlauben'),
+                 *([] if writing_waived(config) else   # Stufe „Zügig“ (#300)
+                   [('SP', 'Schreiben sperren') if head['approvals']['writing'] else ('SE', 'Schreiben erlauben')]),
                  ('WO', 'Abschnitt wieder öffnen') if head['approvals']['section'] else ('AB', 'Abschnitt abschließen'),
                  ('RS', 'Recherche sofort'), ('GS', 'Ghostwriting sofort'), ('BI', 'Bilder'), ('FV', '👤 Figuren aus dem Text vorschlagen')]
         if prev_id:
@@ -1766,7 +1792,12 @@ def approval_view(base, config, args, kind):
             sec = ch['sections'][s_ - 1]
             head, goal, summary, ms = section_file(base, sec)
             target_id, label = sec['id'], view_message('section', p_a=f'{c}', p_b=f'{s_}', p_c=f"{sec['title']}")
-        ap = head['approvals']
+        ap = dict(head['approvals'])
+        if writing_waived(config):   # Stufe „Zügig“ (#300): Schreibfreigabe gilt als erteilt
+            if kind == 'writing':
+                add('block', view_message('writing_permission_not_needed_quick_level'))
+            else:
+                ap['writing'] = True
         if kind == 'writing' and revoke:
             title, button = view_message('withdraw_writing_permission'), view_message('withdraw')
             if not ap['writing']:
@@ -2028,7 +2059,12 @@ FIXED_RULES = [('ai_settings', 'hallucination_policy', 'Halluzinationen'), ('ai_
                ('workflow', 'require_section_approval', 'Abschluss je Abschnitt'),
                ('workflow', 'require_chapter_approval', 'Abschluss je Kapitel')]
 FIXED_TEXT = {'strict': 'strikt ausgeschlossen', 'required': 'Pflicht', 'explicit': 'ausdrücklich kennzeichnen',
-              'balanced': 'ausgewogen', 'research': 'bei Rechercheaufträgen', True: 'Pflicht', False: 'aus'}
+              'balanced': 'ausgewogen', 'research': 'bei Rechercheaufträgen', 'standard': 'vermeiden', 'recommended': 'empfohlen',
+              'normal': 'kennzeichnen, wo nötig', 'conservative': 'zurückhaltend', 'creative': 'frei', 'mandatory': 'bei jedem Auftrag',
+              True: 'Pflicht', False: 'aus'}
+RULE_GROUPS = {'facts': 'Stufe Faktentreue', 'creativity': 'Stufe Kreativität und Recherche', 'approvals': 'Stufe Freigaben'}
+RULE_LEVELS = {'nonfiction': 'Sachbuch', 'fiction': 'Erzählung', 'careful': 'Zurückhaltend', 'balanced': 'Ausgewogen', 'free': 'Frei',
+               'strict': 'Streng', 'quick': 'Zügig'}
 FC_TEXT = {'disabled': 'aus', 'optional': 'optional', 'requested': 'angefordert'}
 
 
@@ -2226,7 +2262,13 @@ def project_settings_view(base, config, args):
     ts = dict(TYPESETTING_DEFAULT)
     ts.update(config.get('typesetting') or {})
     wf = config.get('workflow') or {}
+    import rules   # Stufen der Grundregeln (#300)
     fixed = []
+    for group, st in rules.show(base).items():
+        level = view_labels('RULE_LEVELS')[st['level']] if st['level'] else view_message('settings.rule_own')
+        if st['relaxed']:
+            level += ' · ' + (view_message('settings.rule_relaxed') if st['confirmed'] else view_message('settings.rule_unconfirmed'))
+        fixed.append({'FIXED_LABEL': view_labels('RULE_GROUPS')[group], 'FIXED_VALUE': level})
     for block, key, label in view_labels('FIXED_RULES'):
         v = (config.get(block) or {}).get(key)
         if v is None:

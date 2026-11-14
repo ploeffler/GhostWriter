@@ -39,6 +39,7 @@ Akzeptiere zusätzlich zu den deutschen Befehlen die folgenden englischen Entspr
 | `Proof`, `Edition`, `Settings`, `AI services` | `Probedruck`, `Auflage`, `Einstellungen`, `KI-Dienste` |
 | `Export manuscript`, `Export manuscript chapter 3` | `Manuskript ausgeben`, `Manuskript ausgeben Kapitel 3` |
 | `Update`, `Data`, `Profile`, `AI disclosure` | `Update`, `Daten`, `Profil`, `KI-Angabe` |
+| `Core rules` | `Grundregeln` |
 | `Output`, `Output options`, `Cover` | `Ausgabe`, `Ausgabeoptionen`, `Umschlag` |
 | `Text only`, `Widgets` | `Nur Text`, `Widgets` |
 | `Import as book`, `Import manuscript` | `Als Buch importieren`, `Manuskript importieren` |
@@ -228,6 +229,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Daten` | Seite „Daten“: Stand von Programm, Büchern und Repository (Abschnitt 0, „Daten“) |
 | `Profil` | Assistenten-Profil zeigen bzw. anlegen: Git-Benutzer, Autor, Standard-Erzählstimme (Abschnitt 0, „Assistenten-Profil“) |
 | `KI-Angabe` | Formular „KI-Angabe im Buch“ (Abschnitt 0, „KI-Angabe im Buch“) |
+| `Grundregeln` | Stufen der Grundregeln wählen: Faktentreue, Kreativität und Recherche, Freigaben (Abschnitt 3, „Stufen der Grundregeln“) |
 | `Ausgabe`, `Ausgabeoptionen`, `Umschlag` | Formular „Ausgabeoptionen“: Satzspiegel, Schrift, Absätze, Titelei, Formate, Angaben im Impressum, Druck und Umschlag (Vorlage `ausgabeoptionen`, `render_view.py output`, Textfassung mit `--text`; #68) |
 | `Nur Text`, `Widgets` | Darstellungsmodus umschalten; `Widgets` nur bei Anbietern, die sie darstellen (`templates/ui/BEFUELLUNG.md`, „Darstellungsmodus“) |
 | `Als Buch importieren`, `Manuskript importieren` | mit angehängter Datei: Import als neues Buch (Abschnitt 0, „Manuskript importieren“) |
@@ -332,7 +334,7 @@ Die Knöpfe „Recherche · Sofort“ und „Ghostwriting · Sofort“ im Abschn
 1. **Zuständigkeit prüfen:** Welcher Dienst die Aufgabe übernimmt, steht in `ai_providers` (Recherche: `research`, Ghostwriting: `writing`, sonst `default`). Ist es der aktuelle Chat (`chat`), läuft der Lauf hier. Sonst „Auftrag kopieren“ (`docs/DIENSTE-NUTZEN.md`, Weg 2/3); die Rückgabe wird danach wie unten gespeichert. Nie still selbst übernehmen.
 2. **Voraussetzungen:**
    - **Recherche:** jederzeit möglich, auch wiederholt. Status `planned` → `research`; spätere Läufe ändern den Status nicht.
-   - **Ghostwriting:** nur mit Schreibfreigabe (`approvals.writing: true`). Fehlt sie, nicht schreiben, sondern auf „Freigabe bestätigen“ (Schreibfreigabe) verweisen. Grundlage sind die vorhandenen Recherche- und Brainstorming-Läufe des Abschnitts sowie Ziel und Kurzbeschreibung; nur dieser eine Abschnitt.
+   - **Ghostwriting:** nur mit Schreibfreigabe (`approvals.writing: true`) oder bei der Stufe „Zügig“ der Grundregeln (`workflow.require_section_writing_approval: false`, Abschnitt 3). Fehlt beides, nicht schreiben, sondern auf „Freigabe bestätigen“ (Schreibfreigabe) verweisen. Grundlage sind die vorhandenen Recherche- und Brainstorming-Läufe des Abschnitts sowie Ziel und Kurzbeschreibung; nur dieser eine Abschnitt.
 3. **Ausführen** nach den globalen KI-Regeln (Abschnitt 3): Recherche mit Internetrecherche und belegten Quellen, Unsicherheiten kennzeichnen; Ghostwriting ohne erfundene Fakten, offene Stellen als Marker (`[QUELLE PRÜFEN: …]`, `[PLATZHALTER-ANEKDOTE: …]` …); steht ein Stilprofil in `ghostwriter.yml` (`style`: Erzählperspektive, Zeitform, Anrede, Sprachebene, Ton, Stilmittel, Wörter je Satz), gilt es als Vorgabe für den Text.
 4. **Zeigen:** Recherche als kurze Zusammenfassung (Fragestellung, wichtigste Ergebnisse, Zahl der Quellen, offene Fragen); Ghostwriting als Text dieses einen Abschnitts. Nie mehr als ein Abschnitt.
 5. **Speichern:** ein Commit im Arbeits-Branch (Abschnitt „Schreiben ins Repository“) mit
@@ -528,7 +530,7 @@ Entwickle gemeinsam mit mir ein Buchprojekt. Arbeite dialogorientiert und stelle
 
 ## 3. Projektweite KI-Grundeinstellungen
 
-Diese Werte sind verbindliche Defaults und dürfen nicht stillschweigend abgeschwächt werden:
+Diese Werte sind verbindliche Defaults und dürfen nicht stillschweigend abgeschwächt werden; lockern nur über die Stufen mit eigener Bestätigung (unten, „Stufen der Grundregeln“):
 
 ```yaml
 ai_settings:
@@ -548,6 +550,27 @@ Regeln:
 - Bei Rechercheaufträgen aktiv im Internet recherchieren. Steht keine Internetrecherche zur Verfügung, dies ausdrücklich sagen, Aussagen aus dem eigenen Trainingswissen als ungeprüft kennzeichnen und dem Benutzer konkrete Quellen bzw. Suchanfragen zur eigenen Prüfung vorschlagen.
 - Widersprüchliche Quellen transparent dokumentieren.
 - Quellenangaben müssen auf tatsächlich konsultierte Quellen zurückgehen.
+
+### Stufen der Grundregeln (verbindlich, #300)
+
+Die Grundregeln oben und die Freigabepflichten (`workflow.require_…`) werden in drei Gruppen über **Stufen** gesetzt (`scripts/rules.py`; gewählte Stufe in `rules`). Eine Stufe setzt alle Werte ihrer Gruppe gemeinsam; einzelne Werte nicht von Hand ändern.
+
+| Gruppe | Stufen (Vorgabe zuerst) | Werte |
+|---|---|---|
+| Faktentreue (`facts`) | **Sachbuch** `nonfiction` · Erzählung `fiction` | `hallucination_policy`, `source_policy`, `uncertainty_policy`: `strict`/`required`/`explicit` bzw. `standard`/`recommended`/`normal` |
+| Kreativität und Recherche (`creativity`) | **Ausgewogen** `balanced` · Zurückhaltend `careful` · Frei `free` | `creativity`, `web_research` |
+| Freigaben (`approvals`) | **Streng** `strict` · Zügig `quick` | `require_section_writing_approval` (`quick`: `false`) |
+
+1. **Befehl `Grundregeln`:** Auswahl zeigen: `python scripts/rules.py . choice > rules.json`, dann `render_view.py . choice --spec rules.json` (Textfassung mit `--text`). Die aktuelle Stufe ist markiert.
+2. **Plan zeigen:** Für jede geänderte Gruppe `python scripts/rules.py . plan <gruppe> <stufe>`: was sich ändert und ob es **lockert** (schwächer als die Programmvorgabe in `workflow.yml`, `global_ai_policy`, bzw. als eine Freigabepflicht).
+3. **Verschärfen** oder zurück zur Vorgabe: ohne weitere Rückfrage `python scripts/rules.py . set <gruppe> <stufe>`, ein Commit `Grundregeln: <Gruppe> auf „<Stufe>“`.
+4. **Lockern nur mit eigener Bestätigung**, wie eine Freigabe (Abschnitt „Freigaben“): Bestätigung „Grundregeln lockern“ mit dem Plan in Alltagssprache und eigener Auswahl („Lockern bestätigen“ · „Abbrechen“). Die Auswahl in Schritt 1, ein Formular oder eine freie Formulierung („passt schon“) ist **keine** Bestätigung. Erst danach `python scripts/rules.py . set <gruppe> <stufe> --confirmed --by <Benutzer>`; das Skript hängt den Eintrag `kind: rules`, `id: rules-<gruppe>`, `action: granted` an `approvals.yml` an. Commit `Grundregeln: <Gruppe> auf „<Stufe>“ gelockert`. Die Rückkehr zur Vorgabe hält `action: revoked` fest.
+5. **Untergrenzen gelten immer**, auch mit Bestätigung: nichts als Tatsache erfinden, Unsicherheiten kennzeichnen, bei Rechercheaufträgen recherchieren, Abschnitte und Kapitel abschließen (Auflagen bauen nur auf abgeschlossenen Teilen). Wünscht der Benutzer weniger, das freundlich sagen und nicht ändern.
+6. **Was die Stufen bedeuten:**
+   - **Erzählung:** Erfundenes ist in der Handlung erlaubt (Figuren, Dialoge, Ereignisse). Echte Tatsachen – reale Orte, Geschichte, Medizin, Recht, Zitate, Quellen – werden weiterhin nicht erfunden und nach Möglichkeit belegt; Unsicherheiten dazu im Chat nennen, im Erzähltext nicht markieren.
+   - **Zurückhaltend:** nah an Quellen und Vorgaben formulieren; Recherche bei jedem Schreibauftrag. **Frei:** mehr eigene Ideen, Bilder und Formulierungen; Fakten bleiben nach der Faktentreue-Stufe.
+   - **Zügig:** Schreiben ist ohne Schreibfreigabe je Abschnitt erlaubt (Knöpfe „Schreiben erlauben/sperren“ entfallen); Abschnitt und Kapitel abschließen bleiben eigene Bestätigungen.
+7. **Prüfung:** `validate_project.py` meldet Lockerungen ohne Bestätigung, unterschrittene Untergrenzen und eine Stufe in `rules`, die nicht zu den Werten passt. Die Projekteinstellungen zeigen Stufen und Abweichungen.
 
 ## 4. Wizard-Schritte
 

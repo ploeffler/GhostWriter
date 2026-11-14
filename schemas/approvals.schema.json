@@ -27,8 +27,8 @@
         "type": "object",
         "required": ["kind", "id", "action", "at", "by", "commit"],
         "properties": {
-          "kind": {"enum": ["writing", "section", "chapter", "matter", "image"]},
-          "id": {"type": "string", "pattern": "^(sec|ch|mat|img)-[a-z0-9][a-z0-9-]*$"},
+          "kind": {"enum": ["writing", "section", "chapter", "matter", "image", "rules"]},
+          "id": {"type": "string", "pattern": "^((sec|ch|mat|img)-[a-z0-9][a-z0-9-]*|rules-(facts|creativity|approvals))$"},
           "action": {"enum": ["granted", "revoked"]},
           "at": {"type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\\.[0-9]+)?)?(Z|[+-][0-9]{2}:[0-9]{2})$"},
           "by": {"type": "string", "minLength": 1},

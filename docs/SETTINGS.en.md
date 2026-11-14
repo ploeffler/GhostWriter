@@ -7,6 +7,7 @@
 | In the chat | Purpose |
 |---|---|
 | `Settings` | Project settings, including fact checking, updates, merge behavior and limits |
+| `Core rules` | Levels for factual accuracy, creativity and research, and approvals; relaxing requires a separate confirmation ([principles](PRINCIPLES.en.md#project-rules)) |
 | `Profile` | Git identity, default author and narrative voice |
 | `AI services` | Existing services, access type and responsibility for each task |
 | `Output` or `Cover` | Typesetting, fonts, paragraphs, front matter, formats, imprint, print profile and cover |
