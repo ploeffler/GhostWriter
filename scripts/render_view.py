@@ -1547,15 +1547,22 @@ def project_values(config):
     p = config['project']
     title = p['title'] or p['working_title'] or ''
     return {'PROJECT_TITLE': title, 'PROJECT_TITLE_SHORT': p['title_short'] or '', 'PROJECT_AUTHOR': p['author'] or '',
-            'PROJECT_DESCRIPTION_SHORT': p['description_short'] or '', 'PROJECT_DESCRIPTION': p['description'] or ''}
+            'PROJECT_DESCRIPTION_SHORT': p['description_short'] or '', 'PROJECT_DESCRIPTION': p['description'] or '',
+            # Buchangaben (#299): bisher nur im Einstiegsdialog
+            'PROJECT_SUBTITLE': p.get('subtitle') or '', 'PROJECT_LANGUAGE': p.get('language') or '',
+            'PROJECT_BOOK_TYPE': p.get('book_type') or '', 'PROJECT_TARGET_AUDIENCE': p.get('target_audience') or '',
+            'PROJECT_TRANSLATIONS': ', '.join(p.get('translations_planned') or [])}
 
 
 def project_edit_view(base, config, args):
     values = project_values(config)
     if args.text:
         return '\n'.join(['### 📝 Projektdaten bearbeiten', ''] + field_table([
-            ('Titel', values['PROJECT_TITLE']), ('Kurztitel', values['PROJECT_TITLE_SHORT']), ('Autor', values['PROJECT_AUTHOR']),
-            ('Kurzbeschreibung', values['PROJECT_DESCRIPTION_SHORT']), ('Beschreibung', values['PROJECT_DESCRIPTION'])])
+            ('Titel', values['PROJECT_TITLE']), ('Untertitel', values['PROJECT_SUBTITLE']), ('Kurztitel', values['PROJECT_TITLE_SHORT']),
+            ('Autor', values['PROJECT_AUTHOR']), ('Kurzbeschreibung', values['PROJECT_DESCRIPTION_SHORT']),
+            ('Beschreibung', values['PROJECT_DESCRIPTION']), ('Sprache', values['PROJECT_LANGUAGE']),
+            ('Buchtyp', values['PROJECT_BOOK_TYPE']), ('Zielgruppe', values['PROJECT_TARGET_AUDIENCE']),
+            ('Geplante Übersetzungen', values['PROJECT_TRANSLATIONS'])])
             + ['', view_message('settings.form_hint')]) + '\n'
     return fill('projektdaten-bearbeiten.html', values)
 

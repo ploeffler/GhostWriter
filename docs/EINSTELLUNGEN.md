@@ -6,6 +6,7 @@ Deutsch · [English](SETTINGS.en.md)
 
 | Im Chat | Dafür ist es da |
 |---|---|
+| `Projektdaten` (Stift in der Projektübersicht) | Titel, Untertitel, Kurztitel, Autor, Beschreibungen sowie Sprache, Buchtyp, Zielgruppe und geplante Übersetzungen |
 | `Einstellungen` | Projekteinstellungen, unter anderem Faktencheck, Updates, Übernahmeverhalten und Grenzen |
 | `Grundregeln` | Stufen für Faktentreue, Kreativität und Recherche sowie Freigaben; Lockern nur mit eigener Bestätigung ([Grundsätze](GRUNDSAETZE.md#projektregeln)) |
 | `Profil` | Git-Benutzer, Autor als Vorbelegung und Standard-Erzählstimme |

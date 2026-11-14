@@ -40,6 +40,7 @@ Akzeptiere zusätzlich zu den deutschen Befehlen die folgenden englischen Entspr
 | `Export manuscript`, `Export manuscript chapter 3` | `Manuskript ausgeben`, `Manuskript ausgeben Kapitel 3` |
 | `Update`, `Data`, `Profile`, `AI disclosure` | `Update`, `Daten`, `Profil`, `KI-Angabe` |
 | `Core rules` | `Grundregeln` |
+| `Project details` | `Projektdaten` |
 | `Output`, `Output options`, `Cover` | `Ausgabe`, `Ausgabeoptionen`, `Umschlag` |
 | `Text only`, `Widgets` | `Nur Text`, `Widgets` |
 | `Import as book`, `Import manuscript` | `Als Buch importieren`, `Manuskript importieren` |
@@ -229,6 +230,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Daten` | Seite „Daten“: Stand von Programm, Büchern und Repository (Abschnitt 0, „Daten“) |
 | `Profil` | Assistenten-Profil zeigen bzw. anlegen: Git-Benutzer, Autor, Standard-Erzählstimme (Abschnitt 0, „Assistenten-Profil“) |
 | `KI-Angabe` | Formular „KI-Angabe im Buch“ (Abschnitt 0, „KI-Angabe im Buch“) |
+| `Projektdaten` | Formular „Projektdaten bearbeiten“ (wie `project.edit`): Titel, Untertitel, Kurztitel, Autor, Beschreibungen, Sprache, Buchtyp, Zielgruppe, geplante Übersetzungen (#299) |
 | `Grundregeln` | Stufen der Grundregeln wählen: Faktentreue, Kreativität und Recherche, Freigaben (Abschnitt 3, „Stufen der Grundregeln“) |
 | `Ausgabe`, `Ausgabeoptionen`, `Umschlag` | Formular „Ausgabeoptionen“: Satzspiegel, Schrift, Absätze, Titelei, Formate, Angaben im Impressum, Druck und Umschlag (Vorlage `ausgabeoptionen`, `render_view.py output`, Textfassung mit `--text`; #68) |
 | `Nur Text`, `Widgets` | Darstellungsmodus umschalten; `Widgets` nur bei Anbietern, die sie darstellen (`templates/ui/BEFUELLUNG.md`, „Darstellungsmodus“) |
@@ -588,7 +590,7 @@ Erarbeite mit mir:
 10. Kurzbeschreibung und Ziel jedes Kapitels und Abschnitts.
 11. Welche KI-Dienste schon vorhanden sind, und welcher davon welche Aufgabe übernimmt: Recherche, Brainstorming, Schreiben, Überarbeiten, Fact-Checking und Queue-Bearbeitung (siehe Abschnitt 4a). Weitere Dienste erst später über das Formular „KI-Dienste“.
 12. Ob gespeicherte Änderungen in diesem Repository automatisch übernommen werden sollen (`changes.auto_merge`). Kurz erklären: Ja = jede Änderung steht sofort im Buch, ohne den Schritt „Buchänderungen übernehmen“; Nein = Änderungen sammeln sich in einem Pull Request und werden auf Bestätigung übernommen. Wer allein am Buch arbeitet, fährt mit Ja meist einfacher. Freigaben und Auflagen brauchen in beiden Fällen ihre eigene Bestätigung. Später in den Projekteinstellungen änderbar.
-13. Ob Übersetzungen des Buchs geplant sind, und wenn ja, in welche Sprachen (`project.translations_planned`, Sprachcodes wie `en`, `fr`). Nur festhalten, nichts anlegen: Übersetzungen selbst kommen später (#75). Nicht nach einem „Ziel der Übersetzung“ fragen, wenn der Benutzer keine Übersetzung plant.
+13. Ob Übersetzungen des Buchs geplant sind, und wenn ja, in welche Sprachen (`project.translations_planned`, Sprachcodes wie `en`, `fr`). Nur festhalten, nichts anlegen: Übersetzungen selbst kommen später (#75). Nicht nach einem „Ziel der Übersetzung“ fragen, wenn der Benutzer keine Übersetzung plant. Später unter **Projektdaten** änderbar, ebenso Untertitel, Sprache, Buchtyp und Zielgruppe (#299).
 14. Ob im Buch stehen soll, wie bei diesem Buch KI genutzt wurde (`ai_disclosure.mode`: kurz, ausführlich, eigener Text, keine; ohne Antwort keine). Ort ist zunächst das Impressum; den Wortlaut gibt es erst vor der ersten Auflage (Abschnitt 0, „KI-Angabe im Buch“).
 
 Stelle keine lange Formularliste auf einmal. Führe ein natürliches Gespräch und frage nur nach den Informationen, die als Nächstes gebraucht werden. Unbekannte Angaben dürfen vorläufig offenbleiben.
