@@ -75,7 +75,7 @@ def prepare(template, original, config, args):
         for row in data.get('MARKERS', []):
             row['MARKER_LABEL'] = view_message({'anekdote': 'section_ui.marker_anekdote', 'quelle': 'section_ui.marker_quelle', 'medizin': 'section_ui.marker_medizin', 'recht': 'section_ui.marker_recht', 'kontinuitaet': 'section_ui.marker_kontinuitaet'}[row['MARKER_TYPE']])
         for row in data.get('HINTS', []):
-            row['H_KIND_TEXT'] = view_message({'long_sentence': 'section_ui.hint_long_sentence', 'repetition': 'section_ui.hint_repetition', 'same_start': 'section_ui.hint_same_start', 'filler': 'section_ui.hint_filler', 'spelling': 'section_ui.hint_spelling', 'grammar': 'section_ui.hint_grammar', 'punctuation': 'section_ui.hint_punctuation', 'typography': 'section_ui.hint_typography'}[row['H_KIND']])
+            row['H_KIND_TEXT'] = view_message({'ai_pattern': 'section_ui.hint_ai_pattern', 'long_sentence': 'section_ui.hint_long_sentence', 'repetition': 'section_ui.hint_repetition', 'same_start': 'section_ui.hint_same_start', 'filler': 'section_ui.hint_filler', 'spelling': 'section_ui.hint_spelling', 'grammar': 'section_ui.hint_grammar', 'punctuation': 'section_ui.hint_punctuation', 'typography': 'section_ui.hint_typography'}[row['H_KIND']])
         for direction in ('PREV', 'NEXT'):
             if data.get(direction + '_SECTION_ID'):
                 number = int(data['SECTION_NUMBER'].split('.')[1]) + (-1 if direction == 'PREV' else 1)

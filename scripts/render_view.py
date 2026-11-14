@@ -624,6 +624,7 @@ def view_labels(name):
         }
     if name == 'LANGUAGE_DE':
         return {
+            'ai_pattern': view_message('labels.LANGUAGE_DE.ai_pattern'),
             'long_sentence': view_message('labels.LANGUAGE_DE.long_sentence'),
             'repetition': view_message('labels.LANGUAGE_DE.repetition'),
             'same_start': view_message('labels.LANGUAGE_DE.same_start'),

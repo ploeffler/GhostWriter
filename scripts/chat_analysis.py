@@ -22,6 +22,11 @@ EXTRA_KINDS = {
     'series': 'Serienabgleich nur mit ausdrücklich mitgelieferten Serienvorlagen; fehlende Vorlagen offenlassen',
 }
 KINDS = set(analyze.KINDS) | set(EXTRA_KINDS)
+# Arten, deren Auftrag die Regeln gegen KI-typische Muster mitbekommt (#305): formulierter Buchtext bzw. Sprachprüfung.
+AI_PATTERN_KINDS = {
+    'blurb': 'Den Entwurf ohne die folgenden Muster formulieren.',
+    'language': 'Verstöße gegen die folgenden Regeln als Hinweise melden, mit Fundstelle.',
+}
 
 
 def canonical(value):
@@ -93,6 +98,8 @@ def prepare(base, kind, scope, source_commit, output, references=()):
     state = snapshot(base, scope, references)
     spec = analyze.KINDS.get(kind)
     system = (spec or {}).get('system') or EXTRA_KINDS.get(kind) or 'Sprachliche Hinweise aus dem Text ableiten.'
+    if kind in AI_PATTERN_KINDS:            # #305: Regeln gegen KI-typische Muster beim Formulieren und Prüfen
+        system += '\n\n' + AI_PATTERN_KINDS[kind] + '\n' + analyze.ai_patterns_prompt(load(Path(base))[1])
     prompt = ('Nur das gelieferte Material verwenden. Nichts erfinden; Unsicherheiten ausdrücklich nennen. '
               'Vorschläge erteilen keine Freigabe. Jede Fundstelle braucht where und ein unverändertes '
               'quote aus genau diesem Abschnitt (höchstens 25 Wörter). Externe Behauptungen ohne '

@@ -372,12 +372,55 @@ class AnalyzeTest(unittest.TestCase):
         self.assertTrue({'Gut Lindenhof', 'Lindenhof', 'Quasselstrippe'} <= set(words), words)
         with patch.dict(os.environ, {analyze.LT_ENV: ''}):
             self.assertIsNone(analyze.languagetool_options(self.base, config))
-            self.assertEqual(analyze.language_context(self.base, config), '')
+            self.assertTrue(analyze.language_context(self.base, config).startswith('muster:'))
+            self.assertNotIn('languagetool:', analyze.language_context(self.base, config))
         with patch.dict(os.environ, {analyze.LT_ENV: 'http://localhost:1'}):
             opts = analyze.languagetool_options(self.base, config)
             self.assertEqual(opts['disabled_rules'], ['A', 'B'])
-            self.assertTrue(analyze.language_context(self.base, config).startswith('languagetool:'))
+            self.assertIn(' languagetool:', analyze.language_context(self.base, config))
         self.assertEqual(validate_project.check_project(self.base), [])
+
+    def test_ai_patterns(self):
+        """#305: KI-typische Muster aus templates/qa/ki-muster.yml, verschärft durch style.avoid."""
+        data = yaml.safe_load(analyze.AI_PATTERNS_FILE.read_text(encoding='utf-8'))
+        for p in data['patterns']:
+            self.assertIn(p.get('where', 'any'), analyze.AI_WHERE, p['id'])
+            self.assertTrue(p['label'] and p['rule'] and p['de'] and p['en'], p['id'])
+            for lang in ('de', 'en'):
+                for r in p[lang]:
+                    re.compile(r)
+        config = {'project': {'language': 'de'}, 'style': {'avoid': ['Schicksal nahm seinen Lauf']}}
+        pats = analyze.ai_patterns(config)
+        text = ('Wir fuhren nach Valletta. Es ist wichtig zu beachten, dass der Hafen alt war.\n\n'
+                'Zusammenfassend lässt sich sagen, dass es schön war. Der Morgen war ruhig, freundlich und einladend. '
+                'Der Abend war ruhig, herzlich und friedlich. Und das Schicksal nahm seinen Lauf. '
+                'Das zeigt, dass man nie aufgeben soll.\n\n'
+                'Ich lernte Maria kennen. Was es mit dem Ring auf sich hat, erzähle ich am Schluss.')
+        hits = {h['text'].split(' (')[0]: h['quote'] for h in analyze.check_ai_patterns(text, pats)}
+        self.assertEqual(set(hits), {'Ankündigender Schlusssatz', 'Zusammenfassende Floskel', 'KI-Floskel',
+                                     'Dreierreihe von Adjektiven', 'Erklärende Moral am Absatzende',
+                                     'Vermiedene Wendung „Schicksal nahm seinen Lauf“'})
+        for q in hits.values():
+            self.assertIn(analyze.norm(q), analyze.norm(text))
+        # Ankündigung nur im Schlusssatz, Dreierreihe erst ab zwei Fundstellen
+        calm = 'Im nächsten Kapitel wohnte sie schon in Sliema. Der Tag war ruhig, freundlich und einladend. Sie blieb.'
+        self.assertEqual(analyze.check_ai_patterns(calm, pats), [])
+        en = analyze.ai_patterns({'project': {'language': 'en'}})
+        self.assertEqual([h['text'] for h in analyze.check_ai_patterns('He left. More on that later.', en)],
+                         ['Ankündigender Schlusssatz'])
+        # style.avoid ändert den Fingerabdruck
+        self.assertNotEqual(analyze.ai_patterns_context(config), analyze.ai_patterns_context({}))
+
+    def test_ai_pattern_rule_in_all_writing_instructions(self):
+        """#305: jede Anweisung, mit der eine KI Buchtext schreibt, enthält die Regel gegen KI-typische Muster."""
+        for rel in ('CLAUDE.md', 'AGENTS.md', '.claude/skills/ghostwriter/SKILL.md', 'START.md',
+                    'templates/start/de.md', 'templates/start/en.md'):
+            self.assertIn('templates/qa/ki-muster.yml', (ROOT / rel).read_text(encoding='utf-8'), rel)
+        self.assertIn('KI-typische Muster', (ROOT / 'templates/start/openwebui.de.md').read_text(encoding='utf-8'))
+        self.assertIn('AI-typical patterns', (ROOT / 'templates/start/openwebui.en.md').read_text(encoding='utf-8'))
+        prompt = analyze.ai_patterns_prompt({'style': {'avoid': ['wie dem auch sei']}})
+        self.assertIn('Ankündigender Schlusssatz', prompt)
+        self.assertIn('„wie dem auch sei“', prompt)
 
     def test_language_with_languagetool(self):
         import http.server

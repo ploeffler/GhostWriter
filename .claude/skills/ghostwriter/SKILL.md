@@ -120,6 +120,7 @@ Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
 - Bei Auswirkungen auf das Kapitel das ganze Kapitel lesen; bei buchweiten Auswirkungen die relevanten Kapitel und Zusammenhänge prüfen.
 - Inhaltliche Logik, Plausibilität, Chronologie, Kontinuität, Widersprüche und Wiederholungen prüfen.
 - Perspektive, Figurenstimmen, Ton, Stil, Sprache und Verständlichkeit mit den Projektvorgaben abgleichen.
+- KI-typische Muster suchen und beseitigen, besonders im Schlusssatz von Abschnitt und Kapitel (Liste `templates/qa/ki-muster.yml`, dazu `style.avoid` des Buchs; #305). Gilt schon beim Schreiben.
 - Nach Korrekturen den vollständigen betroffenen Text erneut lesen.
 - Offene Probleme dokumentieren; bei wesentlichen ungelösten Problemen kein positives Prüfergebnis melden.
 - Die Autorinnen- bzw. Autorenfreigabe niemals aus einem Prüfergebnis ableiten.

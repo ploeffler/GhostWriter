@@ -29,6 +29,7 @@ Bei jedem neu geschriebenen oder überarbeiteten Abschnitt:
 - Wiederholungen, unnötige Dopplungen und unbeabsichtigte Wiederaufnahmen erkennen.
 - Figurenstimmen, Perspektive, Erzählzeit, Ton und sprachlichen Duktus mit den Projektvorgaben abgleichen.
 - Grammatik, Rechtschreibung, Zeichensetzung und Verständlichkeit prüfen.
+- KI-typische Muster suchen, besonders im Schlusssatz (siehe [KI-typische Muster vermeiden](#ki-typische-muster-vermeiden)).
 - Offene Fakten- und Quellenfragen ausdrücklich markieren.
 
 ### Kapitelprüfung
@@ -40,6 +41,7 @@ Wenn Änderungen Auswirkungen über den Abschnitt hinaus haben oder ein Kapitel 
 - Chronologie, Figurenentwicklung, Wissensstände, Ortswechsel und wiederkehrende Motive abgleichen.
 - Widersprüche, Wiederholungen, Lücken und unbeabsichtigte Doppelungen kapitelweit suchen.
 - Prüfen, ob alle Abschnitte denselben vereinbarten Stil und dieselben Projektregeln einhalten.
+- KI-typische Muster in allen Abschnitten suchen, auch in bereits abgeschlossenen, bevor das Kapitel abgeschlossen wird; besonders die Schlusssätze der Abschnitte und des Kapitels.
 - Sicherstellen, dass Änderungen keine bereits abgeschlossenen Inhalte unbemerkt entwerten.
 
 ### Buchweite Prüfung
@@ -50,6 +52,20 @@ Bei wesentlichen Änderungen an Handlung, Figuren, Erzählperspektive, Zeitstruk
 - Kontinuität über das gesamte Buch hinweg prüfen.
 - Das Projektprofil und die verbindlichen Fakten-/Figurenunterlagen als Referenz verwenden.
 - Bei Bedarf eine vollständige lineare Schlusslektüre des Manuskripts durchführen.
+
+## KI-typische Muster vermeiden
+
+Manche Wendungen verraten einen Text als KI-geschrieben, egal in welchem Buch und in welcher Erzählstimme (#305). Sie gelten deshalb für jedes GhostWriter-Buch: beim Schreiben, bei der Abschnitts- und Kapitelprüfung und in der Analyse „Sprache“. Ein Verstoß ist mindestens **wesentlich**; ein Abschnitt mit einem solchen Muster gilt nicht als redaktionell bestanden.
+
+1. **Kein ankündigender Schlusssatz.** Ein Abschnitt oder Kapitel endet nicht mit einem Satz, der nur sagt, dass später etwas kommt („Darum geht es im nächsten Abschnitt“, „Was es damit auf sich hat, erzähle ich am Schluss“). Ein Übergang darf im letzten inhaltlichen Satz mitschwingen, wird aber nicht angekündigt.
+2. **Keine zusammenfassenden Formeln** wie „Zusammenfassend lässt sich sagen“, „Alles in allem“, „Unterm Strich“.
+3. **Keine KI-Floskeln** wie „tauchen wir ein“, „begeben wir uns auf eine Reise“, „es ist wichtig zu beachten“, „ein weiterer wichtiger Aspekt ist“, „im Großen und Ganzen“, „letztendlich“, „spielt eine entscheidende Rolle“, „in der heutigen schnelllebigen Welt“, „revolutionieren“, „Meilenstein“, „Pläne schmieden“, und keine Modewort-Metaphern wie Leuchtturm, Herzschlag, Symphonie oder Landschaft im übertragenen Sinn. Wörtlich gemeint sind diese Wörter erlaubt.
+4. **Keine automatischen Dreierreihen von Adjektiven** („ruhig, freundlich und einladend“); zwei treffende Wörter oder ein genaues Bild genügen.
+5. **Keine erklärende Moral am Absatzende** („Das zeigt, dass …“, „Am Ende zählt …“); die Szene oder der Gedanke spricht für sich.
+
+Die gepflegte Liste mit Erkennungsmustern für Deutsch und Englisch steht in [`templates/qa/ki-muster.yml`](../templates/qa/ki-muster.yml) und kommt mit jedem Update. Neue Muster werden dort ergänzt, nicht im Buchprofil. Ein Buch kann die Liste mit `style.avoid` in `ghostwriter.yml` um eigene Wendungen ergänzen, die nie vorkommen sollen; abschalten lässt sich keine allgemeine Regel. Die automatische Erkennung ist eine Heuristik: Sie findet typische Formulierungen, nicht jede Variante, und meldet gelegentlich eine bewusst gesetzte Wendung. Die redaktionelle Prüfung bleibt deshalb nötig.
+
+Die Regel steht in allen Anweisungen, mit denen GhostWriter eine KI Buchtext formulieren oder prüfen lässt: `CLAUDE.md`, `AGENTS.md`, der allgemeine Skill `ghostwriter`, `START.md` (Grundregeln, Schreiben, Kapitelüberarbeitung) und der daraus erzeugte Einstieg samt Open-WebUI-Einstieg sowie die Chat-Analysen „Klappentext“ und „Sprache“. Die Hintergrundanalysen Figuren, Kurzbeschreibungen, Stilprofil, Schauplätze, Zeitleiste und Widersprüche werten nur aus und formulieren keinen Buchtext; sie bekommen die Regel nicht.
 
 ## Neues Material und Erkenntnis-Abgleich
 
@@ -97,7 +113,7 @@ Allgemeine Regeln gelten für alle Bücher. Jedes Buch benötigt zusätzlich ein
 - Schreibweisen, Terminologie und projektspezifische Konventionen,
 - kreative Freiräume und Grenzen für Ergänzungen.
 
-Das Profil muss vom Autor bestätigt werden. Änderungen daran sind nachvollziehbar zu dokumentieren. Es darf allgemeine GhostWriter-Sicherheits- und Qualitätsregeln verschärfen, aber nicht abschwächen.
+Das Profil muss vom Autor bestätigt werden. Änderungen daran sind nachvollziehbar zu dokumentieren. Es darf allgemeine GhostWriter-Sicherheits- und Qualitätsregeln verschärfen, aber nicht abschwächen. Allgemeine Regeln wie [KI-typische Muster vermeiden](#ki-typische-muster-vermeiden) gehören deshalb nicht ins Buchprofil; dort stehen nur zusätzliche Wendungen dieses Buchs (`style.avoid`).
 
 Das Projektprofil enthält nur Informationen des jeweiligen Buches. Es gehört in das Buch-Repository und darf nicht in die globale GhostWriter-Produktdokumentation oder in andere Buchprojekte übernommen werden.
 
@@ -207,7 +223,7 @@ Die Auswahl gilt für den laufenden Chat, bis sie geändert wird. Sie darf nicht
 
 ## Automatische Sprachprüfung (LanguageTool)
 
-Die Analyse „Sprache“ (Action „Analyse im Hintergrund“, `kind: language`) prüft ohne KI und ohne Kosten. Neben den eigenen Regeln (lange Sätze, Wortwiederholungen, gleiche Satzanfänge, Füllwörter) startet die Action einen LanguageTool-Server im Runner und meldet Rechtschreibung, Grammatik, Zeichensetzung und Typografie (#280). Der Buchtext verlässt dabei den Runner nicht.
+Die Analyse „Sprache“ (Action „Analyse im Hintergrund“, `kind: language`) prüft ohne KI und ohne Kosten. Neben den eigenen Regeln (lange Sätze, Wortwiederholungen, gleiche Satzanfänge, Füllwörter, [KI-typische Muster](#ki-typische-muster-vermeiden) samt `style.avoid`) startet die Action einen LanguageTool-Server im Runner und meldet Rechtschreibung, Grammatik, Zeichensetzung und Typografie (#280). Der Buchtext verlässt dabei den Runner nicht.
 
 - **Sprachvariante:** `analysis.languagetool.language` (z. B. `de-AT`), sonst `project.language`; `de` gilt als `de-DE`.
 - **Eigene Wörter:** Figuren- und Ortsnamen (`story/places.yml` samt anderen Bezeichnungen) und `analysis.languagetool.words` gelten nie als Tippfehler.
