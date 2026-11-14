@@ -14,7 +14,7 @@
           "id": {"type": "string", "pattern": "^hi-[0-9]{3,}$"},
           "section": {"type": "string", "description": "ID des Abschnitts bzw. Teils"},
           "source": {"enum": ["language"], "description": "Analyse, aus der der Hinweis stammt"},
-          "kind": {"enum": ["long_sentence", "repetition", "same_start", "filler", "spelling", "grammar", "punctuation", "typography"], "description": "spelling … typography: LanguageTool (#280)"},
+          "kind": {"enum": ["ai_pattern", "long_sentence", "repetition", "same_start", "filler", "spelling", "grammar", "punctuation", "typography"], "description": "ai_pattern: KI-typisches Muster (#305); spelling … typography: LanguageTool (#280)"},
           "text": {"type": "string", "minLength": 1},
           "quote": {"type": "string", "description": "Fundstelle (wörtlich)"}
         },

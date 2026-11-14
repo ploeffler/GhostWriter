@@ -1,0 +1,119 @@
+# KI-typische Muster (#305): allgemeine, buchunabhängige Qualitätsregel für jedes GhostWriter-Buch.
+# Gilt beim Schreiben, als Prüfpunkt der Abschnitts- und Kapitelprüfung (docs/QUALITAETSSICHERUNG.md,
+# „KI-typische Muster vermeiden“) und als Musterprüfung ohne KI in der Analyse „Sprache“ (kind: language).
+#
+# Pflege: neue Muster hier ergänzen, nicht im Buchprofil. Ein Buch kann die Liste nur verschärfen
+# (ghostwriter.yml → style.avoid), nicht abschwächen.
+#
+# Je Muster:
+#   id     Kennung (englisch, klein)
+#   label  Bezeichnung im Hinweis
+#   rule   Regel in einem Satz (für Schreiben und Prüfung)
+#   where  last = nur der letzte Satz des Abschnitts · paragraph_end = letzter Satz eines Absatzes
+#          · sentence_start = Satzanfang · any = überall
+#   min    so oft muss das Muster im Abschnitt vorkommen, bevor es gemeldet wird (fehlt = 1)
+#   de/en  reguläre Ausdrücke (Python, ohne Groß-/Kleinschreibung, außer case: true)
+version: 1
+patterns:
+  - id: announcing_close
+    label: Ankündigender Schlusssatz
+    rule: >-
+      Kein Abschnitt und kein Kapitel endet mit einem Satz, der nur ankündigt, dass später etwas kommt.
+      Ein Übergang darf im letzten inhaltlichen Satz mitschwingen, wird aber nicht angekündigt.
+    where: last
+    de:
+      - '\b(?:im|in den|in einem|ins) (?:nächsten|folgenden|kommenden|späteren|weiteren|letzten) (?:abschnitt|kapitel|teil)'
+      - '\b(?:erzähle|berichte|erkläre|zeige|komme|kommen|erzählen|berichten)\s+(?:ich|wir)\b[^.!?]*\b(?:später|am schluss|am ende|zum schluss|weiter hinten|im nächsten|im folgenden|noch zurück)'
+      - '\b(?:später|am schluss|am ende|zum schluss|weiter hinten)\b[^.!?]*\b(?:erzähle|berichte|erkläre|zeige|komme)\s+(?:ich|wir)\b'
+      - '\b(?:mehr dazu|dazu mehr|darüber mehr|dazu|davon)\s+(?:später|im nächsten|im folgenden|am schluss|am ende)\b'
+      - '\b(?:darum|davon|dazu|darüber)\s+(?:geht es|handelt|erzählt|berichtet)\b[^.!?]*\b(?:nächsten|folgenden|später)'
+      - '\b(?:doch|aber) das ist eine andere geschichte'
+      - '\b(?:erfahren|sehen|lesen)\s+(?:sie|wir|ihr|du)\b[^.!?]*\b(?:später|im nächsten|im folgenden|am schluss|am ende)'
+      - '\b(?:bleiben sie|bleibt|bleib) gespannt'
+    en:
+      - '\bin (?:the|a) (?:next|following|coming|later|final) (?:section|chapter|part)'
+      - '\bmore (?:on|about) (?:this|that) later'
+      - '\b(?:but|yet) that(?:''s| is) (?:a story|another story)'
+      - '\b(?:i|we)(?:''ll| will) (?:come back|return|get back) to (?:this|that|it)'
+      - '\bstay tuned'
+  - id: summary_close
+    label: Zusammenfassende Floskel
+    rule: >-
+      Keine zusammenfassenden Formeln wie „Zusammenfassend lässt sich sagen“; der Text endet mit seinem
+      letzten Gedanken, nicht mit seiner Wiederholung.
+    where: sentence_start
+    de:
+      - '^(?:zusammenfassend|abschließend|alles in allem|unterm strich|summa summarum|kurz gesagt|fassen wir zusammen)\b'
+    en:
+      - '^(?:in summary|in conclusion|to sum up|to summari[sz]e|all in all|in a nutshell)\b'
+  - id: stock_phrase
+    label: KI-Floskel
+    rule: >-
+      Keine Floskeln, die nach Textgenerator klingen, etwa „tauchen wir ein“, „begeben wir uns auf eine Reise“,
+      „es ist wichtig zu beachten“, „ein weiterer wichtiger Aspekt ist“, „im Großen und Ganzen“, „letztendlich“,
+      „spielt eine entscheidende Rolle“, „in der heutigen Welt“, „revolutionieren“, „einen Meilenstein setzen“,
+      „etwas schmieden“; auch keine Modewort-Metaphern wie Leuchtturm, Herzschlag, Symphonie oder Landschaft im
+      übertragenen Sinn. Wörtlich gemeint sind diese Wörter erlaubt.
+    where: any
+    de:
+      - '\bbegeben wir uns auf (?:eine|die) reise'
+      - '\bein weiterer (?:wichtiger|wesentlicher|zentraler|entscheidender) (?:aspekt|punkt) (?:ist|wäre)'
+      - '\bim (?:großen|grossen) und ganzen\b'
+      - '\brevolutionier(?:t|te|ten|en|end|ende|enden|ender|endes|endem)?\b'
+      - '\bmeilenstein'
+      - '\b(?:pläne|plan|bündnis|bündnisse|allianz|allianzen|zukunft|freundschaft|zusammenhalt)\b[^.!?]{0,20}\b(?:schmieden|schmiedet|schmiedeten|geschmiedet)'
+      - '\b(?:schmieden|schmiedet|schmiedeten|schmiedete)\b[^.!?]{0,20}\b(?:pläne|plan|bündnis|bündnisse|allianz|allianzen|zukunft|freundschaft|zusammenhalt)\b'
+      - '\b(?:ein|der|als) leuchtturm (?:der|des|für)\b'
+      - '\b(?:eine|die|einer) (?:symphonie|sinfonie) (?:aus|der|von)\b'
+      - '\b(?:der|den|im|als) herzschlag (?:der|des|von)\b'
+      - '\b(?:die|eine|der|in der) (?:medien|politik|unternehmens|bildungs|digitale[n]?|gesellschaftliche[n]?|emotionale[n]?)[- ]?landschaft\b'
+      - '\btauchen wir (?:ein|tiefer)'
+      - '\blasst uns (?:eintauchen|einen blick werfen)'
+      - '\bes ist (?:wichtig|entscheidend|erwähnenswert|wesentlich) zu (?:beachten|betonen|erwähnen|verstehen)'
+      - '\bletztendlich\b'
+      - '\bin der heutigen (?:schnelllebigen |digitalen |modernen )?(?:welt|zeit|gesellschaft)'
+      - '\bspielt eine (?:entscheidende|wichtige|zentrale|wesentliche) rolle'
+      - '\bein (?:wahres|echtes|eindrucksvolles) zeugnis\b'
+      - '\b(?:eine|die) reise (?:durch|in) die welt\b'
+    en:
+      - '\blet''?s (?:dive|delve) (?:in|into|deeper)'
+      - '\bit(?:''s| is) (?:important|worth|crucial|essential) to (?:note|mention|remember|understand)'
+      - '\bdelv(?:e|es|ing)\b'
+      - '\bin today''?s (?:fast-paced |digital |modern )?(?:world|age|society)'
+      - '\bplays? an? (?:crucial|pivotal|vital|key) role'
+      - '\ba testament to\b'
+      - '\bembark on a journey'
+      - '\banother (?:important|key|crucial) aspect is'
+      - '\bby and large\b'
+      - '\brevolutioni[sz](?:e|es|ed|ing)\b'
+      - '\ba (?:beacon|symphony|tapestry) of\b'
+      - '\b(?:the )?(?:digital|media|political|business|emotional) landscape\b'
+  - id: adjective_triplet
+    label: Dreierreihe von Adjektiven
+    rule: >-
+      Keine automatischen Dreierreihen von Adjektiven („warm, herzlich und einladend“); zwei treffende
+      Wörter oder ein genaues Bild statt einer Reihe.
+    where: any
+    min: 2
+    case: true
+    de:
+      - '\b[a-zäöüß]+(?:ig|lich|isch|bar|sam|voll|los|haft|end|iert)(?:e|en|er|es|em)?, [a-zäöüß]+(?:ig|lich|isch|bar|sam|voll|los|haft|end|iert)(?:e|en|er|es|em)?,? und [a-zäöüß]+(?:ig|lich|isch|bar|sam|voll|los|haft|end|iert)(?:e|en|er|es|em)?\b'
+    en:
+      - '\b[a-z]+(?:ful|less|ous|ive|able|ible|ing|ic|al|ant|ent|y), [a-z]+(?:ful|less|ous|ive|able|ible|ing|ic|al|ant|ent|y),? and [a-z]+(?:ful|less|ous|ive|able|ible|ing|ic|al|ant|ent|y)\b'
+  - id: moral_close
+    label: Erklärende Moral am Absatzende
+    rule: >-
+      Kein Absatz endet mit einer Moral, die erklärt, was das Erzählte bedeutet („Das zeigt, dass …“);
+      die Szene oder der Gedanke spricht für sich.
+    where: paragraph_end
+    de:
+      - '^(?:und )?(?:genau )?(?:das|dies) (?:zeigt|lehrt|beweist)(?: uns)?,? (?:dass|wie)\b'
+      - '^(?:daraus lernen wir|die lehre daraus|die moral|was wir daraus lernen)\b'
+      - '^(?:manchmal )?(?:muss|braucht) man\b[^.!?]*\bnur\b'
+      - '^(?:am ende|letztlich) (?:zählt|kommt es darauf an|ist es)\b'
+      - '^und vielleicht ist (?:das|genau das|dies) (?:die|das|der)\b'
+    en:
+      - '^(?:and )?(?:this|that|it) (?:shows|teaches|proves)(?: us)? (?:that|how)\b'
+      - '^(?:the lesson|the moral)\b'
+      - '^(?:sometimes,? )?(?:all )?you (?:just )?need\b'
+      - '^in the end,? (?:what matters|it(?:''s| is) about)\b'

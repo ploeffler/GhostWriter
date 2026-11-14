@@ -213,6 +213,7 @@
   "repository_links": [
     "START.md",
     "templates/ui/BEFUELLUNG.md",
+    "templates/qa/ki-muster.yml",
     "docs/WORKFLOW-MODEL.md",
     "docs/BUCH-WORKFLOW.md",
     "docs/NACHZIEHEN.md",

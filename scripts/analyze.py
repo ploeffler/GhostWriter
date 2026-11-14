@@ -996,17 +996,87 @@ def short_quote(sentence, n=14):
     return ' '.join(w[:n])
 
 
-def check_language(texts, languagetool=None):
-    """Sprachliche Auffälligkeiten je Abschnitt ohne KI: lange Sätze, Wortwiederholungen auf engem Raum, gleiche
-    Satzanfänge hintereinander, viele Füllwörter; mit `languagetool` (#280) zuerst Rechtschreibung, Grammatik,
-    Zeichensetzung und Typografie. Jede Fundstelle stammt wörtlich aus dem Text. → (hinweise, 0)"""
+# KI-typische Muster (#305): allgemeine Liste in templates/qa/ki-muster.yml, gilt für jedes Buch; das Buchprofil
+# verschärft sie mit style.avoid (Wendungen, die nie vorkommen sollen), schwächt sie aber nicht ab.
+
+AI_PATTERNS_FILE = ROOT / 'templates/qa/ki-muster.yml'
+AI_WHERE = ('last', 'paragraph_end', 'sentence_start', 'any')
+
+
+def ai_patterns(config=None):
+    """Muster für die Sprache des Buchs (project.language, sonst de): [{id, label, where, min, rx}]; dazu je
+    Eintrag aus style.avoid ein wörtliches Muster „Vermiedene Wendung“."""
+    lang = str(((config or {}).get('project') or {}).get('language') or 'de').lower()[:2]
+    data = yaml.safe_load(AI_PATTERNS_FILE.read_text(encoding='utf-8')) or {}
     out = []
+    for p in data.get('patterns') or []:
+        flags = 0 if p.get('case') else re.I
+        rx = [re.compile(r, flags) for r in p.get(lang) or p.get('de') or []]
+        if rx and p.get('where', 'any') in AI_WHERE:
+            out.append({'id': p['id'], 'label': p['label'], 'where': p.get('where', 'any'),
+                        'min': int(p.get('min') or 1), 'rx': rx})
+    avoid = [str(a).strip() for a in (((config or {}).get('style') or {}).get('avoid') or []) if str(a).strip()]
+    for a in dict.fromkeys(avoid):
+        out.append({'id': 'avoid', 'label': f'Vermiedene Wendung „{a}“', 'where': 'any', 'min': 1,
+                    'rx': [re.compile(r'(?<![^\W\d_])' + r'\s+'.join(map(re.escape, a.split())) + r'(?![^\W\d_])', re.I)]})
+    return out
+
+
+def ai_patterns_prompt(config=None):
+    """Die Regeln aus templates/qa/ki-muster.yml und style.avoid als Text für KI-Aufträge, die Buchtext formulieren
+    oder prüfen (#305)."""
+    data = yaml.safe_load(AI_PATTERNS_FILE.read_text(encoding='utf-8')) or {}
+    lines = ['KI-typische Muster vermeiden (gilt für jedes Buch, #305):']
+    lines += [f'- {p["label"]}: {" ".join(str(p["rule"]).split())}' for p in data.get('patterns') or []]
+    avoid = [str(a).strip() for a in (((config or {}).get('style') or {}).get('avoid') or []) if str(a).strip()]
+    if avoid:
+        lines.append('- In diesem Buch nie: ' + '; '.join(f'„{a}“' for a in dict.fromkeys(avoid)))
+    return '\n'.join(lines)
+
+
+def ai_patterns_context(config):
+    """Fingerabdruck-Material: Musterliste und style.avoid; ändert sich eins, liest die Analyse neu."""
+    raw = AI_PATTERNS_FILE.read_bytes() + json.dumps(((config.get('style') or {}).get('avoid') or []),
+                                                     ensure_ascii=False).encode('utf-8')
+    return 'muster:' + hashlib.sha256(raw).hexdigest()[:12]
+
+
+def check_ai_patterns(text, patterns):
+    """KI-typische Muster in einem Abschnitt → Hinweise {kind: ai_pattern, text, quote}; je Muster höchstens ein
+    Hinweis, die Fundstelle ist der ganze Satz (gekürzt)."""
+    paras = [sentences(p) for p in re.split(r'\n\s*\n', text)]
+    paras = [p for p in paras if p]
+    every = [s for p in paras for s in p]
+    if not every:
+        return []
+    found = []
+    for p in patterns:
+        if p['where'] == 'last':
+            pool = every[-1:]
+        elif p['where'] == 'paragraph_end':
+            pool = [x[-1] for x in paras if len(x) > 1]
+        else:
+            pool = every
+        hits = [s for s in pool for r in p['rx'] if r.search(s)]
+        if len(hits) >= p['min']:
+            more = f' ({len(hits)}×)' if len(hits) > 1 else ''
+            found.append({'kind': 'ai_pattern', 'text': p['label'] + more, 'quote': short_quote(hits[0], 18)})
+    return found
+
+
+def check_language(texts, languagetool=None, patterns=None):
+    """Sprachliche Auffälligkeiten je Abschnitt ohne KI: KI-typische Muster (#305), lange Sätze, Wortwiederholungen
+    auf engem Raum, gleiche Satzanfänge hintereinander, viele Füllwörter; mit `languagetool` (#280) zuerst
+    Rechtschreibung, Grammatik, Zeichensetzung und Typografie. Jede Fundstelle stammt wörtlich aus dem Text.
+    → (hinweise, 0)"""
+    out = []
+    patterns = ai_patterns() if patterns is None else patterns
     for where, text in texts.items():
         if languagetool:
             lt = languagetool_hints(text, lt_check(languagetool['url'], languagetool['language'], lt_plain(text),
                                                    languagetool['disabled_rules']), languagetool['words'])
             out.extend(dict(h, where=where) for h in lt[:LT_HINTS_PER_SECTION])
-        found = []
+        found = check_ai_patterns(text, patterns)
         sents = sentences(text)
         for snt in sents:
             n = len(words_of(snt))
@@ -1049,7 +1119,7 @@ def check_language(texts, languagetool=None):
     return out, 0
 
 
-LANGUAGE_DE = {'long_sentence': 'Langer Satz', 'repetition': 'Wortwiederholung', 'same_start': 'Gleiche Satzanfänge',
+LANGUAGE_DE = {'ai_pattern': 'KI-typisches Muster', 'long_sentence': 'Langer Satz', 'repetition': 'Wortwiederholung', 'same_start': 'Gleiche Satzanfänge',
                'filler': 'Füllwörter', 'spelling': 'Rechtschreibung', 'grammar': 'Grammatik',
                'punctuation': 'Zeichensetzung', 'typography': 'Typografie'}
 
@@ -1104,13 +1174,15 @@ def languagetool_options(base, config):
 
 
 def language_context(base, config):
-    """Fingerabdruck-Material der Analyse „Sprache“: ohne LanguageTool leer (wie bisher), mit LanguageTool Sprache,
-    abgeschaltete Regeln und eigene Wörter, damit ein Lauf mit anderen Einstellungen nicht den Zwischenspeicher nutzt."""
+    """Fingerabdruck-Material der Analyse „Sprache“: KI-typische Muster (Liste und style.avoid, #305), mit
+    LanguageTool dazu Sprache, abgeschaltete Regeln und eigene Wörter, damit ein Lauf mit anderen Einstellungen
+    nicht den Zwischenspeicher nutzt."""
+    muster = ai_patterns_context(config)
     opts = languagetool_options(base, config)
     if not opts:
-        return ''
-    return 'languagetool:' + json.dumps({k: opts[k] for k in ('language', 'disabled_rules', 'words')},
-                                        ensure_ascii=False, sort_keys=True)
+        return muster
+    return muster + ' languagetool:' + json.dumps({k: opts[k] for k in ('language', 'disabled_rules', 'words')},
+                                                 ensure_ascii=False, sort_keys=True)
 
 
 def lt_plain(text):
@@ -1202,7 +1274,8 @@ KINDS = {
                    'output_tokens': 2000, 'merge_tokens': (6000, 800), 'merge': True},
     'language': {'label': 'Sprache', 'offer': 'Sprachliche Hinweise', 'icon': 'text-spellcheck', 'system': None,
                  'context': language_context, 'verify': None, 'local': check_language,
-                 'local_options': lambda base, config: {'languagetool': languagetool_options(base, config)},
+                 'local_options': lambda base, config: {'languagetool': languagetool_options(base, config),
+                                                        'patterns': ai_patterns(config)},
                  'combine': language_combine, 'matter': True,
                  'output_tokens': 0, 'merge_tokens': (0, 0), 'merge': False},
 }

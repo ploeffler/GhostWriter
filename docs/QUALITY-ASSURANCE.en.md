@@ -29,6 +29,7 @@ For every newly written or revised section:
 - Identify repetition, unnecessary duplication and unintended restatement.
 - Compare character voices, perspective, tense, tone and phrasing against project requirements.
 - Check grammar, spelling, punctuation and clarity.
+- Look for AI-typical patterns, especially in the final sentence (see [Avoiding AI-typical patterns](#avoiding-ai-typical-patterns)).
 - Explicitly mark unresolved factual and source questions.
 
 ### Chapter review
@@ -40,6 +41,7 @@ When changes affect more than one section, or a chapter is ready for assembly or
 - Compare chronology, character development, what characters know, changes of location and recurring motifs.
 - Look across the whole chapter for contradictions, repetition, gaps and unintended duplication.
 - Check that all sections follow the agreed style and project rules.
+- Look for AI-typical patterns in every section, including finalized ones, before the chapter is finalized; pay particular attention to the final sentences of the sections and the chapter.
 - Ensure that changes do not silently undermine already approved content.
 
 ### Review across the book
@@ -50,6 +52,20 @@ For major changes to plot, characters, narrative perspective, time structure or 
 - Check continuity across the book.
 - Use the project profile and binding fact/character material as references.
 - Perform a complete linear final reading of the manuscript when needed.
+
+## Avoiding AI-typical patterns
+
+Some phrasings give a text away as AI-written, whatever the book and narrative voice (#305). They therefore apply to every GhostWriter book: while writing, in section and chapter review and in the “Language” analysis. A violation is at least **major**; a section containing such a pattern does not pass editorial review.
+
+1. **No announcing final sentence.** A section or chapter does not end with a sentence that only says something will follow (“That is what the next section is about”, “I will explain what this means at the end”). A transition may resonate in the last sentence with content, but it is not announced.
+2. **No summarizing formulas** such as “In summary”, “All in all”, “To sum up”.
+3. **No AI stock phrases** such as “let’s dive in”, “embark on a journey”, “it is important to note”, “another important aspect is”, “by and large”, “plays a crucial role”, “in today’s fast-paced world”, “revolutionize”, and no buzzword metaphors such as beacon, heartbeat, symphony, tapestry or landscape in a figurative sense. Used literally, these words are fine.
+4. **No automatic triplets of adjectives** (“calm, friendly and inviting”); two precise words or a concrete image are enough.
+5. **No explanatory moral at the end of a paragraph** (“This shows that …”, “In the end, what matters …”); the scene or thought speaks for itself.
+
+The maintained list with detection patterns for German and English is in [`templates/qa/ki-muster.yml`](../templates/qa/ki-muster.yml) and ships with every update. New patterns are added there, not in the book profile. A book can extend the list with `style.avoid` in `ghostwriter.yml` (phrases that must never appear); no general rule can be switched off. Automatic detection is a heuristic: it finds typical phrasings, not every variant, and occasionally reports a deliberate one. Editorial review therefore remains necessary.
+
+The rule is part of every instruction GhostWriter uses to have an AI write or review book text: `CLAUDE.md`, `AGENTS.md`, the general `ghostwriter` skill, `START.md` (ground rules, writing, chapter revision) and the entry generated from it including the Open WebUI entry, as well as the chat analyses “Blurb” and “Language”. The background analyses for characters, summaries, style profile, places, timeline and contradictions only evaluate and do not write book text; they do not receive the rule.
 
 ## New material and reconciling findings
 
@@ -97,7 +113,7 @@ General rules apply to every book. Each book also needs its own versioned projec
 - Spelling, terminology and project conventions.
 - Creative freedom and boundaries for additions.
 
-The author must confirm the profile. Changes must be traceable. It can strengthen general GhostWriter safety and quality rules, but cannot weaken them.
+The author must confirm the profile. Changes must be traceable. It can strengthen general GhostWriter safety and quality rules, but cannot weaken them. General rules such as [Avoiding AI-typical patterns](#avoiding-ai-typical-patterns) therefore do not belong in the book profile; it only lists additional phrases for this book (`style.avoid`).
 
 The profile contains only information belonging to its book. It belongs in the book repository and must not be copied into global GhostWriter product documentation or other book projects.
 

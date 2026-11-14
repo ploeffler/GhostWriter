@@ -60,6 +60,14 @@ class ChatAnalysisTest(unittest.TestCase):
             self.assertEqual(ca.prepare(self.book, kind, 1, 'a' * 40, self.request), request)
         self.assertFalse((self.book / 'costs/project.yml').exists())
 
+    def test_ai_pattern_rules_in_blurb_and_language_prompts(self):
+        """#305: Klappentext und Sprachprüfung bekommen die Regeln gegen KI-typische Muster, andere Arten nicht."""
+        for kind in ('blurb', 'language', 'image_ideas'):
+            self.request = self.root / (kind + '.json')
+            prompt = self.prepare(kind)['prompt']
+            self.assertEqual('KI-typische Muster vermeiden' in prompt, kind != 'image_ideas', kind)
+            self.assertEqual('Ankündigender Schlusssatz' in prompt, kind != 'image_ideas', kind)
+
     def test_return_is_idempotent_proposal_and_does_not_change_manuscript(self):
         request = self.prepare()
         before = {p.relative_to(self.book): p.read_bytes() for p in (self.book / 'chapters').rglob('*.md')}

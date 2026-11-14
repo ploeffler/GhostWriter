@@ -208,6 +208,7 @@
         "register": {"type": "string", "description": "Sprachebene: umgangssprachlich, neutral, gehoben, fachlich"},
         "tone": {"type": "array", "items": {"type": "string"}, "description": "Ton in wenigen Wörtern"},
         "features": {"type": "array", "items": {"type": "string"}, "description": "auffällige Stilmittel"},
+        "avoid": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true, "description": "Wendungen, die in diesem Buch nie vorkommen sollen (#305); ergänzen die allgemeine Liste templates/qa/ki-muster.yml, schwächen sie nie ab"},
         "sentence_length_avg": {"type": ["number", "null"], "minimum": 0, "description": "Wörter je Satz im Mittel (ohne KI gezählt)"},
         "dialogue_share": {"type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Anteil wörtlicher Rede an allen Wörtern (ohne KI gezählt)"},
         "source": {"type": "string", "description": "Herkunft, z. B. analysis/style/run-001"}

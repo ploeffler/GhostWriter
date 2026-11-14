@@ -156,7 +156,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `SECTION_GOAL`, `SECTION_SUMMARY`, `SECTION_MANUSCRIPT` | Ziel, Kurzbeschreibung, Manuskript |
 | `MARKER_COUNT_TEXT` | Marker des Abschnitts |
 | Block `MARKERS`: `MARKER_TYPE`, `MARKER_LABEL`, `MARKER_TEXT` | je Marker in Reihenfolge; ohne Marker entfällt der Bereich „Offene Marker“ |
-| Block `HINTS`: `H_KIND_TEXT`, `H_TEXT`, `H_QUOTE` | sprachliche Hinweise zum Abschnitt aus `story/hints.yml` (#124): Art („Langer Satz“, „Wortwiederholung“, „Gleiche Satzanfänge“, „Füllwörter“), Hinweis, Fundstelle; ohne Hinweise weglassen |
+| Block `HINTS`: `H_KIND_TEXT`, `H_TEXT`, `H_QUOTE` | sprachliche Hinweise zum Abschnitt aus `story/hints.yml` (#124): Art („Langer Satz“, „Wortwiederholung“, „Gleiche Satzanfänge“, „Füllwörter“, „KI-typisches Muster“, #305), Hinweis, Fundstelle; ohne Hinweise weglassen |
 | `PREV_SECTION_ID`, `PREV_SECTION_PROMPT`, `NEXT_SECTION_ID`, `NEXT_SECTION_PROMPT` | Nachbarabschnitte im selben Kapitel, Text „Abschnitt N.M „Titel“ bearbeiten“; am Rand leer |
 | `CHARACTERS_ENABLED`, Block `ALL_CHARACTERS`: `C_ID`, `C_NAME`, `C_ON` | nur wenn das Buch Figuren hat (#53): `1`; je Figur ID, Name und `1`, wenn sie in `characters` des Abschnittskopfs steht |
 
@@ -373,8 +373,8 @@ Auswahl „Sprachliche Hinweise“ aus einem Hintergrundlauf (#124, Art `languag
 | Platzhalter | Quelle |
 |---|---|
 | `KIND`, `RUN_ID`, `RUN_TEXT`, `SCOPE_TEXT` | wie bei `kurzbeschreibung-vorschlag` (`KIND` = `language`) |
-| `SUGGEST_COUNT_TEXT`, `RULES_TEXT` | „N Hinweise“ und die Regeln (Satzlänge, Wiederholungen, Satzanfänge, Füllwörter) aus `analyze.py` |
-| Block `SUGGESTIONS`: `S_IDX`, `S_WHERE`, `S_KIND`, `S_KIND_TEXT`, `S_TEXT`, `S_QUOTE` | je Hinweis: Nummer, Abschnitt, `long_sentence`/`repetition`/`same_start`/`filler` bzw. mit LanguageTool (#280) `spelling`/`grammar`/`punctuation`/`typography` und deutsch, Hinweis, Fundstelle |
+| `SUGGEST_COUNT_TEXT`, `RULES_TEXT` | „N Hinweise“ und die Regeln (Satzlänge, Wiederholungen, Satzanfänge, Füllwörter, KI-typische Muster) aus `analyze.py` |
+| Block `SUGGESTIONS`: `S_IDX`, `S_WHERE`, `S_KIND`, `S_KIND_TEXT`, `S_TEXT`, `S_QUOTE` | je Hinweis: Nummer, Abschnitt, `long_sentence`/`repetition`/`same_start`/`filler`/`ai_pattern` (#305) bzw. mit LanguageTool (#280) `spelling`/`grammar`/`punctuation`/`typography` und deutsch, Hinweis, Fundstelle |
 
 ### `import-vorschau.html`
 
