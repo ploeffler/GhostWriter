@@ -115,6 +115,9 @@ def check_data_model(problems):
     cfg = yaml.safe_load(read('ghostwriter.yml')) or {}
     schema = json.loads(read('schemas/ghostwriter.schema.json'))
     keys = set(schema.get('properties', {}))
+    for top, spec in schema.get('properties', {}).items():   # Unterfelder aus dem Schema, auch ohne Buch im Repository
+        if top not in ('ai_providers',) and isinstance(spec, dict):
+            keys |= {f'{top}.{sub}' for sub in spec.get('properties') or {}}
     for top, val in cfg.items():
         keys.add(top)
         if isinstance(val, dict) and top not in ('ai_providers',):   # ai_providers: docs/PROVIDERS.md

@@ -128,8 +128,8 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `ai_disclosure` | KI-Angabe im Buch (#78): `mode` (`none`, `short`, `detailed`, `custom`), `placement` (`imprint`, `foreword`, `afterword`, `page`), `name_services`, `text` (bestätigter Wortlaut; nur dieser kommt ins Buch); fehlt = keine Angabe (siehe „KI-Angabe im Buch“) |
 | `typesetting` | Buchsatz der Auflagen, Formular „Ausgabeoptionen“ bzw. Projekteinstellungen (siehe unten) |
 | `publication` | Angaben im Impressum: Verlag, ISBN je Ausgabe, Rechtehinweis (#68; siehe „Buchsatz“) |
-| `print` | Druck (#68): Profil des Anbieters (`kdp`, `bod`, `custom`), Papier, Rückenbreite, Beschnitt, Schnittmarken (siehe „Umschlag und Druck“) |
-| `cover` | Umschlag (#68): Vorlage, Farben, Bilder, Preis, Richtung des Rückentexts (siehe „Umschlag und Druck“) |
+| `print` | Druck (#68): `profile` (Anbieter: `kdp`, `bod`, `custom`), `paper` (nur `kdp`: `white`, `cream`, `premium_color`), `spine_mm` (feste Rückenbreite), `paper_mm_per_page` (Papierstärke), `bleed_mm` (Beschnitt), `crop_marks` (Schnittmarken) (siehe „Umschlag und Druck“) |
+| `cover` | Umschlag (#68): `template` (Vorlage: `classic`, `modern`, `plain`), `background` und `text_color` (Farben als `#RRGGBB`), `image` (Vorderseite), `author_image` (Autorenbild), `price` (Preis auf der Rückseite), `spine_direction` (Rückentext `down` oder `up`) (siehe „Umschlag und Druck“) |
 | `updates.auto` | neue GhostWriter-Versionen automatisch einspielen; fehlt = `true` ([UPDATES.md](UPDATES.md)) |
 | `changes.auto_merge` | gespeicherte Änderungen sofort übernehmen statt über „Änderungen übernehmen“; fehlt = `false`. Freigaben und Auflagen brauchen trotzdem ihre eigene Bestätigung (`START.md`, „Schreiben ins Repository“) |
 | `.ghostwriter/update.yml` | von der Update-Action geschrieben: installierte Version, Upstream-Commit, Zeitpunkt, ausgelassene Workflow-Dateien; nicht von Hand ändern |
