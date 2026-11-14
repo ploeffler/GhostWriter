@@ -20,6 +20,22 @@ class CheckDocsTest(unittest.TestCase):
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/check_docs.py')], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    def test_schema_subfields_need_documentation_without_book(self):
+        """Unterfelder aus dem Schema (z. B. print.paper) müssen im Datenmodell stehen, auch wenn das Repository
+        kein Buch mit diesen Feldern hat (Fehler in Bibliotheken, z. B. chillyconcane/YAWA#140)."""
+        real = check_docs.read
+
+        def fake(rel):
+            text = real(rel)
+            return text.replace('`paper`', 'Papier') if rel == 'docs/DATA-MODEL.md' else text
+        problems = []
+        with patch.object(check_docs, 'read', fake):
+            check_docs.check_data_model(problems)
+        self.assertIn('Feld `print.paper` aus ghostwriter.yml fehlt in docs/DATA-MODEL.md', problems)
+        problems = []
+        check_docs.check_data_model(problems)
+        self.assertEqual(problems, [])
+
     def test_planning_links_work_in_managed_book_files(self):
         manifest = yaml.safe_load((ROOT / 'ghostwriter-manifest.yml').read_text(encoding='utf-8'))
         planning_docs = [
