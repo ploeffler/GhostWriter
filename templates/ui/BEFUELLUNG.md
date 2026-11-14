@@ -573,6 +573,19 @@ Für Kapitel und Abschnitte.
 | `CHAPTER_ID`, `CHAPTER_NUMBER` | bei Abschnitten das Kapitel, sonst leer |
 | Block `ITEMS`: `ITEM_ID`, `ITEM_NUMBER`, `ITEM_TITLE` | Kapitel bzw. Abschnitte in der bisherigen Reihenfolge |
 
+### `analyse-einstellungen.html`
+
+Formular „Analyse-Einstellungen“ (`render_view.py analysis-settings`, #299, ab UI 0.47.0) für den Block `analysis`.
+
+| Platzhalter | Quelle |
+|---|---|
+| `ANALYSIS_PROVIDER`, `ANALYSIS_MODEL`, `ANALYSIS_MERGE_MODEL` | `analysis.provider`, `.model`, `.merge_model`; leer = Vorgabe |
+| `DEFAULT_MODEL_ANTHROPIC`, `DEFAULT_MERGE_ANTHROPIC`, `DEFAULT_MODEL_OPENAI`, `DEFAULT_MERGE_OPENAI` | Vorgaben der Anbieter aus `scripts/analyze.py` (`PROVIDERS`) |
+| `PRICE_INPUT`, `PRICE_OUTPUT`, `PARALLEL` | `analysis.price_input_per_mtok`, `.price_output_per_mtok`, `.parallel`; leer = keine Preise bzw. Vorgabe 4 |
+| `CURRENCY` | Projektwährung (`EUR`) |
+| `LT_LANGUAGE`, `LT_LANGUAGE_DEFAULT` | `analysis.languagetool.language`; Vorgabe aus `project.language` (`analyze.lt_language`, z. B. `de-DE`) |
+| `LT_WORDS`, `LT_RULES` | `analysis.languagetool.words` bzw. `.disabled_rules`, je Zeile ein Eintrag |
+
 ### `projekteinstellungen.html`
 
 | Platzhalter | Quelle |
@@ -708,6 +721,8 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `project.ai_disclosure.update` | `mode`, `placement`, `name_services`, `text` bzw. `use_suggestion`, `expected_head_sha` | KI-Angabe speichern | `scripts/ai_disclosure.py set`, ein Commit (`START.md`, „KI-Angabe im Buch“), danach das Formular | `PATCH …/settings` |
 | `project.rules.open` | – | Auswahl „Grundregeln“ zeigen (Befehl `Grundregeln`, #300) | `scripts/rules.py . choice` als `--spec` für `render_view.py choice` | – |
 | `project.rules.update` | `step: rules`, `answers` (`facts`, `creativity`, `approvals`: Stufe), `expected_head_sha` | Stufen der Grundregeln setzen | je geänderter Gruppe `scripts/rules.py . plan`; verschärfen direkt mit `set`; **lockern nur nach eigener Bestätigung** (`START.md`, Abschnitt 3, „Stufen der Grundregeln“), dann `set … --confirmed`; danach Projekteinstellungen | `PATCH …/settings` |
+| `project.analysis.open` | – | Formular „Analyse-Einstellungen“ zeigen (Befehl `Analyse-Einstellungen`, Zeile in den Projekteinstellungen, #299) | Vorlage `analyse-einstellungen` (`render_view.py analysis-settings`) | – |
+| `project.analysis.update` | `provider` (leer = automatisch), `model`, `merge_model`, `price_input_per_mtok`, `price_output_per_mtok` (Zahl oder `null`), `parallel` (1–16 oder `null`), `languagetool` (`language`, `words`, `disabled_rules`), `expected_head_sha` | Analyse-Einstellungen speichern | `python scripts/analyze.py . settings-set '<json>'` (prüft, leere Werte = Vorgabe), ein Commit `Analyse-Einstellungen geändert`; danach Projekteinstellungen | `PATCH …/settings` |
 | `project.output.open` | – | Formular „Ausgabeoptionen“ zeigen (Befehl `Ausgabe`, Knopf in Projektübersicht und Projekteinstellungen, #68) | Vorlage `ausgabeoptionen` (`render_view.py output`) | – |
 | `project.output.update` | `typesetting` (Felder wie in `docs/DATA-MODEL.md`, „Buchsatz“), `publication` (`publisher`, `isbn_print`, `isbn_ebook`, `rights`), `print`, `cover`, Texte der Rückseite (`blurb`, `author_bio`), `expected_head_sha` | Ausgabeoptionen speichern | in `ghostwriter.yml` schreiben (nur geänderte Felder), prüfen, danach das Formular | `PATCH …/settings` |
 | `project.providers.open` | – | Formular „KI-Dienste“ zeigen | Vorlage `ki-dienste` (`render_view.py providers-edit`) | – |

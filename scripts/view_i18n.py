@@ -7,7 +7,7 @@ from string import Formatter
 
 RESOURCE = Path(__file__).resolve().parents[1] / 'templates' / 'i18n' / 'views'
 DIRECT_VIEWS = {'import-preview', 'import-outline', 'matter', 'images', 'characters', 'data', 'series', 'choice', 'omnibus-edit',
-                'character-suggest', 'analysis-suggest', 'chapter-research', 'providers-edit', 'ai-disclosure', 'project-settings', 'output', 'edition-create', 'changes-merge', 'chapter-reorder', 'section-reorder', 'series-edit',
+                'character-suggest', 'analysis-suggest', 'chapter-research', 'providers-edit', 'ai-disclosure', 'analysis-settings', 'project-settings', 'output', 'edition-create', 'changes-merge', 'chapter-reorder', 'section-reorder', 'series-edit',
                 'approval-writing', 'approval-section', 'approval-chapter', 'approval-matter', 'approval-image'}
 
 

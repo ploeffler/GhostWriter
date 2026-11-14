@@ -60,6 +60,9 @@ Einstellungen in ghostwriter.yml (alle optional), Block `analysis`:
                     Projektwährung; ohne Preise: Kosten „unavailable“, Tokens werden
                     trotzdem erfasst
   parallel          gleichzeitige Aufrufe (Vorgabe 4)
+  languagetool      Analyse „Sprache“: language, words, disabled_rules
+Einstellen im Chat: Formular „Analyse-Einstellungen“ (render_view.py analysis-settings, #299), gespeichert mit
+  python scripts/analyze.py <ordner> settings-set '<json>'   (leere Werte = Vorgabe, Feld entfällt)
 Schlüssel: Umgebungsvariable mit dem Namen aus providers.yml (ANTHROPIC_API_KEY,
 OPENAI_API_KEY), in der Action aus den GitHub-Secrets.
 
@@ -199,6 +202,65 @@ def settings(config):
          'price_output_per_mtok': None, 'parallel': 4}
     s.update((config or {}).get('analysis') or {})
     return s
+
+
+def clean_settings(data):
+    """Eingaben des Formulars „Analyse-Einstellungen“ (#299) prüfen; leere Werte entfallen (= Vorgabe)."""
+    out = {}
+    if not isinstance(data, dict):
+        raise ValueError('Einstellungen müssen ein Objekt sein')
+    provider = (data.get('provider') or '').strip()
+    if provider:
+        if provider not in PROVIDERS:
+            raise ValueError(f'unbekannter Anbieter {provider!r} ({", ".join(PROVIDERS)})')
+        out['provider'] = provider
+    for key in ('model', 'merge_model'):
+        if str(data.get(key) or '').strip():
+            out[key] = str(data[key]).strip()
+    for key in ('price_input_per_mtok', 'price_output_per_mtok'):
+        v = data.get(key)
+        if v not in (None, ''):
+            v = float(str(v).replace(',', '.'))
+            if v < 0:
+                raise ValueError(f'{key}: Preis darf nicht negativ sein')
+            out[key] = int(v) if v == int(v) else v
+    par = data.get('parallel')
+    if par not in (None, ''):
+        if isinstance(par, bool) or int(par) != float(par) or not 1 <= int(par) <= 16:
+            raise ValueError('parallel: ganze Zahl von 1 bis 16')
+        out['parallel'] = int(par)
+    lt_in = data.get('languagetool') or {}
+    lt = {}
+    lang = str(lt_in.get('language') or '').strip()
+    if lang:
+        if not re.fullmatch(r'[a-zA-Z]{2,3}([-_][a-zA-Z]{2,8})?', lang):
+            raise ValueError(f'languagetool.language: {lang!r} ist keine Sprachvariante wie de-AT')
+        lt['language'] = lang
+    for key in ('words', 'disabled_rules'):
+        items = lt_in.get(key) or []
+        if isinstance(items, str):
+            items = items.splitlines()
+        items = list(dict.fromkeys(str(x).strip() for x in items if str(x).strip()))
+        if items:
+            lt[key] = items
+    if lt:
+        out['languagetool'] = lt
+    return out
+
+
+def settings_set(base, data):
+    """Block `analysis` in ghostwriter.yml ersetzen (Rest der Datei unverändert). → neuer Block (leer = entfernt)"""
+    block = clean_settings(data)
+    path = Path(base) / 'ghostwriter.yml'
+    text = path.read_text(encoding='utf-8')
+    new = yaml.safe_dump({'analysis': block}, allow_unicode=True, sort_keys=False, width=10**6) if block else ''
+    m = re.search(r'(?ms)^analysis:.*?(?=^\S|\Z)', text)
+    if m:
+        text = text[:m.start()] + new + text[m.end():]
+    elif new:
+        text = text.rstrip('\n') + '\n' + new
+    path.write_text(text, encoding='utf-8')
+    return block
 
 
 def pick_provider(s):
@@ -1608,7 +1670,7 @@ def apply(base, run_id, kind, choices):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
-    ap.add_argument('cmd', choices=['plan', 'run', 'latest', 'applied', 'apply'])
+    ap.add_argument('cmd', choices=['plan', 'run', 'latest', 'applied', 'apply', 'settings-set'])
     ap.add_argument('args', nargs='*')
     ap.add_argument('--kind', default='characters', help='Art bzw. mehrere mit Komma: ' + ', '.join(KINDS))
     ap.add_argument('--scope')
@@ -1619,6 +1681,18 @@ def main(argv):
         if k not in KINDS:
             ap.error(f'unbekannte Art {k} (möglich: {", ".join(KINDS)})')
     base = Path(a.project)
+    if a.cmd == 'settings-set':
+        if not a.args:
+            ap.error('settings-set braucht die Einstellungen (JSON-Datei oder JSON-Text)')
+        raw = a.args[0]
+        try:
+            data = json.loads(Path(raw).read_text(encoding='utf-8') if Path(raw).is_file() else raw)
+            block = settings_set(base, data)
+        except (ValueError, TypeError) as e:
+            print(f'✗ {e}')
+            return 1
+        print('✓ Analyse-Einstellungen gespeichert: ghostwriter.yml' + ('' if block else ' (alles auf Vorgabe)'))
+        return 0
     _, config = load(base)
     if a.cmd == 'plan':
         plans = [plan(base, config, k, a.scope) for k in kinds]
