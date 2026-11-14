@@ -13,6 +13,8 @@
   "the_image_returns_to_draft_if_it_appears_in_approved_text_it_prevents_the_next_edition": "The image returns to draft; if it appears in approved text, it prevents the next edition.",
   "approve_image": "Approve image",
   "approve": "Approve",
+  "finalize": "Finalize",
+  "reopen": "Reopen",
   "the_image_is_already_approved": "The image is already approved.",
   "the_image_file_is_missing": "The image file is missing.",
   "width_px": "Width: {p_a} px.",

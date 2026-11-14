@@ -13,6 +13,8 @@
   "the_image_returns_to_draft_if_it_appears_in_approved_text_it_prevents_the_next_edition": "Das Bild wird wieder Entwurf; steht es in freigegebenem Text, verhindert das die nächste Auflage.",
   "approve_image": "Bild freigeben",
   "approve": "Freigeben",
+  "finalize": "Abschließen",
+  "reopen": "Wieder öffnen",
   "the_image_is_already_approved": "Das Bild ist bereits freigegeben.",
   "the_image_file_is_missing": "Die Bilddatei fehlt.",
   "width_px": "{p_a} px breit.",
