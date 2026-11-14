@@ -540,7 +540,7 @@ Auswahlkarten für feste Antwortmöglichkeiten im Einstiegsdialog (`START.md`, A
 |---|---|
 | `APPROVAL_KIND` | `writing`, `section` oder `chapter` aus `approval.open` |
 | `APPROVAL_REVOKE` | `true` beim Zurücknehmen (`revoke` in `approval.open`), sonst leer |
-| `APPROVAL_TITLE`, `APPROVAL_BUTTON`, `APPROVAL_EFFECT` | Überschrift, Knopf und Satz zur Wirkung, je nach Art (Muster: `render_view.py approval-…`) |
+| `APPROVAL_TITLE`, `APPROVAL_BUTTON`, `APPROVAL_EFFECT` | Überschrift, Knopf und Satz zur Wirkung, je nach Art (Muster: `render_view.py approval-…`). Der Knopf nennt die Aktion: „Abschließen“/„Wieder öffnen“ bei Abschnitt, Kapitel und Vor-/Nachspann, „Schreiben erlauben“/„Schreiben sperren“ beim Schreiben; „Freigeben“/„Zurücknehmen“ nur beim Bild (#292) |
 | `TARGET_ID`, `TARGET_LABEL` | Abschnitts- bzw. Kapitel-ID und „Abschnitt N.M „Titel““ bzw. „Kapitel N „Titel““ |
 | `HEAD_SHA`, `HEAD_SHORT` | gelesener Stand, voll und mit 7 Zeichen; er landet als `commit` in `approvals.yml` |
 | Block `CHECKS`: `CHECK_STATE`, `CHECK_TEXT` | Prüfpunkte nach `START.md`, „Freigaben“, Schritt 2: `ok`, `warn` oder `block`; bei `block` ist Bestätigen gesperrt |

@@ -1770,12 +1770,12 @@ def approval_view(base, config, args, kind):
         heads = [section_file(base, s)[0] for s in ch['sections']]
         open_ = sum(h['status'] != 'approved' for h in heads)
         if revoke:
-            title, button = view_message('withdraw_chapter_approval'), view_message('withdraw')
+            title, button = view_message('withdraw_chapter_approval'), view_message('reopen')
             if ch['status'] != 'approved':
                 add('block', view_message('the_chapter_is_not_approved'))
             effect = view_message('the_chapter_returns_to_in_progress_section_approvals_remain_in_place')
         else:
-            title, button = view_message('approve_chapter'), view_message('approve')
+            title, button = view_message('approve_chapter'), view_message('finalize')
             if ch['status'] == 'approved':
                 add('block', view_message('the_chapter_is_already_approved'))
             if open_:
@@ -1806,7 +1806,7 @@ def approval_view(base, config, args, kind):
             else:
                 ap['writing'] = True
         if kind == 'writing' and revoke:
-            title, button = view_message('withdraw_writing_permission'), view_message('withdraw')
+            title, button = view_message('withdraw_writing_permission'), view_message('withdraw_writing_permission')
             if not ap['writing']:
                 add('block', view_message('writing_permission_has_not_been_granted'))
             if ap['section']:
@@ -1814,7 +1814,7 @@ def approval_view(base, config, args, kind):
                     view_message('the_section_is_approved_withdraw_section_approval_first'))
             effect = view_message('writing_permission_is_withdrawn_the_manuscript_stays_as_it_is_but_writing_can_resume_only_after_new_')
         elif kind == 'writing' and item:
-            title, button = view_message('grant_writing_permission'), view_message('approve')
+            title, button = view_message('grant_writing_permission'), view_message('grant_writing_permission')
             if ap['writing']:
                 add('block', view_message('writing_permission_has_already_been_granted'))
             if item['kind'] not in MATTER_GHOSTWRITING:
@@ -1822,7 +1822,7 @@ def approval_view(base, config, args, kind):
             effect = view_message('writing_permission_is_granted_the_text_may_then_be_written') + \
                 (view_message('the_part_moves_to_writing') if head['status'] in ('planned', 'research', 'brainstorming', 'ready_to_write') else '')
         elif kind == 'writing':
-            title, button = view_message('grant_writing_permission'), view_message('approve')
+            title, button = view_message('grant_writing_permission'), view_message('grant_writing_permission')
             if ap['writing']:
                 add('block', view_message('writing_permission_has_already_been_granted'))
             add('ok' if goal else 'warn', view_message('section_goal_provided') if goal else view_message('section_goal_still_missing'))
@@ -1834,12 +1834,12 @@ def approval_view(base, config, args, kind):
             effect = view_message('writing_permission_is_granted_the_manuscript_may_then_be_written') + \
                 (view_message('the_section_moves_to_writing') if head['status'] in ('planned', 'research', 'brainstorming', 'ready_to_write') else '')
         elif revoke and item:
-            title, button = view_message('withdraw_approval'), view_message('withdraw')
+            title, button = view_message('withdraw_approval'), view_message('reopen')
             if not ap['section']:
                 add('block', view_message('is_not_approved', p_a=f"{item['title']}"))
             effect = view_message('approval_is_withdrawn_moves_to_revision_and_is_excluded_from_the_next_edition_until_approved_again', p_a=f"{item['title']}")
         elif item:
-            title, button = view_message('approve_2', p_a=f"{item['title']}"), view_message('approve')
+            title, button = view_message('approve_2', p_a=f"{item['title']}"), view_message('finalize')
             if ap['section']:
                 add('block', view_message('is_already_approved', p_a=f"{item['title']}"))
             if not ap['writing']:
@@ -1857,14 +1857,14 @@ def approval_view(base, config, args, kind):
                     view_message('term_with_no_duplicates', p_a=f'{len(entries)}', p_b=f"{view_plural(len(entries), 'e')}"))
             effect = view_message('becomes_approved_and_is_included_in_the_next_edition_you_confirm_the_text_in_this_version', p_a=f"{item['title']}")
         elif revoke:
-            title, button = view_message('withdraw_section_approval'), view_message('withdraw')
+            title, button = view_message('withdraw_section_approval'), view_message('reopen')
             if not ap['section']:
                 add('block', view_message('the_section_is_not_approved'))
             if ch['status'] == 'approved':
                 add('warn', view_message('this_also_withdraws_approval_for_chapter_it_returns_to_in_progress', p_a=f'{c}'))
             effect = view_message('section_approval_is_withdrawn_the_section_moves_to_revision')
         else:
-            title, button = view_message('approve_section'), view_message('approve')
+            title, button = view_message('approve_section'), view_message('finalize')
             if ap['section']:
                 add('block', view_message('the_section_is_already_approved'))
             if not ap['writing']:
