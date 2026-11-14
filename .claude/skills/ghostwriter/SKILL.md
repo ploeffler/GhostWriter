@@ -121,6 +121,7 @@ Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
 - Inhaltliche Logik, Plausibilität, Chronologie, Kontinuität, Widersprüche und Wiederholungen prüfen.
 - Perspektive, Figurenstimmen, Ton, Stil, Sprache und Verständlichkeit mit den Projektvorgaben abgleichen.
 - KI-typische Muster suchen und beseitigen, besonders im Schlusssatz von Abschnitt und Kapitel (Liste `templates/qa/ki-muster.yml`, dazu `style.avoid` des Buchs; #305). Gilt schon beim Schreiben.
+- Grundregeln für Buchtext einhalten (`START.md`, Abschnitt 3, #307): kein Pathos; nichts aus Werken anderer Autoren oder aus anderen Büchern der Bibliothek übernehmen; sauber schreiben; keine Vorrede oder Nachwort im Manuskript; beim Überarbeiten Inhalt und Handlung erhalten; Figuren in sexuellen oder sexualisierten Szenen eindeutig erwachsen.
 - Nach Korrekturen den vollständigen betroffenen Text erneut lesen.
 - Offene Probleme dokumentieren; bei wesentlichen ungelösten Problemen kein positives Prüfergebnis melden.
 - Die Autorinnen- bzw. Autorenfreigabe niemals aus einem Prüfergebnis ableiten.
