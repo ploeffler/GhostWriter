@@ -166,7 +166,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 
 ### `projektdaten-bearbeiten.html`
 
-`PROJECT_TITLE`, `PROJECT_TITLE_SHORT`, `PROJECT_AUTHOR`, `PROJECT_DESCRIPTION_SHORT`, `PROJECT_DESCRIPTION` wie in der Projektübersicht, hier als Vorbelegung der Felder.
+`PROJECT_TITLE`, `PROJECT_TITLE_SHORT`, `PROJECT_AUTHOR`, `PROJECT_DESCRIPTION_SHORT`, `PROJECT_DESCRIPTION` wie in der Projektübersicht, hier als Vorbelegung der Felder. Dazu die Buchangaben (#299, ab UI 0.46.0): `PROJECT_SUBTITLE` (`project.subtitle`), `PROJECT_LANGUAGE` (`project.language`), `PROJECT_BOOK_TYPE` (`project.book_type`), `PROJECT_TARGET_AUDIENCE` (`project.target_audience`), `PROJECT_TRANSLATIONS` (`project.translations_planned` als Komma-Liste, leer = keine).
 
 ### `kapitel-anlegen.html`
 
@@ -701,7 +701,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `series.volume.remove` | `series_id`, `branch` | Band aus der Serie entfernen | aus `volumes` streichen; das Buch bleibt unverändert (`scripts/series.py remove`), danach Seite der Serie | `DELETE /v1/projects/{owner}/{repo}/series/{series_id}/volumes/{branch}` |
 | `series.reorder` | `series_id`, `order` (alle Buch-Branches), `expected_head_sha` | Bandreihenfolge speichern | `volumes` in neuer Reihenfolge (`scripts/series.py reorder`), danach Seite der Serie | `POST /v1/projects/{owner}/{repo}/series/{series_id}/reorder` |
 | `project.edit` | – | Formular „Projektdaten bearbeiten“ zeigen | Vorlage `projektdaten-bearbeiten` (`render_view.py project-edit`) | – |
-| `project.update` | `title`, `title_short`, `author`, `description_short`, `description`, `expected_head_sha` | Projektdaten speichern | in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH /v1/projects/{owner}/{repo}` |
+| `project.update` | `title`, `subtitle`, `title_short`, `author`, `description_short`, `description`, `language`, `book_type`, `target_audience`, `translations_planned` (Liste von Sprachcodes, leer = Feld entfernen), `expected_head_sha` | Projektdaten speichern | in `ghostwriter.yml` schreiben (leere Texte entfernen das Feld, `language` bleibt Pflicht und wird nie geleert), danach Projektübersicht | `PATCH /v1/projects/{owner}/{repo}` |
 | `project.settings.open` | – | Projekteinstellungen zeigen | Vorlage `projekteinstellungen` (`render_view.py project-settings`) | – |
 | `project.settings.update` | `fact_checking_default`, `typesetting` (`page_size`, `font`, `font_size`, `title_page`, `imprint`, `toc`, `toc_depth`), `updates` (`auto`), `changes` (`auto_merge`), `limits` (`ai_budget_monthly`, `actions_minutes_monthly`; `null` = entfernen), `expected_head_sha` | Einstellungen speichern | `workflow.fact_checking_default`, `typesetting`, `updates`, `changes` und `limits` in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH …/settings` |
 | `project.ai_disclosure.open` | – | Formular „KI-Angabe im Buch“ zeigen (Befehl `KI-Angabe`, Knopf in den Projekteinstellungen, #78) | Vorlage `ki-angabe` (`render_view.py ai-disclosure`) | – |

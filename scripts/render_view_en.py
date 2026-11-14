@@ -284,9 +284,12 @@ def render_form(template, data):
     required = lambda key: native('required', field=tr(key))
     if template == 'projektdaten-bearbeiten':
         lines = ['### 📝 ' + tr('ui.edit_project_details'), '']
-        rows = [(required('ui.title'), data['PROJECT_TITLE']), (tr('ui.short_title'), data['PROJECT_TITLE_SHORT']),
+        rows = [(required('ui.title'), data['PROJECT_TITLE']), (tr('ui.subtitle'), data.get('PROJECT_SUBTITLE', '')),
+                (tr('ui.short_title'), data['PROJECT_TITLE_SHORT']),
                 (tr('ui.author'), data['PROJECT_AUTHOR']), (tr('ui.summary'), data['PROJECT_DESCRIPTION_SHORT']),
-                (tr('ui.description'), data['PROJECT_DESCRIPTION'])]
+                (tr('ui.description'), data['PROJECT_DESCRIPTION']), (tr('ui.book_language'), data.get('PROJECT_LANGUAGE', '')),
+                (tr('ui.book_type'), data.get('PROJECT_BOOK_TYPE', '')), (tr('ui.target_audience'), data.get('PROJECT_TARGET_AUDIENCE', '')),
+                (tr('ui.planned_translations'), data.get('PROJECT_TRANSLATIONS', ''))]   # Buchangaben (#299)
         hint = native('form_hint')
     elif template == 'kapitel-bearbeiten':
         lines = ['### 📝 ' + label('ui.edit_chapter', CHAPTER_NUMBER=data['CHAPTER_NUMBER']), '']
