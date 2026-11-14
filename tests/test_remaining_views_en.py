@@ -58,7 +58,7 @@ class RemainingViewsEnglishTest(unittest.TestCase):
     def test_localized_fixed_tables_keep_the_german_source_contract(self):
         names = ('OUTPUT_LABELS', 'FIXED_TEXT', 'FC_TEXT', 'FIXED_RULES', 'OUTPUT_GROUPS', 'PUBLICATION_LABELS',
                  'TEMPLATE_DE', 'ROLE_DE', 'SOURCE_DE', 'TERM_STATE_DE', 'WEB_TEXT', 'ACCESS_TEXT', 'KEEP_DE',
-                 'FIELD_DE', 'MARKER_LABEL', 'MATTER_HINTS')
+                 'FIELD_DE', 'MARKER_LABEL', 'MATTER_HINTS', 'RULE_GROUPS', 'RULE_LEVELS')
         with patch.dict(render_view.UI, {'language': 'de'}):
             for name in names:
                 with self.subTest(name=name):
@@ -69,7 +69,7 @@ class RemainingViewsEnglishTest(unittest.TestCase):
 
     def test_settings_output_providers_and_disclosure_are_read_only(self):
         before = self.snapshot()
-        for view, expected in [('project-settings', 'Fixed rules'), ('output', 'Output options'),
+        for view, expected in [('project-settings', 'Core rules'), ('output', 'Output options'),
                                ('providers-edit', 'AI services'), ('ai-disclosure', 'AI disclosure')]:
             with self.subTest(view=view):
                 text = self.run_view(view)

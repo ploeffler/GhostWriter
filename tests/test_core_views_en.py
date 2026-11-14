@@ -204,7 +204,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         before = (self.base / 'ghostwriter.yml').read_bytes()
         text = self.run_view('project-settings', '--text', '--language', 'en').stdout
         self.assertIn('Project settings', text)
-        self.assertIn('changes require explicit confirmation', text)
+        self.assertIn('relaxing requires explicit confirmation', text)
         self.assertIn('| Allow writing per section | required |', text)
         self.assertIn('| Fact check | requested |', text)
         self.assertIn('| Font size | 11.5 pt |', text)

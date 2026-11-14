@@ -443,6 +443,8 @@ def check_project(project_dir):
     errors += provider_errors(config, config_path)
 
     errors += story_errors(base, config)
+    import rules   # Grundregeln: Lockerung nur mit Bestätigung, Untergrenzen (#300)
+    errors += rules.problems(base, config)
     approvals_path = base / 'approvals.yml'
     if approvals_path.is_file():
         data = load_yaml(approvals_path, errors)
@@ -453,7 +455,8 @@ def check_project(project_dir):
                 known_by_kind = {'chapter': (chapter_ids, 'Kapitel'), 'section': (section_ids, 'Abschnitt'),
                                  'matter': (matter_ids, 'Teil des Vor-/Nachspanns'),
                                  'writing': (section_ids | matter_ids, 'Abschnitt bzw. Teil'),
-                                 'image': (image_ids, 'Bild')}
+                                 'image': (image_ids, 'Bild'),
+                                 'rules': ({'rules-facts', 'rules-creativity', 'rules-approvals'}, 'Regelgruppe')}
                 historical = {}
                 for ref in data.get('historical_references', []):
                     number = ref['entry']

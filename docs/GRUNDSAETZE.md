@@ -30,7 +30,7 @@ Ein gemeinsamer Versionsverlauf bedeutet nicht, dass jeder Client bereits densel
 
 ## Projektregeln
 
-Die globalen KI-Einstellungen stehen in `ghostwriter.yml` und gelten für Recherche, Brainstorming, Schreiben, Überarbeiten und Faktencheck. Sie lassen sich nicht stillschweigend abschwächen:
+Die globalen KI-Einstellungen stehen in `ghostwriter.yml` und gelten für Recherche, Brainstorming, Schreiben, Überarbeiten und Faktencheck. Sie lassen sich nicht stillschweigend abschwächen; die Vorgabe ist:
 
 | Regel | Wert | Bedeutung |
 |---|---|---|
@@ -39,6 +39,8 @@ Die globalen KI-Einstellungen stehen in `ghostwriter.yml` und gelten für Recher
 | Unsicherheiten | `explicit` | unsichere Stellen sichtbar markieren |
 | Kreativität | `balanced` | Beispiele und Bilder ja, aber keine verfälschten Fakten |
 | Internetrecherche | `research` | bei Recherchen aktiv suchen; ohne Suche das ausdrücklich sagen |
+
+Mit dem Befehl **Grundregeln** wählst du je Gruppe eine Stufe: **Faktentreue** (Sachbuch oder Erzählung), **Kreativität und Recherche** (zurückhaltend, ausgewogen, frei) und **Freigaben** (streng oder zügig, also ohne Schreibfreigabe je Abschnitt). Verschärfen geht jederzeit. **Lockern** braucht eine eigene Bestätigung und wird im Freigabe-Protokoll festgehalten. Untergrenzen bleiben immer: Tatsachen werden nicht erfunden, Unsicherheiten werden genannt, bei Rechercheaufträgen wird recherchiert, Abschnitte und Kapitel werden abgeschlossen. Bei „Erzählung“ ist Erfundenes nur in der Handlung erlaubt; reale Orte, Geschichte, Medizin, Recht und Zitate bleiben belegt.
 
 Welcher KI-Dienst welche Aufgabe übernimmt, ist je Buch wählbar (`ghostwriter.yml` → `ai_providers`, Formular „KI-Dienste“). Die möglichen Dienste stehen in [`providers.yml`](../providers.yml) und [PROVIDERS.md](PROVIDERS.md); wie man sie nutzt, in [DIENSTE-NUTZEN.md](DIENSTE-NUTZEN.md).
 

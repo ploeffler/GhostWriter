@@ -162,7 +162,7 @@ global_ai_policy:
   uncertainty_policy: explicit
   creativity: balanced
   web_research: research
-  override_policy: only_add_stricter_rules
+  override_policy: stricter_freely_looser_with_confirmation   # #300: Lockern nur mit Bestätigung (approvals.yml, kind: rules), Untergrenzen in scripts/rules.py
 
 provider_selection:
   purpose: selectable_ai_provider_per_role
@@ -302,7 +302,7 @@ section_workflow:
   invariants:
     - research_and_brainstorming_are_repeatable
     - prior_runs_are_never_overwritten
-    - no_draft_before_writing_approval
+    - no_draft_before_writing_approval_unless_confirmed_quick_level   # #300: Stufe „Zügig“ (rules.approvals: quick)
     - fact_check_never_silently_changes_manuscript
     - approved_requires_explicit_user_confirmation
     - approved_manuscript_is_immutable_until_section_approval_is_revoked
