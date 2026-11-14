@@ -144,6 +144,17 @@
       }
     },
     {
+      "id": "external-dialog",
+      "title": {
+        "de": "Externer KI-Dialog",
+        "en": "External AI dialogue"
+      },
+      "source": {
+        "de": "EXTERNER-KI-DIALOG.md",
+        "en": "EXTERNAL-AI-DIALOG.en.md"
+      }
+    },
+    {
       "id": "apps",
       "title": {
         "de": "Chat-Apps",
@@ -226,7 +237,13 @@
     "docs/CONTEXT.md",
     "docs/INTEGRATION.md",
     "integrations/openwebui/README.md",
-    "providers.yml"
+    "providers.yml",
+    "templates/external-dialog/auftrag.de.txt",
+    "templates/external-dialog/rueckgabe.de.txt",
+    "templates/external-dialog/auswertung.de.md",
+    "templates/external-dialog/task.en.txt",
+    "templates/external-dialog/return.en.txt",
+    "templates/external-dialog/review.en.md"
   ],
   "excluded_links": [
     "ENTSCHEIDUNGSAUFTRAG-v1.0.md",

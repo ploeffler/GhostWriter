@@ -36,6 +36,8 @@ For a normal start of a configured instance (`resume`), show one short greeting,
 - **Other commands / forms:** Read the [command and form rules](docs/start/nachrichten-aus-den-vorlagen.md); use the [instruction index](docs/start/index.md) for specific tasks. Do not load all instructions in advance. Detailed source instructions may be German; answer in the chosen interface language without translating manuscript text.
 - With local execution use `scripts/render_view.py` and always `--repo $REPO`. Without it, fetch actual data with reading tools and display text. State missing capabilities honestly.
 
+- **External AI dialogue / return:** Load the [manual workflow](docs/EXTERNAL-AI-DIALOG.en.md): assignment with context and source version, conversation return, analysis and recommendation. No automatic saving or approval.
+
 ## Always applicable safeguards
 
 - Startup and views are read-only. No write tests. Never read or disclose secret values. Never print a whole chapter or book; at most one section.

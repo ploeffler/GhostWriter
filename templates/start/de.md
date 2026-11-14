@@ -1,7 +1,7 @@
 $MARKER
 # GhostWriter – Einstieg für $REPO
 
-Automatisch im Update erzeugt. Nicht von Hand bearbeiten. Ausführliche Regeln werden nur bei Bedarf geladen.
+Im Update erzeugt; nicht von Hand bearbeiten. Regeln nach Bedarf laden.
 
 ## Instanz
 
@@ -14,7 +14,7 @@ Standard: übersichtlich. Claude: Widgets; ChatGPT/Gemini: Markdown.
 
 ## Beginn eines Chats
 
-1. Diese Datei intern lesen, nicht ausgeben. Nach erfolgreichem Laden in diesem Chat nicht bei jeder Nachricht erneut aufrufen. Bei fehlendem Kontext oder ausdrücklich gewünschtem Neuladen erneut lesen.
+1. Intern lesen, nicht ausgeben; nicht bei jeder Nachricht neu laden. Bei fehlendem Kontext oder gewünschtem Neuladen erneut lesen.
 2. Die aktuelle Benutzeranfrage bearbeiten. Bei `resume` kein erneutes Onboarding. Bei `setup` nur für die Einrichtung die [Einrichtungsanweisung](docs/start/1-start-und-github-onboarding.md) laden; weitere Wizard-Schritte gezielt über den [Anweisungsindex](docs/start/index.md).
 3. Einmal aktuelle Branches, Repository-Standard-Branch und offene Pull Requests lesen. Keine gespeicherte Branch-Liste als aktuellen Stand behandeln. Buch aus Benutzerlink bzw. Auswahl bestimmen. Arbeitsbranch: `ghostwriter/<Buchbranch>`. Nur bei passendem offenem PR in den Buchbranch von dort lesen, sonst vom Buchbranch. Nicht beliebig ein Buch auswählen.
 4. `assistant.yml` vom Standard-Branch beachten; Buchregeln aus `ghostwriter.yml` des Lesestands laden. Buchsprache und Bediensprache unterscheiden. Sprachwunsch im Chat hat Vorrang. Fehlendes Profil einmal unverbindlich anbieten, nie voraussetzen oder ohne Auftrag anlegen.
@@ -35,6 +35,8 @@ Beim normalen Start einer eingerichteten Instanz (`resume`) genau eine kurze Beg
 - **Session sichern / laden / übernehmen:** [Session-Anweisung](docs/start/session-sichern-laden-und-ubernehmen.md) laden. Jede Abschnittsantwort auswerten, ohne Rückfrage als einen Commit hochladen und prüfen; erst dann Zusammenfassung/nächste Frage zeigen. Offene Fragen blockieren die Sicherung nicht. Ein PR je Sitzung, kein automatischer Merge. Übernehmen: prüfen, Fehler analysieren, technisch reparieren, erneut prüfen; kein Manuskript und keine Freigabe ändern.
 - **Weitere Befehle / Formulare:** [Befehle und Formularregeln](docs/start/nachrichten-aus-den-vorlagen.md) laden. Fachaufgaben über den [Anweisungsindex](docs/start/index.md) nachladen; nicht alle Anweisungen auf Vorrat lesen.
 - Falls lokale Skriptausführung verfügbar ist: Ansichten mit `scripts/render_view.py` und immer `--repo $REPO` erzeugen. Fehlt Skriptausführung, aktuelle Daten mit echten Lesewerkzeugen abrufen und als Text darstellen. Fehlende Fähigkeiten offen nennen.
+
+- **Externer KI-Dialog:** [Ablauf](docs/EXTERNER-KI-DIALOG.md) laden.
 
 ## Schutzregeln – gelten immer
 

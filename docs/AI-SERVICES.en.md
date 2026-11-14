@@ -28,9 +28,11 @@ For example, select a second service for research in **AI services**. When you s
 3. Copy the whole response back into the GhostWriter chat, identifying the service and model if known.
 4. GhostWriter checks the format and sources, summarizes the result and saves it through the normal workflow.
 
-Research becomes a research run; brainstorming becomes a brainstorming run. Writing and revision produce a draft for one section that you review before saving. Fact-checking produces a report and does not automatically change the manuscript. Writing approval is required before drafting.
+Research becomes a research run; brainstorming becomes a brainstorming run. Writing and revision produce a draft for one section that you review before saving. Fact-checking produces a report and does not automatically change the manuscript. Writing approval is required before storing text as manuscript; an external draft may be shown in chat for review.
 
-Use one assignment per section. A selected service must not be silently replaced by the current chat. Assignments can contain book material: review the other service's data handling before sharing it. Subscription chat use is not recorded as an individual GhostWriter API cost; background API calls are tracked separately when supported.
+Use one clearly scoped assignment, normally for one section. For chapter work, follow the external dialogue workflow and existing chapter prerequisites; do not print entire chapters in chat. A selected service must not be silently replaced by the current chat. Assignments can contain book material: review the other service's data handling before sharing it. Subscription chat use is not recorded as an individual GhostWriter API cost; background API calls are tracked separately when supported.
+
+For multiple dialogue turns rather than a single response, use the [external AI dialogue workflow](EXTERNAL-AI-DIALOG.en.md): prepare an assignment, return the conversation and receive an analysis with a recommendation.
 
 ## Local models
 
