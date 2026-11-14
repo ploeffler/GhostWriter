@@ -432,6 +432,25 @@ def view_labels(name):
                 },
             ),
             'title_page': (view_message('labels.OUTPUT_LABELS.title_page.0'), None),
+            'title_style': (
+                view_message('labels.OUTPUT_LABELS.title_style.0'),
+                {
+                    'classic': view_message('labels.OUTPUT_LABELS.title_style.1.classic'),
+                    'rules': view_message('labels.OUTPUT_LABELS.title_style.1.rules'),
+                    'modern': view_message('labels.OUTPUT_LABELS.title_style.1.modern'),
+                    'spaced': view_message('labels.OUTPUT_LABELS.title_style.1.spaced'),
+                    'band': view_message('labels.OUTPUT_LABELS.title_style.1.band'),
+                },
+            ),
+            'proof_mark': (
+                view_message('labels.OUTPUT_LABELS.proof_mark.0'),
+                {
+                    'line': view_message('labels.OUTPUT_LABELS.proof_mark.1.line'),
+                    'box': view_message('labels.OUTPUT_LABELS.proof_mark.1.box'),
+                    'watermark': view_message('labels.OUTPUT_LABELS.proof_mark.1.watermark'),
+                    'watermark_all': view_message('labels.OUTPUT_LABELS.proof_mark.1.watermark_all'),
+                },
+            ),
             'imprint': (view_message('labels.OUTPUT_LABELS.imprint.0'), None),
             'toc': (view_message('labels.OUTPUT_LABELS.toc.0'), None),
             'toc_depth': (
@@ -505,7 +524,7 @@ def view_labels(name):
                 ['font', 'font_size', 'heading_font', 'initials', 'glossary_marks'],
             ),
             (view_message('labels.OUTPUT_GROUPS.2.0'), ['line_spacing', 'paragraph', 'hyphenation']),
-            (view_message('labels.OUTPUT_GROUPS.3.0'), ['title_page', 'imprint', 'toc', 'toc_depth']),
+            (view_message('labels.OUTPUT_GROUPS.3.0'), ['title_page', 'title_style', 'imprint', 'toc', 'toc_depth', 'proof_mark']),
             (view_message('labels.OUTPUT_GROUPS.4.0'), ['formats']),
         ]
     if name == 'PUBLICATION_LABELS':
@@ -2037,7 +2056,7 @@ TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'tit
                       'heading_font': 'same', 'margins': 'standard', 'line_spacing': 1.1, 'paragraph': 'indent',
                       'hyphenation': True, 'chapter_start': 'any', 'running_heads': 'sections',
                       'page_numbers': 'header', 'initials': False, 'formats': ['pdf', 'docx', 'epub'],
-                      'glossary_marks': 'arrow'}
+                      'glossary_marks': 'arrow', 'title_style': 'classic', 'proof_mark': 'line'}
 # Werte → deutsche Bezeichnung (Formular „Ausgabe“, Textfassung)
 OUTPUT_LABELS = {
     'page_size': ('Seitenformat', {'a5': 'A5 (14,8 × 21 cm)', '12x19': '12 × 19 cm', '13.5x21.5': '13,5 × 21,5 cm', 'a4': 'A4'}),
@@ -2055,7 +2074,12 @@ OUTPUT_LABELS = {
     'running_heads': ('Kolumnentitel', {'sections': 'Kapitel und Abschnitt', 'chapter': 'Kapiteltitel',
                                         'book': 'Buch- und Kapiteltitel', 'none': 'keine'}),
     'page_numbers': ('Seitenzahlen', {'header': 'oben außen', 'footer_center': 'unten Mitte', 'footer_outer': 'unten außen'}),
-    'title_page': ('Titelseite', None), 'imprint': ('Impressum', None), 'toc': ('Inhaltsverzeichnis', None),
+    'title_page': ('Titelseite', None), 'imprint': ('Impressum', None),
+    'title_style': ('Gestaltung der Titelseite', {'classic': 'klassisch', 'rules': 'mit Linien', 'modern': 'modern (linksbündig)',
+                                                  'spaced': 'gesperrt', 'band': 'mit Querband'}),
+    'proof_mark': ('Kennzeichnung im Probedruck', {'line': 'rote Zeile', 'box': 'roter Rahmen',
+                                                   'watermark': 'Rahmen und Wasserzeichen auf der Titelseite',
+                                                   'watermark_all': 'Rahmen und Wasserzeichen auf allen Seiten'}), 'toc': ('Inhaltsverzeichnis', None),
     'toc_depth': ('Verzeichnistiefe', {1: 'nur Kapitel', 2: 'Kapitel und Abschnitte'}),
     'formats': ('Formate einer Auflage', {'pdf': 'PDF (Bildschirm)', 'pdf_print': 'Druck-PDF (Innenteil)',
                                           'booklet': 'Broschüre zum Selbstdrucken', 'cover': 'Umschlag-PDF', 'docx': 'DOCX', 'epub': 'EPUB'}),
@@ -2190,7 +2214,7 @@ def output_value(key, value):
 OUTPUT_GROUPS = [('Seite', ['page_size', 'margins', 'chapter_start', 'running_heads', 'page_numbers']),
                  ('Schrift', ['font', 'font_size', 'heading_font', 'initials', 'glossary_marks']),
                  ('Absatz', ['line_spacing', 'paragraph', 'hyphenation']),
-                 ('Titelei', ['title_page', 'imprint', 'toc', 'toc_depth']),
+                 ('Titelei', ['title_page', 'title_style', 'imprint', 'toc', 'toc_depth', 'proof_mark']),
                  ('Formate', ['formats'])]
 PUBLICATION_LABELS = [('publisher', 'Verlag', '„Selbstverlag“ oder Name des Verlags'),
                       ('isbn_print', 'ISBN Druckausgabe', 'ISBN-13 mit Prüfziffer'),

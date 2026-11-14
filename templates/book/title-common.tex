@@ -1,0 +1,10 @@
+% GhostWriter: gemeinsame Teile der wählbaren Titelseiten (typesetting.title_style, #310).
+% Nur eingebunden, wenn ein Stil außer „classic“ gewählt ist; „classic“ bleibt KOMA-\maketitle.
+\makeatletter
+% Rückseite der Titelseite wie bei KOMA: leer, Impressum (\lowertitleback) unten.
+\newcommand*{\gw@titleback}{%
+  \thispagestyle{empty}\null\vfill
+  \ifx\@lowertitleback\@empty\else{\raggedright\@lowertitleback\par}\fi
+  \clearpage}
+\newcommand{\gw@ifset}[2]{\ifx#1\@empty\else#2\fi}
+\makeatother

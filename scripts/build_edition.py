@@ -160,6 +160,57 @@ def layout_tex(ts, meta):
     return '\n'.join(out) + ('\n' if out else '')
 
 
+TITLE_STYLES = ('classic', 'rules', 'modern', 'spaced', 'band')   # typesetting.title_style (#310)
+PROOF_MARKS = ('line', 'box', 'watermark', 'watermark_all')      # typesetting.proof_mark (#310)
+
+
+def title_tex(ts):
+    """Dateien für die gewählte Titelseite (#310); leer bei „classic“ (KOMA-\\maketitle wie bisher) und ohne Titelseite."""
+    style = ts.get('title_style', 'classic')
+    if not ts.get('title_page') or style == 'classic':
+        return []
+    if style not in TITLE_STYLES:
+        raise SystemExit(f'Unbekannte Titelseite: {style} (möglich: {", ".join(TITLE_STYLES)})')
+    return [BOOK / 'title-common.tex', BOOK / f'title-{style}.tex']
+
+
+def proof_tex(ts, label, date, commit=''):
+    """Kennzeichnung im Probedruck und bei „Manuskript ausgeben“ (#309, #310): Vermerk auf einer eigenen Zeile unter
+    der Fußzeile (kollidiert nie mit Seitenzahl oder Kolumnentitel), dazu auf der Titelseite je nach proof_mark eine
+    rote Zeile, ein Rahmen oder ein Wasserzeichen. Voraussetzung: scrlayer-scrpage ist geladen."""
+    mark = ts.get('proof_mark', 'line')
+    if mark not in PROOF_MARKS:
+        raise SystemExit(f'Unbekannte Kennzeichnung: {mark} (möglich: {", ".join(PROOF_MARKS)})')
+    day = date[8:10] + '.' + date[5:7] + '.' + date[:4]
+    red = '\\color{red!65!black}'
+    note = latex_escape(f'{label} {day} – nicht zur Veröffentlichung')
+    out = ['\\usepackage{eso-pic}', '\\newif\\ifgwproofnote\\gwproofnotetrue',
+           '\\DeclareNewLayer[foot,addvoffset=1.4\\baselineskip,contents={\\ifgwproofnote\\parbox[b]{\\layerwidth}{\\centering'
+           '\\footnotesize\\sffamily' + red + ' ' + note + '}\\fi}]{gwproof}',
+           '\\AddLayersToPageStyle{@everystyle@}{gwproof}']
+    if mark in ('watermark', 'watermark_all'):
+        wm = ('{\\AtPageCenter{\\makebox(0,0){\\rotatebox{55}{\\fontsize{54}{54}\\selectfont\\sffamily\\bfseries'
+              '\\color{red!14}' + latex_escape(label.upper()) + '}}}}')
+        if mark == 'watermark_all':
+            out.append('\\AddToShipoutPictureBG' + wm)
+    if not ts.get('title_page'):
+        return '\n'.join(out) + '\n'
+    head = latex_escape(f'{label} · {day}')
+    if mark == 'line':
+        title = ('\\put(0,\\LenToUnit{14mm}){\\makebox[\\paperwidth]{\\small\\sffamily' + red + ' ' + head + '}}')
+    else:
+        more = latex_escape('nicht zur Veröffentlichung' + (f' · Stand {commit[:7]}' if commit else ''))
+        title = ('\\put(0,\\LenToUnit{12mm}){\\makebox[\\paperwidth]{\\fcolorbox{red!65!black}{white}{\\parbox{0.66\\paperwidth}'
+                 '{\\centering\\small\\sffamily' + red + ' \\textbf{' + latex_escape(f'{label.upper()} · {day}') + '}\\\\'
+                 '\\footnotesize ' + more + '}}}}')
+    out += ['\\usepackage{letltxmacro}\\makeatletter\\LetLtxMacro\\gw@maketitle\\maketitle',
+            '\\renewcommand*{\\maketitle}[1][1]{\\global\\gwproofnotefalse'
+            + ('\\AddToShipoutPictureBG*' + wm if mark == 'watermark' else '')
+            + '\\AddToShipoutPictureFG*{\\AtPageLowerLeft{' + title + '}\\global\\gwproofnotetrue}\\gw@maketitle}',
+            '\\makeatother']
+    return '\n'.join(out) + '\n'
+
+
 def epub_css(ts):
     """Zusätzliches EPUB-CSS aus den Ausgabeoptionen; leer bei den Vorgaben."""
     out = []
@@ -336,7 +387,7 @@ def make_reference_docx(path, ts):
 
 def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedication, out, tag, formats, proof=False,
            proof_note='', date='', series_line='', ser=None, extra_tex='', top_level='chapter',
-           footer_label='Probedruck'):
+           footer_label='Probedruck', commit=''):
     """Setzt die Formate (pdf, pdf_print, booklet, cover, epub, docx) aus fertigem Markdown; gibt die Dateien zurück.
     Gemeinsam für Auflagen und den Sammelband (scripts/build_omnibus.py, #116)."""
     fonts = FONTS.get(ts['font'], FONTS['serif'])
@@ -428,15 +479,15 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
                     extra_header.append(str(write('layout.tex', layout)))
                 if series_line and ts.get('title_page'):   # Reihe über dem Titel (KOMA \subject)
                     extra_header.append(str(write('series.tex', '\\subject{' + latex_escape(series_line) + '}\n')))
+                extra_header += [str(f) for f in title_tex(ts)]   # gewählte Titelseite (#310)
                 if proof:
-                    note = ('\\ifoot*{\\footnotesize\\sffamily\\color{red!65!black}' + footer_label + ' ' + date[8:10] + '.'
-                            + date[5:7] + '.' + date[:4] + ' – nicht zur Veröffentlichung}\n')
-                    if 'scrlayer-scrpage' in layout:   # eigene Kopf-/Fußzeilen bleiben, nur der Vermerk kommt dazu
-                        extra_header.append(str(write('proof.tex', note)))
-                    else:
-                        extra_header.append(str(write('proof.tex',
-                            '\\usepackage{scrlayer-scrpage}\\pagestyle{scrheadings}\\clearpairofpagestyles\n'
-                            '\\ofoot*{\\pagemark}' + note)))
+                    if ts.get('title_page'):   # der Vermerk steht auf der Titelseite (proof_mark), nicht in der Datumszeile
+                        m['date'] = ''
+                    note = proof_tex(ts, footer_label, date, commit)
+                    if 'scrlayer-scrpage' not in layout:   # Seitenzahl unten außen wie bisher im Probedruck
+                        note = ('\\usepackage{scrlayer-scrpage}\\pagestyle{scrheadings}\\clearpairofpagestyles\n'
+                                '\\ofoot*{\\pagemark}\n' + note)
+                    extra_header.append(str(write('proof.tex', note)))
                 if fmt == 'pdf_print' and (config.get('print') or {}).get('crop_marks'):
                     # Druck-PDF mit Schnittmarken: Papier ringsum 8 mm größer, Seite mittig
                     # (crop kennt XeTeX nicht als Treiber; die Papiergröße setzt daher ein eigenes \\special)
@@ -591,7 +642,7 @@ def main(argv):
     imprint += disc_lines
     results = render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedication, out, tag, args.formats,
                      args.proof, proof_note, args.date, series_line, ser,
-                     footer_label='Manuskript' if args.manuscript else 'Probedruck')
+                     footer_label='Manuskript' if args.manuscript else 'Probedruck', commit=args.commit)
 
     (out / 'edition.yml').write_text(yaml.safe_dump({
         'edition': args.edition, 'name': release_name, 'tag': tag, 'date': args.date,

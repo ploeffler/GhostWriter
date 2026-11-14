@@ -158,6 +158,8 @@
         "font": {"enum": ["serif", "sans", "pagella", "termes", "bonum", "schola", "heros", "adventor"]},
         "font_size": {"enum": [10, 10.5, 11, 11.5, 12]},
         "title_page": {"type": "boolean"},
+        "title_style": {"enum": ["classic", "rules", "modern", "spaced", "band"], "description": "Gestaltung der Titelseite im PDF (#310); fehlt = classic"},
+        "proof_mark": {"enum": ["line", "box", "watermark", "watermark_all"], "description": "Kennzeichnung im Probedruck und bei „Manuskript ausgeben“ (#310); fehlt = line"},
         "imprint": {"type": "boolean"},
         "toc": {"type": "boolean"},
         "toc_depth": {"enum": [1, 2]},

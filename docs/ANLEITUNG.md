@@ -73,6 +73,8 @@ Jedes Abschließen und Wiederöffnen ist eine eigene Bestätigung und wird proto
 
 Im Formular **Neue Auflage** (oder mit `Probedruck`) entsteht ein PDF des aktuellen Stands zum Lesen oder Weitergeben, mit allen Kapiteln, offenen Markern hervorgehoben und dem Vermerk „Probedruck“. Es ist keine Auflage und ändert nichts.
 
+Der Vermerk steht auf jeder Seite in einer eigenen roten Zeile unter der Seitenzahl und auf der Titelseite. Wie er auf der Titelseite aussieht, wählst du in den Ausgabeoptionen unter **Kennzeichnung im Probedruck**: rote Zeile, roter Rahmen mit Datum und Stand, oder zusätzlich ein Wasserzeichen „PROBEDRUCK“ auf der Titelseite bzw. auf allen Seiten. Unter **Gestaltung der Titelseite** gibt es neben „klassisch“ die Varianten „mit Linien“, „modern“, „gesperrt“ und „mit Querband“; sie gelten für das PDF, EPUB und DOCX behalten ihre Titelseite. Im Formular mit Vorschaubildern kommt die Auswahl mit einem späteren Update; bis dahin geht sie in der Textfassung (`Gestaltung der Titelseite: mit Linien`).
+
 Enthalten ist der übernommene Buchstand. Noch offene Änderungen zuerst übernehmen, wenn sie im Probedruck erscheinen sollen.
 
 **Lesefassung:** Öffnest du ein Kapitel oder einen Abschnitt, legt der Assistent den Text als Datei daneben, in Claude in der Seitenansicht. So liest du mit, während du im Chat änderst und abschließt; nach jeder Änderung kommt die Datei neu. Sie zeigt auch nicht abgeschlossenen Text mit Stand und hebt offene Marker hervor. `Lesefassung aus` schaltet sie ab, `Lesefassung an` wieder ein. In ChatGPT und Open WebUI entsteht sie über die Action „Manuskript ausgeben“ (Format `md`) und muss nach Änderungen neu gestartet werden; dieser Weg ist noch nicht praktisch geprüft.

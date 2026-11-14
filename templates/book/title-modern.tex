@@ -1,0 +1,15 @@
+% Titelseite „modern“ (#310): linksbündig, serifenlos; Autor klein in Versalien oben, Titel sehr groß im unteren Drittel.
+\makeatletter
+\renewcommand*{\maketitle}[1][1]{%
+  \begin{titlepage}\raggedright\sffamily\null\vspace{0.02\textheight}
+  {\small\MakeUppercase{\@author}\par}
+  \gw@ifset\@subject{\vspace{0.4em}{\small\color{black!60}\@subject\par}}
+  \vspace*{\fill}\vspace*{\fill}
+  {\fontsize{30}{34}\selectfont\bfseries\@title\par}
+  \vspace{1em}{\color{black!45}\rule{0.25\textwidth}{1.2pt}}\par\vspace{0.9em}
+  \gw@ifset\@subtitle{{\large\@subtitle\par}}
+  \vspace*{\fill}
+  \gw@ifset\@publishers{{\footnotesize\@publishers\par}}
+  \gw@ifset\@date{{\footnotesize\@date\par}}
+  \end{titlepage}\gw@titleback}
+\makeatother

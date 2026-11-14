@@ -145,6 +145,8 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `font` | `serif`, `sans` | `serif` |
 | `font_size` | `10`, `10.5`, `11`, `11.5`, `12` (pt) | `11` |
 | `title_page` | Titelseite in der Titelei | `true` |
+| `title_style` | Gestaltung der Titelseite im PDF (#310): `classic` (zentriert, wie bisher), `rules` (Titel zwischen zwei Linien, Autor in Kapitälchen oben), `modern` (linksbündig, serifenlos, Titel groß im unteren Drittel), `spaced` (Titel in gesperrten Versalien, Autor unten), `band` (dunkles Querband über die ganze Breite, im Druck-PDF bis in den Beschnitt); EPUB und DOCX behalten ihre Titelseite | `classic` |
+| `proof_mark` | Kennzeichnung im Probedruck und bei „Manuskript ausgeben“ (#309, #310): `line` (rote Zeile unten auf der Titelseite), `box` (roter Rahmen mit Datum, „nicht zur Veröffentlichung“ und Stand), `watermark` (Rahmen und diagonales Wasserzeichen auf der Titelseite), `watermark_all` (Wasserzeichen auf allen Seiten); auf allen Seiten steht der Vermerk außerdem in einer eigenen Zeile unter der Fußzeile, getrennt von Seitenzahl und Kolumnentitel. Auflagen bleiben unberührt | `line` |
 | `imprint` | Impressum in der Titelei | `true` |
 | `toc` | Inhaltsverzeichnis | `true` |
 | `toc_depth` | `1` = nur Kapitel, `2` = Kapitel und Abschnitte | `1` |

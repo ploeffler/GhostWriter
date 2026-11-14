@@ -1,0 +1,15 @@
+% Titelseite „spaced“ (#310): Titel in gesperrten Versalien, Schmuckzeichen, Untertitel kursiv, Autor in Kapitälchen unten.
+\makeatletter
+\renewcommand*{\maketitle}[1][1]{%
+  \begin{titlepage}\centering\null\vspace*{\fill}
+  \gw@ifset\@subject{{\small\scshape\@subject\par}\vspace{1.5em}}
+  {\LARGE\addfontfeatures{LetterSpace=18}\MakeUppercase{\@title}\par}
+  \vspace{1.2em}{\large\textasteriskcentered\par}\vspace{1.2em}
+  \gw@ifset\@subtitle{{\large\itshape\@subtitle\par}}
+  \vspace*{\fill}
+  {\large\scshape\@author\par}
+  \vspace{0.12\textheight}
+  \gw@ifset\@publishers{{\small\@publishers\par}}
+  \gw@ifset\@date{{\small\@date\par}}
+  \end{titlepage}\gw@titleback}
+\makeatother
