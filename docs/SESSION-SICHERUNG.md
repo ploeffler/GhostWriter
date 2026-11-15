@@ -24,7 +24,7 @@ Die Befehle sind durch den Assistenten ausgeführte Arbeitsabläufe; die verfüg
 
 ## Ablage und Freigabegrenzen
 
-Je Sitzung eine beständige Kennung und genau ein Branch `ghostwriter/chat/<session-id>` mit einem gemeinsamen PR. Ziel ist der ausgewählte Buchbranch oder bei einem Programmgespräch der Programmbranch; Bücher niemals in den Bibliotheks-Standardbranch übernehmen. Dateien liegen ausschließlich unter `conversations/<session-id>/`. Ein Commit je geändertem zusammenhängendem Themengebiet: Recherche, Brainstorming, Entscheidungen, Entwürfe, Planung, Gesprächsstand. Zusammengehörige Inhalte gehören zusammen; beim manuellen Sichern keine Commits je Nachricht. Die automatische Antwortsicherung bündelt dagegen jede ausgewertete Abschnittsantwort mit ihrem aktuellen Fragenstand und allen betroffenen Themen in genau einem Commit. Bereits gespeicherte Rechercheläufe referenzieren.
+Je Sitzung eine beständige Kennung und genau ein Branch `ghostwriter/chat/<session-id>` mit einem gemeinsamen PR. Ziel ist der ausgewählte Buchbranch oder bei einem Programmgespräch der Programmbranch; Bücher niemals in den Bibliotheks-Standardbranch übernehmen. Dateien liegen ausschließlich unter `conversations/<session-id>/`. Ein Commit je geändertem zusammenhängendem Themengebiet: Recherche, Brainstorming, Entscheidungen, Entwürfe, Planung, Gesprächsstand. Zusammengehörige Inhalte gehören zusammen; beim manuellen Sichern keine Commits je Nachricht. Die automatische Antwortsicherung bündelt dagegen jede ausgewertete Abschnittsantwort mit Frage, Originalantwort, neuem Ergebnis und offenen Punkten in genau einem Commit. Bereits gespeicherte Rechercheläufe referenzieren.
 
 Die Sicherung ist nach bestätigtem Push dauerhaft gespeichert, auch wenn der PR offen bleibt. `changes.auto_merge` gilt hier nicht. Erst **Session übernehmen** autorisiert Prüfung und Merge des benannten Sicherungs-PRs. Kein Manuskript, keine Struktur, kein Buchstatus und keine inhaltliche Freigabe werden dabei verändert. Es gilt als ausdrückliche, begrenzte Ausnahme für die Sitzungssicherung auch vor Strukturfreigabe; Buchdateien bleiben geschützt. Bei aktivem Buch-Checkout einen separaten, ausdrücklich gewählten Sitzungs-Speicher verwenden, der den gesperrten Buchbranch nicht ändert; nicht ungeprüft in den gesperrten Buchstand mergen. Bei unklarem Ziel nachfragen.
 
@@ -72,49 +72,79 @@ Der `context` bleibt pro Sitzung beständig; veränderliche Aufgaben und neue Qu
 Während einer Frage-Antwort-Runde zur Bucherstellung oder zum Inhalt eines
 Abschnitts gilt nach **jeder Benutzerantwort** diese Reihenfolge:
 
-1. Antwort intern auswerten. Originalbeitrag, inhaltliche Einordnung und offenen
-   Fragenstand erfassen; Vorschläge nicht als bestätigte Entscheidungen ausgeben.
-2. **Ohne zusätzliche Bestätigung** einen gemeinsamen Commit mit dem vollständigen
-   verfügbaren Gesprächsstand und den betroffenen Themen erzeugen und hochladen.
-   Nicht auf die letzte Frage, ein „OK“, die Bestätigung einer Zusammenfassung
-   oder das Ende der Fragerunde warten. Offene Fragen blockieren diese Sicherung nicht.
-3. Den tatsächlichen Remote-Stand bestätigen. Erst danach im Chat die Auswertung,
-   Zusammenfassung, nächste Frage oder den Abschluss zeigen und die Sicherung kurz
-   benennen. Bei Uploadfehler zuerst klar „Antwort noch nicht gesichert“ melden,
-   den vorhandenen Stand erhalten und sicher erneut versuchen; keine normale
-   Fortsetzung als wäre gespeichert worden.
+1. Antwort intern auswerten. Nur die gerade gestellte Frage, die neue
+   Benutzerantwort, das Ergebnis und die offenen Punkte für diesen Schritt erfassen.
+   Originalbeiträge erhalten; Vorschläge nicht als bestätigte Entscheidungen ausgeben.
+2. **Ohne zusätzliche Bestätigung** einen kleinen Antwortnachtrag in der bestehenden
+   Session speichern und hochladen. Bereits gesicherte Beiträge und Themen nicht
+   erneut übertragen oder vollständig zusammenfassen. Ein Commit je Antwortschritt.
+3. Den tatsächlichen Remote-Stand bestätigen. Erst danach die Auswertung oder nächste
+   Frage zeigen. Bei Uploadfehler klar „Antwort noch nicht gesichert“ melden und den
+   vorbereiteten Nachtrag erhalten. Nicht als erfolgreich gespeichert weiterarbeiten.
 
 Ziel, Sichtbarkeit, Zugriff und Sitzungskennung vor Beginn der Fragerunde klären.
-Keine erneute Speicherfreigabe je Antwort verlangen. Die Sicherung verändert nur
-`conversations/<session-id>/`, nicht Manuskript, Gliederung oder Freigaben. Kein
-automatischer Merge; ein gemeinsamer Sitzungsbranch und PR bleiben bestehen.
+Ein Sitzungsbranch und ein gemeinsamer PR bleiben bestehen; kein automatischer
+Merge, keine Änderung von Manuskript, Gliederung oder Freigaben. Die Sicherung
+schützt vor Guthabenende **nach** dem bestätigten Upload. Ein Abbruch vor dem
+Speicheraufruf kann weiterhin einen ungesicherten letzten Schritt hinterlassen.
 
 ```sh
-python3 scripts/chat_backup.py answer-checkpoint <git-url> <session-id> <eingabe.json> --review <antwortstand.json> --base <zielbranch> --expected-head <gelesener-sicherungs-head> --github-repo <owner/repo>
+python3 scripts/chat_backup.py answer-checkpoint <git-url> <session-id> <nachtrag.json> --review <antwortstand.json> --base <zielbranch> --expected-head <gelesener-sicherungs-head> --github-repo <owner/repo>
 ```
 
-`antwortstand.json` verwendet die unten beschriebenen Felder des Dialogabschlusses
-und zusätzlich `answer_message_id`, die Kennung der gerade ausgewerteten letzten
-Benutzernachricht. Diese muss auch in den Punktbelegen vorkommen. Der aktuelle
-Gesprächsstand endet mit dieser Benutzerantwort; die noch nicht ausgegebene
-Auswertung steht in den Themen, nicht als vermeintlich schon gesendete Nachricht.
-`dialogue_complete: false`, `awaiting_reply: true` und offene Punkte sind erlaubt.
-Die geprüften Angaben liegen unter dem Thema `section_answer`. Ein unveränderter
-Wiederholungsaufruf erzeugt weder einen neuen Commit noch einen weiteren Push.
+`nachtrag.json` hat dieselben Felder wie die vollständige Sicherung (`context`,
+`coverage`, `messages`, `topics`), enthält aber nur die Frage und neue Antwort
+mit beständigen Nachrichtenkennungen sowie die neue Auswertung und offenen Punkte
+in `topics`. `coverage` beschreibt die Verfügbarkeit und bekannte Lücken dieses
+Schritts. `context` muss zum bestehenden Sitzungskontext passen. Ein früherer
+Vollstand als Eingabe bleibt unterstützt; bereits bekannte Beiträge werden nicht
+noch einmal als Verlaufssnapshot gespeichert.
 
-`reply_ready: true` wird erst nach bestätigtem Upload zurückgegeben. Auch bei
-`remote_saved_pr_pending` sind die Inhalte gesichert: den fehlenden PR offen
-benennen und vervollständigen, keinen zweiten Sicherungsbranch anlegen. Bei
-Uploadfehler gibt es keine positive Quittung. Ein erneuter Aufruf nach einem
-Verbindungsabbruch muss zuerst den tatsächlichen Remote-Stand abgleichen.
+`antwortstand.json` enthält die unten beschriebenen Prüffelder und zusätzlich
+`answer_message_id`, die Kennung der letzten Benutzerantwort. `items` enthält nur
+die in diesem Schritt behandelten Fragen und offenen Punkte; Belege müssen in
+`messages` enthalten sein. Offene Fragen, `dialogue_complete: false` und
+`awaiting_reply: true` sind erlaubt. Die noch nicht ausgegebene Auswertung gehört
+in die Themen, nicht als vermeintlich gesendete Nachricht in den Verlauf.
 
-Mit GitHub-Schreibwerkzeugen ohne lokale Skriptausführung denselben Ablauf
-verwenden: verfügbare Originalbeiträge, Auswertung und Fragenstand gemeinsam
-vorbereiten, einen Tree/Commit erstellen, den Ref mit Standprüfung aktualisieren
-und die Remote-Inhalte prüfen. Keine dateiweisen Teil-Commits. Fehlt die Fähigkeit
-zum Schreiben, dies vor der Fragerunde mitteilen; keinen Schutz vor Guthabenende
-vortäuschen. Auch dieser Ablauf benötigt einen ausführenden Assistenten: Er kann
-einen Clientabbruch vor seinem Werkzeugaufruf nicht unabhängig auffangen.
+Der Helfer legt pro Antwort eine unveränderliche Datei unter
+`conversations/<session-id>/answers/<folge>.json` an. Sie enthält den
+Nachtrag und seinen Fragenstand. Frühere Dateien bleiben unverändert. Beim Laden
+werden Vollstand und Nachträge in Speicherreihenfolge zusammengesetzt. Das Ladeergebnis enthält unter
+`answers` außerdem alle früheren Auswertungen und schrittbezogenen Lücken; abweichende
+Inhalte zu einer bereits gespeicherten Nachrichtenkennung werden abgelehnt.
+Unveränderte Wiederholungen erzeugen keinen Commit oder Push. Veränderte
+Wiederholungen derselben Antwort werden abgelehnt. Standprüfung und atomarer
+Upload verhindern das Überschreiben paralleler Sicherungen.
+
+`reply_ready: true` folgt erst nach bestätigtem Upload. Bei
+`remote_saved_pr_pending` sind die Inhalte gesichert; den fehlenden PR gesondert
+benennen und vervollständigen. Keine zusätzlichen Vollprüfungen des Buchs, keine
+Wartezeit auf CI und keine wiederholten Statusabfragen pro Antwort durchführen.
+Bei Verbindungsabbruch zuerst den tatsächlichen Remote-Stand abgleichen.
+
+**ChatGPT und andere Clients ohne lokale Ausführung:** Dieselbe kleine
+Nachtragsdatei mit den vorhandenen GitHub-Schreibwerkzeugen in einem atomaren
+Commit auf den bestehenden Sitzungsbranch schreiben, den erwarteten Head prüfen
+und den Upload bestätigen. Frühere Gesprächs- und Themendateien nicht neu schreiben; nur `session.json`
+mit `last_saved.at` und freiwilliger Herkunft im selben Commit aktualisieren.
+Keinen neuen PR pro Antwort anlegen. Die achtstellige, nullbasierte Dateinummer (z. B. `00000000.json`) aus den
+vorhandenen Nachträgen zu Beginn ermitteln und die nächste Nummer im laufenden
+Arbeitsstand fortführen. Keine Prüfsumme durch einen zusätzlichen Werkzeugaufruf
+berechnen; der bestätigte Git-Commit identifiziert den gespeicherten Inhalt.
+Dateiinhalt: `{"payload": <nachtrag>, "review": <antwortstand>}`; das Thema
+`section_answer` enthält zusätzlich den kanonischen Fragenstand als JSON-Text.
+Beim ersten Schritt außerdem `session.json` mit `format_version: 1`, `session`,
+`base`, `source_commit` (Ausgangsstand) und `context` anlegen. Keine Secrets oder
+internen Nachrichten sichern. Fehlen passende Schreibwerkzeuge, dies vor Beginn
+mitteilen; keine Hintergrundsicherung vortäuschen.
+
+**Session sichern** und der **Dialogabschluss** sichern weiterhin den vollständigen
+verfügbaren Gesprächsstand samt Themen und Lücken. Zuvor die gesicherten Nachträge
+laden und einbeziehen. Das Manifest vermerkt deren Dateinamen in `snapshot_answers`,
+damit spätere Vollstände beim Laden nicht durch ältere Nachträge überschrieben
+werden. Die Nachtragsdateien bleiben als Belege erhalten. Das Nachladen einzelner
+Antwortschritte ersetzt keine vollständige Sicherung der übrigen Gesprächsarbeit.
 
 ## Automatisch sichern, wenn der Abschnittsdialog abgeschlossen ist
 

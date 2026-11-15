@@ -201,7 +201,7 @@ def open_pr(repo, base, branch, session, work):
 
 def save(repository, base, session, payload, expected_head, *, github_repo=None,
          author_name='GhostWriter', author_email='ghostwriter@users.noreply.github.com', atomic=False,
-         origin=None, now=None):
+         origin=None, now=None, incremental=False):
     """Vollständigen verfügbaren Snapshot übergeben; remote vor Erfolg bestätigen."""
     session = identifier(session)
     topics = validate(payload)  # vor jedem Schreibzugriff prüfen
@@ -243,16 +243,29 @@ def save(repository, base, session, payload, expected_head, *, github_repo=None,
         if not info:
             info = {'format_version': 1, 'session': session, 'base': base,
                     'source_commit': source, 'context': payload['context']}
+        if incremental:
+            return append_answer(work, root, info, payload, existing, branch, session,
+                                 github_repo, base, origin, now)
+        # Auch kleine Antwortnachträge gehören zum bisherigen Gesprächsstand.
+        pending = sorted((root / 'answers').glob('*.json'))
+        included = info.get('snapshot_answers', [])
+        has_pending = any(p.name not in included for p in pending)
+        restored = read_topics(root, info)
         # Nachrichten sind append-only; gekürzte oder veränderte Historie nicht ersetzen.
-        previous_path = root / 'conversation' / 'latest.json'
-        if previous_path.exists():
-            previous = json.loads(previous_path.read_text(encoding='utf-8'))['messages']
+        if 'conversation' in restored:
+            previous = restored['conversation']['messages']
             if payload['messages'][:len(previous)] != previous:
                 raise ValueError('Frühere Beiträge fehlen oder wurden verändert; vollständigen Stand laden')
+        if has_pending:
+            info['snapshot_answers'] = [p.name for p in pending]
+            # Nicht erneut übergebene Themen aus den Nachträgen erhalten.
+            topics = {**{k: v for k, v in restored.items() if k != 'conversation'}, **topics}
         commits, changed = [], []
         values = {topic: canonical(content) for topic, content in topics.items()}
         pending = [t for t, v in values.items()
                    if not ((root / t / 'latest.json').exists() and (root / t / 'latest.json').read_text(encoding='utf-8') == v)]
+        if has_pending and 'conversation' not in pending:
+            pending.append('conversation')
         if pending:
             # Zeitpunkt und Herkunft der zuletzt tatsächlich gespeicherten Fassung (#237); eine
             # Wiederholung ohne Änderung oder ein gescheiterter Push setzt sie nicht neu.
@@ -303,6 +316,103 @@ def save(repository, base, session, payload, expected_head, *, github_repo=None,
         return result
 
 
+def read_topics(root, info):
+    """Vollstand und unveränderte Antwortnachträge in Speicherreihenfolge laden."""
+    topics = {p.parent.name: json.loads(p.read_text(encoding='utf-8'))
+              for p in sorted(root.glob('*/latest.json'))}
+    for index, path in enumerate(sorted((root / 'answers').glob('*.json'))):
+        record = json.loads(path.read_text(encoding='utf-8'))
+        if path.name != f'{index:08d}.json':
+            raise ValueError('Ungültige Reihenfolge der Antwortnachträge')
+        validate_review(record['payload'], record['review'], answer=True)
+        if path.name in info.get('snapshot_answers', []):
+            continue
+        payload = record['payload']
+        conversation = topics.get('conversation')
+        if conversation and conversation['context'] != payload['context']:
+            raise ValueError('Sitzungskontext geändert')
+        messages = list(conversation['messages']) if conversation else []
+        known = {m['id']: m for m in messages}
+        for message in payload['messages']:
+            if message['id'] in known:
+                if known[message['id']] != message:
+                    raise ValueError('Frühere Beiträge wurden verändert')
+            else:
+                messages.append(message)
+                known[message['id']] = message
+        topics.update(payload['topics'])
+        topics['section_answer'] = canonical(record['review'])
+        topics['conversation'] = {k: payload[k] for k in ('context', 'coverage')}
+        topics['conversation']['messages'] = messages
+    return topics
+
+
+def append_answer(work, root, info, payload, existing, branch, session, github_repo, base, origin, now):
+    """Nur den neuen Frage-Antwort-Schritt übertragen; kein Verlaufssnapshot."""
+    def git(*args):
+        return run('git', *args, cwd=work)
+    review = json.loads(payload['topics']['section_answer'])
+    restored = read_topics(root, info)
+    previous = restored.get('conversation', {}).get('messages', [])
+    known = {m['id']: m for m in previous}
+    for message in payload['messages']:
+        if message['id'] in known and known[message['id']] != message:
+            raise ValueError('Frühere Beiträge wurden verändert')
+    fresh = [m for m in payload['messages'] if m['id'] not in known]
+    # Eine Wiederholung muss denselben Inhalt haben, nicht eine alte Antwort umdeuten.
+    records = sorted((root / 'answers').glob('*.json'))
+    for path in records:
+        record = json.loads(path.read_text(encoding='utf-8'))
+        if record['review']['answer_message_id'] == review['answer_message_id']:
+            original = record['payload']
+            if (record['review'] != review or original['topics'] != payload['topics']
+                    or original['context'] != payload['context']
+                    or original['coverage'] != payload['coverage'] or fresh):
+                raise ValueError('Bereits gesicherte Antwort geändert')
+            break
+    else:
+        if not fresh or fresh[-1]['id'] != review['answer_message_id']:
+            raise ValueError('Neue Benutzerantwort fehlt')
+        # Belegte Frage zusammen mit der Antwort erhalten; bekannte Belege werden
+        # nur im kleinen Nachtrag wiederholt, niemals der gesamte Verlauf.
+        needed = {x for item in review['items'] for x in item['evidence']}
+        selected = [m for m in previous if m['id'] in needed]
+        selected_ids = {x['id'] for x in selected}
+        selected += [m for m in payload['messages']
+                     if (m['id'] not in known or m['id'] in needed) and m['id'] not in selected_ids]
+        delta = {**payload, 'messages': selected}
+        record = {'payload': delta, 'review': review}
+        value = canonical(record)
+        folder = root / 'answers'
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f'{len(records):08d}.json').write_text(value, encoding='utf-8')
+        info['last_saved'] = {
+            'at': (now or datetime.datetime.now(datetime.timezone.utc)).astimezone(
+                datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), 'origin': origin}
+        (root / 'session.json').write_text(canonical(info), encoding='utf-8')
+        git('add', '--', str(root.relative_to(work)))
+        git('commit', '--quiet', '-m', f'Abschnittsantwort ergänzen ({session})',
+            '-m', 'GhostWriter-Aktion: chat.save')
+        git('push', '--quiet', f'--force-with-lease=refs/heads/{branch}:{existing or ""}',
+            'origin', f'HEAD:refs/heads/{branch}')
+    head = git('rev-parse', 'HEAD')
+    observed = git('ls-remote', '--heads', 'origin', f'refs/heads/{branch}').split()
+    if not observed or observed[0] != head:
+        raise ValueError('Remote-Sicherung konnte nicht bestätigt werden')
+    result = {'status': 'remote_saved', 'session': session, 'branch': branch, 'head': head,
+              'saved_at': info.get('last_saved', {}).get('at'),
+              'origin': info.get('last_saved', {}).get('origin') or {},
+              'coverage': payload['coverage'], 'commits': ([{'topic': 'section_answer', 'commit': head}] if fresh else []),
+              'pr': None}
+    if github_repo:
+        try:
+            result['pr'] = open_pr(github_repo, base, branch, session, work)
+        except (ValueError, KeyError, TypeError) as error:
+            result.update(status='remote_saved_pr_pending', warning='Inhalte gesichert; PR noch nicht bestätigt.')
+            result['cause'] = reason(error)
+    return result
+
+
 def resume(repository, session, base=None):
     session = identifier(session)
     with tempfile.TemporaryDirectory(prefix='ghostwriter-chat-read-') as temp:
@@ -317,9 +427,13 @@ def resume(repository, session, base=None):
         if root.is_symlink() or (Path(temp) / 'conversations').is_symlink() or any(p.is_symlink() for p in root.rglob('*')):
             raise ValueError('Sicherung enthält symbolische Links')
         info = json.loads((root / 'session.json').read_text(encoding='utf-8'))
-        topics = {p.parent.name: json.loads(p.read_text(encoding='utf-8'))
-                  for p in sorted(root.glob('*/latest.json'))}
-        return {'session': info, 'head': run('git', 'rev-parse', 'HEAD', cwd=temp), 'topics': topics}
+        topics = read_topics(root, info)
+        # Auch frühere Auswertungen und schrittbezogene Lücken verfügbar halten;
+        # die Themenansicht allein enthält jeweils nur den aktuellen Wert.
+        answers = [json.loads(p.read_text(encoding='utf-8'))
+                   for p in sorted((root / 'answers').glob('*.json'))]
+        return {'session': info, 'head': run('git', 'rev-parse', 'HEAD', cwd=temp),
+                'topics': topics, 'answers': answers}
 
 
 def accept_once(repository, github_repo, session, expected_head, expected_base, *, confirmed=False):
@@ -363,9 +477,8 @@ def accept_once(repository, github_repo, session, expected_head, expected_base, 
         info = json.loads((root / 'session.json').read_text(encoding='utf-8'))
         if info['session'] != session or info['base'] != pr['baseRefName']:
             raise ValueError('Sicherungsmanifest passt nicht zum PR')
-        conversation = json.loads((root / 'conversation/latest.json').read_text(encoding='utf-8'))
-        topics = {p.parent.name: json.loads(p.read_text(encoding='utf-8'))
-                  for p in root.glob('*/latest.json') if p.parent.name != 'conversation'}
+        topics = read_topics(root, info)
+        conversation = topics.pop('conversation')
         validate({**conversation, 'topics': topics})
         for latest in root.glob('*/latest.json'):
             value = latest.read_text(encoding='utf-8')
@@ -488,7 +601,7 @@ def answer_checkpoint(repository, base, session, payload, expected_head, review,
     """Ausgewertete Antwort vor sichtbarer Folgeantwort sichern, auch bei offenen Fragen."""
     validate_review(payload, review, answer=True)
     enriched = {**payload, 'topics': {**payload['topics'], 'section_answer': canonical(review)}}
-    result = save(repository, base, session, enriched, expected_head, atomic=True, **kwargs)
+    result = save(repository, base, session, enriched, expected_head, atomic=True, incremental=True, **kwargs)
     result.update(trigger='section_answer_evaluated', section_id=review['section_id'],
                   answer_message_id=review['answer_message_id'],
                   reply_ready=result['status'] in ('remote_saved', 'remote_saved_pr_pending'))

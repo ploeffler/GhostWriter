@@ -78,8 +78,12 @@ class BackupTest(unittest.TestCase):
         self.assertEqual(again['commits'], [])
         self.assertEqual(again['pr'], 'https://example.invalid/pr/1')
 
-    def test_accept_checks_files_and_requires_confirmation(self):
-        first = self.save()
+    def test_accept_checks_files_and_requires_confirmation(self, incremental=False):
+        if incremental:
+            review = self.answer_review()
+            first = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload, self.base, review)
+        else:
+            first = self.save()
         merged = []
         def info(repo, number, cwd=None):
             if merged:
@@ -110,6 +114,9 @@ class BackupTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'andere Änderungen'):
                 cb.accept_once(str(self.remote), 'test/repo', 'test-session', first['head'], self.base, confirmed=True)
 
+
+    def test_accept_answer_only_session_checks_files_and_confirmation(self):
+        self.test_accept_checks_files_and_requires_confirmation(incremental=True)
 
     def test_accept_after_target_branch_moved_on(self):
         """#265: Zielbranch nach dem Anlegen des PRs weitergerückt, keine Konflikte."""
@@ -452,6 +459,81 @@ class BackupTest(unittest.TestCase):
         self.assertEqual(len(pushes), 1)
         self.assertTrue(receipt['reply_ready'])
         self.assertEqual(receipt['head'], cb.resume(str(self.remote), 'test-session')['head'])
+
+    def test_small_answer_delta_preserves_history_and_full_save_compacts(self):
+        first = self.save()
+        payload = copy.deepcopy(self.payload)
+        payload['messages'] = [
+            {'id': '3', 'role': 'assistant', 'content': 'Welche Erinnerung?'},
+            {'id': '4', 'role': 'user', 'content': 'Meine Erinnerung'}]
+        payload['topics'] = {'decisions': 'Erinnerung als Beispiel verwenden; noch ein Vorschlag'}
+        review = {'section_id': 'sec-one', 'source_commit': self.base,
+                  'answer_message_id': '4', 'dialogue_complete': False, 'awaiting_reply': True,
+                  'items': [{'id': 'q1', 'question': 'Welche Erinnerung?',
+                             'status': 'answered', 'evidence': ['3', '4']}]}
+        saved = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', payload, first['head'], review)
+        changed = cb.run('git', '--git-dir', str(self.remote), 'diff', '--name-only',
+                         first['head'], saved['head']).splitlines()
+        records = [p for p in changed if '/answers/' in p]
+        self.assertEqual(len(records), 1)
+        self.assertTrue(all('/answers/' in p or p.endswith('/session.json') for p in changed))
+        loaded = cb.resume(str(self.remote), 'test-session')['topics']
+        self.assertEqual(loaded['conversation']['messages'], self.payload['messages'] + payload['messages'])
+        self.assertEqual(loaded['brainstorming'], self.payload['topics']['brainstorming'])
+        full = {**loaded['conversation'], 'topics': {k: v for k, v in loaded.items() if k != 'conversation'}}
+        full['topics']['decisions'] = 'Spätere vollständige Einordnung'
+        compacted = cb.save(str(self.remote), 'main', 'test-session', full, saved['head'])
+        after = cb.resume(str(self.remote), 'test-session')['topics']
+        self.assertEqual(after['conversation']['messages'], full['messages'])
+        self.assertEqual(after['decisions'], full['topics']['decisions'])
+        repeated = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', payload, compacted['head'], review)
+        self.assertEqual(repeated['commits'], [])
+        changed_review = copy.deepcopy(review)
+        changed_review['items'][0]['question'] = 'Andere Frage'
+        with self.assertRaisesRegex(ValueError, 'Antwort geändert'):
+            cb.answer_checkpoint(str(self.remote), 'main', 'test-session', payload, compacted['head'], changed_review)
+
+    def test_answer_delta_rejects_stale_remote_head(self):
+        review = self.answer_review()
+        first = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload, self.base, review)
+        with self.assertRaisesRegex(ValueError, 'Stand inzwischen'):
+            cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload, self.base, review)
+        self.assertEqual(cb.resume(str(self.remote), 'test-session')['head'], first['head'])
+
+    def test_answer_delta_preserves_save_time_origin_and_failure_cause(self):
+        import datetime
+        review = self.answer_review()
+        moment = datetime.datetime(2026, 11, 15, 16, 0, tzinfo=datetime.timezone.utc)
+        with patch.object(cb, 'open_pr', side_effect=ValueError('gh: GitHub HTTP 403')):
+            first = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload,
+                                         self.base, review, github_repo='test/repo',
+                                         origin={'client': 'ChatGPT'}, now=moment)
+        self.assertEqual(first['origin'], {'client': 'ChatGPT'})
+        self.assertEqual(first['saved_at'], '2026-11-15T16:00:00Z')
+        self.assertIn('403', first['cause'])
+        again = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload,
+                                     first['head'], review, origin={'client': 'Codex'},
+                                     now=moment + datetime.timedelta(hours=1))
+        self.assertEqual(again['origin'], first['origin'])
+        self.assertEqual(again['saved_at'], first['saved_at'])
+        self.assertEqual(again['commits'], [])
+
+    def test_invalid_answer_record_is_rejected_on_load(self):
+        review = self.answer_review()
+        first = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload, self.base, review)
+        loaded = cb.resume(str(self.remote), 'test-session')
+        self.assertEqual(loaded['answers'][0]['review'], review)
+        self.git('fetch', '-q', 'origin', first['branch'])
+        self.git('checkout', '-q', '-B', 'tamper', 'FETCH_HEAD')
+        record_path = next((self.work / 'conversations/test-session/answers').glob('*.json'))
+        record = json.loads(record_path.read_text())
+        record['review']['items'][0]['evidence'] = ['nicht-vorhanden']
+        record_path.write_text(cb.canonical(record))
+        self.git('add', '.')
+        self.git('commit', '-qm', 'Nachtrag manipuliert')
+        self.git('push', '-q', 'origin', f'HEAD:refs/heads/{first["branch"]}')
+        with self.assertRaisesRegex(ValueError, 'Nachrichtenbeleg'):
+            cb.resume(str(self.remote), 'test-session')
 
     def test_answer_checkpoint_rejects_missing_old_or_already_answered_message(self):
         review = self.answer_review()

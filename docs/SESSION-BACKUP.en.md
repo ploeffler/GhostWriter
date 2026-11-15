@@ -14,7 +14,7 @@ These are assistant-executed workflows requiring authenticated Git and GitHub to
 
 ## Storage and privacy
 
-Each session uses a stable ID, one `ghostwriter/chat/<session-id>` branch and one shared pull request. Files are limited to `conversations/<session-id>/`. Each changed coherent topic gets one commit, rather than one commit per message during manual saves. Automatic section-answer backups bundle the evaluated reply, question state and all affected topics into one commit. Existing messages are preserved unchanged; new ones are appended. An unchanged topic does not create another commit. Use a new session ID after the previous package was merged or closed.
+Each session uses a stable ID, one `ghostwriter/chat/<session-id>` branch and one shared pull request. Files are limited to `conversations/<session-id>/`. Each changed coherent topic gets one commit, rather than one commit per message during manual saves. Automatic section-answer backups bundle only the question, original answer, new result and open points into one commit. Existing messages are preserved unchanged; new ones are appended. An unchanged topic does not create another commit. Use a new session ID after the previous package was merged or closed.
 
 Before the first backup, identify the target repository, branch and visibility. Private book discussions must not be saved in the public program repository. The target is the selected book branch, or the program branch for a program discussion. Book content must never be merged into the library's default branch. If a book is locked for external editing, use a separately and explicitly selected session store that does not change the locked book branch. An unclear target requires clarification.
 
@@ -30,31 +30,47 @@ Backups do not modify manuscript files, structure, book status or content approv
 
 ## Evaluate, upload, then reply
 
-During section question-and-answer work, evaluate each user answer internally,
-then commit and upload the available original messages, evaluation and current
-question state **without another confirmation**. Verify the remote version before
-showing the evaluation, summary, next question or conclusion. Do not wait for the
-last question or approval of a summary. Open questions do not block this backup.
-Identify the intended repository, visibility and access before starting the round.
-Saving does not modify the manuscript or grant approval and never merges a backup.
+After each answer, save only a small append-only session record: the question,
+the original user answer, its evaluated result and remaining open points. Do not
+resend earlier messages or regenerate the complete conversation or topic summaries.
+Use one atomic commit on the existing session branch and the same shared PR.
+Verify the uploaded head before displaying the next question. No book-wide checks,
+CI waits or repeated status polling belong between answers. Saving never merges
+or changes manuscript content, structure or approvals.
 
-Use `chat_backup.py answer-checkpoint` with the regular save arguments and a
-`--review` JSON file. It contains the section review fields plus
-`answer_message_id`: the latest available message must be that user answer, and
-the question evidence must reference it. Put the still-unpublished evaluation in
-topics, not in the message history. Incomplete discussions, pending replies and
-open items are allowed. The helper stores `section_answer` and creates one atomic
-commit for all changed topics. An unchanged retry creates no commit or push.
+Use `chat_backup.py answer-checkpoint` with the regular save arguments. The input
+has `context`, `coverage`, `messages` and `topics`, but contains only this step.
+Coverage describes this step's accessible content and gaps. The `--review` file
+contains the section review fields plus `answer_message_id`; include only this
+step's questions, results and open items, with evidence in the supplied messages.
+The last message must be the new user answer. Unpublished evaluation belongs in
+topics. Open items and incomplete discussions are allowed.
 
-Only a verified upload produces `reply_ready: true`. If PR creation is pending,
-report that separately: the content is already saved. If upload fails, report the
-unsaved answer before continuing; preserve the available content and reconcile
-the actual remote version before retrying. Do not claim a successful save.
+Each record lives in `conversations/<session-id>/answers/<sequence>.json`.
+Loading combines the snapshot and records in storage order. Its `answers` list
+also preserves earlier evaluations and each step’s coverage and gaps. Existing message IDs
+cannot change their content. An unchanged retry creates no commit or push; a
+changed retry of the same answer is rejected. Version checks and atomic upload
+protect concurrent changes. See the [German operational specification](SESSION-SICHERUNG.md#antwort-auswerten-sofort-sichern-dann-weiterantworten)
+for the exact record, manifest and canonical JSON format used by GitHub tools.
 
-Without local execution, equivalent GitHub tools may upload the same complete
-snapshot in one atomic commit and verify it. Missing write access must be disclosed
-before the question round. The executing assistant must still call the tool;
-this cannot independently recover from a client or credit failure before that call.
+In ChatGPT or other clients without local script execution, use available GitHub
+write tools to append the same single record atomically and verify the expected
+head and upload. Do not rewrite earlier conversation or topic files or create another PR per
+answer. Update only `session.json` metadata (`last_saved.at` and voluntary origin)
+alongside the new record in the same commit. Initialise the session manifest on the first step. Disclose missing write
+access before the question round.
+
+Only verified upload produces `reply_ready: true`. A pending PR is reported
+separately; uploaded content is already saved. If upload fails, report the unsaved
+answer and retain it for retry after reconciling the remote head. This protects
+against exhausted credits after the upload; a failure before the save call can
+still leave the latest step unsaved. There is no independent background monitor.
+
+**Save session** and the **completed discussion checkpoint** still save the full
+accessible conversation and topics, including existing answer records. The
+manifest's `snapshot_answers` list prevents older records from overriding a newer
+snapshot. Records remain available as evidence.
 
 ## Automatic checkpoint after a section discussion
 
