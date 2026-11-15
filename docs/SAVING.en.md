@@ -20,9 +20,9 @@ If you deliberately enabled **immediate application** (`changes.auto_merge: true
 
 ## Back up and resume conversation work
 
-**Save session** preserves accessible messages, research, brainstorming and alternatives, decisions, drafts, planning and open questions. A summary does not replace the underlying content. Manual saves use one commit per changed coherent topic; automatic answer backups combine all affected topics into one commit. Each session uses one shared change package.
+**Save session** preserves accessible messages, research, brainstorming and alternatives, decisions, drafts, planning and open questions. A summary does not replace the underlying content. Manual saves use one commit per changed coherent topic; automatic answer backups append only the new question, original answer, result and open points in one commit. Each session uses one shared change package.
 
-After every evaluated section answer, upload and verify one combined commit containing the conversation, evaluation and question state without another confirmation. Only then show the summary or next question. Open questions do not block saving. A completed discussion additionally records its conclusion when all discussed points are resolved or deferred; this grants no section approval. The process requires an executing assistant and write access, not independent background monitoring.
+After every evaluated section answer, upload and verify one small session record containing the new question, original answer, result and open points without another confirmation. Only then show the summary or next question. Open questions do not block saving. Manual session saving and discussion completion still preserve the full accessible conversation. A completed discussion additionally records its conclusion when all discussed points are resolved or deferred; this grants no section approval. The process requires an executing assistant and write access, not independent background monitoring.
 
 After confirmed upload, the session is **backed up, not yet merged**. **Merge session backup** authorises validation, diagnosis, a safe technical repair attempt and revalidation. The package is merged only after successful checks. Auto-merge does not apply to conversation backups. Neither manuscript nor content approvals change.
 
