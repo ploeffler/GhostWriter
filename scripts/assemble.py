@@ -307,8 +307,10 @@ def status_line(base, section, head, manuscript):
     return f'{STATUS_DE.get(head.get("status"), head.get("status"))}, nicht abgeschlossen'
 
 
-def reading_markdown(base, config, key, date=''):
+def reading_markdown(base, config, key, date='', *, proposal=None):
     """(Dateiname, Markdown) der Lesefassung eines Kapitels („5“) oder Abschnitts („5.1“)."""
+    if proposal is not None and '.' not in key:
+        raise SystemExit('Schreibvorschläge brauchen einen einzelnen Abschnitt (z. B. 5.1)')
     stand = f' · Stand {date}' if date else ''
     if '.' in key:
         c, _, n = key.partition('.')
@@ -318,10 +320,16 @@ def reading_markdown(base, config, key, date=''):
         snum = int(n)
         s = ch['sections'][snum - 1]
         head, _, _, manuscript = section_file(base, s)
-        text = '*(noch kein Text)*' if is_empty_text(manuscript) else shift_headings(manuscript.strip(), 3)
+        shown = manuscript if proposal is None else proposal
+        text = '*(noch kein Text)*' if is_empty_text(shown) else shift_headings(shown.strip(), 3)
+        preview = (['*Schreibvorschlag zur Durchsicht · lokale Lesefassung · nicht im Manuskript gespeichert*', '']
+                   if proposal is not None else [])
+        saved = status_line(base, s, head, manuscript)
+        state = f'Gespeicherter Abschnitt: {saved}' if proposal is not None else saved
         md = '\n'.join([f'# {cnum}.{snum} {s["title"]}', '',
-                         f'*Kapitel {cnum} „{ch["title"]}“ · {status_line(base, s, head, manuscript)}{stand}*', '',
-                         '## Manuskript', '', mark_markers(text), ''])
+                         *preview,
+                         f'*Kapitel {cnum} „{ch["title"]}“ · {state}{stand}*', '',
+                         '## Schreibvorschlag' if proposal is not None else '## Manuskript', '', mark_markers(text), ''])
         return f'Abschnitt-{cnum}.{snum}-{file_slug(s["title"])}.md', readable(md)
     cnum, ch = find_chapter(config, key)
     states = []
@@ -625,17 +633,23 @@ def main(argv):
     ap.add_argument('-o', '--output')
     ap.add_argument('--edition', type=int)
     ap.add_argument('--date', default=datetime.date.today().isoformat())
+    ap.add_argument('--draft-file', help='Nur reading N.M: Vorschlag aus Markdown-Datei anzeigen, ohne das Manuskript zu ändern')
     args = ap.parse_args(argv[1:])
+    if args.draft_file and (args.what != 'reading' or not args.key or '.' not in args.key):
+        ap.error('--draft-file ist nur bei reading mit einem einzelnen Abschnitt erlaubt')
     base, config = load(args.project)
     edition = args.edition if args.edition is not None else (config['project'].get('current_edition') or 0)
 
     if args.what == 'reading':
         if not args.key:
             ap.error('reading braucht eine Kapitelnummer (5) oder Abschnittsnummer (5.1)')
-        name, md = reading_markdown(base, config, args.key, args.date)
+        proposal = Path(args.draft_file).read_text(encoding='utf-8') if args.draft_file else None
+        name, md = reading_markdown(base, config, args.key, args.date, proposal=proposal)
         out = Path(args.output) if args.output else None
         if out is not None and out.is_dir():
             out = out / name
+        if proposal is not None and out is not None and out.resolve().is_relative_to(Path(base).resolve()):
+            ap.error('Schreibvorschläge außerhalb des Buchordners als Lesefassung ablegen')
         if out is None:
             sys.stdout.write(md)
         else:

@@ -27,14 +27,20 @@ The historical plan delegates creation of edition tags and releases and attachme
 
 ## Reading copy next to the view (#289)
 
-For the chapter and section views the assistant creates the text as a Markdown file with `scripts/assemble.py … reading N` or `N.M` and hands it over next to the view, again after every change (`START.md`, "Lesefassung"). As of 13 November 2026:
+For the chapter and section views the assistant creates the text as a Markdown file with `scripts/assemble.py … reading N` or `N.M` and hands it over next to the view, again after every change (`START.md`, "Lesefassung"). As of 15 November 2026:
 
 | App | Path |
 |---|---|
 | Claude with a working environment | Send the file with display "render": it opens in the side panel, nothing is downloaded (tested in YAWA) |
-| Codex | Name the file in the working folder |
-| ChatGPT (GitHub connector) | "Manuskript ausgeben" action with `format md` (the author starts it via the link; the connector is read-only), then read the file from the `lesefassung/<book>` branch and show it in a writing block or Canvas; otherwise a section as Markdown, a chapter as a link. **Not yet tested in practice** |
+| Codex / ChatGPT Work with file tools | Open the existing reading copy in the file panel or available preview tool. In Codex use `open_in_codex` with a file target, absolute path and `placement: right`; no browser. `queued` means only that display was requested. |
+| ChatGPT without script execution | Use the "Manuskript ausgeben" action with `format md`, then supply the file from `lesefassung/<book>`. With a read-only connection the author starts the action via its link. Use only available file/preview tools; do not assume Canvas or writing-block support. Without preview, offer a file/link and state the limitation. **This fallback has not yet been tested in practice.** |
 | Open WebUI | `dispatch_workflow` (`format md`, tool 1.7 or later), then `read_file` from the `lesefassung/<book>` branch. **Not yet tested in practice** |
+
+The existing rule also applies to OpenAI (#316), independently of display mode. With local execution, generate the file directly; no workflow run is needed just to view it. Unsaved section proposals use `assemble.py <project> reading N.M --draft-file <proposal.md> -o <reading-folder>` (outside the book folder) and refresh the same file after edits. The preview changes no manuscript or approvals and labels the proposal separately from the saved section status. A local preview, work-branch storage and merged book content are distinct states.
+
+With “Display: extended”, keep the extended section view in the chat: chapter/section, goal, summary, work and actual storage status, writing and finalization status, source status, open points and actions. Mark missing information as unknown; derive costs/markers only from data. Do not duplicate the complete text in the chat. `Lesefassung aus/an` affects this chat only and does not change display mode. Without visible confirmation report only a display request; disclose unavailable tools. A preview grants no approval.
+
+The [official OpenAI file documentation](https://learn.chatgpt.com/docs/artifacts-viewer) distinguishes desktop, Work on the web, CLI and IDE capabilities. It does not establish identical side panels in every client. The concrete Codex call depends on its available tool. Verification on 15 November 2026 confirmed local generation and same-file updates. The Codex tool returned only `queued`; the user then confirmed readable rendering and automatic refresh of the same file without reopening it. This visual verification applies to the tested Codex session. ChatGPT Work remains untested in practice.
 
 The `lesefassung/<book>` branch only holds the latest reading copies per chapter or section and is never merged. The file shows the state when the action started; after a change it is only refreshed if the action runs again. Each run costs about one Actions minute (no TeX).
 
