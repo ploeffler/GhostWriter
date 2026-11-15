@@ -47,14 +47,20 @@ Ohne Dateiübergabe bleibt der Link zum Lauf: Download unter *Artifacts*, 14 Tag
 
 ## Lesefassung neben der Ansicht (#289)
 
-Zur Kapitel- und Abschnittsansicht erzeugt der Assistent mit `scripts/assemble.py … reading N` bzw. `N.M` den Text als Markdown-Datei und übergibt sie neben der Ansicht, nach jeder Änderung neu (`START.md`, „Lesefassung“). Stand 13.11.2026:
+Zur Kapitel- und Abschnittsansicht erzeugt der Assistent mit `scripts/assemble.py … reading N` bzw. `N.M` den Text als Markdown-Datei und übergibt sie neben der Ansicht, nach jeder Änderung neu (`START.md`, „Lesefassung“). Stand 15.11.2026:
 
 | App | Weg |
 |---|---|
 | Claude mit Arbeitsumgebung | Datei senden mit Darstellung „anzeigen“: öffnet sich in der Seitenansicht, nichts wird heruntergeladen (in YAWA erprobt) |
-| Codex | Datei im Arbeitsordner nennen |
-| ChatGPT (GitHub-Connector) | Action „Manuskript ausgeben“ mit `format md` (der Autor startet sie über den Link, der Connector liest nur), dann die Datei vom Branch `lesefassung/<buch>` lesen und im Schreibblock bzw. Canvas zeigen; sonst Abschnitt als Markdown, Kapitel als Link. **Noch nicht praktisch geprüft** |
+| Codex / ChatGPT Work mit Dateiwerkzeugen | Bestehende Lesefassung im Dateipanel bzw. verfügbaren Vorschauwerkzeug öffnen. In Codex `open_in_codex` mit Dateiziel, absolutem Pfad und `placement: right`; kein Browser. `queued` heißt nur „zur Anzeige vorgemerkt“. |
+| ChatGPT ohne Skriptausführung | Action „Manuskript ausgeben“ mit `format md`, danach die Datei vom Branch `lesefassung/<buch>` bereitstellen. Bei nur lesender Verbindung startet der Autor die Action über den Link. Nur vorhandene Datei-/Vorschauwerkzeuge nutzen; keine Canvas- oder Schreibblock-Anzeige voraussetzen. Ohne Vorschau Datei/Link und Einschränkung nennen. **Dieser Ersatzweg ist noch nicht praktisch geprüft.** |
 | Open WebUI | `dispatch_workflow` (`format md`, Werkzeug ab 1.7), danach `read_file` vom Branch `lesefassung/<buch>`. **Noch nicht praktisch geprüft** |
+
+Die vorhandene Regel gilt auch für OpenAI (#316), unabhängig vom Darstellungsmodus. Bei vorhandener Skriptausführung direkt erzeugen; kein Action-Lauf nur zum Anzeigen. Auch noch ungespeicherte Abschnittsvorschläge können mit `assemble.py <projekt> reading N.M --draft-file <vorschlag.md> -o <leseordner>` (Leseordner außerhalb des Buchordners) in derselben Datei geprüft und nach Änderungen aktualisiert werden. Die Vorschau verändert kein Manuskript und keine Freigabe; sie zeigt den Vorschlagszustand getrennt vom gespeicherten Status. Lokale Vorschau, Arbeitsbranch und übernommener Buchstand sind verschiedene Speicherstände.
+
+Bei „Darstellung: erweitert“ bleibt die erweiterte Abschnittsansicht im Chat: Kapitel/Abschnitt, Ziel, Kurzbeschreibung, Bearbeitung, tatsächlicher Speicherstand, Schreib- und Abschlussstatus, Quellenstand, offene Punkte und Aktionen. Fehlende Angaben als unbekannt ausweisen; Kosten/Marker nur aus Daten. Den vollständigen Text nicht doppelt im Chat zeigen. `Lesefassung aus/an` wirkt nur im laufenden Chat und schaltet nicht den Darstellungsmodus um. Ohne sichtbare Bestätigung höchstens „Anzeige angefordert“ melden; fehlende Werkzeuge offen nennen. Eine Vorschau ist keine Freigabe.
+
+Die [offizielle OpenAI-Dateidokumentation](https://learn.chatgpt.com/docs/artifacts-viewer) beschreibt Unterschiede zwischen Desktop, Work im Web, CLI und IDE. Sie belegt keine identische Seitenanzeige in jedem Client. Der konkrete Codex-Aufruf richtet sich nach dem tatsächlich angebotenen Werkzeug. Prüfung am 15.11.2026: Erzeugung und Aktualisierung derselben Datei lokal bestätigt. Das Codex-Werkzeug meldete nur `queued`; der Benutzer bestätigte anschließend lesbare Anzeige und automatische Aktualisierung derselben Datei ohne erneutes Öffnen. Diese Sichtabnahme gilt für die geprüfte Codex-Sitzung. ChatGPT Work bleibt praktisch ungeprüft.
 
 Der Branch `lesefassung/<buch>` enthält nur die zuletzt erzeugten Lesefassungen je Kapitel bzw. Abschnitt und wird nie gemergt. Die Datei zeigt den Stand beim Start der Action; nach einer Änderung kommt sie nur neu, wenn die Action erneut läuft. Jeder Lauf kostet etwa eine Actions-Minute (ohne TeX).
 

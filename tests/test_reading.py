@@ -86,6 +86,47 @@ class ReadingTests(unittest.TestCase):
         self.assertNotIn('Einzigartiger Satz', short)
         self.assertIn('Lesefassung', short)
 
+    def test_unsaved_proposal_refreshes_same_file_without_changing_project(self):
+        original = {p.relative_to(self.base): p.read_bytes() for p in self.base.rglob('*') if p.is_file()}
+        draft = Path(self.temp.name) / 'vorschlag.md'
+        out = Path(self.temp.name) / 'lesefassung'
+        out.mkdir()
+        command = [sys.executable, str(ROOT / 'scripts/assemble.py'), str(self.base),
+                   'reading', '1.1', '--draft-file', str(draft), '-o', str(out)]
+        for text in ('Vorschlag eins.[^1]\n\n[^1]: Fiktive Notiz.',
+                     'Vorschlag zwei. [QUELLE PRÜFEN: fiktive Notiz]'):
+            draft.write_text(text, encoding='utf-8')
+            subprocess.run(command, check=True, capture_output=True)
+            files = list(out.glob('*.md'))
+            self.assertEqual(len(files), 1)
+            rendered = files[0].read_text(encoding='utf-8')
+            self.assertIn('nicht im Manuskript gespeichert', rendered)
+            self.assertIn('## Schreibvorschlag', rendered)
+            self.assertIn(assemble.readable(assemble.mark_markers(text)), rendered)
+        self.assertNotIn('Vorschlag eins', rendered)
+        self.assertEqual(original, {p.relative_to(self.base): p.read_bytes()
+                                   for p in self.base.rglob('*') if p.is_file()})
+
+    def test_proposal_is_restricted_to_a_single_reading_section(self):
+        draft = Path(self.temp.name) / 'vorschlag.md'
+        draft.write_text('Fiktiver Vorschlag.', encoding='utf-8')
+        for kind, key in (('reading', '1'), ('book', '1'), ('manuscript', '1.1')):
+            result = subprocess.run([sys.executable, str(ROOT / 'scripts/assemble.py'), str(self.base),
+                                     kind, key, '--draft-file', str(draft)], capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, '')
+
+    def test_preview_cannot_overwrite_a_file_inside_the_book(self):
+        source = self.base / self.sections[0]['path']
+        original = source.read_bytes()
+        draft = Path(self.temp.name) / 'vorschlag.md'
+        draft.write_text('Nur zur Durchsicht.', encoding='utf-8')
+        result = subprocess.run([sys.executable, str(ROOT / 'scripts/assemble.py'), str(self.base),
+                                 'reading', '1.1', '--draft-file', str(draft), '-o', str(source)],
+                                capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(source.read_bytes(), original)
+
 
 class ManuscriptWorkflowTests(unittest.TestCase):
     """#289 Teil 2: „Manuskript ausgeben“ mit format md."""

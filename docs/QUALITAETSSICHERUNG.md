@@ -232,7 +232,7 @@ Der Benutzer kann jederzeit wechseln:
 - **„Darstellung: erweitert“** – ausführliche strukturierte Ansichten und zusätzliche Diagramme oder interaktive Elemente, sofern sinnvoll und unterstützt.
 - **„Nur Text“** – ausschließlich Text und Markdown.
 
-**Lesefassung** (#289): Zur Kapitel- und Abschnittsansicht kommt der Text als Markdown-Datei in der Seitenansicht, nach jeder Text- oder Statusänderung neu. „Lesefassung aus“ bzw. „Lesefassung an“ schaltet sie für den laufenden Chat, unabhängig vom Darstellungsmodus. Ablauf: `START.md`, „Lesefassung“.
+**Lesefassung (#289, #316):** Dieselbe Regel gilt für Claude, ChatGPT Work und Codex: Text als Markdown-Datei neben der Ansicht, auch ungespeicherte Schreibvorschläge eindeutig kennzeichnen und dieselbe Datei nach Änderungen aktualisieren. In Codex das vorhandene Dateipanel verwenden, keinen Browser. `queued` bestätigt nur den Anzeigeauftrag. Keine doppelte Volltextausgabe im Chat; ohne Vorschau Datei/Link mit Einschränkung anbieten. Erweiterte Ansichten nennen tatsächlichen Speicherstand und unbekannte Quellenstände ausdrücklich; keine erfundenen Kosten oder Marker. `Lesefassung aus/an` und der Darstellungsmodus bleiben unabhängig und gelten nur im Chat. Vorschau, Speicherung im Arbeitsbranch und Übernahme in den Buchstand unterscheiden; keine Freigabe durch Anzeigen. Ablauf: `START.md`, „Lesefassung“.
 
 Die Auswahl gilt für den laufenden Chat, bis sie geändert wird. Sie darf nicht als dauerhaft gespeicherte Projekteinstellung dargestellt werden, solange keine entsprechende Funktion vorhanden ist.
 
