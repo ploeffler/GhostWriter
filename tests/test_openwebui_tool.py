@@ -112,6 +112,60 @@ class OpenWebUIToolTests(unittest.TestCase):
             result = self.run_tool(self.tool.merge_pull_request("owner/book", 1, self.head))
         self.assertFalse(result["ok"])
 
+    def test_cleanup_keeps_unmerged_wrong_target_foreign_or_changed_branch(self):
+        # A02: keine Löschung bei falscher Zuordnung oder neuem Arbeitsstand.
+        cases = [
+            (False, "ghostwriter/buch/test", "buch/test", "owner/book", self.head),
+            (True, "buch/test", "buch/test", "owner/book", self.head),
+            (True, "ghostwriter/buch/other", "buch/test", "owner/book", self.head),
+            (True, "ghostwriter/buch/test", "buch/test", "other/book", self.head),
+            (True, "ghostwriter/buch/test", "buch/test", "owner/book", "b" * 40),
+        ]
+        for merged, branch, base, repo, actual in cases:
+            with self.subTest(merged=merged, branch=branch, repo=repo, actual=actual):
+                pr = {"merged": merged, "head": {"ref": branch, "sha": self.head,
+                      "repo": {"full_name": repo}}, "base": {"ref": base}}
+                with patch.object(self.tool, "_http", side_effect=[pr, {"object": {"sha": actual}}]) as http:
+                    result = self.run_tool(self.tool.delete_merged_work_branch("owner/book", 7, self.head))
+                self.assertFalse(result["ok"])
+                self.assertFalse(any(c.args[1] == "DELETE" for c in http.call_args_list))
+
+    def test_cleanup_deletes_only_matching_merged_head(self):
+        pr = {"merged": True, "head": {"ref": "ghostwriter/buch/test", "sha": self.head,
+              "repo": {"full_name": "owner/book"}}, "base": {"ref": "buch/test"}}
+        with patch.object(self.tool, "_http", side_effect=[pr, {"object": {"sha": self.head}},
+                          {"node_id": "R_test"}, {"data": {"updateRefs": {"clientMutationId": "ghostwriter-checked-delete"}}}]) as http:
+            result = self.run_tool(self.tool.delete_merged_work_branch("owner/book", 7, self.head))
+        self.assertTrue(result["ok"])
+        self.assertFalse(any(c.args[1] == "DELETE" for c in http.call_args_list))
+        call = http.call_args_list[-1]
+        self.assertEqual(call.args[1:3], ("POST", "/graphql"))
+        update = call.kwargs["data"]["variables"]["input"]["refUpdates"][0]
+        self.assertEqual(update, {"name": "refs/heads/ghostwriter/buch/test", "beforeOid": self.head,
+                                  "afterOid": "0" * 40, "force": False})
+
+    def test_cleanup_concurrent_update_and_graphql_errors_never_fall_back(self):
+        pr = {"merged": True, "head": {"ref": "ghostwriter/buch/test", "sha": self.head,
+              "repo": {"full_name": "owner/book"}}, "base": {"ref": "buch/test"}}
+        for response in ({"errors": [{"message": "changed"}]}, {}, {"data": {"updateRefs": None}},
+                         {"data": {"updateRefs": {"clientMutationId": "wrong"}}},
+                         {"data": {"updateRefs": {"clientMutationId": "ghostwriter-checked-delete"}}, "errors": [{}]}):
+            with self.subTest(response=response):
+                # REST-Vorabprüfung war erfolgreich; danach lehnt die atomare Mutation ab.
+                with patch.object(self.tool, "_http", side_effect=[pr, {"object": {"sha": self.head}},
+                                  {"node_id": "R_test"}, response]) as http:
+                    result = self.run_tool(self.tool.delete_merged_work_branch("owner/book", 7, self.head))
+                self.assertFalse(result["ok"])
+                self.assertEqual(sum(c.args[1] == "POST" for c in http.call_args_list), 1)
+                self.assertFalse(any(c.args[1] == "DELETE" for c in http.call_args_list))
+
+    def test_cleanup_rejects_invalid_head_before_network(self):
+        for head in ("", "0" * 40, "x" * 40, "--help"):
+            with patch.object(self.tool, "_http") as http:
+                result = self.run_tool(self.tool.delete_merged_work_branch("owner/book", 7, head))
+            self.assertFalse(result["ok"])
+            http.assert_not_called()
+
     def test_branch_pagination(self):
         page = [{"name": "main", "commit": {"sha": self.head}}] * 100
         with patch.object(self.tool, "_http", side_effect=[page, []]) as http:

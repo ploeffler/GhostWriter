@@ -348,9 +348,14 @@ Debug-Daten enthalten Repository- und Pfadnamen und sollten vor Weitergabe gepr�
   Konflikten unreferenziert bleiben; sie werden nicht in den Branch übernommen.
 - Der Branch-Ref wird ohne Force aktualisiert. Normale konkurrierende Commits werden
   nicht überschrieben. Paralleles Zurücksetzen/Löschen von Branches administrativ vermeiden;
-  die GitHub-Ref-API bietet keine allgemeine bedingte Löschung anhand einer SHA.
-- `delete_merged_work_branch` prüft Merge und SHA vor dem Löschen. Währenddessen keine
-  neuen Änderungen auf diesen Arbeits-Branch schreiben.
+  der normale REST-Schreibweg ist keine allgemeine atomare Standprüfung.
+- `delete_merged_work_branch` prüft Merge, Buch-/Arbeitsbranch und SHA und löscht
+  anschließend mit GraphQL `updateRefs`: `beforeOid` bindet die Löschung auf dem
+  Server an den bestätigten Head. Kommt inzwischen ein Commit hinzu, schlägt sie
+  fehl. GraphQL-Fehler (auch bei HTTP 200), fehlende Berechtigung oder unklare
+  Antwort werden nicht als Erfolg gemeldet; kein Rückfall auf REST-DELETE.
+  Nach einem unklaren Ergebnis erst den tatsächlichen Stand neu lesen.
+  Die Integration benötigt dafür Zugriff auf GitHubs GraphQL-API mit demselben Token.
 - Der Commit-Autor wird durch GitHubs Token-Identität bestimmt. Ein abweichendes
   `assistant.yml`-Commitprofil wird hier noch nicht übernommen.
 - `dispatch_workflow` unterstützt ausschließlich `proof.yml`, `manuscript.yml` (Manuskript
@@ -360,9 +365,32 @@ Debug-Daten enthalten Repository- und Pfadnamen und sollten vor Weitergabe gepr�
 - Keine lokale Skriptausführung, Binärdatei-Uploads, Secret-Verwaltung oder vollständige
   automatische Projektvalidierung. Die Integration ersetzt diese Teile nicht.
 
+## Personenbindung und Freigaberecht – offener Umsetzungsblock
+
+Für die Zusammenarbeit sind persönliche GitHub-Konten bestätigt. Im derzeitigen
+Werkzeug stammt `GITHUB_TOKEN` noch aus den gemeinsamen administrativen Valves;
+es gibt keine `UserValves` für persönliche GitHub-Zugänge. Die Benutzer-/Chatbindung
+der Navigation ist keine GitHub-Identitätsprüfung für Schreibaufträge. Methoden
+wie `commit_files` prüfen bislang weder eine anfragende Person noch deren
+fachliches Freigaberecht. Auch ein gültiger Name im Freigabeprotokoll beweist das nicht.
+
+Der Mehrbenutzer-Schreib-/Freigabeweg ist daher noch nicht als technisch
+abgenommen ausgewiesen. Nächste Umsetzung: persönliche Zugangsdaten getrennt
+verwenden, das Konto über GitHub verifizieren und Eigentümer bzw. ausdrücklich
+benannte Freigabeberechtigte zuverlässig zuordnen. Kein Rückfall auf ein
+privilegiertes gemeinsames Schreib-Token. Repository-Schutz muss auch andere
+Werkzeuge berücksichtigen; reine Anpassungen dieses Tools schützen keine
+Schreibzugriffe außerhalb davon.
+
 ## Quellen
 
 - [Open WebUI: Tool Development](https://docs.openwebui.com/features/extensibility/plugin/tools/development/)
 - [Open WebUI: Valves und Token-Speicherung](https://docs.openwebui.com/features/extensibility/plugin/development/valves/)
 - [GitHub: Contents](https://docs.github.com/en/rest/repos/contents)
 - [GitHub: Git-Datenbank](https://docs.github.com/en/rest/git)
+- [GitHub: atomare Ref-Änderungen mit updateRefs](https://docs.github.com/en/graphql/reference/git#updaterefs)
+
+
+---
+
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../../assets/logo-dark.svg"><img src="../../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

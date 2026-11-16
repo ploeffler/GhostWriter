@@ -55,6 +55,21 @@ When needed, create a token with the least permissions required for the relevant
 
 Local changes to managed program files can be overwritten by an update. Keep book-specific settings in the book configuration and book content in the book's own files. The manifest specifies which paths are managed by the program and which belong to the book.
 
+## Safe cleanup after accepting changes
+
+The **Branches aufräumen** action and the Open WebUI tool delete a checked work
+branch only while its server-side head still matches the confirmed commit.
+A commit arriving in the meantime prevents deletion. For version branches, the
+matching preservation tag must also remain unchanged; its check and the branch
+deletion form one atomic operation.
+
+Both paths use [GitHub `updateRefs` with `beforeOid`](https://docs.github.com/en/graphql/reference/git#updaterefs).
+Missing GraphQL access, insufficient permissions or an uncertain response is not
+reported as a successful deletion. There is no unconditional deletion fallback
+and no automatic retry. Read the actual remote state before another request.
+**Nur anzeigen** (preview only) sends no deletion mutation. Existing checks that
+content has been accepted still apply; a matching commit does not grant approval.
+
 ---
 
 <p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
