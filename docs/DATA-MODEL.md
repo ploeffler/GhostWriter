@@ -498,6 +498,10 @@ Die Abschnittssumme wird aus den Einträgen berechnet. Die Kapitelsumme ist die 
 - `story/timeline.yml` (Schema `schemas/timeline.schema.json`): `events` in Buchreihenfolge mit `id` (`ev-NNN`), `section` (ID), `when` (Zeitangabe wie im Text), `what`, `quote` (Fundstelle); `notes` = Hinweise zur zeitlichen Abfolge mit `kind` (`jump`, `contradiction`, `unclear`), `text`, `events` (IDs), `sections`.
 - `story/hints.yml` (Schema `schemas/hints.schema.json`): `hints` = Hinweise zu Abschnitten mit `id` (`hi-NNN`), `section` (ID), `source` (`language`), `kind` (`long_sentence`, `repetition`, `same_start`, `filler`, `ai_pattern` (KI-typisches Muster, #305); mit LanguageTool, #280: `spelling`, `grammar`, `punctuation`, `typography`), `text`, `quote`; ein neuer Lauf ersetzt die Hinweise der Abschnitte, die er gelesen hat. Das Abschnittsformular zeigt sie; am Text ändert sich nichts.
 
+Der optionale [Buchgedächtnis-Abgleich](BUCHGEDAECHTNIS.md) liest vorhandene
+Texte und Referenzen und liefert einen Bericht im Chat. Er ergänzt keine
+Schemafelder, legt keine eigene Wissensablage an und startet keinen Analyselauf.
+
 Die Analyse „Widersprüche“ (`continuity`) schreibt keine eigene Datei, sondern setzt gewählte Marker `[KONTINUITÄT PRÜFEN: …]` ins Manuskript.
 
 `scripts/validate_project.py` prüft alle drei gegen ihr Schema, eindeutige IDs und bekannte Abschnitte.

@@ -628,7 +628,7 @@ class ProgramRepoTest(unittest.TestCase):
             env, os.environ['GHOSTWRITER_DEFAULT_BRANCH'] = dict(os.environ), 'main'
             try:
                 self.assertEqual(library.program_problems(d, 'refs/heads', MANIFEST), ([], []))
-                for name in ('ghostwriter', 'ghostwriter-lektorat'):
+                for name in ('ghostwriter', 'ghostwriter-lektorat', 'ghostwriter-buchgedaechtnis'):
                     Path(d, '.claude', 'skills', name).mkdir(parents=True)
                 self.assertEqual(library.program_problems(d, 'refs/heads', MANIFEST), ([], []))
                 personal = Path(d, '.claude', 'skills', 'anna-auf-buch')
