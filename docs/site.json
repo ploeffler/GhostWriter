@@ -89,6 +89,17 @@
       }
     },
     {
+      "id": "story-memory",
+      "title": {
+        "de": "Buchgedächtnis",
+        "en": "Story memory"
+      },
+      "source": {
+        "de": "BUCHGEDAECHTNIS.md",
+        "en": "STORY-MEMORY.en.md"
+      }
+    },
+    {
       "id": "saving",
       "title": {
         "de": "Speichern & Übernehmen",

@@ -114,6 +114,8 @@ Die folgenden einzelnen Chat-Befehle sind feste Abkürzungen. Sie gelten für da
 
 ## 11. Redaktionelle Qualitätssicherung
 
+Für Buchgedächtnis-Aufträge die lesende Anleitung `docs/BUCHGEDAECHTNIS.md` laden (Englisch: `docs/STORY-MEMORY.en.md`).
+
 Für Strukturlektorat, Sprachlektorat oder Schlusskorrektur `docs/LEKTORAT.md` laden (Englisch: `docs/EDITORIAL-REVIEW.en.md`). Ein Prüfauftrag allein erlaubt keine Textänderung oder Freigabe.
 
 Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:

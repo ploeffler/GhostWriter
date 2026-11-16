@@ -681,6 +681,8 @@ Wenn kein GitHub-Schreibzugriff verfügbar ist, liefere die Dateien als vollstä
 
 ## 8. Start des laufenden Schreibbetriebs
 
+Für lesende Fakten- und Kontinuitätsabgleiche `docs/BUCHGEDAECHTNIS.md` laden (Englisch: `docs/STORY-MEMORY.en.md`); keine automatische Faktenübernahme.
+
 Für Strukturlektorat, Sprachlektorat oder Schlusskorrektur `docs/LEKTORAT.md` laden (Englisch: `docs/EDITORIAL-REVIEW.en.md`). Ein Prüfauftrag allein erlaubt keine Textänderung oder Freigabe.
 
 Nach der Initialisierung wird jedes Kapitel abschnittsweise bearbeitet. Für jeden Abschnitt gilt:

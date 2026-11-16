@@ -46,6 +46,13 @@ A **pull request** (change package) groups related saved changes. Preparing a pa
 
 A successful save message must follow confirmed upload and name its scope. “Section saved” does not automatically mean “conversation backed up”. A session backup saves conversation work without changing the manuscript. Merging does not grant content approval. Normal book changes may merge immediately if that option was explicitly enabled; session packages still require **Merge session backup**.
 
+## Reconcile story memory
+
+“Reconcile chapter 3 with our story memory” requests a
+[read-only fact and continuity comparison](STORY-MEMORY.en.md).
+“What facts changed in section 2.3?” requires an identified comparison version.
+Book references and manuscript remain unchanged.
+
 ## Request an editorial review
 
 - “Structural review of chapter 3.”

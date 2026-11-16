@@ -16,6 +16,12 @@ Review supports the author. It replaces neither the author's content decisions n
 4. **Keep changes traceable.** Record problems, corrections, open points and the review result.
 5. **Never approve automatically.** A positive review is a recommendation. Formal approval remains the author's explicit decision.
 
+## Reconcile facts and continuity
+
+For read-only reconciliation with character notes, timeline and confirmed
+book requirements, use the [story memory guide](STORY-MEMORY.en.md).
+It produces evidenced proposals without changing facts or markers.
+
 ## Focused review types
 
 For **structural review**, **language review** and **proofreading**, load the

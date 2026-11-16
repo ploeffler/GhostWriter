@@ -16,6 +16,12 @@ Die Prüfung unterstützt die Autorin oder den Autor. Sie ersetzt weder die inha
 4. **Änderungen nachvollziehbar halten.** Probleme, Korrekturen, offene Punkte und Prüfergebnis dokumentieren.
 5. **Keine automatische Freigabe.** Ein positives Prüfergebnis ist eine Empfehlung. Die Freigabe bleibt eine ausdrückliche Entscheidung der Autorin oder des Autors.
 
+## Fakten und Kontinuität abgleichen
+
+Für einen lesenden Abgleich mit Figurenunterlagen, Zeitleiste und bestätigten
+Buchvorgaben die [Buchgedächtnis-Anleitung](BUCHGEDAECHTNIS.md) verwenden.
+Sie liefert belegte Vorschläge und schreibt keine Fakten oder Marker fest.
+
 ## Gezielte Prüfarten
 
 Für **Strukturlektorat**, **Sprachlektorat** und **Schlusskorrektur** die

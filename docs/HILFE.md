@@ -46,6 +46,13 @@ Mit **Session sichern** wird dieses Paket geschnürt bzw. ergänzt. Nach abgesch
 
 Eine grüne Speichermeldung darf nur nach bestätigter Übertragung erscheinen und muss ihren Umfang nennen. „Abschnitt gespeichert“ bedeutet nicht automatisch „Gespräch gesichert“. Eine Sitzungssicherung speichert Gesprächsarbeit; sie ändert kein Manuskript. Eine Übernahme ersetzt keine inhaltliche Freigabe. Reguläre Buchänderungen können bei bewusst eingeschaltetem „sofort übernehmen“ direkt übernommen werden; Änderungspakete zu Sitzungen brauchen weiterhin **Session übernehmen**.
 
+## Buchgedächtnis abgleichen
+
+„Gleiche Kapitel 3 mit unserem Buchgedächtnis ab“ liefert einen
+[lesenden Fakten- und Kontinuitätsabgleich](BUCHGEDAECHTNIS.md).
+„Welche Fakten hat Abschnitt 2.3 geändert?“ benötigt einen benannten
+Vergleichsstand. Keine automatische Änderung von Buchunterlagen oder Manuskript.
+
 ## Lektorat beauftragen
 
 - „Strukturlektorat für Kapitel 3.“
