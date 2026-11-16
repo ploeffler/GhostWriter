@@ -78,6 +78,17 @@
       }
     },
     {
+      "id": "editorial",
+      "title": {
+        "de": "Lektorat: drei Prüfarten",
+        "en": "Editorial review types"
+      },
+      "source": {
+        "de": "LEKTORAT.md",
+        "en": "EDITORIAL-REVIEW.en.md"
+      }
+    },
+    {
       "id": "saving",
       "title": {
         "de": "Speichern & Übernehmen",

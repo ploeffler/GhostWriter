@@ -46,6 +46,15 @@ A **pull request** (change package) groups related saved changes. Preparing a pa
 
 A successful save message must follow confirmed upload and name its scope. “Section saved” does not automatically mean “conversation backed up”. A session backup saves conversation work without changing the manuscript. Merging does not grant content approval. Normal book changes may merge immediately if that option was explicitly enabled; session packages still require **Merge session backup**.
 
+## Request an editorial review
+
+- “Structural review of chapter 3.”
+- “Language review of section 2.3.”
+- “Proofread chapter 4.”
+
+The [three review types](EDITORIAL-REVIEW.en.md) initially provide findings in
+chat; they do not change the manuscript or grant approval.
+
 ## Example prompts
 
 These are ordinary requests, not shortcuts around approvals:

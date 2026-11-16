@@ -114,6 +114,8 @@ Die folgenden einzelnen Chat-Befehle sind feste Abkürzungen. Sie gelten für da
 
 ## 11. Redaktionelle Qualitätssicherung
 
+Für Strukturlektorat, Sprachlektorat oder Schlusskorrektur `docs/LEKTORAT.md` laden (Englisch: `docs/EDITORIAL-REVIEW.en.md`). Ein Prüfauftrag allein erlaubt keine Textänderung oder Freigabe.
+
 Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
 
 - Die vollständige betroffene Einheit lesen und prüfen, nicht nur den Diff oder neu eingefügte Passagen.
@@ -153,3 +155,7 @@ Betrifft etwas das Programm (Skripte, Vorlagen, Anleitung), nicht das Buch:
 1. Im Hauptrepository (`upstream.repo`) nach einem gleichen offenen Issue suchen.
 2. Sonst ein Issue mit den Abschnitten **Beobachtet** (Repository, GhostWriter-Version aus `ghostwriter-manifest.yml`, was passiert ist), **Ursache** (soweit bekannt, mit Datei und Stelle) und **Vorschlag**.
 3. Keine Manuskripttexte, keine Secrets, keine privaten Angaben ins Issue.
+
+---
+
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../../../assets/logo-dark.svg"><img src="../../../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

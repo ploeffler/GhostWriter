@@ -3,6 +3,8 @@ $MARKER
 
 Automatisch im Update erzeugt. Nicht von Hand bearbeiten. Ausführliche Regeln werden nur bei Bedarf geladen.
 
+Lektorat: `docs/LEKTORAT.md` laden.
+
 ## Instanz
 
 - Repository: `$REPO`; dieser Branch: `$BRANCH`; Standard-Branch: `$DEFAULT_BRANCH`.

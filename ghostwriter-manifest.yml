@@ -27,7 +27,8 @@ managed:
   - README.en.md
   - CLAUDE.md                 # Einstieg für Claude (#136)
   - AGENTS.md                 # Einstieg für andere Assistenten (#136)
-  - .claude/skills/ghostwriter/   # allgemeiner Skill; persönliche Skills daneben gehören dem Buch
+  - .claude/skills/ghostwriter/   # allgemeiner Einstieg; persönliche Skills daneben gehören dem Buch
+  - .claude/skills/ghostwriter-lektorat/  # gezielte redaktionelle Prüfarten
   - ghostwriter-manifest.yml
   - workflow.yml
   - providers.yml

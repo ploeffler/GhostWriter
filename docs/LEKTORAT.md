@@ -1,0 +1,133 @@
+# Lektorat: drei Prüfarten
+
+Deutsch · [English](EDITORIAL-REVIEW.en.md)
+
+Die drei Prüfarten sind gezielte Arbeitsaufträge im Chat. Sie ergänzen die
+[Qualitätssicherung](QUALITAETSSICHERUNG.md); deren Prüfumfang, Korrekturschleife,
+Schweregrade und Freigaben bleiben verbindlich. Sie sind keine automatischen
+Programmläufe und benötigen keinen zusätzlichen KI-Dienst.
+
+## Prüfart wählen
+
+| Prüfart | Leitfrage | Beispiel |
+|---|---|---|
+| Strukturlektorat | Trägt der Aufbau die beabsichtigte Wirkung oder Argumentation? | „Strukturlektorat für Kapitel 3.“ |
+| Sprachlektorat | Ist der Text verständlich und bleibt er in der vereinbarten Stimme? | „Sprachlektorat für Abschnitt 2.3.“ |
+| Schlusskorrektur | Welche Schreib-, Zeichensetzungs- und Konsistenzfehler sind noch vorhanden? | „Schlusskorrektur für Kapitel 4.“ |
+
+Gleichbedeutende freie Formulierungen verstehen, etwa „Prüfe Kapitel 3 auf
+Struktur und Dramaturgie“. Ist die Prüfart aus dem Auftrag klar, direkt damit
+arbeiten. Bei einem allgemeinen Lektoratswunsch die passende Art anhand des
+Arbeitsstands vorschlagen; nur bei entscheidender Unklarheit nachfragen.
+Bei mehreren beauftragten Arten zuerst Struktur, dann Sprache, dann
+Schlusskorrektur prüfen. Eine ausdrücklich gewünschte Schlusskorrektur nicht
+ungefragt in eine Strukturüberarbeitung verwandeln.
+
+## Gemeinsamer Arbeitsauftrag
+
+- Buch, vollständige betroffene Einheit, Prüfart und überprüfbare Textfassung
+  festhalten. Buchprofil, bestätigte Fakten, Stil und relevante Nachbartexte
+  lesen. Fehlende Voraussetzungen offen nennen; keine Fakten oder Freigaben
+  ergänzen. Bei Kapitelüberarbeitung zusätzlich die bestehende
+  [Verfügbarkeitsprüfung](../START.md#8-start-des-laufenden-schreibbetriebs) beachten.
+- Den vollständigen relevanten Text vor dem Urteil lesen. Nicht verfügbare oder
+  wegen Umfangs nicht gelesene Teile ausdrücklich ausnehmen. Eine Teilprüfung
+  nicht als vollständige Kapitel- oder Buchprüfung ausgeben.
+- Befunde durch Kapitel-/Abschnittskennung, Absatz oder kurze Textstelle
+  auffindbar machen. Problem, Auswirkung und mögliche Änderungsrichtung
+  unterscheiden. Vermutung als Frage kennzeichnen; bewusste Abweichungen im
+  Buchprofil respektieren.
+- Ein Prüfauftrag liefert zunächst eine Diagnose im Chat. Er erlaubt keine
+  Manuskript-, Profil- oder Statusänderung und keinen Upload. Bereits ausdrücklich
+  beauftragte Korrekturen im erlaubten Umfang ausführen; anschließend den gesamten
+  betroffenen Zusammenhang erneut prüfen. Dauerhafte Berichte nur im erlaubten
+  Buchspeicher und im Rahmen eines Speicherauftrags ablegen, keine Buchdaten in
+  die Programmdokumentation übernehmen.
+
+## Strukturlektorat
+
+Vom Gesamtziel zur Funktion der Kapitel und Abschnitte arbeiten. Die wichtigsten
+Probleme zuerst nennen; Satzpolitur zurückstellen, wenn Passagen strukturell
+verändert werden müssen.
+
+**Erzählende Bücher:** Leseversprechen, Kausalität, Motivation, Figurenentwicklung,
+Chronologie und Wissensstände prüfen. Tragen Szenen zum vereinbarten Ziel bei?
+Sind Vorbereitung und Einlösung verbunden? Stimmen Tempo, Übergänge und
+Informationsverteilung? Ruhige Szenen müssen keine künstliche Eskalation erhalten.
+
+**Sachbücher:** Leitfrage, Zielgruppe, Argumentationsgang, Begriffseinführung,
+Voraussetzungen, Belege, Gegenargumente und Schlussfolgerungen prüfen. Kapitel
+sollen Erkenntnisfortschritt ermöglichen; keine dramatischen Konflikte erzwingen.
+Ein Manuskriptsatz ist noch kein geprüfter Beleg. Offene Quellenfragen markieren;
+ein vollständiger externer Faktencheck ist ein eigener Auftrag.
+
+Kürzen, Verschieben, Teilen, Zusammenführen oder Ergänzen nur als begründete
+Richtung vorschlagen. Keine neue Handlung, Behauptung oder Strukturentscheidung
+als bereits beschlossen darstellen.
+
+## Sprachlektorat
+
+Zuerst die vereinbarte Stimme anhand von Buchprofil und verfügbaren bestätigten
+Stilbeispielen verstehen. Verständlichkeit, Bezüge, Perspektive, Erzählzeit,
+Register, Rhythmus, Wortwahl, Bilder, Dialoge sowie Wiederholungen und
+Übererklärungen prüfen. Bei Sachtexten besonders Terminologie und verständliche
+Argumentationsschritte beachten.
+
+Wiederkehrende Muster mit repräsentativen Fundstellen zeigen; einen Einzelfall
+nicht als buchweites Muster ausgeben. Bewusste Fragmente, Dialekt, Wiederholung,
+Mehrdeutigkeit und ungewöhnlichen Rhythmus nicht automatisch glätten. Fehlende
+Stilvorgaben nicht durch eigene Vorlieben ersetzen. Bei möglichen
+Bedeutungsänderungen Rückfragen formulieren.
+
+## Schlusskorrektur
+
+Den vollständigen Text langsam und linear gegen die vereinbarten Sprach- und
+Schreibkonventionen prüfen: Rechtschreibung, Grammatik, Zeichensetzung, fehlende
+oder doppelte Wörter, Namen, Zahlen, Schreibweisen, Verweise, Überschriften,
+Absatz-/Szenenmarkierungen und nach Überarbeitungen verbliebene Textreste.
+Deutsch, Österreichisch, Schweizer Schreibweisen und andere Sprachvarianten
+nach Projektvorgabe behandeln; englische Konventionen nicht ungeprüft übertragen.
+
+Einzelne Fehler auffindbar nennen. Wiederkehrende Fehler bündeln, den Umfang
+kenntlich machen. Größere Struktur- oder Stimmprobleme gesondert melden, ohne
+sie still zu überarbeiten. Diese können ein positives Gesamtergebnis weiterhin
+verhindern. Ohne gerenderte Ausgabe keine Prüfung von Seitenumbrüchen,
+Silbentrennung, Satzspiegel oder Drucklayout behaupten.
+
+## Bericht und Ergebnis
+
+Den bestehenden [Prüfbericht](QUALITAETSSICHERUNG.md#prüfergebnis) verwenden und
+um Prüfart sowie eine kurze priorisierte Lektoratseinschätzung ergänzen:
+
+1. Buch, Textfassung, Prüfart, Umfang und tatsächlich gelesene Referenzen.
+2. Kurze Gesamteinschätzung; bei Bedarf benennen, was erhalten bleiben sollte.
+3. Befunde mit Fundstelle, Schweregrad, Begründung und Änderungsrichtung.
+4. Empfohlene Bearbeitungsreihenfolge, offene Autorentscheidungen sowie bereits
+   beauftragte und tatsächlich ausgeführte Korrekturen getrennt aufführen.
+5. Ergebnis mit Grenzen: **bestanden**, **bestanden mit Hinweisen** oder
+   **nicht bestanden**. Bei unzureichendem Material **nicht vollständig prüfbar**
+   und die fehlenden Teile nennen; kein positives Ergebnis behaupten.
+
+Das Ergebnis gilt nur für die benannte Prüfart und Fassung. Eine bestandene
+Schlusskorrektur belegt keine Strukturprüfung. Blockierende oder wesentliche
+ungelöste Probleme verhindern ein positives Ergebnis nach der Qualitätssicherung.
+Kein Prüfbericht setzt automatisch eine Autorenfreigabe oder einen Status.
+
+## Einbindung und Grenzen
+
+Die gemeinsame Fachquelle ist diese Anleitung mit ihrer englischen Fassung.
+Der kurze Repository-Skill `ghostwriter-lektorat` verweist darauf. Assistenten
+ohne native Skillunterstützung laden die Anleitung über die Repository-Regeln
+oder auf ausdrücklichen Auftrag. Die Dateien werden mit den Programmupdates
+verteilt; eine globale Skillinstallation ist nicht erforderlich. Automatische
+Auswahl, Dateizugriff und tatsächliche Befolgung sind vom Client abhängig und
+werden durch das Vorhandensein der Anleitung nicht nachgewiesen.
+
+Die Regeln sind für GhostWriter eigenständig formuliert. Die untersuchten
+[story-review-Ressourcen](https://github.com/haowjy/creative-writing-skills/tree/main/skills/story-review)
+lieferten methodische Anregungen zur Trennung der Prüfstufen und Priorisierung;
+es wurde kein fremdes Skillpaket installiert.
+
+---
+
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
