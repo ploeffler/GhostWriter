@@ -46,6 +46,15 @@ Mit **Session sichern** wird dieses Paket geschnürt bzw. ergänzt. Nach abgesch
 
 Eine grüne Speichermeldung darf nur nach bestätigter Übertragung erscheinen und muss ihren Umfang nennen. „Abschnitt gespeichert“ bedeutet nicht automatisch „Gespräch gesichert“. Eine Sitzungssicherung speichert Gesprächsarbeit; sie ändert kein Manuskript. Eine Übernahme ersetzt keine inhaltliche Freigabe. Reguläre Buchänderungen können bei bewusst eingeschaltetem „sofort übernehmen“ direkt übernommen werden; Änderungspakete zu Sitzungen brauchen weiterhin **Session übernehmen**.
 
+## Lektorat beauftragen
+
+- „Strukturlektorat für Kapitel 3.“
+- „Sprachlektorat für Abschnitt 2.3.“
+- „Schlusskorrektur für Kapitel 4.“
+
+Die [drei Prüfarten](LEKTORAT.md) liefern zunächst Befunde im Chat; sie ändern
+kein Manuskript und erteilen keine Freigabe.
+
 ## Beispielprompts zum Weiterarbeiten
 
 Diese Beispiele sind normale Arbeitsaufträge, keine Abkürzungen, die Freigaben umgehen:

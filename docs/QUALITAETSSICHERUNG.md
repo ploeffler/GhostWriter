@@ -16,6 +16,13 @@ Die Prüfung unterstützt die Autorin oder den Autor. Sie ersetzt weder die inha
 4. **Änderungen nachvollziehbar halten.** Probleme, Korrekturen, offene Punkte und Prüfergebnis dokumentieren.
 5. **Keine automatische Freigabe.** Ein positives Prüfergebnis ist eine Empfehlung. Die Freigabe bleibt eine ausdrückliche Entscheidung der Autorin oder des Autors.
 
+## Gezielte Prüfarten
+
+Für **Strukturlektorat**, **Sprachlektorat** und **Schlusskorrektur** die
+[Lektoratsanleitung](LEKTORAT.md) laden. Sie konkretisiert den Prüfauftrag;
+die allgemeinen Qualitäts- und Freigaberegeln gelten weiterhin. Ein positives
+Ergebnis gilt nur für die benannte Prüfart und Textfassung.
+
 ## Prüfumfang
 
 ### Abschnittsprüfung

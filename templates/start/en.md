@@ -3,6 +3,8 @@ $MARKER
 
 Generated during updates. Do not edit manually. Load detailed instructions only for the current task.
 
+Editorial review: load `docs/EDITORIAL-REVIEW.en.md` for focused reviews.
+
 ## Instance
 
 - Repository: `$REPO`; current branch: `$BRANCH`; default branch: `$DEFAULT_BRANCH`.
