@@ -1,0 +1,31 @@
+EXTERNAL ASSIGNMENT
+
+Assignment ID: {{short unique ID}}
+Task: {{research / brainstorming / drafting / revision / review / other}}
+Subject and scope: {{project and unit}}
+Source version: {{commit or version if available; otherwise date and description}}
+
+GOAL
+{{Concrete purpose and expected result}}
+
+CONTEXT AND SOURCE MATERIAL
+{{Only the necessary context, source text, confirmed information and sources. The external assistant may have no repository or previous-chat access. Distinguish facts, memories, interpretations and open questions.}}
+
+ALREADY ANSWERED
+{{Existing answers and decisions; do not ask again as if unknown}}
+
+OPEN QUESTIONS
+{{Relevant gaps and uncertainties; do not presume unknown causes or dates}}
+
+VOICE AND OUTPUT
+{{Perspective, tense, voice, language, form and approximate length; use suitable requirements for non-narrative work}}
+
+CREATIVE FREEDOM AND SOURCES
+{{Explicitly permitted additions and evidence requirements. Default: invent no new facts about real people or events. Disclose unavailable research or sources.}}
+
+WORKING MODE
+{{Dialogue or direct work; default: dialogue}}
+In dialogue mode, start with a brief orientation and one concrete open main question. Build on existing answers, avoid a rigid questionnaire and do not suggest unreported feelings or causes as facts. Keep uncertainty visible. When enough material is available, offer the result; on “Draft now”, produce it. In direct mode, clarify only decisive gaps or contradictions.
+
+BOUNDARIES
+This is external work for review. Do not change a repository or claim formal approval, publication or a merged pull request. Report only work actually performed and disclose missing access. Begin in the agreed mode.

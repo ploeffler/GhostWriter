@@ -48,10 +48,12 @@ Was je Aufgabe zurückkommt:
 
 Gut zu wissen:
 
-- **Ein Auftrag, ein Abschnitt.** Mische keine Abschnitte in einem Auftrag.
+- **Ein klar abgegrenzter Auftrag.** Standard ist ein Abschnitt. Für Kapitelaufträge gelten der externe Dialogablauf und die vorhandenen Kapitelvoraussetzungen; ganze Kapitel nicht im Chat ausgeben.
 - **Kosten:** Arbeit in Chat-Diensten über dein Abo erzeugt in GhostWriter keinen Kosteneintrag; GhostWriter erfasst nur zusätzliche KI-API-Kosten, die über das eigene Backend entstehen (ab Weg B). Was dich dein Abo kostet, kannst du im Formular **KI-Dienste** unter „Kosten pro Monat“ notieren.
 - **Keine stille Vertretung:** Ist Perplexity für die Recherche gewählt, recherchiert GhostWriter nicht heimlich selbst. Willst du es ausnahmsweise im aktuellen Chat machen, sag das ausdrücklich.
 - **Datenschutz:** Der Auftrag enthält Teile deines Buchs. Prüf bei Diensten mit unklarer Datenverarbeitung (Hinweis im Formular), ob du das möchtest.
+
+Für mehrere Gesprächsrunden statt einer einzelnen Antwort nutze den [externen KI-Dialog](EXTERNER-KI-DIALOG.md): Auftrag vorbereiten, Gespräch zurückbringen und Analyse mit Empfehlung erhalten.
 
 ## Weg 3: Lokale Modelle auf deinem Rechner
 

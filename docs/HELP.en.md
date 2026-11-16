@@ -11,6 +11,8 @@ Enter **Help** in the chat for a short list of commands and shortcuts for the cu
 | `Home` or `Library` | Show books |
 | `Overview` | Show the current book |
 | `Chapter 2` or `Section 2.3` | Open that location |
+| `Prepare an external AI dialogue for section 2.3` | Prepare the manual [external dialogue](EXTERNAL-AI-DIALOG.en.md) with assignment, context and open questions |
+| `This is the return from Provider A for section 2.3` | Review conversation and result; recommend next steps without automatically saving |
 | `New book: My title` | Open the new-book form |
 | `New chapter` | Open the new-chapter form |
 | `Save session` | Preserve conversation work in a pull request |
