@@ -28,6 +28,9 @@ Inhalt (ghostwriter.yml → cover, Texte in cover/rueckseite.md):
                Bild (cover.image, füllt die Vorderseite samt Beschnitt);
                Vorlage classic (Titel oben, Serifen), modern (Titel unten links,
                serifenlos), plain (alles mittig)
+               Optionale cover.text_boxes überschreiben einzelne Textbereiche;
+               image_mode: finished unterdrückt zusätzliche Vorderseitentexte.
+               Farben je Fläche: cover.panel_backgrounds (front, spine, back).
   Rücken       Autor und Titel, gedreht (nur wenn breit genug und, bei KDP,
                ab 79 Seiten); cover.spine_direction: down (von oben nach unten,
                Vorgabe, international üblich) oder up (von unten nach oben)
@@ -229,6 +232,10 @@ def cover_tex(base, config, dim, guides=False):
     author = esc(p.get('author') or '')
     bg, fg = color(cv.get('background'), '#1F2A44'), color(cv.get('text_color'), '#FFFFFF')
     s, b, w, h, sp = dim['slug'], dim['bleed'], dim['w'], dim['h'], dim['spine']
+    from cover_design import validate
+    errors = validate(cv, w, h)
+    if errors:
+        raise SystemExit('Covergestaltung ungültig: ' + '; '.join(errors))
     W, H = dim['total_w'] + 2 * s, dim['total_h'] + 2 * s
     back_x, spine_x, front_x = s + b, s + b + w, s + b + w + sp
     y0 = s + b
@@ -239,10 +246,19 @@ def cover_tex(base, config, dim, guides=False):
          f'\\setmainfont{{{FONTS["serif"]}}}\\setsansfont{{{FONTS["sans"]}}}',
          f'\\newfontfamily\\headfont{{{head_font}}}',
          f'\\definecolor{{gwbg}}{{HTML}}{{{bg}}}\\definecolor{{gwfg}}{{HTML}}{{{fg}}}',
+         '\\newsavebox{\\gwtextbox}',
          '\\pagestyle{empty}\\setlength{\\parindent}{0pt}\\setlength{\\parskip}{0.55em}',
          '\\begin{document}\\noindent',
          '\\begin{tikzpicture}[remember picture,overlay,shift={(current page.south west)}]',
          f'\\fill[gwbg] ({s:.2f}mm,{s:.2f}mm) rectangle ({W - s:.2f}mm,{H - s:.2f}mm);']
+    # Die übernommene Farbe nur auf ausdrücklich gewählte Flächen anwenden.
+    panels = {'back': (s, spine_x), 'spine': (spine_x, front_x), 'front': (front_x, W - s)}
+    for panel, (left, right) in panels.items():
+        value = (cv.get('panel_backgrounds') or {}).get(panel)
+        if value is None:
+            value = cv.get('background') if panel in cv.get('background_targets', list(panels)) else '#1F2A44'
+        L += [f'\\definecolor{{gw{panel}bg}}{{HTML}}{{{color(value, "#1F2A44")}}}',
+              f'\\fill[gw{panel}bg] ({left:.2f}mm,{s:.2f}mm) rectangle ({right:.2f}mm,{H - s:.2f}mm);']
     # Vorderseite: Bild füllt Vorderseite samt Beschnitt (rechts, oben, unten), zugeschnitten
     img = cv.get('image')
     if img and (base / img).is_file():
@@ -264,14 +280,52 @@ def cover_tex(base, config, dim, guides=False):
                 f'({x:.2f}mm,{y:.2f}mm) {{\\hyphenpenalty=10000{font}\\fontsize{{{size}}}{{{size * 1.2:.1f}}}\\selectfont {text}\\par}};')
     mid = front_x + w / 2
     big = 28 if w >= 140 else 24
+    defaults = {
+        'title': {'x': SAFE, 'y': h * .34, 'width': tw, 'height': 40, 'font_size': big, 'bold': True},
+        'subtitle': {'x': SAFE, 'y': h * .34 + big * .5 + 8, 'width': tw, 'height': 25, 'font_size': 13},
+        'author': {'x': SAFE, 'y': SAFE + 4, 'width': tw, 'height': 20, 'font_size': 15}}
+    boxes = cv.get('text_boxes') or {}
+    def custom(part, text):
+        box = dict(defaults[part], **boxes[part])
+        if not text or not box.get('visible', True):
+            return ''
+        if box.get('break_after'):
+            # Dynamische Projektdaten behalten; nur Umbruchpositionen speichern.
+            raw = p.get(part) or (p.get('working_title') if part == 'title' else '') or ''
+            words = raw.split()
+            if any(i >= len(words) for i in box['break_after']):
+                raise SystemExit(f'Covertext {part}: Umbruchposition passt nicht mehr zum aktuellen Text.')
+            text = ' '.join(esc(word) + ('\\\\' if i in box['break_after'] else '')
+                            for i, word in enumerate(words, 1))
+        size = box['font_size']
+        font = '\\sffamily' if box.get('font', 'sans' if tpl == 'modern' else 'serif') == 'sans' else '\\rmfamily'
+        align = {'left': '\\raggedright', 'center': '\\centering', 'right': '\\raggedleft'}[box.get('align', 'center')]
+        weight = '\\bfseries' if box.get('bold', False) else ''
+        fg = color(box.get('color'), cv.get('text_color') or '#FFFFFF')
+        return (f'\\definecolor{{gwpart}}{{HTML}}{{{fg}}}\n'
+                f'\\node[anchor=north west,inner sep=0,text=gwpart] at '
+                f'({front_x + box["x"]:.2f}mm,{y0 + h - box["y"]:.2f}mm) {{'
+                f'\\sbox{{\\gwtextbox}}{{\\begin{{minipage}}{{{box["width"]:.2f}mm}}'
+                f'\\hyphenpenalty=10000{font}{weight}\\fontsize{{{size}}}{{{size * 1.2:.2f}}}\\selectfont '
+                f'{align} {text}\\par\\end{{minipage}}}}\n'
+                f'\\ifdim\\dimexpr\\ht\\gwtextbox+\\dp\\gwtextbox\\relax>{box["height"]:.2f}mm '
+                f'\\errmessage{{Cover text overflow: {part}; increase area or reduce font size}}\\fi\n'
+                f'\\usebox{{\\gwtextbox}}}};')
+    # Bestehende Vorlagen unverändert verwenden; nur angegebene Teile ersetzen.
+    original = {'title': title, 'subtitle': subtitle, 'author': author}
+    finished = cv.get('image_mode') == 'finished'
+    title, subtitle, author = [original[k] if k not in boxes and not finished else ''
+                               for k in ('title', 'subtitle', 'author')]
     if tpl == 'modern':
-        L.append(node(fx, y0 + h * 0.42, 'south west', big + 4, f'\\bfseries {title}', align='left'))
+        if title:
+            L.append(node(fx, y0 + h * 0.42, 'south west', big + 4, f'\\bfseries {title}', align='left'))
         if subtitle:
             L.append(node(fx, y0 + h * 0.42 - 3, 'north west', 13, subtitle, align='left'))
         if author:
             L.append(node(fx, y0 + h - SAFE, 'north west', 14, author, align='left'))
     elif tpl == 'plain':
-        L.append(node(mid, y0 + h * 0.55, 'south', big, title))
+        if title:
+            L.append(node(mid, y0 + h * 0.55, 'south', big, title))
         if subtitle:
             L.append(node(mid, y0 + h * 0.55 - 4, 'north', 13, subtitle, font='\\itshape'))
         if author:
@@ -279,9 +333,14 @@ def cover_tex(base, config, dim, guides=False):
     else:   # classic
         if author:
             L.append(node(mid, y0 + h - SAFE - 4, 'north', 15, author))
-        L.append(node(mid, y0 + h * 0.66, 'north', big, f'\\bfseries {title}'))
+        if title:
+            L.append(node(mid, y0 + h * 0.66, 'north', big, f'\\bfseries {title}'))
         if subtitle:
             L.append(node(mid, y0 + h * 0.66 - big * 0.5 - 8, 'north', 13, subtitle, font='\\itshape'))
+    if not finished:
+        for part in boxes:
+            L.append(custom(part, original[part]))
+    title, subtitle, author = [original[k] for k in ('title', 'subtitle', 'author')]
     # Rücken: gedreht, von oben nach unten lesbar
     if dim['spine_text']:
         size = max(6, min(11, (sp - 2 * dim['spine_margin']) * 2.2))
@@ -353,6 +412,13 @@ def front_only(config):
 
 
 def build(base, config, pages, out, front_jpg=None, guides=False):
+    sources = {(base / value).resolve() for key, value in (config.get('cover') or {}).items()
+               if key in ('image', 'author_image') and value}
+    outputs = [Path(out).resolve()]
+    if front_jpg:
+        outputs.append(Path(front_jpg).with_suffix('.jpg').resolve())
+    if any(path in sources for path in outputs):
+        raise SystemExit('Coverausgabe darf kein Originalbild überschreiben. Anderen Ausgabepfad wählen.')
     dim = dimensions(config, pages)
     tex = cover_tex(base, config, dim, guides)
     with tempfile.TemporaryDirectory() as tmp:
@@ -362,6 +428,9 @@ def build(base, config, pages, out, front_jpg=None, guides=False):
                                capture_output=True, text=True)
             if r.returncode:
                 raise SystemExit('Umschlag konnte nicht gesetzt werden:\n' + r.stdout[-3000:])
+            log = (Path(tmp) / 'umschlag.log').read_text(errors='replace')
+            if (config.get('cover') or {}).get('text_boxes') and re.search(r'Overfull \\[hv]box', log):
+                raise SystemExit('Covertext passt nicht in den Textbereich. Breite/Höhe vergrößern oder Schrift verkleinern.')
         Path(out).write_bytes((Path(tmp) / 'umschlag.pdf').read_bytes())
     if front_jpg:
         dpi = 150
@@ -387,9 +456,14 @@ def main(argv):
     ap.add_argument('--out')
     ap.add_argument('--front-jpg')
     ap.add_argument('--guides', action='store_true')
+    ap.add_argument('--preview', action='store_true', help='Vorderseitenvorschau mit Endformat, ohne Schnittmarken; --out und --front-jpg angeben')
     ap.add_argument('--info', action='store_true')
     a = ap.parse_args(argv[1:])
     base, config = load(a.project)
+    if a.preview:
+        if not a.out or not a.front_jpg:
+            ap.error('--preview benötigt --out und --front-jpg')
+        config = front_only(config)
     if a.info or not a.out:
         dim = dimensions(config, a.pages)
     else:

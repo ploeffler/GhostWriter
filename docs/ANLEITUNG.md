@@ -98,6 +98,51 @@ Den gesamten redaktionellen Kreislauf und die Git-Wege – einschließlich der A
 - **Updates:** kommen automatisch, ändern nur Programmdateien und nie dein Buch ([Updates](UPDATES.md)).
 - **Schon ein Buch aus v0.5?** Es läuft unverändert weiter. Wer mehrere Bücher möchte, wandelt das Repository einmal in eine Bibliothek um ([Updates → Von v0.5 auf v0.6](UPDATES.md#von-v05-auf-v06)).
 
+## Grafische Cover gestalten
+
+Sage im Chat beispielsweise: „Übernimm das Cremeweiß oben aus dem Coverbild für Rücken und Rückseite. Setze Titel, Untertitel und Autor in den freien oberen Bereich.“ Der Assistent zeigt den Farbwert, die betroffenen Flächen und einen Einstellungsvorschlag. Prüfe die Vorschau mit den aktuellen Buchtexten; erst nach deinem Speicherauftrag werden die Einstellungen für dieses Buch übernommen. Bildanalyse und Vorschau allein speichern nichts. Ein grafischer Verschiebeeditor ist nicht enthalten; die Textbereiche werden im Chat mit Zahlen eingestellt.
+
+Titel, Untertitel und Autor bleiben mit den Projektdaten verbunden. Je Textteil sind Position, Breite, maximale Höhe, Ausrichtung, Schriftgröße, Serifenschrift/serifenlose Schrift, Fettdruck, Farbe, Umbruch und Sichtbarkeit einstellbar. Maße gelten in Millimetern ab der linken oberen Schnittkante der Vorderseite, Schriftgrößen in Punkt. Der Sicherheitsrand beträgt 10 mm. Nicht angepasste Textteile verwenden weiter die ausgewählte Vorlage. Ohne neue Angaben bleiben `classic`, `modern` und `plain` erhalten.
+
+Die Farbauswahl kann eine Stelle im Originalbild oder Vorschlagsfarben einschließlich der Bildecken verwenden. Koordinaten der Bildstelle liegen zwischen 0 und 1, ab links oben, **vor dem automatischen Bildbeschnitt**. Der sichtbare Hex-Farbwert lässt sich korrigieren. Farben können je Fläche gesetzt werden; vorhandene Farben anderer Flächen bleiben erhalten. Transparente Bildstellen werden für die Farbauswahl auf Weiß dargestellt.
+
+**Bereits fertig beschriftetes Bild:** Wähle `image_mode: finished`. Dann erscheint auf der Vorderseite keine zusätzliche Beschriftung; Rücken und Rückseite bleiben separat gesetzt. `motif` ist die Vorgabe für ein unbeschriftetes Motiv. Das Originalbild wird in beiden Fällen unverändert aufbewahrt. Eine automatische Erkennung vorhandener Schrift findet nicht statt.
+
+**Vorschau und Grenzen:** Vorderseitenvorschau, Druckumschlag und EPUB-Cover verwenden denselben Satzweg. Das Bild wird proportional füllend zugeschnitten; prüfe freie Flächen deshalb in der tatsächlichen Vorschau. Zu hohe Textblöcke und nicht passende Wörter stoppen die Ausgabe statt unbemerkt über den Textbereich zu laufen. Verkleinere dann die Schrift oder ändere den Bereich. Kontrast, Motivüberlagerungen und die Eignung des Bildausschnitts prüfst du visuell. Die Vorschau ist ein JPEG mit 150 dpi ohne Beschnitt; Druckausgabe ist ein PDF mit Beschnitt. Die Rückenbreite braucht weiterhin korrekte Buch-/Druckdaten. Vorschau und Hilfslinien ersetzen keine Druckfreigabe. DOCX und das normale Innenteil-PDF erhalten durch diese Einstellungen kein Cover.
+
+### Lokale Werkzeuge für die Covergestaltung
+
+Die allgemeinen Werkzeuge benötigen kein eigenes Buchskript. Farbauswahl benötigt Pillow; Satz benötigt XeLaTeX mit TikZ/TeX Gyre, Rastervorschau außerdem Poppler (`pdftoppm`). Die Coverdaten liegen in `ghostwriter.yml`; `project.title`, `project.subtitle` und `project.author` bleiben die Textquellen.
+
+```sh
+# Nur lesen: Farben vorschlagen oder eine Bildstelle abfragen
+python scripts/cover_design.py BUCH colors
+python scripts/cover_design.py BUCH colors --point 0.5 0.1
+python scripts/cover_design.py BUCH show
+# Erst nach Speicherauftrag: nur die genannten Flächen ändern
+python scripts/cover_design.py BUCH set '{"panel_backgrounds":{"spine":"#EEDDCB","back":"#EEDDCB"}}'
+# Ungespeicherten Vorschlag prüfen; Originaleinstellungen bleiben erhalten
+python scripts/cover_design.py BUCH preview '{"panel_backgrounds":{"back":"#EEDDCB"}}' --pages 200 --out /tmp/cover-preview.pdf --front-jpg /tmp/cover-preview.jpg
+```
+
+Ein vollständiges Beispiel für die drei Textbereiche (A5) steht unten. Der Assistent kann diese Angaben über `cover_design.py BUCH set` als JSON-Patch übernehmen. `preview` prüft einen ungespeicherten JSON-Vorschlag im Speicher; Vorschauausgaben außerhalb des Originalbilds ablegen. Keine Programmdateien für ein einzelnes Buch ändern.
+
+```yaml
+cover:
+  image: cover/motiv.png
+  image_mode: motif
+  panel_backgrounds:
+    spine: '#EEDDCB'
+    back: '#EEDDCB'
+  text_boxes:
+    title: {x: 12, y: 12, width: 124, height: 24, font_size: 24, color: '#312A24', align: center, bold: true}
+    subtitle: {x: 12, y: 39, width: 124, height: 12, font_size: 13, color: '#312A24'}
+    author: {x: 12, y: 55, width: 124, height: 12, font_size: 14, color: '#312A24'}
+```
+
+`visible: false` blendet einen Textteil aus. `font: serif` oder `sans` wählt die Schriftgruppe. `break_after: [2]` erzwingt nach dem zweiten Wort einen Umbruch; passt die Position nach einer Textänderung nicht mehr, stoppt die Ausgabe mit einem Hinweis. Sonst erfolgt der Umbruch anhand der Breite. `background_targets` begrenzt die Verwendung von `background` auf `front`, `spine` und/oder `back`; ausdrücklich gespeicherte `panel_backgrounds` haben Vorrang. Nicht ausgewählte Flächen ohne eigenen Farbwert verwenden die Standardfarbe. Das Bild überdeckt weiterhin die Vorderseitenfarbe. Ein JSON-Patch ändert nur genannte Felder; Textbereiche und Flächenfarben werden einzeln zusammengeführt. `null` entfernt eine individuelle Angabe, etwa `{"text_boxes":{"title":null}}` für die Rückkehr zur Vorlage.
+
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

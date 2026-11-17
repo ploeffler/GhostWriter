@@ -2277,6 +2277,17 @@ def output_view(base, config, args):
               view_message('settings.spine_direction_row', p_a=view_message('settings.spine_up') if cv.get("spine_direction") == "up" else view_message('settings.spine_down')),
               '', view_message('settings.cover_note'),
               '', view_message('settings.form_hint')]
+    heading = 'Covergestaltung' if UI.get('language') != 'en' else 'Cover design'
+    hint = ('Textbereiche: x/y ab linker oberer Schnittkante, Breite/Höhe in mm, Schrift in pt. '
+            'Bildfarben und Gestaltung auf Wunsch im Chat anpassen; Vorschau vor dem Speichern prüfen. '
+            'Fertiges Coverbild: keine zusätzliche Beschriftung auf der Vorderseite.'
+            if UI.get('language') != 'en' else
+            'Text areas: x/y from the top left trim edge, width/height in mm, font in pt. '
+            'Ask in chat to adjust image colors or layout; check a preview before saving. '
+            'Finished cover image: no additional front-cover text.')
+    lines += ['', f'**{heading}**', '', hint, '', '```json',
+              json.dumps({k: cv[k] for k in ('image_mode', 'background_targets', 'panel_backgrounds', 'text_boxes') if k in cv},
+                         ensure_ascii=False, indent=2), '```']
     return '\n'.join(lines) + '\n'
 
 

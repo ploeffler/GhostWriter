@@ -140,13 +140,283 @@
       "type": "object",
       "description": "Umschlag (#68): Vorlage, Farben, Bilder, Preis; Texte der Rückseite in cover/rueckseite.md",
       "properties": {
-        "template": {"enum": ["classic", "modern", "plain"]},
-        "background": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
-        "text_color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
-        "image": {"type": "string", "pattern": "^cover/[^/]+\\.(jpe?g|png)$"},
-        "author_image": {"type": "string", "pattern": "^cover/[^/]+\\.(jpe?g|png)$"},
-        "price": {"type": "string"},
-        "spine_direction": {"enum": ["down", "up"]}
+        "template": {
+          "enum": [
+            "classic",
+            "modern",
+            "plain"
+          ]
+        },
+        "background": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "text_color": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "image": {
+          "type": "string",
+          "pattern": "^cover/[^/]+\\.(jpe?g|png)$"
+        },
+        "author_image": {
+          "type": "string",
+          "pattern": "^cover/[^/]+\\.(jpe?g|png)$"
+        },
+        "price": {
+          "type": "string"
+        },
+        "spine_direction": {
+          "enum": [
+            "down",
+            "up"
+          ]
+        },
+        "image_mode": {
+          "enum": [
+            "motif",
+            "finished"
+          ]
+        },
+        "background_targets": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "front",
+              "spine",
+              "back"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "panel_backgrounds": {
+          "type": "object",
+          "properties": {
+            "front": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$"
+            },
+            "spine": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$"
+            },
+            "back": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "text_boxes": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "object",
+              "required": [
+                "x",
+                "y",
+                "width",
+                "height"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 420
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 420
+                },
+                "width": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 420
+                },
+                "height": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 420
+                },
+                "font_size": {
+                  "type": "number",
+                  "minimum": 6,
+                  "maximum": 120
+                },
+                "align": {
+                  "enum": [
+                    "left",
+                    "center",
+                    "right"
+                  ]
+                },
+                "color": {
+                  "type": "string",
+                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                },
+                "visible": {
+                  "type": "boolean"
+                },
+                "font": {
+                  "enum": [
+                    "serif",
+                    "sans"
+                  ]
+                },
+                "bold": {
+                  "type": "boolean"
+                },
+                "break_after": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "uniqueItems": true
+                }
+              }
+            },
+            "subtitle": {
+              "type": "object",
+              "required": [
+                "x",
+                "y",
+                "width",
+                "height"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 420
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 420
+                },
+                "width": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 420
+                },
+                "height": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 420
+                },
+                "font_size": {
+                  "type": "number",
+                  "minimum": 6,
+                  "maximum": 120
+                },
+                "align": {
+                  "enum": [
+                    "left",
+                    "center",
+                    "right"
+                  ]
+                },
+                "color": {
+                  "type": "string",
+                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                },
+                "visible": {
+                  "type": "boolean"
+                },
+                "font": {
+                  "enum": [
+                    "serif",
+                    "sans"
+                  ]
+                },
+                "bold": {
+                  "type": "boolean"
+                },
+                "break_after": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "uniqueItems": true
+                }
+              }
+            },
+            "author": {
+              "type": "object",
+              "required": [
+                "x",
+                "y",
+                "width",
+                "height"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 420
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 420
+                },
+                "width": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 420
+                },
+                "height": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 420
+                },
+                "font_size": {
+                  "type": "number",
+                  "minimum": 6,
+                  "maximum": 120
+                },
+                "align": {
+                  "enum": [
+                    "left",
+                    "center",
+                    "right"
+                  ]
+                },
+                "color": {
+                  "type": "string",
+                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                },
+                "visible": {
+                  "type": "boolean"
+                },
+                "font": {
+                  "enum": [
+                    "serif",
+                    "sans"
+                  ]
+                },
+                "bold": {
+                  "type": "boolean"
+                },
+                "break_after": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "uniqueItems": true
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     },

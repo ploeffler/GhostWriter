@@ -90,6 +90,51 @@ The assistant presents the release notes for approval and prepares a separate ed
 - **Updates:** Program updates are separate from book content; see [updates](UPDATES.en.md).
 - **A v0.5 single book:** It can continue as a single book. To manage multiple books in one repository, the [updates guide](UPDATES.en.md#convert-an-existing-single-book-into-a-library) describes the optional conversion.
 
+## Design graphic covers
+
+Ask in chat, for example: “Use the cream color at the top of the cover image for the spine and back. Place the title, subtitle and author in the free upper area.” The assistant shows the hex color, affected panels and proposed settings. Check a preview with the current book text, then explicitly ask to save the settings for this book. Analysis and preview alone save nothing. Text areas are adjusted numerically in chat; a graphical drag editor is not included.
+
+Title, subtitle and author remain linked to project metadata. Each text part supports position, width, maximum height, alignment, font size, serif/sans font, bold, color, wrapping and visibility. Coordinates are millimeters from the top left trim edge of the front cover; font sizes are points. A 10 mm safety margin applies. Uncustomized parts keep the selected template. Existing `classic`, `modern` and `plain` covers work without new settings.
+
+Choose a color from an original-image location or suggested colors including image corners. Location coordinates range from 0 to 1 from the top left, **before automatic cropping**. The visible hex value can be corrected. Set colors per panel without changing other panel colors. Transparent areas are composited over white for color sampling.
+
+**Already lettered image:** Select `image_mode: finished` to suppress additional front-cover text. Spine and back remain separately typeset. `motif` is the default for unlettered artwork. The original image is preserved in both modes. Existing lettering is not detected automatically.
+
+**Preview and limits:** Front preview, print wrap and EPUB cover share the same renderer. The image is scaled to fill and cropped; check the actual preview. Text exceeding the area height or words exceeding its width stop output. Reduce the font or adjust the area. Visually check contrast, overlap with artwork and the crop. Preview is a 150 dpi JPEG without bleed; print output is a PDF with bleed. Spine width still requires accurate book/print data. Preview and guides do not grant print approval. DOCX and ordinary interior PDFs do not gain a cover from these settings.
+
+### Local cover tools
+
+The general tools require no book-specific script. Color sampling needs Pillow; typesetting needs XeLaTeX with TikZ/TeX Gyre; raster preview also needs Poppler (`pdftoppm`). Settings live in `ghostwriter.yml`; text comes from `project.title`, `project.subtitle` and `project.author`.
+
+```sh
+# Read only: suggestions, sampled location, current settings
+python scripts/cover_design.py BOOK colors
+python scripts/cover_design.py BOOK colors --point 0.5 0.1
+python scripts/cover_design.py BOOK show
+# After an explicit save request: change only the named panels
+python scripts/cover_design.py BOOK set '{"panel_backgrounds":{"spine":"#EEDDCB","back":"#EEDDCB"}}'
+# Preview an unsaved proposal; original settings remain unchanged
+python scripts/cover_design.py BOOK preview '{"panel_backgrounds":{"back":"#EEDDCB"}}' --pages 200 --out /tmp/cover-preview.pdf --front-jpg /tmp/cover-preview.jpg
+```
+
+Example text areas for A5 are shown below. The assistant can save these using `cover_design.py BOOK set` with a JSON patch. `preview` checks an unsaved JSON proposal in memory; write preview output away from the original image. Keep book-specific changes out of program files.
+
+```yaml
+cover:
+  image: cover/motif.png
+  image_mode: motif
+  panel_backgrounds:
+    spine: '#EEDDCB'
+    back: '#EEDDCB'
+  text_boxes:
+    title: {x: 12, y: 12, width: 124, height: 24, font_size: 24, color: '#312A24', align: center, bold: true}
+    subtitle: {x: 12, y: 39, width: 124, height: 12, font_size: 13, color: '#312A24'}
+    author: {x: 12, y: 55, width: 124, height: 12, font_size: 14, color: '#312A24'}
+```
+
+`visible: false` hides a part. `font: serif` or `sans` selects its font family. `break_after: [2]` forces a break after word two; output stops if a metadata change makes the break position invalid. Otherwise width controls wrapping. `background_targets` limits `background` to `front`, `spine` and/or `back`; explicit `panel_backgrounds` take precedence. Unselected panels without a specific color use the default color. The image still covers the front background. JSON patches modify only named fields and merge individual text areas and panel colors. `null` removes an override, for example `{"text_boxes":{"title":null}}` restores the template title.
+
+
 ---
 
 <p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
