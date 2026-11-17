@@ -127,14 +127,14 @@ jobs:
           node-version: '22'
 
       - name: Satzpakete – Cache-Schlüssel
-        # PDF-/EPUB-Tests brauchen pandoc, XeLaTeX und poppler-utils (wie proof/edition/omnibus);
+        # PDF-/EPUB-Tests brauchen pandoc, XeLaTeX und poppler-utils (wie proof/edition/omnibus), qpdf für die Vorderseite im PDF (#324);
         # ohne sie werden diese Tests übersprungen. Nur im Hauptrepository.
         if: steps.kind.outputs.program == '1'
         id: tex
         env:
           PAKETE: >-
             pandoc texlive-xetex texlive-latex-recommended texlive-latex-extra texlive-lang-german
-            texlive-fonts-recommended fonts-texgyre lmodern poppler-utils
+            texlive-fonts-recommended fonts-texgyre lmodern poppler-utils qpdf
         run: |
           echo "pakete=$PAKETE" >> "$GITHUB_OUTPUT"
           echo "key=satz-${ImageOS:-ubuntu}-$(echo "$PAKETE" | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"

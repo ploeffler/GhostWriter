@@ -460,6 +460,14 @@ def view_labels(name):
                     2: view_message('labels.OUTPUT_LABELS.toc_depth.1.2'),
                 },
             ),
+            'pdf_cover': (
+                view_message('labels.OUTPUT_LABELS.pdf_cover.0'),
+                {
+                    'proof': view_message('labels.OUTPUT_LABELS.pdf_cover.1.proof'),
+                    'always': view_message('labels.OUTPUT_LABELS.pdf_cover.1.always'),
+                    'never': view_message('labels.OUTPUT_LABELS.pdf_cover.1.never'),
+                },
+            ),
             'formats': (
                 view_message('labels.OUTPUT_LABELS.formats.0'),
                 {
@@ -525,7 +533,7 @@ def view_labels(name):
             ),
             (view_message('labels.OUTPUT_GROUPS.2.0'), ['line_spacing', 'paragraph', 'hyphenation']),
             (view_message('labels.OUTPUT_GROUPS.3.0'), ['title_page', 'title_style', 'imprint', 'toc', 'toc_depth', 'proof_mark']),
-            (view_message('labels.OUTPUT_GROUPS.4.0'), ['formats']),
+            (view_message('labels.OUTPUT_GROUPS.4.0'), ['formats', 'pdf_cover']),
         ]
     if name == 'PUBLICATION_LABELS':
         return [
@@ -2056,7 +2064,8 @@ TYPESETTING_DEFAULT = {'page_size': 'a5', 'font': 'serif', 'font_size': 11, 'tit
                       'heading_font': 'same', 'margins': 'standard', 'line_spacing': 1.1, 'paragraph': 'indent',
                       'hyphenation': True, 'chapter_start': 'any', 'running_heads': 'sections',
                       'page_numbers': 'header', 'initials': False, 'formats': ['pdf', 'docx', 'epub'],
-                      'glossary_marks': 'arrow', 'title_style': 'classic', 'proof_mark': 'line'}
+                      'glossary_marks': 'arrow', 'title_style': 'classic', 'proof_mark': 'line',
+                      'pdf_cover': 'proof'}
 # Werte → deutsche Bezeichnung (Formular „Ausgabe“, Textfassung)
 OUTPUT_LABELS = {
     'page_size': ('Seitenformat', {'a5': 'A5 (14,8 × 21 cm)', '12x19': '12 × 19 cm', '13.5x21.5': '13,5 × 21,5 cm', 'a4': 'A4'}),
@@ -2081,6 +2090,8 @@ OUTPUT_LABELS = {
                                                    'watermark': 'Rahmen und Wasserzeichen auf der Titelseite',
                                                    'watermark_all': 'Rahmen und Wasserzeichen auf allen Seiten'}), 'toc': ('Inhaltsverzeichnis', None),
     'toc_depth': ('Verzeichnistiefe', {1: 'nur Kapitel', 2: 'Kapitel und Abschnitte'}),
+    'pdf_cover': ('Vorderseite im PDF', {'proof': 'nur im Probedruck', 'always': 'im Probedruck und in Auflagen',
+                                          'never': 'nie'}),
     'formats': ('Formate einer Auflage', {'pdf': 'PDF (Bildschirm)', 'pdf_print': 'Druck-PDF (Innenteil)',
                                           'booklet': 'Broschüre zum Selbstdrucken', 'cover': 'Umschlag-PDF', 'docx': 'DOCX', 'epub': 'EPUB'}),
 }
@@ -2215,7 +2226,7 @@ OUTPUT_GROUPS = [('Seite', ['page_size', 'margins', 'chapter_start', 'running_he
                  ('Schrift', ['font', 'font_size', 'heading_font', 'initials', 'glossary_marks']),
                  ('Absatz', ['line_spacing', 'paragraph', 'hyphenation']),
                  ('Titelei', ['title_page', 'title_style', 'imprint', 'toc', 'toc_depth', 'proof_mark']),
-                 ('Formate', ['formats'])]
+                 ('Formate', ['formats', 'pdf_cover'])]
 PUBLICATION_LABELS = [('publisher', 'Verlag', '„Selbstverlag“ oder Name des Verlags'),
                       ('isbn_print', 'ISBN Druckausgabe', 'ISBN-13 mit Prüfziffer'),
                       ('isbn_ebook', 'ISBN E-Book', 'ISBN-13 mit Prüfziffer'),
@@ -2272,6 +2283,7 @@ def output_view(base, config, args):
               view_message('settings.background_row', p_a=cv.get("background", "#1F2A44")),
               view_message('settings.text_color_row', p_a=cv.get("text_color", "#FFFFFF")),
               view_message('settings.cover_image_row', p_a=cv.get("image") or "–"),
+              view_message('settings.front_row', p_a=cv.get("front") or "–"),
               view_message('settings.author_image_row', p_a=cv.get("author_image") or "–"),
               view_message('settings.price_row', p_a=cv.get("price") or "–"),
               view_message('settings.spine_direction_row', p_a=view_message('settings.spine_up') if cv.get("spine_direction") == "up" else view_message('settings.spine_down')),

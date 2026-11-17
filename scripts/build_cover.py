@@ -38,6 +38,13 @@ Inhalt (ghostwriter.yml → cover, Texte in cover/rueckseite.md):
                cover/rueckseite.md, optional Autorenbild (cover.author_image),
                ISBN der Druckausgabe als EAN-13-Strichcode, Preis (cover.price)
 
+Vorderseite allein (#324, build_front): für Seite 1 des Bildschirm-PDF und das
+EPUB-Cover, im Buchformat ohne Beschnitt. Quelle ist cover.front (fertige eigene
+Vorderseite als PDF, JPG oder PNG; unverändert, ohne zusätzlichen Text) oder die
+Covervorlage. Beschnitt einer PDF (TrimBox, sonst ringsum bzw. oben, unten und
+außen bis 6,5 mm) wird weggelassen; bis 2 % abweichendes Seitenverhältnis wird
+füllend skaliert, mehr bricht ab, statt zu verzerren.
+
 --guides zeichnet Schnitt-, Falz- und Sicherheitslinien ein (Probedruck);
 print.crop_marks legt einen Rand mit Schnittmarken um den Umschlag.
 --front-jpg schreibt die Vorderseite (ohne Beschnitt) als Bild fürs EPUB-Cover
@@ -409,6 +416,141 @@ def front_only(config):
     else:
         cfg['print'] = dict(config['print'], crop_marks=False)
     return cfg
+
+
+# ---------- Vorderseite im Bildschirm-PDF und als EPUB-Cover (#324) ----------
+
+FRONT_TOLERANCE = 0.02   # Seitenverhältnis: bis 2 % Abweichung füllend zuschneiden, darüber nicht verzerren, sondern melden
+MAX_BLEED = 6.5          # mm je Kante, die eine fertige PDF-Vorderseite als Beschnitt haben darf
+BP = 72 / 25.4           # PostScript-Punkte je mm
+
+
+def mm(value):
+    return f'{value:.1f}'.replace('.', ',')
+
+
+def front_source(base, config):
+    """Quelle der Vorderseite: (art, Pfad, Hinweise). art = 'file' (fertige eigene Vorderseite, cover.front),
+    'template' (Covervorlage aus `cover`) oder None (nichts hinterlegt)."""
+    cv = config.get('cover') or {}
+    template = any(k != 'front' for k in cv)
+    notes = []
+    if cv.get('front'):
+        path = base / cv['front']
+        if path.is_file():
+            return 'file', path, notes
+        notes.append(f'Eigene Vorderseite {cv["front"]} fehlt' + ('; verwendet die Covervorlage' if template else ''))
+    return ('template' if template else None), None, notes
+
+
+def pdf_size(path):
+    """Größe der ersten Seite einer PDF in mm: TrimBox (Endformat), ohne sie MediaBox (pdfinfo zeigt dann dieselbe)."""
+    out = subprocess.run(['pdfinfo', '-box', str(path)], capture_output=True, text=True).stdout
+    m = re.search(r'TrimBox:\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)', out)
+    if not m:
+        raise SystemExit(f'{path.name}: Seitengröße nicht lesbar (beschädigte PDF?)')
+    x0, y0, x1, y1 = (float(v) for v in m.groups())
+    return (x1 - x0) / BP, (y1 - y0) / BP
+
+
+def front_fit(sw, sh, w, h, physical=True, name='Vorderseite'):
+    """Sichtbarer Ausschnitt der Vorderseite (sw × sh) auf der Buchseite (w × h mm): (links, unten, rechts, oben)
+    in Einheiten der Quelle, und ein Hinweis. physical: Quelle in mm (PDF), dann wird Beschnitt erkannt
+    (ringsum oder oben, unten und außen); sonst Pixel (Bild), dann zählt nur das Seitenverhältnis.
+    Weicht das Seitenverhältnis um mehr als FRONT_TOLERANCE ab, bricht es ab, statt zu verzerren."""
+    if physical:
+        dw, dh = sw - w, sh - h
+        if abs(dw) <= 0.5 and abs(dh) <= 0.5:
+            return (0, 0, 0, 0), ''
+        if 0 < dh <= 2 * MAX_BLEED:
+            b = dh / 2
+            if abs(dw - dh) <= 0.5:
+                return (b, b, b, b), f'{name}: Beschnitt {mm(b)} mm ringsum weggelassen'
+            if abs(dw - b) <= 0.5:   # Vorderseite eines Umschlags: am Rücken kein Beschnitt
+                return (0, b, b, b), f'{name}: Beschnitt {mm(b)} mm oben, unten und außen weggelassen'
+    ratio = (sw / sh) / (w / h)
+    shown = f'{mm(sw)} × {mm(sh)} mm' if physical else f'{sw} × {sh} Pixel'
+    if abs(ratio - 1) > FRONT_TOLERANCE:
+        raise SystemExit(f'{name} ({shown}) passt nicht zum Buchformat {w} × {h} mm: Das Seitenverhältnis weicht um '
+                         f'{abs(ratio - 1) * 100:.0f} % ab. Vorderseite im Buchformat anlegen (gern mit Beschnitt) oder '
+                         'das Seitenformat (typesetting.page_size) prüfen.')
+    if ratio > 1:   # etwas zu breit: links und rechts gleich viel weglassen
+        cut = (sw - sh * w / h) / 2
+        trim = (cut, 0, cut, 0)
+    else:
+        cut = (sh - sw * h / w) / 2
+        trim = (0, cut, 0, cut)
+    note = f'{name} ({shown}) auf {w} × {h} mm skaliert' + (', Überstand mittig weggelassen' if cut > 0.005 * max(sw, sh) else '')
+    return trim, (note if physical or cut > 0.005 * max(sw, sh) else '')
+
+
+def front_tex(src, size, window, w, h, pdf=True, blank=True):
+    """LaTeX-Dokument: Ausschnitt `window` (links, unten, rechts, oben) der Quelle `src` (Größe `size`) füllt eine
+    Seite w × h mm; danach auf Wunsch eine Leerseite (damit die Titelseite rechts bleibt)."""
+    sw, sh = size
+    left, bottom, right, _ = window
+    k = w / (sw - left - right)   # mm je Einheit der Quelle
+    opts = f'width={sw * k:.3f}mm,height={sh * k:.3f}mm' + (',pagebox=trimbox' if pdf else '')
+    return ('\\documentclass{article}\n'
+            f'\\usepackage[paperwidth={w}mm,paperheight={h}mm,margin=0pt]{{geometry}}\n'
+            '\\usepackage{graphicx}\\usepackage{tikz}\\pagestyle{empty}\n'
+            '\\begin{document}\\noindent\n'
+            '\\begin{tikzpicture}[remember picture,overlay,shift={(current page.south west)}]\n'
+            f'\\clip (0,0) rectangle ({w}mm,{h}mm);\n'
+            f'\\node[anchor=south west,inner sep=0,outer sep=0] at ({-left * k:.3f}mm,{-bottom * k:.3f}mm) '
+            f'{{\\includegraphics[{opts}]{{{src}}}}};\n'
+            '\\end{tikzpicture}\n' + ('\\clearpage\\null\n' if blank else '') + '\\end{document}\n')
+
+
+def build_front(base, config, pages, out, blank=True):
+    """Vorderseite allein im Buchformat, ohne Beschnitt, als PDF; danach auf Wunsch eine Leerseite.
+    Quelle: die fertige eigene Vorderseite (cover.front, PDF oder Bild; darüber kommt kein Text) oder die
+    Covervorlage (`cover`, wie auf dem Umschlag). Gibt die Hinweise zurück, None ohne Quelle.
+    Bricht bei unpassendem Seitenformat ab (SystemExit), statt zu verzerren."""
+    kind, path, notes = front_source(base, config)
+    if not kind:
+        if notes:   # cover.front angegeben, Datei fehlt, keine Covervorlage
+            raise SystemExit(notes[0])
+        return None
+    ts = dict(TYPESETTING_DEFAULT)
+    ts.update(config.get('typesetting') or {})
+    w, h = PAGE.get(ts['page_size'], PAGE['a5'])
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        if kind == 'template':
+            dim = build(base, front_only(config), pages, tmp / 'umschlag.pdf')
+            size = (dim['total_w'] + 2 * dim['slug'], dim['total_h'] + 2 * dim['slug'])
+            x, y = dim['slug'] + dim['bleed'] + dim['w'] + dim['spine'], dim['slug'] + dim['bleed']
+            src, window, pdf = 'umschlag.pdf', (x, y, size[0] - x - w, size[1] - y - h), True
+        else:
+            rel = path.relative_to(base).as_posix()
+            pdf = path.suffix.lower() == '.pdf'
+            src = 'vorderseite-quelle' + path.suffix.lower()   # Kopie: Leer- und Sonderzeichen im Pfad stören LaTeX nicht
+            (tmp / src).write_bytes(path.read_bytes())
+            size = pdf_size(path) if pdf else image_size(path)
+            if not size:
+                raise SystemExit(f'{rel}: Bildgröße nicht lesbar (nur PNG oder JPEG)')
+            window, note = front_fit(*size, w, h, physical=pdf, name=f'Vorderseite {rel}')
+            notes += [note] if note else []
+            if not pdf:
+                dpi = (size[0] - window[0] - window[2]) / (w / 25.4)
+                if dpi < 150:
+                    notes.append(f'Vorderseite {rel}: nur {dpi:.0f} dpi im Buchformat, wirkt unscharf (besser 300 dpi)')
+        (tmp / 'vorne.tex').write_text(front_tex(src, size, window, w, h, pdf, blank), encoding='utf-8')
+        for _ in range(2):   # zwei Läufe: TikZ braucht die Seitenposition (remember picture)
+            r = subprocess.run(['xelatex', '-interaction=nonstopmode', '-halt-on-error', 'vorne.tex'], cwd=tmp,
+                               capture_output=True, text=True)
+            if r.returncode:
+                raise SystemExit('Vorderseite konnte nicht gesetzt werden:\n' + r.stdout[-3000:])
+        Path(out).write_bytes((tmp / 'vorne.pdf').read_bytes())
+    return notes
+
+
+def front_jpeg(pdf, jpg, dpi=150):
+    """Erste Seite einer PDF als JPEG (EPUB-Cover; braucht pdftoppm). Gibt den Pfad der Bilddatei zurück."""
+    stem = str(Path(jpg).with_suffix(''))
+    subprocess.run(['pdftoppm', '-jpeg', '-r', str(dpi), '-singlefile', '-f', '1', '-l', '1', str(pdf), stem], check=True)
+    return Path(stem + '.jpg')
 
 
 def build(base, config, pages, out, front_jpg=None, guides=False):
