@@ -120,7 +120,13 @@ def render(base, profile):
               'GIT_LOGIN': git.get('name') or repo.split('/')[0], 'GIT_LINES': git_lines,
               'AUTHOR_LINE': f'- Autor: {author} (Vorbelegung bei „Neues Buch“; je Buch gilt `project.author`).' if author
                              else '- Autor: noch nicht im Profil; je Buch gilt `project.author`.',
-              'VOICE_LINES': '\n\n'.join(lines)}
+              'VOICE_LINES': '\n\n'.join(lines),
+              'WORK_MODE_LINE': ('- Gespräch und Manuskriptarbeit (#315): automatisch nach Auftrag wechseln, ohne nachzufragen; '
+                                 'den Wechsel in einer kurzen Zeile nennen (`START.md`, „Gespräch und Manuskriptarbeit“).'
+                                 if profile.get('work_modes') == 'auto' else
+                                 '- Gespräch und Manuskriptarbeit (#315): vor dem Wechsel in die Manuskriptarbeit einmal fragen '
+                                 '(`START.md`, „Gespräch und Manuskriptarbeit“).' if profile.get('work_modes') == 'ask' else
+                                 '')}   # ohne Feld keine Zeile: bestehende Skills bleiben unverändert gültig
     text = TEMPLATE.read_text(encoding='utf-8')
     for k, v in values.items():
         text = text.replace('{{' + k + '}}', v)
@@ -198,7 +204,7 @@ def set_profile(base, changes):
     errs = errors(prof)
     if errs:
         return None, errs, None
-    order = ['format', 'repo', 'skill', 'interface_language', 'startup', 'git', 'author', 'voice', 'upstream']
+    order = ['format', 'repo', 'skill', 'interface_language', 'work_modes', 'startup', 'git', 'author', 'voice', 'upstream']
     prof = {k: prof[k] for k in order if k in prof}
     header = '# Assistenten-Profil (#136): gilt für alle Bücher dieses Repositorys; daraus entsteht\n' \
              '# .claude/skills/<skill>/SKILL.md (python scripts/assistant.py . skill). Keine Secrets, keine Manuskripttexte.\n'

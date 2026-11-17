@@ -59,6 +59,19 @@ Without file handover, the link to the run remains: download under *Artifacts*, 
 
 **Tested on 11 November 2026 (Claude in the cloud):** Building and starting work; fetching failed because GitHub serves artifacts from `*.blob.core.windows.net`, which the session blocks. Remedy: allow that address under *Settings → Capabilities*; otherwise use the link to the run.
 
+## Conversation and manuscript work (#315)
+
+Book work alternates between **conversation** (discussing ideas, characters, scenes and research; no book files are changed) and **manuscript work** (writing and revising sections, saving the book state). With `work_modes: auto` in the assistant profile or the command `Automatic mode switch on`, the assistant picks the mode from the request and only mentions the switch briefly; without it, it asks once before manuscript work. Before the first write it checks the book, branch, pull request and the current state of the file again. Saving, applying changes and approvals stay separate, confirmed steps ([START.md](../START.md), “Gespräch und Manuskriptarbeit”).
+
+| Environment | Conversation | Manuscript work | Switching |
+|---|---|---|---|
+| Claude with the repository attached or a work environment | yes | yes | in the same chat, no handover |
+| Claude without repository, ChatGPT with the GitHub connector (read-only) | yes | no | prepared handover to an environment with write access |
+| ChatGPT Work, Codex | yes | yes | in the same chat; handover back to a plain chat if needed |
+| Open WebUI | yes | depending on the configured tools | otherwise prepared handover |
+
+Switching the interface itself (for example from a ChatGPT chat to Work) is up to the provider; GhostWriter does not switch it. The assistant states this limit in one sentence and offers the `Handover` command: `python scripts/handover.py . --section 3.2 --mode manuskript` produces copy-ready text with a start prompt, the verified state (repository, book branch and commit, work branch, pull request, section with checksum, open sections, conversation backups) and a JSON block. The assistant adds what exists only in the chat, explicitly marked as not saved. In the other environment, `python scripts/handover.py . check <handover>` checks before the first write: `✓` unchanged, `ⓘ` newer version (re-read first), `✗` conflict (do not write). The script only reads.
+
 ## Automatically loaded instructions
 
 GhostWriter repositories include `CLAUDE.md`, `AGENTS.md` and the general `.claude/skills/ghostwriter/SKILL.md`; program updates maintain them. An optional `assistant.yml` profile and its generated personal skill contain repository preferences such as Git identity, author and default narrative voice. Those belong to the book and are not overwritten by program updates.

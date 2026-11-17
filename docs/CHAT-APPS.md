@@ -64,6 +64,19 @@ Die [offizielle OpenAI-Dateidokumentation](https://learn.chatgpt.com/docs/artifa
 
 Der Branch `lesefassung/<buch>` enthält nur die zuletzt erzeugten Lesefassungen je Kapitel bzw. Abschnitt und wird nie gemergt. Die Datei zeigt den Stand beim Start der Action; nach einer Änderung kommt sie nur neu, wenn die Action erneut läuft. Jeder Lauf kostet etwa eine Actions-Minute (ohne TeX).
 
+## Gespräch und Manuskriptarbeit (#315)
+
+Bucharbeit wechselt zwischen **Gespräch** (Ideen, Figuren, Szenen, Recherche besprechen; keine Buchdateien ändern) und **Manuskriptarbeit** (Abschnitte schreiben und überarbeiten, Buchstand speichern). Mit `work_modes: auto` im Assistenten-Profil oder dem Befehl `Moduswechsel automatisch an` wählt der Assistent den Modus selbst aus dem Auftrag und nennt den Wechsel nur kurz; ohne diese Einstellung fragt er vor der Manuskriptarbeit einmal nach. Vor dem ersten Schreiben prüft er Buch, Branch, Pull Request und den aktuellen Stand der Datei neu. Speichern, Übernehmen und Freigaben bleiben eigene, bestätigte Schritte ([START.md](../START.md), „Gespräch und Manuskriptarbeit“).
+
+| Umgebung | Gespräch | Manuskriptarbeit | Wechsel |
+|---|---|---|---|
+| Claude mit eingebundenem Repository bzw. Arbeitsumgebung | ja | ja | im selben Chat, ohne Übergabe |
+| Claude ohne Repository, ChatGPT mit GitHub-Connector (nur lesend) | ja | nein | vorbereitete Übergabe in eine Umgebung mit Schreibzugriff |
+| ChatGPT Work, Codex | ja | ja | im selben Chat; Übergabe zurück in einen reinen Chat bei Bedarf |
+| Open WebUI | ja | je nach eingerichteten Werkzeugen | sonst vorbereitete Übergabe |
+
+Ein Wechsel der Oberfläche selbst (z. B. vom ChatGPT-Chat nach Work) liegt beim Anbieter; GhostWriter schaltet sie nicht um. Der Assistent sagt diese Grenze in einem Satz und bietet den Befehl `Übergabe` an: `python scripts/handover.py . --section 3.2 --mode manuskript` erzeugt einen kopierfertigen Text mit Starttext, geprüftem Stand (Repository, Buch-Branch und Commit, Arbeitsbranch, Pull Request, Abschnitt mit Prüfsumme, offene Abschnitte, Gesprächssicherungen) und einem JSON-Block. Der Assistent ergänzt, was nur im Chat steht, ausdrücklich als nicht gespeichert. In der anderen Umgebung prüft `python scripts/handover.py . check <übergabe>` vor dem ersten Schreiben: `✓` unverändert, `ⓘ` neuere Fassung (erst neu lesen), `✗` Konflikt (nicht schreiben). Das Skript liest nur.
+
 ## Automatisch geladene Hinweise (#136)
 
 Jedes GhostWriter-Repository bringt drei Einstiegsdateien mit, die mit jedem Update aus dem Hauptrepository kommen:
