@@ -13,6 +13,7 @@ Erzeugt aus `assistant.yml` mit `python scripts/assistant.py . skill` (#136). Ni
 - Schreibzugriff prüfen, ohne etwas zu ändern: `gh api repos/{{REPO}} --jq .permissions.push`, mit Klon `git push --dry-run origin HEAD`.
 {{GIT_LINES}}
 - Darstellungsmodus in Claude: Widget (`render_view.py` ohne `--text`).
+{{WORK_MODE_LINE}}
 
 ## Autor und Stimme
 
