@@ -120,6 +120,9 @@ class CoverProjectTest(unittest.TestCase):
         errors = validate_project.check_project(self.base)
         self.assertTrue(any('print.profile fehlt' in e for e in errors), errors)
         self.assertTrue(any('cover.image: cover/fehlt.jpg fehlt' in e for e in errors), errors)
+        self.add('  front: cover/fehlt.pdf\n')
+        errors = validate_project.check_project(self.base)
+        self.assertTrue(any('cover.front: cover/fehlt.pdf fehlt' in e for e in errors), errors)
         self.add('print:\n  profile: bod\n  paper: cream\n')
         errors = validate_project.check_project(self.base)
         self.assertTrue(any('Rückenbreite angeben' in e for e in errors), errors)
@@ -133,6 +136,8 @@ class CoverProjectTest(unittest.TestCase):
         self.assertIn('| Papier | creme |', out)
         self.assertIn('| Vorlage | modern |', out)
         self.assertIn('| Preis | 9,99 € |', out)
+        self.assertIn('| Vorderseite im PDF | nur im Probedruck |', out)   # #324
+        self.assertIn('| Eigene Vorderseite | – |', out)
 
     @unittest.skipUnless(shutil.which('xelatex') and shutil.which('pdfinfo') and shutil.which('pdftoppm')
                          and shutil.which('pandoc'), 'xelatex, pandoc oder poppler-utils fehlen')
@@ -164,6 +169,140 @@ class CoverProjectTest(unittest.TestCase):
             item = re.search(r'<item\b[^>]*properties="cover-image"[^>]*>', opf)
             self.assertIsNotNone(item, 'Titelbild fehlt im EPUB')
             self.assertIn('media-type="image/jpeg"', item.group(0))
+
+
+def pdf_front(path, w, h, bleed=0.0, three_sided=False):
+    """Fertige Vorderseite als PDF (#324): Beschnitt rot, Endformat grün."""
+    pw, ph = w + (bleed if three_sided else 2 * bleed), h + 2 * bleed
+    tex = ('\\documentclass{article}\\usepackage[paperwidth=%smm,paperheight=%smm,margin=0pt]{geometry}'
+           '\\usepackage{xcolor,eso-pic}\\pagestyle{empty}\\AddToShipoutPictureBG{\\AtPageLowerLeft{'
+           '\\color{red}\\rule{%smm}{%smm}}\\put(\\LenToUnit{%smm},\\LenToUnit{%smm}){\\color{green!50!black}'
+           '\\rule{%smm}{%smm}}}\\begin{document}\\null\\end{document}\n'
+           % (pw, ph, pw, ph, 0 if three_sided else bleed, bleed, w, h))
+    with tempfile.TemporaryDirectory() as tmp:
+        (Path(tmp) / 'f.tex').write_text(tex, encoding='utf-8')
+        subprocess.run(['xelatex', '-interaction=nonstopmode', 'f.tex'], cwd=tmp, capture_output=True, check=True)
+        path.write_bytes((Path(tmp) / 'f.pdf').read_bytes())
+
+
+def pixel(pdf, page, fx, fy):
+    """Farbe (r, g, b) einer Seite an der relativen Stelle fx, fy (0–1, ab links oben), über pdftoppm."""
+    data = subprocess.run(['pdftoppm', '-r', '40', '-f', str(page), '-l', str(page), '-singlefile', str(pdf)],
+                          capture_output=True, check=True).stdout
+    head = re.match(rb'P6\s+(\d+)\s+(\d+)\s+\d+\s', data)   # Bilddaten beginnen nach genau einem Leerzeichen
+    w, h, raw = int(head.group(1)), int(head.group(2)), data[head.end():]
+    x, y = min(w - 1, int(fx * w)), min(h - 1, int(fy * h))
+    return tuple(raw[(y * w + x) * 3:(y * w + x) * 3 + 3])
+
+
+def pages(pdf):
+    return int(subprocess.run(['pdfinfo', str(pdf)], capture_output=True, text=True).stdout.split('Pages:')[1].split()[0])
+
+
+class FrontFitTest(unittest.TestCase):
+    """Vorderseite im PDF (#324): Beschnitt erkennen, leicht abweichende Formate skalieren, nie verzerren."""
+    def test_exact_and_bleed(self):
+        self.assertEqual(build_cover.front_fit(148, 210, 148, 210), ((0, 0, 0, 0), ''))
+        trim, note = build_cover.front_fit(154, 216, 148, 210)
+        self.assertEqual(trim, (3, 3, 3, 3))
+        self.assertIn('Beschnitt 3,0 mm ringsum', note)
+        trim, note = build_cover.front_fit(151.2, 216.4, 148, 210)   # Umschlag-Vorderseite: am Rücken kein Beschnitt
+        self.assertEqual(trim[0], 0)
+        self.assertAlmostEqual(trim[2], 3.2)
+        self.assertIn('oben, unten und außen', note)
+
+    def test_scale_or_stop(self):
+        trim, note = build_cover.front_fit(210, 297, 148, 210)   # A4 auf A5: gleiches Seitenverhältnis bis auf 0,3 %
+        self.assertIn('auf 148 × 210 mm skaliert', note)
+        self.assertGreater(trim[0], 0)   # etwas zu breit: links und rechts gleich viel weg
+        self.assertEqual(trim[0], trim[2])
+        with self.assertRaises(SystemExit) as e:
+            build_cover.front_fit(148, 148, 148, 210, name='Vorderseite cover/quadrat.pdf')
+        self.assertIn('Seitenverhältnis', str(e.exception))
+        self.assertIn('cover/quadrat.pdf', str(e.exception))
+        self.assertEqual(build_cover.front_fit(1748, 2480, 148, 210, physical=False)[1], '')   # Bild, 300 dpi
+        with self.assertRaises(SystemExit):
+            build_cover.front_fit(1000, 1000, 148, 210, physical=False)
+
+    def test_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / 'cover').mkdir()
+            (base / 'cover/vorne.pdf').write_bytes(b'%PDF-1.4')
+            self.assertEqual(build_cover.front_source(base, {})[0], None)
+            self.assertEqual(build_cover.front_source(base, {'cover': {'template': 'plain'}})[0], 'template')
+            kind, path, notes = build_cover.front_source(base, {'cover': {'front': 'cover/vorne.pdf'}})
+            self.assertEqual((kind, path.name, notes), ('file', 'vorne.pdf', []))
+            kind, _, notes = build_cover.front_source(base, {'cover': {'front': 'cover/fehlt.pdf', 'template': 'modern'}})
+            self.assertEqual(kind, 'template')
+            self.assertIn('cover/fehlt.pdf fehlt', notes[0])
+            with self.assertRaises(SystemExit):
+                build_cover.build_front(base, {'cover': {'front': 'cover/fehlt.pdf'}}, 100, base / 'x.pdf')
+
+
+@unittest.skipUnless(all(shutil.which(t) for t in ('xelatex', 'pandoc', 'pdfinfo', 'pdftoppm')),
+                     'xelatex, pandoc oder poppler-utils fehlen')
+class FrontCoverBuildTest(CoverProjectTest):
+    """Vorderseite als Seite 1 im Bildschirm-PDF (#324), mit Probedruck, Auflage und EPUB."""
+    def build(self, *args):
+        out = self.base.parent / 'out'
+        shutil.rmtree(out, ignore_errors=True)
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--out', str(out),
+                            *args], capture_output=True, text=True)
+        files = {}
+        if r.returncode == 0:
+            ed = yaml.safe_load((out / 'edition.yml').read_text(encoding='utf-8'))
+            files = {f[len(ed['tag']):]: out / f for f in ed['files']}
+        return r, files
+
+    def test_proof_with_template_and_own_front(self):
+        self.add('cover:\n  template: plain\n  background: "#2050A0"\n')
+        r, files = self.build('--proof', '--formats', 'pdf,pdf_print')
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn('Vorderseite als Seite 1 im PDF', r.stdout)
+        pdf = files['.pdf']
+        self.assertEqual(pages(pdf), pages(files['-druck.pdf']) + 2)   # Vorderseite und Leerseite, Druck-PDF ohne
+        red, green, blue = pixel(pdf, 1, 0.1, 0.9)   # Covervorlage: Hintergrundfarbe
+        self.assertTrue(blue > 120 and red < 80, (red, green, blue))
+        self.assertEqual(pixel(pdf, 2, 0.5, 0.5), (255, 255, 255))   # Leerseite ohne Probedruck-Vermerk in der Mitte
+        if shutil.which('qpdf'):   # Lesezeichen des Innenteils bleiben erhalten
+            js = subprocess.run(['qpdf', '--json', '--json-key=outlines', str(pdf)], capture_output=True, text=True).stdout
+            self.assertGreater(len(__import__('json').loads(js)['outlines']), 0)
+
+        pdf_front(self.base / 'cover/vorderseite.pdf', 148, 210, bleed=3)
+        self.add('  front: cover/vorderseite.pdf\n')
+        self.assertEqual(validate_project.check_project(self.base), [])
+        r, files = self.build('--proof', '--formats', 'pdf,epub')
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn('Beschnitt 3,0 mm ringsum weggelassen', r.stdout)
+        for fx, fy in ((0.01, 0.01), (0.99, 0.99), (0.5, 0.5)):   # Endformat grün, kein roter Beschnitt (3 mm ≈ 2 %)
+            red, green, _ = pixel(files['.pdf'], 1, fx, fy)
+            self.assertTrue(green > 100 and red < 60, (fx, fy, red, green))
+        import zipfile
+        with zipfile.ZipFile(files['.epub']) as z:
+            opf = next(z.read(n).decode('utf-8') for n in z.namelist() if n.endswith('.opf'))
+            self.assertIn('properties="cover-image"', opf)
+
+    def test_edition_manuscript_and_wrong_format(self):
+        approve_chapter_1(self.base)
+        self.add('cover:\n  template: plain\n  background: "#2050A0"\n')
+        r, files = self.build('--edition', '1', '--formats', 'pdf')
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn('Vorderseite', r.stdout)   # Vorgabe proof: Auflagen ohne Vorderseite
+        self.assertEqual(pixel(files['.pdf'], 1, 0.1, 0.9), (255, 255, 255))
+
+        png(self.base / 'cover/quadrat.png', 80, 80)
+        self.add('  front: cover/quadrat.png\ntypesetting:\n  pdf_cover: always\n')
+        r, _ = self.build('--edition', '2', '--formats', 'pdf')
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)   # nicht verzerren: Auflage bricht ab
+        self.assertIn('Seitenverhältnis', r.stdout + r.stderr)
+        r, files = self.build('--proof', '--formats', 'pdf')
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)   # Probedruck entsteht, ohne Vorderseite
+        self.assertIn('⚠ Vorderseite nicht eingebunden', r.stdout)
+        self.assertEqual(pixel(files['.pdf'], 1, 0.1, 0.9), (255, 255, 255))
+        r, _ = self.build('--manuscript')
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn('Vorderseite', r.stdout)   # „Manuskript ausgeben“ nie mit Vorderseite
 
 
 if __name__ == '__main__':

@@ -129,7 +129,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `typesetting` | Buchsatz der Auflagen, Formular „Ausgabeoptionen“ bzw. Projekteinstellungen (siehe unten) |
 | `publication` | Angaben im Impressum: Verlag, ISBN je Ausgabe, Rechtehinweis (#68; siehe „Buchsatz“) |
 | `print` | Druck (#68): `profile` (Anbieter: `kdp`, `bod`, `custom`), `paper` (nur `kdp`: `white`, `cream`, `premium_color`), `spine_mm` (feste Rückenbreite), `paper_mm_per_page` (Papierstärke), `bleed_mm` (Beschnitt), `crop_marks` (Schnittmarken) (siehe „Umschlag und Druck“) |
-| `cover` | Umschlag (#68): `template` (Vorlage: `classic`, `modern`, `plain`), `background` und `text_color` (Farben als `#RRGGBB`), `image` (Vorderseite), `author_image` (Autorenbild), `price` (Preis auf der Rückseite), `spine_direction` (Rückentext `down` oder `up`) (siehe „Umschlag und Druck“) |
+| `cover` | Umschlag (#68): `template` (Vorlage: `classic`, `modern`, `plain`), `background` und `text_color` (Farben als `#RRGGBB`), `image` (Vorderseite), `author_image` (Autorenbild), `price` (Preis auf der Rückseite), `spine_direction` (Rückentext `down` oder `up`), `front` (fertige eigene Vorderseite als PDF oder Bild für PDF und EPUB, #324) (siehe „Umschlag und Druck“) |
 | `updates.auto` | neue GhostWriter-Versionen automatisch einspielen; fehlt = `true` ([UPDATES.md](UPDATES.md)) |
 | `changes.auto_merge` | gespeicherte Änderungen sofort übernehmen statt über „Änderungen übernehmen“; fehlt = `false`. Freigaben und Auflagen brauchen trotzdem ihre eigene Bestätigung (`START.md`, „Schreiben ins Repository“) |
 | `.ghostwriter/update.yml` | von der Update-Action geschrieben: installierte Version, Upstream-Commit, Zeitpunkt, ausgelassene Workflow-Dateien; nicht von Hand ändern |
@@ -147,6 +147,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `title_page` | Titelseite in der Titelei | `true` |
 | `title_style` | Gestaltung der Titelseite im PDF (#310): `classic` (zentriert, wie bisher), `rules` (Titel zwischen zwei Linien, Autor in Kapitälchen oben), `modern` (linksbündig, serifenlos, Titel groß im unteren Drittel), `spaced` (Titel in gesperrten Versalien, Autor unten), `band` (dunkles Querband über die ganze Breite, im Druck-PDF bis in den Beschnitt); EPUB und DOCX behalten ihre Titelseite | `classic` |
 | `proof_mark` | Kennzeichnung im Probedruck und bei „Manuskript ausgeben“ (#309, #310): `line` (rote Zeile unten auf der Titelseite), `box` (roter Rahmen mit Datum, „nicht zur Veröffentlichung“ und Stand), `watermark` (Rahmen und diagonales Wasserzeichen auf der Titelseite), `watermark_all` (Wasserzeichen auf allen Seiten); auf allen Seiten steht der Vermerk außerdem in einer eigenen Zeile unter der Fußzeile, getrennt von Seitenzahl und Kolumnentitel. Auflagen bleiben unberührt | `line` |
+| `pdf_cover` | Vorderseite als Seite 1 im Bildschirm-PDF, danach eine Leerseite, damit die Titelseite rechts bleibt (#324): `proof` (nur im Probedruck), `always` (auch in Auflagen), `never`. Quelle ist `cover.front`, sonst die Covervorlage (`cover`); ohne beides bleibt das PDF wie bisher. Die Vorderseite bleibt unverändert, der Probedruck-Vermerk steht nur auf den Innenseiten. „Manuskript ausgeben“, Druck-PDF und Broschüre enthalten nie eine Vorderseite (siehe „Umschlag und Druck“) | `proof` |
 | `imprint` | Impressum in der Titelei | `true` |
 | `toc` | Inhaltsverzeichnis | `true` |
 | `toc_depth` | `1` = nur Kapitel, `2` = Kapitel und Abschnitte | `1` |
@@ -178,6 +179,8 @@ Die Struktur von `ghostwriter.yml` beschreibt [`schemas/ghostwriter.schema.json`
 
 Mit `print` und `cover` (#68) entsteht beim Format `cover` ein Umschlag-PDF über Rückseite, Rücken und Vorderseite mit Beschnitt ringsum (`scripts/build_cover.py`): Breite = Beschnitt + Seite + Rücken + Seite + Beschnitt, Höhe = Beschnitt + Seite + Beschnitt; Rücken = Seitenzahl des Innenteils × Papierstärke. Gibt es `cover`, bekommt das EPUB dessen Vorderseite als Cover.
 
+**Vorderseite im PDF und EPUB** (#324): Im Probedruck steht die Vorderseite als Seite 1 vor dem Bildschirm-PDF, danach eine Leerseite (`typesetting.pdf_cover`, Vorgabe `proof`; `always` auch in Auflagen, `never` nie). Quelle ist eine fertige eigene Vorderseite `cover.front` (PDF, JPG oder PNG unter `cover/`; sie kommt unverändert ins Buch, ohne zusätzlichen Titel), sonst die Covervorlage aus `cover`. Das EPUB nimmt dieselbe Vorderseite als Cover. Ein Beschnitt der PDF (TrimBox, sonst bis 6,5 mm ringsum oder oben, unten und außen) wird weggelassen; weicht das Seitenverhältnis um bis zu 2 % ab, wird füllend skaliert und mittig beschnitten. Bei größerer Abweichung bricht die Auflage mit einem Hinweis ab, der Probedruck entsteht ohne Vorderseite und meldet den Grund. Zusammengefügt wird mit qpdf, damit Lesezeichen und Links erhalten bleiben. Druck-PDF, Broschüre und der Umschlag (`cover`) bleiben unverändert.
+
 ```yaml
 print:
   profile: kdp           # kdp | bod | custom
@@ -194,6 +197,7 @@ cover:
   author_image: cover/autor.jpg
   price: 18,00 € (D)
   spine_direction: down  # down (von oben nach unten) | up
+  # front: cover/vorderseite.pdf   # fertige eigene Vorderseite (PDF, JPG, PNG) für PDF und EPUB (#324)
 ```
 
 | Profil | Beschnitt | Rücken je Seite | Rückentext |

@@ -17,6 +17,16 @@ A3 bei A4 – in Falzreihenfolge, mit Leerseiten auf eine durch 4 teilbare Seite
 aufgefüllt; beidseitig über die kurze Kante drucken, Blätter aufeinanderlegen,
 in der Mitte falten), docx, epub (mit Cover aus der Vorderseite, wenn es `cover` gibt).
 
+Vorderseite im Bildschirm-PDF (#324, typesetting.pdf_cover): `proof` (Vorgabe) setzt sie
+im Probedruck als Seite 1 vor das PDF, `always` auch in Auflagen, `never` nie; danach
+folgt eine Leerseite, damit die Titelseite rechts bleibt. Quelle ist eine fertige eigene
+Vorderseite (cover.front, PDF oder Bild, unverändert, ohne zusätzlichen Text) oder die
+Covervorlage (`cover`). Beschnitt einer PDF wird weggelassen; ein abweichendes
+Seitenverhältnis bricht die Auflage ab (im Probedruck nur Warnung). Der Probedruck-Vermerk
+bleibt auf den Innenseiten. Druck-PDF und Broschüre enthalten keine Vorderseite; das EPUB
+verwendet dieselbe Vorderseite als Cover. Zusammengefügt wird mit qpdf (behält die
+Lesezeichen), ersatzweise mit pdfunite.
+
 --proof baut einen Probedruck des aktuellen Stands: alle Kapitel und Abschnitte,
 auch nicht abgeschlossene (mit Vermerk „Stand: Entwurf, nicht abgeschlossen“),
 offene Marker farbig hervorgehoben, in der Fußzeile bzw. vorn der Hinweis
@@ -55,7 +65,8 @@ denn --allow-markers (nur für Proben, nie für eine veröffentlichte Auflage).
 
 Benötigt: pandoc (≥ 3), xelatex mit KOMA-Script, tcolorbox, TeX Gyre
 (texlive-xetex, texlive-latex-extra, texlive-lang-german,
-texlive-fonts-recommended, fonts-texgyre), python-docx, pyyaml.
+texlive-fonts-recommended, fonts-texgyre), python-docx, pyyaml; für die Vorderseite im
+PDF qpdf (sonst pdfunite) und für das EPUB-Cover pdftoppm (poppler-utils).
 """
 import argparse
 import datetime
@@ -264,6 +275,32 @@ def pdf_pages(path):
     return max(counts) if counts else 0
 
 
+def front_page(base, config, pages, out, proof, blank=True):
+    """Vorderseite für PDF bzw. EPUB (#324, scripts/build_cover.py build_front): Hinweise, None ohne Vorderseite.
+    Im Probedruck führt ein Fehler (z. B. unpassendes Seitenformat) nur zu einer Warnung; die Ausgabe entsteht ohne
+    Vorderseite. In einer Auflage bricht er ab."""
+    try:
+        return build_cover.build_front(base, config, pages, out, blank=blank)
+    except SystemExit as e:
+        if not proof:
+            raise
+        print(f'⚠ Vorderseite nicht eingebunden: {e}')
+        return None
+
+
+def prepend_pdf(front, interior, target):
+    """Setzt die Vorderseite (samt Leerseite) vor das Bildschirm-PDF (#324). qpdf behält Lesezeichen, Links und
+    Seitenbezeichnungen des Innenteils; ohne qpdf fügt pdfunite zusammen, dann fehlen die Lesezeichen (Hinweis)."""
+    if shutil.which('qpdf'):
+        r = subprocess.run(['qpdf', str(interior), '--pages', str(front), '1-z', str(interior), '1-z', '--', str(target)],
+                           capture_output=True, text=True)
+        if r.returncode not in (0, 3):   # 3: nur Warnungen
+            raise SystemExit('Vorderseite konnte nicht vor das PDF gesetzt werden:\n' + (r.stderr or r.stdout)[-2000:])
+        return ''
+    run(['pdfunite', str(front), str(interior), str(target)])
+    return 'qpdf fehlt: Vorderseite mit pdfunite eingefügt, dabei gehen die Lesezeichen des PDF verloren'
+
+
 def run(cmd, cwd=None):
     r = subprocess.run(cmd, cwd=cwd, text=True, capture_output=True)
     if r.returncode:
@@ -387,9 +424,12 @@ def make_reference_docx(path, ts):
 
 def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedication, out, tag, formats, proof=False,
            proof_note='', date='', series_line='', ser=None, extra_tex='', top_level='chapter',
-           footer_label='Probedruck', commit=''):
+           footer_label='Probedruck', commit='', front_cover=None):
     """Setzt die Formate (pdf, pdf_print, booklet, cover, epub, docx) aus fertigem Markdown; gibt die Dateien zurück.
-    Gemeinsam für Auflagen und den Sammelband (scripts/build_omnibus.py, #116)."""
+    Gemeinsam für Auflagen und den Sammelband (scripts/build_omnibus.py, #116).
+    front_cover (#324): None, 'proof' oder 'always' – die Vorderseite samt Leerseite kommt vor das Bildschirm-PDF;
+    bei 'always' ohne hinterlegte Vorderseite ein Hinweis. Im Probedruck verhindert ein Fehler der Vorderseite
+    den Bau nicht (Warnung), in einer Auflage bricht er ab."""
     fonts = FONTS.get(ts['font'], FONTS['serif'])
     w, h = PAGE.get(ts['page_size'], PAGE['a5'])
     results = []
@@ -439,6 +479,9 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
             kind = 'pdf' if fmt in ('pdf', 'pdf_print', '_pdf', '_print') else fmt
             target = (tmp / f'innenteil{fmt.replace("_", "-")}.pdf') if hidden else \
                 out / (f'{tag}-druck.pdf' if fmt == 'pdf_print' else f'{tag}.{fmt}')
+            delivered = target
+            if fmt == 'pdf' and front_cover:   # Vorderseite (#324): Innenteil bleibt ohne sie (Umschlag, Broschüre)
+                target = tmp / 'innenteil-bildschirm.pdf'
             cmd = ['pandoc', '--from', 'markdown+smart', '--lua-filter', str(BOOK / 'merkkasten.lua'),
                    f'--top-level-division={top_level}', '-o', str(target)]
             if ts.get('toc'):
@@ -518,11 +561,13 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
                     isbn = (config.get('publication') or {}).get('isbn_ebook')
                     if isbn:
                         m['identifier'] = [{'scheme': 'ISBN-13', 'text': 'urn:isbn:' + re.sub(r'[^0-9Xx]', '', isbn)}]
-                    if config.get('cover') and shutil.which('pdftoppm'):   # EPUB-Cover = Vorderseite des Umschlags
-                        front = tmp / 'cover-vorne.jpg'
-                        build_cover.build(base, build_cover.front_only(config), pdf_pages(interior) if interior else 0,
-                                          tmp / 'cover-epub.pdf', front_jpg=front)
-                        cmd += ['--epub-cover-image', str(front)]
+                    if build_cover.front_source(base, config)[0] and shutil.which('pdftoppm'):
+                        # EPUB-Cover = eigene Vorderseite (cover.front) oder Vorderseite des Umschlags (#324)
+                        notes = front_page(base, config, pdf_pages(interior) if interior else 0, tmp / 'cover-epub.pdf',
+                                           proof, blank=False)
+                        if notes is not None:
+                            front = build_cover.front_jpeg(tmp / 'cover-epub.pdf', tmp / 'cover-vorne.jpg')
+                            cmd += ['--epub-cover-image', str(front)]
                 elif fmt == 'docx':
                     ref = tmp / 'reference.docx'
                     make_reference_docx(ref, ts)
@@ -535,6 +580,18 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
                     print_interior = target
             if hidden:
                 continue
+            if delivered != target:   # Bildschirm-PDF mit Vorderseite (#324)
+                notes = front_page(base, config, pdf_pages(target), tmp / 'vorderseite.pdf', proof)
+                if notes is None:
+                    if front_cover == 'always':
+                        print('ⓘ Keine Vorderseite im PDF: weder cover.front noch eine Covervorlage (cover) hinterlegt')
+                    shutil.copyfile(target, delivered)
+                else:
+                    notes.append(prepend_pdf(tmp / 'vorderseite.pdf', target, delivered))
+                    print('ⓘ Vorderseite als Seite 1 im PDF, danach eine Leerseite')
+                for n in filter(None, notes or []):
+                    print(f'ⓘ {n}')
+                target = delivered
             results.append(target)
             print(f'✓ {target} ({target.stat().st_size // 1024} KB)')
 
@@ -640,9 +697,14 @@ def main(argv):
         meta['edition_text'] = label
         imprint = [release_name, proof_note] + ([f'Commit {args.commit[:7]}'] if args.commit else [])
     imprint += disc_lines
+    # Vorderseite im Bildschirm-PDF (#324): Vorgabe nur im Probedruck, nie bei „Manuskript ausgeben“
+    pdf_cover = ts.get('pdf_cover', 'proof')
+    front_cover = None if args.manuscript else ('always' if pdf_cover == 'always' else
+                                                'proof' if pdf_cover == 'proof' and args.proof else None)
     results = render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedication, out, tag, args.formats,
                      args.proof, proof_note, args.date, series_line, ser,
-                     footer_label='Manuskript' if args.manuscript else 'Probedruck', commit=args.commit)
+                     footer_label='Manuskript' if args.manuscript else 'Probedruck', commit=args.commit,
+                     front_cover=front_cover)
 
     (out / 'edition.yml').write_text(yaml.safe_dump({
         'edition': args.edition, 'name': release_name, 'tag': tag, 'date': args.date,

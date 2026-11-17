@@ -27,7 +27,7 @@ Geprüft werden:
   zum Ordner, Figuren bekannt; Verweise ![](bild:img-…) im Text zeigen auf Bilder
 - publication.isbn_print/isbn_ebook (#68): gültige ISBN-10 bzw. ISBN-13 (Prüfziffer)
 - print/cover (#68): Umschlag nur mit Druckprofil; bei bod/custom Rückenbreite
-  angegeben; Papier nur bei kdp; Bilder des Umschlags vorhanden
+  angegeben; Papier nur bei kdp; Bilder des Umschlags und eigene Vorderseite (cover.front, #324) vorhanden
 - Schauplätze, Zeitleiste und Hinweise (story/places.yml, story/timeline.yml, story/hints.yml, #124;
   falls vorhanden) gegen ihr Schema, IDs eindeutig, Abschnitte bekannt
 - assistant.yml (falls vorhanden, #136) gegen schemas/assistant.schema.json; der
@@ -280,7 +280,7 @@ def check_project(project_dir):
                       'des Anbieters oder paper_mm_per_page)')
     if pr.get('paper') and pr.get('profile') != 'kdp':
         errors.append(f'{config_path}: print.paper gilt nur für das Profil kdp; sonst spine_mm bzw. paper_mm_per_page')
-    for field in ('image', 'author_image'):
+    for field in ('image', 'author_image', 'front'):   # front: eigene Vorderseite (#324)
         if cv.get(field) and not (base / cv[field]).is_file():
             errors.append(f'{config_path}: cover.{field}: {cv[field]} fehlt')
     for field in ('isbn_print', 'isbn_ebook'):

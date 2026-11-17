@@ -163,6 +163,11 @@
           "type": "string",
           "pattern": "^cover/[^/]+\\.(jpe?g|png)$"
         },
+        "front": {
+          "type": "string",
+          "pattern": "^cover/[^/]+\\.(pdf|jpe?g|png)$",
+          "description": "Fertige eigene Vorderseite im Buchformat (#324), PDF oder Bild, gern mit Beschnitt: Seite 1 im Bildschirm-PDF und EPUB-Cover, ohne zusätzlichen Text"
+        },
         "price": {
           "type": "string"
         },
@@ -429,6 +434,7 @@
         "font_size": {"enum": [10, 10.5, 11, 11.5, 12]},
         "title_page": {"type": "boolean"},
         "title_style": {"enum": ["classic", "rules", "modern", "spaced", "band"], "description": "Gestaltung der Titelseite im PDF (#310); fehlt = classic"},
+        "pdf_cover": {"enum": ["never", "proof", "always"], "description": "Vorderseite als Seite 1 im Bildschirm-PDF, danach eine Leerseite (#324): proof = nur im Probedruck, always = auch in Auflagen, never = nie; fehlt = proof"},
         "proof_mark": {"enum": ["line", "box", "watermark", "watermark_all"], "description": "Kennzeichnung im Probedruck und bei „Manuskript ausgeben“ (#310); fehlt = line"},
         "imprint": {"type": "boolean"},
         "toc": {"type": "boolean"},
