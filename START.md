@@ -81,6 +81,10 @@ Schickt der Benutzer einen Link auf ein GitHub-Repository, einen Branch darin (`
 
 Für den Wiedereinstieg gelten dieselben Regeln wie sonst: keine Änderung am Repository ohne die jeweils erforderliche Freigabe, keine erfundenen Angaben über den Projektstand.
 
+### Grafische Cover gestalten (#322)
+
+Bei Wünschen zur Coverfarbe oder Textplatzierung die Anleitung [Grafische Cover gestalten](docs/ANLEITUNG.md#grafische-cover-gestalten) laden (Englisch: [Design graphic covers](docs/USER-GUIDE.en.md#design-graphic-covers)). `scripts/cover_design.py` bietet Farbvorschläge, Auswahl einer Bildstelle und geprüfte Speicherung von Textbereichen. Aktuelle Daten zuerst mit `show` lesen. Farbe/Flächen und numerische Textbereiche vorschlagen, ohne Speicherung mit `cover_design.py preview` prüfen und Bild zeigen; erst nach Speicherauftrag im echten Buch speichern. Keine buchspezifischen Programmänderungen. Bei fertiger Beschriftung `image_mode: finished` vorschlagen, keine automatische Schrifterkennung behaupten. Fehlende Satzwerkzeuge, Textüberlauf und Ausgabegrenzen offen melden. Für die neuen Bereiche native Textausgabe verwenden, wenn das grafische Formular sie nicht unterstützt.
+
 ### Daten (#71)
 
 Die Seite „Daten“ (Knopf im Bücherregal, Befehl `Daten`, Aktion `view.data`, Kürzel `D` im Bücherregal) zeigt, wo was steht und ob alles abgeglichen ist; sie ändert nichts. Erzeuge sie (Vorlage `daten`) im festgelegten Modus: als Widget mit `python scripts/render_view.py . data --library library.json --github github.json --repo <owner>/<repo> [--upstream upstream.json]`; nur im Modus „Nur Text“ zusätzlich `--text`:

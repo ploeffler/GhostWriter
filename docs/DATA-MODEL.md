@@ -204,6 +204,10 @@ cover:
 
 Stand der Werte: November 2026 (KDP-Hilfe „Cover“, BoD-Hinweise zur Umschlaggestaltung); die Anbieter ändern sie gelegentlich, daher vor dem Hochladen mit deren Rechner abgleichen. Die Rückseite trägt Klappentext und Autorentext aus `cover/rueckseite.md` (Vorlage `templates/cover-rueckseite.md`), das Autorenbild, den Preis und die ISBN der Druckausgabe als EAN-13-Strichcode (unten rechts, weiß hinterlegt). Im Probedruck zeigt der Umschlag Schnitt-, Falz- und Sicherheitslinien.
 
+### Individuelle Covergestaltung (#322)
+
+Optionale `cover`-Felder: `image_mode` (`motif`/`finished`), `panel_backgrounds` (Hex-Farbwert je `front`/`spine`/`back`), `background_targets` (Verwendung der gemeinsamen Farbe) und `text_boxes` (je `title`/`subtitle`/`author`). Textbereiche benötigen `x`, `y`, `width`, `height` in mm ab linker oberer Schnittkante; optional `font_size` (6–120 pt), `font` (`serif`/`sans`), `bold`, `color`, `align` (`left`/`center`/`right`), `visible`, `break_after` (Wortpositionen). 10 mm Sicherheitsabstand, keine stillen Überläufe. Texte bleiben dynamisch aus `project.*`; Buchgestaltung wird nicht in Programmdateien gespeichert. Bedienung, Beispiele und Ausgabegrenzen: [Grafische Cover gestalten](ANLEITUNG.md#grafische-cover-gestalten), [English](USER-GUIDE.en.md#design-graphic-covers).
+
 ## Abschnittsdatei – Frontmatter-Beispiel
 
 ```yaml

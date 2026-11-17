@@ -268,6 +268,10 @@ def check_project(project_dir):
                 errors.append(f'{path}: Begriff mehrfach eingetragen: {term}')
 
     pr, cv = config.get('print') or {}, config.get('cover') or {}
+    from cover_design import validate as validate_cover
+    from build_cover import PAGE
+    size = PAGE.get((config.get('typesetting') or {}).get('page_size', 'a5'), PAGE['a5'])
+    errors.extend(f'{config_path}: {error}' for error in validate_cover(cv, *size))
     formats = (config.get('typesetting') or {}).get('formats') or []
     if 'cover' in formats and not pr.get('profile'):
         errors.append(f'{config_path}: typesetting.formats enthält cover, aber print.profile fehlt (kdp, bod oder custom)')
