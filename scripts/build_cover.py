@@ -28,6 +28,8 @@ Inhalt (ghostwriter.yml → cover, Texte in cover/rueckseite.md):
                Bild (cover.image, füllt die Vorderseite samt Beschnitt);
                Vorlage classic (Titel oben, Serifen), modern (Titel unten links,
                serifenlos), plain (alles mittig)
+               Vorlagentexte brechen am Wortende um (Flatterrand); ein Wort, das
+               allein zu breit ist, verkleinert seine Schrift (Hinweis, #326).
                Optionale cover.text_boxes überschreiben einzelne Textbereiche;
                image_mode: finished unterdrückt zusätzliche Vorderseitentexte.
                Farben je Fläche: cover.panel_backgrounds (front, spine, back).
@@ -254,6 +256,12 @@ def cover_tex(base, config, dim, guides=False):
          f'\\newfontfamily\\headfont{{{head_font}}}',
          f'\\definecolor{{gwbg}}{{HTML}}{{{bg}}}\\definecolor{{gwfg}}{{HTML}}{{{fg}}}',
          '\\newsavebox{\\gwtextbox}',
+         # Längstes Wort messen; ist es breiter als der Textbereich, Schrift verkleinern und im Log melden (#326)
+         '\\newlength\\gwmax\\newlength\\gwtmp',
+         '\\newcommand\\gwmeasure[1]{\\settowidth\\gwtmp{#1}\\ifdim\\gwtmp>\\gwmax\\global\\gwmax=\\gwtmp\\fi}',
+         '\\newcommand\\gwfit[2]{\\ifdim\\gwmax>\\hsize\\pgfmathsetmacro\\gwsize{floor(#1*\\hsize/\\gwmax*10)/10}'
+         '\\pgfmathsetmacro\\gwskip{\\gwsize*1.2}\\fontsize{\\gwsize}{\\gwskip}\\selectfont'
+         '\\typeout{GW-FIT #2 \\gwsize}\\fi}',
          '\\pagestyle{empty}\\setlength{\\parindent}{0pt}\\setlength{\\parskip}{0.55em}',
          '\\begin{document}\\noindent',
          '\\begin{tikzpicture}[remember picture,overlay,shift={(current page.south west)}]',
@@ -282,9 +290,13 @@ def cover_tex(base, config, dim, guides=False):
               f'{{{(base / img).resolve().as_posix()}}}}};', '\\end{scope}']
     tw = w - 2 * SAFE
     fx = front_x + SAFE
-    def node(x, y, anchor, size, text, font='\\headfont', align='center', width=tw):
-        return (f'\\node[anchor={anchor},text=gwfg,text width={width:.2f}mm,align={align},inner sep=0] at '
-                f'({x:.2f}mm,{y:.2f}mm) {{\\hyphenpenalty=10000{font}\\fontsize{{{size}}}{{{size * 1.2:.1f}}}\\selectfont {text}\\par}};')
+    def node(x, y, anchor, size, text, font='\\headfont', align='center', width=tw, part=''):
+        # Ohne Silbentrennung muss jedes Wort in die Breite passen; sonst Schrift verkleinern (#326, \\gwfit)
+        measure = ''.join(f'\\gwmeasure{{{word}}}' for word in text.split())
+        # flush …: echter Flatterrand; TikZ' align=left/center erlaubt nur 2 em Spielraum und bricht lange Titel nicht um
+        return (f'\\node[anchor={anchor},text=gwfg,text width={width:.2f}mm,align=flush {align},inner sep=0] at '
+                f'({x:.2f}mm,{y:.2f}mm) {{\\hyphenpenalty=10000{font}\\fontsize{{{size}}}{{{size * 1.2:.1f}}}\\selectfont '
+                f'\\global\\gwmax=0pt{measure}\\gwfit{{{size}}}{{{part}}}{text}\\par}};')
     mid = front_x + w / 2
     big = 28 if w >= 140 else 24
     defaults = {
@@ -325,25 +337,25 @@ def cover_tex(base, config, dim, guides=False):
                                for k in ('title', 'subtitle', 'author')]
     if tpl == 'modern':
         if title:
-            L.append(node(fx, y0 + h * 0.42, 'south west', big + 4, f'\\bfseries {title}', align='left'))
+            L.append(node(fx, y0 + h * 0.42, 'south west', big + 4, title, font='\\headfont\\bfseries', align='left', part='title'))
         if subtitle:
-            L.append(node(fx, y0 + h * 0.42 - 3, 'north west', 13, subtitle, align='left'))
+            L.append(node(fx, y0 + h * 0.42 - 3, 'north west', 13, subtitle, align='left', part='subtitle'))
         if author:
-            L.append(node(fx, y0 + h - SAFE, 'north west', 14, author, align='left'))
+            L.append(node(fx, y0 + h - SAFE, 'north west', 14, author, align='left', part='author'))
     elif tpl == 'plain':
         if title:
-            L.append(node(mid, y0 + h * 0.55, 'south', big, title))
+            L.append(node(mid, y0 + h * 0.55, 'south', big, title, part='title'))
         if subtitle:
-            L.append(node(mid, y0 + h * 0.55 - 4, 'north', 13, subtitle, font='\\itshape'))
+            L.append(node(mid, y0 + h * 0.55 - 4, 'north', 13, subtitle, font='\\itshape', part='subtitle'))
         if author:
-            L.append(node(mid, y0 + h * 0.30, 'north', 14, author))
+            L.append(node(mid, y0 + h * 0.30, 'north', 14, author, part='author'))
     else:   # classic
         if author:
-            L.append(node(mid, y0 + h - SAFE - 4, 'north', 15, author))
+            L.append(node(mid, y0 + h - SAFE - 4, 'north', 15, author, part='author'))
         if title:
-            L.append(node(mid, y0 + h * 0.66, 'north', big, f'\\bfseries {title}'))
+            L.append(node(mid, y0 + h * 0.66, 'north', big, title, font='\\headfont\\bfseries', part='title'))
         if subtitle:
-            L.append(node(mid, y0 + h * 0.66 - big * 0.5 - 8, 'north', 13, subtitle, font='\\itshape'))
+            L.append(node(mid, y0 + h * 0.66 - big * 0.5 - 8, 'north', 13, subtitle, font='\\itshape', part='subtitle'))
     if not finished:
         for part in boxes:
             L.append(custom(part, original[part]))
@@ -519,6 +531,7 @@ def build_front(base, config, pages, out, blank=True):
         tmp = Path(tmp)
         if kind == 'template':
             dim = build(base, front_only(config), pages, tmp / 'umschlag.pdf')
+            notes += [n for n in dim['notes'] if n.startswith('Covertext')]
             size = (dim['total_w'] + 2 * dim['slug'], dim['total_h'] + 2 * dim['slug'])
             x, y = dim['slug'] + dim['bleed'] + dim['w'] + dim['spine'], dim['slug'] + dim['bleed']
             src, window, pdf = 'umschlag.pdf', (x, y, size[0] - x - w, size[1] - y - h), True
@@ -573,6 +586,12 @@ def build(base, config, pages, out, front_jpg=None, guides=False):
             log = (Path(tmp) / 'umschlag.log').read_text(errors='replace')
             if (config.get('cover') or {}).get('text_boxes') and re.search(r'Overfull \\[hv]box', log):
                 raise SystemExit('Covertext passt nicht in den Textbereich. Breite/Höhe vergrößern oder Schrift verkleinern.')
+        if re.search(r'Overfull \\hbox', log):   # Vorlagentexte: Hinweis statt Abbruch (text_boxes brechen oben ab)
+            dim['notes'].append('Ein Covertext ragt über seine Breite hinaus; Vorschau prüfen und Text kürzen')
+        names = {'title': 'Titel', 'subtitle': 'Untertitel', 'author': 'Autor'}
+        for part, size in dict(re.findall(r'^GW-FIT (\w+) ([\d.]+)', log, re.M)).items():
+            dim['notes'].append(f'Covertext {names.get(part, part)}: Schrift auf {mm(float(size))} pt verkleinert, '
+                                'weil das längste Wort sonst nicht in die Breite passt')
         Path(out).write_bytes((Path(tmp) / 'umschlag.pdf').read_bytes())
     if front_jpg:
         dpi = 150

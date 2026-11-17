@@ -443,7 +443,7 @@ Formular „KI-Angabe im Buch“ (`render_view.py ai-disclosure`, #78; `scripts/
 
 ### `ausgabeoptionen.html`
 
-Formular „Ausgabeoptionen“ (`render_view.py output`, #68).
+Formular „Ausgabeoptionen“ (`render_view.py output`, #68). Ab UI 0.48.0 mit „Vorderseite im PDF“ (`typesetting.pdf_cover`) und „Eigene Vorderseite“ (`cover.front`, #324).
 
 | Platzhalter | Quelle |
 |---|---|
