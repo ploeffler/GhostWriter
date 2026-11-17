@@ -171,6 +171,35 @@ class CoverProjectTest(unittest.TestCase):
             self.assertIn('media-type="image/jpeg"', item.group(0))
 
 
+class TemplateTitleTest(unittest.TestCase):
+    """Vorlagentexte (#326): echter Flatterrand und Schriftverkleinerung bei überlangen Wörtern."""
+    def tex(self, template, title):
+        config = {'project': {'title': title, 'author': 'A'}, 'typesetting': {'page_size': 'a5'},
+                  'print': {'profile': 'custom', 'spine_mm': 0}, 'cover': {'template': template}}
+        return config, build_cover.cover_tex(Path('.'), config, build_cover.dimensions(config, 100))
+
+    def test_flush_alignment_and_measure(self):
+        for template, align in (('modern', 'flush left'), ('classic', 'flush center'), ('plain', 'flush center')):
+            tex = self.tex(template, 'ADHS im Erwachsenenleben')[1]
+            self.assertIn(f'align={align}', tex)
+            self.assertNotIn('align=left,', tex)
+            self.assertIn('\\gwmeasure{Erwachsenenleben}', tex)
+            self.assertIn('\\gwfit{', tex)
+
+    @unittest.skipUnless(shutil.which('xelatex'), 'xelatex fehlt')
+    def test_long_word_shrinks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = self.tex('modern', 'x')[0]
+            dim = build_cover.build(Path(tmp), config, 100, Path(tmp) / 'u.pdf')
+            self.assertFalse([n for n in dim['notes'] if n.startswith('Covertext')])
+            config['project']['title'] = 'ADHS im Erwachsenenleben'   # #326: bricht um, ohne Verkleinerung
+            dim = build_cover.build(Path(tmp), config, 100, Path(tmp) / 'u.pdf')
+            self.assertFalse([n for n in dim['notes'] if n.startswith('Covertext') or 'ragt' in n], dim['notes'])
+            config['project']['title'] = 'Donaudampfschifffahrtsgesellschaftskapitänsmütze'
+            dim = build_cover.build(Path(tmp), config, 100, Path(tmp) / 'u.pdf')
+            self.assertTrue(any(n.startswith('Covertext Titel: Schrift auf') for n in dim['notes']), dim['notes'])
+
+
 def pdf_front(path, w, h, bleed=0.0, three_sided=False):
     """Fertige Vorderseite als PDF (#324): Beschnitt rot, Endformat grün."""
     pw, ph = w + (bleed if three_sided else 2 * bleed), h + 2 * bleed
