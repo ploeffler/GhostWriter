@@ -50,8 +50,10 @@ def localize_checks(data):
             for field in ('CHAPTER_CHECKS', 'SECTION_CHECKS'):
                 if row.get(field):
                     row[field] = [checks.localize(t, 'en') for t in row[field]]
-    if data.get('CHECKS'):
+                    row[field + '_JSON'] = checks.as_json(row[field])
+    if data.get('CHECKS') and all(isinstance(t, dict) and 'CK_KIND' in t for t in data['CHECKS']):   # nicht die Prüfpunkte der Freigabe
         data['CHECKS'] = [checks.localize(t, 'en') for t in data['CHECKS']]
+        data['CHECKS_JSON'] = checks.as_json(data['CHECKS'])
     if data.get('CHECKS_RECENT'):
         data['CHECKS_RECENT_TEXT'] = checks.recent_text(data['CHECKS_RECENT'], 'en')
     if data.get('CHECKS_LEGEND'):
