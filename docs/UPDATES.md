@@ -56,6 +56,8 @@ Liegt der Buch-Branch hinter dem Hauptrepository, zeigt die **Projektübersicht*
 
 Der Update-Lauf erzeugt nach Migration und Projektprüfung eine kurze `START.md` für das Zielrepository. Die vollständige `START.md` im Hauptrepository bleibt die zentrale Quelle. Ihre Abschnitte werden vollständig in einzeln ladbare Dateien unter `docs/start/` aufgeteilt; `docs/start/index.md` erschließt die Fachanweisungen. Der Assistent soll den Einstieg intern lesen und nur die für seine Aufgabe benötigten Anweisungen nachladen.
 
+Den Generator (`scripts/build_start.py`) lädt der Lauf dabei aus dem **neuen** Programmstand, nicht aus dem alten Stand des Zielrepositorys; so scheitert ein Update nicht an Platzhaltern, die erst mit ihm kommen. Ein aus `assistant.yml` erzeugter persönlicher Skill wird vor der Projektprüfung neu erzeugt (eigene Ergänzungen bleiben); ein von Hand geschriebener bleibt unberührt. Lädt der neue Generator nicht, gilt der Zweig als fehlgeschlagen und bleibt unverändert.
+
 Repository, aktueller Branch und Standard-Branch stammen aus dem Update-Lauf. Die Bediensprache folgt `interface.language` des Buchs, dann `interface_language` des Profils, dann Deutsch; für Englisch gibt es eine eigene Einstiegsvorlage. Ein Buch mit Kapiteln oder einer Phase nach `wizard` erhält den Wiedereinstieg; ein neuer Buchbranch bleibt im Wizard, auch wenn die Bibliothek schon eingerichtet ist. Ein vorhandenes Bibliotheksprofil oder Bücherregal kennzeichnet eine eingerichtete Bibliothek. Veränderliche Buchstände und Branch-Zuordnungen werden im Chat weiterhin live geprüft.
 
 Optionale, ausdrücklich konfigurierte Instanzangaben stehen in `assistant.yml` **auf dem Standard-Branch**, auch für die Einstiege der Buchbranches:
