@@ -96,7 +96,9 @@ auffindbar halten. Wiederkehrende Probleme zusammenführen, vorhandene Hinweise
 referenzieren. Ohne Konflikt nur „im gelesenen Umfang keine Abweichung gefunden“
 melden. Offene Probleme nach den Schweregraden der Qualitätssicherung bewerten;
 unzureichendes Material als **nicht vollständig prüfbar** ausweisen. Das Ergebnis
-ändert keinen Status und ersetzt keine Autorenfreigabe.
+ändert keinen Status und ersetzt keine Autorenfreigabe. Wird der Bericht auf
+ausdrücklichen Speicherauftrag abgelegt, den Lauf als `story_memory` ins
+Prüfprotokoll eintragen (`scripts/checks.py record`, #331).
 
 Falls hilfreich, einen passenden **möglichen Zielort** für spätere Pflege nennen,
 etwa Figurenunterlage oder Zeitleiste. Vorschlag, Autorenentscheidung und

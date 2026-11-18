@@ -1406,6 +1406,11 @@ def run(base, kind='characters', scope=None, now=None):
     lines += body + ['', f'Übernommen wird nichts automatisch: im Chat „{spec["offer"]} … liegen bereit“ öffnen.']
     (folder / f'{run_id}.md').write_text('---\n' + yaml.safe_dump(head, allow_unicode=True, sort_keys=False) + '---\n\n'
                                          + '\n'.join(lines) + '\n', encoding='utf-8')
+    try:   # Prüfprotokoll (#331): Lauf als Prüfung analysis:<art> eintragen; ein Fehler hält die Analyse nicht auf
+        import checks
+        checks.record_analysis(base, config, head)
+    except Exception:   # noqa: BLE001
+        pass
     if entries:
         cpath = base / 'costs' / 'project.yml'
         cpath.parent.mkdir(exist_ok=True)

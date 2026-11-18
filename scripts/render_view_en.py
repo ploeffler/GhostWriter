@@ -39,10 +39,35 @@ def status(code):
     return texts().get('status.' + str(code), str(code))
 
 
+def localize_checks(data):
+    """Prüf-Tags (#331) englisch beschriften."""
+    try:
+        from . import checks
+    except ImportError:
+        import checks
+    for key in ('CHAPTERS', 'SECTIONS'):
+        for row in data.get(key, []):
+            for field in ('CHAPTER_CHECKS', 'SECTION_CHECKS'):
+                if row.get(field):
+                    row[field] = [checks.localize(t, 'en') for t in row[field]]
+    if data.get('CHECKS'):
+        data['CHECKS'] = [checks.localize(t, 'en') for t in data['CHECKS']]
+    if data.get('CHECKS_RECENT'):
+        data['CHECKS_RECENT_TEXT'] = checks.recent_text(data['CHECKS_RECENT'], 'en')
+    if data.get('CHECKS_LEGEND'):
+        data['CHECKS_LEGEND'] = checks.LEGEND['en']
+
+
+def check_lines(rows, field, number):
+    """Textfassung: eine Zeile „Checks: `1` S✓ L✓ · `2` –“ (#331)."""
+    return ['**Checks:** ' + ' · '.join(f'`{r[number]}` ' + (' '.join(t['CK_TAG'] for t in r.get(field) or []) or '–') for r in rows)]
+
+
 def prepare(template, original, config, args):
     """Nur erzeugte Beschriftungen ersetzen; Manuskript, Titel und Beschreibungen bleiben Daten."""
     data = copy.deepcopy(original)
     data['LANGUAGE'] = 'en'
+    localize_checks(data)
     if template == 'projektuebersicht':
         project = config['project']
         edition = project['current_edition']
@@ -144,6 +169,8 @@ def render(template, data, config, renderer, base):
             lines += ['📚 ' + data['SERIES_TEXT'] + ' · `S`', '']
         for analysis in data.get('ANALYSES', []):
             lines += ['> ' + analysis['A_TEXT'] + ' · `' + renderer.ANALYSIS_KEY.get(analysis['A_KIND'], 'AN') + '`', '']
+        if data.get('CHECKS_RECENT_TEXT'):
+            lines += ['🧪 **Latest checks:** ' + data['CHECKS_RECENT_TEXT'], '']
         for field in ('IMPORT_TEXT', 'PROJECT_DESCRIPTION_SHORT', 'PROJECT_DESCRIPTION'):
             if data.get(field):
                 lines += [data[field], '']
@@ -157,6 +184,8 @@ def render(template, data, config, renderer, base):
             lines += [native('project_table'), '|--:|---|--:|---|:-:|']
             lines += [f'| {r["CHAPTER_NUMBER"]} | {cell(r["CHAPTER_TITLE"])} | {r["CHAPTER_COST"]} | {renderer.STATUS_ICON.get(r["CHAPTER_STATUS"], "•")} {status(r["CHAPTER_STATUS"])} | `B{r["CHAPTER_NUMBER"]}` |' for r in rows]
             current = (config.get('workflow') or {}).get('current_chapter_id')
+            if data.get('CHECKS_LEGEND'):
+                lines += [''] + check_lines(rows, 'CHAPTER_CHECKS', 'CHAPTER_NUMBER') + ['', '<sub>' + data['CHECKS_LEGEND'] + '</sub>']
             chips = [('**`' + str(r['CHAPTER_NUMBER']) + '`**' if r['CHAPTER_ID'] == current else '`' + str(r['CHAPTER_NUMBER']) + '`') for r in rows]
             lines += ['', '**' + native('open_chapters') + ':** ' + ' '.join(chips)]
         else:
@@ -195,6 +224,10 @@ def render(template, data, config, renderer, base):
                 marks = ' '.join(renderer.MARKER_ICON[k] + ' ' + str(row['MARKERS_' + k.upper()]) for k in renderer.MARKER_ICON if row['MARKERS_' + k.upper()]) or '–'
                 lines += [f'| {row["SECTION_NUMBER"]} | {cell(row["SECTION_TITLE"])} | {marks} | {row["SECTION_COST"]} | {renderer.STATUS_ICON.get(row["SECTION_STATUS"], "•")} {status(row["SECTION_STATUS"])} |']
             lines += ['', native('marker_legend')]
+            if data.get('CHECKS_LEGEND'):
+                if data.get('CHECKS'):
+                    lines += ['', '🧪 **Checks (chapter):** ' + ' · '.join(f'`{t["CK_TAG"]}` {t["CK_TEXT"]}' for t in data['CHECKS'])]
+                lines += [''] + check_lines(rows, 'SECTION_CHECKS', 'SECTION_NUMBER') + ['', '<sub>' + data['CHECKS_LEGEND'] + '</sub>']
         else:
             lines += [native('no_sections')]
         number = str(data['CHAPTER_NUMBER'])
@@ -217,6 +250,8 @@ def render(template, data, config, renderer, base):
                 (view_message('section_ui.section_approved'), yesno(data['APPROVAL_SECTION']))]
         if data.get('CHARACTERS_ENABLED'):
             rows.append((tr('ui.characters_3'), ', '.join(r['C_NAME'] for r in data.get('ALL_CHARACTERS', []) if r['C_ON']) or '–'))
+        if data.get('CHECKS'):   # #331, not an approval
+            rows.append(('Checks', ' · '.join(f'`{t["CK_TAG"]}` {t["CK_TEXT"]}' for t in data['CHECKS'])))
         lines += field_table(rows) + ['', '**' + tr('ui.open_markers') + '**']
         lines += [f"- {renderer.MARKER_ICON[r['MARKER_TYPE']]} {r['MARKER_LABEL']}: {r['MARKER_TEXT']}" for r in data.get('MARKERS', [])] or [tr('ui.no_markers')]
         if data.get('HINTS'):

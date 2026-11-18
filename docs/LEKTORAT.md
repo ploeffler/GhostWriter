@@ -113,6 +113,14 @@ Schlusskorrektur belegt keine Strukturprüfung. Blockierende oder wesentliche
 ungelöste Probleme verhindern ein positives Ergebnis nach der Qualitätssicherung.
 Kein Prüfbericht setzt automatisch eine Autorenfreigabe oder einen Status.
 
+Wird der Bericht im Rahmen eines Speicherauftrags in `editorial/` abgelegt, im
+selben Commit den Lauf ins Prüfprotokoll eintragen (#331):
+`python3 scripts/checks.py record <buch> --kind structure|language|proofreading
+--scope <book|Kapitel-ID|Abschnitts-ID> --result passed|passed_with_notes|failed|incomplete
+--report editorial/<bericht>.md`. Projektübersicht, Kapitelansicht und
+Abschnittsformular zeigen den Lauf dann als Tag; ändert sich der Text danach,
+erscheint der Tag als „seit Prüfung geändert“. Der Eintrag ist keine Freigabe.
+
 ## Einbindung und Grenzen
 
 Die gemeinsame Fachquelle ist diese Anleitung mit ihrer englischen Fassung.
