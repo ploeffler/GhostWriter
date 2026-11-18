@@ -1,6 +1,6 @@
 # GhostWriter – Hinweise für KI-Assistenten
 
-Dieses Repository ist ein GhostWriter-Repository: ein einzelnes Buch, eine **Bibliothek** (Bücher als Branches `buch/*`, auf dem Standard-Branch nur Programm und Starter) oder das Programm selbst (`upstream.repo` in `ghostwriter-manifest.yml`). Diese Datei kommt mit jedem Update aus dem Hauptrepository; Eigenes gehört in `assistant.yml` (siehe unten). Für Claude gilt `CLAUDE.md` mit denselben Regeln.
+Dieses Repository ist ein GhostWriter-Repository: ein einzelnes Buch, eine **Bibliothek** (Bücher als Branches `buch/*`, auf dem Standard-Branch nur Programm und Starter) oder das Programm selbst (`upstream.repo` in `ghostwriter-manifest.yml`). Diese Datei kommt mit jedem Update aus dem Hauptrepository; Eigenes gehört in `assistant.yml` (siehe unten). Für Claude gilt `CLAUDE.md` mit denselben Regeln. Für ChatGPT und Codex gilt diese Datei; eine eigene `CHATGPT.md` ist nicht nötig (`docs/CHAT-APPS.md`, „Automatisch geladene Hinweise“).
 
 ## Immer
 
@@ -15,6 +15,8 @@ Dieses Repository ist ein GhostWriter-Repository: ein einzelnes Buch, eine **Bib
 9. **Grenzen:** Nie Secret-Werte lesen oder ausgeben, kein ganzes Buch im Chat, Figuren in sexuellen oder sexualisierten Szenen immer eindeutig erwachsen (#307), Freigaben nur mit ausdrücklicher Bestätigung (`START.md`).
 
 **Auswahlfragen im Gespräch:** Bei passenden Entscheidungen wenige verständliche Optionen und eine eigene Antwort anbieten; dazwischen frei sprechen. Keine Durchklickstrecke. Unterstützte Frageelemente bzw. vorhandene Karten nutzen, sonst Text. Details: `docs/QUALITAETSSICHERUNG.md`, „Gezielte Auswahlfragen im Gespräch“. Freigaben und Speicheraufträge bleiben eigene Schritte; eine anstehende Freigabe wird aber als eigene Auswahl angeboten („Abschnitt 3.2 freigeben“, „Noch ändern“, „Später“) statt als „sag …“-Satz zum Abtippen. Der Klick ist die ausdrückliche Bestätigung (`START.md`, „Freigaben“, „Freigabe im Chat“).
+
+**Zugriff und Bucharbeit:** Nur Verbindungen und Werkzeuge nutzen, die in dieser Unterhaltung tatsächlich verfügbar sind; fehlt eines, den Schritt benennen, der nicht geht, und einen sicheren manuellen Weg anbieten. Private Repository-Inhalte nur über die GitHub-Verbindung lesen, nie durch eine Websuche ersetzen. Ohne Schreibzugriff die vollständigen Dateiinhalte mit Zielpfad ausgeben (`START.md`, „Freigabe und Repository-Übertragung“), damit der Benutzer selbst committen kann. Im Buch-Repository keine Programmdateien ändern: Programmänderungen gehören ins Hauptrepository, als Issue (Punkt 5) oder, wenn die Lösung klar ist und Schreibrecht besteht, als Pull Request dort (`START.md` 1a). Pull Requests reiner Bucharbeit nennen in der Beschreibung ausdrücklich „keine Codeänderungen“.
 
 **Skillauswahl (#261):** Zu Beginn einer Aufgabe in einem Satz nennen, welcher Skill verwendet wird (oder dass keiner passt). Passen mehrere, den spezifischeren nehmen: den persönlichen Skill dieses Repositorys (`assistant.yml` → `skill`) vor `ghostwriter`; für Programmarbeit am Hauptrepository nicht `ghostwriter`. Bei echter Mehrdeutigkeit einmal kurz fragen. Einen Skill, dessen Anleitung im Gespräch noch vorliegt, nicht erneut laden; nur neu laden, wenn sie nach dem Zusammenfassen des Verlaufs fehlt, und das dann kurz sagen. Details: `docs/CHAT-APPS.md`, „Skills auswählen“.
 
