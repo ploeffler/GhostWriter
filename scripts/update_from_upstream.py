@@ -221,6 +221,28 @@ def start_library(base):
     return False
 
 
+def upstream_module(rev, name):
+    """Lädt scripts/<name>.py aus dem neuen Programmstand, nicht aus dem alten Buchstand.
+
+    Sonst rendert ein veralteter Generator die neue Vorlage und scheitert an
+    Platzhaltern, die erst mit diesem Update kommen (z. B. $DISPLAY).
+    """
+    import importlib.util
+    code = show(rev, f'scripts/{name}.py')
+    if code is None:
+        return __import__(name)
+    with tempfile.TemporaryDirectory(prefix='gw-upstream-mod-') as tmp:
+        path = Path(tmp, f'{name}.py')
+        path.write_text(code, encoding='utf-8')
+        spec = importlib.util.spec_from_file_location(f'upstream_{name}', path)
+        module = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(module)
+        except (Exception, SystemExit) as error:
+            raise RuntimeError(f'START.md nicht erzeugt: Generator des neuen Stands lädt nicht ({error})') from error
+    return module
+
+
 def expected_start(base, up_rev, branch):
     """Erwartete generierte Dateien für Drift-Prüfung, ohne den Zielbranch zu ändern.
 
@@ -229,7 +251,7 @@ def expected_start(base, up_rev, branch):
     """
     if not exists(up_rev, 'scripts/build_start.py'):
         return None
-    import build_start
+    build_start = upstream_module(up_rev, 'build_start')
     repo = os.environ.get('GITHUB_REPOSITORY', '')
     manifest = yaml.safe_load(show(up_rev, MANIFEST) or '{}') or {}
     if ((manifest.get('upstream') or {}).get('repo', '').lower() == repo.lower()
@@ -275,7 +297,10 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
     managed = [m.rstrip('/') for m in up_manifest.get('managed') or []]
     if not can_workflows:
         managed = [m for m in managed if m != WORKFLOWS]
-    generated = expected_start(base, up_rev, branch)
+    try:
+        generated = expected_start(base, up_rev, branch)
+    except RuntimeError as error:
+        return {**res, 'status': 'failed', 'text': f'{error}\nUpdate nicht eingespielt.'}
     drift = [f for f in git('diff', '--name-only', base, up_rev, '--', *managed).splitlines() if f] if managed else []
     if generated is not None:
         # Instanzdateien sind absichtlich anders als die zentrale Quelle.

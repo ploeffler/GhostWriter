@@ -287,3 +287,18 @@ class StartUpdateTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class UpstreamGeneratorTest(unittest.TestCase):
+    """Das Update rendert mit dem Generator des neuen Programmstands (YAWA, KeyError 'DISPLAY')."""
+
+    def test_generator_comes_from_upstream_revision(self):
+        new = "MARKER = 'neu'\n"
+        with patch.object(update, 'show', return_value=new):
+            module = update.upstream_module('origin/upstream', 'build_start')
+        self.assertEqual(module.MARKER, 'neu')
+        self.assertIsNot(module, build_start)
+
+    def test_falls_back_to_local_generator(self):
+        with patch.object(update, 'show', return_value=None):
+            self.assertIs(update.upstream_module('x', 'build_start'), build_start)
