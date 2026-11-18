@@ -129,6 +129,8 @@ Jede dokumentierte Prüfung enthält mindestens:
 
 Ein Abschnitt oder Kapitel darf nicht als redaktionell bestanden bezeichnet werden, solange blockierende oder wesentliche ungelöste Probleme bestehen. Ein positives Prüfergebnis setzt die formale GhostWriter-Freigabe nicht automatisch.
 
+Gespeicherte Prüfungen kommen zusätzlich ins Prüfprotokoll `editorial/checks.yml` (#331, `scripts/checks.py record`, Felder in [DATA-MODEL](DATA-MODEL.md#prüfprotokoll-331)): Prüfart `quality_correction` für Qualitätskorrekturen, die Lektoratsarten wie in der [Lektoratsanleitung](LEKTORAT.md). Die Ansichten zeigen daraus Tags; ein Tag ist keine Freigabe.
+
 ## Individuelles Buchprofil
 
 Allgemeine Regeln gelten für alle Bücher. Jedes Buch benötigt zusätzlich ein eigenes, versioniertes Projektprofil, das die individuellen Vorgaben festhält, zum Beispiel:

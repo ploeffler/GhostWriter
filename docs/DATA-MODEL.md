@@ -32,6 +32,7 @@ repository/
 ├── cover/                 # Umschlag (#68): Bilder, rueckseite.md (Klappentext, Autorentext)
 ├── characters/            # Figuren (#53), je Figur char-<name>.md; nie im Buch
 ├── story/                 # Schauplätze (places.yml), Zeitleiste (timeline.yml), Hinweise (hints.yml), #124; nie im Buch
+├── editorial/             # Prüfberichte und Prüfprotokoll checks.yml (#331); nie im Buch
 ├── ghostwriter-index.json # Übersichtsdatei, erzeugt von scripts/build_index.py (nicht von Hand ändern)
 ├── chapters/
 │   ├── 01-einleitung/
@@ -513,6 +514,16 @@ Schemafelder, legt keine eigene Wissensablage an und startet keinen Analyselauf.
 Die Analyse „Widersprüche“ (`continuity`) schreibt keine eigene Datei, sondern setzt gewählte Marker `[KONTINUITÄT PRÜFEN: …]` ins Manuskript.
 
 `scripts/validate_project.py` prüft alle drei gegen ihr Schema, eindeutige IDs und bekannte Abschnitte.
+
+### Prüfprotokoll (#331)
+
+`editorial/checks.yml` (Schema `schemas/checks.schema.json`, gepflegt mit `scripts/checks.py`) hält fest, welche Prüfung wann auf welcher Fassung mit welchem Ergebnis gelaufen ist. Die Berichte selbst liegen als Markdown daneben in `editorial/`. Nie im Buch.
+
+- `checks` = Liste mit `id` (`pr-NNN`), `kind` (`structure` Strukturlektorat, `language` Sprachlektorat, `proofreading` Schlusskorrektur, `story_memory` Buchgedächtnis, `quality_correction` Qualitätskorrektur, `analysis:<art>` Analyse im Hintergrund), `scope` (`book`, Kapitel-, Abschnitts- oder Teil-IDs), `date` (JJJJ-MM-TT), `result` (`passed`, `passed_with_notes`, `failed`, `incomplete`), optional `commit` (geprüfte Fassung), `digests` (je geprüftem Abschnitt `sha256:` und 16 Hex-Zeichen über den Manuskripttext), `report` (Pfad des Berichts), `run` (ID des Analyselaufs), `note`.
+- Eintragen: `python3 scripts/checks.py record <buch> --kind language --scope kap-01 --result passed_with_notes --report editorial/lektorat-2026-11-17.md`; Fingerabdrücke und Commit nimmt das Skript vom aktuellen Stand. Jeder Analyselauf (`analyze.py`) trägt sich selbst als `analysis:<art>` ein. `checks.py backfill <buch>` trägt frühere Analyseläufe einmalig nach; ältere Berichte trägt der Assistent mit `record` und `--date` nach.
+- Veraltet: Weicht der heutige Fingerabdruck eines geprüften Abschnitts vom gespeicherten ab, zeigt der Tag „seit Prüfung geändert“ (`*`). Ohne Fingerabdruck (nachgetragen) gilt „Stand unbekannt“ (`?`).
+- Anzeige: je Prüfart der neueste Eintrag, der die Einheit berührt; Tags an Kapiteln (Projektübersicht), Abschnitten (Kapitelansicht) und im Abschnittsformular, Platzhalter in `templates/ui/BEFUELLUNG.md`. Ein Tag heißt nur „Prüfung gelaufen mit Ergebnis X“; er ist keine Freigabe und ändert keinen Status.
+- `scripts/validate_project.py` prüft Schema, eindeutige IDs, bekannten Umfang und vorhandene Berichte.
 
 ### Analyse im Hintergrund (#123)
 

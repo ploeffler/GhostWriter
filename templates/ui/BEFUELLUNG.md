@@ -129,6 +129,8 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `SERIES_ID`, `SERIES_TEXT` | Serie des Buchs (#116) aus `series/` auf dem Standard-Branch (`scripts/series.py of <branch>`): ID und „Band N der Serie „…““; ohne Serie weglassen. Dann steht oben ein Link zur Serie (`view.series`) |
 | `UPDATE_BEHIND`, `UPDATE_TEXT` | nur wenn der Buch-Branch hinter dem Hauptrepository liegt (siehe „Update-Stand“): Anzahl Commits und Text wie „3 Commits hinter ploeffler/GhostWriter:main · Version 0.3.1 verfügbar (installiert 0.3.0)“. Sonst weglassen; dann entfällt der Hinweis mit dem Knopf „GhostWriter aktualisieren“ |
 | Block `CHAPTERS`: `CHAPTER_NUMBER`, `CHAPTER_TITLE`, `CHAPTER_STATUS`, `CHAPTER_COST`, `CHAPTER_COST_HINT`, `CHAPTER_ID` | je Kapitel aus `structure.chapters`, Kosten wie oben; `CHAPTER_ID` ist die stabile Kapitel-ID, ein Klick auf das Kapitel schickt `view.chapter`; ohne Kapitel entfällt der Bereich „Kapitel“ |
+| `CHECKS_RECENT_TEXT`, `CHECKS_LEGEND`, Liste `CHECKS_RECENT` | Prüfprotokoll (#331, `editorial/checks.yml`, `scripts/checks.py`): „Letzte Prüfungen“, je Prüfart der neueste Eintrag (höchstens drei), etwa „Sprache ✓· 2026-11-17 · Korrektur ✓ 2026-11-16“; Legende der Kürzel. Ohne Prüfprotokoll weglassen |
+| im Block `CHAPTERS`: `CHAPTER_CHECKS_TEXT`, Liste `CHAPTER_CHECKS` | Prüf-Tags des Kapitels (#331): Kurzfassung wie „S✓ L✓· K✓*“ und je Prüfart ein Tag mit `CK_KIND`, `CK_LABEL` („Sprache“), `CK_SHORT` („L“), `CK_RESULT` (`passed` …), `CK_RESULT_TEXT`, `CK_MARK` (✓, ✓·, ✗, …), `CK_DATE`, `CK_REPORT` (Pfad des Berichts, für den Link), `CK_STATE` (`current`, `changed` = seit Prüfung geändert, `unknown`), `CK_STATE_TEXT`, `CK_PARTIAL` (`1`, wenn die Prüfung nur einen Teil des Kapitels abdeckt), `CK_TEXT` (für den Tooltip), `CK_TAG`. Ohne Prüfprotokoll weglassen. Die Textfassung zeigt sie als Spalte „Prüfungen“ |
 | `CHARACTER_COUNT` | Zahl der Figuren (`characters`, #53); ohne Figuren weglassen, dann entfällt der Knopf „Figuren“ |
 | Blöcke `MATTER_FRONT`, `MATTER_BACK`: `MATTER_ID`, `MATTER_TITLE`, `MATTER_STATUS`, `MATTER_MARKERS` | Vor- und Nachspann (#57, #58) aus `structure.front_matter` (über der Kapitelliste) bzw. `back_matter` (darunter) in Buchreihenfolge: ID (`mat-…`), Titel, Status, Zahl offener Marker; ein Klick schickt `view.matter`. Ein leerer Bereich fehlt |
 
@@ -144,6 +146,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `CHAPTER_REVISION_READY` | `true`, wenn alle Abschnitte Manuskripttext und mindestens Status `writing` haben; sonst leer. Ermittelt mit `scripts/chapter_revision.py`; bei leerem Wert fehlt „Kapitel überarbeiten“. Vor der Durchführung den aktuellen Stand erneut prüfen. |
 | `CHAPTER_COST`, `CHAPTER_COST_HINT` | Kapitelkosten |
 | Block `SECTIONS`: `SECTION_ID`, `SECTION_NUMBER`, `SECTION_TITLE`, `SECTION_STATUS`, `SECTION_COST`, `MARKERS_ANEKDOTE`, `MARKERS_QUELLE`, `MARKERS_MEDIZIN`, `MARKERS_RECHT` | je Abschnitt; Status aus dem Kopf der Abschnittsdatei |
+| im Block `SECTIONS`: `SECTION_CHECKS_TEXT`, Liste `SECTION_CHECKS`; dazu `CHAPTER_CHECKS_TEXT`, `CHECKS_LEGEND`, Block `CHECKS` | Prüf-Tags (#331) je Abschnitt und für das ganze Kapitel, Felder wie `CHAPTER_CHECKS` in der Projektübersicht; ohne Prüfprotokoll weglassen. Tags sind keine Freigabe und stehen getrennt von Status und Freigaben |
 
 ### `abschnitt-bearbeiten.html`
 
@@ -156,6 +159,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `SECTION_GOAL`, `SECTION_SUMMARY`, `SECTION_MANUSCRIPT` | Ziel, Kurzbeschreibung, Manuskript |
 | `MARKER_COUNT_TEXT` | Marker des Abschnitts |
 | Block `MARKERS`: `MARKER_TYPE`, `MARKER_LABEL`, `MARKER_TEXT` | je Marker in Reihenfolge; ohne Marker entfällt der Bereich „Offene Marker“ |
+| Block `CHECKS`, `SECTION_CHECKS_TEXT` | Prüf-Tags des Abschnitts (#331), Felder wie `CHAPTER_CHECKS` in der Projektübersicht; ohne Prüfung weglassen. Nur Anzeige, keine Freigabe |
 | Block `HINTS`: `H_KIND_TEXT`, `H_TEXT`, `H_QUOTE` | sprachliche Hinweise zum Abschnitt aus `story/hints.yml` (#124): Art („Langer Satz“, „Wortwiederholung“, „Gleiche Satzanfänge“, „Füllwörter“, „KI-typisches Muster“, #305), Hinweis, Fundstelle; ohne Hinweise weglassen |
 | `PREV_SECTION_ID`, `PREV_SECTION_PROMPT`, `NEXT_SECTION_ID`, `NEXT_SECTION_PROMPT` | Nachbarabschnitte im selben Kapitel, Text „Abschnitt N.M „Titel“ bearbeiten“; am Rand leer |
 | `CHARACTERS_ENABLED`, Block `ALL_CHARACTERS`: `C_ID`, `C_NAME`, `C_ON` | nur wenn das Buch Figuren hat (#53): `1`; je Figur ID, Name und `1`, wenn sie in `characters` des Abschnittskopfs steht |

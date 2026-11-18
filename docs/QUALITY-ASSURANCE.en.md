@@ -129,6 +129,8 @@ Each documented review includes at least:
 
 A section or chapter must not be described as having passed editorial review while unresolved blocking or major issues remain. Passing review does not automatically grant formal GhostWriter approval.
 
+Saved reviews are also recorded in the check log `editorial/checks.yml` (#331, `scripts/checks.py record`): kind `quality_correction` for quality corrections, the review kinds as in the [editorial review guide](EDITORIAL-REVIEW.en.md). The views show them as tags; a tag is not an approval.
+
 ## Individual book profile
 
 General rules apply to every book. Each book also needs its own versioned project profile, recording its individual requirements, for example:

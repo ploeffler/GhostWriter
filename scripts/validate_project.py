@@ -30,6 +30,8 @@ Geprüft werden:
   angegeben; Papier nur bei kdp; Bilder des Umschlags und eigene Vorderseite (cover.front, #324) vorhanden
 - Schauplätze, Zeitleiste und Hinweise (story/places.yml, story/timeline.yml, story/hints.yml, #124;
   falls vorhanden) gegen ihr Schema, IDs eindeutig, Abschnitte bekannt
+- Prüfprotokoll (editorial/checks.yml, #331; falls vorhanden) gegen
+  schemas/checks.schema.json, IDs eindeutig, Umfang bekannt, Bericht vorhanden
 - assistant.yml (falls vorhanden, #136) gegen schemas/assistant.schema.json; der
   persönliche Skill .claude/skills/<skill>/SKILL.md passt dazu (scripts/assistant.py check)
 - approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt
@@ -71,6 +73,7 @@ REFERENCE_IMAGE_META = validator('reference-image.schema.json')
 PLACES = validator('places.schema.json')
 TIMELINE = validator('timeline.schema.json')
 HINTS = validator('hints.schema.json')
+CHECKS = validator('checks.schema.json')
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
 
 
@@ -163,6 +166,21 @@ def story_errors(base, config):
         for n in data.get('notes') or []:
             errors += [f'{path}: Hinweis verweist auf unbekanntes Ereignis {e}' for e in n.get('events') or [] if e not in ids]
     return errors
+
+
+def checks_errors(base, config):
+    """Prüfprotokoll editorial/checks.yml (#331): Schema, dann Inhalt (scripts/checks.py)."""
+    import checks
+    path = checks.path(base)
+    if not path.is_file():
+        return []
+    errors = []
+    data = load_yaml(path, errors)
+    if data is None:
+        return errors
+    data = checks.normalize(data)
+    errs = schema_errors(CHECKS, data, path)
+    return errs or checks.errors(base, config)
 
 
 def check_project(project_dir):
@@ -447,6 +465,7 @@ def check_project(project_dir):
     errors += provider_errors(config, config_path)
 
     errors += story_errors(base, config)
+    errors += checks_errors(base, config)
     import rules   # Grundregeln: Lockerung nur mit Bestätigung, Untergrenzen (#300)
     errors += rules.problems(base, config)
     approvals_path = base / 'approvals.yml'

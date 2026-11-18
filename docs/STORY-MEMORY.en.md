@@ -93,7 +93,8 @@ IDs and paragraphs. Consolidate recurring issues and refer to existing notes.
 When none are found, say only “no deviation found within the material read”.
 Classify unresolved issues using quality-assurance severity levels; mark
 insufficient material **not fully reviewable**. The result changes no status
-and grants no author approval.
+and grants no author approval. When the report is stored on an explicit save
+request, record the run as `story_memory` in the check log (`scripts/checks.py record`, #331).
 
 When useful, suggest a **possible destination** for later maintenance, such as
 character notes or the timeline. Proposal, author decision and file change remain

@@ -1287,10 +1287,25 @@ ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA', 'style': 'SA', 'places': 
 ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝', 'style': '🪶', 'places': '📍', 'timeline': '🕰️', 'continuity': '🔗', 'language': '✍️'}
 
 
+def check_index(base, config, language='de'):
+    """Prüfprotokoll (#331) für die Ansichten; ohne Datei oder bei Lesefehlern leer."""
+    try:
+        import checks
+        return checks.Index(base, config, language)
+    except Exception:   # noqa: BLE001
+        return None
+
+
+def check_cells(tags):
+    """Textfassung der Prüf-Tags (#331): „S✓ L✓· K✓*“ bzw. „–“."""
+    return ' '.join(t['CK_TAG'] for t in tags) or '–'
+
+
 def project_view(base, config, args):
     p = config['project']
     chapters = config['structure']['chapters']
     rows, parts = [], []
+    ck = check_index(base, config)
     for i, ch in enumerate(chapters, start=1):
         ch_amount, ch_est = combine([total(section_costs(base, ch, s)) for s in ch['sections']])
         parts.append((ch_amount, ch_est))
@@ -1298,6 +1313,9 @@ def project_view(base, config, args):
                      'CHAPTER_COST': money(ch_amount, ch_est),
                      'CHAPTER_COST_HINT': cost_hint('Summe der Abschnittskosten', ch_amount, ch_est),
                      'CHAPTER_ID': ch['id']})
+        if ck:   # Prüf-Tags je Kapitel (#331)
+            tags = ck.chapter(ch)
+            rows[-1].update({'CHAPTER_CHECKS': tags, 'CHAPTER_CHECKS_TEXT': check_cells(tags)})
     parts.append(total(cost_entries(base, base / 'costs' / 'project.yml')))
     amount, est = combine(parts)
     edition = p['current_edition']
@@ -1308,6 +1326,11 @@ def project_view(base, config, args):
         'PROJECT_EDITION_TEXT': f'Auflage {edition}' if edition else 'noch keine Auflage',
     }
     values['CREDIT_TEXT'], values['CREDIT_URL'] = credit()
+    if ck:   # Kopfzeile „Letzte Prüfungen“ (#331)
+        import checks
+        values['CHECKS_RECENT'] = ck.recent()
+        values['CHECKS_RECENT_TEXT'] = checks.recent_text(values['CHECKS_RECENT'])
+        values['CHECKS_LEGEND'] = checks.LEGEND['de']
     changes = load_changes(args)
     if changes:
         values.update({'PENDING_COUNT': len(changes['commits']), 'PENDING_TEXT': changes_text(changes),
@@ -1368,13 +1391,19 @@ def project_view(base, config, args):
             lines += [f'> {"⏸" if lim_state == "pause" else "⚠️"} **{lim_text}** · `E` Einstellungen', '']
         if upd:
             lines += [f'> 🔄 **GhostWriter-Update:** {values["UPDATE_TEXT"]} · `U` einspielen', '']
+        if values.get('CHECKS_RECENT_TEXT'):
+            lines += [f'🧪 **Letzte Prüfungen:** {values["CHECKS_RECENT_TEXT"]}', '']
         if values['PROJECT_DESCRIPTION_SHORT']:
             lines += [f'> {values["PROJECT_DESCRIPTION_SHORT"]}', '']
         if values['PROJECT_DESCRIPTION']:
             lines += [values['PROJECT_DESCRIPTION'], '']
         if front:
             lines += [matter_line(front, 'Vorspann'), '']
-        if rows:
+        if rows and ck:   # mit Spalte „Prüfungen“ (#331)
+            lines += ['| # | Kapitel | Kosten | Status | Prüfungen | |', '|--:|---|--:|---|---|:-:|']
+            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_COST"]} | {display_status(r["CHAPTER_STATUS"])} | {r["CHAPTER_CHECKS_TEXT"]} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
+            lines += ['', f'<sub>{values["CHECKS_LEGEND"]}</sub>']
+        elif rows:
             # Letzte Spalte: Kürzel zum Bearbeiten des Kapitels (wie der Bearbeiten-Knopf der Kapitelansicht).
             lines += ['| # | Kapitel | Kosten | Status | |', '|--:|---|--:|---|:-:|']
             lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_COST"]} | {display_status(r["CHAPTER_STATUS"])} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
@@ -1428,6 +1457,7 @@ def chapter_view(base, config, args, cnum):
     readme = (base / ch['path'] / 'README.md').read_text(encoding='utf-8')
     sub = re.search(r'(?m)^\*([^*].*)\*$', readme)
     rows, parts, counts_total, approved = [], [], 0, 0
+    ck = check_index(base, config)
     for si, s in enumerate(ch['sections'], start=1):
         head, _, _, ms = section_file(base, s)
         counts = marker_counts(ms)
@@ -1440,6 +1470,9 @@ def chapter_view(base, config, args, cnum):
                      'MARKERS_ANEKDOTE': counts['anekdote'], 'MARKERS_QUELLE': counts['quelle'],
                      'MARKERS_MEDIZIN': counts['medizin'], 'MARKERS_RECHT': counts['recht'],
                      'MARKERS_KONTINUITAET': counts['kontinuitaet']})
+        if ck:   # Prüf-Tags je Abschnitt (#331)
+            tags = ck.section(s['id'])
+            rows[-1].update({'SECTION_CHECKS': tags, 'SECTION_CHECKS_TEXT': check_cells(tags)})
     amount, est = combine(parts)
     n = len(ch['sections'])
     _, ch_summary, ch_goal = chapter_readme(base, ch)
@@ -1453,6 +1486,10 @@ def chapter_view(base, config, args, cnum):
               'APPROVED_COUNT_TEXT': f'{approved} von {n}',
               'CHAPTER_APPROVABLE': 'true' if ch['status'] == 'ready_for_approval' and n and approved == n else '',
               'CHAPTER_REVISION_READY': 'true' if revision_ready else ''}
+    chapter_checks = ck.chapter(ch) if ck else []
+    if ck:
+        import checks
+        values.update({'CHAPTER_CHECKS_TEXT': check_cells(chapter_checks), 'CHECKS_LEGEND': checks.LEGEND['de']})
     if args.text:
         def marks(r):
             parts = [f'{MARKER_ICON[k]} {r["MARKERS_" + k.upper()]}' for k in MARKER_ICON if r['MARKERS_' + k.upper()]]
@@ -1464,7 +1501,15 @@ def chapter_view(base, config, args, cnum):
         lines += ['', f'**Ziel des Kapitels:** {ch_goal or "*noch offen*"}', '',
                   f'**Kurzbeschreibung:** {ch_summary or "*noch offen*"} · `Z` ändern, Kapitelrecherche']
         lines += ['', f'{values["SECTION_COUNT_TEXT"]} · ✅ {values["APPROVED_COUNT_TEXT"]} freigegeben · {values["MARKER_COUNT_TEXT"]} · Kosten **{values["CHAPTER_COST"]}**', '']
-        if rows:
+        if chapter_checks:
+            lines += ['🧪 **Prüfungen:** ' + ' · '.join(f'`{t["CK_TAG"]}` {t["CK_TEXT"]}' for t in chapter_checks), '']
+        if rows and ck:   # mit Spalte „Prüfungen“ (#331)
+            lines += ['| # | Abschnitt | Marker | Kosten | Status | Prüfungen |', '|--:|---|---|--:|---|---|']
+            lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {marks(r)} | {r["SECTION_COST"]} | {display_status(r["SECTION_STATUS"])} | {r["SECTION_CHECKS_TEXT"]} |' for r in rows]
+            lines += ['', f'<sub>{values["CHECKS_LEGEND"]}</sub>']
+            if counts_total:
+                lines += ['', f'<sub>{MARKER_LEGEND}</sub>']
+        elif rows:
             lines += ['| # | Abschnitt | Marker | Kosten | Status |', '|--:|---|---|--:|---|']
             lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {marks(r)} | {r["SECTION_COST"]} | {display_status(r["SECTION_STATUS"])} |' for r in rows]
             if counts_total:
@@ -1481,7 +1526,10 @@ def chapter_view(base, config, args, cnum):
                   ('R', 'Reihenfolge'), ('FV', '👤 Figuren aus dem Text vorschlagen'), ('Ü', 'Übersicht')]
         lines += [menu(items)]
         return '\n'.join(lines) + '\n'
-    return fill('kapitelansicht.html', values, {'SECTIONS': rows})
+    blocks = {'SECTIONS': rows}
+    if chapter_checks:
+        blocks['CHECKS'] = chapter_checks
+    return fill('kapitelansicht.html', values, blocks)
 
 
 def section_hints(base, sid):
@@ -1505,6 +1553,8 @@ def section_view(base, config, args, cnum, snum):
                 'MARKER_TEXT': (m.group(2) or '').strip() or '–'} for m in MARKER_TEXT.finditer(ms)]
     a, e = total(section_costs(base, ch, s))
     hints = section_hints(base, s['id'])
+    ck = check_index(base, config)
+    section_checks = ck.section(s['id']) if ck else []
     def nav(k):
         if 1 <= k <= len(secs):
             return secs[k - 1]['id'], f'Abschnitt {cnum}.{k} „{secs[k - 1]["title"]}“ bearbeiten'
@@ -1537,6 +1587,8 @@ def section_view(base, config, args, cnum, snum):
         if chars:
             names = {c['id']: c['name'] for c in chars}
             lines.append(f'| Figuren | {", ".join(names.get(c, c) for c in in_section) or "–"} |')
+        if section_checks:   # Prüf-Tags (#331); keine Freigabe
+            lines.append('| Prüfungen | ' + ' · '.join(f'`{t["CK_TAG"]}` {t["CK_TEXT"]}' for t in section_checks) + ' |')
         lines.append('')
         if markers:
             lines += [f'**Offene Marker ({n})**'] + [f'- {MARKER_ICON[m["MARKER_TYPE"]]} {m["MARKER_LABEL"]}: {m["MARKER_TEXT"]}' for m in markers] + ['']
@@ -1565,6 +1617,9 @@ def section_view(base, config, args, cnum, snum):
     blocks = {'MARKERS': markers}
     if hints:
         blocks['HINTS'] = hints
+    if section_checks:
+        blocks['CHECKS'] = section_checks
+        values['SECTION_CHECKS_TEXT'] = check_cells(section_checks)
     if chars:
         blocks['ALL_CHARACTERS'] = [{'C_ID': c['id'], 'C_NAME': c['name'], 'C_ON': '1' if c['id'] in in_section else ''}
                                     for c in chars]

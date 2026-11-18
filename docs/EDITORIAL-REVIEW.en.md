@@ -106,6 +106,14 @@ proofreading does not establish a structural review. Unresolved blocking or
 significant issues prevent a positive result under quality assurance.
 No report automatically grants author approval or changes status.
 
+When the report is stored in `editorial/` as part of a save request, record the
+run in the check log in the same commit (#331):
+`python3 scripts/checks.py record <book> --kind structure|language|proofreading
+--scope <book|chapter ID|section ID> --result passed|passed_with_notes|failed|incomplete
+--report editorial/<report>.md`. The project overview, chapter view and section
+form then show the run as a tag; if the text changes afterwards, the tag reads
+“changed since check”. The entry is not an approval.
+
 ## Integration and limits
 
 This guide and its German counterpart are the shared subject-matter source.
