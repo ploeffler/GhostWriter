@@ -312,6 +312,12 @@ def localize(tag, language='de'):
                 CK_STATE_TEXT=STATE_TEXT[lang][st], CK_TEXT=text, CK_TAG=f'{short}{mark}{suffix}')
 
 
+def as_json(tag_list):
+    """Widget (ghostwriter-ui, data-gw-checks): kompakte JSON-Liste der Tags."""
+    keep = ('CK_TAG', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT')
+    return json.dumps([{k: t.get(k, '') for k in keep} for t in tag_list], ensure_ascii=False, separators=(',', ':'))
+
+
 def short_text(tag_list):
     """Textfassung: „S✓ L✓· K✓*“ bzw. „–“."""
     return ' '.join(t['CK_TAG'] for t in tag_list) or '–'

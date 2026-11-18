@@ -117,6 +117,12 @@ class ChecksTest(unittest.TestCase):
         widget = render_view.project_view(self.base, self.config, args(text=False))
         self.assertEqual(widget.data['CHAPTERS'][0]['CHAPTER_CHECKS_TEXT'], 'L✓· K✓')
         self.assertEqual(widget.data['CHAPTERS'][0]['CHAPTER_CHECKS'][0]['CK_KIND'], 'language')
+        row = json.loads(widget.data['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])
+        self.assertEqual([c['CK_TAG'] for c in row], ['L✓·', 'K✓'])
+        self.assertEqual(sorted(row[0]), ['CK_REPORT', 'CK_RESULT', 'CK_STATE', 'CK_TAG', 'CK_TEXT'])
+        chap = render_view.chapter_view(self.base, self.config, args(text=False), 1)
+        self.assertEqual(json.loads(chap.data['CHECKS_JSON'])[0]['CK_TAG'], 'L✓·')
+        self.assertIn('SECTION_CHECKS_JSON', chap.data['SECTIONS'][0])
         sec = render_view.section_view(self.base, self.config, args(text=False), 1, 1)
         self.assertEqual([t['CK_TAG'] for t in sec.data['CHECKS']], ['L✓·', 'K✓'])
 
@@ -128,6 +134,10 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual(data['CHECKS_RECENT_TEXT'], 'Language ✓ 2026-11-17')
         self.assertIn('A tag is not an approval.', data['CHECKS_LEGEND'])
         self.assertEqual(data['CHAPTERS'][0]['CHAPTER_CHECKS'][0]['CK_TEXT'], 'Language: passed, 2026-11-17 · current')
+        self.assertEqual(json.loads(data['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])[0]['CK_TEXT'], 'Language: passed, 2026-11-17 · current')
+        approval = {'CHECKS': [{'C_TEXT': 'Prüfpunkt'}]}   # Prüfpunkte der Freigabe bleiben unberührt
+        render_view_en.localize_checks(approval)
+        self.assertEqual(approval, {'CHECKS': [{'C_TEXT': 'Prüfpunkt'}]})
 
     def test_analysis_run_recorded_and_backfill(self):
         fake = Path(self.base).parent / 'fake.json'

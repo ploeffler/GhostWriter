@@ -1301,6 +1301,12 @@ def check_cells(tags):
     return ' '.join(t['CK_TAG'] for t in tags) or '–'
 
 
+def check_json(tags):
+    """Widget (#331): Tags als JSON-Liste für data-gw-checks in ghostwriter-ui."""
+    import checks
+    return checks.as_json(tags)
+
+
 def project_view(base, config, args):
     p = config['project']
     chapters = config['structure']['chapters']
@@ -1315,7 +1321,8 @@ def project_view(base, config, args):
                      'CHAPTER_ID': ch['id']})
         if ck:   # Prüf-Tags je Kapitel (#331)
             tags = ck.chapter(ch)
-            rows[-1].update({'CHAPTER_CHECKS': tags, 'CHAPTER_CHECKS_TEXT': check_cells(tags)})
+            rows[-1].update({'CHAPTER_CHECKS': tags, 'CHAPTER_CHECKS_TEXT': check_cells(tags),
+                             'CHAPTER_CHECKS_JSON': check_json(tags)})
     parts.append(total(cost_entries(base, base / 'costs' / 'project.yml')))
     amount, est = combine(parts)
     edition = p['current_edition']
@@ -1472,7 +1479,8 @@ def chapter_view(base, config, args, cnum):
                      'MARKERS_KONTINUITAET': counts['kontinuitaet']})
         if ck:   # Prüf-Tags je Abschnitt (#331)
             tags = ck.section(s['id'])
-            rows[-1].update({'SECTION_CHECKS': tags, 'SECTION_CHECKS_TEXT': check_cells(tags)})
+            rows[-1].update({'SECTION_CHECKS': tags, 'SECTION_CHECKS_TEXT': check_cells(tags),
+                             'SECTION_CHECKS_JSON': check_json(tags)})
     amount, est = combine(parts)
     n = len(ch['sections'])
     _, ch_summary, ch_goal = chapter_readme(base, ch)
@@ -1490,6 +1498,8 @@ def chapter_view(base, config, args, cnum):
     if ck:
         import checks
         values.update({'CHAPTER_CHECKS_TEXT': check_cells(chapter_checks), 'CHECKS_LEGEND': checks.LEGEND['de']})
+        if chapter_checks:
+            values['CHECKS_JSON'] = check_json(chapter_checks)
     if args.text:
         def marks(r):
             parts = [f'{MARKER_ICON[k]} {r["MARKERS_" + k.upper()]}' for k in MARKER_ICON if r['MARKERS_' + k.upper()]]
@@ -1620,6 +1630,7 @@ def section_view(base, config, args, cnum, snum):
     if section_checks:
         blocks['CHECKS'] = section_checks
         values['SECTION_CHECKS_TEXT'] = check_cells(section_checks)
+        values['CHECKS_JSON'] = check_json(section_checks)
     if chars:
         blocks['ALL_CHARACTERS'] = [{'C_ID': c['id'], 'C_NAME': c['name'], 'C_ON': '1' if c['id'] in in_section else ''}
                                     for c in chars]
