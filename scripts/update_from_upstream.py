@@ -221,6 +221,16 @@ def start_library(base):
     return False
 
 
+def generated_skill(wt):
+    """True, wenn der persönliche Skill aus assistant.yml erzeugt wurde (nicht von Hand geschrieben)."""
+    try:
+        profile = yaml.safe_load((Path(wt) / 'assistant.yml').read_text(encoding='utf-8')) or {}
+        skill = Path(wt, '.claude/skills', str(profile.get('skill') or ''), 'SKILL.md')
+        return bool(profile.get('skill')) and skill.is_file() and 'python scripts/assistant.py . skill' in skill.read_text(encoding='utf-8')
+    except (OSError, yaml.YAMLError):
+        return False
+
+
 def upstream_module(rev, name):
     """Lädt scripts/<name>.py aus dem neuen Programmstand, nicht aus dem alten Buchstand.
 
@@ -344,7 +354,12 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
                             + ', '.join(unresolved) + '. Bitte von Hand zusammenführen.'}
         steps, migration = [], {}
         if (Path(wt) / 'ghostwriter.yml').is_file():
-            for cmd in (['scripts/migrate_project.py', '.'], ['scripts/validate_project.py', '.'], ['scripts/build_index.py', '.']):
+            cmds = [['scripts/migrate_project.py', '.']]
+            if (Path(wt) / 'assistant.yml').is_file() and generated_skill(wt):
+                # Erzeugter persönlicher Skill folgt der neuen Vorlage; eigene Ergänzungen bleiben.
+                cmds.append(['scripts/assistant.py', '.', 'skill'])
+            cmds += [['scripts/validate_project.py', '.'], ['scripts/build_index.py', '.']]
+            for cmd in cmds:
                 if not (Path(wt) / cmd[0]).is_file():
                     continue
                 code, out = run(cmd, wt)

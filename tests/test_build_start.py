@@ -302,3 +302,15 @@ class UpstreamGeneratorTest(unittest.TestCase):
     def test_falls_back_to_local_generator(self):
         with patch.object(update, 'show', return_value=None):
             self.assertIs(update.upstream_module('x', 'build_start'), build_start)
+
+
+class GeneratedSkillTest(unittest.TestCase):
+    def test_detects_generated_and_handwritten_skill(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, 'assistant.yml').write_text('skill: ich\n')
+            skill = Path(tmp, '.claude/skills/ich/SKILL.md')
+            skill.parent.mkdir(parents=True)
+            skill.write_text('x\n<!-- python scripts/assistant.py . skill -->\n')
+            self.assertTrue(update.generated_skill(tmp))
+            skill.write_text('von Hand\n')
+            self.assertFalse(update.generated_skill(tmp))
