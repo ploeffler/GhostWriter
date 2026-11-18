@@ -76,6 +76,8 @@ Switching the interface itself (for example from a ChatGPT chat to Work) is up t
 
 GhostWriter repositories include `CLAUDE.md`, `AGENTS.md` and the general `.claude/skills/ghostwriter/SKILL.md`; program updates maintain them. An optional `assistant.yml` profile and its generated personal skill contain repository preferences such as Git identity, author and default narrative voice. Those belong to the book and are not overwritten by program updates.
 
+**ChatGPT and Codex:** There is no separate ChatGPT entry file; `AGENTS.md` applies to ChatGPT and Codex just as `CLAUDE.md` applies to Claude. Codex reads `AGENTS.md` automatically. In a ChatGPT chat with the GitHub connector, point the project instructions to `AGENTS.md` and `START.md`. A hand-written `CHATGPT.md` in a book repository belongs to the book, never arrives with updates and therefore goes stale; prefer a short pointer to `AGENTS.md` and `START.md` (template in the German [chat apps guide](CHAT-APPS.md#automatisch-geladene-hinweise-136)).
+
 Automatic loading depends on the assistant having repository access and actually supporting those files. Otherwise, the assistant must read `START.md` and `assistant.yml` as appropriate. Do not put secrets or manuscript text in these instruction files.
 
 ## Choosing skills (#261)

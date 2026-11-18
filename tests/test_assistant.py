@@ -293,6 +293,12 @@ class ReportRuleTest(unittest.TestCase):
               'templates/assistant-skill.md': 'ohne Rückfrage als Issue im Hauptrepo'}
         for name, phrase in de.items():
             self.assertIn(phrase, (ROOT / name).read_text(encoding='utf-8'), name)
+        for name in ('CLAUDE.md', 'AGENTS.md'):   # Zugriff und Bucharbeit (aus CHATGPT.md in YAWA übernommen)
+            text = (ROOT / name).read_text(encoding='utf-8')
+            for phrase in ('nie durch eine Websuche ersetzen', 'vollständigen Dateiinhalte mit Zielpfad',
+                           'keine Programmdateien ändern', '„keine Codeänderungen“'):
+                self.assertIn(phrase, text, name)
+        self.assertIn('eine eigene `CHATGPT.md` ist nicht nötig', (ROOT / 'AGENTS.md').read_text(encoding='utf-8'))
         source = (ROOT / 'START.md').read_text(encoding='utf-8')
         for lang, phrase in (('de', 'Programmfehler ungefragt als Issue im Hauptrepo melden'),
                              ('en', 'Report program bugs upstream as an issue without asking')):

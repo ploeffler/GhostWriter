@@ -87,6 +87,14 @@ Jedes GhostWriter-Repository bringt drei Einstiegsdateien mit, die mit jedem Upd
 
 Dazu kommt je Repository das **Assistenten-Profil** `assistant.yml` mit dem daraus erzeugten persönlichen Skill `.claude/skills/<autor>-auf-<repo>/SKILL.md` (Git-Benutzer, Autor, Standard-Erzählstimme; `START.md`, „Assistenten-Profil“). Beides gehört dem Buch und wird von Updates nie überschrieben.
 
+**ChatGPT und Codex:** Es gibt keinen eigenen ChatGPT-Einstieg; `AGENTS.md` gilt für ChatGPT und Codex genauso wie `CLAUDE.md` für Claude. Codex liest `AGENTS.md` von selbst. Im ChatGPT-Chat mit GitHub-Connector in den Projektanweisungen auf `AGENTS.md` und `START.md` verweisen. Eine von Hand angelegte `CHATGPT.md` im Buch-Repository gehört dem Buch, kommt mit keinem Update und veraltet deshalb; besser ist ein kurzer Verweis:
+
+```markdown
+# GhostWriter – Hinweise für ChatGPT
+
+Es gelten `AGENTS.md` und `START.md` dieses Repositorys (kommen mit jedem Update aus dem Hauptrepository) sowie `assistant.yml`. In ChatGPT gibt es keine Widgets: Ansichten als Textfassung (`render_view.py … --text --repo <owner>/<repo>`). Hier nur ergänzen, was ausschließlich für ChatGPT in diesem Repository gilt.
+```
+
 **Grenzen:** Automatisch geladen wird das nur von Assistenten mit Zugriff auf das Repository, die diese Dateien auch lesen. In reinen Chat-Apps (ChatGPT, Gemini, Copilot, Claude ohne eingebundenes Repository) bleibt der Hinweis in `README.md` der Einstieg; der Assistent liest `START.md` und `assistant.yml` dann beim Wiedereinstieg selbst. In diese Dateien gehören keine Secrets und keine Manuskripttexte.
 
 ## Skills auswählen (#261)
