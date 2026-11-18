@@ -249,7 +249,7 @@ Der Benutzer kann jederzeit wechseln:
 
 **Lesefassung (#289, #316):** Dieselbe Regel gilt für Claude, ChatGPT Work und Codex: Text als Markdown-Datei neben der Ansicht, auch ungespeicherte Schreibvorschläge eindeutig kennzeichnen und dieselbe Datei nach Änderungen aktualisieren. In Codex das vorhandene Dateipanel verwenden, keinen Browser. `queued` bestätigt nur den Anzeigeauftrag. Keine doppelte Volltextausgabe im Chat; ohne Vorschau Datei/Link mit Einschränkung anbieten. Erweiterte Ansichten nennen tatsächlichen Speicherstand und unbekannte Quellenstände ausdrücklich; keine erfundenen Kosten oder Marker. `Lesefassung aus/an` und der Darstellungsmodus bleiben unabhängig und gelten nur im Chat. Vorschau, Speicherung im Arbeitsbranch und Übernahme in den Buchstand unterscheiden; keine Freigabe durch Anzeigen. Ablauf: `START.md`, „Lesefassung“.
 
-Die Auswahl gilt für den laufenden Chat, bis sie geändert wird. Sie darf nicht als dauerhaft gespeicherte Projekteinstellung dargestellt werden, solange keine entsprechende Funktion vorhanden ist.
+Die Auswahl gilt für den laufenden Chat, bis sie geändert wird. **Dauerhafter Standard (#330):** `display` in `assistant.yml` (`einfach`, `uebersichtlich`, `erweitert`, `text`) legt den Darstellungsmodus für jeden neuen Chat fest, `answers` (`einfach`, `erweitert`) den Antwortmodus; fehlt das Feld, gelten „übersichtlich“ bzw. der einfache Modus. Gespeichert wird nur auf ausdrücklichen Wunsch („Darstellung: erweitert dauerhaft“, „Erweiterte Antworten dauerhaft“) mit `python scripts/assistant.py . set '{"display":"erweitert"}'` nach den Regeln für das Assistenten-Profil. Eine Wahl im Chat geht für diesen Chat weiterhin vor.
 
 ## Automatische Sprachprüfung (LanguageTool)
 
@@ -268,7 +268,7 @@ Diese Anleitung beschreibt das redaktionelle Soll-Verhalten. Sie behauptet nicht
 
 ### Gemeinsame übersichtliche Ansicht: Claude, ChatGPT und Gemini
 
-Ohne ausdrücklich gewählten Darstellungsmodus gilt „übersichtlich“. Eine ausdrückliche Auswahl „einfach“, „erweitert“ oder „Nur Text“ bleibt wirksam; Antwortumfang und Darstellungsmodus bleiben unabhängig.
+Ohne ausdrücklich gewählten Darstellungsmodus gilt `display` aus `assistant.yml`, sonst „übersichtlich“ (#330). Eine ausdrückliche Auswahl „einfach“, „erweitert“ oder „Nur Text“ bleibt wirksam; Antwortumfang und Darstellungsmodus bleiben unabhängig.
 
 - Buch- und Kapitelkopf: Titel, kompakter Arbeitsstand und Kosten; direkt darunter ein Balken mit zehn Segmenten und der genauen Anzahl abgeschlossener Abschnitte. Ohne Abschnitte „0 von 0“ und keinen gefüllten Balken zeigen. „In Arbeit“ zählt alle Abschnitte, die weder geplant noch freigegeben sind; dies ist keine Freigabe. Der Balken misst ausschließlich Abschnittsfreigaben, nicht Fertigstellung oder Veröffentlichung des Buchs.
 - Offene Marker mit Anzahl hervorheben. Warnungen, ausstehende Übernahmen und Freigaben weiterhin vollständig zeigen. Fehlende Daten ausdrücklich benennen; keine Zahlen schätzen.

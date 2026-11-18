@@ -17,6 +17,16 @@
       "enum": ["ask", "auto"],
       "description": "Wechsel zwischen Gespräch und Manuskriptarbeit (#315): ask = vor dem Wechsel in die Manuskriptarbeit einmal fragen, auto = Modus aus dem Auftrag wählen, ohne nachzufragen; fehlt = ask. Speichern, Übernehmen und Freigaben bleiben eigene Schritte."
     },
+    "display": {
+      "type": "string",
+      "enum": ["einfach", "uebersichtlich", "erweitert", "text"],
+      "description": "Darstellungsmodus als Standard in jedem neuen Chat (#330); fehlt = uebersichtlich. Eine Wahl im Chat geht für diesen Chat vor."
+    },
+    "answers": {
+      "type": "string",
+      "enum": ["einfach", "erweitert"],
+      "description": "Antwortmodus als Standard (#330): einfach = Alltagssprache, erweitert = mit technischen Details; fehlt = einfach. „Erweiterte Antworten an/aus“ im Chat geht vor."
+    },
     "repo": {
       "type": "string",
       "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
@@ -46,7 +56,7 @@
       "type": "object",
       "description": "Standard-Erzählstimme für alle Bücher; das Stilprofil eines Buchs (style in ghostwriter.yml) und Vorgaben im Abschnitt gehen vor",
       "properties": {
-        "text": {"type": "string", "maxLength": 2000, "description": "Beschreibung der Stimme in wenigen Sätzen (kein Manuskripttext)"},
+        "text": {"type": "string", "maxLength": 6000, "description": "Beschreibung der Stimme, auch mit mehreren Absätzen (kein Manuskripttext; #330: bis 6000 Zeichen)"},
         "perspective": {"type": "string", "description": "Erzählperspektive, z. B. ich, er/sie, auktorial"},
         "tense": {"type": "string", "description": "Zeitform, z. B. Präteritum, Präsens"},
         "address": {"type": "string", "description": "Anrede des Lesers: du, Sie, ihr, keine"},
