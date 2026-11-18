@@ -152,7 +152,7 @@ GhostWriter darf Verbesserungspotenziale selbstständig erkennen, klassifizieren
 
 ## 13. Fehler und Wünsche melden
 
-Betrifft etwas das Programm (Skripte, Vorlagen, Anleitung), nicht das Buch:
+Erkennst du einen Fehler im Programm (Skripte, Vorlagen, Anleitungen), melde ihn **ohne Rückfrage** als Issue im Hauptrepository und nenne dem Benutzer Nummer und Link (Standard, #330; gilt auch ohne persönlichen Skill). Fehlt ein Werkzeug zum Anlegen, den fertigen Issue-Text und den Link zum Anlegen nennen. Betrifft etwas das Programm, nicht das Buch:
 
 1. Im Hauptrepository (`upstream.repo`) nach einem gleichen offenen Issue suchen.
 2. Sonst ein Issue mit den Abschnitten **Beobachtet** (Repository, GhostWriter-Version aus `ghostwriter-manifest.yml`, was passiert ist), **Ursache** (soweit bekannt, mit Datei und Stelle) und **Vorschlag**.

@@ -96,12 +96,70 @@ class ProfileTest(unittest.TestCase):
         self.assertTrue(own.is_file(), 'ein von Hand angelegter Skill bleibt')
         self.assertIn('.claude/skills/cyberlefl325-auf-yawa/SKILL.md', res['files'])
 
+    def test_long_voice_and_features_as_bullets(self):   # #330
+        voice = {'text': 'Absatz eins.\n\n' + 'Lange Beschreibung. ' * 200, 'tone': ['warm', 'trocken'],
+                 'features': ['Kurze Sätze, oft ohne Verb', 'Running Gags, die wiederkehren']}
+        prof, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'voice': voice})
+        self.assertEqual(errs, [])
+        self.assertGreater(len(prof['voice']['text']), 2000)
+        skill = assistant.skill_path(self.d, prof).read_text(encoding='utf-8')
+        self.assertIn('- Stilmittel:\n  - Kurze Sätze, oft ohne Verb\n  - Running Gags, die wiederkehren', skill)
+        self.assertIn('- Ton: warm, trocken', skill)
+        prof, _, _ = assistant.set_profile(self.d, {'voice': {'tone': ['warm, aber nie kitschig', 'trocken']}})
+        self.assertIn('- Ton:\n  - warm, aber nie kitschig\n  - trocken', assistant.skill_path(self.d, prof).read_text(encoding='utf-8'))
+
+    def test_handwritten_skill_is_not_overwritten(self):   # #330
+        p = self.d / '.claude/skills/cyberlefl325-auf-yawa/SKILL.md'
+        p.parent.mkdir(parents=True)
+        p.write_text('---\nname: cyberlefl325-auf-yawa\n---\n\nErprobte Werkzeugwege.\n', encoding='utf-8')
+        prof, errs, res = assistant.set_profile(self.d, PROFILE)
+        self.assertIsNone(prof)
+        self.assertTrue(any('von Hand geschrieben' in e and '--force' in e for e in errs), errs)
+        self.assertFalse((self.d / 'assistant.yml').exists())
+        self.assertIn('Erprobte Werkzeugwege', p.read_text(encoding='utf-8'))
+        prof, errs, res = assistant.set_profile(self.d, PROFILE, force=True)
+        self.assertEqual(errs, [])
+        self.assertIn('Erprobte Werkzeugwege', p.with_name('SKILL.md.bak').read_text(encoding='utf-8'))
+        self.assertIn('.claude/skills/cyberlefl325-auf-yawa/SKILL.md.bak', res['files'])
+        self.assertIn(assistant.MARKER, p.read_text(encoding='utf-8'))
+        p.write_text('handgeschrieben\n', encoding='utf-8')
+        self.assertTrue(any('von Hand geschrieben' in e for e in assistant.check(self.d)))
+        with self.assertRaises(assistant.HandwrittenSkill):
+            assistant.write_skill(self.d, prof)
+
+    def test_own_additions_survive_regeneration(self):   # #330
+        prof, _, _ = assistant.set_profile(self.d, PROFILE)
+        p = assistant.skill_path(self.d, prof)
+        text = p.read_text(encoding='utf-8')
+        self.assertIn(assistant.OWN_START + '\n' + assistant.OWN_END, text)
+        p.write_text(text.replace(assistant.OWN_END, '- Eigener Werkzeugweg: gh api …\n' + assistant.OWN_END), encoding='utf-8')
+        self.assertEqual(assistant.check(self.d), [])
+        assistant.set_profile(self.d, {'author': 'Neu'})
+        self.assertIn('- Eigener Werkzeugweg: gh api …', p.read_text(encoding='utf-8'))
+        self.assertIn('- Autor: Neu', p.read_text(encoding='utf-8'))
+
+    def test_display_and_answers(self):   # #330
+        prof, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'display': 'erweitert', 'answers': 'erweitert'})
+        self.assertEqual(errs, [])
+        skill = assistant.skill_path(self.d, prof).read_text(encoding='utf-8')
+        self.assertIn('„Darstellung: erweitert“ ist der Standard dieses Repositorys', skill)
+        self.assertIn('- Antwortmodus: erweiterte Antworten', skill)
+        self.assertNotIn('Darstellungsmodus in Claude: Widget', skill)
+        _, errs, _ = assistant.set_profile(self.d, {'display': 'bunt'})
+        self.assertTrue(errs)
+        import build_start
+        text = build_start.render((ROOT / 'START.md').read_text(encoding='utf-8'),
+                                  (ROOT / 'templates/start/de.md').read_text(encoding='utf-8'),
+                                  repo='chillyconcane/YAWA', branch='main', default_branch='main', config={},
+                                  profile={**PROFILE, 'display': 'erweitert', 'answers': 'erweitert'})['START.md']
+        self.assertIn('Standard: erweitert, Antworten erweitert', text)
+
     def test_invalid(self):
         _, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'git': {'name': 'x', 'email': 'kein-mail'}})
         self.assertTrue(errs)
         _, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'skill': 'ghostwriter'})
         self.assertTrue(any('allgemeine Skill' in e for e in errs))
-        _, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'voice': {'text': 'x' * 2001}})
+        _, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'voice': {'text': 'x' * 6001}})
         self.assertTrue(errs, 'Stimme ist eine Beschreibung, kein Manuskripttext')
         self.assertFalse((self.d / 'assistant.yml').exists())
 
@@ -223,3 +281,25 @@ class ProgramRepoTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ReportRuleTest(unittest.TestCase):
+    """Melderegel für Programmfehler in jedem Einstieg (#330), auch ohne persönlichen Skill."""
+
+    def test_every_entry_contains_rule(self):
+        import build_start
+        de = {'CLAUDE.md': 'ohne Rückfrage als Issue im Hauptrepository', 'AGENTS.md': 'ohne Rückfrage als Issue im Hauptrepository',
+              '.claude/skills/ghostwriter/SKILL.md': '**ohne Rückfrage** als Issue im Hauptrepository',
+              'templates/assistant-skill.md': 'ohne Rückfrage als Issue im Hauptrepo'}
+        for name, phrase in de.items():
+            self.assertIn(phrase, (ROOT / name).read_text(encoding='utf-8'), name)
+        source = (ROOT / 'START.md').read_text(encoding='utf-8')
+        for lang, phrase in (('de', 'Programmfehler ungefragt als Issue im Hauptrepo melden'),
+                             ('en', 'Report program bugs upstream as an issue without asking')):
+            main, webui = build_start.template_names(lang)
+            out = build_start.render(source, (ROOT / main).read_text(encoding='utf-8'), repo='o/b', branch='main',
+                                     default_branch='main', config={}, openwebui_template=(ROOT / webui).read_text(encoding='utf-8'),
+                                     upstream='ploeffler/GhostWriter')
+            self.assertIn(phrase, out['START.md'], lang)
+            webui_text = out[build_start.OPENWEBUI]
+            self.assertIn('https://github.com/ploeffler/GhostWriter/issues/new', webui_text, lang)

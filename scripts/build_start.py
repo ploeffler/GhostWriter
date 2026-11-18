@@ -62,8 +62,13 @@ def module_links(text):
     return re.sub(r'(src|srcset)="(assets/[^\"]+)"', r'\1="../../\2"', text)
 
 
+DISPLAY_TEXT = {'de': {'einfach': 'einfach', 'uebersichtlich': 'übersichtlich', 'erweitert': 'erweitert', 'text': 'Nur Text'},
+                'en': {'einfach': 'simple', 'uebersichtlich': 'organized', 'erweitert': 'extended', 'text': 'text only'}}
+ANSWERS_TEXT = {'de': {'einfach': 'einfach', 'erweitert': 'erweitert'}, 'en': {'einfach': 'simple', 'erweitert': 'extended'}}
+
+
 def render(source, template, *, repo, branch, default_branch, config, profile=None,
-           library_present=False, openwebui_template=None):
+           library_present=False, openwebui_template=None, upstream='ploeffler/GhostWriter'):
     if not isinstance(config, dict) or (profile is not None and not isinstance(profile, dict)):
         raise ValueError('Projekt und Assistenten-Profil müssen YAML-Objekte sein.')
     if MARKER in source:
@@ -95,6 +100,9 @@ def render(source, template, *, repo, branch, default_branch, config, profile=No
     if not book:
         ready = bool(profile) or library_present
     mode = 'resume' if ready else 'setup'
+    lang = 'en' if str(language).split('-')[0] == 'en' else 'de'
+    if profile.get('display') not in (None, *DISPLAY_TEXT['de']) or profile.get('answers') not in (None, *ANSWERS_TEXT['de']):
+        raise ValueError('Unbekannter Darstellungs- oder Antwortmodus im Assistenten-Profil.')
     outputs, entries = {}, []
     for title, text in sections(source):
         path = f'{DIRECTORY}/{slug(title)}.md'
@@ -114,7 +122,11 @@ def render(source, template, *, repo, branch, default_branch, config, profile=No
                   KIND='book' if book else 'library',
                   READ_START=tools.get('read_start', 'nicht konfiguriert / not configured'),
                   READ_FILE=tools.get('read_file', 'nicht konfiguriert / not configured'),
-                  PROFILE='assistant.yml' if profile else 'nicht vorhanden / absent')
+                  PROFILE='assistant.yml' if profile else 'nicht vorhanden / absent',
+                  # Darstellungs- und Antwortmodus aus dem Profil (#330); fehlt = übersichtlich bzw. einfach
+                  DISPLAY=DISPLAY_TEXT[lang][profile.get('display') or 'uebersichtlich'],
+                  ANSWERS=ANSWERS_TEXT[lang][profile.get('answers') or 'einfach'],
+                  UPSTREAM=upstream if REPO.fullmatch(upstream or '') else 'ploeffler/GhostWriter')
     outputs['START.md'] = Template(template).substitute(values)
     if openwebui_template is not None:
         if OPENWEBUI in outputs:
@@ -145,7 +157,8 @@ def generate(base, *, repo, branch, default_branch, profile=None, library_presen
     outputs = render(source, template, repo=repo, branch=branch, default_branch=default_branch,
                      config=cfg, profile=profile,
                      library_present=library_present or (base / 'library.json').is_file(),
-                     openwebui_template=openwebui.read_text(encoding='utf-8') if openwebui.is_file() else None)
+                     openwebui_template=openwebui.read_text(encoding='utf-8') if openwebui.is_file() else None,
+                     upstream=(manifest.get('upstream') or {}).get('repo') or 'ploeffler/GhostWriter')
     for name, text in outputs.items():
         path = base / name
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -12,9 +12,15 @@ Aufruf:
   python scripts/assistant.py <ordner> draft [--repo o/n] [--git-name N --git-email E]
                                                            Vorschlag für ein neues Profil (JSON),
                                                            aus Repo, ghostwriter.yml bzw. library.json
-  python scripts/assistant.py <ordner> set '<json>'        Profil anlegen bzw. Felder ändern und den
+  python scripts/assistant.py <ordner> set '<json>' [--force]
+                                                           Profil anlegen bzw. Felder ändern und den
                                                            Skill neu erzeugen; nennt die Commit-Nachricht
-  python scripts/assistant.py <ordner> skill               Skill aus dem Profil neu erzeugen
+  python scripts/assistant.py <ordner> skill [--force]     Skill aus dem Profil neu erzeugen
+
+Ein vorhandener, von Hand geschriebener Skill (ohne die Kennung des erzeugten Skills) wird nicht
+überschrieben (#330): `set` und `skill` brechen ab. Mit --force wird er als SKILL.md.bak gesichert und
+neu erzeugt. Eigene Ergänzungen im erzeugten Skill gehören zwischen die Markierungen
+„Eigene Ergänzungen“; dieser Bereich bleibt beim Neuerzeugen erhalten.
   python scripts/assistant.py <ordner> check               passt der Skill zum Profil? (Exit 1 sonst;
                                                            ohne Profil Exit 0)
 
@@ -36,6 +42,17 @@ SCHEMA = ROOT / 'schemas' / 'assistant.schema.json'
 GENERAL_SKILL = 'ghostwriter'          # allgemeiner Skill aus dem Hauptrepository (managed)
 VOICE_FIELDS = [('perspective', 'Erzählperspektive'), ('tense', 'Zeitform'), ('address', 'Anrede'),
                 ('register', 'Sprachebene'), ('tone', 'Ton'), ('features', 'Stilmittel')]
+MARKER = 'python scripts/assistant.py . skill'     # Kennung eines erzeugten Skills
+OWN_START = '<!-- Eigene Ergänzungen: bleiben beim Neuerzeugen erhalten (#330) -->'
+OWN_END = '<!-- Ende eigene Ergänzungen -->'
+OWN_RE = re.compile(re.escape(OWN_START) + r'\n?(.*?)' + re.escape(OWN_END), re.S)
+DISPLAY = {'einfach': 'Darstellung: einfach', 'uebersichtlich': 'Darstellung: übersichtlich',
+           'erweitert': 'Darstellung: erweitert', 'text': 'Nur Text'}
+ANSWERS = {'einfach': 'einfacher Modus', 'erweitert': 'erweiterte Antworten (technische Details)'}
+
+
+class HandwrittenSkill(Exception):
+    """Vorhandener Skill ohne Kennung: von Hand geschrieben, nicht überschreiben (#330)."""
 
 
 def slug(text):
@@ -109,7 +126,12 @@ def render(base, profile):
     for key, label in VOICE_FIELDS:
         val = voice.get(key)
         if isinstance(val, list):
-            val = ', '.join(v for v in val if v)
+            items = [str(v).strip() for v in val if str(v or '').strip()]
+            # Stilmittel immer, Ton bei längeren Einträgen als eigene Punkte (#330): Kommas im Text bleiben lesbar
+            if items and (key == 'features' or any(',' in v or len(v) > 40 for v in items)):
+                details.append(f'- {label}:\n' + '\n'.join(f'  - {v}' for v in items))
+                continue
+            val = ', '.join(items)
         if val:
             details.append(f'- {label}: {val}')
     if details:
@@ -126,21 +148,72 @@ def render(base, profile):
                                  if profile.get('work_modes') == 'auto' else
                                  '- Gespräch und Manuskriptarbeit (#315): vor dem Wechsel in die Manuskriptarbeit einmal fragen '
                                  '(`START.md`, „Gespräch und Manuskriptarbeit“).' if profile.get('work_modes') == 'ask' else
-                                 '')}   # ohne Feld keine Zeile: bestehende Skills bleiben unverändert gültig
+                                 ''),   # ohne Feld keine Zeile: bestehende Skills bleiben unverändert gültig
+              'DISPLAY_LINE': display_line(profile),
+              'OWN_START': OWN_START, 'OWN_END': OWN_END}
     text = TEMPLATE.read_text(encoding='utf-8')
     for k, v in values.items():
         text = text.replace('{{' + k + '}}', v)
     return re.sub(r'\n{3,}', '\n\n', text)
 
 
-def write_skill(base, profile):
+def display_line(profile):
+    """Darstellungsmodus und Antwortmodus als Standard dieses Repositorys (#330)."""
+    disp, ans = profile.get('display'), profile.get('answers')
+    if not disp and not ans:
+        return '- Darstellungsmodus in Claude: Widget (`render_view.py` ohne `--text`).'
+    parts = []
+    if disp:
+        parts.append(f'- Darstellungsmodus: „{DISPLAY[disp]}“ ist der Standard dieses Repositorys, in jedem neuen Chat; '
+                     'eine Wahl im Chat geht für diesen Chat vor. In Claude Widgets (ohne `--text`), außer bei „Nur Text“.')
+    else:
+        parts.append('- Darstellungsmodus in Claude: Widget (`render_view.py` ohne `--text`).')
+    if ans:
+        parts.append(f'- Antwortmodus: {ANSWERS[ans]} als Standard dieses Repositorys; „Erweiterte Antworten an/aus“ im Chat geht vor.')
+    return '\n'.join(parts)
+
+
+def own_part(text):
+    """Inhalt des Bereichs „Eigene Ergänzungen“ (ohne Markierungen) oder ''."""
+    m = OWN_RE.search(text or '')
+    return m.group(1) if m else ''
+
+
+def with_own(text, own):
+    return OWN_RE.sub(lambda m: OWN_START + '\n' + own + OWN_END, text, count=1) if own else text
+
+
+def is_generated(text):
+    return MARKER in (text or '')
+
+
+def handwritten(base, profile):
+    """Pfad des vorhandenen, von Hand geschriebenen Skills oder None."""
+    p = skill_path(base, profile)
+    return p if p.is_file() and not is_generated(p.read_text(encoding='utf-8')) else None
+
+
+def write_skill(base, profile, force=False):
+    """Skill erzeugen; eigene Ergänzungen bleiben. Von Hand geschriebener Skill: Abbruch, mit force Sicherung .bak."""
     p = skill_path(base, profile)
     p.parent.mkdir(parents=True, exist_ok=True)
-    text = render(base, profile)
-    changed = not p.is_file() or p.read_text(encoding='utf-8') != text
+    old = p.read_text(encoding='utf-8') if p.is_file() else None
+    if old is not None and not is_generated(old):
+        if not force:
+            raise HandwrittenSkill(str(p.relative_to(base)))
+        p.with_name('SKILL.md.bak').write_text(old, encoding='utf-8')
+        old = None
+    text = with_own(render(base, profile), own_part(old))
+    changed = old != text
     if changed:
         p.write_text(text, encoding='utf-8')
     return p, changed
+
+
+def handwritten_error(path):
+    return (f'{path} ist von Hand geschrieben (keine Kennung „{MARKER}“) und wird nicht überschrieben. '
+            'Inhalt sichern bzw. in den Bereich „Eigene Ergänzungen“ übernehmen, einen anderen Skill-Namen wählen '
+            'oder mit --force neu erzeugen (das Original bleibt als SKILL.md.bak).')
 
 
 def stale_skills(base, profile):
@@ -148,7 +221,7 @@ def stale_skills(base, profile):
     d = Path(base, '.claude', 'skills')
     out = []
     for p in sorted(d.glob('*/SKILL.md')) if d.is_dir() else []:
-        if p.parent.name not in (GENERAL_SKILL, profile['skill']) and 'python scripts/assistant.py . skill' in p.read_text(encoding='utf-8'):
+        if p.parent.name not in (GENERAL_SKILL, profile['skill']) and is_generated(p.read_text(encoding='utf-8')):
             out.append(p)
     return out
 
@@ -182,8 +255,9 @@ class _Dumper(yaml.SafeDumper):
 _Dumper.add_representer(str, lambda d, s: d.represent_scalar('tag:yaml.org,2002:str', s, style='|' if '\n' in s else None))
 
 
-def set_profile(base, changes):
-    """Profil anlegen bzw. ändern (Felder aus changes; voice und git werden zusammengeführt) und Skill erzeugen."""
+def set_profile(base, changes, force=False):
+    """Profil anlegen bzw. ändern (Felder aus changes; voice und git werden zusammengeführt) und Skill erzeugen.
+    Ein von Hand geschriebener Skill gleichen Namens bricht ab, bevor etwas geschrieben wird (außer force)."""
     old = load(base)
     prof = dict(old or {'format': 1})
     for k, v in changes.items():
@@ -204,12 +278,16 @@ def set_profile(base, changes):
     errs = errors(prof)
     if errs:
         return None, errs, None
-    order = ['format', 'repo', 'skill', 'interface_language', 'work_modes', 'startup', 'git', 'author', 'voice', 'upstream']
+    hand = handwritten(base, prof)
+    if hand and not force:
+        return None, [handwritten_error(hand.relative_to(base))], None
+    order = ['format', 'repo', 'skill', 'interface_language', 'work_modes', 'display', 'answers', 'startup', 'git',
+             'author', 'voice', 'upstream']
     prof = {k: prof[k] for k in order if k in prof}
     header = '# Assistenten-Profil (#136): gilt für alle Bücher dieses Repositorys; daraus entsteht\n' \
              '# .claude/skills/<skill>/SKILL.md (python scripts/assistant.py . skill). Keine Secrets, keine Manuskripttexte.\n'
     Path(base, PROFILE).write_text(header + yaml.dump(prof, Dumper=_Dumper, allow_unicode=True, sort_keys=False, width=100), encoding='utf-8')
-    write_skill(base, prof)
+    write_skill(base, prof, force=force)
     removed = []
     if old and old.get('skill') and old.get('skill') != prof['skill']:
         for p in stale_skills(base, prof):
@@ -220,7 +298,10 @@ def set_profile(base, changes):
                 pass
             removed.append(str(p.relative_to(base)))
     msg = 'Assistenten-Profil angelegt' if old is None else 'Assistenten-Profil gespeichert'
-    return prof, [], {'message': msg, 'files': [PROFILE, str(skill_path(base, prof).relative_to(base))] + removed}
+    files = [PROFILE, str(skill_path(base, prof).relative_to(base))]
+    if hand:
+        files.append(str(hand.with_name('SKILL.md.bak').relative_to(base)))
+    return prof, [], {'message': msg, 'files': files + removed}
 
 
 def check(base):
@@ -233,7 +314,10 @@ def check(base):
     p = skill_path(base, prof)
     if not p.is_file():
         return [f'{p.relative_to(base)} fehlt (python scripts/assistant.py . skill)']
-    if p.read_text(encoding='utf-8') != render(base, prof):
+    have = p.read_text(encoding='utf-8')
+    if not is_generated(have):
+        return [handwritten_error(p.relative_to(base))]
+    if have != with_own(render(base, prof), own_part(have)):
         return [f'{p.relative_to(base)} passt nicht zu {PROFILE} (python scripts/assistant.py . skill)']
     return []
 
@@ -246,6 +330,7 @@ def main(argv):
     ap.add_argument('--repo', default='')
     ap.add_argument('--git-name', default='')
     ap.add_argument('--git-email', default='')
+    ap.add_argument('--force', action='store_true', help='von Hand geschriebenen Skill als SKILL.md.bak sichern und neu erzeugen')
     a = ap.parse_args(argv[1:])
     base = Path(a.base)
     if a.cmd == 'draft':
@@ -257,7 +342,7 @@ def main(argv):
         except ValueError as e:
             print(f'✗ kein gültiges JSON: {e}')
             return 1
-        prof, errs, result = set_profile(base, changes)
+        prof, errs, result = set_profile(base, changes, force=a.force)
         for e in errs:
             print(f'✗ {e}')
         if errs:
@@ -279,7 +364,11 @@ def main(argv):
             for e in errs:
                 print(f'✗ {PROFILE}: {e}')
             return 1
-        p, changed = write_skill(base, prof)
+        try:
+            p, changed = write_skill(base, prof, force=a.force)
+        except HandwrittenSkill as e:
+            print(f'✗ {handwritten_error(e)}')
+            return 1
         print(f'{p.relative_to(base)}: {"geschrieben" if changed else "unverändert"}')
         return 0
     problems = check(base)

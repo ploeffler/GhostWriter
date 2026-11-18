@@ -250,7 +250,7 @@ The user may select:
 
 **Reading copy (#289, #316):** The same rule applies to Claude, ChatGPT Work and Codex: supply a Markdown file alongside the view, label unsaved proposals clearly and refresh the same file after edits. Use Codex's available file panel, never a browser. `queued` confirms only a display request. Do not duplicate the full text in chat; offer a file/link and state limitations when preview is unavailable. Extended views identify actual storage state and unknown source status; never invent costs or markers. Reading-copy toggles and display mode remain independent and apply only to the current chat. Distinguish preview, work-branch storage and merged book content; displaying grants no approval. See `START.md`, “Lesefassung”.
 
-The selection lasts for the current chat until changed. Do not present it as a saved project preference unless the corresponding feature exists.
+The selection lasts for the current chat until changed. **Persistent default (#330):** `display` in `assistant.yml` (`einfach`, `uebersichtlich`, `erweitert`, `text`) sets the display mode for every new chat, `answers` (`einfach`, `erweitert`) the answer mode; without the field, “organized” and simple answers apply. Save only on explicit request (“Display: extended permanently”) with `python scripts/assistant.py . set '{"display":"erweitert"}'` under the assistant-profile rules. A choice in the chat still takes precedence for that chat.
 
 ## Scope and limitations
 
@@ -259,7 +259,7 @@ This guide describes the intended editorial behavior. It does not claim all chec
 
 ### Shared organized display: Claude, ChatGPT and Gemini
 
-Default to “Display: organized” unless the user selected simple, extended or Text only. Display choice and answer detail remain independent. Keep a compact title and metadata area, followed by a ten-segment approval bar and exact approved/total section counts. With no sections, show 0 of 0 and no filled bar. Count other non-planned sections separately as in progress; the bar measures section approvals only, never publication readiness.
+Default to `display` from `assistant.yml`, otherwise “Display: organized” (#330), unless the user selected simple, extended or Text only. Display choice and answer detail remain independent. Keep a compact title and metadata area, followed by a ten-segment approval bar and exact approved/total section counts. With no sections, show 0 of 0 and no filled bar. Count other non-planned sections separately as in progress; the bar measures section approvals only, never publication readiness.
 
 Highlight open marker counts and preserve all warnings, pending changes and approval requirements. Offer one valid navigation shortcut: the current unapproved section, otherwise the first unapproved section, or creation for an empty outline. Keep the complete actions available below. Opening a section grants no approval. Use status words alongside symbols; never invent buttons, commands or missing data.
 
