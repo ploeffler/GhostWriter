@@ -5,6 +5,7 @@ Aufruf:
   python scripts/build_edition.py <projektordner> --edition N [--out ordner] [--date JJJJ-MM-TT]
                                    [--formats pdf,docx,epub] [--allow-markers]
   python scripts/build_edition.py <projektordner> --proof [--out ordner] [--formats pdf]
+  python scripts/build_edition.py <projektordner> --preview N [--out ordner] [--formats pdf,epub]
   python scripts/build_edition.py <projektordner> --manuscript [--chapter N] [--out ordner]
 
 Formate (--formats, sonst typesetting.formats): pdf (Bildschirm), pdf_print
@@ -32,6 +33,10 @@ auch nicht abgeschlossene (mit Vermerk „Stand: Entwurf, nicht abgeschlossen“
 offene Marker farbig hervorgehoben, in der Fußzeile bzw. vorn der Hinweis
 „Probedruck – nicht zur Veröffentlichung“. Kein Tag, kein Release; die Action
 „Probedruck“ stellt die Dateien als Download bereit.
+
+--preview N („Vorabfassung“, #348) baut wie --proof, aber mit dem Vermerk „Vorabfassung N“
+und Dateinamen nach dem Tag <kurztitel>-vorab-N; die Action „Vorabfassung“ legt damit
+Tag und Pre-Release an. Keine Auflage, current_edition bleibt.
 
 --manuscript („Manuskript ausgeben“, #260) baut nur ein PDF des Arbeitsstands: wie
 der Probedruck, aber Abschnitte ohne Manuskript erscheinen als Kasten „Geplant“ mit
@@ -717,11 +722,31 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
     return results
 
 
+def preview_tag(short, n):
+    """Tag einer Vorabfassung (#348): <kurztitel-slug>-vorab-N; zählt nie als Auflage (-auflage-N)."""
+    return f'{tag_slug(short)}-vorab-{n}'
+
+
+def draft_note(body):
+    """Zusatz zum Vermerk im Probedruck bzw. in der Vorabfassung (#348): nicht abgeschlossene Abschnitte und
+    offene Marker nur erwähnen, wenn es sie gibt."""
+    drafts, markers = '{.gwstatus}' in body, '{.gwmarker}' in body
+    if drafts and markers:
+        return 'Enthält auch nicht abgeschlossene Abschnitte; offene Marker sind hervorgehoben.'
+    if drafts:
+        return 'Enthält auch nicht abgeschlossene Abschnitte.'
+    if markers:
+        return 'Offene Marker sind hervorgehoben.'
+    return ''
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
     ap.add_argument('--edition', type=int)
     ap.add_argument('--proof', action='store_true', help='Probedruck des aktuellen Stands (keine Auflage)')
+    ap.add_argument('--preview', type=int, metavar='N',
+                    help='Vorabfassung N (#348): wie --proof, Vermerk „Vorabfassung N“, Tag <kurztitel>-vorab-N')
     ap.add_argument('--manuscript', action='store_true',
                     help='„Manuskript ausgeben“ (#260): PDF des Arbeitsstands, Geplantes in Stichworten')
     ap.add_argument('--chapter', help='mit --manuscript: nur dieses Kapitel (Nummer oder ID)')
@@ -736,6 +761,10 @@ def main(argv):
         ap.error('--chapter nur mit --manuscript')
     if args.manuscript:
         args.proof, args.formats = True, 'pdf'
+    if args.preview is not None:
+        if args.preview < 1 or args.manuscript or args.edition is not None:
+            ap.error('--preview N (N ≥ 1) nicht mit --edition oder --manuscript')
+        args.proof = True
     if not args.proof and args.edition is None:
         ap.error('--edition N, --proof oder --manuscript angeben')
     base, config = load(args.project)
@@ -775,17 +804,22 @@ def main(argv):
         release_name = f'{short} – Manuskript vom {shown}' + (f' (Kapitel {only})' if only else '')
         proof_note = (f'Manuskript (Arbeitsstand) vom {shown} – nicht zur Veröffentlichung. '
                       'Abschnitte ohne Text erscheinen als „Geplant“ mit dem geplanten Inhalt in Stichworten.')
+    elif args.preview:
+        tag = preview_tag(short, args.preview)
+        release_name = f'{short} – Vorabfassung {args.preview}'
+        proof_note = f'Vorabfassung {args.preview} vom {shown} – nicht zur Veröffentlichung.'
     elif args.proof:
         tag = f'{tag_slug(short)}-probedruck-{args.date}'
         release_name = f'{short} – Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]}'
-        proof_note = (f'Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]} – nicht zur Veröffentlichung. '
-                      'Enthält auch nicht abgeschlossene Abschnitte; offene Marker sind hervorgehoben.')
+        proof_note = f'Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]} – nicht zur Veröffentlichung.'
     out = Path(args.out).resolve()   # Pandoc läuft im Arbeitsordner, daher absolut
     out.mkdir(parents=True, exist_ok=True)
     disc = ai_disclosure.for_book(config)   # KI-Angabe (#78): (Ort, Wortlaut) oder None
     in_body = disc if disc and disc[0] != 'imprint' else None
     overview = manuscript_overview(base, config, only, args.date, args.commit)[0] + '\n' if args.manuscript else ''
     body, used_images = resolve_images(base, config, overview + book_body(parts, matter, in_body), args.proof)
+    if args.proof and not args.manuscript:   # #348: nur nennen, was es im Stand wirklich gibt
+        proof_note = (proof_note + ' ' + draft_note(body)).strip()
     # PDF: Widmung vor dem Inhaltsverzeichnis (include-before), daher dort ohne Widmung im Text
     dedication = ''.join(m[2] for m in matter if m[1]['kind'] == 'dedication' and m[2])
     body_pdf = resolve_images(base, config, overview + book_body(parts, [m for m in matter if m[1]['kind'] != 'dedication'],
@@ -811,7 +845,7 @@ def main(argv):
     common_meta['date'] = shown_date
     series_line = f'{ser["title"]} · Band {ser["volume"]}' if ser and ser.get('volume') else ''
     if args.proof:
-        label = 'Manuskript' if args.manuscript else 'Probedruck'
+        label = 'Manuskript' if args.manuscript else f'Vorabfassung {args.preview}' if args.preview else 'Probedruck'
         common_meta['date'] = f'{label} · {shown}'
         meta['edition_text'] = label
         imprint = [release_name, proof_note] + ([f'Commit {args.commit[:7]}'] if args.commit else [])
@@ -822,11 +856,12 @@ def main(argv):
                                                 'proof' if pdf_cover == 'proof' and args.proof else None)
     results = render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedication, out, tag, args.formats,
                      args.proof, proof_note, args.date, series_line, ser,
-                     footer_label='Manuskript' if args.manuscript else 'Probedruck', commit=args.commit,
+                     footer_label=label if args.proof else 'Probedruck', commit=args.commit,
                      front_cover=front_cover)
 
     (out / 'edition.yml').write_text(yaml.safe_dump({
-        'edition': args.edition, 'name': release_name, 'tag': tag, 'date': args.date,
+        'edition': args.edition, **({'preview': args.preview} if args.preview else {}),
+        'name': release_name, 'tag': tag, 'date': args.date,
         'chapters': [p[0] for p in parts], 'matter': [m[1]['id'] for m in matter if m[2]],
         'files': [r.name for r in results]},
         allow_unicode=True, sort_keys=False), encoding='utf-8')
