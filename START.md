@@ -238,6 +238,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Vorabfassung` | Vorabfassung mit Tag und Pre-Release anlegen (wie `edition.preview`, unten „Vorabfassung“) |
 | `Manuskript ausgeben`, `Manuskript ausgeben Kapitel 3` | PDF des Arbeitsstands erzeugen und als Datei im Chat übergeben; Geplantes in Stichworten (wie `manuscript.export`, unten „Manuskript ausgeben“) |
 | `Auflage` | Formular „Neue Auflage erzeugen“ |
+| `Zeitleiste` | Chronologie aus Unterlagen und Recherche mit Hinweisen, wo die Daten nicht zusammenpassen (Abschnitt „Chronologie“, #354) |
 | `Einstellungen`, `KI-Dienste` | das jeweilige Formular |
 | `In den Buchtext einarbeiten` | besprochene Inhalte in den Manuskriptentwurf im Chat integrieren; noch keine Repository-Änderung |
 | `Buchstand aktualisieren` | aktuellen Buchstand aus dem Buch-Repository neu lesen und den Chat-Kontext abgleichen; nicht gespeicherte Entwürfe erhalten und Abweichungen zeigen |
@@ -456,6 +457,17 @@ Referenzmaterial ist von Buchillustrationen getrennt und liegt unter `reference-
 ### Analyseaufträge ohne Anbieter-API (v1.0)
 
 Für die bestätigten Analysearten den [Chat-/Dateiweg](docs/CHAT-ANALYSEN.md) verwenden: `scripts/chat_analysis.py` bereitet ein Kapitel mit gelesener Commitbasis vor und prüft Rückgaben ohne Anbieteraufruf. Gesamte Auftragsdatei bzw. deren Text inklusive `response_format` übergeben, ursprüngliche Datei getrennt als Basis behalten. `accept` speichert ausschließlich Vorschläge unter `analysis/chat-returns/` und bei den Arten der Hintergrundanalyse zusätzlich als Lauf `analysis/<art>/run-NNN` (#353, Ausgabe `run_file`; ältere Rückgaben mit `register`); nichts automatisch ins Buch übernehmen. Danach den Lauf wie einen Hintergrundlauf zeigen (`analysis-suggest --draft <run_file>`), auswählen lassen und mit `analysis.apply` übernehmen; bestehende Speicher-/Freigaberegeln gelten. Der Chatweg liefert keine Zusammenführung über Kapitel (Zeitleiste ohne Auffälligkeiten, keine Widersprüche). Echte Anbieterläufe sind keine v1.0-Voraussetzung. Quellenprüfung im Chat bleibt erforderlich.
+
+### Chronologie (verbindlich, #354)
+
+Neben der Text-Zeitleiste (`story/timeline.yml`, aus dem Manuskript) gibt es für jedes Buch die **Chronologie** `story/chronology.yml` (Schema `schemas/chronology.schema.json`, `docs/DATA-MODEL.md`): was wann geschah, mit Belegstand und Quelle, auch bevor es Text gibt (Bücher nach wahren Begebenheiten, Familiengeschichten, Biografien, Sachbücher). Nie Teil des Buchs.
+
+1. **Ansehen** (Befehl `Zeitleiste`): `python3 scripts/render_view.py . timeline --text --repo <owner>/<repo>`, wahlweise `--status documented,reported`. Vorerst nur als Text; die grafische Ansicht folgt. Oben steht der Kasten „Wo die Daten nicht zusammenpassen“, dann die Lebenslinien je Figur, dann alle Einträge nach Jahr.
+2. **Füllen im Chat:** auf Wunsch aus `characters/`, `story/places.yml`, `research/sources.md`, Rechercheläufen (`chapters/*/research/`, `matter/research/`) und gesicherten Sitzungen (`conversations/`) Einträge vorschlagen, je mit `source` (Datei bzw. Gespräch) und ehrlichem `status`: `documented` nur mit Beleg (Urkunde, Archiv, belastbare Quelle), `reported` für Angaben und Erinnerungen, `uncertain` bei Zweifel oder Widerspruch, `invented` für Romanfreiheit. Nichts erfinden, keine Daten ausrechnen, die keine Quelle nennt; ungenaue Daten als Jahr bzw. Monat (`1944`, `1944-05`) mit `date_text` („um 1944“) und `estimated: true`. Lebensabschnitte als `kind: span` mit `from`/`to` und `place`; Geburt und Tod als `birth`/`death` mit genau einer Figur. Zwei Quellen zum selben Ereignis als zwei Einträge mit `same_as`, nicht zusammenlegen.
+3. **Speichern** nur nach Auswahl: die Vorschläge als Liste zeigen, ausgewählte Einträge mit neuer ID `chr-NNN` schreiben, dann `python3 scripts/validate_project.py .` und ein Commit „Chronologie: …“. Bestehende Einträge nur auf ausdrücklichen Wunsch ändern.
+4. **Prüfen** ohne KI: `python3 scripts/chronology.py . check` nennt Überschneidungen von Lebensabschnitten an verschiedenen Orten, Lücken zwischen Lebensabschnitten, zwei Daten für dasselbe Ereignis, Angabe gegen Beleg, Einträge nach dem Tod bzw. vor der Geburt, unpassende Altersangaben und Einträge ohne Datum. Das sind Hinweise, keine Entscheidung: dem Autor zeigen, welche Quelle wofür steht, und fragen, was gilt.
+
+Die Projektübersicht nennt in der Textfassung „Chronologie: N Einträge, M Hinweise“. Eine Analyseart „Chronologie“, die Unterlagen im Hintergrund liest, der Abgleich mit `story/timeline.yml` und die Ausgabe als Datei sind geplant (#354).
 
 ## Illustrationen (verbindlich, #54)
 

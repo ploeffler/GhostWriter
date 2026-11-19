@@ -7,6 +7,7 @@ Aufruf:
   python scripts/render_view.py <projektordner> chapter <kapitel>  [--text] ...
   python scripts/render_view.py <projektordner> section <kapitel>.<abschnitt> [--text] ...
   python scripts/render_view.py <projektordner> project-edit | project-settings | chapter-create | chapter-reorder | edition-create [--text]
+  python scripts/render_view.py <projektordner> timeline --text [--status documented,reported]   Chronologie (#354)
   python scripts/render_view.py <projektordner> chapter-edit | section-create | section-reorder <kapitel> [--text]
 
 Ohne --text wird der Widget-Code ausgegeben: Ladezeile für ghostwriter-ui (fester
@@ -1368,6 +1369,17 @@ def project_view(base, config, args):
         'PROJECT_EDITION_TEXT': f'Auflage {edition}' if edition else 'noch keine Auflage',
     }
     values['CREDIT_TEXT'], values['CREDIT_URL'] = credit()
+    try:   # Chronologie (#354): Zahl der Einträge und Hinweise
+        import chronology
+        chron = chronology.read(base)
+    except Exception:   # noqa: BLE001
+        chron = None
+    if chron and chron.get('entries'):
+        hints = [f for f in chronology.findings(chron, chronology.char_names(config)) if f['kind'] != 'undated']
+        values['CHRONOLOGY_COUNT'] = len(chron['entries'])
+        values['CHRONOLOGY_HINTS'] = len(hints)
+        values['CHRONOLOGY_TEXT'] = (f'Chronologie: {plural(len(chron["entries"]), "Eintrag", "Einträge")}, '
+                                     + (plural(len(hints), 'Hinweis', 'Hinweise') if hints else 'keine Hinweise'))
     pv = previews(base, config)
     if pv:   # letzte Vorabfassung neben der Auflage (#352)
         pn, ptag, pdate = pv[-1]
@@ -1437,6 +1449,8 @@ def project_view(base, config, args):
             lines += [f'> {ANALYSIS_EMOJI.get(a["A_KIND"], "🔎")} **{a["A_TEXT"]}** · `{ANALYSIS_KEY.get(a["A_KIND"], "AN")}` ansehen', '']
         if values.get('IMPORT_TEXT'):
             lines += [f'> 📥 {values["IMPORT_TEXT"]}', '']
+        if values.get('CHRONOLOGY_TEXT'):
+            lines += [f'🕰️ {values["CHRONOLOGY_TEXT"]} · `Zeitleiste` ansehen', '']
         if lim_state != 'ok':
             lines += [f'> {"⏸" if lim_state == "pause" else "⚠️"} **{lim_text}** · `E` Einstellungen', '']
         if upd:
@@ -3802,7 +3816,7 @@ def resolve_repo(base, args):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series'] + list(FORMS))
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--ohne-manuskript', '--no-manuscript', dest='no_manuscript', action='store_true',
@@ -3810,6 +3824,7 @@ def main():
     ap.add_argument('--language', help='Bediensprache de/en; Englisch für die migrierten Ansichten und Formulare')
     ap.add_argument('--repo', help='owner/name des Buch-Repositorys; ohne Angabe aus GITHUB_REPOSITORY bzw. git remote origin (#134)')
     ap.add_argument('--branch', default='main')
+    ap.add_argument('--status', help='bei timeline: nur Einträge mit diesem Belegstand (documented, reported, uncertain, invented; mehrere mit Komma)')
     ap.add_argument('--revoke', action='store_true', help='bei approval-*: Freigabe zurücknehmen statt erteilen')
     ap.add_argument('--upstream', help='JSON-Datei mit dem Update-Stand (behind, upstream, version, installed) für die Projektübersicht')
     ap.add_argument('--limits', help='JSON-Datei von limits.py check --json (Projektübersicht: Hinweis Vorwarnung bzw. Automatik pausiert); ohne Angabe nur das KI-Budget aus costs/')
@@ -3866,6 +3881,9 @@ def main():
         out = series_view(base, config, args)
     elif args.view == 'project':
         out = project_view(base, config, args)
+    elif args.view == 'timeline':   # Chronologie (#354): vorerst nur Textfassung, die grafische Ansicht folgt
+        import chronology
+        out = chronology.text_view(base, config, [x.strip() for x in (args.status or '').split(',') if x.strip()] or None)
     elif args.view == 'chapter':
         out = chapter_view(base, config, args, int(args.where))
     else:

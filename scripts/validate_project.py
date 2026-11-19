@@ -29,6 +29,7 @@ Geprüft werden:
 - print/cover (#68): Umschlag nur mit Druckprofil; bei bod/custom Rückenbreite
   angegeben; Papier nur bei kdp; Bilder des Umschlags und eigene Vorderseite (cover.front, #324) vorhanden
 - Schauplätze, Zeitleiste und Hinweise (story/places.yml, story/timeline.yml, story/hints.yml, #124;
+  Chronologie story/chronology.yml, #354;
   falls vorhanden) gegen ihr Schema, IDs eindeutig, Abschnitte bekannt
 - Prüfprotokoll (editorial/checks.yml, #331; falls vorhanden) gegen
   schemas/checks.schema.json, IDs eindeutig, Umfang bekannt, Bericht vorhanden
@@ -72,6 +73,7 @@ IMAGE_META = validator('image.schema.json')
 REFERENCE_IMAGE_META = validator('reference-image.schema.json')
 PLACES = validator('places.schema.json')
 TIMELINE = validator('timeline.schema.json')
+CHRONOLOGY = validator('chronology.schema.json')
 HINTS = validator('hints.schema.json')
 CHECKS = validator('checks.schema.json')
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
@@ -165,6 +167,15 @@ def story_errors(base, config):
                     errors.append(f'{path}: {x["id"]}: Abschnitt {sid} unbekannt')
         for n in data.get('notes') or []:
             errors += [f'{path}: Hinweis verweist auf unbekanntes Ereignis {e}' for e in n.get('events') or [] if e not in ids]
+    path = base / 'story' / 'chronology.yml'   # Chronologie (#354): Schema, IDs, Figuren, Kapitel, Orte, Datumsangaben
+    if path.is_file():
+        data = load_yaml(path, errors)
+        if data is not None:
+            errs = schema_errors(CHRONOLOGY, data, path)
+            errors += errs
+            if not errs:
+                import chronology
+                errors += chronology.references(base, config, data)
     return errors
 
 
