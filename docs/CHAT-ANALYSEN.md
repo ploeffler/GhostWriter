@@ -49,9 +49,17 @@ Vor Speicherung werden Kapiteltext, Gliederung/Profil sowie verfügbare Regel-/P
 
 Geprüfte Ergebnisse liegen unter `analysis/chat-returns/<request_id>/`: unveränderte Auftragsdatei und nach Inhaltsfingerabdruck benannte Ergebnisdateien. Gleiche Rückgaben erzeugen keinen zweiten Ergebnisstand, verschiedene geprüfte Varianten überschreiben sich nicht. Es werden keine Manuskripte, Figuren, Freigaben oder Kosten geändert.
 
+Für die Arten der Hintergrundanalyse (`characters`, `summaries`, `style`, `places`, `timeline`, `continuity`, `language`) legt `accept` die geprüften Vorschläge zusätzlich als Lauf `analysis/<art>/run-NNN.json` (mit `.md`) im Format der Hintergrundläufe ab (#353); die Ausgabe nennt ihn unter `run_file`. Dieselbe Rückgabe ergibt immer denselben Lauf. Für Rückgaben, die vor dieser Änderung gespeichert wurden:
+
+```sh
+python3 scripts/chat_analysis.py <buch> register analysis/chat-returns/<request_id>/<digest>.json
+```
+
+Der Chatweg liest je Auftrag genau ein Kapitel und führt nichts mit einem zweiten Modell zusammen: Die Zeitleiste enthält deshalb nur Ereignisse, keine Auffälligkeiten (Zeitsprung, Widerspruch, unklar), Widersprüche über mehrere Stellen entstehen nicht, und Figuren und Schauplätze werden nur nach gleichem Namen zusammengefasst. Dafür bleibt die Hintergrundanalyse.
+
 ## Anschließende Bucharbeit
 
-Ergebnisse im Chat sichten und auswählen. Erst die gesondert autorisierte Anwendung verwendet die fachlichen bestehenden Speicher-/Freigabewege. Die Sicherung eines Vorschlags ist keine Zustimmung zu dessen Inhalt. Vor dem eigentlichen Schreiben erneut den aktuellen Stand prüfen; alte gespeicherte Vorschläge können inzwischen veraltet sein.
+Ergebnisse wie bei einem Hintergrundlauf sichten und auswählen: `render_view.py . analysis-suggest --draft analysis/<art>/run-NNN.json` (auch mit der Datei aus `analysis/chat-returns/`, die Ansicht nimmt dann deren Lauf), übernehmen mit `analysis.apply` bzw. `analyze.py . apply run-NNN --kind <art> <auswahl.json>`; die Projektübersicht nennt den Lauf wie andere offene Vorschläge („Chat-Analyse NNN“). Erst die gesondert autorisierte Anwendung verwendet die fachlichen bestehenden Speicher-/Freigabewege. Die Sicherung eines Vorschlags ist keine Zustimmung zu dessen Inhalt. Vor dem eigentlichen Schreiben erneut den aktuellen Stand prüfen; alte gespeicherte Vorschläge können inzwischen veraltet sein.
 
 Es gibt durch diesen Helfer keine neue Chat-Oberfläche und keine unbeaufsichtigte Ganzbuchanalyse. Große Aufgaben in nachvollziehbare Kapitelaufträge teilen. Tatsächliche Client-/Dateiübergaben sind im Rahmen der jeweiligen Integration gesondert abzunehmen.
 

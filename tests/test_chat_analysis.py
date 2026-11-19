@@ -162,3 +162,79 @@ class ChatAnalysisTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ChatReturnRunTest(ChatAnalysisTest):
+    """#353: geprüfte Chat-Rückgaben lassen sich wie Hintergrundläufe ansehen und übernehmen."""
+
+    def timeline_return(self):
+        request = self.prepare('timeline')
+        texts = request['snapshot']['texts']
+        def plain(t):   # eine Zeile ohne Auszeichnung, damit das Zitat sicher wörtlich passt
+            import re
+            return re.search(r'(?:[A-Za-zÄÖÜäöüß]+ ){5}[A-Za-zÄÖÜäöüß]+', t).group(0)
+        events = [{'where': w, 'when': 'Sommer 1989' if i == 0 else '', 'what': f'Ereignis {i + 1}',
+                   'evidence': [{'where': w, 'quote': plain(t)}]} for i, (w, t) in enumerate(list(texts.items())[:3])]
+        events.append({'where': '1.1', 'what': 'Ohne Beleg', 'evidence': [{'where': '1.1', 'quote': 'gibt es nicht im Text'}]})
+        self.answer(request, {'events': events})
+        return ca.accept(self.book, self.request, self.response)
+
+    def view(self, *args):
+        import subprocess
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.book), *args, '--repo', 'o/r'],
+                           capture_output=True, text=True)
+        return r
+
+    def test_timeline_return_shows_events_and_applies(self):
+        path, result = self.timeline_return()
+        self.assertEqual(len(result['verified']), 3)
+        run = ca.analyze.chat_run_of(self.book, result)
+        self.assertEqual(run, 'run-001')
+        data = json.loads((self.book / 'analysis/timeline/run-001.json').read_text(encoding='utf-8'))
+        self.assertEqual((data['scope'], data['source'], [e['n'] for e in data['items']], data['issues']),
+                         ('1', 'chat', [1, 2, 3], []))
+        # wiederholtes accept bzw. register: derselbe Lauf, kein zweiter
+        self.assertEqual(ca.accept(self.book, self.request, self.response)[0], path)
+        self.assertEqual(ca.register(self.book, path), ('timeline', 'run-001'))
+        self.assertFalse((self.book / 'analysis/timeline/run-002.json').exists())
+        # Ansicht direkt aus der Chat-Rückgabe und aus dem Lauf, Umfang Kapitel 1
+        for draft in (str(path.relative_to(self.book)), 'analysis/timeline/run-001.json'):
+            out = self.view('analysis-suggest', '--draft', draft, '--text')
+            self.assertEqual(out.returncode, 0, out.stderr)
+            self.assertIn('3 Ereignisse', out.stdout)
+            self.assertIn('Kapitel 1', out.stdout)
+            self.assertIn('Chat-Analyse 001', out.stdout)
+            self.assertIn('Sommer 1989', out.stdout)
+        # Projektübersicht nennt den Lauf wie einen Hintergrundlauf
+        self.assertIn('Zeitleiste', self.view('project', '--text').stdout)
+        changed = ca.analyze.apply(self.book, 'run-001', 'timeline', [{'index': 0}, {'index': 2}])
+        self.assertTrue(changed)
+        import yaml
+        tl = yaml.safe_load((self.book / 'story/timeline.yml').read_text(encoding='utf-8'))
+        self.assertEqual([e['what'] for e in tl['events']], ['Ereignis 1', 'Ereignis 3'])
+        self.assertIsNone(ca.analyze.latest(self.book, 'timeline'))   # erledigt
+
+    def test_older_return_needs_register_and_other_kinds(self):
+        path, result = self.timeline_return()
+        for f in (self.book / 'analysis/timeline').glob('run-001.*'):
+            f.unlink()   # Rückgabe von vor #353: nur analysis/chat-returns/
+        out = self.view('analysis-suggest', '--draft', str(path.relative_to(self.book)), '--text')
+        self.assertNotEqual(out.returncode, 0)
+        self.assertIn('register', out.stderr)
+        self.assertEqual(ca.register(self.book, path), ('timeline', 'run-001'))
+        # Kurzbeschreibungen: je Abschnitt zugeordnet wie im Hintergrundlauf
+        self.request = self.root / 'summaries.json'
+        request = self.prepare('summaries')
+        where, text = next(iter(request['snapshot']['texts'].items()))
+        self.answer(request, {'sections': [{'where': where, 'short': 'Kurz und knapp.', 'goal': '',
+                                            'evidence': [{'field': 'short', 'where': where, 'quote': ' '.join(text.split()[:6])}]}]})
+        _, res = ca.accept(self.book, self.request, self.response)
+        run = ca.analyze.chat_run_of(self.book, res)
+        data = json.loads((self.book / 'analysis/summaries' / f'{run}.json').read_text(encoding='utf-8'))
+        self.assertEqual([i['level'] for i in data['items']], ['chapter', 'section'])
+        # Arten ohne Lauf (z. B. Bildideen) bleiben nur Chat-Rückgabe
+        self.request = self.root / 'ideas.json'
+        req = self.prepare('image_ideas')
+        self.answer(req, {'items': [{'text': 'Bildidee', 'evidence': [self.evidence(req)]}]})
+        p2, _ = ca.accept(self.book, self.request, self.response)
+        self.assertEqual(ca.register(self.book, p2), ('image_ideas', None))

@@ -321,7 +321,7 @@ Auswahl „Kurzbeschreibung und Ziel“ aus einem Hintergrundlauf (#124, Art `su
 | Platzhalter | Quelle |
 |---|---|
 | `KIND` | Art des Laufs (`summaries`) |
-| `RUN_ID`, `RUN_TEXT` | `run` und „Hintergrundlauf NNN vom TT.MM.JJJJ“ |
+| `RUN_ID`, `RUN_TEXT` | `run` und „Hintergrundlauf NNN vom TT.MM.JJJJ“, bei einem Lauf aus einer Chat-Rückgabe (`source: chat`, #353) „Chat-Analyse NNN vom TT.MM.JJJJ“ |
 | `SCOPE_TEXT`, `SUGGEST_COUNT_TEXT` | Bereich des Laufs („ganzes Buch“, „Kapitel 2“) und „N Vorschläge“ |
 | Block `SUGGESTIONS`: `S_IDX`, `S_LEVEL`, `S_LABEL`, `S_TITLE` | je Vorschlag in Buchreihenfolge (Kapitel, dann seine Abschnitte): Nummer in der Vorschlagsdatei, `chapter` bzw. `section`, „Kapitel N“ bzw. „N.M“, Titel |
 | `S_GOAL`, `S_SHORT`, `S_EVIDENCE` | vorgeschlagenes Ziel und Kurzbeschreibung, bis zu zwei Fundstellen „N.M: „…““ |
@@ -354,7 +354,7 @@ Auswahl „Schauplätze aus dem Text“ aus einem Hintergrundlauf (#124, Art `pl
 
 ### `zeitleiste-vorschlag.html`
 
-Auswahl „Zeitleiste“ aus einem Hintergrundlauf (#124, Art `timeline`; `render_view.py analysis-suggest --draft analysis/timeline/run-NNN.json`).
+Auswahl „Zeitleiste“ aus einem Hintergrundlauf (#124, Art `timeline`; `render_view.py analysis-suggest --draft analysis/timeline/run-NNN.json`). Eine Chat-Rückgabe (`docs/CHAT-ANALYSEN.md`) hat ab #353 einen eigenen Lauf; `--draft` darf auch die Datei aus `analysis/chat-returns/` sein. Ein solcher Lauf hat keine Auffälligkeiten.
 
 | Platzhalter | Quelle |
 |---|---|

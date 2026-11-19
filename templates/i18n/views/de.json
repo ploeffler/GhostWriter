@@ -1078,5 +1078,8 @@
   "view.ai_disclosure.addition_in_the_book": "**Zusatz im Buch",
   "wizard.14.ai_disclosure.functions.label": "Nur Mindestangabe",
   "wizard.14.ai_disclosure.functions.desc": "Der Mustersatz, z. B. im Impressum",
-  "settings.minimum_only": "nur Mindestangabe"
+  "settings.minimum_only": "nur Mindestangabe",
+  "view.analysis_suggest.chat_run_from": "Chat-Analyse {p_a} vom {p_b}",
+  "view.character_suggest.chat_run_from": "Chat-Analyse {p_a} vom {p_b}",
+  "view.analysis_suggest.chat_return_unregistered": "Zu dieser Chat-Rückgabe gibt es noch keinen Lauf. Erst `python3 scripts/chat_analysis.py . register {path}` ausführen, dann die angezeigte Datei analysis/<art>/run-NNN.json öffnen."
 }
