@@ -268,10 +268,10 @@ def text_view(base, config, status=None):
     entries = sorted(data.get('entries') or [], key=sort_key)
     found = findings(data, names)
     counts = {s: sum(e.get('status') == s for e in entries) for s in STATUS}
+    real = [f for f in found if f['kind'] != 'undated']
     lines = ['### 🕰️ Chronologie', '',
              f'**{len(entries)} Einträge** · ' + ' · '.join(f'{STATUS_ICON[s]} {STATUS_DE[s]} {counts[s]}' for s in STATUS if counts[s])
-             + f' · {len(found)} Hinweise', '']
-    real = [f for f in found if f['kind'] != 'undated']
+             + f' · {len(real)} {"Hinweis" if len(real) == 1 else "Hinweise"}', '']
     lines += ['**Wo die Daten nicht zusammenpassen**', '']
     lines += [f'- {KIND_DE[f["kind"]]}: {f["text"]} ({", ".join(f["entries"])})' for f in real] or ['- nichts gefunden']
     lines.append('')
@@ -305,6 +305,53 @@ def text_view(base, config, status=None):
     lines += ['', f'Zeichen: {" ".join(f"{STATUS_ICON[s]} {STATUS_DE[s]}" for s in STATUS)}, ~ geschätzt. '
               'Hinweise sind keine Entscheidung; die Chronologie kommt nie ins Buch.']
     return '\n'.join(lines) + '\n'
+
+
+def place_names(base):
+    p = Path(base) / 'story' / 'places.yml'
+    items = ((yaml.safe_load(p.read_text(encoding='utf-8')) or {}).get('places') or []) if p.is_file() else []
+    return {x.get('id'): x.get('name') or x.get('id') for x in items}
+
+
+def widget_values(base, config):
+    """Werte für die Vorlage zeitleiste (ghostwriter-ui, #354): (values, blocks)."""
+    data = read(base) or {'entries': []}
+    names, places = char_names(config), place_names(base)
+    entries = sorted(data.get('entries') or [], key=sort_key)
+    found = findings(data, names)
+    flagged = {i for f in found if f['kind'] != 'undated' for i in f['entries']}
+    chapters = {ch['id']: (n, ch['title']) for n, ch in enumerate(config['structure']['chapters'], start=1)}
+    lanes, rows, band = [], [], {}
+    for e in entries:
+        start, end = bounds(e)
+        keys = list(e.get('characters') or []) or ['@none']
+        for k in keys:
+            if k not in lanes:
+                lanes.append(k)
+        place = places.get(e.get('place'), e.get('place') or '')
+        ch = chapters.get(e.get('chapter'))
+        row = {'id': e['id'], 'kind': e['kind'], 'lo': str(start[0]) if start else '', 'hi': str(start[1]) if start else '',
+               'end_lo': str(end[0]) if end and e['kind'] == 'span' else '', 'end_hi': str(end[1]) if end and e['kind'] == 'span' else '',
+               'open': e['kind'] == 'span' and bool(start) and not end, 'label': date_label(e), 'what': e['what'],
+               'status': e.get('status', ''), 'estimated': bool(e.get('estimated')), 'lanes': keys,
+               'people': ', '.join(names.get(c, c) for c in e.get('characters') or []), 'place': place,
+               'chapter': f'{ch[0]}: {ch[1]}' if ch else '', 'source': e.get('source', ''), 'flag': e['id'] in flagged}
+        rows.append(row)
+        if ch and start:
+            last = (end or start)[1]
+            lo, hi = band.get(ch[0], (start[0], last))
+            band[ch[0]] = (min(lo, start[0]), max(hi, last))
+    lane_rows = [{'key': k, 'label': 'Ohne Figur' if k == '@none' else names.get(k, k)} for k in lanes]
+    chapter_rows = [{'label': f'K{n}', 'lo': str(lo), 'hi': str(hi)} for n, (lo, hi) in sorted(band.items())]
+    hints = [f for f in found if f['kind'] != 'undated']
+    values = {'PROJECT_TITLE_SHORT': config['project'].get('title_short') or config['project'].get('title') or '',
+              'COUNT_TEXT': f'{len(entries)} {"Eintrag" if len(entries) == 1 else "Einträge"} · '
+                            + (f'{len(hints)} {"Hinweis" if len(hints) == 1 else "Hinweise"}' if hints else 'keine Hinweise'),
+              'TIMELINE_JSON': json.dumps({'entries': rows, 'lanes': lane_rows, 'chapters': chapter_rows}, ensure_ascii=False),
+              'EMPTY_TEXT': '' if entries else ('Noch keine Chronologie. Sie entsteht im Chat aus Figuren, Schauplätzen, '
+                                                 'Quellen, Recherche und gesicherten Sitzungen; gespeichert wird nur, was du auswählst.')}
+    blocks = {'FINDINGS': [{'F_KIND_TEXT': KIND_DE[f['kind']], 'F_TEXT': f['text'], 'F_ENTRIES': ', '.join(f['entries'])} for f in hints]}
+    return values, blocks
 
 
 def main(argv):

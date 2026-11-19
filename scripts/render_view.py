@@ -7,7 +7,7 @@ Aufruf:
   python scripts/render_view.py <projektordner> chapter <kapitel>  [--text] ...
   python scripts/render_view.py <projektordner> section <kapitel>.<abschnitt> [--text] ...
   python scripts/render_view.py <projektordner> project-edit | project-settings | chapter-create | chapter-reorder | edition-create [--text]
-  python scripts/render_view.py <projektordner> timeline --text [--status documented,reported]   Chronologie (#354)
+  python scripts/render_view.py <projektordner> timeline [--text [--status documented,reported]]   Chronologie (#354)
   python scripts/render_view.py <projektordner> chapter-edit | section-create | section-reorder <kapitel> [--text]
 
 Ohne --text wird der Widget-Code ausgegeben: Ladezeile für ghostwriter-ui (fester
@@ -3881,9 +3881,13 @@ def main():
         out = series_view(base, config, args)
     elif args.view == 'project':
         out = project_view(base, config, args)
-    elif args.view == 'timeline':   # Chronologie (#354): vorerst nur Textfassung, die grafische Ansicht folgt
+    elif args.view == 'timeline':   # Chronologie (#354): Vorlage zeitleiste bzw. Textfassung
         import chronology
-        out = chronology.text_view(base, config, [x.strip() for x in (args.status or '').split(',') if x.strip()] or None)
+        if args.text:
+            out = chronology.text_view(base, config, [x.strip() for x in (args.status or '').split(',') if x.strip()] or None)
+        else:
+            values, blocks = chronology.widget_values(base, config)
+            out = fill('zeitleiste.html', values, blocks)
     elif args.view == 'chapter':
         out = chapter_view(base, config, args, int(args.where))
     else:

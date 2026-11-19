@@ -145,5 +145,33 @@ class BookTest(unittest.TestCase):
         self.assertIn('`chr-002`', only)
 
 
+    def test_widget_values(self):
+        import json
+        values, blocks = chr_.widget_values(self.base, self.config)
+        self.assertTrue(values['EMPTY_TEXT'])
+        self.write([entry(1, 'span', what='Lehre', place='Wien', chapter=self.chapter, **{'from': '1943', 'to': '1946-06'}),
+                    entry(2, what='Kriegsende', date='1945-05-08'),
+                    entry(3, what='Kriegsende', date='1946', status='reported'),
+                    entry(4, 'span', what='Ehe', estimated=True, **{'from': '1950'}),
+                    entry(5, what='Ohne Datum')])
+        values, blocks = chr_.widget_values(self.base, self.config)
+        data = json.loads(values['TIMELINE_JSON'])
+        self.assertEqual(values['COUNT_TEXT'], '5 Einträge · 1 Hinweis')
+        self.assertEqual(values['EMPTY_TEXT'], '')
+        self.assertEqual([b['F_KIND_TEXT'] for b in blocks['FINDINGS']], ['Angabe gegen Beleg'])
+        first = data['entries'][0]
+        self.assertEqual((first['lo'], first['hi'], first['end_lo'], first['end_hi'], first['open'], first['chapter'][:2]),
+                         ('1943-01-01', '1943-12-31', '1946-06-01', '1946-06-30', False, '1:'))
+        self.assertEqual(data['chapters'], [{'label': 'K1', 'lo': '1943-01-01', 'hi': '1946-06-30'}])
+        self.assertEqual(data['lanes'], [{'key': '@none', 'label': 'Ohne Figur'}])
+        by = {e['id']: e for e in data['entries']}
+        self.assertTrue(by['chr-002']['flag'] and by['chr-003']['flag'] and not by['chr-001']['flag'])
+        self.assertTrue(by['chr-004']['open'])
+        self.assertEqual(by['chr-005']['lo'], '')
+        html = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'timeline', '--repo', 'o/r'],
+                              capture_output=True, text=True, check=True).stdout
+        self.assertIn('GW.render("zeitleiste"', html)
+
+
 if __name__ == '__main__':
     unittest.main()
