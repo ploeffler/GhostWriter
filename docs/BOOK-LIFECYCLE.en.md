@@ -34,6 +34,8 @@ A **published edition** remains unchanged. Collect corrections in the working ve
 
 An optional **proof copy** is a marked PDF of the merged book version, including unfinished text and unresolved markers. It neither publishes an edition nor grants approval. Merge pending changes first if you want them included in the proof.
 
+A **preview version** sits in between (#348): built like a proof copy and marked “Vorabfassung N”, but kept permanently as tag `<short-title>-vorab-N` with a pre-release, for test readers for example. It is not an edition, does not change the edition number and grants no approval; it is created only after explicit confirmation.
+
 ---
 
 <p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

@@ -1,0 +1,97 @@
+name: Vorabfassung
+
+# Hält einen Stand vor der ersten bzw. nächsten Auflage fest (#348), z. B. die Fassung
+# für Testleser: baut wie der Probedruck alle Kapitel und Abschnitte (nicht
+# abgeschlossene mit Vermerk, offene Marker hervorgehoben), aber mit dem Vermerk
+# „Vorabfassung N – nicht zur Veröffentlichung“, und legt den Tag <kurztitel>-vorab-N
+# und ein als Pre-Release markiertes Release mit den Dateien an.
+# Keine Auflage: project.current_edition bleibt, Tags mit -vorab- zählen nie als
+# Auflage. N zählt über alle Auflagen durch. Gibt es den Tag schon, wird nichts
+# überschrieben.
+# Gestartet aus dem Chat („Vorabfassung“, Aktion edition.preview) oder unter
+# Actions → Vorabfassung → Run workflow mit dem Branch des Buchs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      formats:
+        description: 'Formate, kommagetrennt (pdf, pdf_print, booklet, cover, docx, epub); leer = typesetting.formats'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Tags (Nummer der Vorabfassung), Serie (#116)
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python-Abhängigkeiten
+        run: pip install pyyaml jsonschema python-docx
+
+      - name: Nur Buch-Branches
+        # In einer Bibliothek nie vom Standard-Branch oder einem Arbeits-Branch (scripts/library.py, #39)
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ -f scripts/library.py ] && ! python scripts/library.py is "$GITHUB_REF_NAME" --dir .; then
+            echo "::error::$GITHUB_REF_NAME ist kein Buch. Unter „Use workflow from“ den Branch des Buchs wählen."
+            exit 1
+          fi
+
+      - name: Nummer ermitteln
+        id: info
+        run: |
+          git fetch -q --tags origin
+          python scripts/edition_info.py . --preview | tee -a "$GITHUB_OUTPUT"
+
+      - name: Gibt es die Vorabfassung schon?
+        env:
+          TAG: ${{ steps.info.outputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Die Vorabfassung $TAG gibt es schon; sie bleibt unverändert. Den Lauf neu starten zählt weiter."
+            exit 1
+          fi
+
+      - name: Satzwerkzeuge installieren
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends pandoc texlive-xetex texlive-latex-recommended \
+            texlive-latex-extra texlive-lang-german texlive-fonts-recommended fonts-texgyre lmodern poppler-utils qpdf >/dev/null
+
+      - name: Vorabfassung bauen
+        env:
+          FORMATS: ${{ inputs.formats }}
+          N: ${{ steps.info.outputs.preview }}
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          args=(--preview "$N" --out build --commit "$GITHUB_SHA")
+          if [ -n "$FORMATS" ]; then args+=(--formats "$FORMATS"); fi
+          python scripts/build_edition.py . "${args[@]}"
+
+      - name: Tag und Pre-Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          read -r TAG NAME < <(python -c "import yaml; d = yaml.safe_load(open('build/edition.yml')); print(d['tag'], d['name'])")
+          mapfile -t files < <(python -c "import yaml; d = yaml.safe_load(open('build/edition.yml')); print('\n'.join('build/' + f for f in d['files']))")
+          gh release create "$TAG" "${files[@]}" --prerelease --target "$GITHUB_SHA" --title "$NAME" \
+            --notes "Vorabfassung – keine Auflage, nicht zur Veröffentlichung. Stand \`${GITHUB_SHA:0:7}\` auf \`$GITHUB_REF_NAME\`."
+          {
+            echo "## $NAME angelegt"
+            echo
+            echo "Tag \`$TAG\` (Pre-Release), Commit \`${GITHUB_SHA:0:7}\`. Dateien: $(printf '%s ' "${files[@]##*/}")"
+          } >> "$GITHUB_STEP_SUMMARY"

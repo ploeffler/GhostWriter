@@ -3,6 +3,12 @@
 
 Aufruf:
   python scripts/edition_info.py <projektordner> [--before <commit>] [--edition N]
+  python scripts/edition_info.py <projektordner> --preview
+
+Mit --preview (#348): Angaben der nächsten Vorabfassung für die Action „Vorabfassung“:
+build=true, preview (N), tag (<kurztitel>-vorab-N), name. N zählt über alle Auflagen
+durch (höchste vorhandene Nummer + 1, aus den Tags im Klon), damit jeder Tag eindeutig
+bleibt; die Auflagenzählung (current_edition, -auflage-N) bleibt unberührt.
 
 Ausgabe (für $GITHUB_OUTPUT): build=true|false, edition, tag, name, notes, reason.
 
@@ -12,6 +18,7 @@ Push, der die Auflage nicht ändert, baut nichts. Ob es den Tag schon gibt, prü
 die Action selbst (veröffentlichte Auflagen bleiben unverändert).
 """
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -30,14 +37,33 @@ def edition_at(commit):
     return ((yaml.safe_load(r.stdout) or {}).get('project') or {}).get('current_edition') or 0
 
 
+def preview_tags(base, slug):
+    """Vorhandene Vorabfassungen {N: tag} aus den Tags des Klons (<slug>-vorab-N)."""
+    r = subprocess.run(['git', '-C', str(base), 'tag', '--list', f'{slug}-vorab-*'], text=True, capture_output=True)
+    out = {}
+    for tag in r.stdout.split():
+        m = re.fullmatch(rf'{re.escape(slug)}-vorab-(\d+)', tag)
+        if m:
+            out[int(m.group(1))] = tag
+    return out
+
+
 def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
     ap.add_argument('--before')
     ap.add_argument('--edition', type=int)
+    ap.add_argument('--preview', action='store_true', help='nächste Vorabfassung (#348)')
     args = ap.parse_args(argv[1:])
     base, config = load(args.project)
     p = config['project']
+    if args.preview:
+        short = p.get('title_short') or p.get('title') or p.get('working_title') or 'Ohne Titel'
+        n = max(preview_tags(base, tag_slug(short)), default=0) + 1
+        for k, v in {'build': 'true', 'preview': n, 'tag': f'{tag_slug(short)}-vorab-{n}',
+                     'name': f'{short} – Vorabfassung {n}'}.items():
+            print(f'{k}={v}')
+        return 0
     now = p.get('current_edition') or 0
     if args.edition:
         edition, build, reason = args.edition, True, 'von Hand angefordert'

@@ -34,6 +34,8 @@ Eine **veröffentlichte Auflage** bleibt unverändert. Korrekturen werden am Arb
 
 Ein **Probedruck** ist dagegen jederzeit auf Wunsch möglich: ein gekennzeichnetes PDF des übernommenen Buchstands, auch mit unfertigen Texten und offenen Markern. Er veröffentlicht keine Auflage und erteilt keine Freigabe. Noch offene Änderungen müssen zuerst übernommen werden, wenn sie im Probedruck erscheinen sollen.
 
+Eine **Vorabfassung** liegt dazwischen (#348): gebaut wie ein Probedruck und als „Vorabfassung N“ gekennzeichnet, aber dauerhaft als Tag `<kurztitel>-vorab-N` mit Pre-Release abgelegt, etwa für Testleser. Sie ist keine Auflage, ändert die Auflagennummer nicht und erteilt keine Freigabe; angelegt wird sie erst nach ausdrücklicher Bestätigung.
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
