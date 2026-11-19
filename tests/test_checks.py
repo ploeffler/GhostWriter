@@ -98,7 +98,27 @@ class ChecksTest(unittest.TestCase):
     def test_views_without_protocol_unchanged(self):
         out = render_view.project_view(self.base, self.config, args())
         self.assertNotIn('Prüfungen', out)
-        self.assertIn('| # | Kapitel | Kosten | Status | |', out)
+        self.assertIn('| # | Kapitel | Umfang | Fertig | Kosten | Status | |', out)
+
+    def test_chapter_card_fields(self):   # #362
+        widget = render_view.project_view(self.base, self.config, args(text=False))
+        row = widget.data['CHAPTERS'][0]
+        self.assertGreater(row['CHAPTER_WORDS'], 0)
+        self.assertTrue(row['CHAPTER_WORDS_TEXT'].endswith(' Wörter'))
+        self.assertEqual(row['CHAPTER_APPROVED_TEXT'], f'0 von {len(self.ch1["sections"])}')
+        self.assertEqual(max(r['CHAPTER_WORDS_PCT'] for r in widget.data['CHAPTERS']), 100)
+        self.assertNotIn('CHAPTER_NOTES', row)
+        checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed_with_notes', date='2026-11-17', notes=3)
+        checks.record(self.base, self.config, 'proofreading', [self.ch1['id']], 'passed', date='2026-11-18', notes=0)
+        row = render_view.project_view(self.base, self.config, args(text=False)).data['CHAPTERS'][0]
+        self.assertEqual((row['CHAPTER_NOTES'], row['CHAPTER_NOTES_TEXT']), (3, '3 offene Hinweise'))
+        self.assertFalse(validate_project.checks_errors(self.base, self.config))
+        with self.assertRaises(ValueError):
+            checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed', notes=-1)
+        self.assertIn('| 3 |', render_view.project_view(self.base, self.config, args()))
+
+    def test_manuscript_words_without_footnotes(self):
+        self.assertEqual(render_view.manuscript_words('Ein Satz[^1] mit <!-- x y --> vier.\n\n[^1]: Fußnote hier.'), 4)
 
     def test_project_chapter_section_views(self):
         checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed_with_notes', date='2026-11-17',

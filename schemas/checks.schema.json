@@ -32,7 +32,8 @@
           },
           "report": {"type": "string", "description": "Pfad des Berichts im Buch"},
           "run": {"type": "string", "description": "ID des Analyselaufs (bei analysis:<art>)"},
-          "note": {"type": "string"}
+          "note": {"type": "string"},
+          "notes": {"type": "integer", "minimum": 0, "description": "Zahl der offenen Hinweise im Bericht (#362), optional"}
         },
         "additionalProperties": false
       }

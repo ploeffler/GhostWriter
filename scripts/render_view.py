@@ -87,6 +87,14 @@ def attach_series(base, config):
             config['characters'].append(it)
 
 
+def manuscript_words(text):
+    """Wörter im Manuskripttext ohne Fußnoten (#362): Fußnotendefinitionen, -verweise und Kommentare fallen weg."""
+    text = re.sub(r'<!--.*?-->', ' ', text, flags=re.S)
+    text = re.sub(r'(?m)^\[\^[^\]]+\]:.*(?:\n(?: {2,}|\t).*)*', ' ', text)
+    text = re.sub(r'\[\^[^\]]+\]', ' ', text)
+    return len(re.findall(r'\w[\w\'’-]*', text))
+
+
 def section_file(base, section):
     text = (base / section['path']).read_text(encoding='utf-8')
     m = FRONTMATTER.match(text)
@@ -1350,15 +1358,33 @@ def project_view(base, config, args):
     ck = check_index(base, config)
     for i, ch in enumerate(chapters, start=1):
         ch_amount, ch_est = combine([total(section_costs(base, ch, s)) for s in ch['sections']])
+        words, done = 0, 0   # Textumfang und abgeschlossene Abschnitte (#362)
+        for s in ch['sections']:
+            try:
+                head, _, _, ms = section_file(base, s)
+            except Exception:   # noqa: BLE001
+                continue
+            words += manuscript_words(ms)
+            done += head.get('status') == 'approved'
         parts.append((ch_amount, ch_est))
         rows.append({'CHAPTER_NUMBER': i, 'CHAPTER_TITLE': ch['title'], 'CHAPTER_STATUS': ch['status'],
                      'CHAPTER_COST': money(ch_amount, ch_est),
                      'CHAPTER_COST_HINT': cost_hint('Summe der Abschnittskosten', ch_amount, ch_est),
-                     'CHAPTER_ID': ch['id']})
+                     'CHAPTER_ID': ch['id'], 'CHAPTER_WORDS': words,
+                     'CHAPTER_WORDS_TEXT': f'{words:,}'.replace(',', '.') + (' Wort' if words == 1 else ' Wörter'),
+                     'CHAPTER_APPROVED_TEXT': f'{done} von {len(ch["sections"])}' if ch['sections'] else ''})
         if ck:   # Prüf-Tags je Kapitel (#331)
+            notes = ck.open_notes(ch)
+            if notes is not None:   # offene Hinweise aus dem Prüfprotokoll (#362)
+                rows[-1].update({'CHAPTER_NOTES': notes,
+                                 'CHAPTER_NOTES_TEXT': 'keine offenen Hinweise' if not notes
+                                 else plural(notes, 'offener Hinweis', 'offene Hinweise')})
             tags = ck.chapter(ch)
             rows[-1].update({'CHAPTER_CHECKS': tags, 'CHAPTER_CHECKS_TEXT': check_cells(tags),
                              'CHAPTER_CHECKS_JSON': check_json(tags)})
+    longest = max([r['CHAPTER_WORDS'] for r in rows] or [0])
+    for r in rows:   # Balken relativ zum längsten Kapitel (#362)
+        r['CHAPTER_WORDS_PCT'] = round(100 * r['CHAPTER_WORDS'] / longest) if longest else 0
     parts.append(total(cost_entries(base, base / 'costs' / 'project.yml')))
     amount, est = combine(parts)
     edition = p['current_edition']
@@ -1464,13 +1490,13 @@ def project_view(base, config, args):
         if front:
             lines += [matter_line(front, 'Vorspann'), '']
         if rows and ck:   # mit Spalte „Prüfungen“ (#331)
-            lines += ['| # | Kapitel | Kosten | Status | Prüfungen | |', '|--:|---|--:|---|---|:-:|']
-            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_COST"]} | {display_status(r["CHAPTER_STATUS"])} | {r["CHAPTER_CHECKS_TEXT"]} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
+            lines += ['| # | Kapitel | Umfang | Fertig | Kosten | Status | Prüfungen | Hinweise | |', '|--:|---|--:|--:|--:|---|---|--:|:-:|']
+            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_WORDS_TEXT"]} | {r["CHAPTER_APPROVED_TEXT"] or "–"} | {r["CHAPTER_COST"]} | {display_status(r["CHAPTER_STATUS"])} | {r["CHAPTER_CHECKS_TEXT"]} | {r.get("CHAPTER_NOTES", "–")} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
             lines += ['', f'<sub>{values["CHECKS_LEGEND"]}</sub>']
         elif rows:
             # Letzte Spalte: Kürzel zum Bearbeiten des Kapitels (wie der Bearbeiten-Knopf der Kapitelansicht).
-            lines += ['| # | Kapitel | Kosten | Status | |', '|--:|---|--:|---|:-:|']
-            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_COST"]} | {display_status(r["CHAPTER_STATUS"])} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
+            lines += ['| # | Kapitel | Umfang | Fertig | Kosten | Status | |', '|--:|---|--:|--:|--:|---|:-:|']
+            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_WORDS_TEXT"]} | {r["CHAPTER_APPROVED_TEXT"] or "–"} | {r["CHAPTER_COST"]} | {display_status(r["CHAPTER_STATUS"])} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
         else:
             lines += ['*Noch keine Kapitel.*']
         if back:

@@ -187,7 +187,7 @@ BACKFILL_NOTE = 'nachgetragen (#340) aus vorhandenem Bericht; geprüfte Fassung 
 
 
 def record(base, config, kind, scope, result, report=None, date=None, commit=None, note=None, run=None, time=None,
-           backfill=False):
+           backfill=False, notes=None):
     """Einen Prüflauf eintragen; Fingerabdrücke und Commit werden vom heutigen Stand genommen.
 
     backfill=True (#344): älteren Bericht nachtragen. Dann weder Fingerabdrücke noch HEAD-Commit (die geprüfte
@@ -219,6 +219,10 @@ def record(base, config, kind, scope, result, report=None, date=None, commit=Non
         entry['run'] = run
     if note:
         entry['note'] = note
+    if notes is not None:   # offene Hinweise des Berichts (#362)
+        if int(notes) < 0:
+            raise ValueError('--notes muss 0 oder größer sein')
+        entry['notes'] = int(notes)
     entries.append(entry)
     save(base, entries)
     return entry
@@ -752,6 +756,18 @@ class Index:
     def section_history(self, sid):
         return history(self.base, self.config, [sid], self.entries, self.language, self.now) if self.entries else []
 
+    def open_notes(self, ch):
+        """Offene Hinweise (#362): Summe von `notes` aus dem neuesten Eintrag je Prüfart, der das Kapitel berührt.
+        None, wenn keiner dieser Einträge `notes` führt (dann nichts anzeigen statt raten)."""
+        unit = {s['id'] for s in ch['sections']}
+        latest = {}
+        for i, e, _ in touching(self.config, self.entries, unit):
+            rank = (when(e), i)
+            if e['kind'] not in latest or rank >= latest[e['kind']][0]:
+                latest[e['kind']] = (rank, e)
+        found = [e['notes'] for _, e in latest.values() if isinstance(e.get('notes'), int)]
+        return sum(found) if found else None
+
     def recent(self, limit=3):
         return recent(self.base, self.config, self.entries, self.language, limit) if self.entries else []
 
@@ -795,6 +811,7 @@ def main(argv=None):
     r.add_argument('--time', help='Uhrzeit HH:MM (Standard: jetzt, bei --date ohne Uhrzeit)')
     r.add_argument('--commit')
     r.add_argument('--note')
+    r.add_argument('--notes', type=int, help='Zahl der offenen Hinweise im Bericht (#362), für die Projektübersicht')
     r.add_argument('--backfill', action='store_true',
                    help='älteren Bericht nachtragen: ohne Fingerabdruck und HEAD-Commit (#344); '
                         'automatisch bei --date vor heute ohne --commit')
@@ -829,7 +846,7 @@ def main(argv=None):
         try:
             past = bool(args.date) and str(args.date) < datetime.date.today().isoformat() and not args.commit
             e = record(base, config, args.kind, args.scope, args.result, args.report, args.date, args.commit, args.note,
-                       time=args.time, backfill=args.backfill or past)
+                       time=args.time, backfill=args.backfill or past, notes=args.notes)
         except ValueError as exc:
             print(exc, file=sys.stderr)
             return 1

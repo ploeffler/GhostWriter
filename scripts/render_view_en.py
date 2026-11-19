@@ -81,6 +81,15 @@ def prepare(template, original, config, args):
         data['PROJECT_COST_HINT'] = native('project_cost_hint')
         for row in data.get('CHAPTERS', []):
             row['CHAPTER_COST_HINT'] = native('chapter_cost_hint')
+            if 'CHAPTER_WORDS' in row:   # Kapitelkarte (#362)
+                row['CHAPTER_WORDS_TEXT'] = quantity('words_count', number=f'{row["CHAPTER_WORDS"]:,}') if row['CHAPTER_WORDS'] != 1 \
+                    else native('words_count_one', number=1)
+            if row.get('CHAPTER_APPROVED_TEXT'):
+                done, _, total = row['CHAPTER_APPROVED_TEXT'].partition(' von ')
+                row['CHAPTER_APPROVED_TEXT'] = native('approved_count', number=done, total=total)
+            if 'CHAPTER_NOTES' in row:
+                row['CHAPTER_NOTES_TEXT'] = quantity('open_notes', number=row['CHAPTER_NOTES']) if row['CHAPTER_NOTES'] \
+                    else native('no_open_notes')
         if data.get('PENDING_COUNT'):
             data['PENDING_TEXT'] = quantity('changes', number=data['PENDING_COUNT'])
         if data.get('SERIES_ID'):
@@ -187,8 +196,8 @@ def render(template, data, config, renderer, base):
             if data.get(area):
                 lines += ['**' + tr(label) + ':** ' + ' · '.join(m['MATTER_TITLE'] + ' (' + status(m['MATTER_STATUS']) + ')' for m in data[area]), '']
         if rows:
-            lines += [native('project_table'), '|--:|---|--:|---|:-:|']
-            lines += [f'| {r["CHAPTER_NUMBER"]} | {cell(r["CHAPTER_TITLE"])} | {r["CHAPTER_COST"]} | {renderer.STATUS_ICON.get(r["CHAPTER_STATUS"], "•")} {status(r["CHAPTER_STATUS"])} | `B{r["CHAPTER_NUMBER"]}` |' for r in rows]
+            lines += [native('project_table'), '|--:|---|--:|--:|--:|---|:-:|']
+            lines += [f'| {r["CHAPTER_NUMBER"]} | {cell(r["CHAPTER_TITLE"])} | {r.get("CHAPTER_WORDS_TEXT", "–")} | {r.get("CHAPTER_APPROVED_TEXT") or "–"} | {r["CHAPTER_COST"]} | {renderer.STATUS_ICON.get(r["CHAPTER_STATUS"], "•")} {status(r["CHAPTER_STATUS"])} | `B{r["CHAPTER_NUMBER"]}` |' for r in rows]
             current = (config.get('workflow') or {}).get('current_chapter_id')
             if data.get('CHECKS_LEGEND'):
                 lines += [''] + check_lines(rows, 'CHAPTER_CHECKS', 'CHAPTER_NUMBER') + ['', '<sub>' + data['CHECKS_LEGEND'] + '</sub>']
