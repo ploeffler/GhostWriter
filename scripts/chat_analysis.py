@@ -2,7 +2,8 @@
 """Analyseaufträge und geprüfte Rückgaben ohne Anbieter-API (D07/D16).
 
 prepare gibt genau ein Kapitel als Auftragsdatei aus, accept speichert nur
-geprüfte Vorschläge. Kein Manuskript, keine Freigabe und kein Kosteneintrag
+geprüfte Vorschläge, bei den Arten aus analyze.KINDS zusätzlich als Lauf analysis/<art>/run-NNN
+(#353; register für ältere Rückgaben). Kein Manuskript, keine Freigabe und kein Kosteneintrag
 werden geändert. Die Auftragsdatei ist die getrennt aufbewahrte Vergleichsbasis.
 """
 import argparse
@@ -197,7 +198,19 @@ def accept(base, request_file, response_file):
     # Ergebnis bleibt Vorschlag; gleiche Rückgabe ist idempotent, Varianten überschreiben sich nicht.
     write_once(folder / 'request.json', request)
     path = write_once(folder / (digest(result) + '.json'), result)
+    register(base, path)
     return path, result
+
+
+def register(base, path):
+    """Gespeicherte Rückgabe als Lauf analysis/<art>/run-NNN ablegen (#353), damit sie sich wie ein Hintergrundlauf
+    ansehen und übernehmen lässt; für Rückgaben, die vor #353 gespeichert wurden, auch einzeln aufrufbar.
+    → (art, run-NNN bzw. None bei einer Art ohne Lauf, z. B. Klappentext)"""
+    full = Path(path) if Path(path).is_absolute() else Path(base) / path
+    result = json.loads(full.read_text(encoding='utf-8'))
+    if not isinstance(result, dict) or result.get('format') != 1 or 'verified' not in result:
+        raise ValueError('Keine Ergebnisdatei aus analysis/chat-returns/')
+    return result.get('kind'), analyze.chat_run(base, result)
 
 
 def main():
@@ -213,15 +226,23 @@ def main():
     p = sub.add_parser('accept')
     p.add_argument('request')
     p.add_argument('response')
+    p = sub.add_parser('register')
+    p.add_argument('result', help='analysis/chat-returns/<request_id>/<digest>.json')
     args = parser.parse_args()
     try:
         if args.command == 'prepare':
             request = prepare(args.project, args.kind, args.chapter, args.source_commit, args.out, args.reference)
             print(json.dumps({'request_id': request['request_id'], 'file': args.out}, ensure_ascii=False))
+        elif args.command == 'register':
+            kind, run = register(args.project, args.result)
+            print(json.dumps({'run': run, 'run_file': f'analysis/{kind}/{run}.json' if run else None}, ensure_ascii=False))
         else:
             path, result = accept(args.project, args.request, args.response)
+            run = analyze.chat_run_of(args.project, result)
             print(json.dumps({'file': str(path), 'status': result['status'],
-                              'dropped_without_evidence': result['dropped_without_evidence']}, ensure_ascii=False))
+                              'dropped_without_evidence': result['dropped_without_evidence'],
+                              'run': run, 'run_file': f'analysis/{result["kind"]}/{run}.json' if run else None},
+                             ensure_ascii=False))
     except (OSError, ValueError, KeyError, TypeError) as error:
         parser.exit(1, str(error) + '\n')
 

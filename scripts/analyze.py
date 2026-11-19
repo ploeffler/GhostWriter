@@ -1421,6 +1421,84 @@ def run(base, kind='characters', scope=None, now=None):
     return head
 
 
+def chat_results(config, kind, chapter_id, verified):
+    """Geprüfte Chat-Rückgabe eines Kapitels als Blockergebnisse wie im Hintergrundlauf. Kurzbeschreibungen je
+    Abschnitt (summaries_combine ordnet nach Abschnitts-ID zu), alle anderen Arten unter der Kapitel-ID."""
+    if kind != 'summaries':
+        return {chapter_id: verified}
+    out = {}
+    for ci, ch in enumerate(config['structure']['chapters'], start=1):
+        if ch['id'] != chapter_id:
+            continue
+        for si, sec in enumerate(ch['sections'], start=1):
+            found = [e for e in (verified or {}).get('sections') or [] if e.get('where') == f'{ci}.{si}']
+            if found:
+                out[sec['id']] = {'sections': found, 'chapter': None}
+    return out
+
+
+def chat_marker(result):
+    return hashlib.sha256(json.dumps(result, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def chat_run_of(base, result):
+    """Vorhandener Lauf zu einer Chat-Rückgabe (#353) oder None; schreibt nichts."""
+    folder = Path(base) / 'analysis' / str(result.get('kind'))
+    marker = chat_marker(result)
+    for old in sorted(folder.glob('run-[0-9][0-9][0-9].json')) if folder.is_dir() else []:
+        try:
+            if json.loads(old.read_text(encoding='utf-8')).get('chat_return') == marker:
+                return old.stem
+        except (OSError, ValueError):
+            continue
+    return None
+
+def chat_run(base, result, now=None):
+    """Geprüfte Chat-Rückgabe (scripts/chat_analysis.py accept, #353) zusätzlich als Lauf analysis/<art>/run-NNN
+    ablegen, damit Vorschlagsansicht, Übernahme und Hinweis in der Projektübersicht wie bei einem Hintergrundlauf
+    gehen. Ohne KI-Aufruf wird nichts zusammengeführt: keine Auffälligkeiten der Zeitleiste, keine Widersprüche, keine
+    Zuordnung von Spitznamen. Dieselbe Rückgabe ergibt immer denselben Lauf. → run-NNN bzw. None (Art ohne Lauf)"""
+    base = Path(base)
+    kind = result.get('kind')
+    if kind not in KINDS:
+        return None
+    have = chat_run_of(base, result)
+    if have:
+        return have
+    folder = base / 'analysis' / kind
+    marker = chat_marker(result)
+    _, config = load(base)
+    numbers = {ch['id']: str(i) for i, ch in enumerate(config['structure']['chapters'], start=1)}
+    scope = numbers.get(result.get('chapter_id'), 'book')
+    results = chat_results(config, kind, result.get('chapter_id'), result.get('verified'))
+
+    def no_merge(system, user):
+        raise ValueError('Chat-Rückgaben werden ohne KI-Aufruf übernommen')
+
+    combined, body = KINDS[kind]['combine'](base, config, results, [], None, no_merge)
+    now = now or datetime.datetime.now().astimezone().isoformat(timespec='seconds')
+    folder.mkdir(parents=True, exist_ok=True)
+    run_id = next_run(folder)
+    data = dict({'kind': kind, 'scope': scope, 'run': run_id, 'created_at': now, 'source': 'chat',
+                 'chat_return': marker, 'request_id': result.get('request_id')}, **combined)
+    (folder / f'{run_id}.json').write_text(json.dumps(data, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
+    n = len(combined.get('items') or [])
+    spec = KINDS[kind]
+    head = {'id': run_id, 'type': 'analysis', 'kind': kind, 'scope': scope, 'created_at': now, 'source': 'chat',
+            'provider': None, 'model': None, 'merge_model': None, 'blocks_analysed': 0, 'blocks_cached': 0,
+            'suggestions': n, 'dropped_without_evidence': result.get('dropped_without_evidence', 0),
+            'input_tokens': 0, 'output_tokens': 0, 'cost': None, 'result': f'{run_id}.json',
+            'request_id': result.get('request_id')}
+    lines = [f'# {spec["label"]}-Analyse {run_id[4:]} (aus dem Chat)', '',
+             f'{n} Vorschläge aus einer geprüften Chat-Rückgabe für Kapitel {scope} '
+             f'(analysis/chat-returns/{result.get("request_id")}/). {head["dropped_without_evidence"]} Angaben ohne '
+             'wörtliche Fundstelle verworfen. Ohne Zusammenführen über mehrere Kapitel.', '']
+    lines += body + ['', f'Übernommen wird nichts automatisch: im Chat „{spec["offer"]} … liegen bereit“ öffnen.']
+    (folder / f'{run_id}.md').write_text('---\n' + yaml.safe_dump(head, allow_unicode=True, sort_keys=False) + '---\n\n'
+                                         + '\n'.join(lines) + '\n', encoding='utf-8')
+    return run_id
+
+
 def applied_file(base, kind):
     return Path(base) / 'analysis' / kind / 'applied.yml'
 

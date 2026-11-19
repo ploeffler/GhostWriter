@@ -1078,5 +1078,8 @@
   "view.ai_disclosure.addition_in_the_book": "**Addition in the book",
   "wizard.14.ai_disclosure.functions.label": "Minimum only",
   "wizard.14.ai_disclosure.functions.desc": "The standard sentence, e.g. in the imprint",
-  "settings.minimum_only": "minimum only"
+  "settings.minimum_only": "minimum only",
+  "view.analysis_suggest.chat_run_from": "Chat analysis {p_a} from {p_b}",
+  "view.character_suggest.chat_run_from": "Chat analysis {p_a} from {p_b}",
+  "view.analysis_suggest.chat_return_unregistered": "There is no run for this chat return yet. Run `python3 scripts/chat_analysis.py . register {path}` first, then open the reported file analysis/<kind>/run-NNN.json."
 }

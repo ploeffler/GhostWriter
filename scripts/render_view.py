@@ -3033,7 +3033,8 @@ def character_suggest_view(base, config, args):
                                       'series': view_message('view.character_suggest.series_character', p_a=hit["name"]) if hit else ''}[state]})
     conflicts = '; '.join(f'{c["name"]}, {view_labels('FIELD_DE').get(c["field"], c["field"])}: ' + ' / '.join(str(v) for v in c['values'])
                           for c in data.get('conflicts') or [])
-    values = {'RUN_TEXT': view_message('view.character_suggest.background_run_from', p_a=data["run"][4:], p_b=de_date(str(data.get("created_at", "")))) if data.get('run') else '',
+    values = {'RUN_TEXT': ('' if not data.get('run') else view_message('view.character_suggest.chat_run_from', p_a=data["run"][4:], p_b=de_date(str(data.get("created_at", ""))))
+                             if data.get('source') == 'chat' else view_message('view.character_suggest.background_run_from', p_a=data["run"][4:], p_b=de_date(str(data.get("created_at", ""))))),
               'RUN_ID': data.get('run', ''), 'CONFLICTS_TEXT': conflicts,
               'SCOPE': str(scope), 'SCOPE_TEXT': scope_text(str(scope), config), 'SERIES_ID': ser.get('id', ''),
               'SERIES_TITLE': ser.get('title', ''), 'SERIES_LEVEL': '1' if is_series else '',
@@ -3064,11 +3065,20 @@ def analysis_suggest_view(base, config, args):
     raw = args.draft or args.where or ''
     path = Path(raw) if Path(raw).is_file() else base / raw
     data = json.loads(path.read_text(encoding='utf-8'))
+    if 'verified' in data and data.get('request_id'):   # Chat-Rückgabe (#353): deren Lauf zeigen
+        import analyze
+        run = analyze.chat_run_of(base, data)
+        if not run:
+            raise SystemExit(view_message('view.analysis_suggest.chat_return_unregistered', path=raw))
+        path = base / 'analysis' / data['kind'] / f'{run}.json'
+        data = json.loads(path.read_text(encoding='utf-8'))
     kind = data.get('kind') or 'characters'
     if kind == 'characters':
         args.draft = str(path)
         return character_suggest_view(base, config, args)
-    run_text = view_message('view.analysis_suggest.background_run_from', p_a=data["run"][4:], p_b=de_date(str(data.get("created_at", "")))) if data.get('run') else ''
+    run_args = {'p_a': str(data.get('run') or '')[4:], 'p_b': de_date(str(data.get('created_at', '')))}
+    run_text = ('' if not data.get('run') else view_message('view.analysis_suggest.chat_run_from', **run_args)
+                if data.get('source') == 'chat' else view_message('view.analysis_suggest.background_run_from', **run_args))
     return ANALYSIS_VIEWS[kind](base, config, args, data, run_text)
 
 
