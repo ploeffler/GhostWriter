@@ -63,7 +63,7 @@ A link to `START.md` does not automatically load its contents. With a GitHub con
 
 ## AI disclosure
 
-GhostWriter was developed with assistance from Claude (Anthropic); this acknowledgement belongs in the documentation, not automatically in your book. You decide whether and how to disclose AI assistance in your book.
+GhostWriter was developed with assistance from Claude (Anthropic); this acknowledgement belongs in the documentation, not automatically in your book. Every book states, as a minimum, that functions of an AI were used (for example for spelling, grammar, punctuation and source research) and that the author reviewed all content and is responsible for the text. You decide whether to add more.
 
 **GhostWriter is intended for text-led books, not photo books or picture-led collections.** One scene corresponds to one section, with at most one media item. See [media within a section](MEDIA-LAYOUT.en.md) for the requirements and implementation status.
 

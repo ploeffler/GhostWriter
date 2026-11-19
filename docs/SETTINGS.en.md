@@ -13,7 +13,7 @@
 | `Profile` | Git identity, default author and narrative voice |
 | `AI services` | Existing services, access type and responsibility for each task |
 | `Output` or `Cover` | Typesetting, fonts, paragraphs, front matter, formats, imprint, print profile and cover |
-| `AI disclosure` | Whether and where a confirmed AI-use statement appears in the book |
+| `AI disclosure` | Where the minimum AI-use statement appears, its list of functions, and an optional confirmed addition |
 | `Data` or `Update` | Show the actual program and update level |
 
 Opening a form saves nothing. Use its save action to change settings. [Saving and merging](SAVING.en.md) explains when changes reach the book branch.

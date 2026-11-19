@@ -126,7 +126,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `characters` | Figuren (#53) in Reihenfolge, je `id` (`char-…`), `name`, `path`; fehlt = keine (siehe „Figuren“) |
 | `structure.front_matter`, `structure.back_matter` | Vor- und Nachspann (#57, #58): Teile vor Kapitel 1 (Widmung, Vorwort, Prolog) bzw. nach dem letzten Kapitel (Epilog, Nachwort, Glossar, Danksagung), je mit `id`, `kind`, `title`, `path`; fehlen = keine (siehe „Vor- und Nachspann“) |
 
-| `ai_disclosure` | KI-Angabe im Buch (#78): `mode` (`none`, `short`, `detailed`, `custom`), `placement` (`imprint`, `foreword`, `afterword`, `page`), `name_services`, `text` (bestätigter Wortlaut; nur dieser kommt ins Buch); fehlt = keine Angabe (siehe „KI-Angabe im Buch“) |
+| `ai_disclosure` | KI-Angabe im Buch (#78, #356): Die Mindestangabe steht in jedem Buch; `mode` (`functions` = nur Mindestangabe, `short`, `detailed`, `custom` = dazu ein Zusatz; `none` veraltet, gilt wie `functions`), `placement` (`imprint`, `foreword`, `afterword`, `page`), `name_services`, `functions` (Aufzählung im Mustersatz), `text` (bestätigter Zusatz); fehlt = nur die Mindestangabe im Impressum (siehe „KI-Angabe im Buch“) |
 | `typesetting` | Buchsatz der Auflagen, Formular „Ausgabeoptionen“ bzw. Projekteinstellungen (siehe unten) |
 | `publication` | Angaben im Impressum: Verlag, ISBN je Ausgabe, Rechtehinweis (#68; siehe „Buchsatz“) |
 | `print` | Druck (#68): `profile` (Anbieter: `kdp`, `bod`, `custom`), `paper` (nur `kdp`: `white`, `cream`, `premium_color`), `spine_mm` (feste Rückenbreite), `paper_mm_per_page` (Papierstärke), `bleed_mm` (Beschnitt), `crop_marks` (Schnittmarken) (siehe „Umschlag und Druck“) |
@@ -286,17 +286,22 @@ Darunter `## Ziel` und `## Manuskript` (der Text fürs Buch). Jede Art gibt es h
 
 ## KI-Angabe im Buch
 
-Ob und wie das Buch angibt, wie bei ihm KI genutzt wurde, ist eine Einstellung des Autors je Buch (#78). Getrennt davon und nie im Buch: der Hinweis auf die Entwicklung von GhostWriter (`templates/branding.yml`).
+Jedes Buch gibt an, dass bei ihm KI genutzt wurde (#78, #356). **Mindestangabe** ist für alle Bücher der Mustersatz
+
+> „Bei der Entstehung dieses Buchs wurden Funktionen einer KI genutzt, etwa für Rechtschreibung, Grammatik, Zeichensetzung und Quellenrecherche. {Autor} hat alle Inhalte geprüft und trägt die Verantwortung für den Text.“
+
+`{Autor}` ist `project.author`; ohne Autor endet der Satz mit „Alle Inhalte wurden geprüft; die Verantwortung für den Text trägt der Autor bzw. die Autorin.“ Bücher mit `project.language: en…` erhalten ihn auf Englisch („Functions of an AI were used in creating this book, for example for spelling, grammar, punctuation and source research. … has reviewed all content and is responsible for the text.“). Die Mindestangabe braucht keine Bestätigung und keine Lauf-Dateien und lässt sich nicht abwählen; änderbar ist nur die Aufzählung (`functions`). Was der Autor zusätzlich wählt, steht danach. Getrennt davon und nie im Buch: der Hinweis auf die Entwicklung von GhostWriter (`templates/branding.yml`).
 
 ```yaml
 ai_disclosure:
-  mode: short            # none | short (ein Satz) | detailed (je Aufgabe) | custom (eigener Text)
+  mode: short            # functions (nur Mindestangabe) | short (+ ein Satz) | detailed (+ je Aufgabe) | custom (+ eigener Text)
   placement: imprint     # imprint | foreword (Ende des Vorworts) | afterword (Ende des Nachworts) | page (eigene Seite am Ende)
-  name_services: true    # Dienste namentlich nennen
-  text: "Bei der Entstehung dieses Buchs wurden KI-Werkzeuge für Recherche und Textentwürfe eingesetzt (Perplexity). …"
+  name_services: true    # Dienste im Zusatz namentlich nennen
+  functions: [Rechtschreibung, Grammatik, Zeichensetzung, Quellenrecherche]   # fehlt = diese Vorgabe
+  text: "Darüber hinaus wurden KI-Werkzeuge für Recherche und Textentwürfe eingesetzt (Perplexity)."
 ```
 
-`scripts/ai_disclosure.py suggest` schlägt den Wortlaut aus den Köpfen der Lauf-Dateien vor (`type` → Aufgabe, `provider` → Dienst aus `providers.yml`; `chat` erscheint als „ein Chat-Assistent“). Ins Buch kommt nur `text`, also ein bestätigter Wortlaut; ändern sich `mode` oder `name_services`, leert `set` ihn wieder. Satz: im Impressum als weitere Zeilen, am Ende von Vorwort bzw. Nachwort vor Verfasser und Ort/Datum (Block `::: ki-angabe`), als eigene Seite „Hinweis zur KI-Nutzung“ unnummeriert am Ende; in allen drei Formaten und im Probedruck. Ist eine Angabe gewählt, verhindern ein fehlender Wortlaut oder ein fehlender Ort (Impressum ausgeschaltet, kein freigegebenes Vorwort bzw. Nachwort) die Auflage.
+`mode: none` aus älteren Büchern gilt wie `functions`; `set --mode none` lehnt das Skript ab. `scripts/ai_disclosure.py suggest` zeigt die Mindestangabe und schlägt den Zusatz aus den Köpfen der Lauf-Dateien vor (`type` → Aufgabe, `provider` → Dienst aus `providers.yml`; `chat` erscheint als „ein Chat-Assistent“). Der Zusatz kommt nur als bestätigter `text` ins Buch; ändern sich `mode` oder `name_services`, leert `set` ihn wieder. Enthält ein eigener Text den ersten Satz der Mindestangabe schon, steht nur der eigene Text im Buch. Die Aufzählung setzt `set --functions "Rechtschreibung, Stil und Quellen"` (leer = Vorgabe). Ist das Impressum ausgeschaltet und kein Ort gewählt, steht die Angabe auf der eigenen Seite am Ende. Satz: im Impressum als weitere Zeilen, am Ende von Vorwort bzw. Nachwort vor Verfasser und Ort/Datum (Block `::: ki-angabe`), als eigene Seite „Hinweis zur KI-Nutzung“ unnummeriert am Ende; in allen drei Formaten und im Probedruck. Ist ein Zusatz gewählt, verhindert ein noch nicht bestätigter Wortlaut die Auflage, ebenso bei jeder Angabe ein ausdrücklich gewählter, aber fehlender Ort (Impressum ausgeschaltet, kein freigegebenes Vorwort bzw. Nachwort) die Auflage.
 
 ## Illustrationen
 

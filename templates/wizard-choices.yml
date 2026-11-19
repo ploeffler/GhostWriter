@@ -127,15 +127,15 @@ steps:
   wizard.14:
     title: "Neues Buch · Schritt {step} von {steps}"
     subtitle: KI-Angabe im Buch
-    note: Den Wortlaut schlägt GhostWriter vor der ersten Auflage aus den tatsächlichen Läufen vor; ins Buch kommt er erst, wenn du ihn bestätigst. Ort und Wortlaut später über den Befehl „KI-Angabe“.
+    note: In jedem Buch steht die Mindestangabe „Bei der Entstehung dieses Buchs wurden Funktionen einer KI genutzt, etwa für Rechtschreibung, Grammatik, Zeichensetzung und Quellenrecherche. … hat alle Inhalte geprüft und trägt die Verantwortung für den Text.“ Einen Zusatz schlägt GhostWriter vor der ersten Auflage aus den tatsächlichen Läufen vor; ins Buch kommt er erst, wenn du ihn bestätigst. Ort, Aufzählung und Zusatz später über den Befehl „KI-Angabe“.
     skippable: true
     questions:
       - key: ai_disclosure
         field: ai_disclosure.mode
         header: KI-Angabe
-        text: Soll im Buch stehen, wie bei diesem Buch KI genutzt wurde?
+        text: Soll zur Mindestangabe noch etwas dazukommen?
         options:
-          - {value: short, label: Kurz, desc: "Ein Satz, z. B. im Impressum", recommended: true}
-          - {value: detailed, label: Ausführlich, desc: "Je Aufgabe, z. B. Recherche, Textentwürfe"}
-          - {value: custom, label: Eigener Text, desc: "Du schreibst den Wortlaut selbst"}
-          - {value: none, label: Keine Angabe}
+          - {value: functions, label: Nur Mindestangabe, desc: "Der Mustersatz, z. B. im Impressum", recommended: true}
+          - {value: short, label: Dazu ein Satz, desc: "Aufgaben aus den Läufen in einem Satz"}
+          - {value: detailed, label: Dazu je Aufgabe, desc: "Je Aufgabe, z. B. Recherche, Textentwürfe"}
+          - {value: custom, label: Dazu eigener Text, desc: "Du schreibst den Zusatz selbst"}
