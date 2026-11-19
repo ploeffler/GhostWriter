@@ -21,7 +21,8 @@ explizit beauftragte Korrekturen bleiben innerhalb ihres erlaubten Umfangs mögl
 Eine bestandene Prüfung ersetzt keine Autorenfreigabe.
 Wird ein Bericht gespeichert, den Lauf mit `scripts/checks.py record` ins
 Prüfprotokoll `editorial/checks.yml` eintragen (#331); daraus entstehen die
-Prüf-Tags in den Ansichten.
+Prüf-Tags in den Ansichten. Dabei immer `--notes <n>` mitgeben: Zahl der offenen
+Hinweise im Bericht, 0 wenn keine offen sind (#362, Anzeige in der Projektübersicht).
 
 ---
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../../../assets/logo-dark.svg"><img src="../../../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
