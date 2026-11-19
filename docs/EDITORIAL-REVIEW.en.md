@@ -112,7 +112,8 @@ run in the check log in the same commit (#331):
 --scope <book|chapter ID|section ID> --result passed|passed_with_notes|failed|incomplete
 --report editorial/<report>.md`. The project overview, chapter view and section
 form then show the run as a tag; if the text changes afterwards, the tag reads
-“changed since check”. The entry is not an approval.
+“changed since check”. The entry is not an approval. Add `--notes <n>` with the
+number of open notes in the report; the project overview shows it per chapter (#362).
 
 ## Integration and limits
 
