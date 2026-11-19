@@ -52,6 +52,30 @@ class PreviewTest(unittest.TestCase):
         self.assertEqual((info['build'], info['preview'], info['tag']), ('true', '4', f'{self.slug}-vorab-4'))
         self.assertIn('Vorabfassung 4', info['name'])
 
+    def view(self, *args):
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), *args, '--repo', 'o/r'],
+                           capture_output=True, text=True, check=True)
+        return r.stdout
+
+    def test_overview_and_form_show_preview(self):
+        """#352: letzte Vorabfassung in der Projektübersicht, nächster Tag und Hinweis im Formular „Neue Auflage“."""
+        self.assertNotIn('Vorabfassung', self.view('project', '--text'))   # ohne Git: keine Anzeige
+        git(self.base, 'init', '-q')
+        git(self.base, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'x')
+        self.assertNotIn('Vorabfassung', self.view('project', '--text'))
+        self.assertIn(f'`{self.slug}-vorab-1`', self.view('edition-create', '--text'))
+        for n in (2, 10, 9):
+            git(self.base, 'tag', f'{self.slug}-vorab-{n}')
+        git(self.base, 'tag', 'anderes-buch-vorab-99')
+        text = self.view('project', '--text')
+        self.assertRegex(text, rf'Vorabfassung 10 vom \d\d\.\d\d\.\d{{4}} \(\[Release\]\(https://github.com/o/r/releases/tag/{self.slug}-vorab-10\)\)')
+        self.assertIn(f'`{self.slug}-vorab-11`', self.view('edition-create', '--text'))
+        html = self.view('edition-create')
+        self.assertIn(f'"PREVIEW_TAG":"{self.slug}-vorab-11"', html)
+        overview = self.view('project')
+        self.assertIn(f'"PREVIEW_URL":"https://github.com/o/r/releases/tag/{self.slug}-vorab-10"', overview)
+        self.assertIn('"PREVIEW_TEXT":"Vorabfassung 10 vom ', overview)
+
     def test_draft_note_only_when_present(self):
         self.assertEqual(build_edition.draft_note('Text'), '')
         self.assertEqual(build_edition.draft_note('[Stand: Entwurf, nicht abgeschlossen]{.gwstatus}'),
