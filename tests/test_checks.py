@@ -119,7 +119,8 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual(widget.data['CHAPTERS'][0]['CHAPTER_CHECKS'][0]['CK_KIND'], 'language')
         row = json.loads(widget.data['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])
         self.assertEqual([c['CK_TAG'] for c in row], ['L✓·', 'K✓'])
-        self.assertEqual(sorted(row[0]), ['CK_REPORT', 'CK_RESULT', 'CK_STATE', 'CK_TAG', 'CK_TEXT'])
+        self.assertEqual(sorted(row[0]), ['CK_PILL', 'CK_REPORT', 'CK_RESULT', 'CK_STATE', 'CK_TAG', 'CK_TEXT'])
+        self.assertEqual(row[0]['CK_PILL'], 'Sprache ✓·')
         chap = render_view.chapter_view(self.base, self.config, args(text=False), 1)
         self.assertEqual(json.loads(chap.data['CHECKS_JSON'])[0]['CK_TAG'], 'L✓·')
         self.assertIn('SECTION_CHECKS_JSON', chap.data['SECTIONS'][0])
@@ -167,7 +168,7 @@ class ChecksTest(unittest.TestCase):
                          [('quality_correction', 'failed', '2026-11-17')])
         out = render_view.chapter_view(self.base, self.config, args(), 1)
         self.assertIn('**Frühere Prüfungen (1):**', out)
-        self.assertIn('- 2026-11-17 · `Q✗` Qualität: nicht bestanden', out)
+        self.assertIn('- Qualität: 2026-11-17 ✗', out)
         chap = render_view.chapter_view(self.base, self.config, args(text=False), 1)
         self.assertEqual(chap.data['CHECKS_HISTORY_COUNT'], 1)
         self.assertEqual(json.loads(chap.data['CHECKS_HISTORY_JSON'])[0]['CK_TAG'], 'Q✗')
@@ -176,6 +177,17 @@ class ChecksTest(unittest.TestCase):
         import render_view_en
         data = render_view_en.prepare('kapitelansicht', chap.data, self.config, args())
         self.assertIn('Quality: failed', json.loads(data['CHECKS_HISTORY_JSON'])[0]['CK_TEXT'])
+
+    def test_time_recorded_and_shown(self):   # #340
+        e = checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed', date='2026-11-17', time='14:05')
+        self.assertEqual(e['time'], '14:05')
+        self.assertNotIn('time', checks.record(self.base, self.config, 'language', [self.ch1['id']], 'failed', date='2026-11-16'))
+        self.assertIn('time', checks.record(self.base, self.config, 'structure', [self.ch1['id']], 'passed'))
+        self.assertEqual(validate_project.checks_errors(self.base, self.config), [])
+        hist = checks.history(self.base, self.config, [s['id'] for s in self.ch1['sections']])
+        self.assertEqual([h['CK_WHEN'] for h in hist], ['2026-11-16'])
+        tags = checks.tags(self.base, self.config, [s['id'] for s in self.ch1['sections']])
+        self.assertIn('2026-11-17 14:05', [t for t in tags if t['CK_KIND'] == 'language'][0]['CK_TEXT'])
 
     def test_import_old_reports(self):   # #340
         ed = Path(self.base) / 'editorial'

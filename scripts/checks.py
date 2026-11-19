@@ -176,7 +176,12 @@ def head_commit(base):
 
 # ---------- Eintragen ----------
 
-def record(base, config, kind, scope, result, report=None, date=None, commit=None, note=None, run=None):
+def when(e):
+    """Sortierschlüssel und Anzeige: „JJJJ-MM-TT“ bzw. „JJJJ-MM-TT HH:MM“ (#340, Uhrzeit optional)."""
+    return (str(e.get('date') or '') + (' ' + str(e['time']) if e.get('time') else '')).strip()
+
+
+def record(base, config, kind, scope, result, report=None, date=None, commit=None, note=None, run=None, time=None):
     """Einen Prüflauf eintragen; Fingerabdrücke und Commit werden vom heutigen Stand genommen."""
     base = Path(base)
     if kind not in EDITORIAL and not (kind.startswith('analysis:') and kind.split(':', 1)[1]):
@@ -190,6 +195,8 @@ def record(base, config, kind, scope, result, report=None, date=None, commit=Non
     entries = load(base)
     entry = {'id': next_id(entries), 'kind': kind, 'scope': scope,
              'date': str(date or datetime.date.today().isoformat()), 'result': result}
+    if time or not date:   # Uhrzeit (#340): angegeben oder jetzt, bei nachgetragenem Datum ohne Uhrzeit keine
+        entry['time'] = str(time or datetime.datetime.now().strftime('%H:%M'))
     commit = commit or head_commit(base)
     if commit:
         entry['commit'] = commit
@@ -217,9 +224,12 @@ def record_analysis(base, config, head):
     else:
         scope = 'book'
     result = 'passed_with_notes' if head.get('suggestions') else 'passed'
-    when = str(head.get('created_at') or '')[:10] or None
+    stamp = str(head.get('created_at') or '')
+    day = stamp[:10] or None
+    clock = stamp[11:16] if re.match(r'\d{2}:\d{2}', stamp[11:16]) else None
     report = f'analysis/{head["kind"]}/{head["id"]}.md'
-    return record(base, config, f'analysis:{head["kind"]}', [scope], result, report=report, date=when, run=head['id'])
+    return record(base, config, f'analysis:{head["kind"]}', [scope], result, report=report, date=day, run=head['id'],
+                  time=clock)
 
 
 def backfill(base, config):
@@ -241,6 +251,7 @@ def backfill(base, config):
                  'date': str(head.get('created_at') or '')[:10] or datetime.date.today().isoformat(),
                  'result': 'passed_with_notes' if head.get('suggestions') else 'passed',
                  'report': str(run.relative_to(base)), 'run': head['id'],
+                 **({'time': str(head['created_at'])[11:16]} if re.match(r'.{10}[T ]\d{2}:\d{2}', str(head.get('created_at') or '')) else {}),
                  'note': 'nachgetragen (#331); geprüfte Fassung nicht gespeichert'}
         entries.append(entry)
         added.append(entry)
@@ -320,8 +331,10 @@ def candidates(base, config, entries=None):
         kind = next((k for k, words in KIND_WORDS if any(w in hay for w in words)), '')
         m = re.search(r'(\d{4}-\d{2}-\d{2})', f.name) or re.search(r'(\d{4}-\d{2}-\d{2})', text[:2000])
         date = m.group(1) if m else ''
+        t = re.search(r'(?<![\d:])([01]?\d|2[0-3])[:.]([0-5]\d)(?:\s*Uhr)?(?![\d:])', text[:2000]) if date else None
+        clock = f'{int(t.group(1)):02d}:{t.group(2)}' if t else ''
         scope = _scope_from(config, f.stem, text)
-        out.append({'report': rel, 'kind': kind, 'scope': scope, 'date': date, 'result': _result_from(text),
+        out.append({'report': rel, 'kind': kind, 'scope': scope, 'date': date, 'time': clock, 'result': _result_from(text),
                     'ready': bool(kind and scope and date)})
     return out
 
@@ -338,6 +351,7 @@ def import_reports(base, config, apply=False):
             if not c['ready']:
                 continue
             entry = {'id': next_id(entries), 'kind': c['kind'], 'scope': c['scope'], 'date': c['date'],
+                     **({'time': c['time']} if c.get('time') else {}),
                      'result': c['result'], 'report': c['report'],
                      'note': 'nachgetragen (#340) aus vorhandenem Bericht; geprüfte Fassung nicht gespeichert'}
             entries.append(entry)
@@ -384,13 +398,13 @@ def tags(base, config, unit_ids, entries=None, language='de', now_digests=None):
     latest = {}
     for i, e, hit in touching(config, entries, unit):
         key = e['kind']
-        rank = (str(e.get('date') or ''), i)
+        rank = (when(e), i)
         if key not in latest or rank >= latest[key][0]:
             latest[key] = (rank, e, hit)
     order = {k: n for n, k in enumerate(EDITORIAL)}
     out = []
     for key, (_, e, hit) in sorted(latest.items(), key=lambda kv: (order.get(kv[0], 99), kv[0])):
-        out.append(localize({'CK_KIND': key, 'CK_RESULT': e['result'], 'CK_DATE': str(e.get('date') or ''),
+        out.append(localize({'CK_KIND': key, 'CK_RESULT': e['result'], 'CK_DATE': str(e.get('date') or ''), 'CK_WHEN': when(e),
                              'CK_REPORT': e.get('report') or '', 'CK_STATE': state(base, config, e, hit, now_digests),
                              'CK_PARTIAL': '1' if len(hit) < len(unit) else ''}, lang))
     return out
@@ -415,13 +429,14 @@ def history(base, config, unit_ids, entries=None, language='de', now_digests=Non
     if not unit or not entries:
         return []
     now_digests = now_digests if now_digests is not None else digests(base, config, list(unit))
-    hits = sorted(touching(config, entries, unit), key=lambda t: (str(t[1].get('date') or ''), t[0]), reverse=True)
+    hits = sorted(touching(config, entries, unit), key=lambda t: (when(t[1]), t[0]), reverse=True)
     seen, out = set(), []
     for _, e, hit in hits:
         if e['kind'] not in seen:
             seen.add(e['kind'])
             continue
         out.append(dict(localize({'CK_KIND': e['kind'], 'CK_RESULT': e['result'], 'CK_DATE': str(e.get('date') or ''),
+                                  'CK_WHEN': when(e),
                                   'CK_REPORT': e.get('report') or '',
                                   'CK_STATE': state(base, config, e, hit, now_digests),
                                   'CK_PARTIAL': '1' if len(hit) < len(unit) else ''}, lang),
@@ -430,22 +445,24 @@ def history(base, config, unit_ids, entries=None, language='de', now_digests=Non
 
 
 def history_text(items, language='de'):
-    """Textfassung „Frühere Prüfungen“: eine Zeile je Eintrag (Datum, Prüfart, Ergebnis, Bericht)."""
+    """Textfassung „Frühere Prüfungen“, nach Prüfart gruppiert; je Eintrag Datum, Uhrzeit und Ergebniszeichen."""
     if not items:
         return []
     head = 'Frühere Prüfungen' if language != 'en' else 'Earlier checks'
-    lines = [f'**{head} ({len(items)}):**']
+    groups = {}
     for t in items:
-        line = f'- {t["CK_DATE"]} · `{t["CK_TAG"]}` {t["CK_LABEL"]}: {t["CK_RESULT_TEXT"]} · {t["CK_STATE_TEXT"]}'
-        if t.get('CK_REPORT'):
-            line += f' · Bericht `{t["CK_REPORT"]}`' if language != 'en' else f' · report `{t["CK_REPORT"]}`'
-        lines.append(line)
+        groups.setdefault(t['CK_LABEL'], []).append(t)
+    lines = [f'**{head} ({len(items)}):**']
+    for name, ts in groups.items():
+        lines.append(f'- {name}: ' + ' · '.join(
+            f'{t["CK_WHEN"]} {t["CK_MARK"]}{ {"changed": "*", "unknown": "?"}.get(t["CK_STATE"], "") if t["CK_MARK"] != "?" else ""}'
+            for t in ts))
     return lines
 
 
 def history_json(items):
-    """Widget: frühere Prüfungen kompakt als JSON (CK_DATE, CK_TAG, CK_TEXT, CK_RESULT, CK_STATE, CK_REPORT)."""
-    keep = ('CK_DATE', 'CK_TAG', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT')
+    """Widget: frühere Prüfungen kompakt als JSON; das Widget gruppiert nach CK_LABEL und zeigt je Eintrag CK_WHEN."""
+    keep = ('CK_KIND', 'CK_LABEL', 'CK_WHEN', 'CK_DATE', 'CK_TAG', 'CK_MARK', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT')
     return json.dumps([{k: t.get(k, '') for k in keep} for t in items], ensure_ascii=False, separators=(',', ':'))
 
 
@@ -458,15 +475,16 @@ def localize(tag, language='de'):
     suffix = {'changed': '*', 'unknown': '?'}.get(st, '')
     if mark == '?' and suffix == '?':
         suffix = ''
-    text = (f'{name}: {RESULT_TEXT[lang].get(res, res)}, {tag["CK_DATE"]} · {STATE_TEXT[lang][st]}'
+    text = (f'{name}: {RESULT_TEXT[lang].get(res, res)}, {tag.get("CK_WHEN") or tag["CK_DATE"]} · {STATE_TEXT[lang][st]}'
             + ((' · teilweise' if lang == 'de' else ' · partial') if tag.get('CK_PARTIAL') else ''))
     return dict(tag, CK_LABEL=name, CK_SHORT=short, CK_RESULT_TEXT=RESULT_TEXT[lang].get(res, res), CK_MARK=mark,
-                CK_STATE_TEXT=STATE_TEXT[lang][st], CK_TEXT=text, CK_TAG=f'{short}{mark}{suffix}')
+                CK_STATE_TEXT=STATE_TEXT[lang][st], CK_TEXT=text, CK_TAG=f'{short}{mark}{suffix}',
+                CK_PILL=f'{name} {mark}{suffix}'.strip())   # Widget-Tag mit Klartext wie „Qualität ✓·“ (#340)
 
 
 def as_json(tag_list):
     """Widget (ghostwriter-ui, data-gw-checks): kompakte JSON-Liste der Tags."""
-    keep = ('CK_TAG', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT')
+    keep = ('CK_TAG', 'CK_PILL', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT')
     return json.dumps([{k: t.get(k, '') for k in keep} for t in tag_list], ensure_ascii=False, separators=(',', ':'))
 
 
@@ -480,7 +498,7 @@ def recent(base, config, entries=None, language='de', limit=3):
     Rückgabe: [{CK_KIND, CK_RESULT, CK_MARK, CK_DATE, CK_LABEL}]."""
     entries = load(base) if entries is None else entries
     seen, out = set(), []
-    for i, e in sorted(enumerate(entries), key=lambda ie: (str(ie[1].get('date') or ''), ie[0]), reverse=True):
+    for i, e in sorted(enumerate(entries), key=lambda ie: (when(ie[1]), ie[0]), reverse=True):
         if e['kind'] in seen:
             continue
         seen.add(e['kind'])
@@ -562,6 +580,7 @@ def main(argv=None):
     r.add_argument('--result', required=True, choices=RESULTS)
     r.add_argument('--report')
     r.add_argument('--date')
+    r.add_argument('--time', help='Uhrzeit HH:MM (Standard: jetzt, bei --date ohne Uhrzeit)')
     r.add_argument('--commit')
     r.add_argument('--note')
     ls = sub.add_parser('list', help='Prüfungen je Kapitel anzeigen')
@@ -580,7 +599,8 @@ def main(argv=None):
     base = Path(base)
     if args.cmd == 'record':
         try:
-            e = record(base, config, args.kind, args.scope, args.result, args.report, args.date, args.commit, args.note)
+            e = record(base, config, args.kind, args.scope, args.result, args.report, args.date, args.commit, args.note,
+                       time=args.time)
         except ValueError as exc:
             print(exc, file=sys.stderr)
             return 1
