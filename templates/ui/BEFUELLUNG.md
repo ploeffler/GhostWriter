@@ -122,7 +122,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `PROJECT_DESCRIPTION_SHORT`, `PROJECT_DESCRIPTION` | `project.description_short`, `project.description` |
 | `PROJECT_COST`, `PROJECT_COST_HINT` | Projektkosten, Tooltip „Zusätzliche KI-API-Kosten über das GhostWriter-Backend“ |
 | `PROJECT_EDITION_TEXT` | Auflage |
-| `CHRONOLOGY_COUNT`, `CHRONOLOGY_HINTS`, `CHRONOLOGY_TEXT` | Chronologie (#354, `story/chronology.yml`): Zahl der Einträge, Zahl der Hinweise ohne „ohne Datum“ (`scripts/chronology.py`), „Chronologie: N Einträge, M Hinweise“; ohne Chronologie weglassen. Vorerst nur in der Textfassung (Befehl `Zeitleiste`, `render_view.py timeline --text`); eine Vorlage gibt es noch nicht |
+| `CHRONOLOGY_COUNT`, `CHRONOLOGY_HINTS`, `CHRONOLOGY_TEXT` | Chronologie (#354, `story/chronology.yml`): Zahl der Einträge, Zahl der Hinweise ohne „ohne Datum“ (`scripts/chronology.py`), „Chronologie: N Einträge, M Hinweise“; ohne Chronologie weglassen. Ab UI 0.56.0 als Zeile unter dem Kopf, dazu der Knopf „Zeitleiste“ (`view.timeline`) |
 | `PREVIEW_TEXT`, `PREVIEW_URL` | letzte Vorabfassung (#352): „Vorabfassung N vom TT.MM.JJJJ“ (Datum des Tags bzw. des markierten Stands) und Link `https://github.com/<repo>/releases/tag/<tag>`; aus den Tags `<kurztitel>-vorab-N` des Klons (Funktion `previews` in `scripts/render_view.py`). Ohne Vorabfassung bzw. ohne geholte Tags weglassen; dann entfällt die Anzeige. Ab UI 0.54.0 neben „Buchprojekt · Auflage …“, in der Textfassung in der Zeile mit der Auflage |
 | `CREDIT_TEXT`, `CREDIT_URL` | Hinweis und Link aus `templates/branding.yml` (`credit`), klein unter der Karte bzw. am Ende der Textfassung; nie im Buch |
 | `PENDING_COUNT`, `PENDING_TEXT`, `PENDING_PR` | nur bei offenen Änderungen (Arbeits-Branch mit offenem Pull Request, siehe „Offene Änderungen“): Anzahl der Commits, „1 Änderung“ bzw. „N Änderungen“, Nummer des Pull Requests. Ohne offene Änderungen weglassen; dann entfällt der Hinweis mit dem Knopf „Buchänderungen übernehmen“ |
@@ -352,6 +352,20 @@ Auswahl „Schauplätze aus dem Text“ aus einem Hintergrundlauf (#124, Art `pl
 | Block `SUGGESTIONS`: `S_IDX`, `S_NAME`, `S_ALIASES`, `S_KIND`, `S_SHORT`, `S_SECTIONS`, `S_EVIDENCE` | je Ort aus der Vorschlagsdatei: Nummer, Name, andere Bezeichnungen, Art, ein Satz, Abschnitte (`N.M`), bis zu zwei Fundstellen |
 | `S_STATE`, `S_STATE_TEXT`, `S_EXISTING` | `new` bzw. `existing` (Name oder andere Bezeichnung steht schon in `story/places.yml`), „neu“ bzw. „schon da: …“, ID des bekannten Orts (vorgewählt bei „Zusammenlegen mit“) |
 | Block `MERGE`: `M_ID`, `M_NAME` | Orte aus `story/places.yml` |
+
+### `zeitleiste.html`
+
+Grafische Zeitleiste der Chronologie (#354, ab UI 0.56.0; `render_view.py timeline`, Aktion `view.timeline`). Gefüllt von `chronology.widget_values()`; die Textfassung (`--text`) ist `chronology.text_view()`.
+
+| Platzhalter | Quelle |
+|---|---|
+| `PROJECT_TITLE_SHORT` | `project.title_short` |
+| `COUNT_TEXT` | „N Einträge · M Hinweise“ (Hinweise ohne „ohne Datum“) |
+| `TIMELINE_JSON` | JSON: `entries` (je Eintrag `id`, `kind`, `lo`/`hi` = frühester/spätester Tag des Beginns, `end_lo`/`end_hi` = des Endes bei `span`, `open` = Ende offen, `label` = Datum wie in der Textfassung, `what`, `status`, `estimated`, `lanes` = Figuren-IDs bzw. `@none`, `people`, `place` = Ortsname, `chapter` = „N: Titel“, `source`, `flag` = von einem Hinweis betroffen), `lanes` (`key`, `label`; `@none` = „Ohne Figur“), `chapters` (Kapitelband: `label` „K1“, `lo`, `hi` aus den Einträgen mit `chapter`). Einträge ohne Datum haben leeres `lo` und stehen nur in der Liste |
+| `EMPTY_TEXT` | Text ohne Chronologie; sonst leer |
+| Block `FINDINGS`: `F_KIND_TEXT`, `F_TEXT`, `F_ENTRIES` | Hinweise aus `chronology.findings()` ohne „ohne Datum“: Art, Satz, IDs |
+
+Zeitraum, Filter nach Belegstand und Auswahl eines Eintrags wirken nur in der Ansicht; gesendet wird nur `view.project`.
 
 ### `zeitleiste-vorschlag.html`
 
@@ -755,6 +769,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `section.reorder` | `chapter_id`, `order` (alle Abschnitts-IDs des Kapitels in neuer Reihenfolge), `expected_head_sha` | Abschnittsreihenfolge speichern | `sections` des Kapitels umsortieren; IDs und Dateinamen bleiben; danach Kapitelansicht | `POST …/chapters/{chapter_id}/sections/reorder` |
 | `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `manuscript`, bei Büchern mit Figuren `characters` (Liste von IDs, #53), `expected_head_sha` (nie `approvals`) | Abschnitt speichern | Abschnittsdatei schreiben, danach Abschnittsformular | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
 | `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen und Lauf-Datei, Ergebnis und Statuswechsel speichern (`START.md`, „KI-Lauf „Sofort““); ein Kosteneintrag nur für kostenpflichtige KI-API-Aufrufe über das Backend, nie für Chat-Arbeit | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
+| `view.timeline` | – | Zeitleiste zeigen (#354) | `render_view.py timeline` (Vorlage `zeitleiste`) | – |
 | `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | Vorlage `auflage-erzeugen` (`render_view.py edition-create`) | – |
 | `edition.proof` | – | Probedruck erstellen | Action „Probedruck“ per `workflow_dispatch` starten oder Link *Run workflow* geben; danach Link zum Lauf (Download unter *Artifacts*) | `POST /repos/{owner}/{repo}/actions/workflows/proof.yml/dispatches` |
 | `edition.preview` | – (Formate optional, sonst `typesetting.formats`) | Vorabfassung anlegen (#348); auch Knopf „Vorabfassung“ im Formular „Neue Auflage“ (#352), der vor dem Senden selbst nach Bestätigung fragt; der zweite Klick ist die ausdrückliche Bestätigung | nach ausdrücklicher Bestätigung Action „Vorabfassung“ per `workflow_dispatch` starten (`ref` = Buch-Branch) oder Link *Run workflow* geben; danach Link zum Lauf und zum Pre-Release (`START.md`, „Vorabfassung“) | `POST /repos/{owner}/{repo}/actions/workflows/preview.yml/dispatches` |
