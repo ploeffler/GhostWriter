@@ -13,7 +13,7 @@ name: GhostWriter aktualisieren
 
 on:
   schedule:
-    - cron: '23 3 * * *'   # täglich 03:23 UTC
+    - cron: '0 6 * * *'    # täglich 06:00 UTC (07:00 Wien MEZ, 08:00 MESZ)
   workflow_dispatch:
     inputs:
       branch:
