@@ -222,9 +222,42 @@ def proof_tex(ts, label, date, commit=''):
     return '\n'.join(out) + '\n'
 
 
+# Titelseite im EPUB je title_style (#310). Pandoc setzt sie als section.titlepage mit h1.title, p.subtitle,
+# p.author, p.date; die Reihenfolge Titel, Untertitel, Autor bleibt (Reader ordnen per CSS nicht zuverlässig um).
+EPUB_TITLE = {
+    'rules': ('section.titlepage { text-align: center; margin-top: 25%; }',
+              'section.titlepage h1.title { border-top: 2px solid #222; border-bottom: 1px solid #222; padding: 0.45em 0; '
+              'margin: 0 0 0.6em; font-weight: normal; font-size: 1.9em; }',
+              'section.titlepage .subtitle { font-style: italic; }',
+              'section.titlepage .author { font-variant: small-caps; letter-spacing: 0.05em; margin-top: 2.5em; }'),
+    'modern': ('section.titlepage { text-align: left; margin-top: 45%; font-family: sans-serif; }',
+               'section.titlepage h1.title { font-size: 2.4em; font-weight: bold; line-height: 1.1; margin: 0 0 0.4em; }',
+               'section.titlepage .subtitle { border-top: 2px solid #999; padding-top: 0.5em; width: 40%; }',
+               'section.titlepage .author { text-transform: uppercase; font-size: 0.8em; letter-spacing: 0.12em; '
+               'margin-top: 2em; }'),
+    'spaced': ('section.titlepage { text-align: center; margin-top: 30%; }',
+               'section.titlepage h1.title { text-transform: uppercase; letter-spacing: 0.25em; font-weight: normal; hyphens: none; '
+               'font-size: 1.6em; margin: 0 0 0.4em; }',
+               'section.titlepage h1.title::after { content: "◆"; display: block; font-size: 0.4em; letter-spacing: 0; '
+               'margin-top: 0.9em; }',
+               'section.titlepage .subtitle { font-style: italic; }',
+               'section.titlepage .author { font-variant: small-caps; letter-spacing: 0.08em; margin-top: 5em; }'),
+    'band': ('section.titlepage { text-align: center; margin-top: 30%; }',
+             'section.titlepage h1.title { background: #2b2f3a; color: #fff; padding: 0.9em 0.5em 0.3em; margin: 0; '
+             'font-size: 1.8em; }',
+             'section.titlepage .subtitle { background: #2b2f3a; color: #c9ccd4; font-style: italic; margin: 0; '
+             'padding: 0 0.5em 1em; }',
+             'section.titlepage .author { font-variant: small-caps; letter-spacing: 0.05em; margin-top: 1.5em; }'),
+}
+
+
 def epub_css(ts):
     """Zusätzliches EPUB-CSS aus den Ausgabeoptionen; leer bei den Vorgaben."""
     out = []
+    style = ts.get('title_style', 'classic')
+    if ts.get('title_page') and style in EPUB_TITLE:
+        out += ['section.titlepage h1.title { page-break-before: avoid; }',
+                'section.titlepage p { text-indent: 0; }', *EPUB_TITLE[style]]
     if is_sans(ts['font']):
         out.append('body { font-family: sans-serif; }')
     hf = ts.get('heading_font', 'same')
@@ -328,6 +361,91 @@ def imprint_markdown(meta, release_name, commit, publication=None):
     return lines
 
 
+def docx_title(doc, ts):
+    """Titelseite im DOCX je title_style (#310): Ausrichtung, Schrift, Linien bzw. Band über die Absatzformate
+    Title, Subtitle, Author; „classic“ und ohne Titelseite bleibt Pandocs Vorlage unverändert."""
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.shared import Pt, RGBColor
+    style = ts.get('title_style', 'classic')
+    if not ts.get('title_page') or style == 'classic':
+        return
+    if style not in TITLE_STYLES:
+        raise SystemExit(f'Unbekannte Titelseite: {style} (möglich: {", ".join(TITLE_STYLES)})')
+
+    def get(name):
+        try:
+            return doc.styles[name]
+        except KeyError:
+            return None
+
+    def ppr_child(st, tag, **attrs):
+        ppr = st.element.get_or_add_pPr()
+        for old in ppr.findall(qn(f'w:{tag}')):
+            ppr.remove(old)
+        el = OxmlElement(f'w:{tag}')
+        for k, v in attrs.items():
+            el.set(qn(f'w:{k}'), v)
+        ppr.append(el)
+        return el
+
+    def border(st, sides):
+        bdr = ppr_child(st, 'pBdr')
+        for side, size in sides:
+            e = OxmlElement(f'w:{side}')
+            e.set(qn('w:val'), 'single'); e.set(qn('w:sz'), str(size)); e.set(qn('w:space'), '6')
+            e.set(qn('w:color'), '222222')
+            bdr.append(e)
+
+    title, sub, author = get('Title'), get('Subtitle'), get('Author')
+    align = 0 if style == 'modern' else 1   # 0 links, 1 zentriert
+    for st in (title, sub, author, get('Date')):
+        if st is not None:
+            st.paragraph_format.alignment = align
+    if title is None:
+        return
+    title.paragraph_format.space_before = Pt(96 if style in ('rules', 'spaced', 'band') else 160)
+    if style == 'rules':
+        border(title, (('top', 8), ('bottom', 4)))
+        title.font.bold = False
+        if sub is not None:
+            sub.font.italic = True
+        if author is not None:
+            author.font.small_caps = True
+    elif style == 'modern':
+        sans = FONTS['sans'][1]
+        for st in (title, sub, author):
+            if st is not None:
+                st.font.name = sans
+        title.font.bold, title.font.size = True, Pt(30)
+        if author is not None:
+            author.font.all_caps = True
+            author.font.size = Pt(max(8.0, float(ts['font_size']) - 1.5))
+    elif style == 'spaced':
+        title.font.all_caps, title.font.bold = True, False
+        rpr = title.element.get_or_add_rPr()
+        sp = OxmlElement('w:spacing')
+        sp.set(qn('w:val'), '80')   # Zeichenabstand in Twips/20: 4 pt gesperrt
+        rpr.append(sp)
+        if sub is not None:
+            sub.font.italic = True
+        if author is not None:
+            author.font.small_caps = True
+            author.paragraph_format.space_before = Pt(120)
+    elif style == 'band':
+        for st, color in ((title, 'FFFFFF'), (sub, 'C9CCD4')):
+            if st is None:
+                continue
+            ppr_child(st, 'shd', val='clear', color='auto', fill='2B2F3A')
+            st.font.color.rgb = RGBColor.from_string(color)
+        if sub is not None:
+            sub.font.italic = True
+            sub.paragraph_format.space_before = Pt(0)
+        title.paragraph_format.space_after = Pt(0)
+        if author is not None:
+            author.font.small_caps = True
+
+
 def make_reference_docx(path, ts):
     """Pandocs Standardvorlage mit Seitenformat, Schrift und Merkkasten-Format."""
     from docx import Document
@@ -369,6 +487,7 @@ def make_reference_docx(path, ts):
             doc.styles[name].font.color.rgb = RGBColor(0x22, 0x22, 0x22)
         except KeyError:
             pass
+    docx_title(doc, ts)   # gewählte Titelseite (#310)
     # Probedruck: Zeichenformate für Marker und Statusvermerke
     for name, color, bold, italic in (('Marker', RGBColor(0x8A, 0x1C, 0x1C), True, False),
                                       ('Stand', RGBColor(0x77, 0x77, 0x77), False, True)):

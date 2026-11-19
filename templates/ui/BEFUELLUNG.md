@@ -448,7 +448,7 @@ Formular „KI-Angabe im Buch“ (`render_view.py ai-disclosure`, #78; `scripts/
 
 ### `ausgabeoptionen.html`
 
-Formular „Ausgabeoptionen“ (`render_view.py output`, #68). Ab UI 0.48.0 mit „Vorderseite im PDF“ (`typesetting.pdf_cover`) und „Eigene Vorderseite“ (`cover.front`, #324); ab UI 0.49.0 mit „Gestaltung der Titelseite“ (`title_style`), „Kennzeichnung im Probedruck“ (`proof_mark`, #310) und dem Format Broschüre (`booklet`). Damit sind alle Felder von `typesetting` im Formular. Ab UI 0.50.0 zeigen Projektübersicht, Kapitelansicht und Abschnittsformular die Prüf-Tags (#331, `data-gw-checks`).
+Formular „Ausgabeoptionen“ (`render_view.py output`, #68). Ab UI 0.48.0 mit „Vorderseite im PDF“ (`typesetting.pdf_cover`) und „Eigene Vorderseite“ (`cover.front`, #324); ab UI 0.49.0 mit „Gestaltung der Titelseite“ (`title_style`), „Kennzeichnung im Probedruck“ (`proof_mark`, #310) und dem Format Broschüre (`booklet`). Damit sind alle Felder von `typesetting` im Formular. Ab UI 0.53.0 zeigt unter beiden Auswahlen ein kleines Vorschaubild den gewählten Wert (#310); neue Platzhalter gibt es dafür nicht. Ab UI 0.50.0 zeigen Projektübersicht, Kapitelansicht und Abschnittsformular die Prüf-Tags (#331, `data-gw-checks`).
 
 | Platzhalter | Quelle |
 |---|---|

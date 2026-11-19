@@ -127,6 +127,42 @@ class TitlePageAndProofMarkTest(Base):
         for style in build_edition.TITLE_STYLES[1:]:
             self.assertTrue((build_edition.BOOK / f'title-{style}.tex').is_file(), style)
 
+    def test_epub_and_docx_title_styles(self):   # #310 Teil 2
+        ts = dict(TYPESETTING_DEFAULT, title_page=True)
+        self.assertEqual(build_edition.epub_css(ts), '')
+        self.assertEqual(build_edition.epub_css(dict(ts, title_style='band', title_page=False)), '')
+        for style in build_edition.TITLE_STYLES[1:]:
+            css = build_edition.epub_css(dict(ts, title_style=style))
+            self.assertIn('section.titlepage', css, style)
+        self.assertIn('background: #2b2f3a', build_edition.epub_css(dict(ts, title_style='band')))
+        self.assertIn('text-align: left', build_edition.epub_css(dict(ts, title_style='modern')))
+        self.assertIn('letter-spacing: 0.25em', build_edition.epub_css(dict(ts, title_style='spaced')))
+        from docx import Document
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp)
+
+        def styles(**kw):
+            p = tmp / f'{kw.get("title_style", "x")}-{kw.get("title_page", "")}.docx'
+            build_edition.make_reference_docx(p, dict(ts, **kw))
+            return Document(str(p)).styles
+
+        def xml(st):
+            return st.element.xml
+        base = styles(title_style='classic')
+        self.assertEqual(xml(base['Title']), xml(styles(title_style='band', title_page=False)['Title']))
+        band = styles(title_style='band')
+        self.assertIn('w:fill="2B2F3A"', xml(band['Title']))
+        self.assertEqual(str(band['Title'].font.color.rgb), 'FFFFFF')
+        rules = styles(title_style='rules')
+        self.assertIn('w:pBdr', xml(rules['Title']))
+        self.assertTrue(rules['Author'].font.small_caps)
+        modern = styles(title_style='modern')
+        self.assertEqual(modern['Title'].paragraph_format.alignment, 0)
+        self.assertEqual(modern['Title'].font.name, build_edition.FONTS['sans'][1])
+        spaced = styles(title_style='spaced')
+        self.assertTrue(spaced['Title'].font.all_caps)
+        self.assertIn('w:spacing w:val="80"', xml(spaced['Title']))
+
     def test_proof_marks(self):
         ts = dict(TYPESETTING_DEFAULT)
         line = build_edition.proof_tex(ts, 'Probedruck', '2026-11-14')
