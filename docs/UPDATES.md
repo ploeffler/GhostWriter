@@ -48,7 +48,7 @@ Neue Pflichtfelder gibt es mit v0.6 nicht; die Datenversion bleibt 1 (`scripts/m
 
 **0.6.1:** Sammelstand der seit 0.6.0 übernommenen Änderungen (u. a. Figuren, Serien, Vor- und Nachspann, Umschlag und Druck, Manuskriptimport, Chat-Analysen, Sitzungssicherung, Bücherregal mit Auflagen und Sicherungen). Kommt wie jedes Update, ohne Zutun und ohne neue Pflichtfelder; die Datenversion bleibt 1. Die Abnahme von v0.6 läuft weiter in #41.
 
-**Ältere Prüfberichte nachtragen (#340):** Das Update liest vorhandene Berichte nicht von selbst ins Prüfprotokoll ein, weil es keine Ergebnisse erfinden darf. Nach dem Update listet `python3 scripts/checks.py import <buch>` die Berichte unter `analysis/` und `editorial/` ohne Eintrag als Vorschlag; im Chat bestätigt der Benutzer, dann trägt `--apply` die erkannten ein (ohne Fingerabdruck, Stand „unbekannt“). Frühere Analyseläufe übernimmt weiter `checks.py backfill`.
+**Ältere Prüfberichte nachtragen (#340):** Das Update liest vorhandene Berichte nicht von selbst ins Prüfprotokoll ein, weil es keine Ergebnisse erfinden darf. Nach dem Update listet `python3 scripts/checks.py import <buch>` die Berichte unter `analysis/` und `editorial/` ohne Eintrag als Vorschlag; im Chat bestätigt der Benutzer, dann trägt `--apply` die erkannten ein (ohne Fingerabdruck, Stand „unbekannt“). Frühere Analyseläufe übernimmt weiter `checks.py backfill`. `import --apply` ergänzt außerdem die Uhrzeit bestehender Einträge aus ihrem Bericht; Einträge ohne Uhrzeit im Bericht bekommen sie mit `checks.py set <buch> pr-NNN --time HH:MM` (#345).
 
 ## Hinweis im Chat
 

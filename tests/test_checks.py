@@ -189,6 +189,42 @@ class ChecksTest(unittest.TestCase):
         tags = checks.tags(self.base, self.config, [s['id'] for s in self.ch1['sections']])
         self.assertIn('2026-11-17 14:05', [t for t in tags if t['CK_KIND'] == 'language'][0]['CK_TEXT'])
 
+    def test_record_backfill_without_digests(self):   # #344
+        (Path(self.base) / 'editorial').mkdir(parents=True, exist_ok=True)
+        (Path(self.base) / 'editorial' / 'alt.md').write_text('# Sprachlektorat\n', encoding='utf-8')
+        e = checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed', report='editorial/alt.md',
+                          date='2026-11-13', backfill=True)
+        self.assertNotIn('digests', e)
+        self.assertNotIn('commit', e)
+        self.assertIn('nicht gespeichert', e['note'])
+        tags = checks.tags(self.base, self.config, [s['id'] for s in self.ch1['sections']])
+        self.assertEqual(tags[0]['CK_STATE'], 'unknown')
+        self.assertEqual(validate_project.checks_errors(self.base, self.config), [])
+        # CLI: Datum vor heute ohne --commit gilt als Nachtrag
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(checks.main(['record', str(self.base), '--kind', 'structure', '--scope', self.ch1['id'],
+                                          '--result', 'passed', '--date', '2020-01-01']), 0)
+        self.assertIn('ohne Fingerabdruck', out.getvalue())
+        self.assertNotIn('digests', checks.load(self.base)[-1])
+
+    def test_complete_time(self):   # #345
+        e = checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed', date='2026-11-18')
+        self.assertEqual(checks.complete(self.base, e['id'], time='09:30'), ['time'])
+        self.assertEqual(checks.complete(self.base, e['id'], time='09:30'), [])
+        with self.assertRaises(ValueError):
+            checks.complete(self.base, e['id'], time='10:00')
+        with self.assertRaises(ValueError):
+            checks.complete(self.base, e['id'], time='9 Uhr')
+        rep = Path(self.base) / 'editorial' / 'lauf.md'
+        rep.parent.mkdir(parents=True, exist_ok=True)
+        rep.write_text('# Qualitätssicherung\n\nStand 19.11.2026, 14:05 Uhr\n', encoding='utf-8')
+        f = checks.record(self.base, self.config, 'quality_correction', [self.ch1['id']], 'passed',
+                          report='editorial/lauf.md', date='2026-11-18')
+        self.assertNotIn('time', f)
+        checks.import_reports(self.base, self.config, apply=True)
+        self.assertEqual([x for x in checks.load(self.base) if x['id'] == f['id']][0]['time'], '14:05')
+        self.assertEqual(validate_project.checks_errors(self.base, self.config), [])
+
     def test_import_old_reports(self):   # #340
         ed = Path(self.base) / 'editorial'
         an = Path(self.base) / 'analysis'
