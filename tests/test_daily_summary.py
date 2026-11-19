@@ -109,7 +109,7 @@ class ReportTests(unittest.TestCase):
         import yaml
         workflow = yaml.safe_load(Path('.github/workflows/update.yml').read_text())
         trigger = workflow.get('on', workflow.get(True))
-        self.assertEqual(trigger['schedule'], [{'cron': '23 3 * * *'}])
+        self.assertEqual(trigger['schedule'], [{'cron': '0 6 * * *'}])
         step = workflow['jobs']['update']['steps'][-1]
         self.assertTrue(step['continue-on-error'])
         self.assertEqual(step['if'], 'always()')

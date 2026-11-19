@@ -6,7 +6,7 @@ Dein Buch-Repository bekommt neue GhostWriter-Versionen automatisch aus dem Haup
 
 Kennst du den Hinweis „This branch is 3 commits behind ploeffler/GhostWriter:main“ auf GitHub? Genau den räumt GhostWriter für dich auf, nur sicherer als GitHubs Knopf *Sync fork*.
 
-Die Action **„GhostWriter aktualisieren“** (`.github/workflows/update.yml`) läuft jeden Tag um 03:23 Uhr (UTC) und lässt sich jederzeit von Hand starten. Sie prüft **jeden Branch** deines Repositorys: Wie viele Commits liegt er hinter seinem Gegenstück im Hauptrepository (gleichnamiger Branch, sonst `main`)? Bei einem Repository aus der Vorlage zählt sie die Commits seit dem letzten eingespielten Stand. Liegt er dahinter, spielt sie die Commits ein:
+Die Action **„GhostWriter aktualisieren“** (`.github/workflows/update.yml`) läuft jeden Tag um 06:00 Uhr (UTC, also 7:00 Uhr Wiener Winterzeit) und lässt sich jederzeit von Hand starten. Sie prüft **jeden Branch** deines Repositorys: Wie viele Commits liegt er hinter seinem Gegenstück im Hauptrepository (gleichnamiger Branch, sonst `main`)? Bei einem Repository aus der Vorlage zählt sie die Commits seit dem letzten eingespielten Stand. Liegt er dahinter, spielt sie die Commits ein:
 
 1. **Branch ohne eigene Commits** (reine Kopie): Programm übernehmen und den Instanz-Einstieg erzeugen. Dafür entsteht ein Update-Commit. Nur ältere Programmstände ohne Einstiegsgenerator werden noch unmittelbar nachgezogen (Fast-Forward).
 2. **Branch mit deinem Buch:** Die Commits des Hauptrepositorys werden **hineingemergt**. Dabei gilt das Manifest (`ghostwriter-manifest.yml`):

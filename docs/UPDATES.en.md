@@ -4,7 +4,7 @@ The update workflow brings program changes from the main GhostWriter repository 
 
 ## What the update does
 
-The **GhostWriter aktualisieren** workflow (`.github/workflows/update.yml`) runs daily at 03:23 UTC and can also be started manually. It checks eligible branches against the upstream repository. For a repository created from the template, it uses the recorded upstream state in `.ghostwriter/update.yml`.
+The **GhostWriter aktualisieren** workflow (`.github/workflows/update.yml`) runs daily at 06:00 UTC and can also be started manually. It checks eligible branches against the upstream repository. For a repository created from the template, it uses the recorded upstream state in `.ghostwriter/update.yml`.
 
 Program files listed under `managed` in `ghostwriter-manifest.yml` are updated, including the shared repository skills `ghostwriter`, `ghostwriter-lektorat` and `ghostwriter-buchgedaechtnis`. Personal skills remain book-owned. Book files listed under `book`, including manuscript, approvals, costs and the assistant profile, are preserved. Conflicts in other files cause the update to stop for manual resolution. Data migrations update structure where needed; they do not rewrite manuscript text or approvals. A newer book data version than the program supports stops the migration.
 
