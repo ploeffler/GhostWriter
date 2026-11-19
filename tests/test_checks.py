@@ -250,6 +250,80 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual(tags[0]['CK_TAG'], 'Q?')   # gleiches Datum: später eingetragener Bericht
         self.assertEqual(len(checks.history(self.base, self.config, [s['id'] for s in self.ch1['sections']])), 1)
 
+    def test_import_result_detection(self):   # #347, Punkte 1 und 2
+        r = checks._result_from
+        self.assertEqual(r('# Prüfung\n\n## Ergebnis\n\n**Bestanden mit Hinweisen.** Zwei Stellen offen.\n'),
+                         ('passed_with_notes', []))
+        self.assertEqual(r('## Ergebnis\n**Nicht bestanden: wesentliche Punkte offen.** Siehe unten.\n'),
+                         ('failed', []))
+        table = ('# Prüfung\n\n| Stelle | Ergebnis der erneuten Lektüre |\n|---|---|\n| 1.2 | bestanden |\n\n'
+                 'Ergebnis: nicht bestanden\n')
+        self.assertEqual(r(table), ('failed', []))
+        per_chapter = ('## Ergebnisse je Kapitel\n\n| Kapitel | Ergebnis |\n|---|---|\n'
+                       '| 1 | bestanden mit Hinweisen |\n| 3 | nicht bestanden |\n')
+        self.assertEqual(r(per_chapter), ('unknown', []))
+        self.assertEqual(r('Ergebnis: nicht bestanden, nach Korrektur bestanden.\n'),
+                         ('unknown', ['failed', 'passed']))
+        self.assertEqual(r('## Ergebnis\n\nKapitel 1 bestanden mit Hinweisen.\nKapitel 3 nicht bestanden.\n\nRest bestanden.'),
+                         ('unknown', ['passed_with_notes', 'failed']))
+
+    def test_import_scope_detection(self):   # #347, Punkte 3 und 4
+        chapters = self.config['structure']['chapters']
+        cid = [c['id'] for c in chapters]
+        sec = lambda c, s: chapters[c - 1]['sections'][s - 1]['id']
+        f = lambda name, text='': checks._scope_from(self.config, name, text)
+        self.assertEqual(f('redaktionelle-pruefung-kapitel-1-bis-8-2026-11-10',
+                           '# Redaktionelle Prüfung Kapitel 1 bis 8\n'), cid[:8])
+        self.assertEqual(f('bericht', '# Prüfung Kapitel 2–4\n'), cid[1:4])
+        self.assertEqual(f('bericht', '# Lektorat Kap. 3 und 5\n'), [cid[2], cid[4]])
+        self.assertEqual(f('lektorat-2026-11-10-6-3-qualitaetspruefung', '# Qualitätsprüfung\n'), [sec(6, 3)])
+        self.assertEqual(f('lektorat-8-2-und-8-3', '# Redaktionelle Prüfung 6.3\n'), [sec(8, 2), sec(8, 3)])
+        self.assertEqual(f('bericht', '# Redaktionelle Prüfung 6.3\n'), [sec(6, 3)])
+        self.assertEqual(f('bericht', '# Prüfung 6.1–6.3\n'), [sec(6, 1), sec(6, 2), sec(6, 3)])
+        self.assertEqual(f('bericht', '# Kapitel 6, Abschnitt 6.3\n'), [sec(6, 3)])
+        # Abschnittsbericht: im Text erwähnte Kapitel zählen nicht (früher Kapitel 1 bzw. 10)
+        self.assertEqual(f('bericht', '# Redaktionelle Prüfung 6.1\n\nVergleich mit Kapitel 1 und Kapitel 10.\n'),
+                         [sec(6, 1)])
+        self.assertEqual(f('bericht', '# Notizen\n\nIn Kapitel 3 steht etwas.\n'), [])
+        self.assertEqual(f('bericht', '# Lektorat\n\nUmfang: Kapitel 2\n'), [cid[1]])
+        self.assertEqual(f('lektorat-gesamtes-buch', '# Lektorat\n'), ['book'])
+        self.assertEqual(f('bericht', '# Prüfung GhostWriter 0.6.1 am 19.11.2026\n'), [])
+
+    def test_import_only_skip_fix(self):   # #347, Punkt 4
+        an = Path(self.base) / 'analysis'
+        an.mkdir(parents=True, exist_ok=True)
+        ch1, ch2 = self.ch1['id'], self.ch2['id']
+        (an / f'qualitaetssicherung-{ch1}-2026-11-18.md').write_text('# Qualitätssicherung\n\nErgebnis: bestanden\n',
+                                                                      encoding='utf-8')
+        (an / f'lektorat-sprache-{ch2}-2026-11-17.md').write_text(
+            '# Sprachlektorat\n\nErgebnis: nicht bestanden, nach Korrektur bestanden\n', encoding='utf-8')
+        found = {c['report']: c for c in checks.candidates(self.base, self.config)}
+        mixed = found[f'analysis/lektorat-sprache-{ch2}-2026-11-17.md']
+        self.assertFalse(mixed['ready'])
+        self.assertEqual(mixed['results'], ['failed', 'passed'])
+        _, added = checks.import_reports(self.base, self.config, apply=True,
+                                         skip=[f'qualitaetssicherung-{ch1}-2026-11-18.md'])
+        self.assertEqual(added, [])                       # übrig ist nur der nicht eindeutige
+        with self.assertRaises(ValueError):               # Berichtigen nur mit genau einem --only
+            checks.import_reports(self.base, self.config, fix={'result': 'passed'})
+        with self.assertRaises(ValueError):
+            checks.import_reports(self.base, self.config, only=['gibtsnicht.md'])
+        with self.assertRaises(ValueError):
+            checks.import_reports(self.base, self.config, only=[mixed['report']], fix={'scope': ['kap-x']})
+        _, added = checks.import_reports(self.base, self.config, apply=True, only=[mixed['report']],
+                                         fix={'result': 'passed', 'scope': [self.s11['id']]})
+        self.assertEqual((added[0]['result'], added[0]['scope']), ('passed', [self.s11['id']]))
+        self.assertIn('berichtigt: result, scope', added[0]['note'])
+        self.assertEqual([c['report'] for c in checks.candidates(self.base, self.config)],
+                         [f'analysis/qualitaetssicherung-{ch1}-2026-11-18.md'])
+        self.assertEqual(validate_project.checks_errors(self.base, self.config), [])
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(checks.main(['import', str(self.base), '--only',
+                                          f'qualitaetssicherung-{ch1}-2026-11-18.md']), 0)
+        self.assertIn('· analysis/qualitaetssicherung', out.getvalue())
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(checks.main(['import', str(self.base), '--result', 'passed']), 1)
+
     def test_cli(self):
         with contextlib.redirect_stdout(io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()):
             self._cli()

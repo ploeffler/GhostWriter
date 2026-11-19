@@ -290,32 +290,140 @@ RESULT_WORDS = (   # Reihenfolge = Vorrang
 )
 
 
+RESULT_KEY = r'(ergebnis|result|gesamturteil|urteil|gesamtergebnis|fazit|verdict)\b'
+
+
+def _results_in(line):
+    """Alle Ergebnisse einer Zeile; „nicht bestanden“ zählt nicht zusätzlich als „bestanden“."""
+    low, out = line.lower(), []
+    for res, pats in RESULT_WORDS:
+        for p in pats:
+            if re.search(p, low):
+                out.append(res)
+                low = re.sub(p, ' ', low)
+    return out
+
+
+def _result_lines(text):
+    """Zeilen, die ein Gesamtergebnis tragen (#347): eine Ergebniszeile („Ergebnis: …“) oder der erste Absatz
+    unter einer Überschrift „Ergebnis“ („## Ergebnis“ + „**Bestanden mit Hinweisen.** …“). Tabellenzeilen
+    (`|`) zählen nie: Spalten „Ergebnis der erneuten Lektüre“ oder Ergebnisse je Kapitel sind kein Gesamtergebnis."""
+    lines = text.splitlines()
+    out, i = [], 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if line.startswith('|'):
+            i += 1
+            continue
+        if line.startswith('#') and re.search(RESULT_KEY, line, re.I):
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            while j < len(lines) and lines[j].strip() and not lines[j].lstrip().startswith(('#', '|')):
+                out.append(lines[j])
+                j += 1
+            i = j
+            continue
+        if re.search(RESULT_KEY, line, re.I):
+            out.append(line)
+        i += 1
+    return out
+
+
 def _result_from(text):
-    """Ergebnis nur aus einer ausdrücklichen Ergebniszeile („Ergebnis: …“, „Result: …“), sonst unknown."""
-    lines = [l for l in text.splitlines() if re.search(r'(ergebnis|result|gesamturteil|urteil)\b', l, re.I)]
-    for line in lines:
-        low = line.lower()
-        for res, pats in RESULT_WORDS:
-            if any(re.search(p, low) for p in pats):
-                return res
-    return 'unknown'
+    """(Ergebnis, mehrdeutig): Ergebnis nur aus Ergebniszeilen bzw. dem Absatz unter „## Ergebnis“, sonst unknown.
+    Nennen diese Stellen verschiedene Ergebnisse („nicht bestanden … nach Korrektur bestanden“), wird keines
+    gewählt: (`unknown`, [die gefundenen]) – der Bericht gilt dann als nicht eindeutig (#347)."""
+    found = []
+    for line in _result_lines(text):
+        for res in _results_in(line):
+            if res not in found:
+                found.append(res)
+    if len(found) == 1:
+        return found[0], []
+    return 'unknown', found
+
+
+def _ids_in(config, hay):
+    """Ausdrücklich genannte Kapitel- und Abschnitts-IDs."""
+    chapters = config['structure']['chapters']
+    ids = {ch['id'] for ch in chapters} | {s['id'] for _, s in sections(config)}
+    found = [i for i in sorted(ids, key=len, reverse=True) if re.search(rf'(?<![\w]){re.escape(i)}(?![\w]|-[^\W\d])', hay)]
+    return [i for i in found if not any(i != j and j.startswith(i + '-') for j in found)]
+
+
+CHAPTER_WORD = r'(?:kapitel|kap\.?|chapters?|ch\.?)'
+RANGE_SEP = r'(?:[\s_]*[–—-][\s_]*|[\s_-]+(?:bis|to|through)[\s_-]+)'
+LIST_SEP = r'(?:[\s_]*,[\s_]*|[\s_-]+(?:und|and|&)[\s_-]+)'
+
+
+def _numbers_in(config, hay, filename=False):
+    """Kapitel und Abschnitte aus Nummern (#347): „Kapitel 1 bis 8“, `kapitel-1-bis-8`, „Kap. 3 und 5“,
+    „6.3“, „8.2 und 8.3“, „6.1–6.3“, im Dateinamen auch `6-3`. Liefert IDs; Nummern außerhalb des Buchs fallen weg."""
+    chapters = config['structure']['chapters']
+    hay = re.sub(r'\d{4}-\d{2}-\d{2}|\d{1,2}\.\d{1,2}\.\d{4}', ' ', hay)   # Daten sind keine Nummern
+    chs, secs = [], []
+
+    def chapter(n):
+        if 1 <= n <= len(chapters) and chapters[n - 1]['id'] not in chs:
+            chs.append(chapters[n - 1]['id'])
+
+    def section(c, s):
+        if 1 <= c <= len(chapters) and 1 <= s <= len(chapters[c - 1]['sections']):
+            sid = chapters[c - 1]['sections'][s - 1]['id']
+            if sid not in secs:
+                secs.append(sid)
+
+    sec = r'(\d{1,2})[.](\d{1,2})' if not filename else r'(\d{1,2})[.-](\d{1,2})'
+    rest = hay
+    # Abschnittsbereiche „6.1–6.3“ und Listen „8.2 und 8.3“
+    for m in re.finditer(rf'(?<![\d.]){sec}{RANGE_SEP}{sec}(?![\d.])', rest):
+        a, b, c, d = map(int, m.groups())
+        if a == c and b < d:
+            for s in range(b, d + 1):
+                section(a, s)
+            rest = rest.replace(m.group(0), ' ')
+    # Kapitel mit Wort davor: Bereich oder Liste
+    for m in re.finditer(rf'(?<![\w]){CHAPTER_WORD}[\s._-]*((?:0*\d+)(?:(?:{RANGE_SEP}|{LIST_SEP})0*\d+)*)(?![.\d])',
+                         rest, re.I):
+        part = m.group(1)
+        nums = [int(x) for x in re.findall(r'\d+', part)]
+        seps = re.findall(rf'{RANGE_SEP}|{LIST_SEP}', part)
+        if len(nums) == 2 and seps and re.fullmatch(RANGE_SEP, seps[0]) and nums[0] < nums[1]:
+            for n in range(nums[0], nums[1] + 1):
+                chapter(n)
+        elif len(nums) == 2 and seps and re.fullmatch(RANGE_SEP, seps[0]) and filename:
+            section(*nums)              # `kapitel-6-3` im Dateinamen: Abschnitt 6.3
+        else:
+            for n in nums:
+                chapter(n)
+        rest = rest.replace(m.group(0), ' ')
+    # einzelne Abschnittsnummern
+    pat = rf'(?<![\d.\w]){sec}(?![\d]|[.]\d)' if filename else rf'(?<![\d.]){sec}(?![\d]|[.]\d)'
+    for m in re.finditer(pat, rest):
+        section(int(m.group(1)), int(m.group(2)))
+    # genanntes Kapitel, dessen Abschnitte einzeln genannt sind („Kapitel 6, Abschnitt 6.3“): die Abschnitte gelten
+    chs = [c for c in chs if not any(s['id'] in secs for ch in chapters if ch['id'] == c for s in ch['sections'])]
+    return chs + secs
 
 
 def _scope_from(config, name, text):
+    """Umfang eines Berichts (#347): zuerst Dateiname und Titel, erst dann eine Umfangszeile im Kopf
+    („Umfang: …“, „Geprüft: …“). Kapitel, die im übrigen Text nur erwähnt werden, zählen nicht."""
     chapters = config['structure']['chapters']
-    ids = {ch['id'] for ch in chapters} | {s['id'] for _, s in sections(config)}
-    hay = name + '\n' + '\n'.join(text.splitlines()[:15])
-    found = [i for i in sorted(ids, key=len, reverse=True) if re.search(rf'(?<![\w]){re.escape(i)}(?![\w]|-[^\W\d])', hay)]
-    found = [i for i in found if not any(i != j and j.startswith(i + '-') for j in found)]
-    if found:
-        order = [ch['id'] for ch in chapters] + [s['id'] for _, s in sections(config)]
-        return sorted(set(found), key=order.index)
-    m = re.search(r'(?:kapitel|kap|chapter)[\s._-]*0*(\d+)', hay, re.I)
-    if m and 1 <= int(m.group(1)) <= len(chapters):
-        return [chapters[int(m.group(1)) - 1]['id']]
-    if re.search(r'\b(gesamtes buch|ganzes buch|whole book|buchweit)\b', hay, re.I):
-        return ['book']
-    return []
+    order = ['book'] + [ch['id'] for ch in chapters] + [s['id'] for _, s in sections(config)]
+    lines = text.splitlines()
+    title = next((l for l in lines if l.startswith('#')), '')
+    head = [l for l in lines[:25] if re.match(r'\W*(umfang|prüfumfang|geprüft|gegenstand|scope|reviewed)\b', l.strip(), re.I)]
+    for hay, filename in ((name, True), (title, False), ('\n'.join(head), False)):
+        found = _ids_in(config, hay) or _numbers_in(config, hay, filename)
+        if not found and re.search(r'\b(gesamtes buch|ganzes buch|whole book|buchweit|book-wide)\b',
+                                   hay.replace('-', ' ').replace('_', ' '), re.I):
+            found = ['book']
+        if found:
+            return sorted(set(found), key=order.index)
+    found = _ids_in(config, '\n'.join(lines[:15]))   # ausdrückliche IDs im Kopf bleiben wie bisher gültig
+    return sorted(set(found), key=order.index) if found else []
 
 
 def report_time(text):
@@ -388,17 +496,63 @@ def candidates(base, config, entries=None):
         date = m.group(1) if m else ''
         clock = report_time(text) if date else ''
         scope = _scope_from(config, f.stem, text)
-        out.append({'report': rel, 'kind': kind, 'scope': scope, 'date': date, 'time': clock, 'result': _result_from(text),
-                    'ready': bool(kind and scope and date)})
+        result, mixed = _result_from(text)
+        c = {'report': rel, 'kind': kind, 'scope': scope, 'date': date, 'time': clock, 'result': result,
+             'ready': bool(kind and scope and date and not mixed)}
+        if mixed:
+            c['results'] = mixed   # verschiedene Ergebnisse im Bericht: nicht eindeutig (#347)
+        out.append(c)
     return out
 
 
-def import_reports(base, config, apply=False):
+def _report_key(base, report):
+    """Bericht als Pfad relativ zum Buch, auch wenn er mit Buchordner oder nur als Dateiname angegeben ist."""
+    p = Path(str(report))
+    try:
+        return str(p.resolve().relative_to(Path(base).resolve()))
+    except (ValueError, OSError):
+        return str(p)
+
+
+def select(base, found, only=None, skip=None, fix=None):
+    """Kandidaten eingrenzen und berichtigen (#347).
+
+    only/skip: Berichte (Pfad relativ zum Buch oder Dateiname). fix: {kind, scope, result, date, time} – nur mit
+    genau einem Bericht in `only`; Umfang wird gegen das Buch geprüft, Ergebnis muss eines von RESULTS sein."""
+    def match(c, names):
+        return any(c['report'] == _report_key(base, n) or Path(c['report']).name == Path(str(n)).name for n in names)
+    out = [c for c in found if (not only or match(c, only)) and not (skip and match(c, skip))]
+    if only:
+        missing = [n for n in only if not any(match(c, [n]) for c in found)]
+        if missing:
+            raise ValueError('Kein Bericht ohne Eintrag: ' + ', '.join(map(str, missing)))
+    fix = {k: v for k, v in (fix or {}).items() if v}
+    if fix:
+        if not only or len(out) != 1:
+            raise ValueError('Berichtigen (--kind/--scope/--result/--date/--time) nur mit genau einem --only <bericht>')
+        c = out[0] = dict(out[0])
+        if 'result' in fix and fix['result'] not in RESULTS:
+            raise ValueError(f'Unbekanntes Ergebnis: {fix["result"]}')
+        if 'kind' in fix and fix['kind'] not in EDITORIAL and not re.fullmatch(r'analysis:\w+', fix['kind']):
+            raise ValueError(f'Unbekannte Prüfart: {fix["kind"]}')
+        c.update(fix)
+        c.pop('results', None) if 'result' in fix else None
+        c['ready'] = bool(c['kind'] and c['scope'] and c['date'] and not c.get('results'))
+        c['corrected'] = sorted(fix)
+    return out
+
+
+def import_reports(base, config, apply=False, only=None, skip=None, fix=None):
     """Kandidaten auflisten; mit apply=True die erkannten (ready) ohne Fingerabdruck eintragen.
-    Ergebnisse werden nie erfunden: ohne Ergebniszeile bleibt `unknown`."""
+    Ergebnisse werden nie erfunden: ohne Ergebniszeile bleibt `unknown`, bei verschiedenen Ergebnissen wird
+    nichts eingetragen. only/skip/fix wie in select() (#347)."""
     base = Path(base)
     entries = load(base)
-    found = candidates(base, config, entries)
+    found = select(base, candidates(base, config, entries), only, skip, fix)
+    if fix and fix.get('scope'):
+        scope = [fix['scope']] if isinstance(fix['scope'], str) else list(fix['scope'])
+        if not resolve(config, scope):
+            raise ValueError(f'Umfang deckt keinen Abschnitt ab: {", ".join(scope)}')
     added = []
     if apply:
         for c in found:
@@ -407,10 +561,11 @@ def import_reports(base, config, apply=False):
             entry = {'id': next_id(entries), 'kind': c['kind'], 'scope': c['scope'], 'date': c['date'],
                      **({'time': c['time']} if c.get('time') else {}),
                      'result': c['result'], 'report': c['report'],
-                     'note': BACKFILL_NOTE}
+                     'note': BACKFILL_NOTE + ('; berichtigt: ' + ', '.join(c['corrected']) if c.get('corrected') else '')}
             entries.append(entry)
             added.append(entry)
-        timed = missing_times(base, entries)   # #345: Uhrzeit bestehender Einträge aus dem Bericht ergänzen
+        # #345: Uhrzeit bestehender Einträge aus dem Bericht ergänzen (nicht bei eingegrenztem Import)
+        timed = [] if (only or skip) else missing_times(base, entries)
         for e, clock in timed:
             e['time'] = clock
         if added or timed:
@@ -657,6 +812,14 @@ def main(argv=None):
     im = sub.add_parser('import', help='ältere Berichte unter analysis/ und editorial/ ohne Eintrag auflisten (#340)')
     im.add_argument('project')
     im.add_argument('--apply', action='store_true', help='erkannte Berichte eintragen (ohne Fingerabdruck)')
+    im.add_argument('--only', action='append', metavar='BERICHT',
+                    help='nur diesen Bericht (mehrfach möglich; Pfad relativ zum Buch oder Dateiname) (#347)')
+    im.add_argument('--skip', action='append', metavar='BERICHT', help='diesen Bericht auslassen (mehrfach möglich)')
+    im.add_argument('--kind', help='mit genau einem --only: Prüfart berichtigen')
+    im.add_argument('--scope', action='append', help='mit genau einem --only: Umfang berichtigen (mehrfach möglich)')
+    im.add_argument('--result', choices=RESULTS, help='mit genau einem --only: Ergebnis berichtigen')
+    im.add_argument('--date', help='mit genau einem --only: Datum berichtigen')
+    im.add_argument('--time', help='mit genau einem --only: Uhrzeit HH:MM berichtigen')
     im.add_argument('--json', action='store_true')
     args = ap.parse_args(argv)
     from render_view import load as load_project
@@ -686,8 +849,17 @@ def main(argv=None):
         print(f'{len(added)} Analyseläufe nachgetragen.')
         return 0
     if args.cmd == 'import':
-        timed = [] if args.apply else missing_times(base, load(base))
-        found, added = import_reports(base, config, args.apply)
+        narrowed = bool(args.only or args.skip)
+        timed = [] if args.apply or narrowed else missing_times(base, load(base))
+        fix = {'kind': args.kind, 'scope': args.scope, 'result': args.result, 'date': args.date, 'time': args.time}
+        if args.time and not re.fullmatch(r'([01]\d|2[0-3]):[0-5]\d', args.time):
+            print(f'Uhrzeit nicht im Format HH:MM: {args.time}', file=sys.stderr)
+            return 1
+        try:
+            found, added = import_reports(base, config, args.apply, args.only, args.skip, fix)
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return 1
         for e, clock in timed:
             print(f'· {e["id"]}: Uhrzeit {clock} aus {e["report"]} ergänzbar (mit --apply)')
         if args.json:
@@ -699,15 +871,21 @@ def main(argv=None):
         for c in found:
             what = label(c['kind'])[0] if c['kind'] else 'Prüfart ?'
             mark = '+' if c['ready'] and args.apply else ('·' if c['ready'] else '?')
+            result = (RESULT_TEXT['de'][c['result']] if not c.get('results') else
+                      'Ergebnis nicht eindeutig (' + ' / '.join(RESULT_TEXT['de'][r] for r in c['results']) + ')')
             print(f'{mark} {c["report"]}: {what}, {", ".join(c["scope"]) or "Umfang ?"}, {c["date"] or "Datum ?"}, '
-                  f'{RESULT_TEXT["de"][c["result"]]}')
+                  f'{result}' + (' [berichtigt: ' + ', '.join(c['corrected']) + ']' if c.get('corrected') else ''))
         rest = [c for c in found if not c['ready']]
         if args.apply:
             print(f'{len(added)} Berichte nachgetragen.')
         else:
-            print('Vorschlag. Eintragen mit --apply (nur vollständig erkannte, ·).')
+            print('Vorschlag. Bitte jede Zeile mit dem Bericht vergleichen: Eintragen mit --apply (nur vollständig '
+                  'erkannte, ·); einzelne auslassen mit --skip <bericht>, nur einzelne mit --only <bericht>; '
+                  'Umfang oder Ergebnis berichtigen mit --only <bericht> --scope … --result … (eingetragene Werte '
+                  'lassen sich später nicht mehr ändern).')
         if rest:
-            print(f'{len(rest)} Berichte nicht eindeutig (?): mit record … --report <bericht> --date … von Hand nachtragen '
+            print(f'{len(rest)} Berichte nicht eindeutig (?): mit --only <bericht> und --scope/--result/--date berichtigen '
+                  'oder mit record … --report <bericht> --date … von Hand nachtragen '
                   '(Datum vor heute: ohne Fingerabdruck, Stand unbekannt).')
         return 0
     idx = Index(base, config, args.language)
