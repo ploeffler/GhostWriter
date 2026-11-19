@@ -76,6 +76,7 @@ Im Modus „Widget“ schreibt der Assistent keine fertige Ansicht, sondern nur 
 | `PROJECT_DESCRIPTION_SHORT`, `PROJECT_DESCRIPTION` | nicht in der Datei: aus `ghostwriter.yml` |
 | `PROJECT_COST` | `project.cost.text`; Tooltip aus `project.cost.estimated` |
 | `PROJECT_EDITION_TEXT` | aus `project.current_edition` |
+| `PREVIEW_TEXT`, `PREVIEW_URL` | nicht in der Datei: aus den Tags `<kurztitel>-vorab-N` (wie unten) |
 | Block `CHAPTERS` | `chapters[]`: `number`, `id`, `title`, `status`, `cost.text` |
 | `CHAPTER_SUBTITLE`, `CHAPTER_COST` | `chapters[].subtitle`, `chapters[].cost.text` |
 | `SECTION_COUNT_TEXT`, `APPROVED_COUNT_TEXT` | `chapters[].sections_total`, `chapters[].sections_approved` |
@@ -121,6 +122,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `PROJECT_DESCRIPTION_SHORT`, `PROJECT_DESCRIPTION` | `project.description_short`, `project.description` |
 | `PROJECT_COST`, `PROJECT_COST_HINT` | Projektkosten, Tooltip „Zusätzliche KI-API-Kosten über das GhostWriter-Backend“ |
 | `PROJECT_EDITION_TEXT` | Auflage |
+| `PREVIEW_TEXT`, `PREVIEW_URL` | letzte Vorabfassung (#352): „Vorabfassung N vom TT.MM.JJJJ“ (Datum des Tags bzw. des markierten Stands) und Link `https://github.com/<repo>/releases/tag/<tag>`; aus den Tags `<kurztitel>-vorab-N` des Klons (Funktion `previews` in `scripts/render_view.py`). Ohne Vorabfassung bzw. ohne geholte Tags weglassen; dann entfällt die Anzeige. Ab UI 0.54.0 neben „Buchprojekt · Auflage …“, in der Textfassung in der Zeile mit der Auflage |
 | `CREDIT_TEXT`, `CREDIT_URL` | Hinweis und Link aus `templates/branding.yml` (`credit`), klein unter der Karte bzw. am Ende der Textfassung; nie im Buch |
 | `PENDING_COUNT`, `PENDING_TEXT`, `PENDING_PR` | nur bei offenen Änderungen (Arbeits-Branch mit offenem Pull Request, siehe „Offene Änderungen“): Anzahl der Commits, „1 Änderung“ bzw. „N Änderungen“, Nummer des Pull Requests. Ohne offene Änderungen weglassen; dann entfällt der Hinweis mit dem Knopf „Buchänderungen übernehmen“ |
 | `IMPORT_TEXT` | Import (#124, `import_book.py status`): ab sieben Tage vor Ablauf einer früheren Aufbewahrungsfrist bzw. danach „Das Original des Imports (<datei>) bleibt erhalten, auch nach der früheren Frist (bis TT.MM.JJJJ bzw. „bis zur ersten Auflage“). Entfernt wird es nur auf ausdrücklichen Auftrag.“ (D21: Fristen löschen nichts); sonst weglassen |
@@ -188,6 +190,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `EDITION_DATE_DEFAULT` | heutiges Datum, `YYYY-MM-DD` |
 | `APPROVAL_WARNING_TEXT` | „Bisher abgeschlossen: N von M Kapiteln; nur abgeschlossene Kapitel kommen in die Auflage.“; leer, wenn alle abgeschlossen sind (der Hinweis entfällt) |
 | Block `FORMATS`: `FORMAT_LABEL` | `book_releases.assets`, in v0.5 PDF, DOCX, EPUB |
+| `PREVIEW_TAG` | Tag der nächsten Vorabfassung `<kurztitel>-vorab-N` (höchste vorhandene Nummer + 1, wie `edition_info.py --preview`). Ab UI 0.54.0 zeigt das Formular damit den Knopf „Vorabfassung“ neben „Probedruck“ (#352): Der erste Klick zeigt, dass dieser Tag und ein im Repository sichtbares Pre-Release entstehen, erst der zweite sendet `edition.preview`. Leer = kein Knopf |
 
 ### `kapitel-bearbeiten.html`
 
@@ -751,7 +754,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen und Lauf-Datei, Ergebnis und Statuswechsel speichern (`START.md`, „KI-Lauf „Sofort““); ein Kosteneintrag nur für kostenpflichtige KI-API-Aufrufe über das Backend, nie für Chat-Arbeit | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
 | `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | Vorlage `auflage-erzeugen` (`render_view.py edition-create`) | – |
 | `edition.proof` | – | Probedruck erstellen | Action „Probedruck“ per `workflow_dispatch` starten oder Link *Run workflow* geben; danach Link zum Lauf (Download unter *Artifacts*) | `POST /repos/{owner}/{repo}/actions/workflows/proof.yml/dispatches` |
-| `edition.preview` | – (Formate optional, sonst `typesetting.formats`) | Vorabfassung anlegen (#348) | nach ausdrücklicher Bestätigung Action „Vorabfassung“ per `workflow_dispatch` starten (`ref` = Buch-Branch) oder Link *Run workflow* geben; danach Link zum Lauf und zum Pre-Release (`START.md`, „Vorabfassung“) | `POST /repos/{owner}/{repo}/actions/workflows/preview.yml/dispatches` |
+| `edition.preview` | – (Formate optional, sonst `typesetting.formats`) | Vorabfassung anlegen (#348); auch Knopf „Vorabfassung“ im Formular „Neue Auflage“ (#352), der vor dem Senden selbst nach Bestätigung fragt; der zweite Klick ist die ausdrückliche Bestätigung | nach ausdrücklicher Bestätigung Action „Vorabfassung“ per `workflow_dispatch` starten (`ref` = Buch-Branch) oder Link *Run workflow* geben; danach Link zum Lauf und zum Pre-Release (`START.md`, „Vorabfassung“) | `POST /repos/{owner}/{repo}/actions/workflows/preview.yml/dispatches` |
 | `manuscript.export` | `chapter` (optional, Kapitelnummer; bei `format` `md` Pflicht, Kapitel `5` oder Abschnitt `5.1`), `format` (`pdf` Vorgabe, `md` = Lesefassung für Clients ohne Skriptausführung, #289; Datei auf Branch `lesefassung/<buch>`) | Manuskript ausgeben (#260) | Action „Manuskript ausgeben“ per `workflow_dispatch` starten (`ref` = Buch-Branch), Lauf abwarten, PDF mit `scripts/fetch_artifact.py` abholen und als Datei im Chat übergeben; ohne Dateiübergabe Link zum Lauf (*Artifacts*) | `POST /repos/{owner}/{repo}/actions/workflows/manuscript.yml/dispatches` |
 | `edition.create` | `name`, `tag`, `date`, `formats`, `notes` | Auflage erzeugen | prüfen, Release Notes zeigen, Auflagen-Pull-Request anlegen (`START.md`, „Neue Auflage“); nach dem Merge baut die Action „Auflage veröffentlichen“ | `POST /repos/{owner}/{repo}/actions/workflows/edition.yml/dispatches` (Bau), Pull Request wie Weg A |
 | `changes.merge.open` | – | Bestätigung „Buchänderungen übernehmen“ zeigen (Knopf im Hinweis der Projektübersicht, Textfassung `M`) | offene Änderungen aus GitHub lesen, Vorlage `aenderungen-uebernehmen` (`render_view.py changes-merge`) | `GET …/changes` |

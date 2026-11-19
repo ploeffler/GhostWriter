@@ -1296,6 +1296,40 @@ def check_index(base, config, language='de'):
         return None
 
 
+def previews(base, config):
+    """Vorabfassungen des Buchs (#348, #352) aus den Tags des Klons: [(N, tag, Datum JJJJ-MM-TT)], aufsteigend.
+
+    Der Tag heißt <kurztitel>-vorab-N; das Datum ist das des Tags bzw. des markierten Stands. Ohne Git oder ohne
+    geholte Tags ist die Liste leer (im flachen Klon vorher die Tags holen, START.md „Vorabfassung“)."""
+    p = config['project']
+    slug = tag_slug(p.get('title_short') or p.get('title') or p.get('working_title') or 'Ohne Titel')
+    try:
+        r = subprocess.run(['git', '-C', str(base), 'for-each-ref', '--format=%(refname:short) %(creatordate:short)',
+                            f'refs/tags/{slug}-vorab-*'], text=True, capture_output=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    out = []
+    for line in r.stdout.splitlines() if r.returncode == 0 else []:
+        tag, _, date = line.partition(' ')
+        m = re.fullmatch(rf'{re.escape(slug)}-vorab-(\d+)', tag)
+        if m:
+            out.append((int(m.group(1)), tag, date.strip()))
+    return sorted(out)
+
+
+def next_preview_tag(base, config):
+    """Tag der nächsten Vorabfassung wie in scripts/edition_info.py --preview (höchste Nummer + 1)."""
+    p = config['project']
+    slug = tag_slug(p.get('title_short') or p.get('title') or p.get('working_title') or 'Ohne Titel')
+    have = previews(base, config)
+    return f'{slug}-vorab-{(have[-1][0] if have else 0) + 1}'
+
+
+def release_url(args, tag):
+    repo = getattr(args, 'repo', None)
+    return f'https://github.com/{repo}/releases/tag/{tag}' if repo else ''
+
+
 def check_cells(tags):
     """Textfassung der Prüf-Tags (#331): „S✓ L✓· K✓*“ bzw. „–“."""
     return ' '.join(t['CK_TAG'] for t in tags) or '–'
@@ -1333,6 +1367,12 @@ def project_view(base, config, args):
         'PROJECT_EDITION_TEXT': f'Auflage {edition}' if edition else 'noch keine Auflage',
     }
     values['CREDIT_TEXT'], values['CREDIT_URL'] = credit()
+    pv = previews(base, config)
+    if pv:   # letzte Vorabfassung neben der Auflage (#352)
+        pn, ptag, pdate = pv[-1]
+        values.update({'PREVIEW_NUMBER': pn, 'PREVIEW_TAG': ptag, 'PREVIEW_DATE': pdate, 'PREVIEW_URL': release_url(args, ptag),
+                       'PREVIEW_TEXT': view_message('overview.preview', number=pn, date=de_date(pdate)) if pdate
+                       else view_message('overview.preview_undated', number=pn)})
     if ck:   # Kopfzeile „Letzte Prüfungen“ (#331)
         import checks
         values['CHECKS_RECENT'] = ck.recent()
@@ -1384,7 +1424,9 @@ def project_view(base, config, args):
         return f'**{label}:** ' + ' · '.join(f'{m["MATTER_TITLE"]} {STATUS_ICON.get(m["MATTER_STATUS"], "")}'.strip() for m in ms)
     if args.text:
         lines = [f'### 📘 {values["PROJECT_TITLE"] or "Noch ohne Titel"}',
-                 f'**{values["PROJECT_EDITION_TEXT"]}** · Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · KI-API-Kosten: **{values["PROJECT_COST"]}**', '']
+                 f'**{values["PROJECT_EDITION_TEXT"]}**'
+                 + (f' · {values["PREVIEW_TEXT"]}' + (f' ([Release]({values["PREVIEW_URL"]}))' if values['PREVIEW_URL'] else '') if pv else '')
+                 + f' · Autor: {values["PROJECT_AUTHOR"] or "noch offen"} · KI-API-Kosten: **{values["PROJECT_COST"]}**', '']
         lines += overview_summary(base, config)
         if changes:
             lines += [f'> ⏳ **{values["PENDING_TEXT"]} noch nicht übernommen** (Änderungspaket #{changes["pull_request"]}) · `M` übernehmen', '']
@@ -1732,7 +1774,8 @@ def edition_create_view(base, config, args):
         short = 'Ohne Titel'
     values = {'EDITION_NUMBER': n, 'EDITION_NAME': br['name_pattern'].format(title_short=short, edition=n),
               'EDITION_TAG': br['tag_pattern'].format(title_short_slug=tag_slug(short), edition=n),
-              'EDITION_DATE_DEFAULT': datetime.date.today().isoformat(), 'APPROVAL_WARNING_TEXT': warn}
+              'EDITION_DATE_DEFAULT': datetime.date.today().isoformat(), 'APPROVAL_WARNING_TEXT': warn,
+              'PREVIEW_TAG': next_preview_tag(base, config)}   # Knopf „Vorabfassung“ (#352)
     chosen = (config.get('typesetting') or {}).get('formats') or br['assets']   # Ausgabeoptionen (#68)
     short = {'pdf_print': view_message('edition.print_pdf'), 'booklet': view_message('edition.booklet'),
              'cover': view_message('edition.cover')}
@@ -1745,7 +1788,8 @@ def edition_create_view(base, config, args):
                            view_message('edition.formats_row', formats=', '.join(f['FORMAT_LABEL'] for f in formats)),
                            view_message('edition.date_row', date=values['EDITION_DATE_DEFAULT'])]
                           + (['', f'> ⚠️ {warn}'] if warn else [])
-                          + ['', view_message('edition.form_hint')]) + '\n'
+                          + ['', view_message('edition.form_hint'),
+                             view_message('edition.preview_hint', tag=values['PREVIEW_TAG'])]) + '\n'
     return fill('auflage-erzeugen.html', values, {'FORMATS': formats})
 
 

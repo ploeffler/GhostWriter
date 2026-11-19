@@ -1071,5 +1071,8 @@
   "library.session.origin": "Rechner: {device} · {os} · {client}",
   "library.session.status_open": "Änderungspaket",
   "library.session.status_pr_pending": "gesichert, Änderungspaket ausstehend",
-  "library.session.status_unknown": "Status nicht verfügbar"
+  "library.session.status_unknown": "Status nicht verfügbar",
+  "overview.preview": "Vorabfassung {number} vom {date}",
+  "overview.preview_undated": "Vorabfassung {number}",
+  "edition.preview_hint": "`Vorabfassung` legt statt einer Auflage eine Vorabfassung an: Tag `{tag}` und ein im Repository sichtbares Pre-Release, nur nach Bestätigung."
 }
