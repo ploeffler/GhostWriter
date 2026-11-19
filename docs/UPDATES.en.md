@@ -39,7 +39,7 @@ The workflow checks for a book, pending changes and an available `buch/<short-ti
 
 To reverse the conversion, revert the conversion commit on the default branch. Delete the book branch only after ensuring that no subsequent work on that branch would be lost; otherwise transfer that work first.
 
-**Backfilling older check reports (#340):** The update does not read existing reports into the check log on its own, since it must not invent results. After the update, `python3 scripts/checks.py import <book>` lists reports under `analysis/` and `editorial/` without an entry as suggestions; once the user confirms in chat, `--apply` records the recognised ones (without fingerprint, state “unknown”). Earlier analysis runs are still handled by `checks.py backfill`.
+**Backfilling older check reports (#340):** The update does not read existing reports into the check log on its own, since it must not invent results. After the update, `python3 scripts/checks.py import <book>` lists reports under `analysis/` and `editorial/` without an entry as suggestions; once the user confirms in chat, `--apply` records the recognised ones (without fingerprint, state “unknown”). Earlier analysis runs are still handled by `checks.py backfill`. `import --apply` also adds the time of existing entries from their report; entries whose report gives no time get it with `checks.py set <book> pr-NNN --time HH:MM` (#345).
 
 ## Automatic updates and limits
 

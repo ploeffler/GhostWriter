@@ -17,6 +17,8 @@ Aufrufe:
   python3 scripts/checks.py list <buch> [--json]
   python3 scripts/checks.py backfill <buch>     # abgeschlossene Analyseläufe einmalig nachtragen
   python3 scripts/checks.py import <buch> [--apply] [--json]   # ältere Berichte ohne Eintrag (#340)
+  python3 scripts/checks.py record <buch> … --date JJJJ-MM-TT [--backfill]   # von Hand nachtragen (#344)
+  python3 scripts/checks.py set <buch> <pr-NNN> --time HH:MM   # fehlende Angaben ergänzen (#345)
 """
 import argparse
 import datetime
@@ -181,8 +183,15 @@ def when(e):
     return (str(e.get('date') or '') + (' ' + str(e['time']) if e.get('time') else '')).strip()
 
 
-def record(base, config, kind, scope, result, report=None, date=None, commit=None, note=None, run=None, time=None):
-    """Einen Prüflauf eintragen; Fingerabdrücke und Commit werden vom heutigen Stand genommen."""
+BACKFILL_NOTE = 'nachgetragen (#340) aus vorhandenem Bericht; geprüfte Fassung nicht gespeichert'
+
+
+def record(base, config, kind, scope, result, report=None, date=None, commit=None, note=None, run=None, time=None,
+           backfill=False):
+    """Einen Prüflauf eintragen; Fingerabdrücke und Commit werden vom heutigen Stand genommen.
+
+    backfill=True (#344): älteren Bericht nachtragen. Dann weder Fingerabdrücke noch HEAD-Commit (die geprüfte
+    Fassung ist nicht bekannt, der Stand zeigt „unbekannt“); ein ausdrücklich angegebener Commit bleibt."""
     base = Path(base)
     if kind not in EDITORIAL and not (kind.startswith('analysis:') and kind.split(':', 1)[1]):
         raise ValueError(f'Unbekannte Prüfart: {kind}')
@@ -197,10 +206,13 @@ def record(base, config, kind, scope, result, report=None, date=None, commit=Non
              'date': str(date or datetime.date.today().isoformat()), 'result': result}
     if time or not date:   # Uhrzeit (#340): angegeben oder jetzt, bei nachgetragenem Datum ohne Uhrzeit keine
         entry['time'] = str(time or datetime.datetime.now().strftime('%H:%M'))
-    commit = commit or head_commit(base)
+    commit = commit or (None if backfill else head_commit(base))
     if commit:
         entry['commit'] = commit
-    entry['digests'] = digests(base, config, ids)
+    if not backfill:
+        entry['digests'] = digests(base, config, ids)
+    elif not note:
+        note = BACKFILL_NOTE
     if report:
         entry['report'] = str(report)
     if run:
@@ -306,6 +318,49 @@ def _scope_from(config, name, text):
     return []
 
 
+def report_time(text):
+    """Uhrzeit (HH:MM) aus dem Kopf eines Berichts, sonst ''."""
+    # „14:05“ oder „14.05 Uhr“; ein Datum wie „19.11.2026“ ist keine Uhrzeit
+    t = (re.search(r'(?<![\d:.])([01]?\d|2[0-3]):([0-5]\d)(?![\d:])', text[:2000])
+         or re.search(r'(?<![\d.])([01]?\d|2[0-3])\.([0-5]\d)\s*Uhr', text[:2000]))
+    return f'{int(t.group(1)):02d}:{t.group(2)}' if t else ''
+
+
+def missing_times(base, entries):
+    """[(eintrag, uhrzeit)] für Einträge ohne `time`, deren Bericht eine Uhrzeit nennt (#345)."""
+    out = []
+    for e in entries:
+        if e.get('time') or not e.get('report'):
+            continue
+        f = Path(base) / str(e['report'])
+        if f.is_file():
+            clock = report_time(f.read_text(encoding='utf-8', errors='replace'))
+            if clock:
+                out.append((e, clock))
+    return out
+
+
+def complete(base, entry_id, time=None, date=None, commit=None):
+    """Fehlende Angaben eines Eintrags ergänzen (#345); vorhandene werden nie überschrieben.
+    Rückgabe: Liste der gesetzten Felder."""
+    if time and not re.fullmatch(r'([01]\d|2[0-3]):[0-5]\d', time):
+        raise ValueError(f'Uhrzeit nicht im Format HH:MM: {time}')
+    entries = load(base)
+    e = next((x for x in entries if str(x.get('id')) == entry_id), None)
+    if e is None:
+        raise ValueError(f'Eintrag nicht gefunden: {entry_id}')
+    done = []
+    for key, value in (('time', time), ('date', date), ('commit', commit)):
+        if value and not e.get(key):
+            e[key] = value
+            done.append(key)
+        elif value and str(e.get(key)) != value:
+            raise ValueError(f'{entry_id}: {key} ist schon gesetzt ({e[key]}) und wird nicht überschrieben')
+    if done:
+        save(base, entries)
+    return done
+
+
 def candidates(base, config, entries=None):
     """Berichte unter analysis/ und editorial/ ohne Eintrag im Prüfprotokoll, mit erkannten Angaben.
 
@@ -331,8 +386,7 @@ def candidates(base, config, entries=None):
         kind = next((k for k, words in KIND_WORDS if any(w in hay for w in words)), '')
         m = re.search(r'(\d{4}-\d{2}-\d{2})', f.name) or re.search(r'(\d{4}-\d{2}-\d{2})', text[:2000])
         date = m.group(1) if m else ''
-        t = re.search(r'(?<![\d:])([01]?\d|2[0-3])[:.]([0-5]\d)(?:\s*Uhr)?(?![\d:])', text[:2000]) if date else None
-        clock = f'{int(t.group(1)):02d}:{t.group(2)}' if t else ''
+        clock = report_time(text) if date else ''
         scope = _scope_from(config, f.stem, text)
         out.append({'report': rel, 'kind': kind, 'scope': scope, 'date': date, 'time': clock, 'result': _result_from(text),
                     'ready': bool(kind and scope and date)})
@@ -353,10 +407,13 @@ def import_reports(base, config, apply=False):
             entry = {'id': next_id(entries), 'kind': c['kind'], 'scope': c['scope'], 'date': c['date'],
                      **({'time': c['time']} if c.get('time') else {}),
                      'result': c['result'], 'report': c['report'],
-                     'note': 'nachgetragen (#340) aus vorhandenem Bericht; geprüfte Fassung nicht gespeichert'}
+                     'note': BACKFILL_NOTE}
             entries.append(entry)
             added.append(entry)
-        if added:
+        timed = missing_times(base, entries)   # #345: Uhrzeit bestehender Einträge aus dem Bericht ergänzen
+        for e, clock in timed:
+            e['time'] = clock
+        if added or timed:
             save(base, entries)
     return found, added
 
@@ -583,6 +640,14 @@ def main(argv=None):
     r.add_argument('--time', help='Uhrzeit HH:MM (Standard: jetzt, bei --date ohne Uhrzeit)')
     r.add_argument('--commit')
     r.add_argument('--note')
+    r.add_argument('--backfill', action='store_true',
+                   help='älteren Bericht nachtragen: ohne Fingerabdruck und HEAD-Commit (#344); '
+                        'automatisch bei --date vor heute ohne --commit')
+    st = sub.add_parser('set', help='fehlende Angaben eines Eintrags ergänzen, nichts überschreiben (#345)')
+    st.add_argument('project')
+    st.add_argument('id', help='Eintrag, z. B. pr-007')
+    st.add_argument('--time', help='HH:MM')
+    st.add_argument('--commit')
     ls = sub.add_parser('list', help='Prüfungen je Kapitel anzeigen')
     ls.add_argument('project')
     ls.add_argument('--json', action='store_true')
@@ -599,24 +664,37 @@ def main(argv=None):
     base = Path(base)
     if args.cmd == 'record':
         try:
+            past = bool(args.date) and str(args.date) < datetime.date.today().isoformat() and not args.commit
             e = record(base, config, args.kind, args.scope, args.result, args.report, args.date, args.commit, args.note,
-                       time=args.time)
+                       time=args.time, backfill=args.backfill or past)
         except ValueError as exc:
             print(exc, file=sys.stderr)
             return 1
-        print(f'{e["id"]} eingetragen: {label(e["kind"])[0]}, {RESULT_TEXT["de"][e["result"]]}, {e["date"]}')
+        print(f'{e["id"]} eingetragen: {label(e["kind"])[0]}, {RESULT_TEXT["de"][e["result"]]}, {e["date"]}'
+              + ('' if 'digests' in e else ' (nachgetragen, ohne Fingerabdruck: Stand unbekannt)'))
+        return 0
+    if args.cmd == 'set':
+        try:
+            done = complete(base, args.id, time=args.time, commit=args.commit)
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return 1
+        print(f'{args.id}: ' + (', '.join(done) + ' ergänzt.' if done else 'nichts zu ergänzen.'))
         return 0
     if args.cmd == 'backfill':
         added = backfill(base, config)
         print(f'{len(added)} Analyseläufe nachgetragen.')
         return 0
     if args.cmd == 'import':
+        timed = [] if args.apply else missing_times(base, load(base))
         found, added = import_reports(base, config, args.apply)
+        for e, clock in timed:
+            print(f'· {e["id"]}: Uhrzeit {clock} aus {e["report"]} ergänzbar (mit --apply)')
         if args.json:
             print(json.dumps({'candidates': found, 'added': added}, ensure_ascii=False, indent=1))
             return 0
         if not found:
-            print('Keine Berichte ohne Eintrag.')
+            print('Keine Berichte ohne Eintrag.' + (' Uhrzeiten ergänzt, wo der Bericht eine nennt.' if args.apply else ''))
             return 0
         for c in found:
             what = label(c['kind'])[0] if c['kind'] else 'Prüfart ?'
@@ -629,7 +707,8 @@ def main(argv=None):
         else:
             print('Vorschlag. Eintragen mit --apply (nur vollständig erkannte, ·).')
         if rest:
-            print(f'{len(rest)} Berichte nicht eindeutig (?): mit record … --report <bericht> --date … von Hand nachtragen.')
+            print(f'{len(rest)} Berichte nicht eindeutig (?): mit record … --report <bericht> --date … von Hand nachtragen '
+                  '(Datum vor heute: ohne Fingerabdruck, Stand unbekannt).')
         return 0
     idx = Index(base, config, args.language)
     rows = [{'chapter': ch['id'], 'title': ch['title'], 'tags': idx.chapter(ch)} for ch in config['structure']['chapters']]
