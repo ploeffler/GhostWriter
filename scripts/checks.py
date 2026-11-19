@@ -16,6 +16,7 @@ Aufrufe:
       [--report editorial/lektorat-2026-11-17.md] [--date 2026-11-17] [--commit <sha>] [--note …]
   python3 scripts/checks.py list <buch> [--json]
   python3 scripts/checks.py backfill <buch>     # abgeschlossene Analyseläufe einmalig nachtragen
+  python3 scripts/checks.py import <buch> [--apply] [--json]   # ältere Berichte ohne Eintrag (#340)
 """
 import argparse
 import datetime
@@ -33,7 +34,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 
 FILE = Path('editorial') / 'checks.yml'
 EDITORIAL = ('structure', 'language', 'proofreading', 'story_memory', 'quality_correction')
-RESULTS = ('passed', 'passed_with_notes', 'failed', 'incomplete')
+RESULTS = ('passed', 'passed_with_notes', 'failed', 'incomplete', 'unknown')   # unknown: nachgetragen, Ergebnis nicht im Bericht (#340)
 
 # Bezeichnung und Kürzel je Prüfart (Kürzel für die Textfassung, z. B. „S✓ L✓ K✓“)
 LABELS = {
@@ -52,12 +53,12 @@ ANALYSIS_LABELS = {
 }
 ANALYSIS_SHORT = {'characters': 'AF', 'summaries': 'AK', 'style': 'ASt', 'places': 'AO', 'timeline': 'AZ',
                   'continuity': 'AW', 'language': 'ASp'}
-RESULT_MARK = {'passed': '✓', 'passed_with_notes': '✓·', 'failed': '✗', 'incomplete': '…'}
+RESULT_MARK = {'passed': '✓', 'passed_with_notes': '✓·', 'failed': '✗', 'incomplete': '…', 'unknown': '?'}
 RESULT_TEXT = {
     'de': {'passed': 'bestanden', 'passed_with_notes': 'bestanden mit Hinweisen', 'failed': 'nicht bestanden',
-           'incomplete': 'unvollständig'},
+           'incomplete': 'unvollständig', 'unknown': 'Ergebnis unbekannt'},
     'en': {'passed': 'passed', 'passed_with_notes': 'passed with notes', 'failed': 'failed',
-           'incomplete': 'incomplete'},
+           'incomplete': 'incomplete', 'unknown': 'result unknown'},
 }
 STATE_TEXT = {
     'de': {'current': 'aktuell', 'changed': 'seit Prüfung geändert', 'unknown': 'Stand unbekannt'},
@@ -66,9 +67,11 @@ STATE_TEXT = {
 LEGEND = {
     'de': ('Prüfungen: S Struktur · L Sprache · K Korrektur · G Gedächtnis · Q Qualität · A… Analyse · '
            '✓ bestanden · ✓· mit Hinweisen · ✗ nicht bestanden · … unvollständig · * seit Prüfung geändert · '
-           '? Stand unbekannt. Ein Tag ist keine Freigabe.'),
+           '? Stand bzw. Ergebnis unbekannt. Ein Tag zeigt nur die neueste Prüfung je Art; frühere stehen unter '
+           '„Frühere Prüfungen“. Ein Tag ist keine Freigabe.'),
     'en': ('Checks: S structure · L language · K proofreading · G story memory · Q quality · A… analysis · '
-           '✓ passed · ✓· with notes · ✗ failed · … incomplete · * changed since check · ? state unknown. '
+           '✓ passed · ✓· with notes · ✗ failed · … incomplete · * changed since check · ? state or result unknown. '
+           'A tag shows only the latest check per kind; earlier ones are listed under “Earlier checks”. '
            'A tag is not an approval.'),
 }
 
@@ -246,6 +249,104 @@ def backfill(base, config):
     return added
 
 
+# ---------- Ältere Berichte nachtragen (#340) ----------
+
+KIND_WORDS = (   # Reihenfolge = Vorrang; Suche in Dateiname und Überschrift
+    ('proofreading', ('schlusskorrektur', 'korrektorat', 'proofread')),
+    ('structure', ('strukturlektorat', 'struktur', 'structur')),
+    ('language', ('sprachlektorat', 'sprache', 'language')),
+    ('story_memory', ('buchgedächtnis', 'buchgedaechtnis', 'story-memory', 'story_memory', 'story memory')),
+    ('quality_correction', ('qualitätssicherung', 'qualitaetssicherung', 'qualität', 'qualitaet', 'nachprüfung',
+                            'nachpruefung', 'redaktionslauf', 'redaktion', 'quality')),
+)
+RESULT_WORDS = (   # Reihenfolge = Vorrang
+    ('failed', (r'nicht\s+bestanden', r'\bfailed\b')),
+    ('passed_with_notes', (r'bestanden\s+mit\s+hinweisen', r'passed\s+with\s+notes')),
+    ('incomplete', (r'\bunvollständig\b', r'\bincomplete\b')),
+    ('passed', (r'\bbestanden\b', r'\bpassed\b')),
+)
+
+
+def _result_from(text):
+    """Ergebnis nur aus einer ausdrücklichen Ergebniszeile („Ergebnis: …“, „Result: …“), sonst unknown."""
+    lines = [l for l in text.splitlines() if re.search(r'(ergebnis|result|gesamturteil|urteil)\b', l, re.I)]
+    for line in lines:
+        low = line.lower()
+        for res, pats in RESULT_WORDS:
+            if any(re.search(p, low) for p in pats):
+                return res
+    return 'unknown'
+
+
+def _scope_from(config, name, text):
+    chapters = config['structure']['chapters']
+    ids = {ch['id'] for ch in chapters} | {s['id'] for _, s in sections(config)}
+    hay = name + '\n' + '\n'.join(text.splitlines()[:15])
+    found = [i for i in sorted(ids, key=len, reverse=True) if re.search(rf'(?<![\w]){re.escape(i)}(?![\w]|-[^\W\d])', hay)]
+    found = [i for i in found if not any(i != j and j.startswith(i + '-') for j in found)]
+    if found:
+        order = [ch['id'] for ch in chapters] + [s['id'] for _, s in sections(config)]
+        return sorted(set(found), key=order.index)
+    m = re.search(r'(?:kapitel|kap|chapter)[\s._-]*0*(\d+)', hay, re.I)
+    if m and 1 <= int(m.group(1)) <= len(chapters):
+        return [chapters[int(m.group(1)) - 1]['id']]
+    if re.search(r'\b(gesamtes buch|ganzes buch|whole book|buchweit)\b', hay, re.I):
+        return ['book']
+    return []
+
+
+def candidates(base, config, entries=None):
+    """Berichte unter analysis/ und editorial/ ohne Eintrag im Prüfprotokoll, mit erkannten Angaben.
+
+    Analyseläufe (analysis/<art>/run-NNN.md) übernimmt backfill(). Rückgabe je Bericht: report, kind, scope,
+    date, result (`unknown`, wenn der Bericht keine Ergebniszeile hat), ready (kind und scope erkannt)."""
+    base = Path(base)
+    entries = load(base) if entries is None else entries
+    known = {str(e.get('report')) for e in entries if e.get('report')}
+    files = []
+    for folder in ('analysis', 'editorial'):
+        d = base / folder
+        if d.is_dir():
+            files += sorted(p for p in d.rglob('*.md')
+                            if not re.fullmatch(r'run-\d{3}', p.stem) and 'cache' not in p.relative_to(d).parts)
+    out = []
+    for f in files:
+        rel = str(f.relative_to(base))
+        if rel in known:
+            continue
+        text = f.read_text(encoding='utf-8', errors='replace')
+        title = next((l for l in text.splitlines() if l.startswith('#')), '')
+        hay = (f.stem + ' ' + title).lower()
+        kind = next((k for k, words in KIND_WORDS if any(w in hay for w in words)), '')
+        m = re.search(r'(\d{4}-\d{2}-\d{2})', f.name) or re.search(r'(\d{4}-\d{2}-\d{2})', text[:2000])
+        date = m.group(1) if m else ''
+        scope = _scope_from(config, f.stem, text)
+        out.append({'report': rel, 'kind': kind, 'scope': scope, 'date': date, 'result': _result_from(text),
+                    'ready': bool(kind and scope and date)})
+    return out
+
+
+def import_reports(base, config, apply=False):
+    """Kandidaten auflisten; mit apply=True die erkannten (ready) ohne Fingerabdruck eintragen.
+    Ergebnisse werden nie erfunden: ohne Ergebniszeile bleibt `unknown`."""
+    base = Path(base)
+    entries = load(base)
+    found = candidates(base, config, entries)
+    added = []
+    if apply:
+        for c in found:
+            if not c['ready']:
+                continue
+            entry = {'id': next_id(entries), 'kind': c['kind'], 'scope': c['scope'], 'date': c['date'],
+                     'result': c['result'], 'report': c['report'],
+                     'note': 'nachgetragen (#340) aus vorhandenem Bericht; geprüfte Fassung nicht gespeichert'}
+            entries.append(entry)
+            added.append(entry)
+        if added:
+            save(base, entries)
+    return found, added
+
+
 # ---------- Auswerten ----------
 
 def label(kind, language='de'):
@@ -281,11 +382,7 @@ def tags(base, config, unit_ids, entries=None, language='de', now_digests=None):
         return []
     now_digests = now_digests if now_digests is not None else digests(base, config, list(unit))
     latest = {}
-    for i, e in enumerate(entries):
-        ids = resolve(config, e.get('scope') or [])
-        hit = [x for x in ids if x in unit]
-        if not hit:
-            continue
+    for i, e, hit in touching(config, entries, unit):
         key = e['kind']
         rank = (str(e.get('date') or ''), i)
         if key not in latest or rank >= latest[key][0]:
@@ -299,6 +396,59 @@ def tags(base, config, unit_ids, entries=None, language='de', now_digests=None):
     return out
 
 
+def touching(config, entries, unit):
+    """[(index, eintrag, berührte_ids)] aller Einträge, die die Einheit berühren."""
+    out = []
+    for i, e in enumerate(entries):
+        hit = [x for x in resolve(config, e.get('scope') or []) if x in unit]
+        if hit:
+            out.append((i, e, hit))
+    return out
+
+
+def history(base, config, unit_ids, entries=None, language='de', now_digests=None):
+    """Frühere Prüfungen (#340): alle Einträge, die die Einheit berühren, außer dem neuesten je Prüfart;
+    neueste zuerst. Felder wie bei tags() plus CK_ID und CK_NOTE."""
+    entries = load(base) if entries is None else entries
+    lang = language if language in LABELS else 'de'
+    unit = set(unit_ids)
+    if not unit or not entries:
+        return []
+    now_digests = now_digests if now_digests is not None else digests(base, config, list(unit))
+    hits = sorted(touching(config, entries, unit), key=lambda t: (str(t[1].get('date') or ''), t[0]), reverse=True)
+    seen, out = set(), []
+    for _, e, hit in hits:
+        if e['kind'] not in seen:
+            seen.add(e['kind'])
+            continue
+        out.append(dict(localize({'CK_KIND': e['kind'], 'CK_RESULT': e['result'], 'CK_DATE': str(e.get('date') or ''),
+                                  'CK_REPORT': e.get('report') or '',
+                                  'CK_STATE': state(base, config, e, hit, now_digests),
+                                  'CK_PARTIAL': '1' if len(hit) < len(unit) else ''}, lang),
+                        CK_ID=str(e.get('id') or ''), CK_NOTE=e.get('note') or ''))
+    return out
+
+
+def history_text(items, language='de'):
+    """Textfassung „Frühere Prüfungen“: eine Zeile je Eintrag (Datum, Prüfart, Ergebnis, Bericht)."""
+    if not items:
+        return []
+    head = 'Frühere Prüfungen' if language != 'en' else 'Earlier checks'
+    lines = [f'**{head} ({len(items)}):**']
+    for t in items:
+        line = f'- {t["CK_DATE"]} · `{t["CK_TAG"]}` {t["CK_LABEL"]}: {t["CK_RESULT_TEXT"]} · {t["CK_STATE_TEXT"]}'
+        if t.get('CK_REPORT'):
+            line += f' · Bericht `{t["CK_REPORT"]}`' if language != 'en' else f' · report `{t["CK_REPORT"]}`'
+        lines.append(line)
+    return lines
+
+
+def history_json(items):
+    """Widget: frühere Prüfungen kompakt als JSON (CK_DATE, CK_TAG, CK_TEXT, CK_RESULT, CK_STATE, CK_REPORT)."""
+    keep = ('CK_DATE', 'CK_TAG', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT')
+    return json.dumps([{k: t.get(k, '') for k in keep} for t in items], ensure_ascii=False, separators=(',', ':'))
+
+
 def localize(tag, language='de'):
     """Beschriftungen eines Tags (neu) setzen; Rohwerte CK_KIND, CK_RESULT, CK_DATE, CK_STATE, CK_PARTIAL bleiben."""
     lang = language if language in LABELS else 'de'
@@ -306,6 +456,8 @@ def localize(tag, language='de'):
     st, res = tag['CK_STATE'], tag['CK_RESULT']
     mark = RESULT_MARK.get(res, '')
     suffix = {'changed': '*', 'unknown': '?'}.get(st, '')
+    if mark == '?' and suffix == '?':
+        suffix = ''
     text = (f'{name}: {RESULT_TEXT[lang].get(res, res)}, {tag["CK_DATE"]} · {STATE_TEXT[lang][st]}'
             + ((' · teilweise' if lang == 'de' else ' · partial') if tag.get('CK_PARTIAL') else ''))
     return dict(tag, CK_LABEL=name, CK_SHORT=short, CK_RESULT_TEXT=RESULT_TEXT[lang].get(res, res), CK_MARK=mark,
@@ -363,6 +515,13 @@ class Index:
     def section(self, sid):
         return tags(self.base, self.config, [sid], self.entries, self.language, self.now) if self.entries else []
 
+    def chapter_history(self, ch):
+        return history(self.base, self.config, [s['id'] for s in ch['sections']], self.entries, self.language,
+                       self.now) if self.entries else []
+
+    def section_history(self, sid):
+        return history(self.base, self.config, [sid], self.entries, self.language, self.now) if self.entries else []
+
     def recent(self, limit=3):
         return recent(self.base, self.config, self.entries, self.language, limit) if self.entries else []
 
@@ -411,6 +570,10 @@ def main(argv=None):
     ls.add_argument('--language', default='de')
     bf = sub.add_parser('backfill', help='abgeschlossene Analyseläufe nachtragen')
     bf.add_argument('project')
+    im = sub.add_parser('import', help='ältere Berichte unter analysis/ und editorial/ ohne Eintrag auflisten (#340)')
+    im.add_argument('project')
+    im.add_argument('--apply', action='store_true', help='erkannte Berichte eintragen (ohne Fingerabdruck)')
+    im.add_argument('--json', action='store_true')
     args = ap.parse_args(argv)
     from render_view import load as load_project
     base, config = load_project(args.project)
@@ -426,6 +589,27 @@ def main(argv=None):
     if args.cmd == 'backfill':
         added = backfill(base, config)
         print(f'{len(added)} Analyseläufe nachgetragen.')
+        return 0
+    if args.cmd == 'import':
+        found, added = import_reports(base, config, args.apply)
+        if args.json:
+            print(json.dumps({'candidates': found, 'added': added}, ensure_ascii=False, indent=1))
+            return 0
+        if not found:
+            print('Keine Berichte ohne Eintrag.')
+            return 0
+        for c in found:
+            what = label(c['kind'])[0] if c['kind'] else 'Prüfart ?'
+            mark = '+' if c['ready'] and args.apply else ('·' if c['ready'] else '?')
+            print(f'{mark} {c["report"]}: {what}, {", ".join(c["scope"]) or "Umfang ?"}, {c["date"] or "Datum ?"}, '
+                  f'{RESULT_TEXT["de"][c["result"]]}')
+        rest = [c for c in found if not c['ready']]
+        if args.apply:
+            print(f'{len(added)} Berichte nachgetragen.')
+        else:
+            print('Vorschlag. Eintragen mit --apply (nur vollständig erkannte, ·).')
+        if rest:
+            print(f'{len(rest)} Berichte nicht eindeutig (?): mit record … --report <bericht> --date … von Hand nachtragen.')
         return 0
     idx = Index(base, config, args.language)
     rows = [{'chapter': ch['id'], 'title': ch['title'], 'tags': idx.chapter(ch)} for ch in config['structure']['chapters']]
