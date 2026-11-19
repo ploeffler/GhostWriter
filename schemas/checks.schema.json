@@ -22,7 +22,7 @@
             "description": "book, Kapitel-, Abschnitts- oder Teil-IDs"
           },
           "date": {"type": "string", "format": "date"},
-          "result": {"enum": ["passed", "passed_with_notes", "failed", "incomplete"]},
+          "result": {"enum": ["passed", "passed_with_notes", "failed", "incomplete", "unknown"], "description": "unknown: nachgetragen, Ergebnis geht aus dem Bericht nicht hervor (#340)"},
           "commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$", "description": "geprüfte Fassung (Commit)"},
           "digests": {
             "type": "object",

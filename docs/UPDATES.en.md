@@ -39,6 +39,8 @@ The workflow checks for a book, pending changes and an available `buch/<short-ti
 
 To reverse the conversion, revert the conversion commit on the default branch. Delete the book branch only after ensuring that no subsequent work on that branch would be lost; otherwise transfer that work first.
 
+**Backfilling older check reports (#340):** The update does not read existing reports into the check log on its own, since it must not invent results. After the update, `python3 scripts/checks.py import <book>` lists reports under `analysis/` and `editorial/` without an entry as suggestions; once the user confirms in chat, `--apply` records the recognised ones (without fingerprint, state “unknown”). Earlier analysis runs are still handled by `checks.py backfill`.
+
 ## Automatic updates and limits
 
 Project settings control automatic updates. In `ghostwriter.yml`, `updates.auto: true` enables them and `false` disables them. A manual workflow run can be used to update or preview an update.

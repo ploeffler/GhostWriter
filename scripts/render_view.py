@@ -1495,11 +1495,15 @@ def chapter_view(base, config, args, cnum):
               'CHAPTER_APPROVABLE': 'true' if ch['status'] == 'ready_for_approval' and n and approved == n else '',
               'CHAPTER_REVISION_READY': 'true' if revision_ready else ''}
     chapter_checks = ck.chapter(ch) if ck else []
+    chapter_history = ck.chapter_history(ch) if ck else []   # frühere Prüfungen (#340)
     if ck:
         import checks
         values.update({'CHAPTER_CHECKS_TEXT': check_cells(chapter_checks), 'CHECKS_LEGEND': checks.LEGEND['de']})
         if chapter_checks:
             values['CHECKS_JSON'] = check_json(chapter_checks)
+        if chapter_history:
+            values['CHECKS_HISTORY_COUNT'] = len(chapter_history)
+            values['CHECKS_HISTORY_JSON'] = checks.history_json(chapter_history)
     if args.text:
         def marks(r):
             parts = [f'{MARKER_ICON[k]} {r["MARKERS_" + k.upper()]}' for k in MARKER_ICON if r['MARKERS_' + k.upper()]]
@@ -1513,6 +1517,9 @@ def chapter_view(base, config, args, cnum):
         lines += ['', f'{values["SECTION_COUNT_TEXT"]} · ✅ {values["APPROVED_COUNT_TEXT"]} freigegeben · {values["MARKER_COUNT_TEXT"]} · Kosten **{values["CHAPTER_COST"]}**', '']
         if chapter_checks:
             lines += ['🧪 **Prüfungen:** ' + ' · '.join(f'`{t["CK_TAG"]}` {t["CK_TEXT"]}' for t in chapter_checks), '']
+        if chapter_history:
+            import checks
+            lines += checks.history_text(chapter_history) + ['']
         if rows and ck:   # mit Spalte „Prüfungen“ (#331)
             lines += ['| # | Abschnitt | Marker | Kosten | Status | Prüfungen |', '|--:|---|---|--:|---|---|']
             lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {marks(r)} | {r["SECTION_COST"]} | {display_status(r["SECTION_STATUS"])} | {r["SECTION_CHECKS_TEXT"]} |' for r in rows]
@@ -1539,6 +1546,8 @@ def chapter_view(base, config, args, cnum):
     blocks = {'SECTIONS': rows}
     if chapter_checks:
         blocks['CHECKS'] = chapter_checks
+    if chapter_history:
+        blocks['CHECKS_HISTORY'] = chapter_history
     return fill('kapitelansicht.html', values, blocks)
 
 
@@ -1565,6 +1574,7 @@ def section_view(base, config, args, cnum, snum):
     hints = section_hints(base, s['id'])
     ck = check_index(base, config)
     section_checks = ck.section(s['id']) if ck else []
+    section_history = ck.section_history(s['id']) if ck else []   # frühere Prüfungen (#340)
     def nav(k):
         if 1 <= k <= len(secs):
             return secs[k - 1]['id'], f'Abschnitt {cnum}.{k} „{secs[k - 1]["title"]}“ bearbeiten'
@@ -1600,6 +1610,9 @@ def section_view(base, config, args, cnum, snum):
         if section_checks:   # Prüf-Tags (#331); keine Freigabe
             lines.append('| Prüfungen | ' + ' · '.join(f'`{t["CK_TAG"]}` {t["CK_TEXT"]}' for t in section_checks) + ' |')
         lines.append('')
+        if section_history:
+            import checks
+            lines += checks.history_text(section_history) + ['']
         if markers:
             lines += [f'**Offene Marker ({n})**'] + [f'- {MARKER_ICON[m["MARKER_TYPE"]]} {m["MARKER_LABEL"]}: {m["MARKER_TEXT"]}' for m in markers] + ['']
         else:
@@ -1631,6 +1644,11 @@ def section_view(base, config, args, cnum, snum):
         blocks['CHECKS'] = section_checks
         values['SECTION_CHECKS_TEXT'] = check_cells(section_checks)
         values['CHECKS_JSON'] = check_json(section_checks)
+    if section_history:
+        import checks
+        blocks['CHECKS_HISTORY'] = section_history
+        values['CHECKS_HISTORY_COUNT'] = len(section_history)
+        values['CHECKS_HISTORY_JSON'] = checks.history_json(section_history)
     if chars:
         blocks['ALL_CHARACTERS'] = [{'C_ID': c['id'], 'C_NAME': c['name'], 'C_ON': '1' if c['id'] in in_section else ''}
                                     for c in chars]

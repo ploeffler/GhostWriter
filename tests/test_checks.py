@@ -158,6 +158,50 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual((t[0]['CK_SHORT'], t[0]['CK_STATE']), ('ASp', 'unknown'))
         self.assertEqual(validate_project.checks_errors(self.base, self.config), [])
 
+    def test_history_of_earlier_checks(self):   # #340
+        for d, r in (('2026-11-17', 'failed'), ('2026-11-18', 'passed_with_notes')):
+            checks.record(self.base, self.config, 'quality_correction', [self.ch1['id']], r, date=d)
+        checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed', date='2026-11-16')
+        hist = checks.history(self.base, self.config, [s['id'] for s in self.ch1['sections']])
+        self.assertEqual([(h['CK_KIND'], h['CK_RESULT'], h['CK_DATE']) for h in hist],
+                         [('quality_correction', 'failed', '2026-11-17')])
+        out = render_view.chapter_view(self.base, self.config, args(), 1)
+        self.assertIn('**Frühere Prüfungen (1):**', out)
+        self.assertIn('- 2026-11-17 · `Q✗` Qualität: nicht bestanden', out)
+        chap = render_view.chapter_view(self.base, self.config, args(text=False), 1)
+        self.assertEqual(chap.data['CHECKS_HISTORY_COUNT'], 1)
+        self.assertEqual(json.loads(chap.data['CHECKS_HISTORY_JSON'])[0]['CK_TAG'], 'Q✗')
+        out = render_view.section_view(self.base, self.config, args(), 1, 1)
+        self.assertIn('Frühere Prüfungen (1)', out)
+        import render_view_en
+        data = render_view_en.prepare('kapitelansicht', chap.data, self.config, args())
+        self.assertIn('Quality: failed', json.loads(data['CHECKS_HISTORY_JSON'])[0]['CK_TEXT'])
+
+    def test_import_old_reports(self):   # #340
+        ed = Path(self.base) / 'editorial'
+        an = Path(self.base) / 'analysis'
+        ed.mkdir(parents=True, exist_ok=True)
+        an.mkdir(parents=True, exist_ok=True)
+        ch = self.ch1['id']
+        (an / f'qualitaetssicherung-{ch}-2026-11-18.md').write_text(
+            '# Qualitätssicherung\n\nErgebnis: **nicht bestanden**\n', encoding='utf-8')
+        (an / f'redaktionslauf-{ch}-2026-11-18.md').write_text('# Redaktionslauf\n\nViel bestanden im Text.\n',
+                                                                encoding='utf-8')
+        (ed / 'notizen.md').write_text('# Notizen\n', encoding='utf-8')
+        found = {c['report']: c for c in checks.candidates(self.base, self.config)}
+        q = found[f'analysis/qualitaetssicherung-{ch}-2026-11-18.md']
+        self.assertEqual((q['kind'], q['scope'], q['result'], q['ready']), ('quality_correction', [ch], 'failed', True))
+        self.assertEqual(found[f'analysis/redaktionslauf-{ch}-2026-11-18.md']['result'], 'unknown')
+        self.assertFalse(found['editorial/notizen.md']['ready'])
+        self.assertEqual(checks.load(self.base), [])        # Auflisten schreibt nichts
+        _, added = checks.import_reports(self.base, self.config, apply=True)
+        self.assertEqual(len(added), 2)
+        self.assertEqual(validate_project.checks_errors(self.base, self.config), [])
+        self.assertEqual([c['report'] for c in checks.candidates(self.base, self.config)], ['editorial/notizen.md'])
+        tags = checks.tags(self.base, self.config, [s['id'] for s in self.ch1['sections']])
+        self.assertEqual(tags[0]['CK_TAG'], 'Q?')   # gleiches Datum: später eingetragener Bericht
+        self.assertEqual(len(checks.history(self.base, self.config, [s['id'] for s in self.ch1['sections']])), 1)
+
     def test_cli(self):
         with contextlib.redirect_stdout(io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()):
             self._cli()

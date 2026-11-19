@@ -54,6 +54,10 @@ def localize_checks(data):
     if data.get('CHECKS') and all(isinstance(t, dict) and 'CK_KIND' in t for t in data['CHECKS']):   # nicht die Prüfpunkte der Freigabe
         data['CHECKS'] = [checks.localize(t, 'en') for t in data['CHECKS']]
         data['CHECKS_JSON'] = checks.as_json(data['CHECKS'])
+    if data.get('CHECKS_HISTORY'):   # frühere Prüfungen (#340)
+        data['CHECKS_HISTORY'] = [dict(checks.localize(t, 'en'), CK_ID=t.get('CK_ID', ''), CK_NOTE=t.get('CK_NOTE', ''))
+                                  for t in data['CHECKS_HISTORY']]
+        data['CHECKS_HISTORY_JSON'] = checks.history_json(data['CHECKS_HISTORY'])
     if data.get('CHECKS_RECENT'):
         data['CHECKS_RECENT_TEXT'] = checks.recent_text(data['CHECKS_RECENT'], 'en')
     if data.get('CHECKS_LEGEND'):
