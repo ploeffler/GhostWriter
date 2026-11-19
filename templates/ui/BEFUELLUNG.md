@@ -443,9 +443,11 @@ Formular „KI-Angabe im Buch“ (`render_view.py ai-disclosure`, #78; `scripts/
 
 | Platzhalter | Quelle |
 |---|---|
-| `AI_MODE`, `AI_PLACEMENT`, `AI_NAME_SERVICES`, `AI_TEXT` | `ai_disclosure.mode`, `.placement`, `.name_services` (`true`/`false`), `.text` (Vorgaben: none, imprint, false, leer) |
+| `AI_MODE`, `AI_PLACEMENT`, `AI_NAME_SERVICES`, `AI_TEXT` | `ai_disclosure.mode` (`none` wird zu `functions`), Ort (`placement`; ohne Wahl bei ausgeschaltetem Impressum `page`), `.name_services` (`true`/`false`), `.text` = bestätigter Zusatz (Vorgaben: functions, imprint, false, leer) |
+| `AI_MINIMUM` | Mindestangabe mit Autor (`minimum`, #356); steht immer im Buch |
+| `AI_FUNCTIONS` | Aufzählung im Mustersatz, kommagetrennt (`functions`) |
 | `AI_USED_TEXT` | laut Lauf-Dateien genutzte Aufgaben und Dienste (`usage`), z. B. „Recherche: Perplexity · Textentwürfe: Anthropic Claude“; leer = keine Läufe |
-| `AI_PROPOSAL_SHORT`, `AI_PROPOSAL_SHORT_NAMED`, `AI_PROPOSAL_DETAILED`, `AI_PROPOSAL_DETAILED_NAMED` | `suggest` für kurz/ausführlich ohne bzw. mit Dienstnamen; leer = keine Läufe |
+| `AI_PROPOSAL_SHORT`, `AI_PROPOSAL_SHORT_NAMED`, `AI_PROPOSAL_DETAILED`, `AI_PROPOSAL_DETAILED_NAMED` | `suggest`: Zusatz kurz/ausführlich ohne bzw. mit Dienstnamen; leer = keine Läufe |
 | `AI_PLACES_MISSING` | Orte ohne Grundlage, kommagetrennt: `foreword`/`afterword` ohne Vorwort bzw. Nachwort, `imprint` bei ausgeschaltetem Impressum |
 | `AI_LEGAL_HINT` | `LEGAL_HINT` aus `scripts/ai_disclosure.py` |
 
@@ -606,7 +608,7 @@ Formular „Analyse-Einstellungen“ (`render_view.py analysis-settings`, #299, 
 | `CHANGES_AUTO_MERGE` | `changes.auto_merge` als `true`/`false`; fehlt der Block, `false` |
 | `LIMIT_BUDGET`, `LIMIT_MINUTES` | `limits.ai_budget_monthly` bzw. `limits.actions_minutes_monthly` als Zahl; fehlt = leer (keine Prüfung) |
 | `LIMIT_SUMMARY` | Stand der Limits aus `scripts/limits.py` (`limit_summary`), z. B. „KI-Budget 62 % übrig (3,80 von 10,00 € verbraucht).“ oder „Keine Limits eingestellt.“ |
-| `AI_DISCLOSURE_TEXT` | KI-Angabe kurz, z. B. „kurz, im Impressum“, „keine“ (`ai_disc_text`) |
+| `AI_DISCLOSURE_TEXT` | KI-Angabe kurz, z. B. „kurz, im Impressum“, „nur Mindestangabe, im Impressum“ (`ai_disc_text`) |
 | `GW_VERSION_TEXT` | „Installiert: GhostWriter <version>“ aus `ghostwriter-manifest.yml`, dazu „ · zuletzt aktualisiert am TT.MM.JJJJ“ aus `.ghostwriter/update.yml` (`updated_at`), falls vorhanden |
 | `GW_UPDATE_HINT` | nur wenn `.ghostwriter/update.yml` `skipped_workflows` enthält: Hinweis auf das Secret `GHOSTWRITER_UPDATE_TOKEN` (`docs/UPDATES.md`); sonst leer |
 
@@ -636,7 +638,7 @@ Gestaltung:
 | Teil des Vor- oder Nachspanns | `T` Text ändern · `F` Titel und Ziel (Vorwort, Nachwort: dazu Verfasser, Ort und Datum) · `SE`/`SP` Schreiben erlauben bzw. sperren · `AB`/`WO` abschließen bzw. wieder öffnen · `RS`, `GS` Recherche bzw. Ghostwriting sofort (Vorwort, Prolog, Epilog, Nachwort) · `Ü` Übersicht |
 | Kapitelansicht | `N.1`–`N.M` Abschnitt öffnen · `KU` Kapitel überarbeiten (nur bei vollständigem Manuskript) · `B` Kapitel bearbeiten · `Z` Ziel, Kurzbeschreibung, Kapitelrecherche · `N` Neuer Abschnitt · `R` Abschnittsreihenfolge · `AK` Kapitel abschließen (nur wenn möglich) · `Ü` Übersicht |
 | Abschnitt | `T` Text ändern (geänderten Text schicken) · `F` Ziel, Kurzbeschreibung, Faktencheck · `SE`/`SP` Schreiben erlauben bzw. sperren · `AB`/`WO` Abschnitt abschließen bzw. wieder öffnen · `RS` Recherche sofort · `GS` Ghostwriting sofort · `N.M` vorheriger/nächster Abschnitt · `K` Zum Kapitel |
-| Formulare | `Feld: Wert` je Zeile · Ausgabeoptionen: `Ränder: klassisch`, `Formate: PDF, EPUB`, `ISBN E-Book: …` · KI-Angabe: `Angabe: kurz`, `Ort: Nachwort`, `Dienste nennen: ja`, `Text: …`, `OK` übernimmt den Vorschlag · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Buchänderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · Neues Buch: `Titel: …`, `Kurztitel: …`, `Autor: …` · Auswahl: `1b, 2a` (Frage und Buchstabe; bei Mehrfachauswahl `2a c`), eigene Antwort `1: Text`, `S` überspringt (nur wenn angeboten) · Kapitelrecherche: `Ziel: …`, `Kurzbeschreibung: …`, `Frage: …`, `Schwerpunkte: …`, `Aufgabe: Ziel|Abschnitte|Kurzbeschreibung|keine`, `Vorher: 0–3`, `Nachher: 0–3`, `VZ`/`VK` Vorschlag übernehmen, `AS 1, 3` vorgeschlagene Abschnitte anlegen · KI-Dienste: `+ id`, `- id`, `Aufgabe: id` · `X` bricht ab |
+| Formulare | `Feld: Wert` je Zeile · Ausgabeoptionen: `Ränder: klassisch`, `Formate: PDF, EPUB`, `ISBN E-Book: …` · KI-Angabe: `Angabe: kurz`, `Ort: Nachwort`, `Funktionen: Rechtschreibung, Stil`, `Dienste nennen: ja`, `Text: …`, `OK` übernimmt den Vorschlag · Reihenfolge als Nummernliste · Auflage: `OK` übernimmt den Vorschlag · Buchänderungen übernehmen: `OK` übernimmt · Freigabe: `OK` bestätigt · Neues Buch: `Titel: …`, `Kurztitel: …`, `Autor: …` · Auswahl: `1b, 2a` (Frage und Buchstabe; bei Mehrfachauswahl `2a c`), eigene Antwort `1: Text`, `S` überspringt (nur wenn angeboten) · Kapitelrecherche: `Ziel: …`, `Kurzbeschreibung: …`, `Frage: …`, `Schwerpunkte: …`, `Aufgabe: Ziel|Abschnitte|Kurzbeschreibung|keine`, `Vorher: 0–3`, `Nachher: 0–3`, `VZ`/`VK` Vorschlag übernehmen, `AS 1, 3` vorgeschlagene Abschnitte anlegen · KI-Dienste: `+ id`, `- id`, `Aufgabe: id` · `X` bricht ab |
 
 Die früheren Kürzel `FS`, `FA` und `FK` werden weiter verstanden (#292).
 
@@ -726,7 +728,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `project.settings.open` | – | Projekteinstellungen zeigen | Vorlage `projekteinstellungen` (`render_view.py project-settings`) | – |
 | `project.settings.update` | `fact_checking_default`, `typesetting` (`page_size`, `font`, `font_size`, `title_page`, `imprint`, `toc`, `toc_depth`), `updates` (`auto`), `changes` (`auto_merge`), `limits` (`ai_budget_monthly`, `actions_minutes_monthly`; `null` = entfernen), `expected_head_sha` | Einstellungen speichern | `workflow.fact_checking_default`, `typesetting`, `updates`, `changes` und `limits` in `ghostwriter.yml` schreiben, danach Projektübersicht | `PATCH …/settings` |
 | `project.ai_disclosure.open` | – | Formular „KI-Angabe im Buch“ zeigen (Befehl `KI-Angabe`, Knopf in den Projekteinstellungen, #78) | Vorlage `ki-angabe` (`render_view.py ai-disclosure`) | – |
-| `project.ai_disclosure.update` | `mode`, `placement`, `name_services`, `text` bzw. `use_suggestion`, `expected_head_sha` | KI-Angabe speichern | `scripts/ai_disclosure.py set`, ein Commit (`START.md`, „KI-Angabe im Buch“), danach das Formular | `PATCH …/settings` |
+| `project.ai_disclosure.update` | `mode` (`functions`, `short`, `detailed`, `custom`), `placement`, `name_services`, `functions` (Aufzählung, leer = Vorgabe), `text` bzw. `use_suggestion`, `expected_head_sha` | KI-Angabe speichern | `scripts/ai_disclosure.py set`, ein Commit (`START.md`, „KI-Angabe im Buch“), danach das Formular | `PATCH …/settings` |
 | `project.rules.open` | – | Auswahl „Grundregeln“ zeigen (Befehl `Grundregeln`, #300) | `scripts/rules.py . choice` als `--spec` für `render_view.py choice` | – |
 | `project.rules.update` | `step: rules`, `answers` (`facts`, `creativity`, `approvals`: Stufe), `expected_head_sha` | Stufen der Grundregeln setzen | je geänderter Gruppe `scripts/rules.py . plan`; verschärfen direkt mit `set`; **lockern nur nach eigener Bestätigung** (`START.md`, Abschnitt 3, „Stufen der Grundregeln“), dann `set … --confirmed`; danach Projekteinstellungen | `PATCH …/settings` |
 | `project.analysis.open` | – | Formular „Analyse-Einstellungen“ zeigen (Befehl `Analyse-Einstellungen`, Zeile in den Projekteinstellungen, #299) | Vorlage `analyse-einstellungen` (`render_view.py analysis-settings`) | – |

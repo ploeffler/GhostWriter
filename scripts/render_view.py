@@ -824,13 +824,14 @@ def view_choice_labels(spec, steps):
             (['note'], view_message('wizard.14.note')),
             (['questions', 0, 'header'], view_message('wizard.14.ai_disclosure.header')),
             (['questions', 0, 'text'], view_message('wizard.14.ai_disclosure.text')),
-            (['questions', 0, 'options', 0, 'label'], view_message('wizard.14.ai_disclosure.short.label')),
-            (['questions', 0, 'options', 0, 'desc'], view_message('wizard.14.ai_disclosure.short.desc')),
-            (['questions', 0, 'options', 1, 'label'], view_message('wizard.14.ai_disclosure.detailed.label')),
-            (['questions', 0, 'options', 1, 'desc'], view_message('wizard.14.ai_disclosure.detailed.desc')),
-            (['questions', 0, 'options', 2, 'label'], view_message('wizard.14.ai_disclosure.custom.label')),
-            (['questions', 0, 'options', 2, 'desc'], view_message('wizard.14.ai_disclosure.custom.desc')),
-            (['questions', 0, 'options', 3, 'label'], view_message('wizard.14.ai_disclosure.none.label')),
+            (['questions', 0, 'options', 0, 'label'], view_message('wizard.14.ai_disclosure.functions.label')),
+            (['questions', 0, 'options', 0, 'desc'], view_message('wizard.14.ai_disclosure.functions.desc')),
+            (['questions', 0, 'options', 1, 'label'], view_message('wizard.14.ai_disclosure.short.label')),
+            (['questions', 0, 'options', 1, 'desc'], view_message('wizard.14.ai_disclosure.short.desc')),
+            (['questions', 0, 'options', 2, 'label'], view_message('wizard.14.ai_disclosure.detailed.label')),
+            (['questions', 0, 'options', 2, 'desc'], view_message('wizard.14.ai_disclosure.detailed.desc')),
+            (['questions', 0, 'options', 3, 'label'], view_message('wizard.14.ai_disclosure.custom.label')),
+            (['questions', 0, 'options', 3, 'desc'], view_message('wizard.14.ai_disclosure.custom.desc')),
         ],
     }
     import copy
@@ -2432,13 +2433,12 @@ def output_view(base, config, args):
 
 
 def ai_disc_text(config):
-    s = (config.get('ai_disclosure') or {})
-    mode = s.get('mode', 'none')
-    if mode == 'none':
-        return view_message('settings.none')
+    import ai_disclosure as ad
+    s = ad.settings(config)
+    mode = s['mode']
     place = {'imprint': view_message('settings.in_imprint'), 'foreword': view_message('settings.in_foreword'), 'afterword': view_message('settings.in_afterword'), 'page': view_message('settings.own_page')}
-    return {'short': view_message('settings.short'), 'detailed': view_message('settings.detailed'), 'custom': view_message('settings.custom_text')}[mode] + ', ' + \
-        place.get(s.get('placement', 'imprint'), '') + ('' if s.get('text') else view_message('settings.wording_pending'))
+    return {'functions': view_message('settings.minimum_only'), 'short': view_message('settings.short'), 'detailed': view_message('settings.detailed'), 'custom': view_message('settings.custom_text')}[mode] + ', ' + \
+        place.get(ad.placement(config), '') + ('' if mode == 'functions' or s.get('text') else view_message('settings.wording_pending'))
 
 
 def project_settings_view(base, config, args):
@@ -2544,10 +2544,11 @@ def analysis_settings_view(base, config, args):
 
 
 def ai_disclosure_view(base, config, args):
-    """Formular „KI-Angabe im Buch“ (#78), Vorlage ki-angabe bzw. Textfassung: Einstellung, Vorschlag, Hinweis."""
+    """Formular „KI-Angabe im Buch“ (#78, #356), Vorlage ki-angabe bzw. Textfassung: Mindestangabe, Zusatz,
+    Vorschlag, Hinweis."""
     import ai_disclosure as ad
     s = ad.settings(config)
-    proposal = ad.suggest(base, config) if s['mode'] in ('none', 'short', 'detailed') else ''
+    proposal = ad.suggest(base, config) if s['mode'] in ad.SUGGESTED else ''
     used = ad.usage(base)
     names = ad.provider_names()
     if not args.text:
@@ -2555,7 +2556,8 @@ def ai_disclosure_view(base, config, args):
         missing = [k for k in ('foreword', 'afterword') if k not in kinds]
         if not (config.get('typesetting') or {}).get('imprint', True):
             missing.append('imprint')
-        values = {'AI_MODE': s['mode'], 'AI_PLACEMENT': s['placement'], 'AI_NAME_SERVICES': str(bool(s['name_services'])).lower(),
+        values = {'AI_MODE': s['mode'], 'AI_PLACEMENT': ad.placement(config),
+                  'AI_MINIMUM': ad.minimum(config), 'AI_FUNCTIONS': ', '.join(ad.functions(config)), 'AI_NAME_SERVICES': str(bool(s['name_services'])).lower(),
                   'AI_TEXT': s.get('text') or '',
                   'AI_USED_TEXT': ' · '.join(f'{view_usage_task(t)}: {view_service_names(ids, names)}' for t, ids in used.items()),
                   'AI_PROPOSAL_SHORT': ad.suggest(base, config, 'short', False),
@@ -2564,27 +2566,29 @@ def ai_disclosure_view(base, config, args):
                   'AI_PROPOSAL_DETAILED_NAMED': ad.suggest(base, config, 'detailed', True),
                   'AI_PLACES_MISSING': ','.join(missing), 'AI_LEGAL_HINT': view_message('disclosure.legal_hint')}
         return fill('ki-angabe.html', values)
-    mode_de = {'none': view_message('settings.none'), 'short': view_message('view.ai_disclosure.short_one_sentence'), 'detailed': view_message('view.ai_disclosure.detailed_per_task'), 'custom': view_message('view.ai_disclosure.custom_text')}
+    mode_de = {'functions': view_message('view.ai_disclosure.minimum_only'), 'short': view_message('view.ai_disclosure.short_one_sentence'), 'detailed': view_message('view.ai_disclosure.detailed_per_task'), 'custom': view_message('view.ai_disclosure.custom_text')}
     place_de = {'imprint': view_message('view.ai_disclosure.imprint'), 'foreword': view_message('view.ai_disclosure.foreword_at_the_end'), 'afterword': view_message('view.ai_disclosure.afterword_at_the_end'), 'page': view_message('view.ai_disclosure.separate_page_at_the_end')}
     lines = [view_message('view.ai_disclosure.ai_disclosure_in_the_book'), '',
              view_message('view.ai_disclosure.whether_and_how_the_book_discloses_ai'), '',
              view_message('settings.fields_table'), '|---|---|---|',
-             view_message('view.ai_disclosure.disclosure_none_short_detailed_custom', p_a=mode_de[s["mode"]]),
-             view_message('view.ai_disclosure.placement_imprint_foreword_afterword_separate_page', p_a=place_de[s["placement"]]),
+             view_message('view.ai_disclosure.disclosure_minimum_short_detailed_custom', p_a=mode_de[s["mode"]]),
+             view_message('view.ai_disclosure.placement_imprint_foreword_afterword_separate_page', p_a=place_de[ad.placement(config)]),
+             view_message('view.ai_disclosure.functions_list', p_a=', '.join(ad.functions(config))),
              view_message('view.ai_disclosure.name_services_yes_no', p_a=view_message('view.ai_disclosure.yes') if s["name_services"] else view_message('view.ai_disclosure.no')), '']
     if used:
         lines += [view_message('view.ai_disclosure.used_according_to_the_runs') + ' · '.join(
             f'{view_usage_task(t)}: {view_service_names(ids, names)}' for t, ids in used.items()), '']
     else:
         lines += [view_message('view.ai_disclosure.no_ai_runs_have_been_recorded_yet'), '']
-    if s['mode'] != 'none':
-        lines += [view_message('view.ai_disclosure.wording_in_the_book') + (view_message('view.ai_disclosure.confirmed') if s['text'] else view_message('view.ai_disclosure.not_confirmed_yet')) + ':**', '']
+    lines += [view_message('view.ai_disclosure.minimum_always_in_the_book'), '', '> ' + ad.minimum(config), '']
+    if s['mode'] != 'functions':
+        lines += [view_message('view.ai_disclosure.addition_in_the_book') + (view_message('view.ai_disclosure.confirmed') if s['text'] else view_message('view.ai_disclosure.not_confirmed_yet')) + ':**', '']
         lines += ['> ' + l if l else '>' for l in (s['text'] or view_message('view.ai_disclosure.empty')).splitlines()] + ['']
-    if proposal and proposal != s['text'] and s['mode'] in ('short', 'detailed'):
+    if proposal and proposal != s['text'] and s['mode'] in ad.SUGGESTED:
         lines += [view_message('view.ai_disclosure.suggestion_based_on_recorded_runs'), ''] + ['> ' + l if l else '>' for l in proposal.splitlines()] + ['']
     lines += [f"<sub>⚖️ {view_message('disclosure.legal_hint')}</sub>", '', '---',
               view_message('view.ai_disclosure.reply_with_disclosure_placement_name_services_yes')
-              + (view_message('view.ai_disclosure.ok_accepts_the_suggestion') if proposal and s['mode'] in ('short', 'detailed') else '')
+              + (view_message('view.ai_disclosure.ok_accepts_the_suggestion') if proposal and s['mode'] in ad.SUGGESTED else '')
               + view_message('view.ai_disclosure.x_cancels')]
     return '\n'.join(lines) + '\n'
 

@@ -103,12 +103,13 @@
     },
     "ai_disclosure": {
       "type": "object",
-      "description": "KI-Angabe im Buch (#78): ob und wie angegeben wird, wie bei diesem Buch KI genutzt wurde; fehlt = keine Angabe",
+      "description": "KI-Angabe im Buch (#78, #356): Die Mindestangabe (Mustersatz „Funktionen einer KI“) steht in jedem Buch; mode wählt einen Zusatz; fehlt = nur die Mindestangabe im Impressum",
       "properties": {
-        "mode": {"enum": ["none", "short", "detailed", "custom"]},
+        "mode": {"enum": ["functions", "short", "detailed", "custom", "none"], "description": "functions = nur Mindestangabe; short, detailed, custom = Mindestangabe und Zusatz; none (veraltet) gilt wie functions"},
         "placement": {"enum": ["imprint", "foreword", "afterword", "page"]},
         "name_services": {"type": "boolean"},
-        "text": {"type": "string", "description": "vom Autor bestätigter Wortlaut; nur dieser kommt ins Buch"}
+        "functions": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "Aufzählung im Mustersatz; fehlt = Rechtschreibung, Grammatik, Zeichensetzung und Quellenrecherche"},
+        "text": {"type": "string", "description": "vom Autor bestätigter Zusatz; kommt nach der Mindestangabe ins Buch"}
       },
       "additionalProperties": false
     },

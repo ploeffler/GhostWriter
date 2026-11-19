@@ -1,25 +1,42 @@
 #!/usr/bin/env python3
-"""KI-Angabe im Buch: wie bei diesem Buch KI genutzt wurde (#78).
+"""KI-Angabe im Buch: wie bei diesem Buch KI genutzt wurde (#78, #356).
 
 Aufruf:
   python scripts/ai_disclosure.py <projektordner> suggest [--mode short|detailed] [--name-services|--no-name-services]
   python scripts/ai_disclosure.py <projektordner> set [--mode M] [--placement P] [--name-services|--no-name-services]
+                                                    [--functions "A, B und C"]
                                                     [--text TEXT | --text-from-suggestion | --clear-text]
 
-Einstellung in ghostwriter.yml (fehlt = keine Angabe):
+Mindestangabe (#356): In jedem Buch steht der Mustersatz
+
+  Bei der Entstehung dieses Buchs wurden Funktionen einer KI genutzt, etwa für
+  Rechtschreibung, Grammatik, Zeichensetzung und Quellenrecherche. {Autor} hat
+  alle Inhalte geprüft und trägt die Verantwortung für den Text.
+
+mit dem Autor aus `project.author` (ohne Autor: „Alle Inhalte wurden geprüft;
+die Verantwortung für den Text trägt der Autor bzw. die Autorin.“). Er ist die
+Vorgabe für alle Bücher, braucht keine Bestätigung und keine Läufe und lässt
+sich nicht abwählen; nur die Aufzählung ist je Buch änderbar (`functions`).
+Englische Bücher (`project.language: en…`) erhalten ihn auf Englisch.
+
+Einstellung in ghostwriter.yml (fehlt = nur die Mindestangabe im Impressum):
 
   ai_disclosure:
-    mode: short            # none | short (ein Satz) | detailed (je Aufgabe) | custom (eigener Text)
+    mode: functions        # functions (nur Mindestangabe) | short (+ ein Satz) | detailed (+ je Aufgabe) | custom (+ eigener Text)
     placement: imprint     # imprint (Impressum) | foreword (Vorwort) | afterword (Nachwort) | page (eigene Seite am Ende)
-    name_services: true    # Dienste namentlich nennen
-    text: "…"              # bestätigter Wortlaut; nur dieser kommt ins Buch
+    name_services: true    # Dienste im Zusatz namentlich nennen (short, detailed)
+    functions: [Rechtschreibung, Grammatik]   # Aufzählung im Mustersatz; fehlt = FUNCTIONS
+    text: "…"              # bestätigter Zusatz; kommt nach der Mindestangabe ins Buch
 
-suggest schlägt einen Wortlaut aus den tatsächlichen Läufen vor (Recherche,
+`none` (früher „keine Angabe“) gilt wie `functions`.
+
+suggest schlägt den Zusatz aus den tatsächlichen Läufen vor (Recherche,
 Ideensammlung, Kapitelrecherche, Ghostwriting, auch in Vor- und Nachspann) mit
-den Diensten aus deren Kopf (`provider`). Ins Buch kommt nichts ungefragt: erst
-`set --text …` bzw. `--text-from-suggestion` nach der Bestätigung des Benutzers
-schreibt den Wortlaut. Ändern sich Modus oder Dienste-Nennung, gilt der Text als
-nicht mehr bestätigt und wird geleert.
+den Diensten aus deren Kopf (`provider`). Der Zusatz kommt nicht ungefragt ins
+Buch: erst `set --text …` bzw. `--text-from-suggestion` nach der Bestätigung des
+Benutzers schreibt ihn. Ändern sich Modus oder Dienste-Nennung, gilt er als
+nicht mehr bestätigt und wird geleert. Enthält ein eigener Text den Mustersatz
+schon, steht er nur einmal im Buch.
 
 Der Hinweis auf die Entwicklung von GhostWriter („Entwickelt mit Unterstützung
 von Claude …“, templates/branding.yml) ist etwas anderes und kommt nie ins Buch.
@@ -38,10 +55,15 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
 
-MODES = {'none': 'keine Angabe', 'short': 'ein Satz', 'detailed': 'je Aufgabe', 'custom': 'eigener Text'}
+MODES = {'functions': 'nur Mindestangabe', 'short': 'Mindestangabe und ein Satz',
+         'detailed': 'Mindestangabe und je Aufgabe', 'custom': 'Mindestangabe und eigener Text'}
 PLACEMENTS = {'imprint': 'im Impressum', 'foreword': 'am Ende des Vorworts', 'afterword': 'am Ende des Nachworts',
               'page': 'auf einer eigenen Seite am Ende'}
-DEFAULT = {'mode': 'none', 'placement': 'imprint', 'name_services': False, 'text': ''}
+SUGGESTED = ('short', 'detailed')   # Zusätze mit Vorschlag aus den Läufen
+# Aufzählung im Mustersatz „Funktionen einer KI“ (#356); je Buch änderbar über ai_disclosure.functions
+FUNCTIONS = ['Rechtschreibung', 'Grammatik', 'Zeichensetzung', 'Quellenrecherche']
+FUNCTIONS_EN = ['spelling', 'grammar', 'punctuation', 'source research']
+DEFAULT = {'mode': 'functions', 'placement': 'imprint', 'name_services': False, 'text': ''}
 # Lauf-Art → Aufgabe im Satz (Reihenfolge = Reihenfolge im Text)
 TASKS = {'research': 'Recherche', 'chapter_research': 'Recherche', 'brainstorming': 'Ideensammlung',
          'writing': 'Textentwürfe', 'fact_check': 'Faktenprüfung'}
@@ -56,7 +78,22 @@ LEGAL_HINT = ('Kennzeichnungspflichten (z. B. Art. 50 Abs. 4 der EU-KI-Verordnun
 def settings(config):
     s = dict(DEFAULT)
     s.update((config or {}).get('ai_disclosure') or {})
+    if s['mode'] == 'none':   # „keine Angabe“ gibt es nicht mehr (#356)
+        s['mode'] = 'functions'
     return s
+
+
+def english(config):
+    return str(((config or {}).get('project') or {}).get('language') or 'de').lower().startswith('en')
+
+
+def placement(config):
+    """Ort der Angabe; ohne eigene Wahl bei ausgeschaltetem Impressum die eigene Seite am Ende."""
+    s = settings(config)
+    explicit = 'placement' in ((config or {}).get('ai_disclosure') or {})
+    if s['placement'] == 'imprint' and not explicit and not ((config or {}).get('typesetting') or {}).get('imprint', True):
+        return 'page'
+    return s['placement']
 
 
 def provider_names():
@@ -113,35 +150,75 @@ def service_text(ids, names, dative=False):
     return join_de(named) if named else ''
 
 
+def functions(config):
+    """Aufzählung für den Mustersatz: ai_disclosure.functions, sonst die Vorgabe."""
+    items = [str(x).strip() for x in (settings(config).get('functions') or []) if str(x).strip()]
+    return items or list(FUNCTIONS_EN if english(config) else FUNCTIONS)
+
+
+def join_en(items):
+    items = list(items)
+    return items[0] if len(items) == 1 else ', '.join(items[:-1]) + ' and ' + items[-1]
+
+
+def minimum_sentence(config):
+    """Erster Satz der Mindestangabe (daran wird erkannt, ob ein eigener Text ihn schon enthält)."""
+    if english(config):
+        return f'Functions of an AI were used in creating this book, for example for {join_en(functions(config))}.'
+    return f'Bei der Entstehung dieses Buchs wurden Funktionen einer KI genutzt, etwa für {join_de(functions(config))}.'
+
+
+def minimum(config):
+    """Mindestangabe (#356): Mustersatz mit Autor; steht in jedem Buch."""
+    author = (((config or {}).get('project') or {}).get('author') or '').strip()
+    if english(config):
+        end = (f'{author} has reviewed all content and is responsible for the text.' if author
+               else 'All content has been reviewed; the author is responsible for the text.')
+    else:
+        end = (f'{author} hat alle Inhalte geprüft und trägt die Verantwortung für den Text.' if author
+               else 'Alle Inhalte wurden geprüft; die Verantwortung für den Text trägt der Autor bzw. die Autorin.')
+    return f'{minimum_sentence(config)} {end}'
+
+
 def suggest(base, config, mode=None, name_services=None):
-    """Vorgeschlagener Wortlaut (str) oder '' wenn keine KI-Läufe protokolliert sind."""
+    """Vorgeschlagener Zusatz zur Mindestangabe (str); '' ohne protokollierte KI-Läufe oder bei functions/custom."""
     s = settings(config)
-    mode = mode or (s['mode'] if s['mode'] in ('short', 'detailed') else 'short')
+    mode = mode or (s['mode'] if s['mode'] in SUGGESTED else 'short')
+    if mode not in SUGGESTED:
+        return ''
     name_services = s['name_services'] if name_services is None else name_services
     used = usage(base)
     if not used:
         return ''
-    author = (((config or {}).get('project') or {}).get('author') or '').strip()
     tasks = [t for t in dict.fromkeys(TASKS.values()) if t in used]
     names = provider_names()
-    end = (f'{author} hat alle Inhalte geprüft, überarbeitet und freigegeben und trägt die Verantwortung für den Text.'
-           if author else 'Alle Inhalte wurden geprüft, überarbeitet und freigegeben; die Verantwortung für den Text '
-                          'trägt der Autor bzw. die Autorin.')
     if mode == 'detailed':
-        lines = ['Bei der Entstehung dieses Buchs wurden KI-Werkzeuge eingesetzt:', '']
+        lines = ['Darüber hinaus wurden KI-Werkzeuge eingesetzt:', '']
         for t in tasks:
             who = service_text(used[t], names, dative=True) if name_services else ''
             lines.append(f'- {t}' + (f' (mit {who})' if who else ''))
-        return '\n'.join(lines + ['', end])
+        return '\n'.join(lines)
     who = service_text(set().union(*used.values()), names) if name_services else ''
-    first = (f'Bei der Entstehung dieses Buchs wurden KI-Werkzeuge für {join_de(tasks)} eingesetzt'
-             + (f' ({who})' if who else '') + '.')
-    return f'{first} {end}'
+    return (f'Darüber hinaus wurden KI-Werkzeuge für {join_de(tasks)} eingesetzt'
+            + (f' ({who})' if who else '') + '.')
+
+
+def book_text(config):
+    """Wortlaut im Buch: Mindestangabe, danach ein bestätigter Zusatz (ohne Doppelung des Mustersatzes)."""
+    s = settings(config)
+    extra = (s.get('text') or '').strip() if s['mode'] != 'functions' else ''
+    norm = lambda t: ' '.join(t.split())
+    if extra and norm(minimum_sentence(config)) in norm(extra):
+        return extra
+    return minimum(config) + (f'\n\n{extra}' if extra else '')
 
 
 def block(s):
     out = ['ai_disclosure:', f'  mode: {s["mode"]}', f'  placement: {s["placement"]}',
            f'  name_services: {"true" if s["name_services"] else "false"}']
+    if s.get('functions'):
+        out.append('  functions: ' + yaml.safe_dump([str(x) for x in s['functions']], allow_unicode=True, width=10**6,
+                                                    default_flow_style=True).rstrip('\n'))
     if s.get('text'):
         out.append('  text: ' + yaml.safe_dump(s['text'], allow_unicode=True, width=10**6, default_style='"').rstrip('\n'))
     return '\n'.join(out) + '\n'
@@ -157,15 +234,29 @@ def write_settings(base, s):
     else:
         new = text.rstrip('\n') + '\n' + new_block
     check = (yaml.safe_load(new) or {}).get('ai_disclosure') or {}
-    if {k: check.get(k, DEFAULT[k]) for k in DEFAULT} != {k: s.get(k, DEFAULT[k]) for k in DEFAULT}:
+    keys = list(DEFAULT) + ['functions']
+    if {k: check.get(k, DEFAULT.get(k)) or None for k in keys} != {k: s.get(k, DEFAULT.get(k)) or None for k in keys}:
         raise SystemExit('ghostwriter.yml ließ sich nicht sicher ändern; bitte von Hand eintragen.')
     path.write_text(new, encoding='utf-8')
 
 
-def apply(base, mode=None, placement=None, name_services=None, text=None, from_suggestion=False, clear=False):
+def parse_functions(value):
+    """„Rechtschreibung, Grammatik und Stil“ → Liste; leer = Vorgabe."""
+    if isinstance(value, (list, tuple)):
+        items = value
+    else:
+        items = re.split(r'\s*(?:,|;|\bund\b)\s*', str(value or ''))
+    return [str(x).strip() for x in items if str(x).strip()]
+
+
+def apply(base, mode=None, placement=None, name_services=None, text=None, from_suggestion=False, clear=False,
+          functions_=None):
     config = yaml.safe_load((base / 'ghostwriter.yml').read_text(encoding='utf-8'))
     s = settings(config)
     before = (s['mode'], s['name_services'])
+    if mode == 'none':
+        raise SystemExit('„Keine Angabe“ gibt es nicht mehr: Die Mindestangabe steht in jedem Buch (#356). '
+                         'Für nur die Mindestangabe: --mode functions')
     if mode:
         if mode not in MODES:
             raise SystemExit(f'Modus {mode} unbekannt; möglich: {", ".join(MODES)}')
@@ -176,15 +267,21 @@ def apply(base, mode=None, placement=None, name_services=None, text=None, from_s
         s['placement'] = placement
     if name_services is not None:
         s['name_services'] = name_services
+    if functions_ is not None:
+        s['functions'] = parse_functions(functions_)
+        if not s['functions']:
+            s.pop('functions', None)
     if (s['mode'], s['name_services']) != before:
-        s['text'] = ''   # Wortlaut bei jeder Änderung neu bestätigen
-    if s['mode'] == 'none' or clear:
+        s['text'] = ''   # Zusatz bei jeder Änderung neu bestätigen
+    if s['mode'] == 'functions' or clear:
         s['text'] = ''
-    if from_suggestion:
-        s['text'] = suggest(base, config, s['mode'] if s['mode'] in ('short', 'detailed') else 'short', s['name_services'])
+    if from_suggestion and s['mode'] != 'functions':
+        if s['mode'] not in SUGGESTED:
+            raise SystemExit('Für einen eigenen Text gibt es keinen Vorschlag; bitte --text verwenden.')
+        s['text'] = suggest(base, config, s['mode'], s['name_services'])
         if not s['text']:
-            raise SystemExit('Keine KI-Läufe protokolliert; es gibt nichts vorzuschlagen.')
-    if text is not None:
+            raise SystemExit('Keine KI-Läufe protokolliert; es gibt keinen Zusatz vorzuschlagen.')
+    if text is not None and s['mode'] != 'functions':
         s['text'] = text.strip()
     write_settings(base, s)
     return s
@@ -193,25 +290,22 @@ def apply(base, mode=None, placement=None, name_services=None, text=None, from_s
 def problems(config, has_part):
     """Hinderungsgründe für eine Auflage. has_part(kind) -> bool: freigegebener Teil vorhanden."""
     s = settings(config)
-    if s['mode'] == 'none':
-        return []
     out = []
-    if not s.get('text'):
-        out.append('KI-Angabe: Der Wortlaut ist noch nicht bestätigt (Befehl „KI-Angabe“).')
-    if s['placement'] == 'imprint' and not ((config.get('typesetting') or {}).get('imprint', True)):
+    if s['mode'] != 'functions' and not s.get('text'):
+        out.append('KI-Angabe: Der Zusatz zur Mindestangabe ist noch nicht bestätigt (Befehl „KI-Angabe“; '
+                   'oder „nur Mindestangabe“ wählen).')
+    place = placement(config)
+    if place == 'imprint' and not ((config.get('typesetting') or {}).get('imprint', True)):
         out.append('KI-Angabe: Ort ist das Impressum, das Impressum ist aber ausgeschaltet (Projekteinstellungen).')
-    if s['placement'] in ('foreword', 'afterword') and not has_part(s['placement']):
-        name = 'Vorwort' if s['placement'] == 'foreword' else 'Nachwort'
+    if place in ('foreword', 'afterword') and not has_part(place):
+        name = 'Vorwort' if place == 'foreword' else 'Nachwort'
         out.append(f'KI-Angabe: Ort ist das {name}, es gibt aber kein freigegebenes {name}.')
     return out
 
 
 def for_book(config):
-    """(Ort, Wortlaut) für den Satz oder None."""
-    s = settings(config)
-    if s['mode'] == 'none' or not s.get('text'):
-        return None
-    return s['placement'], s['text']
+    """(Ort, Wortlaut) für den Satz; die Mindestangabe gibt es immer (#356)."""
+    return placement(config), book_text(config)
 
 
 def main(argv):
@@ -222,6 +316,7 @@ def main(argv):
     ap.add_argument('--placement')
     ap.add_argument('--name-services', dest='name_services', action='store_true', default=None)
     ap.add_argument('--no-name-services', dest='name_services', action='store_false')
+    ap.add_argument('--functions', help='Aufzählung für den Mustersatz „Funktionen einer KI“; leer = Vorgabe')
     ap.add_argument('--text')
     ap.add_argument('--text-from-suggestion', action='store_true')
     ap.add_argument('--clear-text', action='store_true')
@@ -229,12 +324,14 @@ def main(argv):
     base = Path(a.project)
     config = yaml.safe_load((base / 'ghostwriter.yml').read_text(encoding='utf-8'))
     if a.cmd == 'suggest':
-        text = suggest(base, config, a.mode, a.name_services)
-        print(text or 'Keine KI-Läufe protokolliert; Vorschlag: keine Angabe.')
+        print(minimum(config))
+        if a.mode != 'functions':
+            text = suggest(base, config, a.mode, a.name_services)
+            print('\n' + text if text else '\n(Keine KI-Läufe protokolliert; kein Zusatz vorgeschlagen.)')
         return 0
-    s = apply(base, a.mode, a.placement, a.name_services, a.text, a.text_from_suggestion, a.clear_text)
-    print(f'✓ KI-Angabe: {MODES[s["mode"]]}' + ('' if s['mode'] == 'none' else f', {PLACEMENTS[s["placement"]]}')
-          + ('' if s['mode'] == 'none' else (', Wortlaut bestätigt' if s['text'] else ', Wortlaut noch nicht bestätigt')))
+    s = apply(base, a.mode, a.placement, a.name_services, a.text, a.text_from_suggestion, a.clear_text, a.functions)
+    print(f'✓ KI-Angabe: {MODES[s["mode"]]}, {PLACEMENTS[s["placement"]]}'
+          + ('' if s['mode'] == 'functions' else (', Zusatz bestätigt' if s['text'] else ', Zusatz noch nicht bestätigt')))
     print('Commit-Nachricht: KI-Angabe geändert')
     return 0
 

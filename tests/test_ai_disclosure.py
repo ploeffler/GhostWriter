@@ -48,14 +48,15 @@ class AiDisclosureTest(Base):
         base = Path(self.base.parent) / 'leer'
         shutil.copytree(ROOT / 'tests/fixtures/adhs', base)
         self.assertEqual(ai_disclosure.suggest(base, load(base)[1]), '')
+        # Mindestangabe gibt es trotzdem (#356)
+        self.assertEqual(ai_disclosure.for_book(load(base)[1]), ('imprint', ai_disclosure.minimum(load(base)[1])))
 
     def test_suggestion_from_runs(self):
         cfg = self.config()
         self.assertEqual(ai_disclosure.usage(self.base),
                          {'Recherche': {'perplexity'}, 'Textentwürfe': {'anthropic', 'chat'}})   # failed zählt nicht
         short = ai_disclosure.suggest(self.base, cfg, 'short', name_services=False)
-        self.assertTrue(short.startswith('Bei der Entstehung dieses Buchs wurden KI-Werkzeuge für Recherche und '
-                                         'Textentwürfe eingesetzt.'))
+        self.assertEqual(short, 'Darüber hinaus wurden KI-Werkzeuge für Recherche und Textentwürfe eingesetzt.')
         self.assertNotIn('Perplexity', short)
         named = ai_disclosure.suggest(self.base, cfg, 'short', name_services=True)
         self.assertIn('(Anthropic Claude, Perplexity und ein Chat-Assistent)', named)
@@ -81,8 +82,10 @@ class AiDisclosureTest(Base):
         self.assertEqual(self.config()['ai_disclosure'].get('text', ''), '')
         ai_disclosure.apply(self.base, mode='custom', text='Mit KI recherchiert: "ja".\nZweite Zeile.')
         self.assertEqual(self.config()['ai_disclosure']['text'], 'Mit KI recherchiert: "ja".\nZweite Zeile.')
-        ai_disclosure.apply(self.base, mode='none')
-        self.assertEqual(self.config()['ai_disclosure'], {'mode': 'none', 'placement': 'imprint', 'name_services': False})
+        with self.assertRaises(SystemExit):   # „keine Angabe“ gibt es nicht mehr (#356)
+            ai_disclosure.apply(self.base, mode='none')
+        ai_disclosure.apply(self.base, mode='functions')
+        self.assertEqual(self.config()['ai_disclosure'], {'mode': 'functions', 'placement': 'imprint', 'name_services': False})
 
     def test_problems_block_edition(self):
         approve_chapter_1(self.base)
@@ -91,7 +94,8 @@ class AiDisclosureTest(Base):
             return assemble.problems(assemble.book_parts(self.base, cfg), cfg, assemble.matter_parts(self.base, cfg))
         self.assertEqual(found(), [])
         ai_disclosure.apply(self.base, mode='short', placement='foreword')
-        self.assertEqual(found(), ['KI-Angabe: Der Wortlaut ist noch nicht bestätigt (Befehl „KI-Angabe“).',
+        self.assertEqual(found(), ['KI-Angabe: Der Zusatz zur Mindestangabe ist noch nicht bestätigt (Befehl '
+                                   '„KI-Angabe“; oder „nur Mindestangabe“ wählen).',
                                    'KI-Angabe: Ort ist das Vorwort, es gibt aber kein freigegebenes Vorwort.'])
         ai_disclosure.apply(self.base, text='Mit KI.')
         matter.add(self.base, 'foreword')
@@ -122,12 +126,83 @@ class AiDisclosureTest(Base):
         run = lambda *a: subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), *a, '--text'],
                                         capture_output=True, text=True, check=True).stdout
         form = run('ai-disclosure')
-        self.assertIn('| Angabe | kurz (ein Satz) |', form)
+        self.assertIn('| Angabe | dazu kurz (ein Satz) |', form)
+        self.assertIn('**Mindestangabe (steht immer im Buch):**\n\n> Bei der Entstehung dieses Buchs wurden Funktionen '
+                      'einer KI genutzt', form)
         self.assertIn('noch nicht bestätigt', form)
-        self.assertIn('**Vorschlag aus den Läufen:**', form)
+        self.assertIn('**Vorschlag für den Zusatz aus den Läufen:**', form)
         self.assertIn('keine Rechtsberatung', form)
         self.assertIn('| KI-Angabe im Buch | kurz, im Impressum (Wortlaut offen) |', run('project-settings'))
-        self.assertIn('Soll im Buch stehen, wie bei diesem Buch KI genutzt wurde?', run('choice', 'wizard.14'))
+        wizard = run('choice', 'wizard.14')
+        self.assertIn('Soll zur Mindestangabe noch etwas dazukommen?', wizard)
+        self.assertIn('Nur Mindestangabe', wizard)
+        self.assertNotIn('Keine Angabe', wizard)
+
+
+class MinimumTest(Base):
+    """Mindestangabe „Funktionen einer KI“ (#356): Vorgabe für alle Bücher, nicht abwählbar."""
+    SENTENCE = ('Bei der Entstehung dieses Buchs wurden Funktionen einer KI genutzt, etwa für Rechtschreibung, '
+                'Grammatik, Zeichensetzung und Quellenrecherche.')
+
+    def with_author(self, name='Erika Muster'):
+        cfg = self.config()
+        cfg['project']['author'] = name
+        return cfg
+
+    def test_default_without_settings_and_runs(self):
+        cfg = self.with_author()
+        cfg.pop('ai_disclosure', None)
+        self.assertEqual(ai_disclosure.for_book(cfg), ('imprint', self.SENTENCE + ' Erika Muster hat alle Inhalte '
+                                                       'geprüft und trägt die Verantwortung für den Text.'))
+        self.assertEqual(ai_disclosure.problems(cfg, lambda k: False), [])
+        cfg['project']['author'] = ''
+        self.assertTrue(ai_disclosure.minimum(cfg).endswith('Alle Inhalte wurden geprüft; die Verantwortung für den '
+                                                            'Text trägt der Autor bzw. die Autorin.'))
+
+    def test_old_none_counts_as_minimum(self):
+        cfg = self.with_author()
+        cfg['ai_disclosure'] = {'mode': 'none', 'placement': 'page', 'text': 'alt'}
+        self.assertEqual(ai_disclosure.for_book(cfg), ('page', ai_disclosure.minimum(cfg)))
+
+    def test_addition_follows_minimum(self):
+        cfg = self.with_author()
+        cfg['ai_disclosure'] = {'mode': 'short', 'text': 'Darüber hinaus wurden KI-Werkzeuge für Recherche eingesetzt.'}
+        self.assertEqual(ai_disclosure.for_book(cfg)[1], ai_disclosure.minimum(cfg)
+                         + '\n\nDarüber hinaus wurden KI-Werkzeuge für Recherche eingesetzt.')
+        cfg['ai_disclosure'] = {'mode': 'custom', 'text': self.SENTENCE + ' Erika hat alles geprüft.'}   # schon enthalten
+        self.assertEqual(ai_disclosure.for_book(cfg)[1], self.SENTENCE + ' Erika hat alles geprüft.')
+
+    def test_functions_list_and_english(self):
+        ai_disclosure.apply(self.base, functions_='Rechtschreibung, Stil und Übersetzung')
+        cfg = self.config()
+        self.assertEqual(cfg['ai_disclosure']['functions'], ['Rechtschreibung', 'Stil', 'Übersetzung'])
+        self.assertIn('etwa für Rechtschreibung, Stil und Übersetzung.', ai_disclosure.for_book(cfg)[1])
+        ai_disclosure.apply(self.base, functions_='')   # leer = Vorgabe
+        self.assertNotIn('functions', self.config()['ai_disclosure'])
+        cfg = self.with_author('Jane Doe')
+        cfg['project']['language'] = 'en'
+        self.assertEqual(ai_disclosure.minimum(cfg), 'Functions of an AI were used in creating this book, for example '
+                         'for spelling, grammar, punctuation and source research. Jane Doe has reviewed all content '
+                         'and is responsible for the text.')
+
+    def test_imprint_off_falls_back_to_page(self):
+        cfg = self.config()
+        cfg.pop('ai_disclosure', None)
+        cfg['typesetting'] = {'imprint': False}
+        self.assertEqual(ai_disclosure.for_book(cfg)[0], 'page')
+        self.assertEqual(ai_disclosure.problems(cfg, lambda k: False), [])
+        cfg['ai_disclosure'] = {'placement': 'imprint'}   # ausdrücklich gewählt: Hinweis
+        self.assertEqual(len(ai_disclosure.problems(cfg, lambda k: False)), 1)
+
+    def test_widget_minimum(self):
+        import json
+        import re
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'ai-disclosure'],
+                             capture_output=True, text=True, check=True).stdout
+        data = json.loads(re.search(r'GW\.render\("ki-angabe",(.*)\)</script>', out).group(1).replace('<\\/', '</'))
+        self.assertEqual(data['AI_MODE'], 'functions')
+        self.assertTrue(data['AI_MINIMUM'].startswith(self.SENTENCE))
+        self.assertEqual(data['AI_FUNCTIONS'], 'Rechtschreibung, Grammatik, Zeichensetzung, Quellenrecherche')
 
 
 @unittest.skipUnless(shutil.which('pandoc') and shutil.which('xelatex') and shutil.which('pdftotext'),
@@ -168,7 +243,7 @@ class AiDisclosureWidgetTest(Base):
         self.assertEqual((data['AI_MODE'], data['AI_PLACEMENT'], data['AI_NAME_SERVICES']), ('short', 'foreword', 'true'))
         self.assertIn('Perplexity', data['AI_PROPOSAL_SHORT_NAMED'])
         self.assertNotIn('Perplexity', data['AI_PROPOSAL_SHORT'])
-        self.assertTrue(data['AI_PROPOSAL_DETAILED'].startswith('Bei der Entstehung dieses Buchs wurden KI-Werkzeuge eingesetzt:'))
+        self.assertTrue(data['AI_PROPOSAL_DETAILED'].startswith('Darüber hinaus wurden KI-Werkzeuge eingesetzt:'))
         self.assertEqual(data['AI_PLACES_MISSING'], 'foreword,afterword')
         settings = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'project-settings'],
                                   capture_output=True, text=True, check=True).stdout
