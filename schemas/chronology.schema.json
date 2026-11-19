@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/chronology.schema.json",
+  "title": "Chronologie eines Buchs aus Unterlagen und Recherche (story/chronology.yml, #354)",
+  "description": "Arbeitsmittel für die Planung neben der Text-Zeitleiste (story/timeline.yml): was wann geschah, mit Belegstand und Quelle. Nie Teil des Buchs.",
+  "type": "object",
+  "required": ["entries"],
+  "$defs": {
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12][0-9]|3[01]))?)?$",
+      "description": "ISO-Datum, auch nur Jahr (1944) oder Monat (1944-05)"
+    }
+  },
+  "properties": {
+    "entries": {
+      "type": "array",
+      "description": "Einträge in beliebiger Reihenfolge; die Ansicht sortiert nach Datum",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "what", "status"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^chr-[0-9]{3,}$"},
+          "kind": {
+            "enum": ["event", "span", "birth", "death"],
+            "description": "Ereignis, Lebensabschnitt bzw. Zeitspanne (from/to), Geburt, Tod (Geburt und Tod mit genau einer Figur)"
+          },
+          "date": {"$ref": "#/$defs/date", "description": "bei event, birth, death"},
+          "from": {"$ref": "#/$defs/date", "description": "bei span: Beginn"},
+          "to": {"$ref": "#/$defs/date", "description": "bei span: Ende; fehlt = noch offen bzw. unbekannt"},
+          "date_text": {"type": "string", "description": "Anzeige wie überliefert, z. B. „um 1944“"},
+          "estimated": {"type": "boolean", "description": "Datum geschätzt bzw. erschlossen"},
+          "what": {"type": "string", "minLength": 1},
+          "status": {
+            "enum": ["documented", "reported", "uncertain", "invented"],
+            "description": "belegt, Angabe bzw. Erinnerung, unsicher bzw. widersprüchlich, Romanfreiheit"
+          },
+          "source": {"type": "string", "description": "Quelle: Datei im Buch (z. B. research/sources.md, chapters/…/research/run-001.md, conversations/<sitzung>/), Dokument oder Gespräch"},
+          "characters": {"type": "array", "items": {"type": "string", "pattern": "^char-[a-z0-9][a-z0-9-]*$"}},
+          "place": {"type": "string", "description": "ID aus story/places.yml (pl-…) oder Ortsname"},
+          "chapter": {"type": "string", "description": "ID des Kapitels, in dem es erzählt wird bzw. werden soll"},
+          "age": {"type": "integer", "minimum": 0, "maximum": 150, "description": "genanntes Alter der ersten Figur in characters zu diesem Zeitpunkt"},
+          "same_as": {"type": "string", "pattern": "^chr-[0-9]{3,}$", "description": "anderer Eintrag zum selben Ereignis (andere Quelle, anderes Datum)"},
+          "note": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

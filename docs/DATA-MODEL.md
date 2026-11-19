@@ -31,7 +31,7 @@ repository/
 │   └── danksagung.md
 ├── cover/                 # Umschlag (#68): Bilder, rueckseite.md (Klappentext, Autorentext)
 ├── characters/            # Figuren (#53), je Figur char-<name>.md; nie im Buch
-├── story/                 # Schauplätze (places.yml), Zeitleiste (timeline.yml), Hinweise (hints.yml), #124; nie im Buch
+├── story/                 # Schauplätze (places.yml), Zeitleiste (timeline.yml), Hinweise (hints.yml), #124; Chronologie (chronology.yml), #354; nie im Buch
 ├── editorial/             # Prüfberichte und Prüfprotokoll checks.yml (#331); nie im Buch
 ├── ghostwriter-index.json # Übersichtsdatei, erzeugt von scripts/build_index.py (nicht von Hand ändern)
 ├── chapters/
@@ -510,6 +510,7 @@ Die Abschnittssumme wird aus den Einträgen berechnet. Die Kapitelsumme ist die 
 
 - `story/places.yml` (Schema `schemas/places.schema.json`): `places` = Liste mit `id` (`pl-<slug>`), `name`, `aliases`, `kind` (Art des Orts), `short` (ein Satz aus dem Text), `sections` (IDs der Abschnitte bzw. Teile).
 - `story/timeline.yml` (Schema `schemas/timeline.schema.json`): `events` in Buchreihenfolge mit `id` (`ev-NNN`), `section` (ID), `when` (Zeitangabe wie im Text), `what`, `quote` (Fundstelle); `notes` = Hinweise zur zeitlichen Abfolge mit `kind` (`jump`, `contradiction`, `unclear`), `text`, `events` (IDs), `sections`.
+- `story/chronology.yml` (Schema `schemas/chronology.schema.json`, #354): Chronologie aus Unterlagen und Recherche, unabhängig vom Manuskript. `entries` = Liste mit `id` (`chr-NNN`), `kind` (`event` Ereignis, `span` Zeitspanne bzw. Lebensabschnitt, `birth`, `death`), `date` bzw. bei `span` `from`/`to` (ISO, auch nur Jahr `1944` oder Monat `1944-05`; ohne `to` offen), `date_text` (Anzeige wie überliefert), `estimated`, `what`, `status` (`documented` belegt, `reported` Angabe bzw. Erinnerung, `uncertain` unsicher, `invented` Romanfreiheit), `source` (Datei oder Gespräch), optional `characters` (IDs), `place` (`pl-…` aus `places.yml` oder Name), `chapter` (ID), `age` (Alter der ersten Figur), `same_as` (anderer Eintrag zum selben Ereignis), `note`. `validate_project.py` prüft Schema, IDs, Bezüge und Datumsangaben; `scripts/chronology.py check` gibt Hinweise ohne KI (ungenaue Daten zählen als Zeitraum).
 - `story/hints.yml` (Schema `schemas/hints.schema.json`): `hints` = Hinweise zu Abschnitten mit `id` (`hi-NNN`), `section` (ID), `source` (`language`), `kind` (`long_sentence`, `repetition`, `same_start`, `filler`, `ai_pattern` (KI-typisches Muster, #305); mit LanguageTool, #280: `spelling`, `grammar`, `punctuation`, `typography`), `text`, `quote`; ein neuer Lauf ersetzt die Hinweise der Abschnitte, die er gelesen hat. Das Abschnittsformular zeigt sie; am Text ändert sich nichts.
 
 Der optionale [Buchgedächtnis-Abgleich](BUCHGEDAECHTNIS.md) liest vorhandene
