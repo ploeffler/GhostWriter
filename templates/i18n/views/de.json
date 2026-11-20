@@ -743,6 +743,7 @@
   "view.character_suggest.already_exists": "schon da: {p_a}",
   "view.character_suggest.background_run_from": "Hintergrundlauf {p_a} vom {p_b}",
   "view.analysis_suggest.background_run_from": "Hintergrundlauf {p_a} vom {p_b}",
+  "view.analysis_suggest.import_run_from": "Import {p_a} vom {p_b} (ohne KI)",
   "view.summaries_suggest.current": " *(bisher: {p_a})*",
   "view.summaries_suggest.currently_empty": " *(bisher leer)*",
   "view.summaries_suggest.summary": "- Kurz: {p_a}",
