@@ -91,7 +91,7 @@ Der Weg zu v0.5 ist in fünf Stufen geteilt. Jede endet mit einer Abnahme im Cha
 | v0.9 | Vorschlag, keine Zusage außer der Website: Deutsch/Englisch, Bedienglossar, ehrliche Kosten- und Limitangaben, zentrale Dokumentationswebsite mit Suche ([Ausblick](AUSBLICK-v1.0.md)) |
 | v1.0 | Vollständiger Buchworkflow in ChatGPT, Codex, Claude und Open WebUI; Standabgleich, beschlossene Sitzungssicherung, Bilder/Referenzen/Bildrecherche, Import und Chat-Analysen, Deutsch/Englisch, Datenseite und vorhandener Profiler. Keine eigene Web-App, kein eigener Verwaltungsdienst, keine KI-Anbieter-API-Anbindungen. Maßgeblich: [Beschlüsse D01–D32](ENTSCHEIDUNGEN-v1.0.md). |
 | v1.1 | Externe DOCX-Bearbeitung mit Checkout, Buchsperre und kontrollierter Rückführung (#209, D17) |
-| v1.5 | Vorwort, Nachwort, Glossar (#58); Übersetzung des Buchs mit Auflagen je Sprache (#75) |
+| v1.5 | Vorwort, Nachwort, Glossar (#58); Übersetzung des Buchs mit Auflagen je Sprache (#75); eigene Ansicht für das Figurengespräch (#431) |
 
 Jeder Schritt, der die Datenstruktur ändert, liefert eine Migration mit (#59); Doku und Programm prüft `scripts/check_docs.py` in `validate.yml`.
 

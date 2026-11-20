@@ -323,6 +323,14 @@ Vom Benutzer mit „so machen wir das“ bestätigt:
 - Entwicklungsskills können nach Bedarf lokal eingesetzt werden und sind kein an eine Produktversion gebundenes Liefermerkmal.
 - Fachliche Regeln bleiben in einer gemeinsamen Quelle; Skill-Einstiege verweisen darauf. Buchinhalte und individuelle Vorgaben bleiben im Buchprojekt. Normale Buchaufträge sollen ohne Kenntnis von Skill-Namen funktionieren.
 
+## Beschluss vom 20. November 2026: Figurengespräch
+
+Vom Benutzer nach der Aufwandsanalyse bestätigt („Stufe 1: sofort, Stufe 2: Issue, Stufe 3: v1.5“); Zustimmung zu zusätzlichem Umfang nach D28:
+
+- **Stufe 1, sofort:** Gesprächsmodus mit einer Figur im Chat (#432): Rolle aus dem Figurenprofil, nur lesend, Erkenntnisse nur auf ausdrückliche Auswahl ins Profil.
+- **Stufe 2:** Wissensstand der Figur bis zu einer gewählten Stelle als Issue (#430), ohne Versionszusage; Schemafrage dort offen.
+- **Stufe 3, v1.5:** Eigene Gesprächsansicht als Widget (#431), mit Abnahme in allen vier Umgebungen nach D05.
+
 Bestätigte Planung, noch keine Umsetzung oder praktische Abnahme. Keine GitHub-Übertragung durch diesen Beschluss beauftragt.
 
 

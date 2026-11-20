@@ -19,6 +19,7 @@ Schicke **Hilfe** im Chat. Du erhältst eine kurze Befehlsübersicht und die Kü
 | `Session übernehmen` | Änderungspaket zur Sitzung prüfen, bei Fehlern analysieren und sichere Reparatur versuchen, erneut prüfen und übernehmen |
 | `Änderungen übernehmen` | Die Bestätigung für die gesammelten Buchänderungen öffnen; erst die eindeutige Bestätigung übernimmt das gezeigte Paket |
 | `Figuren` oder `Figuren vorschlagen` | Figuren anzeigen oder Vorschläge aus dem Text erarbeiten |
+| `Figurengespräch <Name>`, `Gespräch beenden` | Im Chat mit einer Figur sprechen; nichts wird gespeichert, Neues kommt nur auf deine Auswahl ins Figurenprofil |
 | `Zeitleiste` | Chronologie aus Unterlagen und Recherche, mit Hinweisen, wo Daten nicht zusammenpassen |
 | `Bilder 2.3` | Bilder des Abschnitts verwalten |
 | `Ausgabe` oder `Umschlag` | Ausgabeoptionen öffnen |

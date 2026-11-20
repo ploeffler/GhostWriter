@@ -19,6 +19,7 @@ Enter **Help** in the chat for a short list of commands and shortcuts for the cu
 | `Merge session backup` | Check the session package, diagnose errors, attempt safe repair, recheck and merge |
 | `Apply changes` | Open confirmation for collected book changes; only explicit confirmation merges the displayed package |
 | `Characters` or `Suggest characters` | Show characters or suggest them from the text |
+| `Talk to <Name>`, `End conversation` | Talk to a character in the chat; nothing is saved, new details go into the character profile only if you select them |
 | `Timeline` (`Zeitleiste`) | Chronology from notes and research, with hints where dates do not fit together |
 | `Images 2.3` | Manage section images |
 | `Output` or `Cover` | Open output options |

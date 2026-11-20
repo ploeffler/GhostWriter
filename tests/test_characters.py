@@ -73,6 +73,26 @@ class CharacterTest(unittest.TestCase):
         sec = (self.base / config['structure']['chapters'][0]['sections'][0]['path']).read_text(encoding='utf-8')
         self.assertNotIn('characters:', sec)
 
+    def test_profile_for_character_conversation(self):
+        self.add_three()
+        characters.update(self.base, 'opi', {'voice': 'bedächtig', 'relations': [{'to': 'char-strolchi', 'kind': 'Besitzer'}],
+                                             'description': 'Lebt allein am Waldrand.'})
+        characters.assign(self.base, '1.1', ['Opi'])
+        before = {p: p.read_bytes() for p in self.base.rglob('*') if p.is_file()}
+        text = characters.profile(self.base, 'Opi')
+        self.assertIn('### Opi (Nebenfigur)', text)
+        self.assertIn('- Sprechweise: bedächtig', text)
+        self.assertIn('- Beziehung: Besitzer von Strolchi', text)
+        self.assertIn('Lebt allein am Waldrand.', text)
+        self.assertRegex(text, r'## Kommt vor in\n\n- 1\.1 „')
+        self.assertIn('- noch keinem Abschnitt zugeordnet', characters.profile(self.base, 'char-wolf'))
+        self.assertEqual({p: p.read_bytes() for p in self.base.rglob('*') if p.is_file()}, before)   # nur lesend
+        with self.assertRaises(SystemExit):
+            characters.profile(self.base, 'Niemand')
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/characters.py'), str(self.base), 'profile', 'Opi'],
+                             capture_output=True, text=True, check=True).stdout
+        self.assertEqual(out, text)
+
     def test_add_long_short_and_name_stay_one_line(self):
         """#263: lange Kurzbeschreibung und langer Name nicht umbrechen."""
         name = 'Die Frau im lila Steppmantel, die jeden Morgen am Marktplatz von Valletta Tauben füttert'

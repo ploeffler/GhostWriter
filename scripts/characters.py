@@ -7,6 +7,7 @@ Aufruf:
   python scripts/characters.py <projektordner> assign <abschnitt N.M|sec-…|mat-…> [<figur> …]
   python scripts/characters.py <projektordner> context <abschnitt N.M|sec-…|mat-…>
   python scripts/characters.py <projektordner> update <figur> '<json>'
+  python scripts/characters.py <projektordner> profile <figur>
 Figuren aus dem Text vorschlagen:
   python scripts/characters.py <buch> scan [book|<kapitel N>|<abschnitt N.M>|<teil>] [--part K]
   python scripts/characters.py <buch> apply vorschlaege.json [--series-repo <standard>]
@@ -44,6 +45,10 @@ context gibt die Beschreibungen der Figuren eines Abschnitts als Markdown aus:
 Diesen Block bekommen Brainstorming, Ghostwriting, Überarbeiten und Faktencheck
 als Kontext (START.md, „Figuren“), damit Namen, Eigenschaften und Sprechweise
 stimmig bleiben. Figuren kommen nie ins Buch.
+
+profile gibt eine Figur mit Beschreibung und den Abschnitten aus, in denen sie
+vorkommt: die Grundlage für das Figurengespräch (START.md, „Figuren“, Schritt 8).
+Nur lesend.
 
 Den Commit schreibt der Assistent (START.md, „Figuren“).
 """
@@ -161,21 +166,47 @@ def context(base, key):
     out = ['## Figuren in diesem Abschnitt', '']
     for cid in ids:
         item = by_id.get(cid)
-        if not item:
-            continue
-        head, desc, _ = character_file(base, item)
-        line = f'### {item["name"]} ({ROLE_DE.get(head.get("role"), head.get("role", ""))})'
-        out += [line, '']
-        for key, label in (('short', 'Kurz'), ('age', 'Alter'), ('appearance', 'Aussehen'), ('voice', 'Sprechweise')):
-            if head.get(key):
-                out.append(f'- {label}: {head[key]}')
-        if head.get('traits'):
-            out.append('- Eigenschaften: ' + ', '.join(head['traits']))
-        for r in head.get('relations') or []:
-            out.append(f'- Beziehung: {r["kind"]} von {names.get(r["to"], r["to"])}')
-        if desc:
-            out += ['', desc]
-        out.append('')
+        if item:
+            out += profile_lines(base, item, names)
+    return '\n'.join(out).rstrip() + '\n'
+
+
+def profile_lines(base, item, names, level='###'):
+    """Beschreibung einer Figur als Markdown-Zeilen (für context und profile)."""
+    head, desc, _ = character_file(base, item)
+    out = [f'{level} {item["name"]} ({ROLE_DE.get(head.get("role"), head.get("role", ""))})', '']
+    for key, label in (('short', 'Kurz'), ('age', 'Alter'), ('appearance', 'Aussehen'), ('voice', 'Sprechweise')):
+        if head.get(key):
+            out.append(f'- {label}: {head[key]}')
+    if head.get('traits'):
+        out.append('- Eigenschaften: ' + ', '.join(head['traits']))
+    for r in head.get('relations') or []:
+        out.append(f'- Beziehung: {r["kind"]} von {names.get(r["to"], r["to"])}')
+    if desc:
+        out += ['', desc]
+    out.append('')
+    return out
+
+
+def profile(base, key):
+    """Grundlage für das Figurengespräch (#432): Profil einer Figur und wo sie vorkommt.
+
+    Nur lesend. Die Figur kennt damit den ganzen Buchstand; eine Begrenzung auf eine Stelle im Buch
+    folgt mit #430.
+    """
+    _, config = load(base)
+    item = find_character(config, key)
+    if not item:
+        raise SystemExit(f'Figur „{key}“ nicht gefunden')
+    names = {i['id']: i['name'] for i in character_items(config)}
+    out = ['## Figurengespräch: Grundlage', '']
+    if '_series' in item:
+        out += ['Figur der Serie: Es gilt ihre Fassung für diesen Band.', '']
+    out += profile_lines(base, item, names)
+    seen = [f'{k} „{t}“' for k, t, entry in scope_targets(base, config, 'book')
+            if item['id'] in (section_file(base, entry)[0].get('characters') or [])]
+    out += ['## Kommt vor in', '']
+    out += [f'- {s}' for s in seen] or ['- noch keinem Abschnitt zugeordnet']
     return '\n'.join(out).rstrip() + '\n'
 
 
@@ -456,7 +487,7 @@ def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
     ap.add_argument('cmd', choices=['list', 'add', 'assign', 'context', 'update', 'detach', 'align', 'adopt',
-                                    'series-add', 'series-update', 'scan', 'apply'])
+                                    'series-add', 'series-update', 'scan', 'apply', 'profile'])
     ap.add_argument('--part', type=int, help='bei scan: Teil (bei langen Bereichen)')
     ap.add_argument('--run', help='bei apply: Lauf der Analyse im Hintergrund (run-NNN), danach als erledigt vermerkt')
     ap.add_argument('--series-repo', help='bei adopt, series-add, series-update: Ordner mit dem Standard-Branch (series/)')
@@ -483,6 +514,11 @@ def main(argv):
         sys.stdout.write(text)
         if k < n:
             print(f'\n---\nWeiter mit: python scripts/characters.py {a.project} scan {a.args[0] if a.args else "book"} --part {k + 1}')
+        return 0
+    if a.cmd == 'profile':
+        if len(a.args) != 1:
+            ap.error('profile braucht genau eine Figur (Name oder ID)')
+        sys.stdout.write(profile(base, a.args[0]))
         return 0
     if a.cmd == 'apply':
         import json
