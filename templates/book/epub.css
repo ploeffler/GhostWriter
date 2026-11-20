@@ -37,3 +37,4 @@ figure.gw-left { float: left; margin: 0.2em 1em 0.6em 0; }
 figure.gw-right { float: right; margin: 0.2em 0 0.6em 1em; }
 figure.gw-center { margin: 0.6em auto; }
 figure.gw-left img, figure.gw-right img, figure.gw-center img { width: 100%; height: auto; }
+figure.gw-center figcaption { text-align: center; }

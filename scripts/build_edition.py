@@ -277,6 +277,74 @@ def epub_css(ts):
     return '\n'.join(out)
 
 
+W = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+
+
+def docx_float_images(path):
+    """DOCX (#54): Pandoc setzt Bilder nur in die Zeile. Bilder mit dem Titel gwpos:left|right (aus merkkasten.lua)
+    kommen samt Bildunterschrift in eine schwebende, rahmenlose Tabelle am linken bzw. rechten Rand, um die der Text
+    fließt (Word und LibreOffice); gwpos:center wird zentriert. Der Titel wird danach entfernt."""
+    import zipfile
+    from lxml import etree
+    path = Path(path)
+    with zipfile.ZipFile(path) as z:
+        files = {n: z.read(n) for n in z.namelist()}
+    root = etree.fromstring(files['word/document.xml'])
+    nsdoc = '{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}'
+    changed = False
+    for pr in root.iter(nsdoc + 'docPr'):
+        title = pr.get('title') or ''
+        if not title.startswith('gwpos:'):
+            continue
+        pos = title.split(':', 1)[1]
+        del pr.attrib['title']
+        changed = True
+        para = next(a for a in pr.iterancestors() if a.tag == W + 'p')
+        if pos not in ('left', 'right'):
+            ppr = para.find(W + 'pPr')
+            if ppr is None:
+                ppr = etree.Element(W + 'pPr')
+                para.insert(0, ppr)
+            jc = ppr.find(W + 'jc') if ppr.find(W + 'jc') is not None else etree.SubElement(ppr, W + 'jc')
+            jc.set(W + 'val', 'center')
+            cap = para.getnext()   # Bildunterschrift mittig wie das Bild
+            if cap is not None and cap.tag == W + 'p' and 'Caption' in ''.join(cap.xpath('./w:pPr/w:pStyle/@w:val', namespaces={'w': W[1:-1]})):
+                cppr = cap.find(W + 'pPr')
+                (cppr.find(W + 'jc') if cppr.find(W + 'jc') is not None else etree.SubElement(cppr, W + 'jc')).set(W + 'val', 'center')
+            continue
+        ext = next((e for e in pr.getparent() if e.tag == nsdoc + 'extent'), None)
+        width = int(int(ext.get('cx')) / 635) + 60 if ext is not None else 3000   # EMU → Twips
+        caption = para.getnext()
+        parts = [para] + ([caption] if caption is not None and caption.tag == W + 'p'
+                          and 'Caption' in ''.join(caption.xpath('./w:pPr/w:pStyle/@w:val', namespaces={'w': W[1:-1]})) else [])
+        parent, index = para.getparent(), para.getparent().index(para)
+        tbl = etree.Element(W + 'tbl')
+        tpr = etree.SubElement(tbl, W + 'tblPr')
+        etree.SubElement(tpr, W + 'tblpPr', {W + 'leftFromText': '170', W + 'rightFromText': '170', W + 'bottomFromText': '113',
+                                             W + 'vertAnchor': 'text', W + 'horzAnchor': 'margin', W + 'tblpXSpec': pos, W + 'tblpY': '1'})
+        etree.SubElement(tpr, W + 'tblW', {W + 'w': str(width), W + 'type': 'dxa'})
+        borders = etree.SubElement(tpr, W + 'tblBorders')
+        for side in ('top', 'left', 'bottom', 'right', 'insideH', 'insideV'):
+            etree.SubElement(borders, W + side, {W + 'val': 'nil'})
+        etree.SubElement(tpr, W + 'tblLayout', {W + 'type': 'fixed'})
+        mar = etree.SubElement(tpr, W + 'tblCellMar')
+        for side in ('left', 'right'):
+            etree.SubElement(mar, W + side, {W + 'w': '0', W + 'type': 'dxa'})
+        grid = etree.SubElement(tbl, W + 'tblGrid')
+        etree.SubElement(grid, W + 'gridCol', {W + 'w': str(width)})
+        tc = etree.SubElement(etree.SubElement(tbl, W + 'tr'), W + 'tc')
+        etree.SubElement(etree.SubElement(tc, W + 'tcPr'), W + 'tcW', {W + 'w': str(width), W + 'type': 'dxa'})
+        for p in parts:
+            tc.append(p)
+        parent.insert(index, tbl)
+    if changed:
+        files['word/document.xml'] = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
+        with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as z:
+            for n, data in files.items():
+                z.writestr(n, data)
+    return changed
+
+
 BABEL = {'de': 'ngerman', 'de-de': 'ngerman', 'de-at': 'naustrian', 'de-ch': 'nswissgerman', 'en': 'english',
          'en-us': 'american', 'en-gb': 'british'}
 
@@ -302,9 +370,6 @@ def image_notes(used, ts, formats=()):
         if m.get('width_px') and m['width_px'] < need:
             out.append(f'Bild „{m.get("caption") or m["id"]}“ hat {m["width_px"]} px Breite; für den Druck bei '
                        + ('voller Satzbreite' if pct == 100 else f'{pct} % der Satzbreite') + f' sind etwa {need} px gut (300 dpi).')
-        if 'docx' in formats and str(m.get('position') or '').split('-')[-1] in ('left', 'right'):
-            out.append(f'Bild „{m.get("caption") or m["id"]}“: Textumfluss (links/rechts) gibt es nur in PDF und EPUB; '
-                       'im DOCX steht es in der gewählten Breite ohne Umfluss.')
     return out
 
 
@@ -728,6 +793,8 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
                     cmd += ['--reference-doc', str(ref)]
             src_path = write(f'book-{fmt}.md', '---\n' + yaml.safe_dump(m, allow_unicode=True, sort_keys=False) + '---\n\n' + src)
             run(cmd + [str(src_path)], cwd=tmp)
+            if fmt == 'docx':   # Medienplatzierung (#54): Lage und Textumfluss im DOCX nachsetzen
+                docx_float_images(target)
             if kind == 'pdf':
                 interior = target
                 if fmt == '_print' or (fmt == 'pdf_print' and not crop):
