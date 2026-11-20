@@ -72,6 +72,10 @@ Book work alternates between **conversation** (discussing ideas, characters, sce
 
 Switching the interface itself (for example from a ChatGPT chat to Work) is up to the provider; GhostWriter does not switch it. The assistant states this limit in one sentence and offers the `Handover` command: `python scripts/handover.py . --section 3.2 --mode manuskript` produces copy-ready text with a start prompt, the verified state (repository, book branch and commit, work branch, pull request, section with checksum, open sections, conversation backups) and a JSON block. From the backups – accepted ones in the book and still open `ghostwriter/chat/*` – it carries over the saved **decisions** and **open tasks** (planning topic), shortened to 600 characters per backup and with their origin; this is saved state, not an approval (#315, part 2). The assistant adds what exists only in the chat, explicitly marked as not saved. In the other environment, `python scripts/handover.py . check <handover>` checks before the first write: `✓` unchanged, `ⓘ` newer version (re-read first), `✗` conflict (do not write). The script only reads.
 
+## Keeping chats and apps in step (#179)
+
+An open chat can be out of date when another app has saved, a program update has arrived or `assistant.yml` has changed. After loading, the assistant records the state it read (`python scripts/standabgleich.py . stand --book <book> [--work <work branch>] --fetch`) and checks it at every new task, after a pause and before writing (`… check <state> --fetch`): `✓` unchanged, `ⓘ` newer state (re-read files, reload instructions or profile if they changed), `✗` conflict (do not write). It checks book, work branch, program, instructions, profile and data version; not chat contents, unsent input or a connection's index. The script only reads.
+
 ## Saving tokens during a chat (#392)
 
 A chat's usage grows with every message: the app resends the whole previous

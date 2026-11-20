@@ -77,6 +77,10 @@ Bucharbeit wechselt zwischen **Gespräch** (Ideen, Figuren, Szenen, Recherche be
 
 Ein Wechsel der Oberfläche selbst (z. B. vom ChatGPT-Chat nach Work) liegt beim Anbieter; GhostWriter schaltet sie nicht um. Der Assistent sagt diese Grenze in einem Satz und bietet den Befehl `Übergabe` an: `python scripts/handover.py . --section 3.2 --mode manuskript` erzeugt einen kopierfertigen Text mit Starttext, geprüftem Stand (Repository, Buch-Branch und Commit, Arbeitsbranch, Pull Request, Abschnitt mit Prüfsumme, offene Abschnitte, Gesprächssicherungen) und einem JSON-Block. Aus den Sicherungen – übernommenen im Buch und noch offenen `ghostwriter/chat/*` – übernimmt sie die gespeicherten **Entscheidungen** und **offenen Aufgaben** (Thema Planung), je Sicherung auf 600 Zeichen gekürzt und mit Herkunft; das ist gespeicherter Stand, keine Freigabe (#315, Teil 2). Der Assistent ergänzt, was nur im Chat steht, ausdrücklich als nicht gespeichert. In der anderen Umgebung prüft `python scripts/handover.py . check <übergabe>` vor dem ersten Schreiben: `✓` unverändert, `ⓘ` neuere Fassung (erst neu lesen), `✗` Konflikt (nicht schreiben). Das Skript liest nur.
 
+## Standabgleich zwischen Chats und Apps (#179)
+
+Ein offener Chat kann veraltet sein, wenn in einer anderen App gespeichert, ein Programmupdate eingespielt oder `assistant.yml` geändert wurde. Der Assistent hält nach dem Laden den gelesenen Stand fest (`python scripts/standabgleich.py . stand --book <buch> [--work <arbeitsbranch>] --fetch`) und prüft ihn bei jeder neuen Aufgabe, nach einer Pause und vor dem Schreiben (`… check <stand> --fetch`): `✓` unverändert, `ⓘ` neuer Stand (Dateien neu lesen, bei geänderten Anweisungen oder Profil diese neu laden), `✗` Konflikt (nicht schreiben). Geprüft werden Buch, Arbeitsbranch, Programm, Anweisungen, Profil und Datenversion; Chatinhalte, nicht gesendete Eingaben und der Index einer Verbindung nicht. Das Skript liest nur.
+
 ## Token sparen im laufenden Chat (#392)
 
 Was ein Chat verbraucht, wächst mit jeder Nachricht: Die App schickt den ganzen
