@@ -3341,11 +3341,19 @@ def language_suggest_view(base, config, args, data, run_text):
 
 
 def chronology_suggest_view(base, config, args, data, run_text):
-    """Chronologie-Vorschläge (#364): nach Datum, mit Belegstand, Quelle und Zitat; „schon da“ ist nicht vorgewählt.
-    Bis die Vorlage chronologie-vorschlag in ghostwriter-ui da ist, gibt es nur die Textfassung (auch im Widget-Modus)."""
+    """Chronologie-Vorschläge (#364, Vorlage chronologie-vorschlag ab UI 0.59.0): nach Datum, mit Belegstand, Quelle
+    und Zitat; „schon da“ ist nicht vorgewählt."""
     import chronology
     items = data.get('items') or []
     new = [it for it in items if not it.get('existing')]
+    if not args.text:
+        rows = [{'C_IDX': i, 'C_N': it.get('n', i + 1), 'C_DATE': it.get('from' if it['kind'] == 'span' else 'date', ''),
+                 'C_LABEL': chronology.date_label(it), 'C_STATUS': it['status'], 'C_WHAT': it['what'], 'C_SOURCE': it['source'],
+                 'C_QUOTE': (it.get('evidence') or [{}])[0].get('quote', ''), 'C_NOTE': it.get('note', ''),
+                 'C_EXISTING': it.get('existing', ''), 'C_SAME': str(it.get('same_as_n') or '')} for i, it in enumerate(items)]
+        values = {'KIND': 'chronology', 'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text,
+                  'SUGGEST_COUNT_TEXT': plural(len(items), 'Vorschlag', 'Vorschläge') + f' · {len(items) - len(new)} schon da'}
+        return fill('chronologie-vorschlag.html', values, {'ENTRIES': rows})
     out = [f'### 📅 Chronologie-Vorschläge',
            f'{plural(len(items), "Vorschlag", "Vorschläge")} · {len(items) - len(new)} schon da' + (f' · {run_text}' if run_text else ''), '']
     if items:
