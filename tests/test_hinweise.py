@@ -115,6 +115,21 @@ class HinweiseTest(unittest.TestCase):
         self.assertEqual(hinweise.apply(self.base, self.config, path)['applied'], [])
         self.assertFalse(validate_project.check_project(self.base))
 
+    def test_apply_without_befund_reference(self):
+        """Dialog aus Markdown-Lektorat ohne `befund` (#386): Ersetzung ja, Rückschreiben überspringen."""
+        path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        hinweise.decide(path, 'e-001', 'ja')
+        hinweise.decide(path, 'e-002', 'nein')
+        data = hinweise.read_yaml(path)
+        for _, e in hinweise.entries(data):
+            e.pop('befund', None)
+        path.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding='utf-8')
+        res = hinweise.apply(self.base, self.config, path)
+        self.assertEqual([e['id'] for e in res['applied']], ['e-001'])
+        self.assertIn(self.unique + 'x', checks.manuscript(self.base, self.config, self.s11['id']))
+        states = {b['id']: b['status'] for b in yaml.safe_load((self.base / 'editorial/sprache-kap-01.yml').read_text(encoding='utf-8'))['befunde']}
+        self.assertEqual(states['b-001'], 'offen')
+
     def test_plan_blocks_approved_section(self):
         path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
         hinweise.decide(path, 'e-001', 'ja')

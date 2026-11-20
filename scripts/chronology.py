@@ -507,6 +507,7 @@ def widget_values(base, config):
     flagged = {i for f in found if f['kind'] != 'undated' for i in f['entries']}
     chapters = {ch['id']: (n, ch['title']) for n, ch in enumerate(config['structure']['chapters'], start=1)}
     lanes, rows, band = [], [], {}
+    day_pos = day_minutes([(e, bounds(e)) for e in entries if bounds(e)[0] and relative(e)])
     for e in entries:
         start, end = bounds(e)
         keys = list(e.get('characters') or []) or ['@none']
@@ -521,8 +522,8 @@ def widget_values(base, config):
                'status': e.get('status', ''), 'estimated': bool(e.get('estimated')), 'lanes': keys,
                'people': ', '.join(names.get(c, c) for c in e.get('characters') or []), 'place': place,
                'chapter': f'{ch[0]}: {ch[1]}' if ch else '', 'source': e.get('source', ''), 'flag': e['id'] in flagged}
-        if relative(e) and e.get('time'):   # Erzählzeit (#379): Uhrzeit für die Tagesachse
-            row['minutes'] = int(e['time'][:2]) * 60 + int(e['time'][3:])
+        if relative(e) and e['id'] in day_pos:   # Erzählzeit (#379): Lage auf der Tagesachse, ohne Uhrzeit zwischen den Nachbarn (#394)
+            row['minutes'] = round(day_pos[e['id']])
         rows.append(row)
         if ch and start:
             last = (end or start)[1]
@@ -548,6 +549,35 @@ def widget_values(base, config):
 
 COLOR = {'documented': '#2f6f4e', 'reported': '#3d6fa8', 'uncertain': '#a8782f', 'invented': '#8a4fa8'}
 EXPORT = 'story/zeitleiste.html'
+
+
+def day_minutes(dated):
+    """Minuten im Tag für Zeitpunkte der Erzählzeit (#394): mit `time` die Uhrzeit, ohne `time` gleichmäßig
+    zwischen den Nachbarn mit Uhrzeit desselben Tags (davor ab 00:00, danach bis 24:00), damit die Grafik
+    dieselbe Reihenfolge zeigt wie die Liste."""
+    days = {}
+    for e, (start, _) in sorted(dated, key=lambda d: sort_key(d[0])):
+        if e.get('kind') != 'span':
+            days.setdefault(start[0], []).append(e)
+    out = {}
+    for items in days.values():
+        known = [int(e['time'][:2]) * 60 + int(e['time'][3:5]) if e.get('time') else None for e in items]
+        i = 0
+        while i < len(items):
+            if known[i] is not None:
+                out[items[i]['id']] = known[i]
+                i += 1
+                continue
+            j = i
+            while j < len(items) and known[j] is None:
+                j += 1
+            lo = known[i - 1] if i else 0
+            hi = known[j] if j < len(items) else 1440
+            hi = max(hi, lo)
+            for n, k in enumerate(range(i, j), start=1):
+                out[items[k]['id']] = lo + (hi - lo) * n / (j - i + 1)
+            i = j
+    return out
 
 
 def export_html(base, config, language='de'):
@@ -601,6 +631,7 @@ def export_html(base, config, language='de'):
             label = ('Without character' if en else 'Ohne Figur') if k == '@none' else names.get(k, k)
             parts.append(f'<text x="{left - 8}" y="{yy + 4:.1f}" font-size="12" text-anchor="end">{esc(label)}</text>'
                          f'<line x1="{left}" y1="{yy:.1f}" x2="{left + width}" y2="{yy:.1f}" stroke="#eee"/>')
+        minutes = day_minutes(dated) if rel else {}
         for e, (start, end) in dated:
             color = COLOR.get(e.get('status'), '#666')
             stroke = ' stroke="#c0392b" stroke-width="2"' if e['id'] in flagged else ''
@@ -612,7 +643,7 @@ def export_html(base, config, language='de'):
                     parts.append(f'<rect x="{a:.1f}" y="{yy - 6:.1f}" width="{max(b - a, 3):.1f}" height="12" rx="3" '
                                  f'fill="{color}" fill-opacity="0.35"{stroke}>{tip}</rect>')
                 else:
-                    mins = int(e['time'][:2]) * 60 + int(e['time'][3:]) if rel and e.get('time') else (720 if rel else 0)
+                    mins = minutes.get(e['id'], 720) if rel else 0
                     parts.append(f'<circle cx="{x(start[0], mins):.1f}" cy="{yy:.1f}" r="5" fill="{color}"{stroke}>{tip}</circle>')
         parts.append('</svg>')
         svg = ''.join(parts)
