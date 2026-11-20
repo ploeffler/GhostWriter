@@ -283,7 +283,7 @@ def _write_back(base, data):
     targets = {}
     for _, e in entries(data):
         state = 'erledigt' if e.get('umgesetzt') else 'entschieden' if e.get('entscheidung') == 'nein' else None
-        if state:
+        if state and e.get('befund'):   # Dialog ohne Befundverweis (z. B. aus Markdown-Lektorat, #386): nichts zurückschreiben
             f, _, fid = e['befund'].partition('#')
             targets.setdefault(f, {})[fid] = state
     changed = []

@@ -274,6 +274,16 @@ class NarrativeTimeTest(BookTest):
         self.assertIn('brauchen epoch', errs)
         self.assertIn('day und Kalenderdatum zugleich', errs)
 
+    def test_graph_minutes_follow_list_order(self):
+        """Einträge ohne Uhrzeit liegen in der Grafik zwischen ihren Nachbarn (#394), nicht fest auf 12:00."""
+        es = [entry(1, day=0, time='08:30'), entry(2, day=0), entry(3, day=0, time='16:00'), entry(4, day=0),
+              entry(5, day=0), entry(6, day=1)]
+        m = chr_.day_minutes([(e, chr_.bounds(e)) for e in es])
+        self.assertEqual(m['chr-001'], 510)
+        self.assertTrue(510 < m['chr-002'] < 960)
+        self.assertTrue(960 < m['chr-004'] < m['chr-005'] < 1440)
+        self.assertEqual(m['chr-006'], 720)
+
     def test_import_md(self):
         import analyze
         (self.base / 'story').mkdir(exist_ok=True)

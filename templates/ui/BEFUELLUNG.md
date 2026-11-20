@@ -357,7 +357,7 @@ Auswahl „Schauplätze aus dem Text“ aus einem Hintergrundlauf (#124, Art `pl
 
 ### `zeitleiste.html`
 
-Grafische Zeitleiste der Chronologie (#354, ab UI 0.56.0; `render_view.py timeline`, Aktion `view.timeline`). Gefüllt von `chronology.widget_values()`; die Textfassung (`--text`) ist `chronology.text_view()`, bei Englisch nativ als Text (`--language en`, #364). Mit Erzählzeit (`epoch`, #379, ab UI 0.60.0) enthält `TIMELINE_JSON` zusätzlich `epoch` (`base` = interner Tag 0, `label`) und je Eintrag `minutes` (Uhrzeit); die Vorlage beschriftet dann in „Tag N“. Hinweise enthalten auch die Art „Text gegen Chronologie“ (`text`, Abgleich mit `story/timeline.yml`); als Datei ohne Widget: `chronology.py export`.
+Grafische Zeitleiste der Chronologie (#354, ab UI 0.56.0; `render_view.py timeline`, Aktion `view.timeline`). Gefüllt von `chronology.widget_values()`; die Textfassung (`--text`) ist `chronology.text_view()`, bei Englisch nativ als Text (`--language en`, #364). Mit Erzählzeit (`epoch`, #379, ab UI 0.60.0) enthält `TIMELINE_JSON` zusätzlich `epoch` (`base` = interner Tag 0, `label`) und je Zeitpunkt `minutes` (Lage im Tag: die Uhrzeit, ohne Uhrzeit gleichmäßig zwischen den Nachbarn desselben Tags, #394; angezeigt wird die Uhrzeit nur über `label`); die Vorlage beschriftet dann in „Tag N“. Hinweise enthalten auch die Art „Text gegen Chronologie“ (`text`, Abgleich mit `story/timeline.yml`); als Datei ohne Widget: `chronology.py export`.
 
 | Platzhalter | Quelle |
 |---|---|
