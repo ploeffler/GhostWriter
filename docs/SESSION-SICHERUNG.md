@@ -175,6 +175,35 @@ Zulässige Punktzustände: `open`, `answered`, `decided`, `deferred`. Belegkennu
 
 Nach bestätigtem Push kurz „Abschnittsdialog automatisch gesichert“ mit Sitzungskennung, PR und bekannten Lücken melden. Bei Fehlern keine Erfolgsmeldung: vorhandenen Sicherungsstand prüfen und den regulären Sicherungsablauf wiederholen, soweit sicher möglich. Ein noch offener PR bedeutet nicht „ungesichert“; ein unbestätigter Push dagegen schon. Allgemeine zeitgesteuerte Hintergrundsicherung bleibt außerhalb dieses Auslösers.
 
+## Abschluss-Check: Verabschieden und Ende einer Befragung (#298, #372)
+
+Verabschiedet sich der Benutzer („Tschüss“, „Gute Nacht“, „Schluss für heute“, „bye“ …) oder endet eine
+Befragung bzw. Ideensammlung außerhalb eines Abschnittsdialogs (Thema gewechselt, Liste abgeschlossen),
+führt der Assistent einen kurzen Abschluss-Check aus:
+
+```
+python scripts/session_end.py <buch> status --chat new|none [--repo <owner>/<repo>]
+```
+
+`--chat new` gibt der Assistent an, wenn seit der letzten Sicherung etwas entschieden, verworfen oder
+gesammelt wurde; das weiß nur er. Das Skript ergänzt nicht gespeicherte und nicht hochgeladene Änderungen
+im Klon, offene Sicherungs-PRs (`ghostwriter/chat/<id>`, mit `--repo`) und Abschnitte, die auf Freigabe
+warten. Es ändert nichts.
+
+- **Nichts offen:** nur kurz verabschieden, kein Check im Chat.
+- **Sonst:** zwei bis drei Zeilen zeigen und die vorgeschlagene Auswahl anbieten: „Alles sichern und
+  hochladen“ · „Nur das Gespräch sichern“ · „Nichts, bis morgen“. Der Klick ist der Auftrag; ohne Auswahl
+  wird nichts gespeichert. Danach knapp bestätigen.
+- **Gesicherte, nicht übernommene Gespräche** fehlen im [Wissensstand](BUCHGEDAECHTNIS.md#wissensstand-beim-wechsel-ins-buch-369);
+  das in einem Satz nennen und `Session übernehmen` als eigene Auswahl anbieten, nie automatisch.
+- **Freigaben** nur nennen bzw. als eigene Auswahl anbieten; ein Abschied ist keine Bestätigung.
+- Am Ende einer Befragung höchstens einmal je Gesprächsabschnitt fragen; nach „Nichts, bis morgen“ in
+  diesem Chat nicht wieder anbieten, außer der Benutzer verabschiedet sich später ausdrücklich.
+- Auf den Abschied ist kein Verlass (Fenster wird geschlossen). Darum zusätzlich nach wichtigen Momenten
+  (Entscheidung getroffen, Ideenliste fertig) von sich aus `Session sichern` anbieten.
+
+Keine zeitgesteuerte oder stille Sicherung.
+
 ## Session übernehmen: prüfen, analysieren, reparieren, erneut prüfen, mergen
 
 Dieser gesamte Ablauf liegt hinter **Session übernehmen**; kein zusätzlicher Reparaturbefehl erforderlich.

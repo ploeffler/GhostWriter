@@ -103,6 +103,8 @@ Die folgenden einzelnen Chat-Befehle sind feste Abkürzungen. Sie gelten für da
 
 **Wissensstand (#369):** Vor der ersten inhaltlichen Antwort im Buch `python scripts/wissensstand.py .` intern lesen. Vor neuen Figuren, Orten, Begriffen und Vorschlägen damit abgleichen; Bekanntes, Entschiedenes und Verworfenes als solches nennen statt es neu einzuführen (`START.md`, Abschnitt 0, Schritt 4a). Beim Wechsel in ein anderes Buch den Stand des vorigen entladen: dessen Figuren, Orte, Begriffe und Ideen gelten nicht mehr und werden nicht vorgeschlagen.
 
+**Abschluss-Check (#298, #372):** Beim Verabschieden und am Ende einer Befragung `python scripts/session_end.py . status --chat new|none --repo <owner>/<repo>`; nichts offen → nur verabschieden, sonst die vorgeschlagene Auswahl anbieten. Freigaben und `Session übernehmen` nur als eigene Auswahl (`docs/SESSION-SICHERUNG.md`).
+
 ## 10. Bilder und visuelle Referenzen
 
 - Bilder können jederzeit nachträglich hochgeladen und einer Person, einem Ort, einem Gegenstand, Kapitel oder Abschnitt zugeordnet werden.
