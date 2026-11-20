@@ -45,6 +45,26 @@ Mit verfügbarer passender UI-Kopie zusätzlich `python3 scripts/check_docs.py -
 
 Vor der **öffentlichen Freigabe** beide Sprachen gerendert ansehen: Desktop und schmale Ansicht, Tastatur und Fokus, lange Tabellen, Ablaufgrafiken, Suchtreffer/Leersuche/kein Treffer, Sprachwechsel und Beispiele. Browserprüfung nur mit der im Arbeitskontext erforderlichen ausdrücklichen Freigabe. Fehlt sie, diese Abnahme offen lassen; Strukturprüfungen sind kein Ersatz für die Sichtprüfung.
 
+## Prüfbericht vor dem Pull Request
+
+`scripts/verify.py` (#390) führt die festen Schritte nacheinander aus und bricht beim ersten harten Fehler ab: Tests, `check_docs.py` (mit `--ui <ordner>`, wenn angegeben), Website aufbauen und prüfen, `library.py check-program`, Secret-Suche in den hinzugefügten Zeilen gegenüber `origin/main` und `git diff --check`. Die Secret-Suche nennt nur Muster und Fundstelle, nie den Wert. Geprüft wird der committete Stand; vor dem Aufruf also committen.
+
+```sh
+python3 scripts/verify.py --ui ../ghostwriter-ui --out /tmp/pruefbericht.md
+python3 scripts/verify.py --skip tests --abnahme geprüft --abnahme-beleg "chillyconcane/YAWA, 0.7.0, Umschlag gebaut"
+```
+
+Der Bericht zeigt je Schritt „bestanden“, „nicht bestanden“, „übersprungen“ oder „nicht ausgeführt“, das Gesamturteil „bereit für PR“ oder „nicht bereit“ und kommt so in die PR-Beschreibung. Eigene Zeile **Abnahme im Buch** (`geprüft`, `fehlgeschlagen`, `nicht durchgeführt`, `entfällt`) mit Bibliothek, Programmversion und Beleg: Grüne Tests, Merge oder Release beweisen nicht, dass eine Änderung in einer Bibliothek funktioniert. Fremde Bibliotheken nur mit Freigabe prüfen. Darunter steht der nächste erlaubte Schritt; Prüfen, Mergen und Veröffentlichen bleiben getrennt.
+
+Von Hand bleibt die Durchsicht des Diffs (ungewollte Änderungen, Fehlerbehandlung, Randfälle) und diese Doku-Checkliste:
+
+- Betroffene Anleitungen in `docs/` auf Deutsch und Englisch nachgezogen
+- Alle genannten Pfade existieren, Beispielbefehle laufen
+- Links funktionieren, keine veralteten Verweise
+- Planungen sind gekennzeichnet
+
+Doku, die nicht zur Wirklichkeit passt, ist schlimmer als keine.
+
 ## Fester Bestandteil jeder Programmveröffentlichung
 
 1. Funktionsumfang und Programmversion in `ghostwriter-manifest.yml` bestätigen. Die Website liest diese Version beim Aufbau direkt daraus; keine zweite Versionsnummer pflegen. Eine vorgezogene Dokumentationsänderung erhöht nicht allein die Produktversion.
