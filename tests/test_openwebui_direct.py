@@ -153,6 +153,25 @@ class DirectPipeTest(unittest.TestCase):
         self.assertIn('nie für nicht verfügbar', system)
         self.assertIn('aktuell „übersichtlich“', system)
 
+    def test_free_start_request_is_handled_without_model(self):
+        """„START.md aus dem Repo lesen“ wie „Start neu laden“, 0 Modell-Tokens (#296)."""
+        for text in ['START.md aus dem repo lesen', 'START.md lesen.', 'Start laden', 'read START.md from the repo']:
+            with self.subTest(text=text), patch.object(self.pipe, '_forward', new_callable=AsyncMock) as forward:
+                output = self.call(text)
+            forward.assert_not_awaited()
+            self.assertTrue(output.endswith(VIEW))
+        self.assertIsNone(self.module.START_REQUEST.fullmatch('was steht in start.md über freigaben'))
+
+    def test_without_open_view_rules_are_slim(self):
+        """Ohne geöffnete Auswahl keine Regeln zu Nummern und Status (#296)."""
+        with patch.object(self.pipe, '_forward', new_callable=AsyncMock, return_value='ok') as forward:
+            self.call('Wie fange ich an?', __metadata__={'chat_id': 'c'})
+        system = '\n'.join(m['content'] for m in forward.await_args.args[0]['messages'] if m['role'] == 'system')
+        self.assertNotIn('status_rules', system)
+        self.assertNotIn('beziehen sich Nummern', system)
+        self.assertNotIn('{book}', system)
+        self.assertIn('Melde keine Speicherung', system)   # Schutzregeln bleiben
+
     def fake_openwebui(self, loaded=None, error=None):
         """open_webui.models.users / open_webui.utils.tools für _ensure_tools nachbilden."""
         calls = []

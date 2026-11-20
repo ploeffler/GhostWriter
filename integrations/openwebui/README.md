@@ -157,7 +157,7 @@ Die Darstellungs- und Antwortmodusbefehle aus `START.md` führt die Pipe direkt 
 
 Fehlt die Übersichtsdatei oder passt sie nicht zur Kapitelstruktur, steht das in der Ansicht; Freigaben, Kosten und Marker werden dann nicht geschätzt. Die Übersichtsdatei wird von der Action „Übersichtsdatei aktualisieren“ erzeugt und kann direkt nach einem Push kurz hinterherhinken. Ansichten schreiben nichts und erteilen keine Freigaben.
 
-Für das Update **beide** Codeeinträge ersetzen: Direkt-Funktion ab 1.8.0 (aktuell 1.9.1) und GitHub-Werkzeug ab 1.5.0 (aktuell 1.7.1); die Valves bleiben. Mit Werkzeug 1.4 meldet die Pipe bei Darstellungsbefehlen, dass das Werkzeug aktualisiert werden muss; Navigation und Gespräch funktionieren weiter. Freie Gesprächsbeiträge erfahren über die Systemanweisung die aktuelle Darstellung und die verfügbaren Befehle, damit das Modell sie nicht mehr für nicht vorhanden erklärt; das bleibt eine Anweisung, keine Garantie für die Modellantwort.
+Für das Update **beide** Codeeinträge ersetzen: Direkt-Funktion ab 1.8.0 (aktuell 1.9.2) und GitHub-Werkzeug ab 1.5.0 (aktuell 1.7.1); die Valves bleiben. Mit Werkzeug 1.4 meldet die Pipe bei Darstellungsbefehlen, dass das Werkzeug aktualisiert werden muss; Navigation und Gespräch funktionieren weiter. Freie Gesprächsbeiträge erfahren über die Systemanweisung die aktuelle Darstellung und die verfügbaren Befehle, damit das Modell sie nicht mehr für nicht vorhanden erklärt; das bleibt eine Anweisung, keine Garantie für die Modellantwort.
 
 ### Auswahl und aktuelle Buchstände
 
@@ -208,7 +208,7 @@ Beim ersten erfolgreichen Aufruf wird der Standard-Branch ermittelt und dessen E
 
 Wenn der vollständige erfolgreiche Werkzeuginhalt bereits im übergebenen Chatverlauf steht, liefern weitere Aufrufe nur einen kurzen Status ohne Dateiinhalt und ohne GitHub-Anfrage. Fehlt der Inhalt später durch Kürzung des Kontexts, wird er aus dem gespeicherten Stand wiederhergestellt, ebenfalls ohne GitHub-Abruf. Benutzerzitate gelten nicht als Werkzeugquittung. Der Zustand übersteht einen Containerneustart, solange das Datenvolume erhalten bleibt.
 
-Die ausdrückliche Benutzernachricht **„Start neu laden“** oder **„Reload start“** fordert eine neue Fassung von GitHub an. Mehrere Werkzeugaufrufe für dieselbe Benutzer-Nachrichten-ID lösen nur einen neuen Abruf aus. Dabei wird die bisherige erfolgreiche Fassung erst nach erfolgreichem Lesen ersetzt. Ein neuer Chat lädt unabhängig neu.
+Die ausdrückliche Benutzernachricht **„Start neu laden“** oder **„Reload start“** fordert eine neue Fassung von GitHub an. Ab Direkt-Pipe 1.9.2 gelten freie Bitten wie „START.md lesen“, „START.md aus dem Repo lesen“, „Start laden“ oder „Read START.md from the repo“ ebenso: Die Pipe lädt den Start und zeigt Begrüßung und Bibliothek selbst, ohne Modellaufruf (#296). Mehrere Werkzeugaufrufe für dieselbe Benutzer-Nachrichten-ID lösen nur einen neuen Abruf aus. Dabei wird die bisherige erfolgreiche Fassung erst nach erfolgreichem Lesen ersetzt. Ein neuer Chat lädt unabhängig neu.
 
 Ein Werkzeug kann die Entscheidung des Modells, es aufzurufen, nicht verhindern. Diese Sperre verhindert wiederholte GitHub-Initialisierungen und unnötige Volltextantworten bei vorhandenem Kontext; sie startet auch keinen leeren Chat von selbst. `read_file` bleibt ein allgemeines, ungepuffertes Lesewerkzeug. Für den Chatstart ausschließlich `read_start_md` verwenden.
 
@@ -228,6 +228,8 @@ Das Update erzeugt darum zusätzlich `docs/start/einstieg-openwebui.md` (#204, r
 - die Schutzregeln: keine erfundenen Inhalte, kein ganzes Kapitel, Vorschlag ist keine Freigabe.
 
 Das Werkzeug ab 1.6 lädt diese Datei mit `START_VARIANT = openwebui` (Vorgabe). Fehlt sie, weil das Buch-Repository noch kein Update mit dieser Vorlage hatte, lädt es wie bisher `START.md`. Welche Datei geladen wurde, steht im Werkzeugergebnis unter `path`. Bereits gestartete Chats behalten ihren gespeicherten Einstieg; nach dem Update **„Start neu laden“** senden oder einen neuen Chat öffnen. `Prompt-Profil` zeigt danach die kleinere Größe des Einstiegs im Request.
+
+**Schlanke Regeln ohne geöffnetes Buch (#296):** Solange keine Buch-, Kapitel- oder Abschnittsansicht ausgewählt ist (`level: none`), lässt die Pipe in ihren Gesprächsregeln die Sätze zu Kapitel- und Abschnittsnummern, `status_rules`, `transitions`/`requires` und Abschnittsbezug weg; die Schutzregeln bleiben. **Erzählstimme und Buchstil** gehören nicht in den Start- oder Navigationsprompt und auch nicht in den Systemprompt des Workspace-Modells: Sie kommen aus `assistant.yml` bzw. dem Buchprofil und sind nur bei Schreib- und Überarbeitungsaufträgen nötig. Zeigt `Prompt-Profil` eine Erzählstimme unter `openwebui.input.messages`, stammt sie aus dem Workspace-Modell oder aus Open-WebUI-Erinnerungen.
 
 ### Fertige Bibliotheksansicht
 
