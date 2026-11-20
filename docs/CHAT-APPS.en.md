@@ -72,6 +72,30 @@ Book work alternates between **conversation** (discussing ideas, characters, sce
 
 Switching the interface itself (for example from a ChatGPT chat to Work) is up to the provider; GhostWriter does not switch it. The assistant states this limit in one sentence and offers the `Handover` command: `python scripts/handover.py . --section 3.2 --mode manuskript` produces copy-ready text with a start prompt, the verified state (repository, book branch and commit, work branch, pull request, section with checksum, open sections, conversation backups) and a JSON block. The assistant adds what exists only in the chat, explicitly marked as not saved. In the other environment, `python scripts/handover.py . check <handover>` checks before the first write: `✓` unchanged, `ⓘ` newer version (re-read first), `✗` conflict (do not write). The script only reads.
 
+## Saving tokens during a chat (#392)
+
+A chat's usage grows with every message: the app resends the whole previous
+conversation and the descriptions of all connected tools each time. GhostWriter
+keeps its state in the repository, so nothing is lost when you switch.
+
+- **New chat per task:** new book, new task or finished section → new chat. The
+  assistant suggests this at suitable points (after an approval, after planning
+  or research), never in the middle of a revision or debugging, and never forces it.
+- **Handover sentence:** at the end of a task the assistant gives one short
+  sentence for continuing (book, section, open step). In the new chat it loads
+  book knowledge and saved conversations itself ([Story memory](STORY-MEMORY.en.md)).
+  Save unsaved work first ([Session backup](SESSION-BACKUP.en.md)).
+- **Fewer connections:** turn off connections not needed for book work
+  (connectors, MCP servers, Open WebUI tools). Much of the base usage comes from
+  their tool descriptions, not from GhostWriter (measured in #296).
+- **Sub-agent for many chapters:** where the app supports sub-agents (e.g.
+  Claude Code), one reads the chapters for story memory and editorial review and
+  returns only findings with locations. This also keeps the rule "no whole book in the chat".
+
+Not adopted: settings that only apply to Claude Code in the terminal (model
+choice in `settings.json`, environment variables, `/cost`). Still open: measuring
+with `Prompt-Profil JSON` from which conversation length a new chat pays off.
+
 ## Automatically loaded instructions
 
 GhostWriter repositories include `CLAUDE.md`, `AGENTS.md` and the general `.claude/skills/ghostwriter/SKILL.md`; program updates maintain them. An optional `assistant.yml` profile and its generated personal skill contain repository preferences such as Git identity, author and default narrative voice. Those belong to the book and are not overwritten by program updates.
