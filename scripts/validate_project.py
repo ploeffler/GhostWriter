@@ -33,6 +33,8 @@ Geprüft werden:
   falls vorhanden) gegen ihr Schema, IDs eindeutig, Abschnitte bekannt
 - Prüfprotokoll (editorial/checks.yml, #331; falls vorhanden) gegen
   schemas/checks.schema.json, IDs eindeutig, Umfang bekannt, Bericht vorhanden
+- editorial/<bericht>.yml (Befunde) und editorial/bereinigung-*.yml (#367) gegen
+  schemas/findings.schema.json bzw. schemas/cleanup.schema.json, IDs eindeutig, Abschnitte bekannt
 - assistant.yml (falls vorhanden, #136) gegen schemas/assistant.schema.json; der
   persönliche Skill .claude/skills/<skill>/SKILL.md passt dazu (scripts/assistant.py check)
 - approvals.yml (falls vorhanden) gegen schemas/approvals.schema.json, IDs bekannt
@@ -477,6 +479,8 @@ def check_project(project_dir):
 
     errors += story_errors(base, config)
     errors += checks_errors(base, config)
+    import autocorrect   # Befunde und Bereinigungsdialog (#367)
+    errors += autocorrect.errors(base, config)
     import rules   # Grundregeln: Lockerung nur mit Bestätigung, Untergrenzen (#300)
     errors += rules.problems(base, config)
     approvals_path = base / 'approvals.yml'

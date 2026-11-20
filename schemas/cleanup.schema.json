@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/cleanup.schema.json",
+  "title": "Bereinigungsdialog (editorial/bereinigung-<datum>.yml, #367): gesammelte offene Befunde mit Entscheidungen",
+  "type": "object",
+  "required": ["buch", "erstellt", "quelle", "anleitung", "ohne_autor", "autorenentscheidung"],
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "required": ["id", "befund", "abschnitt", "section_id", "chapter_id", "datei", "art", "grund", "alt", "neu", "entscheidung"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^e-[0-9]{3,}$"},
+        "befund": {"type": "string", "description": "Quelle: <befunddatei>#<befund-id>"},
+        "abschnitt": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+        "section_id": {"type": "string"},
+        "chapter_id": {"type": "string"},
+        "chapter_status": {"type": "string"},
+        "datei": {"type": "string"},
+        "absatz": {"type": "integer", "minimum": 1},
+        "art": {"type": "string"},
+        "grund": {"type": "string"},
+        "kontext": {"type": "string"},
+        "alt": {"type": "string"},
+        "neu": {"type": "string"},
+        "frage": {"type": "string"},
+        "entscheidung": {"enum": ["offen", "ja", "nein", "geändert"]}
+      },
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "buch": {"type": "string"},
+    "fassung": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+    "erstellt": {"type": "string", "format": "date"},
+    "quelle": {"type": "array", "items": {"type": "string"}},
+    "anleitung": {"type": "string"},
+    "ohne_autor": {"type": "array", "items": {"$ref": "#/$defs/entry"}},
+    "autorenentscheidung": {"type": "array", "items": {"allOf": [{"$ref": "#/$defs/entry"}, {"required": ["frage"], "properties": {"art": {"enum": ["fakt", "ton", "aufbau", "buchweit"]}}}]}},
+    "ausgelassen": {"type": "array", "items": {"type": "object", "required": ["befund", "grund"], "properties": {"befund": {"type": "string"}, "grund": {"type": "string"}}, "additionalProperties": false}}
+  },
+  "additionalProperties": false
+}
