@@ -117,10 +117,13 @@ Wird der Bericht im Rahmen eines Speicherauftrags in `editorial/` abgelegt, im
 selben Commit den Lauf ins Prüfprotokoll eintragen (#331):
 `python3 scripts/checks.py record <buch> --kind structure|language|proofreading
 --scope <book|Kapitel-ID|Abschnitts-ID> --result passed|passed_with_notes|failed|incomplete
---report editorial/<bericht>.md`. Projektübersicht, Kapitelansicht und
+--report editorial/<bericht>.md --notes <n>`. Projektübersicht, Kapitelansicht und
 Abschnittsformular zeigen den Lauf dann als Tag; ändert sich der Text danach,
-erscheint der Tag als „seit Prüfung geändert“. Der Eintrag ist keine Freigabe. Mit `--notes <n>`
-kommt die Zahl der offenen Hinweise des Berichts dazu; die Projektübersicht zeigt sie je Kapitel (#362).
+erscheint der Tag als „seit Prüfung geändert“. Der Eintrag ist keine Freigabe.
+`--notes` gehört immer dazu: die Zahl der offenen Hinweise im Bericht, also der
+Befunde, die noch nicht umgesetzt oder entschieden sind (0, wenn keine offen sind).
+Die Projektübersicht zeigt sie je Kapitel (#362). Wird ein Hinweis später
+umgesetzt, kommt die neue Zahl erst mit dem nächsten Eintrag.
 
 ## Einbindung und Grenzen
 

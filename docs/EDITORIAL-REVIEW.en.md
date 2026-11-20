@@ -110,10 +110,12 @@ When the report is stored in `editorial/` as part of a save request, record the
 run in the check log in the same commit (#331):
 `python3 scripts/checks.py record <book> --kind structure|language|proofreading
 --scope <book|chapter ID|section ID> --result passed|passed_with_notes|failed|incomplete
---report editorial/<report>.md`. The project overview, chapter view and section
+--report editorial/<report>.md --notes <n>`. The project overview, chapter view and section
 form then show the run as a tag; if the text changes afterwards, the tag reads
-“changed since check”. The entry is not an approval. Add `--notes <n>` with the
-number of open notes in the report; the project overview shows it per chapter (#362).
+“changed since check”. The entry is not an approval.
+Always pass `--notes`: the number of open notes in the report, i.e. findings not
+yet applied or decided (0 if none are open). The project overview shows it per
+chapter (#362). A later fix only shows up with the next entry.
 
 ## Integration and limits
 

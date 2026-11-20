@@ -95,7 +95,8 @@ When none are found, say only “no deviation found within the material read”.
 Classify unresolved issues using quality-assurance severity levels; mark
 insufficient material **not fully reviewable**. The result changes no status
 and grants no author approval. When the report is stored on an explicit save
-request, record the run as `story_memory` in the check log (`scripts/checks.py record`, #331).
+request, record the run as `story_memory` in the check log (`scripts/checks.py record`, #331),
+with `--notes <n>` for the number of open findings (#362).
 
 When useful, suggest a **possible destination** for later maintenance, such as
 character notes or the timeline. Proposal, author decision and file change remain
