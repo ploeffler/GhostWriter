@@ -212,9 +212,11 @@ def main(argv):
         credit = build_edition.image_credit(used, config)
         if credit:
             imprint.append(credit)
+        badge = None   # Kennzeichen zur KI-Angabe (#400), einmal unter dem Impressum
         for _, _, vcfg, _, _ in vols:   # KI-Angaben der Bände (Impressum), ohne Doppelungen
             disc = ai_disclosure.for_book(vcfg)
             if disc and disc[0] == 'imprint':
+                badge = badge or ai_disclosure.badge(config)
                 for line in disc[1].splitlines():
                     line = re.sub(r'^\s*[-*]\s+', '– ', line).strip()
                     if line and line not in imprint:
@@ -226,7 +228,7 @@ def main(argv):
         extra = '\\renewcommand*{\\partformat}{}\n'   # Zwischentitel „Band N: Titel“ ohne „Teil I“
         results = build_edition.render(first_base, config, ts, meta, common, imprint, body, body, '', out, tag, formats,
                                        date=a.date, series_line=f'{ser["title"]} · Sammelband', ser=config['_series'],
-                                       extra_tex=extra, top_level='part')
+                                       extra_tex=extra, top_level='part', badge=badge)
         (out / 'edition.yml').write_text(yaml.safe_dump({
             'edition': a.edition, 'name': release, 'tag': tag, 'date': a.date, 'series': ser['id'],
             'volumes': [{'volume': n, 'branch': br, 'tag': t} for n, br, t, _ in picked],

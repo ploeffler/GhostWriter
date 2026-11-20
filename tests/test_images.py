@@ -295,7 +295,8 @@ class ImageTest(unittest.TestCase):
         with zipfile.ZipFile(out / f'{tag}.epub') as z:
             self.assertTrue(any(n.endswith('.png') for n in z.namelist()))
         from docx import Document
-        self.assertEqual(len(Document(str(out / f'{tag}.docx')).inline_shapes), 1)
+        # Bild und Kennzeichen zur KI-Angabe im Impressum (#400)
+        self.assertEqual(len(Document(str(out / f'{tag}.docx')).inline_shapes), 2)
 
 
     def pdf_pages(self, args):

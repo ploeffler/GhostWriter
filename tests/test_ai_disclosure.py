@@ -121,6 +121,30 @@ class AiDisclosureTest(Base):
         self.assertTrue(page.rstrip().endswith('# Hinweis zur KI-Nutzung {.unnumbered .ki-angabe-seite}\n\nMit KI.'))
         self.assertNotIn('ki-angabe', assemble.book_body(parts, mparts))
 
+    def test_badge_by_language(self):
+        """#400: Kennzeichen je Buchsprache, verpflichtend vor dem Wortlaut außerhalb des Impressums."""
+        de, en, fr = ({'project': {'language': l}} for l in ('de-AT', 'en-GB', 'fr'))
+        self.assertEqual(ai_disclosure.badge(de), (ROOT / 'assets/KI-unterstuetzt.png', 'KI-unterstützt'))
+        self.assertEqual(ai_disclosure.badge(en), (ROOT / 'assets/AI_assisted.png', 'AI assisted'))
+        self.assertEqual(ai_disclosure.badge(fr)[1], 'AI assisted')
+        self.assertEqual(ai_disclosure.badge({})[1], 'KI-unterstützt')
+        for cfg in (de, en):
+            self.assertTrue(ai_disclosure.badge(cfg)[0].is_file())
+        self.assertNotIn('ki-logo', ai_disclosure.for_book(de)[1])   # Impressum setzt es selbst
+        place, text = ai_disclosure.for_book({'project': {'language': 'en'}, 'ai_disclosure': {'placement': 'page'}})
+        self.assertEqual(place, 'page')
+        self.assertTrue(text.startswith('![](') and 'AI_assisted.png' in text.split('\n')[0])
+        self.assertIn('.ki-logo', text.split('\n')[0])
+
+    def test_badge_missing_blocks_edition(self):
+        orig = ai_disclosure.BADGES
+        ai_disclosure.BADGES = {'de': ('assets/fehlt.png', 'x'), 'en': ('assets/fehlt.png', 'x')}
+        try:
+            out = ai_disclosure.problems(self.config(), lambda kind: False)
+        finally:
+            ai_disclosure.BADGES = orig
+        self.assertTrue(any('Kennzeichen fehlt' in line for line in out), out)
+
     def test_views_and_wizard(self):
         ai_disclosure.apply(self.base, mode='short', name_services=True)
         run = lambda *a: subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), *a, '--text'],
@@ -162,7 +186,8 @@ class MinimumTest(Base):
     def test_old_none_counts_as_minimum(self):
         cfg = self.with_author()
         cfg['ai_disclosure'] = {'mode': 'none', 'placement': 'page', 'text': 'alt'}
-        self.assertEqual(ai_disclosure.for_book(cfg), ('page', ai_disclosure.minimum(cfg)))
+        self.assertEqual(ai_disclosure.for_book(cfg),
+                         ('page', ai_disclosure.badge_markdown(cfg) + '\n\n' + ai_disclosure.minimum(cfg)))
 
     def test_addition_follows_minimum(self):
         cfg = self.with_author()
@@ -224,6 +249,11 @@ class AiDisclosureTypesettingTest(Base):
         with zipfile.ZipFile(out / f'{tag}.epub') as z:
             self.assertIn('Recherche mit KI-Unterstützung.', ''.join(z.read(n).decode('utf-8') for n in z.namelist()
                                                                      if n.endswith('.xhtml')))
+            self.assertTrue(any(n.endswith('.png') for n in z.namelist()), z.namelist())   # Kennzeichen (#400)
+        imgs = subprocess.run(['pdfimages', '-list', str(out / f'{tag}.pdf')], capture_output=True, text=True).stdout \
+            if shutil.which('pdfimages') else ''
+        if imgs:
+            self.assertGreater(len(imgs.strip().splitlines()), 2, imgs)
 
 
 if __name__ == '__main__':
