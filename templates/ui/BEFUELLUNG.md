@@ -284,6 +284,7 @@ Liste der Figuren (`render_view.py characters`, #53).
 | `PROJECT_TITLE_SHORT` | wie in der Projektübersicht |
 | Block `CHARACTERS`: `C_ID`, `C_NAME`, `C_ROLE`, `C_SHORT`, `C_USED` | je Figur aus `characters` und dem Kopf der Figurendatei: ID, Name, Rolle deutsch, `short`, Abschnitte bzw. Teile mit dieser Figur im Kopf (`character_usage`), sonst „–“ |
 | `C_SOURCE`, `C_SOURCE_TEXT` | nur in einem Band einer Serie (#116): `series` „aus der Serie“ (Figur unter `series/<ser-id>/characters/`), `copy` bzw. `copy_diff` (Figur des Buchs mit derselben ID: Kopie, gleich bzw. abweichend), `own` „nur in diesem Buch“; ohne Serie leer |
+| `C_PORTRAIT` | Profilbild (#417) als verkleinerte JPEG-Daten-URL (80 px, quadratisch beschnitten), nie das Original; Quelle: `portrait` im Figurenkopf, sonst das erste freigegebene Referenzbild mit Rolle `visual_reference` und Link `person:<char-id>`; ohne Bild leer. Textfassung: Liste „Profilbilder“ mit Dateipfad |
 | `SERIES_TITLE` | Reihentitel des Bandes; ohne Serie leer (dann kein Hinweis) |
 
 ### `figur-bearbeiten.html`
@@ -295,6 +296,7 @@ Formular einer Figur (`render_view.py characters <name|id>`).
 | `PROJECT_TITLE_SHORT` | wie in der Projektübersicht |
 | `CHARACTER_ID`, `CHARACTER_NAME`, `CHARACTER_ROLE` | `id`, `name`, `role` (main, supporting, minor) |
 | `CHARACTER_SHORT`, `CHARACTER_AGE`, `CHARACTER_APPEARANCE`, `CHARACTER_VOICE`, `CHARACTER_VISUAL` | gleichnamige Felder des Kopfs (`short`, `age`, `appearance`, `voice`, `visual`), sonst leer |
+| `CHARACTER_PORTRAIT`, `CHARACTER_PORTRAIT_ID` | Profilbild (#417) als verkleinerte Daten-URL (192 px) und ID des Referenzbilds; ohne Bild leer. Anderes Bild wählen: `portrait: ref-img-…` im Figurenkopf setzen |
 | `CHARACTER_TRAITS` | `traits`, kommagetrennt |
 | `CHARACTER_DESCRIPTION`, `CHARACTER_NOTES` | `## Beschreibung`, `## Notizen` (Platzhalter der Vorlage = leer) |
 | `CHARACTER_USED` | Abschnitte bzw. Teile mit dieser Figur, sonst „noch nirgends“ |
