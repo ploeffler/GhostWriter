@@ -87,8 +87,8 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 BOOK = ROOT / 'templates' / 'book'
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from assemble import (book_body, book_parts, find_chapter, manuscript_overview, matter_notes,  # noqa: E402
-                      matter_parts, metadata, problems, resolve_images)
+from assemble import (book_body, book_parts, chapter_selection, find_chapter, manuscript_overview,  # noqa: E402
+                      matter_notes, matter_parts, metadata, problems, resolve_images, selection_text)
 from render_view import load, tag_slug  # noqa: E402
 import ai_disclosure  # noqa: E402
 import build_cover  # noqa: E402
@@ -847,6 +847,7 @@ def main(argv):
     ap.add_argument('--manuscript', action='store_true',
                     help='„Manuskript ausgeben“ (#260): PDF des Arbeitsstands, Geplantes in Stichworten')
     ap.add_argument('--chapter', help='mit --manuscript: nur dieses Kapitel (Nummer oder ID)')
+    ap.add_argument('--chapters', help='mit --proof bzw. --preview: nur diese Kapitel, z. B. „1-4“ oder „1,3“ (#413)')
     ap.add_argument('--out', default='build')
     ap.add_argument('--date', default=datetime.date.today().isoformat())
     ap.add_argument('--formats', help='Formate, Komma-getrennt; ohne Angabe typesetting.formats (Vorgabe pdf,docx,epub)')
@@ -856,6 +857,8 @@ def main(argv):
 
     if args.chapter and not args.manuscript:
         ap.error('--chapter nur mit --manuscript')
+    if args.chapters and (args.manuscript or (args.preview is None and not args.proof)):
+        ap.error('--chapters nur mit --proof oder --preview')
     if args.manuscript:
         args.proof, args.formats = True, 'pdf'
     if args.preview is not None:
@@ -868,7 +871,8 @@ def main(argv):
     if args.proof:
         args.edition = config['project'].get('current_edition') or 0
     only = find_chapter(config, str(args.chapter))[0] if args.chapter else None
-    parts = book_parts(base, config, proof=args.proof, plan=args.manuscript, only=only)
+    chosen = chapter_selection(config, args.chapters) if args.chapters else None
+    parts = book_parts(base, config, proof=args.proof, plan=args.manuscript, only=only if only else chosen)
     matter = [] if only else matter_parts(base, config, proof=args.proof, plan=args.manuscript)
     found = [] if args.proof else problems(parts, config, matter, base)
     blocking = [p for p in found if not (args.allow_markers and p.startswith('Offener Marker'))]
@@ -909,6 +913,11 @@ def main(argv):
         tag = f'{tag_slug(short)}-probedruck-{args.date}'
         release_name = f'{short} – Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]}'
         proof_note = f'Probedruck vom {args.date[8:10]}.{args.date[5:7]}.{args.date[:4]} – nicht zur Veröffentlichung.'
+    if chosen:   # Kapitelauswahl (#413): im Vermerk und im Release-Namen nennen
+        sel = selection_text(chosen, len(config['structure']['chapters']))
+        if sel:
+            proof_note = (proof_note + ' ' + sel).strip()
+            release_name += f' ({sel[8:-1]})'
     out = Path(args.out).resolve()   # Pandoc läuft im Arbeitsordner, daher absolut
     out.mkdir(parents=True, exist_ok=True)
     disc = ai_disclosure.for_book(config)   # KI-Angabe (#78): (Ort, Wortlaut) oder None
