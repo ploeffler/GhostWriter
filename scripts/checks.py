@@ -76,6 +76,11 @@ LEGEND = {
            'A tag shows only the latest check per kind; earlier ones are listed under “Earlier checks”. '
            'A tag is not an approval.'),
 }
+# Legende ohne Verweis auf „Frühere Prüfungen“ für Ansichten, die sie nicht zeigen (#398).
+LEGEND_LATEST = {k: v.split(' Ein Tag zeigt')[0].split(' A tag shows')[0] +
+                 (' Ein Tag zeigt nur die neueste Prüfung je Art. Ein Tag ist keine Freigabe.' if k == 'de' else
+                  ' A tag shows only the latest check per kind. A tag is not an approval.')
+                 for k, v in LEGEND.items()}
 
 
 # ---------- Laden und Speichern ----------
@@ -644,9 +649,11 @@ def tags(base, config, unit_ids, entries=None, language='de', now_digests=None):
     order = {k: n for n, k in enumerate(EDITORIAL)}
     out = []
     for key, (_, e, hit) in sorted(latest.items(), key=lambda kv: (order.get(kv[0], 99), kv[0])):
-        out.append(localize({'CK_KIND': key, 'CK_RESULT': e['result'], 'CK_DATE': str(e.get('date') or ''), 'CK_WHEN': when(e),
-                             'CK_REPORT': e.get('report') or '', 'CK_STATE': state(base, config, e, hit, now_digests),
-                             'CK_PARTIAL': '1' if len(hit) < len(unit) else ''}, lang))
+        out.append(dict(localize({'CK_KIND': key, 'CK_RESULT': e['result'], 'CK_DATE': str(e.get('date') or ''),
+                                  'CK_WHEN': when(e), 'CK_REPORT': e.get('report') or '',
+                                  'CK_STATE': state(base, config, e, hit, now_digests),
+                                  'CK_PARTIAL': '1' if len(hit) < len(unit) else ''}, lang),
+                        CK_ID=str(e.get('id') or ''), CK_NOTE=e.get('note') or ''))
     return out
 
 
@@ -702,7 +709,8 @@ def history_text(items, language='de'):
 
 def history_json(items):
     """Widget: frühere Prüfungen kompakt als JSON; das Widget gruppiert nach CK_LABEL und zeigt je Eintrag CK_WHEN."""
-    keep = ('CK_KIND', 'CK_LABEL', 'CK_WHEN', 'CK_DATE', 'CK_TAG', 'CK_MARK', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT')
+    keep = ('CK_KIND', 'CK_LABEL', 'CK_WHEN', 'CK_DATE', 'CK_TAG', 'CK_MARK', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT',
+            'CK_ID', 'CK_NOTE')
     return json.dumps([{k: t.get(k, '') for k in keep} for t in items], ensure_ascii=False, separators=(',', ':'))
 
 
@@ -725,6 +733,8 @@ def localize(tag, language='de'):
 JSON_KEYS = ('CK_TAG', 'CK_PILL', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT')
 # Projektübersicht liest CK_PILL nicht (#360).
 JSON_KEYS_SLIM = ('CK_TAG', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT')
+# Erweiterte Darstellung der Projektübersicht (#398): zusätzlich Prüf-ID und Notiz im Tooltip.
+JSON_KEYS_DETAIL = JSON_KEYS_SLIM + ('CK_ID', 'CK_NOTE')
 
 
 def as_json(tag_list, keep=JSON_KEYS):
