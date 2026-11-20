@@ -187,3 +187,72 @@ class DocumentedCallsTest(unittest.TestCase):
         for args in (['show', str(ROOT / 'tests/fixtures/adhs')], [str(ROOT / 'tests/fixtures/adhs'), 'show']):
             r = subprocess.run([sys.executable, str(ROOT / 'scripts/hinweise.py'), *args], capture_output=True, text=True)
             self.assertNotIn('invalid choice', r.stderr, args)
+
+
+class MatterAndBookFindingsTest(unittest.TestCase):
+    """#423: Befunde zum Nachwort (mat-*) und buchweite Befunde (book) lassen sich ablegen und durchsehen."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.base = Path(tmp.name) / 'buch'
+        shutil.copytree(ROOT / 'tests/fixtures/adhs', self.base)
+        subprocess.run([sys.executable, str(ROOT / 'scripts/matter.py'), str(self.base), 'add', 'afterword'],
+                       check=True, capture_output=True)
+        _, self.config = load(self.base)
+        nachwort = self.base / 'matter/nachwort.md'
+        text = nachwort.read_text(encoding='utf-8')
+        head, sep, _ = text.partition('\n## Manuskript\n')
+        nachwort.write_text(head + sep + '\nDieser Dank geht an alle Leserinnnen und Leser.\n', encoding='utf-8')
+        (self.base / 'editorial').mkdir(exist_ok=True)
+        findings = {'befunde': [
+            {'id': 'b-001', 'abschnitt': 'mat-nachwort', 'art': 'rechtschreibung', 'befund': 'Tippfehler',
+             'alt': 'Leserinnnen', 'neu': 'Leserinnen', 'status': 'offen'},
+            {'id': 'b-002', 'abschnitt': 'book', 'art': 'wiederholung', 'befund': 'Lieblingswort zu oft',
+             'alt': 'eigentlich', 'neu': 'ehrlich gesagt', 'status': 'offen'},
+            {'id': 'b-003', 'abschnitt': 'book', 'art': 'kontinuitaet', 'befund': 'Alter der Figur schwankt',
+             'status': 'offen'}]}
+        (self.base / 'editorial/sprache-buch.yml').write_text(yaml.safe_dump(findings, allow_unicode=True),
+                                                              encoding='utf-8')
+
+    def test_validate_accepts_matter_and_book(self):
+        self.assertFalse(hinweise.errors(self.base, self.config))
+        self.assertFalse([e for e in validate_project.check_project(self.base) if 'editorial' in e])
+
+    def test_collect_show_plan_apply(self):
+        path, data = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        self.assertFalse(data.get('ausgelassen'))
+        auto = data['ohne_autor']
+        self.assertEqual([(e['section_id'], e['abschnitt']) for e in auto], [('mat-nachwort', 'Nachwort')])
+        author = {e['befund'].split('#')[1]: e for e in data['autorenentscheidung']}
+        self.assertEqual(sorted(author), ['b-002', 'b-003'])
+        self.assertEqual(author['b-002']['art'], 'buchweit')       # sprachlich, aber buchweit: Autor entscheidet
+        self.assertEqual(author['b-003']['art'], 'kontinuitaet')
+        self.assertFalse(hinweise.errors(self.base, self.config))  # Dialogdatei passt zum Schema
+        text = hinweise.show(data)
+        self.assertIn('**Vor- und Nachspann**', text)
+        self.assertNotIn('Kapitel Nachwort', text)
+        values, blocks = hinweise.widget_values(self.base, path)
+        self.assertEqual(blocks['AUTO'][0]['E_CHAPTER_TEXT'], 'Vor- und Nachspann')
+        self.assertEqual(blocks['AUTHOR'][0]['E_CHAPTER_TEXT'], 'Ganzes Buch')
+        for e in ('e-001', 'e-002'):
+            hinweise.decide(path, e, 'ja')
+        items = {e['id']: (mark, why) for mark, e, why in hinweise.plan(self.base, self.config, hinweise.read_yaml(path))}
+        self.assertEqual(items['e-001'][0], '✅')
+        self.assertEqual(items['e-002'], ('⚠️', 'buchweit: von Hand umsetzen'))
+        result = hinweise.apply(self.base, self.config, path)
+        self.assertEqual([e['id'] for e in result['applied']], ['e-001'])
+        self.assertEqual(result['chapters'], ['mat-nachwort'])
+        self.assertIn('Leserinnen und', checks.manuscript(self.base, self.config, 'mat-nachwort'))
+        status = {b['id']: b['status'] for b in hinweise.read_yaml(self.base / 'editorial/sprache-buch.yml')['befunde']}
+        self.assertEqual(status['b-001'], 'erledigt')
+
+    def test_approved_matter_blocks(self):
+        path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        hinweise.decide(path, 'e-001', 'ja')
+        f = self.base / 'matter/nachwort.md'
+        f.write_text(re.sub(r'(?m)^status: .*$', 'status: approved', f.read_text(encoding='utf-8'), count=1),
+                     encoding='utf-8')
+        items = hinweise.plan(self.base, self.config, hinweise.read_yaml(path))
+        self.assertEqual(items[0][0], '⛔')
+        self.assertIn('Nachwort ist abgeschlossen', items[0][2])

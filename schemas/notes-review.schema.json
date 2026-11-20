@@ -11,7 +11,7 @@
       "properties": {
         "id": {"type": "string", "pattern": "^e-[0-9]{3,}$"},
         "befund": {"type": "string", "description": "Quelle: <befunddatei>#<befund-id>"},
-        "abschnitt": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+        "abschnitt": {"type": "string", "minLength": 1, "description": "Stelle: 1.2 für Abschnitte, Titel bei Vor-/Nachspann, „ganzes Buch“ bei buchweiten Befunden (#423)"},
         "section_id": {"type": "string"},
         "chapter_id": {"type": "string"},
         "chapter_status": {"type": "string"},
@@ -36,7 +36,7 @@
     "quelle": {"type": "array", "items": {"type": "string"}},
     "anleitung": {"type": "string"},
     "ohne_autor": {"type": "array", "items": {"$ref": "#/$defs/entry"}},
-    "autorenentscheidung": {"type": "array", "items": {"allOf": [{"$ref": "#/$defs/entry"}, {"required": ["frage"], "properties": {"art": {"enum": ["fakt", "ton", "aufbau", "buchweit"]}}}]}},
+    "autorenentscheidung": {"type": "array", "items": {"allOf": [{"$ref": "#/$defs/entry"}, {"required": ["frage"], "properties": {"art": {"enum": ["fakt", "kontinuitaet", "ton", "aufbau", "buchweit"]}}}]}},
     "ausgelassen": {"type": "array", "items": {"type": "object", "required": ["befund", "grund"], "properties": {"befund": {"type": "string"}, "grund": {"type": "string"}}, "additionalProperties": false}}
   },
   "additionalProperties": false

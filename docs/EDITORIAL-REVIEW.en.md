@@ -122,7 +122,8 @@ chapter (#362). A later fix only shows up with the next entry.
 So that open notes can be reviewed later without parsing free text, the
 assistant stores a saved report's findings as `editorial/<report>.yml` as well
 (schema `schemas/findings.schema.json`): per finding `id` (`b-001`), `abschnitt`
-(section ID), optional `absatz`, `schweregrad`, `art`, `befund`, `richtung`,
+(section ID, `mat-…` for front or back matter or `book` for a book-wide finding, #423),
+optional `absatz`, `schweregrad`, `art`, `befund`, `richtung`,
 for language findings `alt` (exact wording) and `neu` (proposal), optional
 `frage`, and `status` (`offen`, `erledigt`, `entschieden`). `--notes` in the check
 log is the number of findings with `status: offen`.
@@ -136,8 +137,11 @@ and **author decision** (`autorenentscheidung`):
 - Only a purely linguistic finding with a proposal can be solved without the
   author. It must not add a new fact, judgement or change of tone; when in
   doubt it becomes an author decision.
-- Everything else is an author decision with `frage` and `art` (`fakt`, `ton`,
-  `aufbau`, `buchweit`).
+- Everything else is an author decision with `frage` and `art` (`fakt`,
+  `kontinuitaet`, `ton`, `aufbau`, `buchweit`). Book-wide findings (`abschnitt: book`)
+  are always author decisions and are applied by hand; findings on front or back
+  matter (`mat-…`, e.g. `mat-nachwort`) appear under “Vor- und Nachspann” and are
+  applied like sections as long as the part is not finalized (#423).
 - `alt` must occur exactly once in today's manuscript; otherwise the finding is
   left out and listed under `ausgelassen` with the reason.
 - Each entry carries the sentence with up to two sentences before and after
