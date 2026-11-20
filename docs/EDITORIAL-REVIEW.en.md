@@ -149,10 +149,20 @@ Each answer is stored with
 uploaded without asking as a small addition to the open change package
 ([Saving](SAVING.en.md#reviewing-notes)), so a later session can continue.
 
-Not yet included (part 2 of #367): applying the decisions to the manuscript
-with the reopened sections and chapters shown, the follow-up check, writing the
-finding status back to the reports, and a widget. Until then the notes review
-changes no manuscript; it only prepares the dialogue.
+Decisions are applied at the end of a chapter or on request. First,
+`hinweise.py plan <book> [--chapter …]` marks each decided entry ✅ applicable,
+⚠️ manual (no old wording or proposal) or ⛔ (section or chapter finalized,
+wording no longer unique). The assistant never reopens anything by itself:
+reopening is a separate, explicitly confirmed approval (`START.md`).
+`hinweise.py apply <book> [--chapter …]` applies only the ✅ entries, marks them
+`umgesetzt: true` and writes the status back (`erledigt` when applied,
+`entschieden` for “no”), so they do not come back on the next `collect`. The
+assistant then rereads every changed sentence in context, records a follow-up
+check for the affected chapters (proofreading and quality, with `--notes`) and
+asks separately about finalizing again. Saving and merging work as for other
+book changes.
+
+Not yet included: a widget for the dialogue; the text version is available.
 
 ## Integration and limits
 

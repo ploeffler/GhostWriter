@@ -23,7 +23,8 @@
         "alt": {"type": "string"},
         "neu": {"type": "string"},
         "frage": {"type": "string"},
-        "entscheidung": {"enum": ["offen", "ja", "nein", "geändert"]}
+        "entscheidung": {"enum": ["offen", "ja", "nein", "geändert"]},
+        "umgesetzt": {"type": "boolean", "description": "ins Manuskript übernommen (hinweise.py apply)"}
       },
       "additionalProperties": false
     }

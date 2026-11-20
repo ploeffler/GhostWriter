@@ -10,11 +10,17 @@ Befunde stehen maschinenlesbar neben dem Bericht in `editorial/<bericht>.yml` (S
       Textfassung des Dialogs: kapitelweise alt und neu, darunter die Autorenentscheidungen
   python3 scripts/hinweise.py decide <buch> <eintrag> --decision ja|nein|geändert [--new TEXT] [--file …]
       schreibt nur `entscheidung` (und bei „geändert“ `neu`) in die Dialogdatei
+  python3 scripts/hinweise.py plan <buch> [--chapter …] [--file …]
+      vor dem Umsetzen (Teil 2): je Eintrag ✅ umsetzbar, ⚠️ von Hand, ⛔ abgeschlossen (erst wieder öffnen)
+  python3 scripts/hinweise.py apply <buch> [--chapter …] [--file …]
+      setzt die ✅-Einträge ins Manuskript um, schreibt den Befundstatus zurück und nennt die Nachprüfung
 
 Prüfung beim Anlegen: `alt` muss im heutigen Manuskript des Abschnitts genau einmal vorkommen, sonst wird
 der Befund nicht aufgenommen und unter `ausgelassen` gemeldet. „Ohne Autor lösbar“ ist ein Eintrag nur bei
 einer rein sprachlichen Art mit Vorschlag `neu`; alles andere – und im Zweifel – ist eine Autorenentscheidung.
-Das Skript ändert kein Manuskript; Umsetzen, Wiederöffnen und Rückmeldung in die Berichte folgen in Teil 2.
+`collect`, `show` und `decide` ändern kein Manuskript. Erst `apply` setzt entschiedene Einträge um, und nur in
+Abschnitten, die nicht abgeschlossen sind: Wiederöffnen bleibt eine eigene, ausdrücklich bestätigte Freigabe
+(START.md, „Freigaben“). Eine Nachprüfung trägt `apply` nicht selbst ein; sie gehört nach dem Neulesen dazu.
 """
 import argparse
 import datetime
@@ -170,6 +176,8 @@ def decide(path, entry_id, decision, new=None):
     data = read_yaml(path)
     for _, e in entries(data):
         if e.get('id') == entry_id:
+            if e.get('umgesetzt'):
+                raise ValueError(f'{entry_id} ist schon umgesetzt')
             e['entscheidung'] = decision
             if new is not None:
                 e['neu'] = new
@@ -211,6 +219,128 @@ def show(data, only_open=False):
     if not auto and not author:
         lines += ['*Keine offenen Einträge.*', '']
     lines += ['Antwort je Eintrag: `<id> ja` · `<id> nein` · `<id> geändert: <eigene Fassung>`']
+    return '\n'.join(lines) + '\n'
+
+
+# ---------- Umsetzen (Teil 2) ----------
+
+def _section(base, config, sid):
+    number, ch, s = section_index(config)[sid]
+    from render_view import section_file
+    head = section_file(Path(base), s)[0]
+    return number, ch, s, head
+
+
+def plan(base, config, data, chapters=None):
+    """[(zeichen, eintrag, grund)] für alle entschiedenen, noch nicht umgesetzten Einträge."""
+    import checks
+    chapters = set(chapters or [])
+    out = []
+    for _, e in entries(data):
+        if e.get('umgesetzt') or e.get('entscheidung') not in ('ja', 'geändert'):
+            continue
+        if chapters and e['chapter_id'] not in chapters:
+            continue
+        if e['section_id'] not in section_index(config):
+            out.append(('⛔', e, 'Abschnitt gibt es nicht mehr'))
+            continue
+        _, ch, _, head = _section(base, config, e['section_id'])
+        text = checks.manuscript(base, config, e['section_id']) or ''
+        if not e.get('alt') or not e.get('neu'):
+            out.append(('⚠️', e, 'ohne alten Wortlaut oder Vorschlag: von Hand umsetzen'))
+        elif ch.get('status') == 'approved':
+            out.append(('⛔', e, f'Kapitel {e["abschnitt"].split(".")[0]} ist abgeschlossen: erst wieder öffnen'))
+        elif head.get('status') == 'approved':
+            out.append(('⛔', e, f'Abschnitt {e["abschnitt"]} ist abgeschlossen: erst wieder öffnen'))
+        elif text.count(e['alt']) != 1:
+            out.append(('⛔', e, f'alter Wortlaut kommt {text.count(e["alt"])}-mal vor: Text hat sich geändert'))
+        else:
+            out.append(('✅', e, 'umsetzbar'))
+    return out
+
+
+def plan_text(items):
+    if not items:
+        return 'Keine entschiedenen Einträge zum Umsetzen.\n'
+    lines = [f'{mark} `{e["id"]}` · {e["abschnitt"]} · {why}' for mark, e, why in items]
+    blocked = sorted({e['abschnitt'] for mark, e, _ in items if mark == '⛔' and 'abgeschlossen' in _})
+    if blocked:
+        lines += ['', 'Wieder öffnen braucht eine eigene Bestätigung (START.md, „Freigaben“): ' + ', '.join(blocked)]
+    return '\n'.join(lines) + '\n'
+
+
+def _replace_in_manuscript(path, alt, neu):
+    text = Path(path).read_text(encoding='utf-8')
+    marker = '\n## Manuskript\n'
+    head, sep, body = text.partition(marker)
+    if not sep or body.count(alt) != 1:
+        raise ValueError(f'{path}: alter Wortlaut nicht genau einmal im Manuskript')
+    Path(path).write_text(head + sep + body.replace(alt, neu, 1), encoding='utf-8')
+
+
+def _write_back(base, data):
+    """Befundstatus in die Befunddateien (Punkt 6): umgesetzt -> erledigt, nein -> entschieden."""
+    targets = {}
+    for _, e in entries(data):
+        state = 'erledigt' if e.get('umgesetzt') else 'entschieden' if e.get('entscheidung') == 'nein' else None
+        if state:
+            f, _, fid = e['befund'].partition('#')
+            targets.setdefault(f, {})[fid] = state
+    changed = []
+    for f, ids in targets.items():
+        path = Path(base) / f
+        if not path.is_file():
+            continue
+        fd = read_yaml(path)
+        hit = False
+        for b in fd.get('befunde') or []:
+            if b.get('id') in ids and b.get('status') == 'offen':
+                b['status'] = ids[b['id']]
+                hit = True
+        if hit:
+            write_yaml(path, fd)
+            changed.append(f)
+    return changed
+
+
+def apply(base, config, path, chapters=None):
+    """✅-Einträge umsetzen. Rückgabe: {'applied', 'skipped', 'reports', 'chapters', 'context'}."""
+    import checks
+    base = Path(base)
+    data = read_yaml(path)
+    items = plan(base, config, data, chapters)
+    applied, skipped, touched, ctx = [], [], [], []
+    for mark, e, why in items:
+        if mark != '✅':
+            skipped.append((mark, e, why))
+            continue
+        _replace_in_manuscript(base / e['datei'], e['alt'], e['neu'])
+        e['umgesetzt'] = True
+        applied.append(e)
+        if e['chapter_id'] not in touched:
+            touched.append(e['chapter_id'])
+        text = checks.manuscript(base, config, e['section_id']) or ''
+        ctx.append((e, context(text, e['neu']) if text.count(e['neu']) == 1 else e['neu']))
+    write_yaml(path, data)
+    reports = _write_back(base, data)
+    return {'applied': applied, 'skipped': skipped, 'reports': reports, 'chapters': touched, 'context': ctx}
+
+
+def apply_text(result):
+    lines = [f'{len(result["applied"])} Einträge umgesetzt, {len(result["skipped"])} nicht umgesetzt.', '']
+    if result['context']:
+        lines += ['**Im Zusammenhang neu lesen:**', '']
+        lines += [f'`{e["id"]}` · {e["abschnitt"]}: {c}' for e, c in result['context']] + ['']
+    if result['skipped']:
+        lines += ['**Nicht umgesetzt:**', ''] + [f'{m} `{e["id"]}` · {e["abschnitt"]} · {w}' for m, e, w in result['skipped']] + ['']
+    if result['reports']:
+        lines += ['Befundstatus zurückgeschrieben: ' + ', '.join(result['reports']), '']
+    if result['chapters']:
+        scope = ' '.join(f'--scope {c}' for c in result['chapters'])
+        lines += ['**Nachprüfung** nach dem Neulesen eintragen (nicht automatisch):',
+                  f'`python3 scripts/checks.py record <buch> --kind proofreading {scope} --result … --notes <n>`',
+                  f'`python3 scripts/checks.py record <buch> --kind quality_correction {scope} --result … --notes <n>`',
+                  'Danach eigens fragen, ob die Kapitel neu abgeschlossen werden sollen; Abschließen bleibt eine eigene Entscheidung.']
     return '\n'.join(lines) + '\n'
 
 
@@ -262,6 +392,11 @@ def main(argv=None):
     d.add_argument('--decision', required=True, choices=DECISIONS[1:])
     d.add_argument('--new')
     d.add_argument('--file')
+    for name, text in (('plan', 'vor dem Umsetzen zeigen, was geht'), ('apply', 'entschiedene Einträge umsetzen')):
+        x = sub.add_parser(name, help=text)
+        x.add_argument('project')
+        x.add_argument('--chapter', action='append')
+        x.add_argument('--file')
     args = ap.parse_args(argv)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from render_view import load
@@ -281,6 +416,12 @@ def main(argv=None):
             return 1
         if args.cmd == 'show':
             print(show(read_yaml(path), args.open), end='')
+            return 0
+        if args.cmd == 'plan':
+            print(plan_text(plan(base, config, read_yaml(path), args.chapter)), end='')
+            return 0
+        if args.cmd == 'apply':
+            print(apply_text(apply(base, config, path, args.chapter)), end='')
             return 0
         e = decide(path, args.entry, args.decision, args.new)
         print(f'{e["id"]}: {e["entscheidung"]}')
