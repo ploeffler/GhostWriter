@@ -13,7 +13,8 @@ Stand: 8. November 2026. Beschlüsse, Vorschläge und Prüfergebnisse sind getre
 | [Bedienglossar](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/UMSETZUNGSAUFTRAG-BEDIENGLOSSAR.md) | Beauftragter Dokumentationsblock, kein Buchglossar |
 | [Zentrale Dokumentationswebsite](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/PLANUNGSNOTIZ-DOKUMENTATIONSWEBSITE.md) | Technische Umsetzung am 9. November als geprüfter PR vorgezogen beauftragt; Merge und Aktivierung gesondert freizugeben |
 | [Buch-Overlays](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/PLANUNGSNOTIZ-BUCH-OVERLAYS.md) | Vorgemerkte Idee ohne Versionszusage |
-| [BookyAI-Vergleich](BOOKYAI-VERGLEICH.md) | Datierte Recherche vom 07.11.2026, kein aktueller Praxistest |
+| [BookyAI-Vergleich](BOOKYAI-VERGLEICH.md) | Datierte Recherche vom 07.11.2026, kein aktueller Praxistest; Web-App-Angabe am 20.11.2026 an D06/D19 angeglichen |
+| [Marktvergleich](MARKTVERGLEICH-v1.0.md) / [Englisch](MARKET-COMPARISON-v1.0.en.md) | Datierte Recherche vom 20.11.2026 zu Sudowrite, Novelcrafter, Atticus, Scrivener und BookyAI, kein Praxistest |
 | [Prompt-Caching prüfen](PROMPT-CACHING.md) | Gespeicherter technischer Prüfablauf, kein Nachweis aktiver Cache-Nutzung |
 
 Skill-Unterstützung: Für v1.0 ist der Abgleich der vorhandenen Unterstützung für Claude und Codex bestätigt (A10). Eigenständige Buch-Skills werden ab v1.1 schrittweise ausgebaut; noch keine Umsetzung oder Abnahme. Details im [Beschluss](ENTSCHEIDUNGEN-v1.0.md#beschluss-vom-8-november-2026-skill-unterstützung).
