@@ -79,7 +79,7 @@ Ein Wechsel der Oberfläche selbst (z. B. vom ChatGPT-Chat nach Work) liegt beim
 
 ## Standabgleich zwischen Chats und Apps (#179)
 
-Ein offener Chat kann veraltet sein, wenn in einer anderen App gespeichert, ein Programmupdate eingespielt oder `assistant.yml` geändert wurde. Der Assistent hält nach dem Laden den gelesenen Stand fest (`python scripts/standabgleich.py . stand --book <buch> [--work <arbeitsbranch>] --fetch`) und prüft ihn bei jeder neuen Aufgabe, nach einer Pause und vor dem Schreiben (`… check <stand> --fetch`): `✓` unverändert, `ⓘ` neuer Stand (Dateien neu lesen, bei geänderten Anweisungen oder Profil diese neu laden), `✗` Konflikt (nicht schreiben). Geprüft werden Buch, Arbeitsbranch, Programm, Anweisungen, Profil und Datenversion; Chatinhalte, nicht gesendete Eingaben und der Index einer Verbindung nicht. Das Skript liest nur.
+Ein offener Chat kann veraltet sein, wenn in einer anderen App gespeichert, ein Programmupdate eingespielt oder `assistant.yml` geändert wurde. Der Assistent hält nach dem Laden den gelesenen Stand fest (`python scripts/standabgleich.py . stand --book <buch> [--work <arbeitsbranch>] --fetch`) und prüft ihn bei jeder neuen Aufgabe, nach einer Pause und vor dem Schreiben (`… check <stand> --fetch`): `✓` unverändert, `ⓘ` neuer Stand (Dateien neu lesen, bei geänderten Anweisungen oder Profil diese neu laden), `✗` Konflikt (nicht schreiben). Geprüft werden Buch, Arbeitsbranch, Programm, Anweisungen, Profil und Datenversion, dazu als Hinweis `⚠`, ob Übersichtsdatei und Zusammenfassungen zum Stand passen (sonst aus den Originaldateien lesen); Chatinhalte, nicht gesendete Eingaben und der Zwischenspeicher einer Verbindung nicht. Das Skript liest nur.
 
 ## Token sparen im laufenden Chat (#392)
 
