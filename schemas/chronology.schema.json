@@ -13,6 +13,16 @@
     }
   },
   "properties": {
+    "epoch": {
+      "type": "object",
+      "description": "Bezugstag der Erzählzeit (#379), z. B. für eine Romanhandlung ohne Kalenderjahr; Einträge mit day zählen ab hier",
+      "required": ["label"],
+      "properties": {
+        "label": {"type": "string", "minLength": 1, "description": "z. B. „Fundtag“"},
+        "weekday": {"enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"], "description": "Wochentag von Tag 0, für die Beschriftung"}
+      },
+      "additionalProperties": false
+    },
     "entries": {
       "type": "array",
       "description": "Einträge in beliebiger Reihenfolge; die Ansicht sortiert nach Datum",
@@ -28,6 +38,10 @@
           "date": {"$ref": "#/$defs/date", "description": "bei event, birth, death"},
           "from": {"$ref": "#/$defs/date", "description": "bei span: Beginn"},
           "to": {"$ref": "#/$defs/date", "description": "bei span: Ende; fehlt = noch offen bzw. unbekannt"},
+          "day": {"type": "integer", "minimum": -100000, "maximum": 100000, "description": "Erzählzeit (#379): Tag relativ zu epoch (0 = Bezugstag); statt date bzw. bei span statt from"},
+          "day_to": {"type": "integer", "minimum": -100000, "maximum": 100000, "description": "Erzählzeit: Ende einer Zeitspanne (nur bei span)"},
+          "time": {"type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$", "description": "Uhrzeit HH:MM (#379)"},
+          "time_to": {"type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$", "description": "Ende der Uhrzeit, z. B. 21:31–21:44"},
           "date_text": {"type": "string", "description": "Anzeige wie überliefert, z. B. „um 1944“"},
           "estimated": {"type": "boolean", "description": "Datum geschätzt bzw. erschlossen"},
           "what": {"type": "string", "minLength": 1},

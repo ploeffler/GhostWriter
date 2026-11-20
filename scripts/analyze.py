@@ -1191,8 +1191,11 @@ def apply_chronology(base, config, data, choices):
             raise ValueError(f'Belegstand {status} unbekannt')
         e['status'] = status
         e['source'] = it['source']
-        for f in ('characters', 'place', 'age', 'note'):
+        for f in ('characters', 'place', 'age', 'note', 'chapter', 'estimated'):
             if it.get(f):
+                e[f] = it[f]
+        for f in ('day', 'day_to', 'time', 'time_to'):   # Erzählzeit (#379)
+            if f in it and not (c.get('date') is not None and f == 'day'):
                 e[f] = it[f]
         by_n[it['n']] = e
         added.append((it, e))
@@ -1201,6 +1204,8 @@ def apply_chronology(base, config, data, choices):
             e['same_as'] = by_n[it['same_as_n']]['id']
     if not added:
         return []
+    if any('day' in e for _, e in added) and not have.get('epoch') and data.get('epoch'):
+        have = dict({'epoch': data['epoch']}, **have)   # Bezugstag der Erzählzeit aus dem Lauf (#379)
     have['entries'] = entries + [e for _, e in added]
     path.parent.mkdir(exist_ok=True)
     path.write_text(yaml.safe_dump(have, allow_unicode=True, sort_keys=False, width=10**6), encoding='utf-8')

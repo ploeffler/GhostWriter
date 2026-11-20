@@ -3959,7 +3959,8 @@ def main():
         out = project_view(base, config, args)
     elif args.view == 'timeline':   # Chronologie (#354): Vorlage zeitleiste bzw. Textfassung
         import chronology
-        if args.text:
+        chron = chronology.read(base) or {}
+        if args.text or chron.get('epoch'):   # Erzählzeit (#379): die grafische Vorlage kennt noch keine Tagesachse
             out = chronology.text_view(base, config, [x.strip() for x in (args.status or '').split(',') if x.strip()] or None,
                                        language=UI.get('language', 'de'))
         else:
