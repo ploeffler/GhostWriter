@@ -336,3 +336,43 @@ class FrontCoverBuildTest(CoverProjectTest):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class BackBlurbPositionTest(unittest.TestCase):
+    """Lage des Klappentexts auf der Rückseite (#416)."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self.tmp.name)
+        (self.base / 'cover').mkdir()
+        (self.base / 'cover/rueckseite.md').write_text(
+            '## Klappentext\n\nEin Sommer am Meer.\n\n## Über den Autor\n\nA schreibt.\n', encoding='utf-8')
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def tex(self, **cover):
+        config = {'project': {'title': 'T', 'author': 'A'}, 'typesetting': {'page_size': 'a5'},
+                  'print': {'profile': 'custom', 'spine_mm': 0}, 'cover': dict(template='modern', **cover)}
+        return config, build_cover.cover_tex(self.base, config, build_cover.dimensions(config, 100))
+
+    def blurb_line(self, tex):
+        return next(l for l in tex.splitlines() if 'Ein Sommer am Meer' in l)
+
+    def test_positions(self):
+        self.assertIn('anchor=north west', self.blurb_line(self.tex()[1]))
+        self.assertIn('anchor=west', self.blurb_line(self.tex(back_blurb_position='middle')[1]))
+        line = self.blurb_line(self.tex(back_blurb_position='bottom')[1])
+        self.assertIn('let \\p1=(gwbio.north)', line)
+        self.assertIn('anchor=south west', line)
+
+    def test_schema(self):
+        import cover_design
+        self.assertEqual(cover_design.validate({'back_blurb_position': 'bottom'}, 148, 210), [])
+        self.assertTrue(cover_design.validate({'back_blurb_position': 'links'}, 148, 210))
+
+    @unittest.skipUnless(shutil.which('xelatex'), 'xelatex fehlt')
+    def test_bottom_compiles(self):
+        config = self.tex(back_blurb_position='bottom')[0]
+        out = self.base / 'u.pdf'
+        build_cover.build(self.base, config, 100, out)
+        self.assertTrue(out.is_file())
