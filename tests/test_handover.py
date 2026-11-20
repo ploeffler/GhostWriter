@@ -58,13 +58,40 @@ class HandoverTest(unittest.TestCase):
         self.assertEqual(st['section']['sha256'], hashlib.sha256(work_text.encode()).hexdigest())   # Stand des Arbeitsbranches
         self.assertEqual(st['open_count'], 9)   # offene Abschnitte desselben Kapitels
         self.assertEqual(st['sessions']['accepted'], [{'path': 'conversations/s1', 'topics': ['decisions']}])
-        self.assertEqual(st['sessions']['open'], ['ghostwriter/chat/s2'])
+        self.assertEqual(st['sessions']['open'], [{'branch': 'ghostwriter/chat/s2'}])
         md = handover.markdown(st)
         for text in ('## Übergabe: Manuskriptarbeit an Abschnitt 1.2', '**Starttext:**', '`owner/buch`',
                      'Pull Request #12', '**Nicht gespeichert**', 'gibt nichts frei', '`ghostwriter/chat/s2`'):
             self.assertIn(text, md)
         self.assertEqual(handover.parse(md), json.loads(json.dumps(st)))
         self.assertIn('Gespräch an das Buch', handover.markdown(handover.collect(self.base, 'buch/adhs', mode='gespraech')))
+
+    def test_decisions_and_tasks_from_backups(self):
+        """Teil 2 von #315: Entscheidungen und offene Aufgaben aus übernommenen und offenen Sicherungen."""
+        folder = self.base / 'conversations/s1'
+        (folder / 'decisions/latest.json').write_text(json.dumps('Mara bleibt   Ich-Erzählerin.') + '\n', encoding='utf-8')
+        (folder / 'planning').mkdir()
+        (folder / 'planning/latest.json').write_text(json.dumps('Szene am Hafen ' * 80) + '\n', encoding='utf-8')
+        git(self.base, 'add', '-A')
+        git(self.base, 'commit', '-qm', 'Sicherung übernommen')
+        git(self.base, 'switch', '-q', '-c', 'chat-s2')
+        (self.base / 'conversations/s2/decisions').mkdir(parents=True)
+        (self.base / 'conversations/s2/decisions/latest.json').write_text(json.dumps('Schluss offen lassen'), encoding='utf-8')
+        git(self.base, 'add', '-A')
+        git(self.base, 'commit', '-qm', 'Sicherung offen')
+        git(self.base, 'update-ref', 'refs/remotes/origin/ghostwriter/chat/s2', 'HEAD')
+        git(self.base, 'switch', '-q', 'buch/adhs')
+        st = self.state()
+        acc = st['sessions']['accepted'][0]
+        self.assertEqual(acc['decisions'], 'Mara bleibt Ich-Erzählerin.')
+        self.assertTrue(acc['planning'].endswith(' …'))
+        self.assertLessEqual(len(acc['planning']), handover.MAX_TOPIC + 2)
+        self.assertEqual(st['sessions']['open'], [{'branch': 'ghostwriter/chat/s2', 'decisions': 'Schluss offen lassen'}])
+        md = handover.markdown(st)
+        for text in ('**Entscheidungen aus den Sicherungen**', '- `conversations/s1`: Mara bleibt Ich-Erzählerin.',
+                     '- `ghostwriter/chat/s2` (nicht übernommen): Schluss offen lassen', '**Offene Aufgaben aus den Sicherungen**'):
+            self.assertIn(text, md)
+        self.assertEqual(handover.parse(md), json.loads(json.dumps(st)))
 
     def test_check_states(self):
         md = handover.markdown(self.state())
