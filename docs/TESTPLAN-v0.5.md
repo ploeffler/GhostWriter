@@ -40,8 +40,8 @@ Legende: ✅ bestanden · ⏳ offen · — nicht anwendbar
 |---|---|---|---|
 | Kapitel- und Abschnittsansicht öffnen | ✅ | — | Chat |
 | Abschnitt bearbeiten und speichern (Formular, Commit) | ✅ | — | Chat |
-| Änderungen übernehmen (Arbeits-Branch → Buch-Branch) | ⏳ | — | Chat |
-| Freigaben: Schreib-, Abschnitts-, Kapitelfreigabe mit Bestätigung, Eintrag in `approvals.yml` | ⏳ | — | Chat, #28 |
+| Änderungen übernehmen (Arbeits-Branch → Buch-Branch) | ✅ | — | Chat |
+| Freigaben: Schreib-, Abschnitts-, Kapitelfreigabe mit Bestätigung, Eintrag in `approvals.yml` | ✅ | — | Chat, #28 |
 | Formular schließen → vorherige Ansicht | ✅ | — | Chat |
 | Darstellung in ChatGPT (Textfassung) | ⏳ | ⏳ | #22 |
 
@@ -50,7 +50,7 @@ Legende: ✅ bestanden · ⏳ offen · — nicht anwendbar
 | Prüfung | ADHS | Leer | Wo |
 |---|---|---|---|
 | Recherchelauf anlegen (unveränderlich, eigene Datei) | ✅ | — | Chat |
-| Ghostwriting-Lauf nur mit Schreibfreigabe | ⏳ | — | Chat |
+| Ghostwriting-Lauf nur mit Schreibfreigabe | ✅ | — | Chat |
 | Kosten nur für Backend-KI-API, Chat-Arbeit ohne Kosteneintrag | ✅ | — | `costs/`, #13 |
 | Alte Kosteneinträge als `legacy_chat_estimate` markiert | ✅ | — | Migration |
 
@@ -86,11 +86,9 @@ Legende: ✅ bestanden · ⏳ offen · — nicht anwendbar
 
 ## Offen bis zum Abschluss von #18
 
-- Abnahme v0.3 (#28) durch den Benutzer: alle ⏳ in Abschnitt 1–3 (seit 01.11.2026 Teil von v0.5).
-- Darstellung in ChatGPT (#22).
-- Erststart: Buchstruktur in einem Commit, deutsche Nachrichten (#63).
-- Update-Test im Fork (#64).
-- Ghostwriting-Lauf mit Schreibfreigabe und Freigabeablauf einmal vollständig im Testbuch.
+- ✅ Abnahme v0.3 (#28), Erststart (#63), Update-Test im Fork (#64).
+- ✅ Ghostwriting-Lauf mit Schreibfreigabe und Freigabeablauf, am 20.11.2026 im Buch „Der Balkon gegenüber“ (`chillyconcane/YAWA`, Abschnitt 3.2) statt im nicht mehr vorhandenen Branch `test/test-book`; Ergebnisse in #18.
+- Darstellung in ChatGPT (#22) läuft als v1.0-Abnahme weiter (Planung vom 08.11.2026).
 
 Funktionen nach v0.5 (Änderungen sofort übernehmen, Befehle, Kapitelrecherche, Doku-Prüfung) werden in der Abnahme v0.6 (#41) geprüft.
 
