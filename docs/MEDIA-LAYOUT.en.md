@@ -6,7 +6,7 @@
 
 ## Confirmed requirements
 
-The following requirements were confirmed on 8 November 2026. They describe the intended product behaviour. The one-item limit is implemented; positioning with text wrapping and width slider have not yet been implemented.
+The following requirements were confirmed on 8 November 2026. They describe the intended product behaviour. The one-item limit, positioning with text wrapping and the width slider are implemented (#54); practical checks in all formats and clients are still open.
 
 ### One media item per section
 
@@ -40,8 +40,8 @@ Position and width jointly determine text wrapping. Insufficient print resolutio
 | Illustration and reference image | Import, selection, reference logging and approval gates exist. |
 | Labelled diagram | Implemented: graphic prompts (`images.py prompt --kind graphic`, labels via `--labels`) allow requested text; only illustrations ask for “no text”. Finished diagrams can still be created separately and imported as PNG. |
 | At most one media item | Implemented: project validation (`validate_project.py`) and output (proof, edition) report more than one media item in a section and an image inserted more than once as errors. Variants that are not inserted and reference images do not count. |
-| Position and text wrapping | Not implemented; images currently use the full text width. |
-| Width slider | No control in the image form yet; output uses a fixed `width=100%`. |
+| Position and text wrapping | Implemented: six positions (`position` in the image description, `images.py layout`, image form). Top/bottom puts the image at the start or end of the section; left/right wraps text in PDF (`wrapfig`) and EPUB (`float`), centre does not. DOCX cannot wrap; the image keeps the chosen width and the build says so. In the PDF a wrapped image just before a page end can reach into the bottom margin; check the proof. |
+| Width slider | Implemented: slider with percentage in the image form (`width_pct`, 10–100 %); the height follows. The resolution note uses the chosen width. |
 | Media-only section in PDF | Implemented: images no longer float in the PDF (`float`, placement `H`) but stay exactly where they are placed. Heading and image stay on the same page, and text after the image does not move before it. In proofs the draft note is part of the caption and stays with the image. |
 | Alternative text | Implemented: if the stored alternative text differs from the caption, DOCX and EPUB receive it separately (image description or `alt`); the caption stays visible. |
 

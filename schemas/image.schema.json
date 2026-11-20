@@ -21,6 +21,9 @@
     "characters": {"type": "array", "items": {"type": "string", "pattern": "^char-[a-z0-9][a-z0-9-]*$"}, "uniqueItems": true},
     "run": {"type": "string", "pattern": "^run-[0-9]{3}$"},
     "credit": {"type": "string", "description": "Bildnachweis, z. B. Fotograf; bei eigenen Bildern optional"},
+    "position": {"enum": ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"],
+                 "description": "Lage im Abschnitt (Medienplatzierung): oben bzw. unten, links/rechts mit Textumfluss, mittig ohne; fehlt = an der Stelle im Text"},
+    "width_pct": {"type": "integer", "minimum": 10, "maximum": 100, "description": "Breite in Prozent der nutzbaren Seitenbreite (Breitenregler); fehlt = 100"},
     "width_px": {"type": "integer", "minimum": 1},
     "height_px": {"type": "integer", "minimum": 1}
   },

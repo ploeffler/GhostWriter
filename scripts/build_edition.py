@@ -277,12 +277,21 @@ def epub_css(ts):
     return '\n'.join(out)
 
 
-def image_notes(used, ts):
-    """Hinweise zur Auflösung (#54): unter etwa 300 dpi bei voller Satzbreite."""
+def image_notes(used, ts, formats=()):
+    """Hinweise (#54): Auflösung unter etwa 300 dpi bei der gewählten Breite; Textumfluss, den DOCX nicht kann."""
     w = PAGE.get(ts['page_size'], PAGE['a5'])[0]
-    need = int((w - (30 if w < 160 else 50)) / 25.4 * 300 * 0.9)
-    return [f'Bild „{m.get("caption") or m["id"]}“ hat {m["width_px"]} px Breite; für den Druck bei voller Satzbreite '
-            f'sind etwa {need} px gut (300 dpi).' for m in used if m.get('width_px') and m['width_px'] < need]
+    full = (w - (30 if w < 160 else 50)) / 25.4 * 300 * 0.9
+    out = []
+    for m in used:
+        pct = int(m.get('width_pct') or 100)
+        need = int(full * pct / 100)
+        if m.get('width_px') and m['width_px'] < need:
+            out.append(f'Bild „{m.get("caption") or m["id"]}“ hat {m["width_px"]} px Breite; für den Druck bei '
+                       + ('voller Satzbreite' if pct == 100 else f'{pct} % der Satzbreite') + f' sind etwa {need} px gut (300 dpi).')
+        if 'docx' in formats and str(m.get('position') or '').split('-')[-1] in ('left', 'right'):
+            out.append(f'Bild „{m.get("caption") or m["id"]}“: Textumfluss (links/rechts) gibt es nur in PDF und EPUB; '
+                       'im DOCX steht es in der gewählten Breite ohne Umfluss.')
+    return out
 
 
 def image_credit(used, config):
@@ -824,7 +833,7 @@ def main(argv):
     dedication = ''.join(m[2] for m in matter if m[1]['kind'] == 'dedication' and m[2])
     body_pdf = resolve_images(base, config, overview + book_body(parts, [m for m in matter if m[1]['kind'] != 'dedication'],
                                                                  in_body), args.proof)[0]
-    for note in image_notes(used_images, ts):
+    for note in image_notes(used_images, ts, [f.strip() for f in str(args.formats or "").split(",")]):
         print(f'ⓘ {note}')
     imprint = imprint_markdown(meta, release_name, args.commit, config.get('publication'))
     ser = config.get('_series')   # Serie (#116): Reihe und Band im Impressum, „Ebenfalls in dieser Reihe“ am Ende

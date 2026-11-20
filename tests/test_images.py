@@ -172,6 +172,42 @@ class ImageTest(unittest.TestCase):
         config['images']['credit_in_imprint'] = False
         self.assertEqual(build_edition.image_credit(used, config), '')
 
+    def test_layout_position_and_width(self):
+        """Medienplatzierung (#54): Position oben/unten, links/rechts mit Textumfluss, Breite in Prozent."""
+        import shutil as _sh
+        import subprocess as _sp
+        meta, _ = self.add()
+        self.place(meta['id'])
+        out = _sp.run([sys.executable, str(ROOT / 'scripts/images.py'), str(self.base), 'layout', meta['id'],
+                       '--position', 'bottom-right', '--width', '40'], capture_output=True, text=True, check=True).stdout
+        self.assertIn('unten rechts, 40 %', out)
+        self.assertEqual(validate_project.check_project(self.base), [])
+        approve_chapter_1(self.base)
+        self.approve(meta)
+        _, config = load(self.base)
+        ch = config['structure']['chapters'][0]
+        md, _, _ = assemble.chapter_markdown(self.base, ch, 1)
+        paras = [p for p in md.split('\n\n') if p.strip()]
+        ref = next(i for i, p in enumerate(paras) if 'bild:' in p)
+        sec_end = next((i for i in range(ref + 1, len(paras)) if paras[i].startswith('## ')), len(paras))
+        self.assertEqual(sec_end - ref, 2)   # vor dem letzten Absatz des Abschnitts
+        body, used = assemble.resolve_images(self.base, config, md)
+        self.assertRegex(body, r'gwpos=right width=40%\}')
+        notes = build_edition.image_notes(used, {'page_size': 'a5'}, ['pdf', 'docx'])
+        self.assertTrue(any('nur in PDF und EPUB' in n for n in notes), notes)
+        if _sh.which('pandoc'):
+            lua = str(ROOT / 'templates/book/merkkasten.lua')
+            tex = _sp.run(['pandoc', '-f', 'markdown', '-t', 'latex', '--lua-filter', lua], input=body,
+                          capture_output=True, text=True, check=True).stdout
+            self.assertIn('\\begin{wrapfigure}{r}{0.40\\textwidth}', tex)
+            html = _sp.run(['pandoc', '-f', 'markdown', '-t', 'html', '--lua-filter', lua], input=body,
+                           capture_output=True, text=True, check=True).stdout
+            self.assertRegex(html, r'<figure [^>]*class="gw-right"[^>]*style="width:40%"')
+        _sp.run([sys.executable, str(ROOT / 'scripts/images.py'), str(self.base), 'layout', meta['id'], '--position', 'text'],
+                check=True, capture_output=True)
+        body, _ = assemble.resolve_images(self.base, config, assemble.chapter_markdown(self.base, ch, 1)[0])
+        self.assertNotIn('gwpos', body)
+
     def test_one_medium_per_section(self):
         """Zwei Medien im selben Abschnitt und doppelt eingefügte Bilder werden abgelehnt."""
         first, _ = self.add()

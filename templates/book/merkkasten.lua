@@ -207,3 +207,38 @@ function Pandoc(doc)
   end
   return doc
 end
+
+-- Medienplatzierung (#54, scripts/assemble.py): Bild mit gwpos=left|right|center und width=N%
+--   LaTeX/PDF: links/rechts als wrapfigure (Textumfluss), mittig als normale Abbildung
+--   EPUB/HTML: <figure class="gw-left|gw-right|gw-center"> mit Breite (epub.css: float)
+--   DOCX: nur die Breite; Textumfluss kann Pandoc dort nicht setzen (build_edition meldet das)
+function Figure(el)
+  local img
+  el:walk({ Image = function(i) img = img or i end })
+  if not img then return nil end
+  local pos = img.attributes['gwpos']
+  if not pos then return nil end
+  local pct = tonumber((img.attributes['width'] or '100%'):match('(%d+)')) or 100
+  local function clean(full)
+    return el:walk({ Image = function(i)
+      i.attributes['gwpos'] = nil
+      if full then i.attributes['width'] = '100%' end
+      return i
+    end })
+  end
+  if FORMAT:match('latex') and (pos == 'left' or pos == 'right') then
+    local caption = pandoc.write(pandoc.Pandoc({ pandoc.Plain(pandoc.utils.blocks_to_inlines(el.caption.long)) }), 'latex')
+    local w = string.format('%.2f', pct / 100)
+    local tex = '\\begin{wrapfigure}{' .. (pos == 'left' and 'l' or 'r') .. '}{' .. w .. '\\textwidth}\n'
+      .. '\\centering\\includegraphics[width=\\linewidth]{' .. img.src .. '}\n'
+      .. (caption:match('%S') and ('\\caption{' .. caption .. '}\n') or '')
+      .. '\\end{wrapfigure}'
+    return pandoc.RawBlock('latex', tex)
+  elseif FORMAT:match('html') or FORMAT:match('epub') then
+    el = clean(true)
+    el.classes:insert('gw-' .. pos)
+    el.attributes['style'] = 'width:' .. pct .. '%'
+    return el
+  end
+  return clean(false)
+end
