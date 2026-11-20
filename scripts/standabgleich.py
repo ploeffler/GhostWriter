@@ -10,9 +10,11 @@ nach einem Programmupdate kann dieser Stand veraltet sein. Das Skript hält den 
 - Programm: Programmversion und eingespielter Upstream-Commit (`.ghostwriter/update.yml`)
 - Anweisungen: START.md, CLAUDE.md, AGENTS.md, allgemeine Skills, docs/start/ (geladene Fassung veraltet)
 - Profil: assistant.yml (persönlicher Skill veraltet)
+- Abgeleitet: Übersichtsdatei (ghostwriter-index.json) und, im Zusammenfassungsmodus, Buch- und
+  Kapitelzusammenfassungen (context/) des gelesenen Stands; nur Hinweis, sperrt nichts
 - Daten: Datenversion des Buchs gegen die vom Programm unterstützte (Buch neuer als Programm = Konflikt)
 
-Ergebnis je Bereich: `ok`, `neuer` (erst neu lesen bzw. Anweisungen neu laden) oder `konflikt` (nicht
+Ergebnis je Bereich: `ok`, `hinweis` (Originaldateien statt abgeleiteter Daten lesen; ändert den Exit-Code nicht), `neuer` (erst neu lesen bzw. Anweisungen neu laden) oder `konflikt` (nicht
 schreiben, Unterschied zeigen). Exit 0 = alles unverändert, 1 = neuer Stand, 2 = Konflikt oder
 inkompatible Version. Nur lesend; vorher `git fetch`, sonst vergleicht das Skript mit dem lokalen Wissen
 (`--fetch` holt den Stand selbst).
@@ -25,9 +27,14 @@ Aufruf:
   python3 scripts/standabgleich.py <repo> check <stand.json|-> [--fetch] [--json]
 """
 import argparse
+import contextlib
 import hashlib
+import io
 import json
+import subprocess
 import sys
+import tarfile
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -39,9 +46,9 @@ FORMAT = 1
 INSTRUCTIONS = ('START.md', 'CLAUDE.md', 'AGENTS.md', '.claude/skills/ghostwriter', '.claude/skills/ghostwriter-lektorat',
                 '.claude/skills/ghostwriter-buchgedaechtnis', 'docs/start')
 UPDATE_STATE = '.ghostwriter/update.yml'
-NOT_CHECKED = ['Inhalte dieses Chats und nicht gesendete Eingaben', 'Index oder Zwischenspeicher einer Verbindung',
+NOT_CHECKED = ['Inhalte dieses Chats und nicht gesendete Eingaben', 'Zwischenspeicher oder Suchindex einer Verbindung',
                'Stand anderer Apps, solange dort nichts gespeichert ist']
-LABEL = {'ok': '✓', 'neuer': 'ⓘ', 'konflikt': '✗'}
+LABEL = {'ok': '✓', 'hinweis': '⚠', 'neuer': 'ⓘ', 'konflikt': '✗'}
 
 
 def default_ref(base):
@@ -152,6 +159,10 @@ def compare(base, old):
                                       'nächsten Update (python3 scripts/migrate_project.py --check zeigt sie)'))
     else:
         out.append(('Daten', 'ok', f'Datenversion {have}'))
+    if current:
+        d = derived(base, current)
+        if d:
+            out.append(('Abgeleitet', *d))
     return out
 
 
@@ -167,8 +178,47 @@ def collect_program(base, ref):
             'supported': supported.get('data_version')}
 
 
+def derived(base, sha):
+    """Übersichtsdatei und Zusammenfassungen des Stands `sha` prüfen (#179). Liest den Stand aus Git in einen
+    temporären Ordner; das Arbeitsverzeichnis bleibt unberührt. Ergebnis: (Zustand, Hinweis) oder None ohne Buch."""
+    import build_index
+    import plan_context
+    data = subprocess.run(['git', '-C', str(base), 'archive', '--format=tar', sha], capture_output=True)
+    if data.returncode:
+        return None
+    with tempfile.TemporaryDirectory() as tmp:
+        with tarfile.open(fileobj=io.BytesIO(data.stdout)) as tar:
+            tar.extractall(tmp, filter='data')
+        config = yaml.safe_load((Path(tmp) / 'ghostwriter.yml').read_text(encoding='utf-8')) \
+            if (Path(tmp) / 'ghostwriter.yml').is_file() else None
+        if not ((config or {}).get('structure') or {}).get('chapters'):
+            return None
+        problems = []
+        with contextlib.redirect_stdout(io.StringIO()):
+            try:
+                index_ok = build_index.main(['build_index.py', tmp, '--check']) == 0
+            except Exception:   # kaputte Projektdatei: das meldet validate_project, hier nur Hinweis
+                index_ok = False
+        if not index_ok:
+            problems.append('Übersichtsdatei veraltet oder fehlt (Ansichten aus den Originaldateien befüllen; '
+                            'die Action „Übersichtsdatei aktualisieren“ bzw. build_index.py erneuert sie)')
+        try:
+            ctx = plan_context.plan(tmp)
+        except (OSError, ValueError, KeyError):
+            ctx = None
+        if ctx and ctx['mode'] == 'summaries':
+            stale = [s['path'] for s in [ctx['book_summary'], *ctx['chapter_summaries']] if s['state'] != 'current']
+            if stale:
+                more = f' und {len(stale) - 5} weitere' if len(stale) > 5 else ''
+                problems.append('Zusammenfassungen veraltet oder fehlend: ' + ', '.join(stale[:5]) + more
+                                + ' (Originalabschnitte lesen, docs/CONTEXT.md)')
+    if problems:
+        return 'hinweis', '; '.join(problems)
+    return 'ok', 'Übersichtsdatei und Zusammenfassungen passen zum Stand'
+
+
 def verdict(results):
-    states = {r[1] for r in results}
+    states = {r[1] for r in results} - {'hinweis'}
     return 'konflikt' if 'konflikt' in states else 'neuer' if 'neuer' in states else 'ok'
 
 

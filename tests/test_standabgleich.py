@@ -11,7 +11,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
+import build_index  # noqa: E402
+import plan_context  # noqa: E402
 import standabgleich as sa  # noqa: E402
+from unittest import mock  # noqa: E402
 
 
 def git(base, *args):
@@ -40,6 +43,8 @@ class StandabgleichTest(unittest.TestCase):
         shutil.copytree(ROOT / 'tests/fixtures/adhs', self.base, dirs_exist_ok=True)
         config = (self.base / 'ghostwriter.yml').read_text(encoding='utf-8')
         self.write('ghostwriter.yml', 'data_version: 1\n' + config)
+        with redirect_stdout(io.StringIO()):
+            build_index.main(['build_index.py', str(self.base)])
         git(self.base, 'add', '-A')
         git(self.base, 'commit', '-qm', 'Buch')
         git(self.base, 'switch', '-q', '-c', 'ghostwriter/arbeit')
@@ -138,6 +143,35 @@ class StandabgleichTest(unittest.TestCase):
         config = git(self.base, 'show', 'buch/adhs:ghostwriter.yml').replace('data_version: 1\n', '', 1)
         self.commit('ghostwriter.yml', config + '\n', branch='buch/adhs')
         self.assertEqual(self.states(old)['Daten'], 'neuer')
+
+    def test_stale_index_is_only_a_hint(self):
+        old = self.stand(work=None)
+        self.assertEqual(self.states(old)['Abgeleitet'], 'ok')
+        self.commit('ghostwriter-index.json', '{}\n', branch='buch/adhs')
+        st = self.states(old)
+        self.assertEqual((st['Buch'], st['Abgeleitet']), ('neuer', 'hinweis'))
+        git(self.base, 'switch', '-q', 'buch/adhs')
+        git(self.base, 'reset', '-q', '--hard', old['book']['head'])
+        git(self.base, 'switch', '-q', 'main')
+        self.commit('ghostwriter-index.json', '{}\n', branch='ghostwriter/arbeit')
+        old = self.stand()
+        result = sa.compare(self.base, old)
+        self.assertEqual(dict((a, s) for a, s, _ in result)['Abgeleitet'], 'hinweis')
+        self.assertEqual(sa.verdict(result), 'ok')   # sperrt nichts, ändert den Exit-Code nicht
+        self.assertIn('⚠ Abgeleitet: Übersichtsdatei', sa.report(old, result))
+
+    def test_stale_summaries_in_summary_mode(self):
+        old = self.stand(work=None)
+        real = plan_context.plan
+
+        def summaries(path, limited_context=False):
+            ctx = real(path, limited_context)
+            ctx['mode'] = 'summaries'
+            return ctx
+        with mock.patch.object(plan_context, 'plan', summaries):
+            d = dict((a, t) for a, _, t in sa.compare(self.base, old))['Abgeleitet']
+        self.assertIn('Zusammenfassungen veraltet oder fehlend: context/book.md', d)
+        self.assertIn('weitere', d)
 
     def test_cli_exit_codes_and_report(self):
         path = self.base.parent / 'stand.json'

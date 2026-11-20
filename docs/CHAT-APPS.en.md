@@ -74,7 +74,7 @@ Switching the interface itself (for example from a ChatGPT chat to Work) is up t
 
 ## Keeping chats and apps in step (#179)
 
-An open chat can be out of date when another app has saved, a program update has arrived or `assistant.yml` has changed. After loading, the assistant records the state it read (`python scripts/standabgleich.py . stand --book <book> [--work <work branch>] --fetch`) and checks it at every new task, after a pause and before writing (`… check <state> --fetch`): `✓` unchanged, `ⓘ` newer state (re-read files, reload instructions or profile if they changed), `✗` conflict (do not write). It checks book, work branch, program, instructions, profile and data version; not chat contents, unsent input or a connection's index. The script only reads.
+An open chat can be out of date when another app has saved, a program update has arrived or `assistant.yml` has changed. After loading, the assistant records the state it read (`python scripts/standabgleich.py . stand --book <book> [--work <work branch>] --fetch`) and checks it at every new task, after a pause and before writing (`… check <state> --fetch`): `✓` unchanged, `ⓘ` newer state (re-read files, reload instructions or profile if they changed), `✗` conflict (do not write). It checks book, work branch, program, instructions, profile and data version, plus as a `⚠` hint whether the index file and summaries match the state (otherwise read the original files); not chat contents, unsent input or a connection's cache. The script only reads.
 
 ## Saving tokens during a chat (#392)
 
