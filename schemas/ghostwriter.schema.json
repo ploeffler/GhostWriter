@@ -172,6 +172,14 @@
         "price": {
           "type": "string"
         },
+        "back_blurb_position": {
+          "enum": [
+            "top",
+            "middle",
+            "bottom"
+          ],
+          "description": "Lage des Klappentexts auf der Rückseite (#416): top (Vorgabe), middle oder bottom (endet über Autorentext und Strichcodebereich)"
+        },
         "spine_direction": {
           "enum": [
             "down",

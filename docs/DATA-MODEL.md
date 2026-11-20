@@ -199,6 +199,7 @@ cover:
   author_image: cover/autor.jpg
   price: 18,00 € (D)
   spine_direction: down  # down (von oben nach unten) | up
+  back_blurb_position: top  # Klappentext auf der Rückseite: top | middle | bottom (#416)
   # front: cover/vorderseite.pdf   # fertige eigene Vorderseite (PDF, JPG, PNG) für PDF und EPUB (#324)
 ```
 
@@ -212,7 +213,7 @@ Stand der Werte: November 2026 (KDP-Hilfe „Cover“, BoD-Hinweise zur Umschlag
 
 ### Individuelle Covergestaltung (#322)
 
-Optionale `cover`-Felder: `image_mode` (`motif`/`finished`), `panel_backgrounds` (Hex-Farbwert je `front`/`spine`/`back`), `background_targets` (Verwendung der gemeinsamen Farbe) und `text_boxes` (je `title`/`subtitle`/`author`). Textbereiche benötigen `x`, `y`, `width`, `height` in mm ab linker oberer Schnittkante; optional `font_size` (6–120 pt), `font` (`serif`/`sans`), `bold`, `color`, `align` (`left`/`center`/`right`), `visible`, `break_after` (Wortpositionen). 10 mm Sicherheitsabstand, keine stillen Überläufe. Texte bleiben dynamisch aus `project.*`; Buchgestaltung wird nicht in Programmdateien gespeichert. Bedienung, Beispiele und Ausgabegrenzen: [Grafische Cover gestalten](ANLEITUNG.md#grafische-cover-gestalten), [English](USER-GUIDE.en.md#design-graphic-covers).
+Optionale `cover`-Felder: `image_mode` (`motif`/`finished`), `panel_backgrounds` (Hex-Farbwert je `front`/`spine`/`back`), `background_targets` (Verwendung der gemeinsamen Farbe) `back_blurb_position` (Lage des Klappentexts auf der Rückseite: `top` als Vorgabe, `middle` oder `bottom`, #416) und `text_boxes` (je `title`/`subtitle`/`author`). Textbereiche benötigen `x`, `y`, `width`, `height` in mm ab linker oberer Schnittkante; optional `font_size` (6–120 pt), `font` (`serif`/`sans`), `bold`, `color`, `align` (`left`/`center`/`right`), `visible`, `break_after` (Wortpositionen). 10 mm Sicherheitsabstand, keine stillen Überläufe. Texte bleiben dynamisch aus `project.*`; Buchgestaltung wird nicht in Programmdateien gespeichert. Bedienung, Beispiele und Ausgabegrenzen: [Grafische Cover gestalten](ANLEITUNG.md#grafische-cover-gestalten), [English](USER-GUIDE.en.md#design-graphic-covers).
 
 ## Abschnittsdatei – Frontmatter-Beispiel
 

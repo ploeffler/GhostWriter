@@ -251,7 +251,7 @@ def cover_tex(base, config, dim, guides=False):
     head_font = FONTS['sans'] if tpl == 'modern' else FONTS['serif']
     L = ['\\documentclass{article}',
          f'\\usepackage[paperwidth={W:.2f}mm,paperheight={H:.2f}mm,margin=0pt]{{geometry}}',
-         '\\usepackage{fontspec}\\usepackage{xcolor}\\usepackage{tikz}\\usepackage{graphicx}',
+         '\\usepackage{fontspec}\\usepackage{xcolor}\\usepackage{tikz}\\usetikzlibrary{calc}\\usepackage{graphicx}',
          f'\\setmainfont{{{FONTS["serif"]}}}\\setsansfont{{{FONTS["sans"]}}}',
          f'\\newfontfamily\\headfont{{{head_font}}}',
          f'\\definecolor{{gwbg}}{{HTML}}{{{bg}}}\\definecolor{{gwfg}}{{HTML}}{{{fg}}}',
@@ -370,23 +370,45 @@ def cover_tex(base, config, dim, guides=False):
         rot = 90 if cv.get('spine_direction') == 'up' else -90   # up: von unten nach oben (deutsche Tradition)
         L.append(f'\\node[rotate={rot},text=gwfg,inner sep=0] at ({spine_x + sp / 2:.2f}mm,{y0 + h / 2:.2f}mm) '
                  f'{{\\headfont\\fontsize{{{size:.1f}}}{{{size * 1.2:.1f}}}\\selectfont {text}}};')
-    # Rückseite: Klappentext oben, Autorentext darunter, Strichcode und Preis unten rechts
+    # Rückseite: Klappentext (Lage nach cover.back_blurb_position, #416), Autorentext
+    # darüber bzw. unten, Strichcode und Preis unten rechts
     blurb, bio = back_texts(base)
     bx = back_x + SAFE
-    if blurb:
-        L.append(f'\\node[anchor=north west,text=gwfg,text width={tw:.2f}mm,align=justify,inner sep=0] at '
-                 f'({bx:.2f}mm,{y0 + h - SAFE:.2f}mm) {{\\setlength{{\\parskip}}{{0.6em}}\\fontsize{{10.5}}{{14}}\\selectfont {latex_text(blurb)}\\par}};')
     aimg = cv.get('author_image')
     bio_y = y0 + 48
-    if aimg and (base / aimg).is_file():
-        L.append(f'\\node[anchor=south west,inner sep=0] at ({bx:.2f}mm,{bio_y:.2f}mm) '
+    has_img = bool(aimg and (base / aimg).is_file())
+    if has_img:
+        L.append(f'\\node[anchor=south west,inner sep=0] (gwbioimg) at ({bx:.2f}mm,{bio_y:.2f}mm) '
                  f'{{\\includegraphics[width=22mm,height=28mm,keepaspectratio]{{{(base / aimg).resolve().as_posix()}}}}};')
         bio_x, bio_w = bx + 26, tw - 26
     else:
         bio_x, bio_w = bx, tw
     if bio:
-        L.append(f'\\node[anchor=south west,text=gwfg,text width={bio_w:.2f}mm,align=left,inner sep=0] at '
+        L.append(f'\\node[anchor=south west,text=gwfg,text width={bio_w:.2f}mm,align=left,inner sep=0] (gwbio) at '
                  f'({bio_x:.2f}mm,{bio_y:.2f}mm) {{\\fontsize{{8.5}}{{11}}\\selectfont {latex_text(bio)}\\par}};')
+    if blurb:
+        pos = cv.get('back_blurb_position') or 'top'
+        style = f'text=gwfg,text width={tw:.2f}mm,align=justify,inner sep=0'
+        if pos == 'bottom':
+            # über Autorentext und Autorenbild enden (8 mm Abstand), sonst über dem Strichcodebereich
+            refs = [r for r, ok in (('gwbio', bio), ('gwbioimg', has_img)) if ok]
+            body = (f'{{\\setlength{{\\parskip}}{{0.6em}}\\fontsize{{10.5}}{{14}}\\selectfont '
+                    f'{latex_text(blurb)}\\par}};')
+            if refs:
+                pts = ', '.join(f'\\p{i}=({r}.north)' for i, r in enumerate(refs, 1))
+                ymax = '\\y1' if len(refs) == 1 else 'max(\\y1,\\y2)'
+                L.append(f'\\path let {pts} in node[anchor=south west,{style}] at '
+                         f'({bx:.2f}mm,{{{ymax}+8mm}}) {body}')
+            else:
+                L.append(f'\\node[anchor=south west,{style}] at ({bx:.2f}mm,{bio_y:.2f}mm) {body}')
+            at = None
+        elif pos == 'middle':
+            at, anchor = f'({bx:.2f}mm,{y0 + h / 2:.2f}mm)', 'west'
+        else:
+            at, anchor = f'({bx:.2f}mm,{y0 + h - SAFE:.2f}mm)', 'north west'
+        if at:
+            L.append(f'\\node[anchor={anchor},{style}] at {at} '
+                 f'{{\\setlength{{\\parskip}}{{0.6em}}\\fontsize{{10.5}}{{14}}\\selectfont {latex_text(blurb)}\\par}};')
     isbn = (config.get('publication') or {}).get('isbn_print')
     code_w = 95 * 0.33 + 2 * 11 * 0.33
     code_x, code_y = back_x + w - SAFE - code_w, y0 + SAFE
