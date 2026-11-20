@@ -30,7 +30,7 @@ After confirmed upload, the session is **backed up, not yet merged**. **Merge se
 
 ## Distinguish the states
 
-These terms describe storage status; they are not additional section or chapter states.
+These terms describe storage status; they are not additional section or chapter states. The [user glossary](USER-GLOSSARY.en.md#saving-and-merging) explains them briefly.
 
 | State | Meaning |
 |---|---|

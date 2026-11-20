@@ -17,7 +17,7 @@
 
 <p align="center"><a href="https://ploeffler.github.io/GhostWriter/ausblick-1-0.en.html"><img src="assets/readme/ausblick.en.svg" alt="The next chapter is getting bigger.. GhostWriter is heading towards 1.0. Explore the proposed stages, from reliable saving to more creative control for your book. Planning proposal · not yet available as a complete release" width="696"></a></p>
 
-<p align="center"><a href="README.md">Deutsch</a> · <a href="docs/GETTING-STARTED.en.md">Getting started</a> · <a href="docs/USER-GUIDE.en.md">User guide</a></p>
+<p align="center"><a href="README.md">Deutsch</a> · <a href="docs/GETTING-STARTED.en.md">Getting started</a> · <a href="docs/USER-GUIDE.en.md">User guide</a> · <a href="docs/USER-GLOSSARY.en.md">User glossary</a></p>
 
 ---
 

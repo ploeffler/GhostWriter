@@ -61,7 +61,7 @@ Zusammengehörige Änderungen werden zu einem **Änderungspaket** gebündelt. �
 
 Für Gesprächsarbeit schreibst du **Session sichern**: Recherche, Brainstorming, Entscheidungen, Entwürfe und offene Punkte werden mit einem Änderungsschritt je geändertem Themengebiet in einem gemeinsamen Paket gesichert. Nach Abschluss des Dialogs über offene Punkte eines Abschnitts geschieht diese Sicherung automatisch. **Session laden** liest den gesicherten Gesprächsstand; **Session übernehmen** prüft das Paket, analysiert bei Fehlern die Ursache, versucht eine sichere technische Reparatur und übernimmt nach erneuter erfolgreicher Prüfung. Ein offenes Paket ist bereits gespeichert, aber noch nicht übernommen. Weder Speichern noch Übernehmen erteilen eine Text- oder Kapitelfreigabe.
 
-Mit **Hilfe**, **Hilfe Befehle**, **Hilfe Änderungspakete** und **Hilfe Session** bekommst du passende Befehle und Beispielprompts. [Befehlsübersicht und Begriffe](HILFE.md) · [Sicherung und Übernahme im Detail](SESSION-SICHERUNG.md).
+Mit **Hilfe**, **Hilfe Befehle**, **Hilfe Änderungspakete** und **Hilfe Session** bekommst du passende Befehle und Beispielprompts. [Befehlsübersicht und Begriffe](HILFE.md) · [Bedienglossar](BEDIENGLOSSAR.md) · [Sicherung und Übernahme im Detail](SESSION-SICHERUNG.md).
 
 ## 7. Abschließen
 
