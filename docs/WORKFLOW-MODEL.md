@@ -87,6 +87,8 @@ Der Weg zu v0.5 ist in fünf Stufen geteilt. Jede endet mit einer Abnahme im Cha
 |---|---|
 | v0.6 | Bibliothek: eine Installation, mehrere Bücher als Branches (#36–#41); automatische Migration der Datenstruktur (#59); README und Anleitung (#46); Programm-Repository öffentlich, Testbuch getrennt (#48); Abnahme nach [TESTPLAN-v0.6.md](TESTPLAN-v0.6.md) |
 | v0.7 | Figuren auf Buch-Ebene (#53) und Bilderzeugung (#54) |
+| v0.8 | *Planungsvorschlag:* Manuskript importieren mit Gliederung, Formatverlusten und erhaltenem Original; Figuren, Stil und Kontinuität über das ganze Buch prüfen, Fundstellen sehen, Vorschläge gezielt übernehmen ([Ausblick](AUSBLICK-v1.0.md)) |
+| v0.9 | *Planungsvorschlag:* Deutsch/Englisch, klare Begriffe ([Bedienglossar](BEDIENGLOSSAR.md)), ehrliche Kosten- und Limitangaben, zentrale Dokumentationswebsite mit Suche ([Ausblick](AUSBLICK-v1.0.md)) |
 | v1.0 | Vollständiger Buchworkflow in ChatGPT, Codex, Claude und Open WebUI; Standabgleich, beschlossene Sitzungssicherung, Bilder/Referenzen/Bildrecherche, Import und Chat-Analysen, Deutsch/Englisch, Datenseite und vorhandener Profiler. Keine eigene Web-App, kein eigener Verwaltungsdienst, keine KI-Anbieter-API-Anbindungen. Maßgeblich: [Beschlüsse D01–D32](ENTSCHEIDUNGEN-v1.0.md). |
 | v1.1 | Externe DOCX-Bearbeitung mit Checkout, Buchsperre und kontrollierter Rückführung (#209, D17) |
 | v1.5 | Vorwort, Nachwort, Glossar (#58); Übersetzung des Buchs mit Auflagen je Sprache (#75) |

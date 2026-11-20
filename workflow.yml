@@ -20,6 +20,8 @@ product_roadmap:
       - {version: "v0.5", goal: edition_and_export}
       - {version: "v0.6", goal: library_one_installation_many_books_as_branches}   # #36–#41, Migration #59, README #46, öffentliches Programm-Repo #48
       - {version: "v0.7", goal: characters_and_image_generation}                  # Figuren #53, Bilderzeugung #54
+      - {version: "v0.8", goal: manuscript_import_and_whole_book_review}          # Ausblick 0.8.0/0.8.1, Planungsvorschlag
+      - {version: "v0.9", goal: clear_terms_bilingual_docs_website}               # Ausblick 0.9.0, Planungsvorschlag
       - {version: "v1.0", goal: complete_book_workflow_without_ai_provider_apis}                           # siehe v1_0
       - {version: "v1.1", goal: external_docx_checkout_and_roundtrip}             # #209, D17
       - {version: "v1.5", goal: foreword_afterword_glossary_and_book_translation}   # #58, #75
