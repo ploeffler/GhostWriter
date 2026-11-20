@@ -45,9 +45,9 @@ Die folgenden Begriffe beschreiben den Speicherstand; sie sind keine zusätzlich
 
 **Schreiben erlauben** gibt den Abschnitt zum Schreiben frei; **Abschnitt abschließen** bestätigt die genaue Textfassung und sperrt sie; **Kapitel abschließen** bestätigt das zusammengeführte Kapitel. Rückgängig macht man beides mit **wieder öffnen**. Keine dieser Bestätigungen (technisch „Freigaben“, #292) entsteht allein durch Speichern, eine erfolgreiche technische Prüfung oder Übernehmen. Eine zulässige inhaltliche Freigabe kann auch im noch offenen Änderungspaket protokolliert werden; die Grafik verlangt keine vorherige Übernahme.
 
-## Hinweise bereinigen
+## Hinweise durchsehen
 
-Im Bereinigungsdialog (#367, [Lektorat](LEKTORAT.md#hinweise-bereinigen-autokorrektor-367)) wird jede Antwort ohne weitere Rückfrage als kleiner Nachtrag im offenen Änderungspaket gespeichert, wie ein Session-Nachtrag. Dabei ändert sich nur die Dialogdatei `editorial/bereinigung-<datum>.yml`, nicht das Manuskript. Übernommen wird wie bei anderen Buchänderungen; mit „sofort übernehmen“ oder „übernehmen, wenn grün“ erst nach erfolgreichen Repository-Prüfungen.
+In der Hinweisdurchsicht (#367, [Lektorat](LEKTORAT.md#hinweise-durchsehen-hinweisdurchsicht-367)) wird jede Antwort ohne weitere Rückfrage als kleiner Nachtrag im offenen Änderungspaket gespeichert, wie ein Session-Nachtrag. Dabei ändert sich nur die Dialogdatei `editorial/durchsicht-<datum>.yml`, nicht das Manuskript. Übernommen wird wie bei anderen Buchänderungen; mit „sofort übernehmen“ oder „übernehmen, wenn grün“ erst nach erfolgreichen Repository-Prüfungen.
 
 ## Wenn etwas fehlschlägt
 

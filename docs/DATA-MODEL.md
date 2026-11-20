@@ -531,10 +531,10 @@ Die Analyse „Widersprüche“ (`continuity`) schreibt keine eigene Datei, sond
 - Anzeige: je Prüfart der neueste Eintrag, der die Einheit berührt; alle älteren Einträge stehen in Kapitelansicht und Abschnittsformular unter „Frühere Prüfungen“ (#340, Datum, Prüfart, Ergebnis, Bericht); Tags an Kapiteln (Projektübersicht), Abschnitten (Kapitelansicht) und im Abschnittsformular, Platzhalter in `templates/ui/BEFUELLUNG.md`. Ein Tag heißt nur „Prüfung gelaufen mit Ergebnis X“; er ist keine Freigabe und ändert keinen Status.
 - `scripts/validate_project.py` prüft Schema, eindeutige IDs, bekannten Umfang und vorhandene Berichte.
 
-### Befunde und Bereinigungsdialog (#367)
+### Befunde und Hinweisdurchsicht (#367)
 
 - `editorial/<bericht>.yml` (Schema `schemas/findings.schema.json`): Befunde eines Prüfberichts mit `id` (`b-NNN`), `abschnitt` (Abschnitts-ID), `absatz`, `schweregrad` (`gering` … `blockierend`), `art`, `befund`, `richtung`, `alt`, `neu`, `frage`, `status` (`offen`, `erledigt`, `entschieden`). Andere YAML-Dateien unter `editorial/` ohne `befunde` sind keine Befunddateien.
-- `editorial/bereinigung-<datum>.yml` (Schema `schemas/cleanup.schema.json`, erzeugt mit `scripts/autocorrect.py collect`): Kopf `buch`, `fassung`, `erstellt`, `quelle`, `anleitung`; Listen `ohne_autor` und `autorenentscheidung` mit `id` (`e-NNN`), `befund` (Quelle `<datei>#<id>`), `abschnitt` („1.2“), `section_id`, `chapter_id`, `chapter_status`, `datei`, `absatz`, `art`, `grund`, `kontext`, `alt`, `neu`, `entscheidung` (`offen`, `ja`, `nein`, `geändert`), bei Autorenentscheidungen zusätzlich `frage`; `ausgelassen` nennt nicht aufgenommene Befunde mit Grund.
+- `editorial/durchsicht-<datum>.yml` (Schema `schemas/notes-review.schema.json`, erzeugt mit `scripts/hinweise.py collect`): Kopf `buch`, `fassung`, `erstellt`, `quelle`, `anleitung`; Listen `ohne_autor` und `autorenentscheidung` mit `id` (`e-NNN`), `befund` (Quelle `<datei>#<id>`), `abschnitt` („1.2“), `section_id`, `chapter_id`, `chapter_status`, `datei`, `absatz`, `art`, `grund`, `kontext`, `alt`, `neu`, `entscheidung` (`offen`, `ja`, `nein`, `geändert`), bei Autorenentscheidungen zusätzlich `frage`; `ausgelassen` nennt nicht aufgenommene Befunde mit Grund.
 - `scripts/validate_project.py` prüft beide gegen ihr Schema, eindeutige IDs und bekannte Abschnitte.
 
 ### Analyse im Hintergrund (#123)

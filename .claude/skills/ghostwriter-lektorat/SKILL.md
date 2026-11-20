@@ -23,8 +23,8 @@ Wird ein Bericht gespeichert, den Lauf mit `scripts/checks.py record` ins
 Prüfprotokoll `editorial/checks.yml` eintragen (#331); daraus entstehen die
 Prüf-Tags in den Ansichten. Dabei immer `--notes <n>` mitgeben: Zahl der offenen
 Hinweise im Bericht, 0 wenn keine offen sind (#362, Anzeige in der Projektübersicht).
-Die Befunde zusätzlich als `editorial/<bericht>.yml` ablegen (#367); „Hinweise bereinigen“
-läuft über `scripts/autocorrect.py` (docs/LEKTORAT.md, „Hinweise bereinigen“).
+Die Befunde zusätzlich als `editorial/<bericht>.yml` ablegen (#367); „Hinweise durchsehen“
+läuft über `scripts/hinweise.py` (docs/LEKTORAT.md, „Hinweise durchsehen“).
 
 ---
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../../../assets/logo-dark.svg"><img src="../../../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

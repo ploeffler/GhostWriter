@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/ploeffler/GhostWriter/schemas/cleanup.schema.json",
-  "title": "Bereinigungsdialog (editorial/bereinigung-<datum>.yml, #367): gesammelte offene Befunde mit Entscheidungen",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/notes-review.schema.json",
+  "title": "Hinweisdurchsicht (editorial/durchsicht-<datum>.yml, #367): gesammelte offene Befunde mit Entscheidungen",
   "type": "object",
   "required": ["buch", "erstellt", "quelle", "anleitung", "ohne_autor", "autorenentscheidung"],
   "$defs": {

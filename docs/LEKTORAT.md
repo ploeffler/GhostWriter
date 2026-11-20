@@ -125,9 +125,9 @@ Befunde, die noch nicht umgesetzt oder entschieden sind (0, wenn keine offen sin
 Die Projektübersicht zeigt sie je Kapitel (#362). Wird ein Hinweis später
 umgesetzt, kommt die neue Zahl erst mit dem nächsten Eintrag.
 
-## Hinweise bereinigen (Autokorrektor, #367)
+## Hinweise durchsehen (Hinweisdurchsicht, #367)
 
-Damit offene Hinweise später ohne Freitextauswertung bereinigt werden können,
+Damit offene Hinweise später ohne Freitextauswertung gemeinsam durchgesehen werden können,
 legt der Assistent beim Speichern eines Berichts dessen Befunde zusätzlich als
 `editorial/<bericht>.yml` ab (Schema `schemas/findings.schema.json`): je Befund
 `id` (`b-001`), `abschnitt` (Abschnitts-ID), optional `absatz`, `schweregrad`,
@@ -135,10 +135,10 @@ legt der Assistent beim Speichern eines Berichts dessen Befunde zusätzlich als
 (Vorschlag), optional `frage`, dazu `status` (`offen`, `erledigt`, `entschieden`).
 `--notes` im Prüfprotokoll ist die Zahl der Befunde mit `status: offen`.
 
-Auf Auftrag („Hinweise bereinigen“, „Autokorrektor“) sammelt
-`python3 scripts/autocorrect.py collect <buch> [--chapter <kapitel-id> …]` alle
-offenen Befunde in `editorial/bereinigung-<datum>.yml` (Schema
-`schemas/cleanup.schema.json`), getrennt in **Ohne Autor lösbar** und
+Auf Auftrag („Hinweise durchsehen“, „Hinweisdurchsicht“) sammelt
+`python3 scripts/hinweise.py collect <buch> [--chapter <kapitel-id> …]` alle
+offenen Befunde in `editorial/durchsicht-<datum>.yml` (Schema
+`schemas/notes-review.schema.json`), getrennt in **Ohne Autor lösbar** und
 **Autorenentscheidung**:
 
 - Ohne Autor lösbar ist nur ein rein sprachlicher Befund (`rechtschreibung`,
@@ -152,17 +152,17 @@ offenen Befunde in `editorial/bereinigung-<datum>.yml` (Schema
 - Jeder Eintrag trägt den betroffenen Satz mit bis zu zwei Sätzen davor und
   danach (`kontext`), die Kapitel- und Abschnittsangaben und `entscheidung: offen`.
 
-`autocorrect.py show <buch> [--open]` zeigt den Dialog kapitelweise mit alt und
+`hinweise.py show <buch> [--open]` zeigt den Dialog kapitelweise mit alt und
 neu, die Autorenentscheidungen darunter. Jede Antwort speichert
-`autocorrect.py decide <buch> <eintrag> --decision ja|nein|geändert [--new …]`;
+`hinweise.py decide <buch> <eintrag> --decision ja|nein|geändert [--new …]`;
 der Assistent lädt sie ohne Rückfrage als kleinen Nachtrag ins offene
-Änderungspaket ([Speichern](SPEICHERN.md#hinweise-bereinigen)). So setzt eine
-spätere Sitzung mit „Bereinigung fortsetzen“ an derselben Stelle fort.
+Änderungspaket ([Speichern](SPEICHERN.md#hinweise-durchsehen)). So setzt eine
+spätere Sitzung mit „Durchsicht fortsetzen“ an derselben Stelle fort.
 
 Noch nicht enthalten (Teil 2 von #367): das Umsetzen der Entscheidungen ins
 Manuskript mit Anzeige der wieder geöffneten Abschnitte und Kapitel, die
 Nachprüfung, das Zurückschreiben des Befundstatus in die Berichte und ein Widget.
-Bis dahin ändert der Autokorrektor kein Manuskript.
+Bis dahin ändert die Hinweisdurchsicht kein Manuskript; sie bereitet nur den Dialog vor.
 
 ## Einbindung und Grenzen
 

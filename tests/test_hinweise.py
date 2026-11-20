@@ -1,4 +1,4 @@
-"""Autokorrektor (#367, Teil 1): Befunde sammeln, Dialogdatei prüfen, Entscheidungen speichern."""
+"""Hinweisdurchsicht (#367, Teil 1): Befunde sammeln, Dialogdatei prüfen, Entscheidungen speichern."""
 import shutil
 import sys
 import tempfile
@@ -9,13 +9,13 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-import autocorrect  # noqa: E402
+import hinweise  # noqa: E402
 import checks  # noqa: E402
 import validate_project  # noqa: E402
 from render_view import load  # noqa: E402
 
 
-class AutocorrectTest(unittest.TestCase):
+class HinweiseTest(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
@@ -44,8 +44,8 @@ class AutocorrectTest(unittest.TestCase):
         (self.base / 'editorial/sprache-kap-01.yml').write_text(yaml.safe_dump(findings, allow_unicode=True), encoding='utf-8')
 
     def test_collect_groups_and_checks(self):
-        path, data = autocorrect.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
-        self.assertEqual(path.name, 'bereinigung-2026-11-20.yml')
+        path, data = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        self.assertEqual(path.name, 'durchsicht-2026-11-20.yml')
         self.assertEqual([e['befund'].split('#')[1] for e in data['ohne_autor']], ['b-001'])
         e = data['ohne_autor'][0]
         self.assertEqual((e['id'], e['abschnitt'], e['entscheidung']), ('e-001', '1.1', 'offen'))
@@ -58,39 +58,39 @@ class AutocorrectTest(unittest.TestCase):
         self.assertFalse(validate_project.check_project(self.base))
 
     def test_decide_and_show(self):
-        path, _ = autocorrect.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
-        autocorrect.decide(path, 'e-001', 'geändert', 'Eigene Fassung')
+        path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        hinweise.decide(path, 'e-001', 'geändert', 'Eigene Fassung')
         with self.assertRaises(ValueError):
-            autocorrect.decide(path, 'e-001', 'geändert')
+            hinweise.decide(path, 'e-001', 'geändert')
         with self.assertRaises(ValueError):
-            autocorrect.decide(path, 'e-999', 'ja')
-        data = autocorrect.read_yaml(path)
+            hinweise.decide(path, 'e-999', 'ja')
+        data = hinweise.read_yaml(path)
         self.assertEqual((data['ohne_autor'][0]['entscheidung'], data['ohne_autor'][0]['neu']), ('geändert', 'Eigene Fassung'))
-        out = autocorrect.show(data)
+        out = hinweise.show(data)
         self.assertIn('#### Ohne Autor lösbar', out)
         self.assertIn('#### Autorenentscheidung', out)
         self.assertIn('1 entschieden', out)
-        self.assertNotIn('`e-001`', autocorrect.show(data, only_open=True))
+        self.assertNotIn('`e-001`', hinweise.show(data, only_open=True))
         self.assertFalse(validate_project.check_project(self.base))
 
     def test_chapter_filter_and_validation(self):
         with self.assertRaises(ValueError):
-            autocorrect.collect(self.base, self.config, chapters=['kap-x'])
+            hinweise.collect(self.base, self.config, chapters=['kap-x'])
         other = self.config['structure']['chapters'][1]['id']
-        _, data = autocorrect.collect(self.base, self.config, chapters=[other], date='2026-11-20', commit='abcdef1')
+        _, data = hinweise.collect(self.base, self.config, chapters=[other], date='2026-11-20', commit='abcdef1')
         self.assertEqual(data['ohne_autor'] + data['autorenentscheidung'], [])
         bad = yaml.safe_load((self.base / 'editorial/sprache-kap-01.yml').read_text(encoding='utf-8'))
         bad['befunde'][1]['id'] = 'b-001'
         bad['befunde'][2]['abschnitt'] = 'sec-gibtsnicht'
         (self.base / 'editorial/sprache-kap-01.yml').write_text(yaml.safe_dump(bad, allow_unicode=True), encoding='utf-8')
-        errs = autocorrect.errors(self.base, self.config)
+        errs = hinweise.errors(self.base, self.config)
         self.assertTrue(any('ID doppelt: b-001' in e for e in errs), errs)
         self.assertTrue(any('sec-gibtsnicht unbekannt' in e for e in errs), errs)
 
     def test_cli(self):
-        self.assertEqual(autocorrect.main(['collect', str(self.base), '--date', '2026-11-20']), 0)
-        self.assertEqual(autocorrect.main(['decide', str(self.base), 'e-001', '--decision', 'ja']), 0)
-        self.assertEqual(autocorrect.main(['show', str(self.base), '--open']), 0)
+        self.assertEqual(hinweise.main(['collect', str(self.base), '--date', '2026-11-20']), 0)
+        self.assertEqual(hinweise.main(['decide', str(self.base), 'e-001', '--decision', 'ja']), 0)
+        self.assertEqual(hinweise.main(['show', str(self.base), '--open']), 0)
 
 
 if __name__ == '__main__':
