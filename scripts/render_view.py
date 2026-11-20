@@ -3135,7 +3135,8 @@ def analysis_suggest_view(base, config, args):
         return character_suggest_view(base, config, args)
     run_args = {'p_a': str(data.get('run') or '')[4:], 'p_b': de_date(str(data.get('created_at', '')))}
     run_text = ('' if not data.get('run') else view_message('view.analysis_suggest.chat_run_from', **run_args)
-                if data.get('source') == 'chat' else view_message('view.analysis_suggest.background_run_from', **run_args))
+                if data.get('source') == 'chat' else view_message('view.analysis_suggest.import_run_from', **run_args)
+                if data.get('source') == 'import' else view_message('view.analysis_suggest.background_run_from', **run_args))
     return ANALYSIS_VIEWS[kind](base, config, args, data, run_text)
 
 
@@ -3959,8 +3960,7 @@ def main():
         out = project_view(base, config, args)
     elif args.view == 'timeline':   # Chronologie (#354): Vorlage zeitleiste bzw. Textfassung
         import chronology
-        chron = chronology.read(base) or {}
-        if args.text or chron.get('epoch'):   # Erzählzeit (#379): die grafische Vorlage kennt noch keine Tagesachse
+        if args.text:
             out = chronology.text_view(base, config, [x.strip() for x in (args.status or '').split(',') if x.strip()] or None,
                                        language=UI.get('language', 'de'))
         else:

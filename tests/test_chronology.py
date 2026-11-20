@@ -259,6 +259,11 @@ class NarrativeTimeTest(BookTest):
         self.assertIn('Erzählzeit: Tag 0 = Fundtag (Mittwoch)', out)
         self.assertIn('*Tag −1 (Dienstag)*', out)
         self.assertNotIn('2001', out)
+        import json as _json
+        values, _ = chr_.widget_values(self.base, self.config)
+        tl = _json.loads(values['TIMELINE_JSON'])
+        self.assertEqual(tl['epoch']['label'], 'Fundtag')
+        self.assertEqual(next(e for e in tl['entries'] if e['id'] == 'chr-001')['minutes'], 6 * 60 + 42)
         page = chr_.export_html(self.base, self.config)
         self.assertIn('Tag 0', page)
         self.assertNotIn('>2001<', page)
@@ -274,6 +279,11 @@ class NarrativeTimeTest(BookTest):
         (self.base / 'story').mkdir(exist_ok=True)
         (self.base / 'story/chronologie.md').write_text(self.MD, encoding='utf-8')
         run_id, data = chr_.import_md_run(self.base, self.config)
+        draft = self.base / 'analysis/chronology' / f'{run_id}.json'
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest', '--draft',
+                            str(draft), '--text', '--repo', 'o/r'], capture_output=True, text=True, check=True)
+        self.assertIn('Import 001 vom', r.stdout)
+        self.assertNotIn('Hintergrundlauf', r.stdout)
         self.assertEqual(data['epoch'], {'label': 'Fund', 'weekday': 'wednesday'})
         items = data['items']
         self.assertEqual([it.get('day') for it in items], [-1, 0, 0, 14, None])

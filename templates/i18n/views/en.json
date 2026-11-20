@@ -743,6 +743,7 @@
   "view.character_suggest.already_exists": "already exists: {p_a}",
   "view.character_suggest.background_run_from": "Background run {p_a} from {p_b}",
   "view.analysis_suggest.background_run_from": "Background run {p_a} from {p_b}",
+  "view.analysis_suggest.import_run_from": "Import {p_a} from {p_b} (without AI)",
   "view.summaries_suggest.current": " *(current: {p_a})*",
   "view.summaries_suggest.currently_empty": " *(currently empty)*",
   "view.summaries_suggest.summary": "- Summary: {p_a}",

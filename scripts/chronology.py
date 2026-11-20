@@ -521,6 +521,8 @@ def widget_values(base, config):
                'status': e.get('status', ''), 'estimated': bool(e.get('estimated')), 'lanes': keys,
                'people': ', '.join(names.get(c, c) for c in e.get('characters') or []), 'place': place,
                'chapter': f'{ch[0]}: {ch[1]}' if ch else '', 'source': e.get('source', ''), 'flag': e['id'] in flagged}
+        if relative(e) and e.get('time'):   # Erzählzeit (#379): Uhrzeit für die Tagesachse
+            row['minutes'] = int(e['time'][:2]) * 60 + int(e['time'][3:])
         rows.append(row)
         if ch and start:
             last = (end or start)[1]
@@ -532,7 +534,9 @@ def widget_values(base, config):
     values = {'PROJECT_TITLE_SHORT': config['project'].get('title_short') or config['project'].get('title') or '',
               'COUNT_TEXT': f'{len(entries)} {"Eintrag" if len(entries) == 1 else "Einträge"} · '
                             + (f'{len(hints)} {"Hinweis" if len(hints) == 1 else "Hinweise"}' if hints else 'keine Hinweise'),
-              'TIMELINE_JSON': json.dumps({'entries': rows, 'lanes': lane_rows, 'chapters': chapter_rows}, ensure_ascii=False),
+              'TIMELINE_JSON': json.dumps(dict({'entries': rows, 'lanes': lane_rows, 'chapters': chapter_rows},
+                                               **({'epoch': {'base': str(EPOCH_BASE), 'label': data['epoch'].get('label', '')}}
+                                                  if data.get('epoch') else {})), ensure_ascii=False),
               'EMPTY_TEXT': '' if entries else ('Noch keine Chronologie. Sie entsteht im Chat aus Figuren, Schauplätzen, '
                                                  'Quellen, Recherche und gesicherten Sitzungen; gespeichert wird nur, was du auswählst.')}
     blocks = {'FINDINGS': [{'F_KIND_TEXT': KIND_DE[f['kind']], 'F_TEXT': f['text'], 'F_ENTRIES': ', '.join(f['entries'])} for f in hints]}
