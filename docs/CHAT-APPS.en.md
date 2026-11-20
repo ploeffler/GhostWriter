@@ -95,6 +95,9 @@ keeps its state in the repository, so nothing is lost when you switch.
 - **Sub-agent for many chapters:** where the app supports sub-agents (e.g.
   Claude Code), one reads the chapters for story memory and editorial review and
   returns only findings with locations. This also keeps the rule "no whole book in the chat".
+- **Smaller model for mechanical checks (#418):** proofreading and re-checks run
+  on a small model, structural review and new text on a large one; see
+  [Model choice for sub-agents](EDITORIAL-REVIEW.en.md#model-choice-for-sub-agents-418).
 
 Not adopted: settings that only apply to Claude Code in the terminal (model
 choice in `settings.json`, environment variables, `/cost`). Still open: measuring

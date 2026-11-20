@@ -172,6 +172,38 @@ only findings with locations; the assistant writes report and findings file as
 usual. Without sub-agents, work chapter by chapter and keep only the findings in
 the chat ([Saving tokens](CHAT-APPS.en.md#saving-tokens-during-a-chat-392)).
 
+### Model choice for sub-agents (#418)
+
+Without a setting, a sub-agent inherits the main session's model, even for
+purely mechanical work. Recommendation per review kind, using neutral classes
+instead of product names:
+
+| Review kind | Key | Class | Claude |
+|---|---|---|---|
+| Proofreading, mechanical language fixes, re-checks | `proofreading` | `small` | haiku |
+| Extracting places, characters, timeline from the text | `extraction` | `small` | haiku |
+| Language review (voice, rhythm) | `language` | `medium` | sonnet |
+| Story memory, continuity | `continuity` | `medium` | sonnet |
+| Structural review | `structure` | `large` | opus |
+| New scenes, text suggestions in the narrative voice | `writing` | `large` | opus |
+
+To change this permanently, set it in the assistant profile (`assistant.yml`,
+command `Profile`), for example:
+
+```yaml
+subagent_models:
+  language: large      # voice is delicate here
+```
+
+Missing review kinds follow the table. When starting sub-agents, the assistant
+says in one sentence which class runs what (“proofreading with Haiku,
+structural review with Opus”). In Claude Code the class is passed as the
+agent's model. In Codex each class corresponds to its own agent under
+`.codex/agents/`, for example `.codex/agents/proofreading.toml` with
+`model = "<small model>"` and a short description; `AGENTS.md` points to this
+table for delegation. Apps without per-agent model choice use the main model;
+the assistant then says so in one sentence.
+
 ## Integration and limits
 
 This guide and its German counterpart are the shared subject-matter source.

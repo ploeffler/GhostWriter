@@ -154,6 +154,19 @@ class ProfileTest(unittest.TestCase):
                                   profile={**PROFILE, 'display': 'erweitert', 'answers': 'erweitert'})['START.md']
         self.assertIn('Standard: erweitert, Antworten erweitert', text)
 
+    def test_subagent_models(self):   # #418
+        prof, errs, _ = assistant.set_profile(self.d, PROFILE)
+        skill = assistant.skill_path(self.d, prof).read_text(encoding='utf-8')
+        self.assertNotIn('Hilfsagenten', skill)
+        prof, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'subagent_models': {'language': 'small'}})
+        self.assertEqual(errs, [])
+        skill = assistant.skill_path(self.d, prof).read_text(encoding='utf-8')
+        self.assertIn('Sprachlektorat klein', skill)
+        self.assertIn('Strukturlektorat groß', skill)
+        self.assertIn('klein = haiku', skill)
+        _, errs, _ = assistant.set_profile(self.d, {'subagent_models': {'language': 'riesig'}})
+        self.assertTrue(errs)
+
     def test_invalid(self):
         _, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'git': {'name': 'x', 'email': 'kein-mail'}})
         self.assertTrue(errs)

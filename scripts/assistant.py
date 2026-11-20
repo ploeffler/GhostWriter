@@ -48,6 +48,25 @@ OWN_END = '<!-- Ende eigene Ergänzungen -->'
 OWN_RE = re.compile(re.escape(OWN_START) + r'\n?(.*?)' + re.escape(OWN_END), re.S)
 DISPLAY = {'einfach': 'Darstellung: einfach', 'uebersichtlich': 'Darstellung: übersichtlich',
            'erweitert': 'Darstellung: erweitert', 'text': 'Nur Text'}
+SUBAGENT_DEFAULT = {'proofreading': 'small', 'extraction': 'small', 'language': 'medium', 'continuity': 'medium',
+                    'structure': 'large', 'writing': 'large'}
+SUBAGENT_DE = {'proofreading': 'Schlusskorrektur/Nachprüfung', 'extraction': 'Herauslesen (Orte, Figuren, Zeitleiste)',
+               'language': 'Sprachlektorat', 'continuity': 'Buchgedächtnis', 'structure': 'Strukturlektorat',
+               'writing': 'neue Szenen/Textvorschläge'}
+SIZE_DE = {'small': 'klein', 'medium': 'mittel', 'large': 'groß'}
+
+
+def subagent_line(profile):
+    """Modellklassen der Hilfsagenten (#418); ohne Feld keine Zeile."""
+    own = profile.get('subagent_models')
+    if not own:
+        return ''
+    models = dict(SUBAGENT_DEFAULT, **own)
+    parts = ', '.join(f'{SUBAGENT_DE[k]} {SIZE_DE[v]}' for k, v in models.items())
+    return (f'- Hilfsagenten (#418): {parts}. In Claude klein = haiku, mittel = sonnet, groß = opus; beim Start der '
+            'Hilfsagenten in einem Satz nennen, welche Klasse wofür läuft (`docs/LEKTORAT.md`, „Modellwahl“).')
+
+
 ANSWERS = {'einfach': 'einfacher Modus', 'erweitert': 'erweiterte Antworten (technische Details)'}
 
 
@@ -150,6 +169,7 @@ def render(base, profile):
                                  '(`START.md`, „Gespräch und Manuskriptarbeit“).' if profile.get('work_modes') == 'ask' else
                                  ''),   # ohne Feld keine Zeile: bestehende Skills bleiben unverändert gültig
               'DISPLAY_LINE': display_line(profile),
+              'SUBAGENT_LINE': subagent_line(profile),
               'OWN_START': OWN_START, 'OWN_END': OWN_END}
     text = TEMPLATE.read_text(encoding='utf-8')
     for k, v in values.items():
@@ -281,7 +301,7 @@ def set_profile(base, changes, force=False):
     hand = handwritten(base, prof)
     if hand and not force:
         return None, [handwritten_error(hand.relative_to(base))], None
-    order = ['format', 'repo', 'skill', 'interface_language', 'work_modes', 'display', 'answers', 'startup', 'git',
+    order = ['format', 'repo', 'skill', 'interface_language', 'work_modes', 'display', 'answers', 'subagent_models', 'startup', 'git',
              'author', 'voice', 'upstream']
     prof = {k: prof[k] for k in order if k in prof}
     header = '# Assistenten-Profil (#136): gilt für alle Bücher dieses Repositorys; daraus entsteht\n' \

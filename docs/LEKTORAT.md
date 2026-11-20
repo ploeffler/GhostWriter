@@ -184,6 +184,38 @@ Befunddatei schreibt der Assistent wie gewohnt. Ohne Hilfsagenten kapitelweise
 nacheinander arbeiten und je Kapitel nur die Befunde im Chat behalten
 ([Token sparen](CHAT-APPS.md#token-sparen-im-laufenden-chat-392)).
 
+### Modellwahl für Hilfsagenten (#418)
+
+Ohne Angabe erbt ein Hilfsagent das Modell der Hauptsitzung, auch für rein
+mechanische Arbeit. Empfehlung je Prüfart, mit neutralen Klassen statt
+Produktnamen:
+
+| Prüfart | Schlüssel | Klasse | Claude |
+|---|---|---|---|
+| Schlusskorrektur, mechanische Sprachkorrektur, Nachprüfung | `proofreading` | klein (`small`) | haiku |
+| Orte, Figuren, Zeitleiste aus dem Text herauslesen | `extraction` | klein (`small`) | haiku |
+| Sprachlektorat (Stimme, Rhythmus) | `language` | mittel (`medium`) | sonnet |
+| Buchgedächtnis, Kontinuität | `continuity` | mittel (`medium`) | sonnet |
+| Strukturlektorat | `structure` | groß (`large`) | opus |
+| Neue Szenen, Textvorschläge in der Erzählstimme | `writing` | groß (`large`) | opus |
+
+Abweichend dauerhaft festlegen im Assistenten-Profil (`assistant.yml`, Befehl
+`Profil`), etwa:
+
+```yaml
+subagent_models:
+  language: large      # Stimme ist hier heikel
+```
+
+Fehlende Prüfarten folgen der Tabelle. Der Assistent nennt beim Start der
+Hilfsagenten in einem Satz, welche Klasse wofür läuft („Korrektur mit Haiku,
+Strukturlektorat mit Opus“). In Claude Code wird die Klasse als Modell des
+Agenten übergeben. In Codex entspricht jede Klasse einem eigenen Agenten unter
+`.codex/agents/`, zum Beispiel `.codex/agents/korrektur.toml` mit
+`model = "<kleines Modell>"` und einer kurzen Beschreibung; `AGENTS.md`
+verweist für die Delegation auf diese Tabelle. Apps ohne Modellwahl je Agent
+verwenden das Hauptmodell; der Assistent sagt das dann in einem Satz.
+
 ## Einbindung und Grenzen
 
 Die gemeinsame Fachquelle ist diese Anleitung mit ihrer englischen Fassung.

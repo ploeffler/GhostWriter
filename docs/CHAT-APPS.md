@@ -102,6 +102,9 @@ mit. GhostWriter hält den Stand im Repository, darum geht beim Wechsel nichts v
 - **Hilfsagent für viele Kapitel:** Wo die App Hilfsagenten kennt (z. B. Claude
   Code), liest er bei Buchgedächtnis und Lektorat die Kapitel und gibt nur
   Befunde mit Fundstellen zurück. Das hält zugleich die Regel „kein ganzes Buch im Chat“ ein.
+- **Kleineres Modell für mechanische Prüfungen (#418):** Korrektur und
+  Nachprüfung laufen mit einem kleinen Modell, Strukturlektorat und neuer Text
+  mit einem großen; siehe [Modellwahl für Hilfsagenten](LEKTORAT.md#modellwahl-für-hilfsagenten-418).
 
 Nicht übertragen: Einstellungen, die nur für Claude Code im Terminal gelten
 (Modellwahl in `settings.json`, Umgebungsvariablen, `/cost`). Offen bleibt eine

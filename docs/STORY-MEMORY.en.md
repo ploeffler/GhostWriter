@@ -110,6 +110,7 @@ app supports it (e.g. Claude Code). It receives the assignment, scope and facts
 from the book files and returns only findings with locations and evidence, no
 chapter text. Without sub-agents, check chapter by chapter and keep only the
 findings in the chat ([Saving tokens](CHAT-APPS.en.md#saving-tokens-during-a-chat-392)).
+Model class: medium (`continuity`), see [Model choice for sub-agents](EDITORIAL-REVIEW.en.md#model-choice-for-sub-agents-418).
 
 ## Knowledge state when entering a book (#369)
 
