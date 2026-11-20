@@ -62,7 +62,7 @@ Im Modus „Widget“ schreibt der Assistent keine fertige Ansicht, sondern nur 
 | Marker-Text | `keine offenen Marker`, `1 offener Marker`, `N offene Marker` |
 | Anzahl Abschnitte | `1 Abschnitt`, `N Abschnitte` |
 | Abgeschlossen | `<Anzahl Abschnitte mit Status approved> von <Anzahl Abschnitte>` |
-| Gelesener Stand (`HEAD_SHA`) | vollständiger Commit-SHA des Stands, aus dem gelesen wurde: Arbeits-Branch, wenn es offene Änderungen gibt, sonst Buch-Branch (`START.md`, „Schreiben ins Repository“). Jede Vorlage bekommt ihn; `gw.js` hängt ihn an jede schreibende Aktion (auch `approval.confirm`) als `expected_head_sha` an |
+| Gelesener Stand (`HEAD_SHA`) | vollständiger Commit-SHA des Stands, aus dem gelesen wurde: Arbeits-Branch, wenn es offene Änderungen gibt, sonst Buch-Branch (`START.md`, „Schreiben ins Repository“). Jede Vorlage bekommt ihn; `gw.js` hängt ihn an jede schreibende Aktion als `expected_head_sha` an: Endung `.update`, `.create` (außer `edition.create`) und `.reorder` sowie die Liste `GW.writes` (u. a. `approval.confirm`, `changes.merge`, `chapter.sections.add`, `chapter.research.start`, `series.volume.*`, `series.omnibus.approve`/`revoke`/`publish`, `import.apply`/`edit`/`outline.apply`, `analysis.apply`, `character.suggest.apply`, `image.place`; UI 0.61.1, #179). Reine Aufträge wie `run.start` und `edition.*` tragen ihn nicht |
 | Auflage | `project.current_edition` > 0: „Auflage N“, sonst „noch keine Auflage“ |
 | Sichtbare Nummern | Kapitel- und Abschnittsnummer aus der Reihenfolge in `structure.chapters` |
 | Ziel, Kurzbeschreibung | Text unter `## Ziel des Abschnitts` bzw. `## Kurzbeschreibung`; „Offen.“ gilt als leer |
