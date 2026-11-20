@@ -45,6 +45,10 @@ These terms describe storage status; they are not additional section or chapter 
 
 **Allow writing** authorises drafting; **finalize section** confirms the exact section text and locks it; **finalize chapter** confirms the assembled chapter. **Reopen** undoes either. Saving, successful technical checks and merging do not grant any of them (technically they are approvals, #292). An eligible content approval can be recorded in an open change package; the diagram does not require merging first.
 
+## Cleaning up notes
+
+In the clean-up dialogue (#367, [editorial review](EDITORIAL-REVIEW.en.md#cleaning-up-notes-autocorrector-367)) each answer is saved without further confirmation as a small addition to the open change package, like a session addition. Only the dialogue file `editorial/bereinigung-<date>.yml` changes, not the manuscript. Merging works as for other book changes; with “merge immediately” or “merge when green” only after the repository checks pass.
+
 ## If an operation fails
 
 If affected files have changed meanwhile, compare versions again before writing. Do not bypass conflicts, missing permissions or unclear decisions. Before retrying a merge after a connection error, check whether the first attempt already succeeded.

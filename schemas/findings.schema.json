@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/findings.schema.json",
+  "title": "Befunde eines Prüfberichts (editorial/<bericht>.yml, #367): maschinenlesbar neben dem Markdown-Bericht",
+  "type": "object",
+  "required": ["befunde"],
+  "properties": {
+    "bericht": {"type": "string", "description": "Pfad des Markdown-Berichts im Buch"},
+    "befunde": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "abschnitt", "art", "befund", "status"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^b-[0-9]{3,}$"},
+          "abschnitt": {"type": "string", "minLength": 1, "description": "Abschnitts-ID"},
+          "absatz": {"type": "integer", "minimum": 1},
+          "schweregrad": {"enum": ["gering", "mittel", "wesentlich", "blockierend"]},
+          "art": {"enum": ["rechtschreibung", "zeichensetzung", "grammatik", "wiederholung", "satzbau", "sprache", "fakt", "ton", "aufbau", "buchweit"]},
+          "befund": {"type": "string", "minLength": 1},
+          "richtung": {"type": "string", "description": "empfohlene Änderungsrichtung"},
+          "alt": {"type": "string", "description": "genauer Wortlaut im Manuskript"},
+          "neu": {"type": "string", "description": "Vorschlag"},
+          "frage": {"type": "string", "description": "was der Autor entscheiden oder angeben muss"},
+          "status": {"enum": ["offen", "erledigt", "entschieden"]}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
