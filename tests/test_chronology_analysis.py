@@ -129,6 +129,11 @@ class ChronologyAnalysisTest(unittest.TestCase):
         view = render_view.chronology_suggest_view(self.base, self.config, A(), data, '')
         self.assertIn('Chronologie-Vorschläge', view)
         self.assertIn('| 1 |', view)
+        A.text = False
+        widget = render_view.chronology_suggest_view(self.base, self.config, A(), data, '')
+        self.assertEqual(widget.template, 'chronologie-vorschlag')
+        self.assertEqual(widget.data['ENTRIES'][0]['C_STATUS'], 'reported')   # Geburt 1930 aus der Figurendatei
+        self.assertEqual(widget.data['ENTRIES'][0]['C_DATE'], '1930')
         changed = analyze.apply(self.base, head['id'], 'chronology', [{'index': 0, 'status': 'reported'}])
         self.assertEqual(changed, ['story/chronology.yml'])
         self.assertEqual(chronology.read(self.base)['entries'][0]['status'], 'reported')
