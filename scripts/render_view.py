@@ -3842,7 +3842,7 @@ def resolve_repo(base, args):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline'] + list(FORMS))
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline', 'notes-review'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--ohne-manuskript', '--no-manuscript', dest='no_manuscript', action='store_true',
@@ -3914,6 +3914,18 @@ def main():
         else:
             values, blocks = chronology.widget_values(base, config)
             out = fill('zeitleiste.html', values, blocks)
+    elif args.view == 'notes-review':   # Hinweisdurchsicht (#367): Vorlage hinweisdurchsicht bzw. Textfassung
+        import hinweise
+        path = Path(args.where) if args.where else hinweise.latest(base)
+        if path and not path.is_absolute() and not path.exists():
+            path = base / path
+        if not path or not path.is_file():
+            raise SystemExit('Keine Durchsichtsdatei gefunden (zuerst scripts/hinweise.py collect).')
+        if args.text:
+            out = hinweise.show(hinweise.read_yaml(path))
+        else:
+            values, blocks = hinweise.widget_values(base, path)
+            out = fill('hinweisdurchsicht.html', values, blocks)
     elif args.view == 'chapter':
         out = chapter_view(base, config, args, int(args.where))
     else:

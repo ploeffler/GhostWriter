@@ -162,7 +162,7 @@ check for the affected chapters (proofreading and quality, with `--notes`) and
 asks separately about finalizing again. Saving and merging work as for other
 book changes.
 
-Not yet included: a widget for the dialogue; the text version is available.
+In the chat, `render_view.py notes-review` shows the dialogue as a widget (template `hinweisdurchsicht`, UI 0.58.0 and later) with “Accept”, “Do not change” and “Rephrase” per entry and “Check what can be applied”; `--text` gives the text version.
 
 ## Integration and limits
 

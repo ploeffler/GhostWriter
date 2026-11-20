@@ -344,6 +344,47 @@ def apply_text(result):
     return '\n'.join(lines) + '\n'
 
 
+# ---------- Widget (ghostwriter-ui, Vorlage hinweisdurchsicht) ----------
+
+STATUS_TEXT = {'planned': 'geplant', 'in_progress': 'in Arbeit', 'ready_for_assembly': 'bereit zum Zusammenführen',
+               'assembly': 'im Zusammenführen', 'review': 'in Prüfung', 'ready_for_approval': 'bereit zum Abschluss',
+               'approved': 'abgeschlossen'}
+
+
+def widget_values(base, path):
+    """Werte für die Vorlage hinweisdurchsicht (#367): (values, blocks)."""
+    data = read_yaml(path)
+    all_entries = entries(data)
+    done = sum(e.get('entscheidung', 'offen') != 'offen' for _, e in all_entries)
+    y, m, d = (str(data.get('erstellt', '')).split('-') + ['', '', ''])[:3]
+
+    def row(e, author):
+        r = {'E_ID': e['id'], 'E_WHERE': e['abschnitt'],
+             'E_CHAPTER_TEXT': f'Kapitel {e["abschnitt"].split(".")[0]} · '
+                               + STATUS_TEXT.get(e.get('chapter_status', ''), e.get('chapter_status', '')),
+             'E_KIND': e.get('art', ''), 'E_REASON': e.get('grund', ''), 'E_CONTEXT': e.get('kontext', ''),
+             'E_OLD': e.get('alt', ''), 'E_NEW': e.get('neu', ''),
+             'E_DECISION': 'umgesetzt' if e.get('umgesetzt') else e.get('entscheidung', 'offen')}
+        if author:
+            r['E_QUESTION'] = e.get('frage', '')
+        return r
+    rel = Path(path).resolve().relative_to(Path(base).resolve()).as_posix()
+    values = {'REVIEW_FILE': rel, 'REVIEW_BOOK': data.get('buch', ''),
+              'REVIEW_DATE_TEXT': f'Stand {d}.{m}.{y}' if d else '',
+              'REVIEW_COUNT_TEXT': f'{len(all_entries)} Einträge · {done} entschieden · {len(all_entries) - done} offen'}
+    blocks = {}
+    auto = [row(e, False) for e in data.get('ohne_autor') or []]
+    author = [row(e, True) for e in data.get('autorenentscheidung') or []]
+    skipped = [{'SK_REF': s['befund'], 'SK_REASON': s['grund']} for s in data.get('ausgelassen') or []]
+    if auto:
+        blocks['AUTO'] = auto
+    if author:
+        blocks['AUTHOR'] = author
+    if skipped:
+        blocks['SKIPPED'] = skipped
+    return values, blocks
+
+
 # ---------- Prüfung (validate_project.py) ----------
 
 def errors(base, config):

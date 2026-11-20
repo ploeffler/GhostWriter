@@ -173,7 +173,7 @@ betroffenen Kapitel eine Nachprüfung ein (Schlusskorrektur und Qualität, mit
 `--notes`) und fragt eigens nach dem neuen Abschluss. Gespeichert und übernommen
 wird wie bei anderen Buchänderungen.
 
-Noch nicht enthalten: ein Widget für den Dialog; bis dahin gibt es die Textfassung.
+Im Chat zeigt `render_view.py notes-review` den Dialog als Widget (Vorlage `hinweisdurchsicht`, ab UI 0.58.0) mit „Übernehmen“, „Nicht ändern“ und „Anders formulieren“ je Eintrag und „Umsetzen prüfen“; die Textfassung ist `--text`.
 
 ## Einbindung und Grenzen
 
