@@ -175,6 +175,15 @@ wird wie bei anderen Buchänderungen.
 
 Im Chat zeigt `render_view.py notes-review` den Dialog als Widget (Vorlage `hinweisdurchsicht`, ab UI 0.58.0) mit „Übernehmen“, „Nicht ändern“ und „Anders formulieren“ je Eintrag und „Umsetzen prüfen“; die Textfassung ist `--text`.
 
+## Viele Kapitel: Hilfsagent (#392)
+
+Ein Lektorat über mehrere Kapitel liest ein Hilfsagent, wo die App das kann
+(z. B. Claude Code). Er bekommt den gemeinsamen Arbeitsauftrag und den
+Prüfbereich und gibt nur Befunde mit Fundstellen zurück; Bericht und
+Befunddatei schreibt der Assistent wie gewohnt. Ohne Hilfsagenten kapitelweise
+nacheinander arbeiten und je Kapitel nur die Befunde im Chat behalten
+([Token sparen](CHAT-APPS.md#token-sparen-im-laufenden-chat-392)).
+
 ## Einbindung und Grenzen
 
 Die gemeinsame Fachquelle ist diese Anleitung mit ihrer englischen Fassung.

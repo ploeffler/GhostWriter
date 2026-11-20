@@ -77,6 +77,32 @@ Bucharbeit wechselt zwischen **Gespräch** (Ideen, Figuren, Szenen, Recherche be
 
 Ein Wechsel der Oberfläche selbst (z. B. vom ChatGPT-Chat nach Work) liegt beim Anbieter; GhostWriter schaltet sie nicht um. Der Assistent sagt diese Grenze in einem Satz und bietet den Befehl `Übergabe` an: `python scripts/handover.py . --section 3.2 --mode manuskript` erzeugt einen kopierfertigen Text mit Starttext, geprüftem Stand (Repository, Buch-Branch und Commit, Arbeitsbranch, Pull Request, Abschnitt mit Prüfsumme, offene Abschnitte, Gesprächssicherungen) und einem JSON-Block. Der Assistent ergänzt, was nur im Chat steht, ausdrücklich als nicht gespeichert. In der anderen Umgebung prüft `python scripts/handover.py . check <übergabe>` vor dem ersten Schreiben: `✓` unverändert, `ⓘ` neuere Fassung (erst neu lesen), `✗` Konflikt (nicht schreiben). Das Skript liest nur.
 
+## Token sparen im laufenden Chat (#392)
+
+Was ein Chat verbraucht, wächst mit jeder Nachricht: Die App schickt den ganzen
+bisherigen Verlauf und die Beschreibungen aller verbundenen Werkzeuge jedes Mal
+mit. GhostWriter hält den Stand im Repository, darum geht beim Wechsel nichts verloren.
+
+- **Neuer Chat je Aufgabe:** neues Buch, neue Aufgabe oder abgeschlossener
+  Abschnitt → neuer Chat. Der Assistent schlägt das an passenden Stellen vor
+  (nach einer Freigabe, nach Planung oder Recherche), nie mitten in einer
+  Überarbeitung oder Fehlersuche und ohne Zwang.
+- **Übergabesatz:** Am Ende einer Aufgabe gibt der Assistent einen kurzen Satz
+  zum Weitermachen mit (Buch, Abschnitt, offener Schritt). Im neuen Chat lädt er
+  Buchwissen und gesicherte Gespräche selbst ([Wissensstand](BUCHGEDAECHTNIS.md#wissensstand-beim-wechsel-ins-buch-369)).
+  Ungesichertes vorher sichern ([Abschluss-Check](SESSION-SICHERUNG.md#abschluss-check-verabschieden-und-ende-einer-befragung-298-372)).
+- **Weniger Verbindungen:** Für Bucharbeit nicht benötigte Verbindungen
+  (Konnektoren, MCP-Server, Werkzeuge in Open WebUI) im Chat bzw. in den
+  Einstellungen der App abschalten. Ein Großteil des Grundverbrauchs stammt aus
+  deren Werkzeugbeschreibungen, nicht aus GhostWriter (Messung in #296).
+- **Hilfsagent für viele Kapitel:** Wo die App Hilfsagenten kennt (z. B. Claude
+  Code), liest er bei Buchgedächtnis und Lektorat die Kapitel und gibt nur
+  Befunde mit Fundstellen zurück. Das hält zugleich die Regel „kein ganzes Buch im Chat“ ein.
+
+Nicht übertragen: Einstellungen, die nur für Claude Code im Terminal gelten
+(Modellwahl in `settings.json`, Umgebungsvariablen, `/cost`). Offen bleibt eine
+Messung mit `Prompt-Profil JSON`, ab welcher Verlaufslänge ein neuer Chat lohnt.
+
 ## Automatisch geladene Hinweise (#136)
 
 Jedes GhostWriter-Repository bringt drei Einstiegsdateien mit, die mit jedem Update aus dem Hauptrepository kommen:

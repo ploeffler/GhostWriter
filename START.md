@@ -162,11 +162,15 @@ Die Befehle `Session sichern` (auch `Chat sichern`, `Chat speichern`), `Session 
 
 Ein Chat lässt sich nicht leeren; jede Ansicht bleibt im Verlauf stehen. Der Projektstand liegt im Repository, der aktuelle Arbeitskontext kann zusätzlich im Chat liegen.
 
-1. Schlage einen neuen Chat vor, wenn ein Abschnitt oder ein Kapitel abgeschlossen ist oder der Verlauf lang und unübersichtlich wird; höchstens einmal je Anlass, nicht bei jeder Antwort.
+1. Schlage einen neuen Chat vor, wenn ein Abschnitt oder ein Kapitel abgeschlossen ist, nach einer Freigabe, nach abgeschlossener Planung oder Recherche, bei einem neuen Buch oder einer neuen Aufgabe oder wenn der Verlauf lang und unübersichtlich wird; höchstens einmal je Anlass, nicht bei jeder Antwort, nie mitten in einer laufenden Überarbeitung oder Fehlersuche und nie als Zwang (#392). Grund in einem Halbsatz: Jeder alte Verlauf wird mit jeder Nachricht neu mitgeschickt.
 2. Gib dafür den Link mit, mit dem der neue Chat startet: `https://github.com/<owner>/<repo>/tree/<branch>` des aktuellen Projekts.
 3. Wenn du von dir aus einen neuen Chat vorschlägst, nenne vorher ungespeicherte Änderungen ausdrücklich und kläre, ob sie zuerst mit „Buchstand speichern“ gesichert werden sollen.
 4. Auf den ausdrücklichen Befehl **„Chat wechseln“** erstellst du sofort eine vollständige, kopierfertige Übergabe für einen neuen Chat. Sie enthält mindestens: aktives Buch und Repository, Buch-Branch und – soweit bekannt – Arbeits-Branch/PR, zuletzt bearbeitetes Kapitel und Abschnitt, erreichten Arbeitsstand, wichtige Entscheidungen, offene Fragen und nächste Aufgaben sowie relevante Quellen/Dateipfade. Den geprüften Teil (Repository, Buch-Branch und Commit, Arbeitsbranch, Pull Request, Abschnitt mit Prüfsumme, offene Abschnitte, Gesprächssicherungen) erzeugt `python scripts/handover.py . [--work-branch …] [--pr N] [--section N.M] --mode gespraech|manuskript`, wo Skripte laufen; sonst dieselben Angaben von Hand. Ungespeicherte Entwürfe und Änderungen aus dem aktuellen Chat werden ausdrücklich als **nicht gespeichert** gekennzeichnet und in die Übergabe aufgenommen, damit sie im neuen Chat weiterbearbeitet werden können.
 5. **„Chat wechseln“ ist ausschließlich ein Kontextwechsel.** Er speichert nichts im Repository, erstellt keinen Commit oder PR, merged nichts und erteilt keine Freigaben. Ungespeicherte Arbeit darf dafür nicht verworfen oder stillschweigend als gespeichert dargestellt werden. Die Übergabe enthält einen direkt verwendbaren Starttext für den neuen Chat.
+
+**Kurzer Übergabesatz (#392):** Am Ende einer Aufgabe genügt meist ein Satz statt der vollen Übergabe, zum Beispiel „Weiter mit *Titel*, Abschnitt 2.3: offene Frage zum Schluss“. Der neue Chat lädt Buchwissen und gesicherte Gespräche selbst (Wissensstand, Abschnitt 0, Schritt 4a); ungesicherte Gesprächsarbeit vorher mit dem Abschluss-Check sichern. Die volle Übergabe bleibt für „Chat wechseln“.
+
+**Viele Kapitel lesen:** Für Buchgedächtnis und Lektorat über mehrere Kapitel einen Hilfsagenten verwenden, wo die App das kann; er gibt nur Befunde mit Fundstellen zurück ([Buchgedächtnis](docs/BUCHGEDAECHTNIS.md), [Lektorat](docs/LEKTORAT.md)).
 
 Tipp für den Benutzer: In einem claude.ai-Projekt mit Startprompt und Link als Projektanweisung genügt im neuen Chat ein „Start“.
 

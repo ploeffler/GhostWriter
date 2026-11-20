@@ -107,6 +107,14 @@ etwa Figurenunterlage oder Zeitleiste. Vorschlag, Autorenentscheidung und
 Dateiänderung bleiben getrennt. Die Rücknahme eines Widerspruchsbefunds braucht
 geprüfte Belege, nicht nur eine beruhigende Zusammenfassung.
 
+## Viele Kapitel: Hilfsagent (#392)
+
+Betrifft ein Abgleich mehrere Kapitel, liest ihn ein Hilfsagent, wo die App das
+kann (z. B. Claude Code). Er bekommt Auftrag, Prüfbereich und Fakten aus den
+Buchdateien und gibt nur Befunde mit Fundstellen und Belegen zurück, keine
+Kapiteltexte. Ohne Hilfsagenten kapitelweise nacheinander prüfen und je Kapitel
+nur die Befunde im Chat behalten ([Token sparen](CHAT-APPS.md#token-sparen-im-laufenden-chat-392)).
+
 ## Wissensstand beim Wechsel ins Buch (#369)
 
 Unabhängig von einem Abgleichsauftrag liest der Assistent beim Wechsel ins Buch

@@ -164,6 +164,14 @@ book changes.
 
 In the chat, `render_view.py notes-review` shows the dialogue as a widget (template `hinweisdurchsicht`, UI 0.58.0 and later) with “Accept”, “Do not change” and “Rephrase” per entry and “Check what can be applied”; `--text` gives the text version.
 
+## Many chapters: sub-agent (#392)
+
+A review across several chapters is read by a sub-agent where the app supports
+it (e.g. Claude Code). It receives the shared assignment and scope and returns
+only findings with locations; the assistant writes report and findings file as
+usual. Without sub-agents, work chapter by chapter and keep only the findings in
+the chat ([Saving tokens](CHAT-APPS.en.md#saving-tokens-during-a-chat-392)).
+
 ## Integration and limits
 
 This guide and its German counterpart are the shared subject-matter source.

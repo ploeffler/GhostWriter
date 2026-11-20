@@ -103,6 +103,14 @@ character notes or the timeline. Proposal, author decision and file change remai
 separate. Withdrawing a contradiction finding requires checked evidence rather
 than a reassuring summary.
 
+## Many chapters: sub-agent (#392)
+
+When a reconciliation covers several chapters, a sub-agent reads them where the
+app supports it (e.g. Claude Code). It receives the assignment, scope and facts
+from the book files and returns only findings with locations and evidence, no
+chapter text. Without sub-agents, check chapter by chapter and keep only the
+findings in the chat ([Saving tokens](CHAT-APPS.en.md#saving-tokens-during-a-chat-392)).
+
 ## Knowledge state when entering a book (#369)
 
 Independently of a reconciliation request, the assistant reads a compact
