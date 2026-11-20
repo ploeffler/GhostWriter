@@ -23,6 +23,10 @@ wenn der Widerspruch für jeden Tag des Zeitraums gilt.
 Aufruf:
   python3 scripts/chronology.py <buch> check [--json] [--language en]
   python3 scripts/chronology.py <buch> export [--out story/zeitleiste.html] [--language en]
+  python3 scripts/chronology.py <buch> import-md     Tabelle aus story/chronologie.md als Vorschlagslauf (#379)
+
+Erzählzeit (#379): Für eine Handlung ohne Kalenderjahr steht oben `epoch` (label, optional weekday von Tag 0);
+Einträge nennen dann `day` (Tag relativ zu Tag 0, bei span `day_to`) statt date/from/to, dazu optional `time`/`time_to`.
 
 Abgleich mit der Text-Zeitleiste (#364, Art text): Ereignisse in story/timeline.yml mit Feld `chronology`
 (chr-…, von Hand bzw. im Chat gesetzt) werden geprüft – eindeutige Jahres- bzw. Datumsangabe in `when`, die nicht
@@ -84,8 +88,42 @@ def interval(text):
     return d, d
 
 
+# Erzählzeit (#379): Tag 0 liegt intern auf einem festen Datum, damit Sortierung und Prüfungen gleich bleiben.
+# Angezeigt wird nie dieses Datum, sondern „Tag N“.
+EPOCH_BASE = datetime.date(2001, 1, 1)
+WEEKDAYS = ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday')
+WEEKDAY_DE = ('Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag')
+WEEKDAY_EN = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+
+
+def relative(e):
+    return isinstance(e.get('day'), int)
+
+
+def day_interval(day):
+    d = EPOCH_BASE + datetime.timedelta(days=day)
+    return d, d
+
+
+def day_label(day, language='de'):
+    word = 'Day' if language == 'en' else 'Tag'
+    return f'{word} 0' if day == 0 else f'{word} {"+" if day > 0 else "−"}{abs(day)}'
+
+
+def weekday_of(day, epoch, language='de'):
+    wd = (epoch or {}).get('weekday')
+    if wd not in WEEKDAYS:
+        return ''
+    return (WEEKDAY_EN if language == 'en' else WEEKDAY_DE)[(WEEKDAYS.index(wd) + day) % 7]
+
+
 def bounds(e):
     """(Beginn, Ende) eines Eintrags als Zeiträume (lo, hi); Ende None = offen; beides None = ohne Datum."""
+    if relative(e):
+        start = day_interval(e['day'])
+        if e.get('kind') == 'span':
+            return start, (day_interval(e['day_to']) if isinstance(e.get('day_to'), int) else None)
+        return start, start
     if e.get('kind') == 'span':
         return interval(e.get('from')), interval(e.get('to'))
     d = interval(e.get('date'))
@@ -94,11 +132,28 @@ def bounds(e):
 
 def sort_key(e):
     start, _ = bounds(e)
-    return (0, start[0], start[1], e['id']) if start else (1, datetime.date.max, datetime.date.max, e['id'])
+    if start and relative(e):   # Erzählzeit (#379): innerhalb eines Tags die Reihenfolge der Einträge (Uhrzeit wird nur angezeigt)
+        return (0, start[0], start[1], '', e['id'])
+    return (0, start[0], start[1], '', e['id']) if start else (1, datetime.date.max, datetime.date.max, '', e['id'])
+
+
+def time_label(e):
+    if not e.get('time'):
+        return ''
+    return e['time'] + (f'–{e["time_to"]}' if e.get('time_to') else '')
 
 
 def date_label(e, language='de'):
-    """Anzeige: date_text, sonst das Datum bzw. „von–bis“; „~“ für geschätzt."""
+    """Anzeige: date_text, sonst das Datum bzw. „von–bis“ bzw. „Tag N, HH:MM“; „~“ für geschätzt."""
+    if relative(e):
+        text = day_label(e['day'], language)
+        if e.get('kind') == 'span' and isinstance(e.get('day_to'), int):
+            text += '–' + day_label(e['day_to'], language).split(' ', 1)[1]
+        if e.get('date_text') and language != 'en':
+            text += ' · ' + e['date_text']
+        elif e.get('time'):
+            text += ', ' + time_label(e)
+        return ('~' if e.get('estimated') else '') + text
     if e.get('date_text') and language != 'en':
         text = e['date_text']
     elif e.get('kind') == 'span':
@@ -321,8 +376,19 @@ def references(base, config, data):
         if places.is_file() else set()
     ids = [e['id'] for e in data['entries']]
     errors += [f'{p}: ID doppelt: {i}' for i in sorted({i for i in ids if ids.count(i) > 1})]
+    rel = [e['id'] for e in data['entries'] if 'day' in e]
+    if rel and not data.get('epoch'):
+        errors.append(f'{p}: Einträge mit day ({", ".join(rel[:3])}) brauchen epoch (Bezugstag der Erzählzeit)')
     for e in data['entries']:
         where = f'{p}: {e["id"]}'
+        if 'day' in e and any(e.get(f) for f in ('date', 'from', 'to')):
+            errors.append(f'{where}: day und Kalenderdatum zugleich')
+        if 'day_to' in e and (e['kind'] != 'span' or 'day' not in e):
+            errors.append(f'{where}: day_to nur bei kind: span mit day')
+        if 'day_to' in e and 'day' in e and e['day_to'] < e['day']:
+            errors.append(f'{where}: Ende vor dem Beginn')
+        if e.get('time_to') and not e.get('time'):
+            errors.append(f'{where}: time_to ohne time')
         errors += [f'{where}: Figur {c} unbekannt' for c in e.get('characters') or [] if c not in known_chars]
         if e.get('chapter') and e['chapter'] not in known_chapters:
             errors.append(f'{where}: Kapitel {e["chapter"]} unbekannt')
@@ -382,6 +448,11 @@ def text_view(base, config, status=None, language='de'):
     lines = [t['title'], '',
              f'**{len(entries)} {t["entries"]}** · ' + ' · '.join(f'{STATUS_ICON[s]} {st[s]} {counts[s]}' for s in STATUS if counts[s])
              + f' · {len(real)} {t["hint"] if len(real) == 1 else t["hints"]}', '']
+    ep = data.get('epoch')
+    if ep:
+        wd = weekday_of(0, ep, language)
+        lines += [('Narrative time: Day 0 = ' if language == 'en' else 'Erzählzeit: Tag 0 = ') + ep['label']
+                  + (f' ({wd})' if wd else ''), '']
     lines += [f'**{t["box"]}**', '']
     lines += [f'- {kd[f["kind"]]}: {f["text"]} ({", ".join(f["entries"])})' for f in real] or [f'- {t["none"]}']
     lines.append('')
@@ -402,7 +473,12 @@ def text_view(base, config, status=None, language='de'):
     year = None
     for e in shown:
         start = bounds(e)[0]
-        y = start[0].year if start else None
+        if relative(e):   # Erzählzeit (#379): je Tag, mit Wochentag
+            y = day_label(e['day'], language)
+            wd = weekday_of(e['day'], data.get('epoch'), language)
+            y += f' ({wd})' if wd else ''
+        else:
+            y = start[0].year if start else None
         if y != year:
             lines += ['', f'*{y if y else t["undated"]}*']
             year = y
@@ -488,6 +564,7 @@ def export_html(base, config, language='de'):
     if dated:
         lo = min(b[0][0] for _, b in dated)
         hi = max(((b[1] or b[0])[1] if b[1] else b[0][1]) for _, b in dated)
+        rel = any(relative(e) for e, _ in dated)
         y0, y1 = lo.year, max(hi.year, lo.year) + 1
         lanes = []
         for e, _ in dated:
@@ -495,15 +572,26 @@ def export_html(base, config, language='de'):
                 if k not in lanes:
                     lanes.append(k)
         left, width, lane_h, top = 160, 760, 34, 30
-        total = (datetime.date(y1, 1, 1) - datetime.date(y0, 1, 1)).days or 1
-        x = lambda d: left + width * (d - datetime.date(y0, 1, 1)).days / total
+        if rel:   # Erzählzeit (#379): Achse in Tagen, Uhrzeit als Bruchteil des Tags
+            d0, d1 = lo, hi + ONE_DAY
+            total = (d1 - d0).days or 1
+            x = lambda d, m=0: left + width * ((d - d0).days + m / 1440) / total
+        else:
+            total = (datetime.date(y1, 1, 1) - datetime.date(y0, 1, 1)).days or 1
+            x = lambda d, m=0: left + width * (d - datetime.date(y0, 1, 1)).days / total
         parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {left + width + 20} {top + lane_h * len(lanes) + 30}" '
                  f'role="img" aria-label="{esc(t["title"].lstrip("#🕰️ "))}">']
-        step = max(1, (y1 - y0) // 10)
-        for y in range(y0, y1 + 1, step):
-            xx = x(datetime.date(y, 1, 1))
+        if rel:
+            days = (d1 - d0).days
+            step = max(1, days // 12)
+            ticks = [(d0 + datetime.timedelta(days=i), day_label((d0 - EPOCH_BASE).days + i, language)) for i in range(0, days + 1, step)]
+        else:
+            step = max(1, (y1 - y0) // 10)
+            ticks = [(datetime.date(y, 1, 1), str(y)) for y in range(y0, y1 + 1, step)]
+        for d, label in ticks:
+            xx = x(d)
             parts.append(f'<line x1="{xx:.1f}" y1="{top - 8}" x2="{xx:.1f}" y2="{top + lane_h * len(lanes)}" stroke="#ddd"/>'
-                         f'<text x="{xx:.1f}" y="{top - 12}" font-size="11" text-anchor="middle" fill="#555">{y}</text>')
+                         f'<text x="{xx:.1f}" y="{top - 12}" font-size="11" text-anchor="middle" fill="#555">{esc(label)}</text>')
         for n, k in enumerate(lanes):
             yy = top + lane_h * n + lane_h / 2
             label = ('Without character' if en else 'Ohne Figur') if k == '@none' else names.get(k, k)
@@ -520,7 +608,8 @@ def export_html(base, config, language='de'):
                     parts.append(f'<rect x="{a:.1f}" y="{yy - 6:.1f}" width="{max(b - a, 3):.1f}" height="12" rx="3" '
                                  f'fill="{color}" fill-opacity="0.35"{stroke}>{tip}</rect>')
                 else:
-                    parts.append(f'<circle cx="{x(start[0]):.1f}" cy="{yy:.1f}" r="5" fill="{color}"{stroke}>{tip}</circle>')
+                    mins = int(e['time'][:2]) * 60 + int(e['time'][3:]) if rel and e.get('time') else (720 if rel else 0)
+                    parts.append(f'<circle cx="{x(start[0], mins):.1f}" cy="{yy:.1f}" r="5" fill="{color}"{stroke}>{tip}</circle>')
         parts.append('</svg>')
         svg = ''.join(parts)
     rows = ''.join(f'<tr><td>{esc(date_label(e, language))}</td><td>{STATUS_ICON.get(e.get("status"), "")} {esc(st.get(e.get("status"), ""))}</td>'
@@ -543,16 +632,112 @@ def export_html(base, config, language='de'):
             + f'<p><small>{esc(t["foot"])}</small></p></body></html>\n')
 
 
+
+# ---------- Ältere Chronologie im Markdown-Format einlesen (#379) ----------
+
+MD_SOURCE = 'story/chronologie.md'
+DAY_RX = re.compile(r'^\s*(?:Tag\s*0|([−+-])\s*(\d+)\s*Tage?)\b', re.I)
+TIME_RX = re.compile(r'(\d{1,2})[:.](\d{2})(?:\s*[–-]\s*(\d{1,2})[:.](\d{2}))?')
+HOUR_RX = re.compile(r'(?<![\d:.])(\d{1,2})\s*Uhr\b')
+
+
+def md_rows(text):
+    """Zeilen der ersten Tabelle: (kopf, [zeilen]) mit Zellen als Liste."""
+    rows = [l for l in text.splitlines() if l.strip().startswith('|')]
+    cells = [[c.strip() for c in r.strip().strip('|').split('|')] for r in rows]
+    cells = [c for c in cells if not all(set(x) <= set('-: ') for x in c)]
+    return (cells[0], cells[1:]) if cells else ([], [])
+
+
+def import_md(base, config, source=MD_SOURCE):
+    """Vorschläge aus einer Tabelle in story/chronologie.md (Spalten: Abstand, Wochentag/Zeit, Ereignis, Abschnitt).
+    Nichts wird geraten: „Tag 0“, „−3 Tage“, „+14 Tage“ werden zu day, „21:31–21:44“ zu time/time_to; Angaben wie
+    „Monate später“ bleiben ohne Tag (nur date_text). → Vorschlagsdaten wie ein Analyselauf (items, epoch)."""
+    path = Path(base) / source
+    head, rows = md_rows(path.read_text(encoding='utf-8'))
+    if len(head) < 3:
+        raise SystemExit(f'{source}: keine Tabelle mit mindestens drei Spalten gefunden')
+    label = re.sub(r'^Abstand zu[mr]?\s+', '', head[0]).strip() or 'Tag 0'
+    by_number = {f'{ci}.{si}': ch['id'] for ci, ch in enumerate(config['structure']['chapters'], start=1)
+                 for si, _ in enumerate(ch['sections'], start=1)}
+    items, weekday = [], None
+    for cells in rows:
+        cells += [''] * (4 - len(cells))
+        when, clock, what, where = cells[:4]
+        if not what:
+            continue
+        item = {'kind': 'event', 'what': ' '.join(what.split()), 'status': 'invented', 'source': source,
+                'evidence': [{'where': source, 'quote': ' '.join(' | '.join(cells[:3]).split())[:200]}]}
+        m = DAY_RX.match(when)
+        if m and not re.match(r'^\s*vor\b', when, re.I):
+            item['day'] = 0 if not m.group(2) else (-1 if m.group(1) in '−-' else 1) * int(m.group(2))
+            t = TIME_RX.search(clock)
+            h = HOUR_RX.search(clock) if not t else None
+            if h and int(h.group(1)) < 24:
+                item['time'] = f'{int(h.group(1)):02d}:00'
+            if t:
+                item['time'] = f'{int(t.group(1)):02d}:{t.group(2)}'
+                if t.group(3):
+                    item['time_to'] = f'{int(t.group(3)):02d}:{t.group(4)}'
+            if item['day'] == 0 and not weekday:
+                first = clock.split(',')[0].split()[0] if clock else ''
+                weekday = next((WEEKDAYS[i] for i, n in enumerate(WEEKDAY_DE) if first.startswith(n)), None)
+        text = clock if 'day' in item else ' · '.join(x for x in (when, clock) if x)
+        if text:
+            item['date_text'] = text
+        num = re.search(r'\d+\.\d+', where or '')
+        if num and num.group(0) in by_number:
+            item['chapter'] = by_number[num.group(0)]
+        items.append(item)
+    for n, it in enumerate(items, start=1):   # Reihenfolge der Tabelle bleibt
+        it['n'] = n
+    have = {(norm(e.get('what'))) for e in (read(base) or {}).get('entries') or [] if isinstance(e, dict)}
+    for it in items:
+        if norm(it['what']) in have:
+            it['existing'] = next(e['id'] for e in read(base)['entries'] if norm(e.get('what')) == norm(it['what']))
+    epoch = {'label': label}
+    if weekday:
+        epoch['weekday'] = weekday
+    return {'items': items, 'epoch': epoch}
+
+
+def import_md_run(base, config, source=MD_SOURCE, now=None):
+    """import_md als Lauf analysis/chronology/run-NNN (wie ein Chat-Lauf, ohne KI): ansehen mit analysis-suggest,
+    übernehmen nur nach Auswahl mit analyze.py apply --kind chronology."""
+    import analyze
+    data = import_md(base, config, source)
+    now = now or datetime.datetime.now().astimezone().isoformat(timespec='seconds')
+    folder = Path(base) / 'analysis' / 'chronology'
+    folder.mkdir(parents=True, exist_ok=True)
+    run_id = analyze.next_run(folder)
+    out = dict({'kind': 'chronology', 'scope': 'book', 'run': run_id, 'created_at': now, 'source': 'import'}, **data)
+    (folder / f'{run_id}.json').write_text(json.dumps(out, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
+    head = {'id': run_id, 'type': 'analysis', 'kind': 'chronology', 'scope': 'book', 'created_at': now, 'source': 'import',
+            'provider': None, 'model': None, 'merge_model': None, 'blocks_analysed': 0, 'blocks_cached': 0,
+            'suggestions': len(data['items']), 'dropped_without_evidence': 0, 'input_tokens': 0, 'output_tokens': 0,
+            'cost': None, 'result': f'{run_id}.json'}
+    body = [f'# Chronologie-Analyse {run_id[4:]} (aus {source})', '',
+            f'{len(data["items"])} Vorschläge aus der Tabelle, ohne KI. Übernommen wird nichts automatisch.']
+    (folder / f'{run_id}.md').write_text('---\n' + yaml.safe_dump(head, allow_unicode=True, sort_keys=False) + '---\n\n'
+                                         + '\n'.join(body) + '\n', encoding='utf-8')
+    return run_id, data
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
-    ap.add_argument('cmd', choices=['check', 'export'])
+    ap.add_argument('cmd', choices=['check', 'export', 'import-md'])
     ap.add_argument('--json', action='store_true')
     ap.add_argument('--out', help=f'bei export: Zieldatei (Standard {EXPORT})')
     ap.add_argument('--language', choices=['de', 'en'], default='de')
     a = ap.parse_args(argv[1:])
     base, config = load(a.project)
     data = read(base)
+    if a.cmd == 'import-md':
+        run_id, out = import_md_run(base, config)
+        print(f'✓ analysis/chronology/{run_id}.json: {len(out["items"])} Vorschläge aus {MD_SOURCE} '
+              f'(Tag 0 = {out["epoch"]["label"]}); ansehen mit render_view.py analysis-suggest --draft analysis/chronology/{run_id}.json')
+        return 0
     if a.cmd == 'export':
         out = Path(a.out) if a.out else Path(base) / EXPORT
         out.parent.mkdir(parents=True, exist_ok=True)

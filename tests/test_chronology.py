@@ -231,3 +231,58 @@ class TimelineLinkTest(BookTest):
         self.assertIn('### 🕰️ Chronology', out)
         self.assertIn('report against record: “War ends”', out)
         self.assertNotIn('Einträge', out)
+
+
+class NarrativeTimeTest(BookTest):
+    """Erzählzeit ohne Kalenderjahr: epoch, day, time, Import aus story/chronologie.md (#379)."""
+
+    MD = ('# Chronologie\n\n| Abstand zum Fund | Wochentag / Zeit | Ereignis | Abschnitt |\n|---|---|---|---|\n'
+          '| −1 Tag | Dienstag, 21:31–21:44 Uhr | Wagen am Hotel | 1.2 |\n'
+          '| Tag 0 | Mittwoch, 6:42 Uhr | Notruf nach dem Fund | 1.1 |\n'
+          '| Tag 0 | Mittwoch, gegen 16 Uhr | Zettel am Wohnmobil | 2.1 |\n'
+          '| +14 Tage | Mittwochfrüh | Name in der Zeitung | 2.1 |\n'
+          '| Monate später | April | Urteil | 3.1 |\n')
+
+    def test_labels_validation_and_text(self):
+        data = {'epoch': {'label': 'Fundtag', 'weekday': 'wednesday'}, 'entries': [
+            entry(1, what='Notruf', day=0, time='06:42', status='invented'),
+            entry(2, what='Wagen am Hotel', day=-1, time='21:31', time_to='21:44', status='invented'),
+            entry(3, 'span', what='Ermittlung', day=0, day_to=15, status='invented'),
+            entry(4, what='Urteil', date_text='Monate später', status='invented')]}
+        (self.base / 'story').mkdir(exist_ok=True)
+        (self.base / 'story/chronology.yml').write_text(yaml.safe_dump(data, allow_unicode=True), encoding='utf-8')
+        self.assertEqual(self.errors(), [])
+        self.assertEqual(chr_.date_label(data['entries'][1]), 'Tag −1, 21:31–21:44')
+        self.assertEqual(chr_.date_label(data['entries'][2]), 'Tag 0–+15')
+        self.assertEqual([e['id'] for e in sorted(data['entries'], key=chr_.sort_key)], ['chr-002', 'chr-001', 'chr-003', 'chr-004'])
+        out = self.view()
+        self.assertIn('Erzählzeit: Tag 0 = Fundtag (Mittwoch)', out)
+        self.assertIn('*Tag −1 (Dienstag)*', out)
+        self.assertNotIn('2001', out)
+        page = chr_.export_html(self.base, self.config)
+        self.assertIn('Tag 0', page)
+        self.assertNotIn('>2001<', page)
+        del data['epoch']
+        data['entries'].append(entry(5, day=1, date='1944'))
+        (self.base / 'story/chronology.yml').write_text(yaml.safe_dump(data, allow_unicode=True), encoding='utf-8')
+        errs = '\n'.join(self.errors())
+        self.assertIn('brauchen epoch', errs)
+        self.assertIn('day und Kalenderdatum zugleich', errs)
+
+    def test_import_md(self):
+        import analyze
+        (self.base / 'story').mkdir(exist_ok=True)
+        (self.base / 'story/chronologie.md').write_text(self.MD, encoding='utf-8')
+        run_id, data = chr_.import_md_run(self.base, self.config)
+        self.assertEqual(data['epoch'], {'label': 'Fund', 'weekday': 'wednesday'})
+        items = data['items']
+        self.assertEqual([it.get('day') for it in items], [-1, 0, 0, 14, None])
+        self.assertEqual((items[0]['time'], items[0]['time_to']), ('21:31', '21:44'))
+        self.assertEqual(items[2]['time'], '16:00')
+        self.assertEqual(items[4]['date_text'], 'Monate später · April')
+        self.assertEqual(items[1]['chapter'], self.config['structure']['chapters'][0]['id'])
+        analyze.apply(self.base, run_id, 'chronology', [{'index': i} for i in range(len(items))])
+        saved = chr_.read(self.base)
+        self.assertEqual(saved['epoch']['label'], 'Fund')
+        self.assertEqual(len(saved['entries']), 5)
+        self.assertEqual(self.errors(), [])
