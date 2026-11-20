@@ -1310,8 +1310,8 @@ def limit_summary(base, config):
 
 
 # Hintergrundläufe (#123, #124): Kürzel und Symbol je Art in der Textfassung der Projektübersicht
-ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA', 'style': 'SA', 'places': 'OA', 'timeline': 'ZA', 'continuity': 'WA', 'language': 'SPA'}
-ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝', 'style': '🪶', 'places': '📍', 'timeline': '🕰️', 'continuity': '🔗', 'language': '✍️'}
+ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA', 'style': 'SA', 'places': 'OA', 'timeline': 'ZA', 'continuity': 'WA', 'language': 'SPA', 'chronology': 'CA'}
+ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝', 'style': '🪶', 'places': '📍', 'timeline': '🕰️', 'continuity': '🔗', 'language': '✍️', 'chronology': '📅'}
 
 
 def check_index(base, config, language='de'):
@@ -3340,7 +3340,32 @@ def language_suggest_view(base, config, args, data, run_text):
     return fill('sprache-vorschlag.html', values, {'SUGGESTIONS': rows})
 
 
-ANALYSIS_VIEWS = {'summaries': summaries_suggest_view, 'style': style_suggest_view, 'places': places_suggest_view,
+def chronology_suggest_view(base, config, args, data, run_text):
+    """Chronologie-Vorschläge (#364): nach Datum, mit Belegstand, Quelle und Zitat; „schon da“ ist nicht vorgewählt.
+    Bis die Vorlage chronologie-vorschlag in ghostwriter-ui da ist, gibt es nur die Textfassung (auch im Widget-Modus)."""
+    import chronology
+    items = data.get('items') or []
+    new = [it for it in items if not it.get('existing')]
+    out = [f'### 📅 Chronologie-Vorschläge',
+           f'{plural(len(items), "Vorschlag", "Vorschläge")} · {len(items) - len(new)} schon da' + (f' · {run_text}' if run_text else ''), '']
+    if items:
+        out += ['| # | Datum | Beleg | Was | Quelle | Zitat |', '|--:|---|---|---|---|---|']
+        for i, it in enumerate(items):
+            mark = ' (schon da)' if it.get('existing') else (' ⚠️' if it.get('same_as_n') else '')
+            quote = (it.get('evidence') or [{}])[0].get('quote', '')
+            out.append(f'| {i + 1}{mark} | {chronology.date_label(it)} | {chronology.STATUS_ICON.get(it["status"], "")} '
+                       f'{chronology.STATUS_DE.get(it["status"], "")} | {it["what"]}' + (f' ({it["note"]})' if it.get('note') else '')
+                       + f' | {it["source"]} | „{quote}“ |')
+    else:
+        out += ['*Keine Einträge mit wörtlicher Fundstelle.*']
+    out += ['', 'Aus Unterlagen und Recherche, nicht aus dem Manuskript. Daten nur, wenn das Zitat sie nennt; „belegt“ nur aus '
+            'Quellenliste und Recherche. Übernommen wird nur, was du auswählst; vorhandene Einträge bleiben unverändert.', '', '---',
+            menu([('Alle', 'alle neuen Vorschläge übernehmen'), ('Ohne: 2, 5', 'alle neuen außer diesen'),
+                  ('3: Datum 1946', 'mit geändertem Datum bzw. Belegstand'), ('X', 'verwerfen')])]
+    return '\n'.join(out) + '\n'
+
+
+ANALYSIS_VIEWS = {'chronology': chronology_suggest_view, 'summaries': summaries_suggest_view, 'style': style_suggest_view, 'places': places_suggest_view,
                   'timeline': timeline_suggest_view, 'continuity': continuity_suggest_view, 'language': language_suggest_view}
 
 

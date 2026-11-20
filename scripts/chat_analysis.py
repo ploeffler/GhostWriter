@@ -38,9 +38,37 @@ def digest(value):
     return hashlib.sha256(canonical(value).encode()).hexdigest()
 
 
-def snapshot(base, scope, references=()):
+CHRONOLOGY_COMMON = 0              # --common: Figuren, Orte, Quellenliste, Sitzungen (#364)
+CHRONOLOGY_CHAT_CHARS = 4 * analyze.MAX_BLOCK_CHARS
+
+
+def chronology_snapshot(base, config, scope):
+    """Chronologie im Chat (#364): Rechercheläufe eines Kapitels bzw. (scope 0) die gemeinsamen Unterlagen."""
+    chapters = config['structure']['chapters']
+    if scope == CHRONOLOGY_COMMON:
+        key, title, part = 'common', 'Gemeinsame Unterlagen (Figuren, Orte, Quellen, Sitzungen)', 'common'
+    elif 1 <= scope <= len(chapters):
+        key, title, part = chapters[scope - 1]['id'], f'Rechercheläufe Kapitel {scope}: {chapters[scope - 1]["title"]}', scope
+    else:
+        raise ValueError('Kapitel fehlt')
+    texts = dict(analyze.chronology_units(base, config, part))
+    if not texts:
+        raise ValueError('Keine Unterlagen zum Lesen')
+    if sum(len(v) for v in texts.values()) > CHRONOLOGY_CHAT_CHARS:
+        raise ValueError('Unterlagen zu umfangreich für den Chat; den Hintergrundlauf (Action „Analyse“, Art chronology) verwenden')
+    return key, title, texts
+
+
+def snapshot(base, scope, references=(), kind=None):
     _, config = load(Path(base))
     chapters = config['structure']['chapters']
+    if kind == 'chronology':
+        key, title, texts = chronology_snapshot(Path(base), config, int(scope))
+        rules = {}
+        for relative in ('workflow.yml', 'assistant.yml', 'ghostwriter-manifest.yml', '.ghostwriter/update.yml'):
+            path = Path(base) / relative
+            rules[relative] = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+        return {'chapter_id': key, 'title': title, 'texts': texts, 'context_sha256': digest({'config': config, 'rules': rules})}
     if not 1 <= int(scope) <= len(chapters):
         raise ValueError('Kapitel fehlt oder enthält keinen Manuskripttext')
     # analyze.blocks liefert je Abschnitt einen Block (#239); für den Chat-Auftrag
@@ -92,11 +120,11 @@ def prepare(base, kind, scope, source_commit, output, references=()):
         raise ValueError('Unbekannte Analyseart')
     if not re.fullmatch(r'[a-fA-F0-9]{40}', source_commit or ''):
         raise ValueError('Vollständiger gelesener Buchcommit erforderlich')
-    if not isinstance(scope, int) or scope < 1:
+    if not isinstance(scope, int) or scope < (0 if kind == 'chronology' else 1):
         raise ValueError('Genau eine positive Kapitelnummer erforderlich')
     if references and kind != 'series':
         raise ValueError('Zusätzliche Vorlagen nur für Serienabgleich auswählen')
-    state = snapshot(base, scope, references)
+    state = snapshot(base, scope, references, kind)
     spec = analyze.KINDS.get(kind)
     system = (spec or {}).get('system') or EXTRA_KINDS.get(kind) or 'Sprachliche Hinweise aus dem Text ableiten.'
     if kind in AI_PATTERN_KINDS:            # #305: Regeln gegen KI-typische Muster beim Formulieren und Prüfen
@@ -161,7 +189,7 @@ def accept(base, request_file, response_file):
     body = {k: v for k, v in request.items() if k not in ('request_id', 'response_format')}
     if digest(body) != request.get('request_id'):
         raise ValueError('Auftragsdatei wurde verändert')
-    if snapshot(base, request['scope'], request.get('references', [])) != request['snapshot']:
+    if snapshot(base, request['scope'], request.get('references', []), request['kind']) != request['snapshot']:
         raise ValueError('Buchstand oder Profil inzwischen geändert; Auftrag neu vorbereiten')
     response = json.loads(Path(response_file).read_text(encoding='utf-8'))
     if (not isinstance(response, dict) or response.get('request_id') != request['request_id']
@@ -171,7 +199,7 @@ def accept(base, request_file, response_file):
     kind = request['kind']
     if kind in analyze.KINDS and analyze.KINDS[kind].get('verify'):
         try:
-            verified, count = analyze.KINDS[kind]['verify'](answer, request['snapshot']['texts'])
+            verified, count = analyze.verify_for(Path(base), load(Path(base))[1], kind, answer, request['snapshot']['texts'])
         except (AttributeError, TypeError, ValueError) as error:
             raise ValueError('Ungültige Struktur der Analyserückgabe') from error
         dropped += count
@@ -219,7 +247,8 @@ def main():
     sub = parser.add_subparsers(dest='command', required=True)
     p = sub.add_parser('prepare')
     p.add_argument('kind', choices=sorted(KINDS))
-    p.add_argument('--chapter', type=int, required=True)
+    p.add_argument('--chapter', type=int, help='Kapitelnummer (bei chronology: Rechercheläufe dieses Kapitels)')
+    p.add_argument('--common', action='store_true', help='nur chronology: Figuren, Orte, Quellenliste und Sitzungen')
     p.add_argument('--source-commit', required=True)
     p.add_argument('--out', required=True)
     p.add_argument('--reference', action='append', default=[])
@@ -231,7 +260,12 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == 'prepare':
-            request = prepare(args.project, args.kind, args.chapter, args.source_commit, args.out, args.reference)
+            if args.common and args.kind != 'chronology':
+                raise ValueError('--common nur für chronology')
+            if args.chapter is None and not args.common:
+                raise ValueError('--chapter N angeben (bei chronology auch --common)')
+            scope = CHRONOLOGY_COMMON if args.common else args.chapter
+            request = prepare(args.project, args.kind, scope, args.source_commit, args.out, args.reference)
             print(json.dumps({'request_id': request['request_id'], 'file': args.out}, ensure_ascii=False))
         elif args.command == 'register':
             kind, run = register(args.project, args.result)
