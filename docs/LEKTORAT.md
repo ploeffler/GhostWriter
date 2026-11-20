@@ -119,7 +119,7 @@ selben Commit den Lauf ins Prüfprotokoll eintragen (#331):
 --scope <book|Kapitel-ID|Abschnitts-ID> --result passed|passed_with_notes|failed|incomplete
 --report editorial/<bericht>.md --notes <n>`. Projektübersicht, Kapitelansicht und
 Abschnittsformular zeigen den Lauf dann als Tag; ändert sich der Text danach,
-erscheint der Tag als „seit Prüfung geändert“. Der Eintrag ist keine Freigabe.
+erscheint der Tag als „seit Prüfung geändert“. Der Eintrag ist keine Freigabe. Wurden Korrekturen schon übernommen, bevor der Bericht eingetragen wird, mit `--commit <geprüfter Commit>` eintragen: Die Fingerabdrücke kommen dann aus der geprüften Fassung, und der Tag zeigt richtig „seit Prüfung geändert“ (#406).
 `--notes` gehört immer dazu: die Zahl der offenen Hinweise im Bericht, also der
 Befunde, die noch nicht umgesetzt oder entschieden sind (0, wenn keine offen sind).
 Die Projektübersicht zeigt sie je Kapitel (#362). Wird ein Hinweis später

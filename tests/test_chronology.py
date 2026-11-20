@@ -306,3 +306,15 @@ class NarrativeTimeTest(BookTest):
         self.assertEqual(saved['epoch']['label'], 'Fund')
         self.assertEqual(len(saved['entries']), 5)
         self.assertEqual(self.errors(), [])
+
+
+class GapLabelTest(unittest.TestCase):
+    def test_gap_with_narrative_time(self):
+        """#409: Lücke bei Erzählzeit nennt „Tag N“, nicht „None“."""
+        data = {'epoch': {'label': 'Tag 0'}, 'entries': [
+            entry(1, 'span', what='Kur', characters=['char-max'], place='Bad', day=10, day_to=65),
+            entry(2, 'span', what='Heimweg', characters=['char-max'], place='Haus', day=71, day_to=80)]}
+        gap = [f for f in chr_.findings(data, {'char-max': 'Max'}) if f['kind'] == 'gap'][0]
+        self.assertIn('(bis Tag +65)', gap['text'])
+        self.assertIn('(ab Tag +71)', gap['text'])
+        self.assertNotIn('None', gap['text'])

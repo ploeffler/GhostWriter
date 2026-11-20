@@ -92,3 +92,18 @@ class WissensstandTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TitleFallbackTest(unittest.TestCase):
+    def test_working_title_when_title_empty(self):
+        """#397: leerer project.title → Arbeitstitel statt „Buch“."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        base = Path(tmp.name) / 'buch'
+        shutil.copytree(ROOT / 'tests/fixtures/adhs', base)
+        cfg = yaml.safe_load((base / 'ghostwriter.yml').read_text(encoding='utf-8'))
+        cfg['project']['title'] = ''
+        cfg['project']['working_title'] = 'Flucht in die Zukunft'
+        (base / 'ghostwriter.yml').write_text(yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False), encoding='utf-8')
+        import wissensstand
+        self.assertEqual(wissensstand.collect(base)['title'], 'Flucht in die Zukunft')
