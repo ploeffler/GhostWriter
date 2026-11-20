@@ -22,7 +22,7 @@ Dieses Repository ist ein GhostWriter-Repository: ein einzelnes Buch, eine **Bib
 
 ## Im Programm-Repository selbst
 
-Ist dieses Repository selbst `upstream.repo`, wird hier GhostWriter entwickelt; es gibt kein Buch. Tests mit `python -m unittest discover -s tests -p "test_*.py"`, Doku-Prüfung mit `python scripts/check_docs.py`; Commit-Nachrichten und Doku auf Deutsch.
+Ist dieses Repository selbst `upstream.repo`, wird hier GhostWriter entwickelt; es gibt kein Buch. Tests mit `python -m unittest discover -s tests -p "test_*.py"`, Doku-Prüfung mit `python scripts/check_docs.py`, Prüfbericht für die PR-Beschreibung mit `python scripts/verify.py` (#390); Commit-Nachrichten und Doku auf Deutsch.
 
 ## Dokumentation wächst mit (verbindlich im Programm-Repository)
 

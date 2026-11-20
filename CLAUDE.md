@@ -26,6 +26,7 @@ Ist dieses Repository selbst `upstream.repo`, wird hier GhostWriter entwickelt; 
 
 - Tests: `python -m unittest discover -s tests -p "test_*.py"`
 - Doku: `python scripts/check_docs.py`
+- Prüfbericht (#390): nach dem Commit `python scripts/verify.py` (Abbruch beim ersten Fehler, Secret-Suche ohne Werte, Zeile „Abnahme im Buch“); den Bericht in die PR-Beschreibung übernehmen, Diff von Hand durchsehen. Details: [Dokumentationspflege](docs/DOKUMENTATION-PFLEGE.md#prüfbericht-vor-dem-pull-request).
 - Commit-Nachrichten und Doku auf Deutsch.
 
 ## Dokumentation wächst mit (verbindlich im Programm-Repository)
