@@ -1,5 +1,8 @@
 """Hinweisdurchsicht (#367, Teil 1): Befunde sammeln, Dialogdatei prüfen, Entscheidungen speichern."""
+import json
+import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -122,6 +125,24 @@ class HinweiseTest(unittest.TestCase):
         self.assertIn('wieder öffnen', hinweise.plan_text(items))
         self.assertEqual(hinweise.apply(self.base, self.config, path)['applied'], [])
         self.assertNotIn(self.unique + 'x', checks.manuscript(self.base, self.config, self.s11['id']))
+
+    def test_widget_and_view(self):
+        path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        hinweise.decide(path, 'e-002', 'nein')
+        values, blocks = hinweise.widget_values(self.base, path)
+        self.assertEqual(values['REVIEW_FILE'], 'editorial/durchsicht-2026-11-20.yml')
+        self.assertEqual(values['REVIEW_DATE_TEXT'], 'Stand 20.11.2026')
+        self.assertIn('1 entschieden', values['REVIEW_COUNT_TEXT'])
+        self.assertEqual(blocks['AUTO'][0]['E_ID'], 'e-001')
+        self.assertTrue(blocks['AUTO'][0]['E_CHAPTER_TEXT'].startswith('Kapitel 1 · '))
+        self.assertIn('E_QUESTION', blocks['AUTHOR'][0])
+        self.assertEqual(blocks['SKIPPED'][0]['SK_REASON'][:10], 'alter Wort')
+        run = lambda *a: subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'notes-review', *a,
+                                         '--repo', 'o/r'], capture_output=True, text=True, check=True).stdout
+        html = run()
+        page = json.loads(re.search(r'GW\.render\("hinweisdurchsicht",(.*)\)</script>', html).group(1))
+        self.assertEqual(page['AUTO'][0]['E_ID'], 'e-001')
+        self.assertIn('#### Ohne Autor lösbar', run('editorial/durchsicht-2026-11-20.yml', '--text'))
 
     def test_cli(self):
         self.assertEqual(hinweise.main(['collect', str(self.base), '--date', '2026-11-20']), 0)

@@ -368,6 +368,19 @@ Grafische Zeitleiste der Chronologie (#354, ab UI 0.56.0; `render_view.py timeli
 
 Zeitraum, Filter nach Belegstand und Auswahl eines Eintrags wirken nur in der Ansicht; gesendet wird nur `view.project`.
 
+### `hinweisdurchsicht.html`
+
+Hinweisdurchsicht (#367, ab UI 0.58.0; `render_view.py notes-review [<datei>]`, Aktion `view.notes_review`). Ohne Datei die neueste `editorial/durchsicht-*.yml`. Gefüllt von `hinweise.widget_values()`; die Textfassung (`--text`) ist `hinweise.show()`. Ablauf und Grenzen: [Lektorat, „Hinweise durchsehen“](../../docs/LEKTORAT.md#hinweise-durchsehen-hinweisdurchsicht-367).
+
+| Platzhalter | Quelle |
+|---|---|
+| `REVIEW_FILE` | Pfad der Dialogdatei im Buch, wird mit jeder Aktion zurückgeschickt |
+| `REVIEW_BOOK`, `REVIEW_DATE_TEXT`, `REVIEW_COUNT_TEXT` | `buch`, „Stand TT.MM.JJJJ“ aus `erstellt`, „N Einträge · M entschieden · K offen“ |
+| Blöcke `AUTO` (`ohne_autor`) und `AUTHOR` (`autorenentscheidung`): `E_ID`, `E_WHERE`, `E_CHAPTER_TEXT`, `E_KIND`, `E_REASON`, `E_CONTEXT`, `E_OLD`, `E_NEW`, `E_DECISION`; bei `AUTHOR` dazu `E_QUESTION` | `id`, `abschnitt`, „Kapitel N · <Status>“, `art`, `grund`, `kontext`, `alt`, `neu`, `entscheidung` (bzw. `umgesetzt`), `frage`; leere Gruppen weglassen |
+| Block `SKIPPED`: `SK_REF`, `SK_REASON` | `ausgelassen` (`befund`, `grund`) |
+
+Jede Antwort sendet einzeln `notes_review.decide`; „Umsetzen prüfen“ sendet `notes_review.plan`. Das Widget ändert selbst nichts.
+
 ### `zeitleiste-vorschlag.html`
 
 Auswahl „Zeitleiste“ aus einem Hintergrundlauf (#124, Art `timeline`; `render_view.py analysis-suggest --draft analysis/timeline/run-NNN.json`). Eine Chat-Rückgabe (`docs/CHAT-ANALYSEN.md`) hat ab #353 einen eigenen Lauf; `--draft` darf auch die Datei aus `analysis/chat-returns/` sein. Ein solcher Lauf hat keine Auffälligkeiten.
@@ -771,6 +784,9 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `manuscript`, bei Büchern mit Figuren `characters` (Liste von IDs, #53), `expected_head_sha` (nie `approvals`) | Abschnitt speichern | Abschnittsdatei schreiben, danach Abschnittsformular | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
 | `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen und Lauf-Datei, Ergebnis und Statuswechsel speichern (`START.md`, „KI-Lauf „Sofort““); ein Kosteneintrag nur für kostenpflichtige KI-API-Aufrufe über das Backend, nie für Chat-Arbeit | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
 | `view.timeline` | – | Zeitleiste zeigen (#354) | `render_view.py timeline` (Vorlage `zeitleiste`) | – |
+| `view.notes_review` | optional `file` | Hinweisdurchsicht zeigen (#367) | `render_view.py notes-review [<file>]` (Vorlage `hinweisdurchsicht`); ohne Dialogdatei zuerst `scripts/hinweise.py . collect` | – |
+| `notes_review.decide` | `file`, `entry`, `decision` (`ja`, `nein`, `geändert`), bei `geändert` `new` | Antwort zu einem Eintrag speichern (#367) | `python scripts/hinweise.py . decide <entry> --decision <decision> [--new …] --file <file>`, ohne Rückfrage als kleiner Nachtrag ins offene Änderungspaket (`docs/SPEICHERN.md`, „Hinweise durchsehen“); danach die nächste offene Stelle bzw. das Widget erneut. Ändert kein Manuskript | – |
+| `notes_review.plan` | `file` | Umsetzen prüfen (#367) | `python scripts/hinweise.py . plan --file <file>` zeigen (✅/⚠️/⛔). Wieder öffnen nur über die gewohnte Freigabe; umsetzen (`hinweise.py . apply`) erst auf ausdrücklichen Auftrag als eigener Änderungsschritt | – |
 | `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | Vorlage `auflage-erzeugen` (`render_view.py edition-create`) | – |
 | `edition.proof` | – | Probedruck erstellen | Action „Probedruck“ per `workflow_dispatch` starten oder Link *Run workflow* geben; danach Link zum Lauf (Download unter *Artifacts*) | `POST /repos/{owner}/{repo}/actions/workflows/proof.yml/dispatches` |
 | `edition.preview` | – (Formate optional, sonst `typesetting.formats`) | Vorabfassung anlegen (#348); auch Knopf „Vorabfassung“ im Formular „Neue Auflage“ (#352), der vor dem Senden selbst nach Bestätigung fragt; der zweite Klick ist die ausdrückliche Bestätigung | nach ausdrücklicher Bestätigung Action „Vorabfassung“ per `workflow_dispatch` starten (`ref` = Buch-Branch) oder Link *Run workflow* geben; danach Link zum Lauf und zum Pre-Release (`START.md`, „Vorabfassung“) | `POST /repos/{owner}/{repo}/actions/workflows/preview.yml/dispatches` |
