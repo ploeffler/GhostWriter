@@ -895,6 +895,23 @@ class RenderedWidget(str):
         return value
 
 
+# Felder, die die Vorlage nicht liest und die nur der Textfassung dienen (#360): nicht ins Widget schicken,
+# damit die Ausgabe klein bleibt und unverändert in den Chat passt. In .data bleiben sie erhalten.
+WIDGET_OMIT = {'projektuebersicht': {'CHAPTERS': ('CHAPTER_CHECKS', 'CHAPTER_CHECKS_TEXT')}}
+
+
+def widget_payload(name, data):
+    """Daten für GW.render ohne die Felder aus WIDGET_OMIT."""
+    omit = WIDGET_OMIT.get(name)
+    if not omit:
+        return data
+    out = dict(data)
+    for block, keys in omit.items():
+        if isinstance(out.get(block), list):
+            out[block] = [{k: v for k, v in r.items() if k not in keys} if isinstance(r, dict) else r for r in out[block]]
+    return out
+
+
 def fill(template, values, blocks=None):
     """Widget-Code: Ladezeile für ghostwriter-ui und GW.render mit den Daten.
     Maskieren, Wiederholblöcke und data-gw-if erledigt gw.js im Chat."""
@@ -903,7 +920,7 @@ def fill(template, values, blocks=None):
     data['LANGUAGE'] = UI.get('language', 'de')
     if UI.get('head'):
         data['HEAD_SHA'] = UI['head']  # gelesener Stand; gw.js schickt ihn als expected_head_sha zurück
-    payload = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+    payload = json.dumps(widget_payload(template[:-5], data), ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     url = UI_URL.format(repo=UI['repo'], ref=UI['ref'])
     return RenderedWidget((f'<div id="gw"></div>\n<script src="{url}"></script>\n'
             f'<script>GW.render({json.dumps(template[:-5])},{payload})</script>\n'), template[:-5], data)
@@ -1345,10 +1362,10 @@ def check_cells(tags):
     return ' '.join(t['CK_TAG'] for t in tags) or '–'
 
 
-def check_json(tags):
-    """Widget (#331): Tags als JSON-Liste für data-gw-checks in ghostwriter-ui."""
+def check_json(tags, slim=False):
+    """Widget (#331): Tags als JSON-Liste für data-gw-checks in ghostwriter-ui (slim: ohne CK_PILL, #360)."""
     import checks
-    return checks.as_json(tags)
+    return checks.as_json(tags, checks.JSON_KEYS_SLIM if slim else checks.JSON_KEYS)
 
 
 def project_view(base, config, args):
@@ -1381,7 +1398,7 @@ def project_view(base, config, args):
                                  else plural(notes, 'offener Hinweis', 'offene Hinweise')})
             tags = ck.chapter(ch)
             rows[-1].update({'CHAPTER_CHECKS': tags, 'CHAPTER_CHECKS_TEXT': check_cells(tags),
-                             'CHAPTER_CHECKS_JSON': check_json(tags)})
+                             'CHAPTER_CHECKS_JSON': check_json(tags, slim=True)})
     longest = max([r['CHAPTER_WORDS'] for r in rows] or [0])
     for r in rows:   # Balken relativ zum längsten Kapitel (#362)
         r['CHAPTER_WORDS_PCT'] = round(100 * r['CHAPTER_WORDS'] / longest) if longest else 0
