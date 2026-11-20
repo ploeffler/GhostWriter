@@ -1206,6 +1206,47 @@ def character_source(config, item):
     return 'own'
 
 
+def character_portrait(base, char_id, head):
+    """Profilbild einer Figur (#417): (Referenz-ID, Pfad) oder ('', None).
+
+    `portrait` in der Figurendatei hat Vorrang, sonst das erste freigegebene
+    Referenzbild mit Rolle visual_reference und Link person:<char-id>."""
+    folder = base / 'reference-images'
+    if not folder.is_dir():
+        return '', None
+    refs = []
+    for meta_path in sorted(folder.glob('ref-img-*.yml')):
+        try:
+            meta = yaml.safe_load(meta_path.read_text(encoding='utf-8')) or {}
+        except yaml.YAMLError:
+            continue
+        if meta.get('status') == 'approved' and (folder / str(meta.get('file', ''))).is_file():
+            refs.append(meta)
+    wanted = head.get('portrait')
+    pick = next((m for m in refs if m.get('id') == wanted), None) if wanted else None
+    pick = pick or next((m for m in refs if 'visual_reference' in (m.get('roles') or [])
+                         and any(l.get('kind') == 'person' and l.get('id') == char_id
+                                 for l in m.get('links') or [])), None)
+    return (pick['id'], folder / pick['file']) if pick else ('', None)
+
+
+def portrait_data(path, px=96):
+    """Quadratisch beschnittene, verkleinerte JPEG-Ableitung als Daten-URL; nie das Original."""
+    if not path:
+        return ''
+    try:
+        import base64
+        from io import BytesIO
+        from PIL import Image, ImageOps
+        with Image.open(path) as im:
+            im = ImageOps.fit(ImageOps.exif_transpose(im).convert('RGB'), (px, px))
+            buf = BytesIO()
+            im.save(buf, 'JPEG', quality=70)
+        return 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode('ascii')
+    except Exception:   # noqa: BLE001 – ohne Pillow oder bei kaputtem Bild kein Profilbild
+        return ''
+
+
 def characters_view(base, config, args):
     """Figuren (#53): ohne Angabe die Liste (Vorlage figuren), sonst eine Figur (Vorlage figur-bearbeiten)."""
     p = config['project']
@@ -1219,7 +1260,9 @@ def characters_view(base, config, args):
         for i in items:
             head = character_file(base, i)[0]
             src = character_source(config, i)
-            rows.append({'C_ID': i['id'], 'C_NAME': i['name'], 'C_ROLE': view_labels('ROLE_DE').get(head.get('role'), ''),
+            pid, ppath = character_portrait(base, i['id'], head)
+            rows.append({'C_PORTRAIT': '' if args.text else portrait_data(ppath, 80),
+                         'C_PORTRAIT_FILE': ppath.relative_to(base).as_posix() if ppath else '', 'C_ID': i['id'], 'C_NAME': i['name'], 'C_ROLE': view_labels('ROLE_DE').get(head.get('role'), ''),
                          'C_SHORT': head.get('short', ''), 'C_USED': ', '.join(used.get(i['id'], [])) or '–',
                          'C_SOURCE': src, 'C_SOURCE_TEXT': view_labels('SOURCE_DE').get(src, '')})
         if args.text:
@@ -1229,6 +1272,9 @@ def characters_view(base, config, args):
                           '|---|---|---|---|' + ('---|' if ser else '')]
                 lines += [f'| {r["C_NAME"]} | {r["C_ROLE"]} | {r["C_SHORT"] or "–"} | {r["C_USED"]} |'
                           + (f' {"⚠️ " if r["C_SOURCE"] == "copy_diff" else ""}{r["C_SOURCE_TEXT"]} |' if ser else '') for r in rows]
+                pics = [f'- {r["C_NAME"]}: `{r["C_PORTRAIT_FILE"]}`' for r in rows if r['C_PORTRAIT_FILE']]
+                if pics:
+                    lines += ['', view_message('view.characters.portraits')] + pics
             else:
                 lines += [view_message('view.characters.no_characters_yet')]
             lines += ['', view_message('view.characters.characters_provide_working_references_for_brainstorming_and'), '', '---']
@@ -1247,6 +1293,9 @@ def characters_view(base, config, args):
                 (view_message('view.characters.speech'), head.get('voice')), (view_message('view.characters.image_description'), head.get('visual')),
                 (view_message('view.characters.relationships'), '; '.join(view_message('view.characters.of', p_a=r["R_KIND"], p_b=r["R_NAME"]) for r in rel)),
                 (view_message('view.characters.appears_in'), ', '.join(used.get(item['id'], [])))]
+        pid, ppath = character_portrait(base, item['id'], head)
+        if ppath:
+            rows.append((view_message('view.characters.portrait'), f'`{ppath.relative_to(base).as_posix()}` ({pid})'))
         src = character_source(config, item)
         if src:
             rows.append((view_message('view.characters.source_2'), view_labels('SOURCE_DE')[src] + view_message('view.characters.series', p_a=ser["title"])))
@@ -1266,6 +1315,8 @@ def characters_view(base, config, args):
               'CHARACTER_TRAITS': ', '.join(head.get('traits') or []), 'CHARACTER_VOICE': head.get('voice', ''),
               'CHARACTER_VISUAL': head.get('visual', ''), 'CHARACTER_DESCRIPTION': desc, 'CHARACTER_NOTES': notes,
               'CHARACTER_USED': ', '.join(used.get(item['id'], [])) or view_message('view.characters.nowhere_yet')}
+    pid, ppath = character_portrait(base, item['id'], head)
+    values.update({'CHARACTER_PORTRAIT': portrait_data(ppath, 192), 'CHARACTER_PORTRAIT_ID': pid})
     src = character_source(config, item)
     values.update({'CHARACTER_SOURCE': src, 'CHARACTER_SOURCE_TEXT': view_labels('SOURCE_DE').get(src, ''),
                    'SERIES_ID': ser.get('id', ''), 'SERIES_TITLE': ser.get('title', '')})

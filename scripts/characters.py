@@ -179,7 +179,7 @@ def context(base, key):
     return '\n'.join(out).rstrip() + '\n'
 
 
-HEAD_FIELDS = ['id', 'name', 'role', 'short', 'age', 'appearance', 'traits', 'voice', 'visual', 'relations']
+HEAD_FIELDS = ['id', 'name', 'role', 'short', 'age', 'appearance', 'traits', 'voice', 'visual', 'portrait', 'relations']
 
 
 def apply(head, desc, notes, data):

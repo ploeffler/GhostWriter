@@ -792,6 +792,8 @@
   "view.choice.recommended": " · *recommended*",
   "view.choice.current": " · *current*",
   "view.matter.add": "add",
+  "view.characters.portraits": "Portraits:",
+  "view.characters.portrait": "Portrait",
   "view.characters.source_2": "Source",
   "view.providers_edit.manual": "manual",
   "view.chapter_research.distinguish": "distinguish",

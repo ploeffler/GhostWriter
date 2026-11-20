@@ -359,13 +359,14 @@ appearance: groß, weißer Bart
 traits: [geduldig, brummig]
 voice: bedächtig, sagt oft „na, schau an“
 visual: weißer Bart, grüner Filzhut, karierte Weste   # gleich bleibende Bildmerkmale (#54)
+portrait: ref-img-opi-profil   # Profilbild (#417), optional; sonst erstes freigegebenes visual_reference mit Link person:char-opi
 relations:
 - to: char-strolchi
   kind: Besitzer          # „Opi ist Besitzer von Strolchi“
 ---
 ```
 
-Darunter `## Beschreibung` und `## Notizen`. Abschnitte und Teile von Vor- und Nachspann nennen ihre Figuren im Kopf: `characters: [char-strolchi, char-opi]`. Die Prüfung kontrolliert Dateien, IDs, Namen, Beziehungen und diese Verweise. `scripts/characters.py` legt Figuren an (`add`), ordnet sie zu (`assign`), speichert das Formular (`update`) und gibt den Kontext für KI-Läufe aus (`context <abschnitt>`). Figuren kommen nicht ins Buch.
+Darunter `## Beschreibung` und `## Notizen`. Abschnitte und Teile von Vor- und Nachspann nennen ihre Figuren im Kopf: `characters: [char-strolchi, char-opi]`. Die Prüfung kontrolliert Dateien, IDs, Namen, Beziehungen und diese Verweise. `scripts/characters.py` legt Figuren an (`add`), ordnet sie zu (`assign`), speichert das Formular (`update`) und gibt den Kontext für KI-Läufe aus (`context <abschnitt>`). Figuren kommen nicht ins Buch. Figurenliste und Figurenansicht zeigen ein Profilbild (#417) als verkleinerte Ableitung des Referenzbilds; das Original wird nicht in den Chat geladen.
 
 ## Übersichtsdatei
 

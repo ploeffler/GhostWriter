@@ -128,6 +128,31 @@ class CharacterTest(unittest.TestCase):
         self.assertIn('| Wolf | Randfigur | – | – |', self.run_view('characters', '--text'))
 
 
+    def test_portrait_from_reference_image(self):
+        """#417: Profilbild aus freigegebenem Referenzbild, nur als verkleinerte Ableitung."""
+        from PIL import Image
+        import reference_images
+        self.add_three()
+        src = Path(self.base.parent) / 'opi.png'
+        Image.new('RGB', (600, 400), (200, 80, 40)).save(src)
+        meta = reference_images.add(self.base, src, 'Opi Profil', links=[{'kind': 'person', 'id': 'char-opi'}])
+        _, lst = self.widget('characters')
+        self.assertEqual([c['C_PORTRAIT'] for c in lst['CHARACTERS']], ['', '', ''])   # noch nicht freigegeben
+        reference_images.set_status(self.base, meta['id'], 'approved')
+        _, lst = self.widget('characters')
+        pics = {c['C_ID']: c['C_PORTRAIT'] for c in lst['CHARACTERS']}
+        self.assertTrue(pics['char-opi'].startswith('data:image/jpeg;base64,'))
+        self.assertLess(len(pics['char-opi']), 6000)
+        self.assertEqual(pics['char-strolchi'], '')
+        _, one = self.widget('characters', 'Opi')
+        self.assertEqual(one['CHARACTER_PORTRAIT_ID'], meta['id'])
+        self.assertIn(f'reference-images/{meta["file"]}', self.run_view('characters', '--text'))
+        self.assertIn(meta['id'], self.run_view('characters', 'Opi', '--text'))
+        characters.update(self.base, 'Opi', {'portrait': meta['id'], 'short': 'Großvater'})   # bleibt beim Speichern
+        characters.update(self.base, 'Opi', {'short': 'Großvater, brummig'})
+        self.assertIn(f'portrait: {meta["id"]}', (self.base / 'characters/char-opi.md').read_text(encoding='utf-8'))
+        self.assertEqual(validate_project.check_project(self.base), [])
+
 class SuggestTest(unittest.TestCase):
     """Figuren aus dem Text vorschlagen: lesen, zeigen, übernehmen (nur leere Felder, Zuordnung ergänzen)."""
 

@@ -792,6 +792,8 @@
   "view.choice.recommended": " · *empfohlen*",
   "view.choice.current": " · *bisher*",
   "view.matter.add": "aufnehmen",
+  "view.characters.portraits": "Profilbilder:",
+  "view.characters.portrait": "Profilbild",
   "view.characters.source_2": "Herkunft",
   "view.providers_edit.manual": "manuell",
   "view.chapter_research.distinguish": "abgrenzen",
