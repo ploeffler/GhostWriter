@@ -193,8 +193,6 @@ class ImageTest(unittest.TestCase):
         self.assertEqual(sec_end - ref, 2)   # vor dem letzten Absatz des Abschnitts
         body, used = assemble.resolve_images(self.base, config, md)
         self.assertRegex(body, r'gwpos=right gwratio=[0-9.]+ width=40%\}')
-        notes = build_edition.image_notes(used, {'page_size': 'a5'}, ['pdf', 'docx'])
-        self.assertTrue(any('nur in PDF und EPUB' in n for n in notes), notes)
         self.assertIn('\\babelprovide[main,import]{ngerman}', build_edition.babel_tex('de'))   # ohne bidi=default (wrapfig)
         self.assertIn('{naustrian}', build_edition.babel_tex('de-AT'))
         if _sh.which('pandoc'):
@@ -206,6 +204,14 @@ class ImageTest(unittest.TestCase):
             html = _sp.run(['pandoc', '-f', 'markdown', '-t', 'html', '--lua-filter', lua], input=body,
                            capture_output=True, text=True, check=True).stdout
             self.assertRegex(html, r'<figure [^>]*class="gw-right"[^>]*style="width:40%"')
+            import tempfile as _tf, zipfile as _zf
+            with _tf.TemporaryDirectory() as tmp:
+                docx = Path(tmp) / 'b.docx'
+                _sp.run(['pandoc', '-f', 'markdown', '-o', str(docx), '--lua-filter', lua], input=body, text=True, check=True)
+                self.assertTrue(build_edition.docx_float_images(docx))
+                xml = _zf.ZipFile(docx).read('word/document.xml').decode()
+                self.assertIn('w:tblpXSpec="right"', xml)   # schwebende Tabelle am rechten Rand, Text fließt herum
+                self.assertNotIn('gwpos:', xml)
         _sp.run([sys.executable, str(ROOT / 'scripts/images.py'), str(self.base), 'layout', meta['id'], '--position', 'text'],
                 check=True, capture_output=True)
         body, _ = assemble.resolve_images(self.base, config, assemble.chapter_markdown(self.base, ch, 1)[0])

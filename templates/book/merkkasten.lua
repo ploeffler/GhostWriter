@@ -211,7 +211,8 @@ end
 -- Medienplatzierung (#54, scripts/assemble.py): Bild mit gwpos=left|right|center und width=N%
 --   LaTeX/PDF: links/rechts als wrapfigure (Textumfluss), mittig als normale Abbildung
 --   EPUB/HTML: <figure class="gw-left|gw-right|gw-center"> mit Breite (epub.css: float)
---   DOCX: nur die Breite; Textumfluss kann Pandoc dort nicht setzen (build_edition meldet das)
+--   DOCX: Bildtitel gwpos:… als Kennung; build_edition.docx_float_images stellt links/rechts als umflossene
+--         Tabelle (Bild und Bildunterschrift) frei und zentriert mittige Bilder
 function Figure(el)
   local img
   el:walk({ Image = function(i) img = img or i end })
@@ -244,6 +245,14 @@ function Figure(el)
     el.classes:insert('gw-' .. pos)
     el.attributes['style'] = 'width:' .. pct .. '%'
     return el
+  end
+  if FORMAT:match('docx') then   -- build_edition.docx_float_images setzt Lage und Umfluss nach (Bildtitel als Kennung)
+    return el:walk({ Image = function(i)
+      i.attributes['gwpos'] = nil
+      i.attributes['gwratio'] = nil
+      i.title = 'gwpos:' .. pos
+      return i
+    end })
   end
   return clean(false)
 end
