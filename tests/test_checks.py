@@ -201,6 +201,39 @@ class ChecksTest(unittest.TestCase):
         data = render_view_en.prepare('kapitelansicht', chap.data, self.config, args())
         self.assertIn('Quality: failed', json.loads(data['CHECKS_HISTORY_JSON'])[0]['CK_TEXT'])
 
+    def test_project_details_extended(self):   # #398
+        import render_view_en
+        checks.record(self.base, self.config, 'quality_correction', [self.ch1['id']], 'failed', date='2026-11-17')
+        checks.record(self.base, self.config, 'quality_correction', [self.ch1['id']], 'passed_with_notes',
+                      date='2026-11-18', note='2 wesentliche Punkte (W1, W2), 9 Hinweise')
+        plain = render_view.project_view(self.base, self.config, args(text=False))
+        self.assertNotIn('CHAPTER_HISTORY_JSON', plain.data['CHAPTERS'][0])
+        self.assertNotIn('Frühere Prüfungen', plain.data['CHECKS_LEGEND'])
+        self.assertNotIn('CK_NOTE', plain.data['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])
+        wide = render_view.project_view(self.base, self.config, args(text=False, darstellung='erweitert'))
+        row = wide.data['CHAPTERS'][0]
+        tag = json.loads(row['CHAPTER_CHECKS_JSON'])[0]
+        self.assertEqual(tag['CK_NOTE'], '2 wesentliche Punkte (W1, W2), 9 Hinweise')
+        self.assertTrue(tag['CK_ID'])
+        self.assertEqual(row['CHAPTER_HISTORY_COUNT'], 1)
+        self.assertIn('1 frühere Prüfung', row['CHAPTER_CHECK_DETAILS'])
+        self.assertIn('zuletzt nicht bestanden: Qualität 2026-11-17', row['CHAPTER_CHECK_DETAILS'])
+        self.assertIn('Frühere Prüfungen', wide.data['CHECKS_LEGEND'])
+        payload = json.loads(wide.split('GW.render("projektuebersicht",', 1)[1].rsplit(')</script>', 1)[0].replace('<\\/', '</'))
+        self.assertNotIn('CHAPTER_HISTORY', payload['CHAPTERS'][0])
+        self.assertIn('CHAPTER_HISTORY_JSON', payload['CHAPTERS'][0])
+        out = render_view.project_view(self.base, self.config, args(darstellung='erweitert'))
+        self.assertIn('**Prüfdetails**', out)
+        self.assertIn('- Kapitel 1: Qualität (', out)
+        self.assertIn('- Qualität: 2026-11-17 ✗', out)
+        self.assertNotIn('**Prüfdetails**', render_view.project_view(self.base, self.config, args()))
+        en = render_view_en.prepare('projektuebersicht', wide.data, self.config, args())
+        self.assertIn('Earlier checks', en['CHECKS_LEGEND'])
+        self.assertIn('Quality: failed', json.loads(en['CHAPTERS'][0]['CHAPTER_HISTORY_JSON'])[0]['CK_TEXT'])
+        self.assertIn('CK_NOTE', en['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])
+        en = render_view_en.prepare('projektuebersicht', plain.data, self.config, args())
+        self.assertNotIn('Earlier checks', en['CHECKS_LEGEND'])
+
     def test_time_recorded_and_shown(self):   # #340
         e = checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed', date='2026-11-17', time='14:05')
         self.assertEqual(e['time'], '14:05')

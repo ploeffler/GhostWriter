@@ -245,7 +245,7 @@ The user may select:
 
 - **“Display: simple”** — concise text with minimal structure.
 - **“Display: organized”** — a structured view with suitable cards, tables and status indicators.
-- **“Display: extended”** — detailed structured views, with extra charts or interactive elements when useful and supported.
+- **“Display: extended”** — detailed structured views, with extra charts or interactive elements when useful and supported. The project overview then shows check details per chapter (note, check ID, earlier and failed checks; `render_view.py … project --darstellung erweitert`, #398).
 - **“Text only”** — text and Markdown only.
 
 **Reading copy (#289, #316):** The same rule applies to Claude, ChatGPT Work and Codex: supply a Markdown file alongside the view, label unsaved proposals clearly and refresh the same file after edits. Use Codex's available file panel, never a browser. `queued` confirms only a display request. Do not duplicate the full text in chat; offer a file/link and state limitations when preview is unavailable. Extended views identify actual storage state and unknown source status; never invent costs or markers. Reading-copy toggles and display mode remain independent and apply only to the current chat. Distinguish preview, work-branch storage and merged book content; displaying grants no approval. See `START.md`, “Lesefassung”.
