@@ -178,6 +178,14 @@ def story_errors(base, config):
             if not errs:
                 import chronology
                 errors += chronology.references(base, config, data)
+    tl = base / 'story' / 'timeline.yml'   # Verknüpfung Text-Zeitleiste → Chronologie (#364)
+    if tl.is_file():
+        import chronology
+        chron = chronology.read(base) or {}
+        known_chr = {e.get('id') for e in chron.get('entries') or [] if isinstance(e, dict)}
+        for ev in chronology.timeline_events(base):
+            if ev.get('chronology') and ev['chronology'] not in known_chr:
+                errors.append(f'{tl}: {ev.get("id")}: Chronologie-Eintrag {ev["chronology"]} unbekannt')
     return errors
 
 

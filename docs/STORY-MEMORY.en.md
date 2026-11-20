@@ -28,7 +28,7 @@ or unrelated book branches without an appropriate assignment.
 | `characters/char-*.md` | Character attributes and relationships; preserve existing IDs and author statements |
 | `story/places.yml` | Names, aliases and location descriptions with section references |
 | `story/timeline.yml` | Events, original time expressions and chronology notes; book order is not automatically event order |
-| `story/chronology.yml` | Chronology from notes and research (#354) with an evidence status per entry (`documented`, `reported`, `uncertain`, `invented`) and a source; `scripts/chronology.py check` lists dates that do not fit together. A reported statement is not evidence, and creative licence is not an error |
+| `story/chronology.yml` | Chronology from notes and research (#354) with an evidence status per entry (`documented`, `reported`, `uncertain`, `invented`) and a source; `scripts/chronology.py check` lists dates that do not fit together. A reported statement is not evidence, and creative licence is not an error. With the `chronology` field in `story/timeline.yml`, the check also reports passages whose date or chapter does not fit the entry (#364) |
 | Existing glossary and expressly accessible series references | Spelling and meanings; distinguish volume-specific and shared series material |
 | Existing analysis runs | Leads to verifiable passages; recheck against current text when sources are stale or uncertain |
 

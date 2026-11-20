@@ -1418,7 +1418,7 @@ def project_view(base, config, args):
     except Exception:   # noqa: BLE001
         chron = None
     if chron and chron.get('entries'):
-        hints = [f for f in chronology.findings(chron, chronology.char_names(config)) if f['kind'] != 'undated']
+        hints = [f for f in chronology.all_findings(base, config, chron) if f['kind'] != 'undated']
         values['CHRONOLOGY_COUNT'] = len(chron['entries'])
         values['CHRONOLOGY_HINTS'] = len(hints)
         values['CHRONOLOGY_TEXT'] = (f'Chronologie: {plural(len(chron["entries"]), "Eintrag", "Einträge")}, '
@@ -3927,7 +3927,8 @@ def main():
     elif args.view == 'timeline':   # Chronologie (#354): Vorlage zeitleiste bzw. Textfassung
         import chronology
         if args.text:
-            out = chronology.text_view(base, config, [x.strip() for x in (args.status or '').split(',') if x.strip()] or None)
+            out = chronology.text_view(base, config, [x.strip() for x in (args.status or '').split(',') if x.strip()] or None,
+                                       language=UI.get('language', 'de'))
         else:
             values, blocks = chronology.widget_values(base, config)
             out = fill('zeitleiste.html', values, blocks)

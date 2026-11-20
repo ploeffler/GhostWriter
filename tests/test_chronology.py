@@ -175,3 +175,59 @@ class BookTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+
+class TimelineLinkTest(BookTest):
+    """Abgleich Text-Zeitleiste ↔ Chronologie, Ausgabe als Datei, englische Textfassung (#364)."""
+
+    def timeline(self, events):
+        (self.base / 'story').mkdir(exist_ok=True)
+        (self.base / 'story/timeline.yml').write_text(yaml.safe_dump({'events': events}, allow_unicode=True), encoding='utf-8')
+
+    def test_text_interval(self):
+        self.assertEqual([str(d) for d in chr_.text_interval('im Mai 1945')], ['1945-01-01', '1945-12-31'])
+        self.assertEqual([str(d) for d in chr_.text_interval('am 8. 5. 1945')], ['1945-05-08', '1945-05-08'])
+        self.assertIsNone(chr_.text_interval('drei Tage später'))
+        self.assertIsNone(chr_.text_interval('zwischen 1944 und 1946'))
+
+    def test_link_findings_and_validation(self):
+        ch2 = self.config['structure']['chapters'][1]['id']
+        sec1 = self.config['structure']['chapters'][0]['sections'][0]['id']
+        self.write([entry(1, what='Kriegsende', date='1945-05-08', chapter=ch2),
+                    entry(2, 'span', what='Lehre', **{'from': '1949', 'to': '1952'})])
+        self.timeline([{'id': 'ev-001', 'section': sec1, 'what': 'Kriegsende', 'when': 'im Sommer 1946', 'chronology': 'chr-001'},
+                       {'id': 'ev-002', 'section': sec1, 'what': 'Lehre', 'when': '1950', 'chronology': 'chr-002'},
+                       {'id': 'ev-003', 'section': sec1, 'what': 'Später', 'when': 'drei Tage später', 'chronology': 'chr-002'}])
+        _, config = load(self.base)
+        found = chr_.text_findings(self.base, config, chr_.read(self.base))
+        texts = [f['text'] for f in found]
+        self.assertEqual(len(found), 2, texts)
+        self.assertIn('im Text „im Sommer 1946“', texts[0])
+        self.assertIn('steht in Kapitel 1, die Chronologie ordnet es Kapitel 2 zu', texts[1])
+        self.assertIn('Text gegen Chronologie', self.view())
+        self.assertEqual(self.errors(), [])
+        self.timeline([{'id': 'ev-001', 'section': sec1, 'what': 'x', 'chronology': 'chr-099'}])
+        self.assertIn('Chronologie-Eintrag chr-099 unbekannt', '\n'.join(self.errors()))
+
+    def test_export_html(self):
+        self.write([entry(1, what='Kriegsende <Wien>', date='1945-05-08', characters=[]),
+                    entry(2, 'span', what='Lehre', status='reported', **{'from': '1949', 'to': '1952'}),
+                    entry(3, what='Ohne Datum')])
+        subprocess.run([sys.executable, str(ROOT / 'scripts/chronology.py'), str(self.base), 'export'], check=True, capture_output=True)
+        page = (self.base / 'story/zeitleiste.html').read_text(encoding='utf-8')
+        self.assertTrue(page.startswith('<!DOCTYPE html>'))
+        self.assertIn('<svg', page)
+        self.assertIn('Kriegsende &lt;Wien&gt;', page)
+        self.assertNotIn('<script', page)
+        self.assertNotIn('http://', page.replace('http://www.w3.org/2000/svg', ''))
+        self.assertNotIn('https://', page)
+        en = chr_.export_html(self.base, self.config, 'en')
+        self.assertIn('Where the dates do not fit', en)
+
+    def test_english_text_view(self):
+        self.write([entry(1, what='War ends', date='1945-05-08'), entry(2, what='War ends', date='1946', status='reported')])
+        out = self.view('--language', 'en')
+        self.assertIn('### 🕰️ Chronology', out)
+        self.assertIn('report against record: “War ends”', out)
+        self.assertNotIn('Einträge', out)
