@@ -154,3 +154,21 @@ class HinweiseTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class DocumentedCallsTest(unittest.TestCase):
+    """#383: dokumentierte Aufrufe von hinweise.py passen zur CLI, auch in der Reihenfolge <buch> <befehl>."""
+
+    def test_documented_order(self):
+        import re as _re
+        text = (ROOT / 'templates/ui/BEFUELLUNG.md').read_text(encoding='utf-8')
+        calls = _re.findall(r'hinweise\.py (\S+) (\S+)', text)
+        self.assertTrue(calls)
+        for cmd, project in calls:
+            self.assertIn(cmd, ('collect', 'show', 'decide', 'plan', 'apply'), (cmd, project))
+
+    def test_both_orders_parse(self):
+        import subprocess
+        for args in (['show', str(ROOT / 'tests/fixtures/adhs')], [str(ROOT / 'tests/fixtures/adhs'), 'show']):
+            r = subprocess.run([sys.executable, str(ROOT / 'scripts/hinweise.py'), *args], capture_output=True, text=True)
+            self.assertNotIn('invalid choice', r.stderr, args)

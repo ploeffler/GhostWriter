@@ -238,6 +238,20 @@ def section_approved(base, section, head, manuscript):
             and record.get('note') == 'content_sha256=' + digest)
 
 
+def same_title(a, b):
+    return ' '.join(str(a or '').casefold().split()) == ' '.join(str(b or '').casefold().split())
+
+
+def section_heading(chapter, section, number, si, numbered):
+    """Überschrift eines Abschnitts als Zeilen. Heißt er wie sein Kapitel, entfällt sie (#381), außer in der
+    Lesefassung mit Nummern, wo die Nummer zählt."""
+    if numbered:
+        return [f'## {number}.{si} {section["title"]}', '']
+    if same_title(section['title'], chapter['title']):
+        return []
+    return [f'## {section["title"]}', '']
+
+
 def chapter_markdown(base, chapter, number, proof=False, plan=False, numbered=False):
     """(Markdown, ausgelassene Abschnitte, Marker) eines Kapitels.
     proof=True (Probedruck): auch nicht freigegebene Abschnitte, mit Statusvermerk und hervorgehobenen Markern.
@@ -260,7 +274,7 @@ def chapter_markdown(base, chapter, number, proof=False, plan=False, numbered=Fa
         text = shift_headings(manuscript.strip(), 3)
         if plan and is_empty_text(manuscript):
             _, goal, summary, _ = section_file(base, s)
-            out += [f'## {number}.{si} {s["title"]}' if numbered else f'## {s["title"]}', '', plan_block(head.get('status'), goal, summary, section_runs(base, chapter, s)), '']
+            out += section_heading(chapter, s, number, si, numbered) + [plan_block(head.get('status'), goal, summary, section_runs(base, chapter, s)), '']
             continue
         if proof:
             text = mark_markers(text) or '*(noch kein Text)*'
@@ -269,7 +283,7 @@ def chapter_markdown(base, chapter, number, proof=False, plan=False, numbered=Fa
                  if head.get('status') == 'approved' else
                  f'[Stand: {STATUS_DE.get(head.get("status"), head.get("status"))}, nicht abgeschlossen]{{.gwstatus}}\n\n')
             text = note + text
-        out += [f'## {number}.{si} {s["title"]}' if numbered else f'## {s["title"]}', '', text, '']
+        out += section_heading(chapter, s, number, si, numbered) + [text, '']
         markers += [(f'{number}.{si}', m.group(0)) for m in MARKER_TEXT.finditer(manuscript)]
     if sources:
         clean = re.sub(r'(?m)^Status aller Einträge:.*\n?', '', sources).strip()
