@@ -156,11 +156,13 @@ bleibt ein [offener Architekturpunkt](ARCHITECTURE.md#ki-anbindung-der-eigenen-a
 
 Die aus der Softwareentwicklung kommende Versionsverwaltung ist ein ausdrücklicher Produktvorteil: präzise gespeicherte Änderungsschritte, vergleichbare Fassungen, gezielte Wiederherstellung, getrennte Entwürfe und die eindeutige Zuordnung jeder Auflage zu ihrem Buchstand. README und Grundlagen erklären diese Vorteile in Autorensprache; fehlendes Git-Fachwissen ist eine Frage der einfachen Bedienung. Die Dokumentationsarbeit knüpft an [#46](https://github.com/ploeffler/GhostWriter/issues/46) an. Versioniert sind gespeicherte Änderungen, nicht jeder noch ungespeicherte Chatentwurf.
 
-### Standabgleich zwischen Clients (geplant)
+### Standabgleich zwischen Clients (teilweise umgesetzt)
 
 **Prioritärer Planungsauftrag [#179](https://github.com/ploeffler/GhostWriter/issues/179), im Zielumfang `cross_client_state_sync` für v1.0 erfasst; noch nicht umgesetzt.** Beim Wechsel zwischen Clients können Buchtext, Programm, Werkzeug, Anweisungen und lokale Kopien auf unterschiedlichen Ständen sein. GitHub bleibt die gemeinsame Quelle für gespeicherte Buchstände. Ein erfolgreich geladener Starttext ist ein Anweisungs-Snapshot und kein Nachweis, dass spätere Buchdaten aktuell sind.
 
 **Vorhandene technische Teilprüfung:** `scripts/workflow_support.py ... guard <expected> <current> <paths...>` prüft unveränderte, nicht betroffene, betroffene sowie divergierte Git-Stände schreibfrei. Änderungen an `ghostwriter.yml`, `workflow.yml`, `assistant.yml`, Manifest oder Update-Stand verlangen unabhängig von der Zieldatei eine Kontextaktualisierung. Der Assistent muss aktuelle Remote-Refs bereitstellen und beim späteren Schreiben den aktuellen Head atomar prüfen. Es gibt dadurch weder einen Hintergrundabgleich noch einen zusätzlichen Dienst; vollständige Live-Client-Abnahme bleibt offen.
+
+**Umgesetzt (#179, Teil 1):** `scripts/standabgleich.py . stand --book … [--work …]` hält den gelesenen Stand fest, `… check <stand>` vergleicht getrennt nach Buch, Arbeitsbranch (neuer, übernommen, auseinandergelaufen), Programmversion mit Upstream-Commit, Anweisungen (START.md, CLAUDE.md, AGENTS.md, allgemeine Skills, `docs/start/`), Profil (`assistant.yml`) und Datenversion. Exit 0 unverändert, 1 neuer Stand (neu lesen bzw. Anweisungen neu laden), 2 Konflikt oder Buch neuer als Programm (nicht schreiben). Die Ausgabe nennt den gelesenen Commit und die nicht abgeglichenen Bereiche. Regel für den Assistenten: `START.md`, „Standabgleich“. Offen: Abnahme mit zwei echten Clients, veraltete Formulare und Eingabeerhalt in den Widgets, Index und Zusammenfassungen.
 
 Für die Umsetzung untersuchen:
 
