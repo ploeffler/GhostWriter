@@ -150,7 +150,9 @@ def check(output, root=ROOT):
             if not dest.is_file():
                 raise ValueError(f'{path.name}: Ziel fehlt: {link}')
             if fragment:
-                if not BeautifulSoup(dest.read_text(),'html.parser').find('a',attrs={'name':unquote(fragment)}):
+                soup = BeautifulSoup(dest.read_text(),'html.parser')
+                # Überschriften bekommen <a name>; Begriffslisten (Bedienglossar) setzen <a id>.
+                if not (soup.find('a',attrs={'name':unquote(fragment)}) or soup.find('a',attrs={'id':unquote(fragment)})):
                     raise ValueError(f'{path.name}: Anker fehlt: {link}')
     print(f'Wiki geprüft: {len(expected)} Seiten, Version {info["version"]}, {output}')
 
