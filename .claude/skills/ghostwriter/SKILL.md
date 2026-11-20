@@ -101,6 +101,8 @@ Die folgenden einzelnen Chat-Befehle sind feste Abkürzungen. Sie gelten für da
 - Bibliothek: `library.json` vom Standard-Branch lesen und `python scripts/render_view.py . library --library library.json --repo <owner>/<repo>`; bei genau einem Buch direkt dessen Projektübersicht.
 - Einzelbuch bzw. Link auf einen Buch-Branch: Projektübersicht nach `START.md`, Abschnitt 0, Schritte 1–8.
 
+**Wissensstand (#369):** Vor der ersten inhaltlichen Antwort im Buch `python scripts/wissensstand.py .` intern lesen. Vor neuen Figuren, Orten, Begriffen und Vorschlägen damit abgleichen; Bekanntes, Entschiedenes und Verworfenes als solches nennen statt es neu einzuführen (`START.md`, Abschnitt 0, Schritt 4a). Beim Wechsel in ein anderes Buch den Stand des vorigen entladen: dessen Figuren, Orte, Begriffe und Ideen gelten nicht mehr und werden nicht vorgeschlagen.
+
 ## 10. Bilder und visuelle Referenzen
 
 - Bilder können jederzeit nachträglich hochgeladen und einer Person, einem Ort, einem Gegenstand, Kapitel oder Abschnitt zugeordnet werden.

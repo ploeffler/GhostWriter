@@ -103,6 +103,31 @@ character notes or the timeline. Proposal, author decision and file change remai
 separate. Withdrawing a contradiction finding requires checked evidence rather
 than a reassuring summary.
 
+## Knowledge state when entering a book (#369)
+
+Independently of a reconciliation request, the assistant reads a compact
+knowledge state as working knowledge when switching into a book:
+
+```
+python scripts/wissensstand.py <book> [--json] [--width 240] [--sessions 10]
+```
+
+It lists characters (including series characters), places with aliases,
+glossary terms, entries from `story/chronology.yml` and `story/timeline.yml`,
+and the most recent saved conversations under `conversations/` (decisions,
+brainstorming, research, planning, drafts; `--sessions 0` for all). During
+interviews and idea collection the assistant checks against it before
+introducing anything as new and names what was already decided or rejected.
+Descriptions are shortened; details remain in the listed files. Sessions still
+on their backup branch are not included; use `Load session`
+([Session backup](SESSION-BACKUP.en.md)). The script writes nothing. Its output
+is currently German.
+
+When switching to another book, the previous knowledge state is unloaded:
+its characters, places, terms, ideas and decisions no longer apply and are
+neither checked against nor suggested; compare only on explicit request.
+Shared series characters arrive through the volume's own knowledge state.
+
 ## Boundary with existing analysis
 
 [Background analysis](DATA-MODEL.md#analyse-im-hintergrund-123) (German) already

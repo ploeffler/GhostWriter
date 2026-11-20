@@ -107,6 +107,30 @@ etwa Figurenunterlage oder Zeitleiste. Vorschlag, Autorenentscheidung und
 Dateiänderung bleiben getrennt. Die Rücknahme eines Widerspruchsbefunds braucht
 geprüfte Belege, nicht nur eine beruhigende Zusammenfassung.
 
+## Wissensstand beim Wechsel ins Buch (#369)
+
+Unabhängig von einem Abgleichsauftrag liest der Assistent beim Wechsel ins Buch
+einen kompakten Wissensstand als Arbeitswissen:
+
+```
+python scripts/wissensstand.py <buch> [--json] [--width 240] [--sessions 10]
+```
+
+Er enthält Figuren (auch der Serie), Schauplätze mit Aliasen, Begriffe des
+Glossars, Einträge aus `story/chronology.yml` und `story/timeline.yml` sowie
+die jüngsten gesicherten Gespräche unter `conversations/` (Entscheidungen,
+Brainstorming, Recherche, Planung, Entwürfe; `--sessions 0` für alle). Damit
+gleicht der Assistent bei Befragung und Ideensammlung ab, bevor er etwas als neu
+einführt, und nennt schon Entschiedenes oder Verworfenes als solches. Beschreibungen
+sind gekürzt; Einzelheiten stehen in den genannten Dateien. Sitzungen, die noch
+auf ihrem Sicherungsbranch liegen, fehlen; dafür `Session laden`
+([Session-Sicherung](SESSION-SICHERUNG.md)). Das Skript schreibt nichts.
+
+Beim Wechsel in ein anderes Buch wird der vorige Wissensstand entladen: Figuren,
+Orte, Begriffe, Ideen und Entscheidungen des vorigen Buchs gelten nicht mehr und
+werden weder abgeglichen noch vorgeschlagen; ein Vergleich nur auf ausdrücklichen
+Wunsch. Figuren einer gemeinsamen Serie kommen über den Wissensstand des Bandes.
+
 ## Abgrenzung zur bestehenden Analyse
 
 Die [Analyse im Hintergrund](DATA-MODEL.md#analyse-im-hintergrund-123) hat bereits
