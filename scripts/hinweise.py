@@ -31,7 +31,7 @@ from pathlib import Path
 import yaml
 
 LANGUAGE_KINDS = ('rechtschreibung', 'zeichensetzung', 'grammatik', 'wiederholung', 'satzbau', 'sprache')
-AUTHOR_KINDS = ('fakt', 'ton', 'aufbau', 'buchweit')
+AUTHOR_KINDS = ('fakt', 'kontinuitaet', 'ton', 'aufbau', 'buchweit')
 KINDS = LANGUAGE_KINDS + AUTHOR_KINDS
 SEVERITIES = ('gering', 'mittel', 'wesentlich', 'blockierend')
 FINDING_STATES = ('offen', 'erledigt', 'entschieden')
@@ -39,7 +39,8 @@ DECISIONS = ('offen', 'ja', 'nein', 'geändert')
 GUIDE = ('Je Eintrag entscheiden: ja = übernehmen, nein = nicht ändern, geändert = mit eigener Fassung in `neu`. '
          'Jede Antwort wird sofort als kleiner Nachtrag gespeichert (docs/SPEICHERN.md). Umgesetzt wird erst am '
          'Ende eines Kapitels oder auf Auftrag; Wiederöffnen abgeschlossener Kapitel braucht eine eigene Bestätigung.')
-QUESTION = {'fakt': 'Welche Angabe ist richtig bzw. fehlt?', 'ton': 'Soll sich Ton oder Stimme hier ändern?',
+QUESTION = {'fakt': 'Welche Angabe ist richtig bzw. fehlt?',
+            'kontinuitaet': 'Welche Fassung gilt, und wo muss angeglichen werden?', 'ton': 'Soll sich Ton oder Stimme hier ändern?',
             'aufbau': 'Soll der Aufbau so geändert werden?', 'buchweit': 'Soll das im ganzen Buch so gelten?'}
 SENTENCE = re.compile(r'[^.!?…\n]+(?:[.!?…]+[»«“”"\')\]]*|\n|$)')
 
@@ -70,13 +71,26 @@ def write_yaml(path, data):
     Path(path).write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=100), encoding='utf-8')
 
 
+BOOK = 'book'   # buchweiter Befund (#423): kein Abschnitt, nur Autorenentscheidung
+
+
 def section_index(config):
-    """{section_id: (kapitelnummer.abschnittsnummer, kapitel, abschnitt)}"""
+    """{id: (bezeichnung, kapitel, eintrag)}: Abschnitte als „1.2“ mit Kapitel; Teile von Vor- und
+    Nachspann (mat-*, #423) mit ihrem Titel und ohne Kapitel; `book` für buchweite Befunde."""
+    from render_view import matter_items
     out = {}
     for cn, ch in enumerate(config['structure']['chapters'], start=1):
         for sn, s in enumerate(ch['sections'], start=1):
             out[s['id']] = (f'{cn}.{sn}', ch, s)
+    for _, item in matter_items(config):
+        out[item['id']] = (item.get('title') or item['id'], None, item)
+    out[BOOK] = ('Buch', None, None)
     return out
+
+
+def where(e):
+    """Überschrift einer Gruppe: „Kapitel 2“, sonst Titel des Teils bzw. „Buch“ (#423)."""
+    return f'Kapitel {e["abschnitt"].split(".")[0]}' if e.get('chapter_id') else e['abschnitt']
 
 
 def context(text, alt):
@@ -112,32 +126,35 @@ def collect(base, config, chapters=None, date=None, commit=None):
                 skipped.append({'befund': ref, 'grund': f'Abschnitt {sid} unbekannt'})
                 continue
             number, ch, s = index[sid]
-            if chapters and ch['id'] not in chapters:
-                continue
+            if chapters and (not ch or ch['id'] not in chapters):
+                continue   # Kapitelauswahl: Vor-/Nachspann und buchweite Befunde nicht
             if rel not in sources:
                 sources.append(rel)
             text = checks.manuscript(base, config, sid) or ''
             alt = f.get('alt') or ''
-            entry = {'id': '', 'befund': ref, 'abschnitt': number, 'section_id': sid, 'chapter_id': ch['id'],
-                     'chapter_status': ch.get('status', ''), 'datei': s['path']}
+            entry = {'id': '', 'befund': ref, 'abschnitt': number, 'section_id': sid,
+                     'chapter_id': ch['id'] if ch else '', 'chapter_status': ch.get('status', '') if ch else '',
+                     'datei': s['path'] if s else ''}
             if f.get('absatz') is not None:
                 entry['absatz'] = f['absatz']
             entry.update({'art': f.get('art', ''), 'grund': f.get('befund', '')})
-            if alt:
+            if alt and sid != BOOK:
                 hits = text.count(alt)
                 if hits != 1:
                     skipped.append({'befund': ref, 'grund': f'alter Wortlaut kommt {hits}-mal vor (erwartet: genau einmal)'})
                     continue
                 entry.update({'kontext': context(text, alt), 'alt': alt})
             else:
-                entry.update({'kontext': '', 'alt': ''})
+                entry.update({'kontext': '', 'alt': alt})
             entry['neu'] = f.get('neu') or ''
             entry['entscheidung'] = 'offen'
-            solvable = f.get('art') in LANGUAGE_KINDS and alt and entry['neu'] and entry['neu'] != alt
+            solvable = (f.get('art') in LANGUAGE_KINDS and alt and entry['neu'] and entry['neu'] != alt
+                        and sid != BOOK)
             if solvable:
                 auto.append(entry)
             else:
-                kind = f.get('art') if f.get('art') in AUTHOR_KINDS else 'aufbau' if not alt else 'ton'
+                kind = f.get('art') if f.get('art') in AUTHOR_KINDS else 'buchweit' if sid == BOOK \
+                    else 'aufbau' if not alt else 'ton'
                 entry['art'] = kind
                 entry['frage'] = f.get('frage') or f.get('richtung') or QUESTION[kind]
                 author.append(entry)
@@ -199,9 +216,9 @@ def show(data, only_open=False):
         lines += ['#### Ohne Autor lösbar', '']
         chapter = None
         for e in auto:
-            if e['chapter_id'] != chapter:
-                chapter = e['chapter_id']
-                lines += [f'**Kapitel {e["abschnitt"].split(".")[0]}** ({e.get("chapter_status", "")})', '']
+            if (e['chapter_id'] or e['abschnitt']) != chapter:
+                chapter = e['chapter_id'] or e['abschnitt']
+                lines += [f'**{where(e)}**' + (f' ({e["chapter_status"]})' if e.get('chapter_status') else ''), '']
             lines += [f'`{e["id"]}` · {e["abschnitt"]} · {e["art"]} · **{e.get("entscheidung", "offen")}** – {e.get("grund", "")}',
                       f'> alt: {e["alt"]}', f'> neu: {e["neu"]}', '']
     if author:
@@ -241,17 +258,22 @@ def plan(base, config, data, chapters=None):
             continue
         if chapters and e['chapter_id'] not in chapters:
             continue
+        if e['section_id'] == BOOK:
+            out.append(('⚠️', e, 'buchweit: von Hand in den betroffenen Abschnitten umsetzen'))
+            continue
         if e['section_id'] not in section_index(config):
             out.append(('⛔', e, 'Abschnitt gibt es nicht mehr'))
             continue
         _, ch, _, head = _section(base, config, e['section_id'])
+        ch = ch or {}
         text = checks.manuscript(base, config, e['section_id']) or ''
         if not e.get('alt') or not e.get('neu'):
             out.append(('⚠️', e, 'ohne alten Wortlaut oder Vorschlag: von Hand umsetzen'))
         elif ch.get('status') == 'approved':
             out.append(('⛔', e, f'Kapitel {e["abschnitt"].split(".")[0]} ist abgeschlossen: erst wieder öffnen'))
         elif head.get('status') == 'approved':
-            out.append(('⛔', e, f'Abschnitt {e["abschnitt"]} ist abgeschlossen: erst wieder öffnen'))
+            out.append(('⛔', e, f'{"Abschnitt " if e.get("chapter_id") else ""}{e["abschnitt"]} ist abgeschlossen: '
+                                 'erst wieder öffnen'))
         elif text.count(e['alt']) != 1:
             out.append(('⛔', e, f'alter Wortlaut kommt {text.count(e["alt"])}-mal vor: Text hat sich geändert'))
         else:
@@ -317,8 +339,9 @@ def apply(base, config, path, chapters=None):
         _replace_in_manuscript(base / e['datei'], e['alt'], e['neu'])
         e['umgesetzt'] = True
         applied.append(e)
-        if e['chapter_id'] not in touched:
-            touched.append(e['chapter_id'])
+        scope = e['chapter_id'] or e['section_id']   # Teil von Vor-/Nachspann: eigener Prüfbereich
+        if scope not in touched:
+            touched.append(scope)
         text = checks.manuscript(base, config, e['section_id']) or ''
         ctx.append((e, context(text, e['neu']) if text.count(e['neu']) == 1 else e['neu']))
     write_yaml(path, data)
@@ -360,8 +383,8 @@ def widget_values(base, path):
 
     def row(e, author):
         r = {'E_ID': e['id'], 'E_WHERE': e['abschnitt'],
-             'E_CHAPTER_TEXT': f'Kapitel {e["abschnitt"].split(".")[0]} · '
-                               + STATUS_TEXT.get(e.get('chapter_status', ''), e.get('chapter_status', '')),
+             'E_CHAPTER_TEXT': where(e) + (' · ' + STATUS_TEXT.get(e['chapter_status'], e['chapter_status'])
+                                           if e.get('chapter_status') else ''),
              'E_KIND': e.get('art', ''), 'E_REASON': e.get('grund', ''), 'E_CONTEXT': e.get('kontext', ''),
              'E_OLD': e.get('alt', ''), 'E_NEW': e.get('neu', ''),
              'E_DECISION': 'umgesetzt' if e.get('umgesetzt') else e.get('entscheidung', 'offen')}

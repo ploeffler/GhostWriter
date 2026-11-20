@@ -115,6 +115,41 @@ class HinweiseTest(unittest.TestCase):
         self.assertEqual(hinweise.apply(self.base, self.config, path)['applied'], [])
         self.assertFalse(validate_project.check_project(self.base))
 
+    def test_matter_and_book_findings(self):   # #423
+        import matter
+        matter.add(self.base, 'afterword')
+        _, self.config = load(self.base)
+        item = next(i for i in self.config['structure']['back_matter'] if i['kind'] == 'afterword')
+        mp = self.base / item['path']
+        mp.write_text(mp.read_text(encoding='utf-8').replace('Noch nicht begonnen.', 'Danke fuer das Lesen dieses Buches.'),
+                      encoding='utf-8')
+        findings = {'bericht': 'editorial/sprache-buch.md', 'befunde': [
+            {'id': 'b-001', 'abschnitt': item['id'], 'art': 'rechtschreibung', 'befund': 'Umlaut',
+             'alt': 'fuer', 'neu': 'für', 'status': 'offen'},
+            {'id': 'b-002', 'abschnitt': 'book', 'art': 'kontinuitaet', 'befund': 'Name wechselt die Schreibung',
+             'status': 'offen'}]}
+        (self.base / 'editorial/sprache-buch.yml').write_text(yaml.safe_dump(findings, allow_unicode=True), encoding='utf-8')
+        self.assertEqual(hinweise.errors(self.base, self.config), [])
+        path, data = hinweise.collect(self.base, self.config, date='2026-11-21', commit='abcdef1')
+        mine = {e['befund']: e for e in data['ohne_autor'] + data['autorenentscheidung'] if 'sprache-buch' in e['befund']}
+        m = mine['editorial/sprache-buch.yml#b-001']
+        self.assertEqual((m['abschnitt'], m['chapter_id']), (item['title'], ''))
+        b = mine['editorial/sprache-buch.yml#b-002']
+        self.assertEqual((b['abschnitt'], b['art']), ('Buch', 'kontinuitaet'))
+        self.assertIn(b, data['autorenentscheidung'])
+        self.assertIn(f'**{item["title"]}**', hinweise.show(data))
+        self.assertFalse(validate_project.check_project(self.base))
+        hinweise.decide(path, m['id'], 'ja')
+        hinweise.decide(path, b['id'], 'ja')
+        res = hinweise.apply(self.base, self.config, path)
+        self.assertEqual([e['id'] for e in res['applied']], [m['id']])
+        self.assertIn('Danke für das Lesen', checks.manuscript(self.base, self.config, item['id']))
+        self.assertIn(item['id'], res['chapters'])
+        self.assertTrue(any('buchweit' in w for _, _, w in res['skipped']))
+        hinweise.widget_values(self.base, path)
+        _, only = hinweise.collect(self.base, self.config, chapters=[self.ch1['id']], date='2026-11-22', commit='abcdef1')
+        self.assertFalse([e for e in only['autorenentscheidung'] if 'sprache-buch' in e['befund']])
+
     def test_apply_without_befund_reference(self):
         """Dialog aus Markdown-Lektorat ohne `befund` (#386): Ersetzung ja, Rückschreiben überspringen."""
         path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')

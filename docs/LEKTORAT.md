@@ -130,7 +130,8 @@ umgesetzt, kommt die neue Zahl erst mit dem nächsten Eintrag.
 Damit offene Hinweise später ohne Freitextauswertung gemeinsam durchgesehen werden können,
 legt der Assistent beim Speichern eines Berichts dessen Befunde zusätzlich als
 `editorial/<bericht>.yml` ab (Schema `schemas/findings.schema.json`): je Befund
-`id` (`b-001`), `abschnitt` (Abschnitts-ID), optional `absatz`, `schweregrad`,
+`id` (`b-001`), `abschnitt` (Abschnitts-ID; für Vor- und Nachspann die ID des Teils,
+z. B. `mat-nachwort`; für buchweite Befunde `book`, #423), optional `absatz`, `schweregrad`,
 `art`, `befund`, `richtung`, bei Sprachbefunden `alt` (genauer Wortlaut) und `neu`
 (Vorschlag), optional `frage`, dazu `status` (`offen`, `erledigt`, `entschieden`).
 `--notes` im Prüfprotokoll ist die Zahl der Befunde mit `status: offen`.
@@ -146,7 +147,13 @@ offenen Befunde in `editorial/durchsicht-<datum>.yml` (Schema
   Vorschlag. Er darf keine neue Tatsache, Wertung oder Tonänderung einführen;
   im Zweifel gehört er zu den Autorenentscheidungen.
 - Alles andere ist eine Autorenentscheidung mit `frage` und `art` (`fakt`,
-  `ton`, `aufbau`, `buchweit`).
+  `kontinuitaet`, `ton`, `aufbau`, `buchweit`). Alle Werte für `art`:
+  `rechtschreibung`, `zeichensetzung`, `grammatik`, `wiederholung`, `satzbau`,
+  `sprache`, `fakt`, `kontinuitaet`, `ton`, `aufbau`, `buchweit`.
+- Befunde zu Vor- und Nachspann stehen unter dem Titel des Teils statt unter einem
+  Kapitel. Buchweite Befunde (`abschnitt: book`) sind immer Autorenentscheidungen;
+  `apply` setzt sie nicht selbst um, sondern meldet sie zum Umsetzen von Hand.
+  Mit `--chapter` bleiben beide außen vor.
 - `alt` muss im heutigen Manuskript genau einmal vorkommen. Sonst wird der
   Befund nicht aufgenommen und unter `ausgelassen` mit Grund gemeldet.
 - Jeder Eintrag trägt den betroffenen Satz mit bis zu zwei Sätzen davor und
