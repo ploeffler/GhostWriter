@@ -35,6 +35,8 @@ A single-book repository can continue working after the v0.6 update. To hold mul
 
 The workflow checks for a book, pending changes and an available `buch/<short-title>` branch name. It creates the book branch at the existing commit, preserving history, then converts the default branch to the program and library starter. Tags and releases continue to point to their original commits.
 
+**0.7.0** completes v0.7 (characters and images): image position in a section with text wrapping and a width slider in PDF, DOCX and EPUB (#54), a chronology from notes with analysis, narrative time without a calendar year and file export (#364, #379), merging, removing and moving sections (#293), leaner Open WebUI instructions (#296). Acceptance of v0.5 (#18), v0.6 (#41) and v0.7 (#54) passed. It arrives like any update; the data version stays 1 and new fields are optional.
+
 **0.6.1** bundles the changes merged since 0.6.0 (including characters, series, front and back matter, cover and print, manuscript import, chat analyses, session backups, and a bookshelf with editions and backups). It arrives like any update, with no action required and no new mandatory fields; the data version stays 1. Acceptance of v0.6 continues in #41.
 
 To reverse the conversion, revert the conversion commit on the default branch. Delete the book branch only after ensuring that no subsequent work on that branch would be lost; otherwise transfer that work first.
