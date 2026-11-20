@@ -24,6 +24,8 @@ After structure approval, the outline is saved and merged as a shared change pac
 
 If chapter review reveals changes, return to the affected work. Before changing a finalized section, explicitly reopen it and allow writing again. Affected finalized chapters and structural changes must also follow the [workflow rules (German)](WORKFLOW-MODEL.md). Review never grants automatic approval.
 
+To restructure a chapter, ask the assistant to merge, remove or move sections (`scripts/sections.py merge|remove|move`, #293). It shows what will change and waits for your confirmation. Numbers, chapter READMEs, run files, costs and links are updated; finalized sections must be reopened first, and a manuscript is only appended, archived or removed when you choose so. Removed IDs are listed under `structure.retired`, so the approval and check logs stay valid.
+
 ## Leave the chapter circle to publish an edition
 
 An edition requires at least one finalized chapter. Its included sections must be finalized; unresolved markers, including markers in sources, block publication. Merge pending book changes first so that they are included.

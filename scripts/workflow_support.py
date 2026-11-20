@@ -13,6 +13,7 @@ def historical_candidates(config, approvals):
     chapters = config.get('structure', {}).get('chapters') or []
     chapter_ids = {c['id'] for c in chapters}
     section_ids = {s['id'] for c in chapters for s in c.get('sections') or []}
+    section_ids |= {r['id'] for r in config.get('structure', {}).get('retired') or []}   # #293
     marked = {x['entry'] for x in approvals.get('historical_references') or []}
     candidates = []
     for number, entry in enumerate(approvals.get('entries') or [], 1):

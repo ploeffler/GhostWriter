@@ -783,7 +783,8 @@ def errors(base, config):
     ids = [e.get('id') for e in entries]
     out += [f'{p}: ID doppelt: {i}' for i in sorted({i for i in ids if ids.count(i) > 1})]
     known = {'book'} | {ch['id'] for ch in config['structure']['chapters']} | \
-            {s['id'] for _, s in sections(config)} | {i['id'] for i in matter(config)}
+            {s['id'] for _, s in sections(config)} | {i['id'] for i in matter(config)} | \
+            {r['id'] for r in (config['structure'].get('retired') or [])}   # historisch (#293)
     for e in entries:
         for sid in e.get('scope') or []:
             if sid not in known:
