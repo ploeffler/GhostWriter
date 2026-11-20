@@ -1,0 +1,66 @@
+name: Zeitleiste ausgeben
+
+# Gibt die Chronologie (story/chronology.yml, #354/#364) als Datei aus:
+# story/zeitleiste.html (eigenständig, ohne Skript und Netz), dazu PDF und PNG
+# über Chrome headless. Alles in einem Commit unter story/ auf dem gewählten
+# Branch. Nie Teil des Buchs: story/ kommt in Auflagen und Probedrucke nicht hinein.
+# Start: Actions → Zeitleiste ausgeben → Run workflow (auf dem Buch-Branch).
+
+on:
+  workflow_dispatch:
+    inputs:
+      language:
+        description: 'Sprache der Ausgabe (de oder en)'
+        required: false
+        default: 'de'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zeitleiste-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  timeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Abhängigkeiten
+        run: pip install pyyaml jsonschema
+
+      - name: HTML erzeugen
+        env:
+          LANGUAGE_CHOICE: ${{ inputs.language }}
+        run: |
+          if [ ! -f story/chronology.yml ]; then
+            echo "::warning::Keine Chronologie (story/chronology.yml) – nichts auszugeben"
+            exit 0
+          fi
+          python scripts/chronology.py . export --language "${LANGUAGE_CHOICE:-de}"
+
+      - name: PDF und PNG (Chrome headless)
+        run: |
+          [ -f story/zeitleiste.html ] || exit 0
+          CHROME=$(command -v google-chrome || command -v chromium || command -v chromium-browser)
+          url="file://$PWD/story/zeitleiste.html"
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --no-pdf-header-footer --print-to-pdf=story/zeitleiste.pdf "$url"
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=1100,1400 --screenshot=story/zeitleiste.png "$url"
+
+      - name: Committen
+        run: |
+          git add story/zeitleiste.html story/zeitleiste.pdf story/zeitleiste.png 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Zeitleiste unverändert"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Zeitleiste ausgegeben" -m "GhostWriter-Aktion: chronology.export"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

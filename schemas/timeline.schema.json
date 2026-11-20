@@ -16,7 +16,8 @@
           "section": {"type": "string", "description": "ID des Abschnitts bzw. Teils"},
           "when": {"type": "string", "description": "Zeitangabe wie im Text; leer = keine"},
           "what": {"type": "string", "minLength": 1},
-          "quote": {"type": "string", "description": "Fundstelle (wörtlich)"}
+          "quote": {"type": "string", "description": "Fundstelle (wörtlich)"},
+          "chronology": {"type": "string", "pattern": "^chr-[0-9]{3,}$", "description": "Verknüpfter Eintrag der Chronologie (story/chronology.yml, #364); von Hand bzw. im Chat gesetzt"}
         },
         "additionalProperties": false
       }
