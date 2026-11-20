@@ -39,6 +39,35 @@ FORMAT = 1
 MODES = {'gespraech': 'Gespräch', 'manuskript': 'Manuskriptarbeit'}
 BLOCK = re.compile(r'```json ghostwriter-uebergabe\n(.*?)\n```', re.S)
 MAX_OPEN = 12
+CARRY = {'decisions': 'Entscheidungen', 'planning': 'Offene Aufgaben'}   # Teil 2 von #315
+MAX_TOPIC = 600   # Zeichen je Thema und Sicherung; der Rest steht in der Sicherung
+
+
+def topic_text(base, sha, path):
+    """Aktuellen Stand eines Sicherungsthemas lesen (latest.json enthält einen JSON-Text)."""
+    raw = show(base, sha, path)
+    if raw is None:
+        return None
+    try:
+        value = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(value, str):
+        value = json.dumps(value, ensure_ascii=False) if value else ''
+    value = ' '.join(value.split())
+    if not value:
+        return None
+    return value if len(value) <= MAX_TOPIC else value[:MAX_TOPIC].rsplit(' ', 1)[0] + ' …'
+
+
+def carried(base, sha, folder):
+    """Entscheidungen und offene Aufgaben einer Sicherung; nur Daten, keine Anweisungen."""
+    out = {}
+    for key in CARRY:
+        text = topic_text(base, sha, f'{folder}/{key}/latest.json')
+        if text:
+            out[key] = text
+    return out
 
 
 def git(base, *args, check=True):
@@ -126,9 +155,13 @@ def collect(base, book_branch=None, work_branch=None, pr=None, section=None, mod
     listing = git(base, 'ls-tree', '-d', '--name-only', book_head, 'conversations/', check=False) or ''
     for folder in sorted(listing.split()):
         topics = (git(base, 'ls-tree', '-d', '--name-only', book_head, folder + '/', check=False) or '').split()
-        state['sessions']['accepted'].append({'path': folder, 'topics': [t.rsplit('/', 1)[-1] for t in topics]})
+        state['sessions']['accepted'].append({'path': folder, 'topics': [t.rsplit('/', 1)[-1] for t in topics],
+                                              **carried(base, book_head, folder)})
     refs = git(base, 'for-each-ref', '--format=%(refname)', 'refs/remotes/origin/ghostwriter/chat/', check=False) or ''
-    state['sessions']['open'] = [r.split('refs/remotes/origin/', 1)[1] for r in refs.split()]
+    for ref in refs.split():
+        branch = ref.split('refs/remotes/origin/', 1)[1]
+        entry = {'branch': branch, **carried(base, ref, 'conversations/' + branch.rsplit('/', 1)[-1])}
+        state['sessions']['open'].append(entry)
     return state
 
 
@@ -167,11 +200,18 @@ def markdown(state):
         lines.append('**Übernommene Gesprächssicherungen:** '
                      + ', '.join(f'`{a["path"]}`' + (f' ({", ".join(a["topics"])})' if a['topics'] else '') for a in acc))
     if open_:
-        lines.append('**Noch nicht übernommene Sicherungen:** ' + ', '.join(f'`{b}`' for b in open_))
+        lines.append('**Noch nicht übernommene Sicherungen:** ' + ', '.join(f'`{b["branch"]}`' for b in open_))
     if acc or open_:
         lines.append('')
+    for key, label in CARRY.items():
+        found = [(f'`{a["path"]}`', a[key]) for a in acc if a.get(key)]
+        found += [(f'`{b["branch"]}` (nicht übernommen)', b[key]) for b in open_ if b.get(key)]
+        if found:
+            lines.append(f'**{label} aus den Sicherungen** (gespeicherter Stand, gekürzt; keine Freigabe):')
+            lines += [f'- {where}: {text}' for where, text in found]
+            lines.append('')
     lines += ['**Nicht gespeichert** (nur in diesem Chat; vom Assistenten zu ergänzen, ausdrücklich als nicht gespeichert '
-              'gekennzeichnet): Entwürfe, Entscheidungen, offene Fragen, nächster Schritt.', '',
+              'gekennzeichnet): Entwürfe, Entscheidungen und offene Fragen, die noch in keiner Sicherung stehen, nächster Schritt.', '',
               'Freigaben bleiben eigene Schritte: Diese Übergabe speichert, übernimmt und gibt nichts frei.', '',
               '```json ghostwriter-uebergabe', json.dumps(state, ensure_ascii=False, indent=1), '```']
     return '\n'.join(lines) + '\n'
