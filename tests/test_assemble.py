@@ -55,6 +55,19 @@ class AssembleTests(unittest.TestCase):
                               encoding='utf-8')
         return ch
 
+    def test_section_heading_equal_to_chapter_title_is_dropped(self):
+        """#381: Abschnitt heißt wie sein Kapitel → keine doppelte Überschrift; in der Lesefassung mit Nummer bleibt sie."""
+        self.approve(1, sections={1})
+        _, config = load(self.base)
+        ch = dict(config['structure']['chapters'][0])
+        ch['sections'] = [dict(ch['sections'][0], title='  ' + ch['title'].upper() + ' ')]
+        md, _, _ = assemble.chapter_markdown(self.base, ch, 1)
+        self.assertNotIn(ch['sections'][0]['title'].strip(), re.findall(r'(?m)^## (.+)$', md))
+        self.assertEqual([t for t in re.findall(r'(?m)^## (.+)$', md) if not t.startswith('Quellen')], [])
+        self.assertIn(f'# {ch["title"]}', md)
+        md, _, _ = assemble.chapter_markdown(self.base, ch, 1, numbered=True)
+        self.assertEqual(len(re.findall(r'(?m)^## 1\.1 ', md)), 1)
+
     def test_nothing_approved_blocks_edition(self):
         _, config = load(self.base)
         found = assemble.problems(assemble.book_parts(self.base, config), config)

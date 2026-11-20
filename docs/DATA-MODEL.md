@@ -139,7 +139,7 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 
 ### Buchsatz
 
-`typesetting` steuert PDF, DOCX und EPUB der nächsten Auflage. Fehlt der Block oder ein Feld, gilt die Vorgabe:
+`typesetting` steuert PDF, DOCX und EPUB der nächsten Auflage. Fehlt der Block oder ein Feld, gilt die Vorgabe (Überschriften: Heißt ein Abschnitt genauso wie sein Kapitel, entfällt seine Abschnittsüberschrift in PDF, DOCX und EPUB, damit sie nicht zweimal untereinander steht; nur die nummerierte Lesefassung behält sie, #381). Fehlt der Block oder ein Feld, gilt die Vorgabe:
 
 | Feld | Werte | Vorgabe |
 |---|---|---|

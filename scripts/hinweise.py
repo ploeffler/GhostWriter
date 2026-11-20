@@ -438,6 +438,9 @@ def main(argv=None):
         x.add_argument('project')
         x.add_argument('--chapter', action='append')
         x.add_argument('--file')
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if len(argv) > 1 and argv[1] in sub.choices and argv[0] not in sub.choices:
+        argv[0], argv[1] = argv[1], argv[0]   # auch „hinweise.py <buch> <befehl>“ wie die übrigen Skripte (#383)
     args = ap.parse_args(argv)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from render_view import load
