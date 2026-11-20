@@ -148,6 +148,9 @@ class CharacterTest(unittest.TestCase):
         self.assertEqual(one['CHARACTER_PORTRAIT_ID'], meta['id'])
         self.assertIn(f'reference-images/{meta["file"]}', self.run_view('characters', '--text'))
         self.assertIn(meta['id'], self.run_view('characters', 'Opi', '--text'))
+        characters.update(self.base, 'Opi', {'portrait': meta['id'], 'short': 'Großvater'})   # bleibt beim Speichern
+        characters.update(self.base, 'Opi', {'short': 'Großvater, brummig'})
+        self.assertIn(f'portrait: {meta["id"]}', (self.base / 'characters/char-opi.md').read_text(encoding='utf-8'))
         self.assertEqual(validate_project.check_project(self.base), [])
 
 class SuggestTest(unittest.TestCase):
