@@ -31,6 +31,7 @@ class ApprovalButtonTest(unittest.TestCase):
         self.assertEqual((v['APPROVAL_TITLE'], v['APPROVAL_BUTTON']), ('Abschnitt abschließen', 'Abschließen'))
         v = self.values('approval-section', '1.1', '--revoke')
         self.assertEqual((v['APPROVAL_TITLE'], v['APPROVAL_BUTTON']), ('Abschnitt wieder öffnen', 'Wieder öffnen'))
+        self.assertIn('Schreiben wird dabei gesperrt', json.dumps(v, ensure_ascii=False))   # #387
 
     def test_writing_buttons(self):
         v = self.values('approval-writing', '1.1')

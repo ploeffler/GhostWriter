@@ -76,7 +76,7 @@
   "withdraw_section_approval": "Abschnitt wieder öffnen",
   "the_section_is_not_approved": "Der Abschnitt ist nicht abgeschlossen.",
   "this_also_withdraws_approval_for_chapter_it_returns_to_in_progress": "Damit wird auch Kapitel {p_a} wieder geöffnet; es wechselt zu „in Arbeit“.",
-  "section_approval_is_withdrawn_the_section_moves_to_revision": "Der Abschnitt wird wieder geöffnet und wechselt zu „Überarbeitung“; der Text darf dann wieder geändert werden.",
+  "section_approval_is_withdrawn_the_section_moves_to_revision": "Der Abschnitt wird wieder geöffnet und wechselt zu „Überarbeitung“; Schreiben wird dabei gesperrt. Vor einer Änderung des Textes Schreiben wieder erlauben.",
   "approve_section": "Abschnitt abschließen",
   "the_section_is_already_approved": "Der Abschnitt ist bereits abgeschlossen.",
   "there_is_no_manuscript_yet": "Es gibt noch kein Manuskript.",
