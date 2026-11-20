@@ -1167,7 +1167,8 @@ def images_view(base, config, args):
     rows = [{'I_ID': iid, 'I_CAPTION': v[0].get('caption', ''), 'I_STATE': v[0].get('status', 'draft'),
              'I_SOURCE': {'chat': view_message('view.images.generated_in_chat'), 'copy': view_message('view.images.copied_prompt'), 'own': view_message('view.images.own_image')}.get(v[0].get('source'), ''),
              'I_SIZE': f'{v[0]["width_px"]} × {v[0]["height_px"]} px' if v[0].get('width_px') else '',
-             'I_IN_TEXT': '1' if iid in used else ''} for iid, v in imgs]
+             'I_IN_TEXT': '1' if iid in used else '',
+             'I_POSITION': v[0].get('position', ''), 'I_WIDTH': int(v[0].get('width_pct') or 100)} for iid, v in imgs]
     chars = [names.get(c, c) for c in head.get('characters') or []]
     if args.text:
         lines = [view_message('view.images.images', p_a=target["title"]), '',
@@ -1180,6 +1181,8 @@ def images_view(base, config, args):
             lines += [view_message('view.images.no_images_yet')]
         lines += ['', '---', menu([('BI', view_message('view.images.image_prompt_describe_the_scene_scene')), ('BH', view_message('view.images.upload_image_attach_a_file'))]
                                  + [(f'FB {r["I_ID"]}', view_message('view.images.approve') if r['I_STATE'] != 'approved' else view_message('view.images.withdraw_approval')) for r in rows]
+                                 + [(f'LG {r["I_ID"]}', view_message('view.images.layout', p_a=images.layout_text({'position': r['I_POSITION'], 'width_pct': r['I_WIDTH']})))
+                                    for r in rows]
                                  + [('Ü', view_message('view.images.back_to_overview'))])]
         return '\n'.join(lines) + '\n'
     p = config['project']

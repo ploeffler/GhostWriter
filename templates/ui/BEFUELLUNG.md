@@ -273,7 +273,7 @@ Bilder eines Abschnitts bzw. Teils (`render_view.py images <N.M|id>`, #54).
 | `TARGET_ID`, `TARGET_TITLE` | Abschnitt (`sec-…`) bzw. Teil (`mat-…`) und Titel |
 | `IMAGE_STYLE` | `images.style`, sonst leer |
 | `TARGET_CHARACTERS` | Figuren aus `characters` im Kopf, kommagetrennt |
-| Block `IMAGES`: `I_ID`, `I_CAPTION`, `I_STATE`, `I_SOURCE`, `I_SIZE`, `I_IN_TEXT` | je Beschreibung `img-….yml` im Bildordner: ID, Bildunterschrift, `status` (`draft`/`approved`; bewusst nicht `…_STATUS`, das gw.js übersetzen würde), Herkunft deutsch, Größe in px, `1`, wenn `![](bild:…)` im Manuskript steht |
+| Block `IMAGES`: `I_ID`, `I_CAPTION`, `I_STATE`, `I_SOURCE`, `I_SIZE`, `I_IN_TEXT`, `I_POSITION`, `I_WIDTH` | je Beschreibung `img-….yml` im Bildordner: ID, Bildunterschrift, `status` (`draft`/`approved`; bewusst nicht `…_STATUS`, das gw.js übersetzen würde), Herkunft deutsch, Größe in px, `1`, wenn `![](bild:…)` im Manuskript steht; `position` (leer = an der Stelle im Text) und `width_pct` (Vorgabe 100) für Lage und Breitenregler (#54, ab UI 0.61.0) |
 
 ### `figuren.html`
 
@@ -721,6 +721,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `view.images` | `section_id` (auch `mat-…`) | Bilder eines Abschnitts zeigen (#54) | Vorlage `bilder` (`render_view.py images <N.M|id>`) | `GET /v1/projects/{owner}/{repo}` |
 | `image.prompt` | `section_id`, `scene`, `characters` (optional) | Bild-Auftrag zusammensetzen | `python scripts/images.py . prompt …` (bei Diagramm, Karte, Schaubild `--kind graphic --labels …`); Prompt zeigen, dann im Chat erzeugen oder als „Auftrag kopieren“ ausgeben (`START.md`, „Illustrationen“); nichts schreiben | – |
 | `image.add` | `section_id`, `caption`, `alt`, `source`, `provider`, `prompt`, Datei als Anhang, `expected_head_sha` | Bild ablegen | `python scripts/images.py . add …`, ein Commit; danach die Bilder des Abschnitts | `POST …/sections/{section_id}/images` |
+| `image.layout` | `image_id`, `position` (`top-left` … `bottom-right` oder `text`), `width` (10–100) | Lage und Breite eines Bildes speichern (#54) | `python scripts/images.py . layout <image_id> --position … --width …`, ein Commit; danach die Bilder des Abschnitts | – |
 | `image.place` | `image_id`, `section_id` | Bild in den Text setzen | nachfragen, wohin (nach welchem Absatz), dann mit Schreibfreigabe die Zeile `![](bild:img-…)` als eigenen Absatz einfügen, Commit wie `section.update`; ohne Schreibfreigabe zuerst die Freigabe anbieten | `PUT …/sections/{section_id}/manuscript` |
 | `view.characters` | – | Liste der Figuren zeigen (#53, Befehl `Figuren`) | Vorlage `figuren` (`render_view.py characters`) | `GET /v1/projects/{owner}/{repo}` |
 | `view.character` | `character_id` | Formular einer Figur zeigen | Vorlage `figur-bearbeiten` (`render_view.py characters <id>`) | `GET /v1/projects/{owner}/{repo}` |

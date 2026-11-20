@@ -522,6 +522,7 @@
   "view.images.no_images_yet": "*No images yet.*",
   "view.images.upload_image_attach_a_file": "Upload image (attach a file)",
   "view.images.approve": "approve",
+  "view.images.layout": "Change position and width (now {p_a})",
   "view.images.back_to_overview": "Back to overview",
   "view.characters.characters": "### 🎭 Characters",
   "view.characters.volume_of_series_series_characters_apply_to": "Volume of series “{p_a}”: series characters apply to all volumes.",

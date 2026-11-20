@@ -8,6 +8,11 @@ Aufruf:
                            [--source chat|copy|own] [--provider ID] [--model M] [--characters Name …]
                            [--variants N] [--credit "…"]
   python scripts/images.py <projektordner> ref <img-id>
+  python scripts/images.py <projektordner> layout <img-id> [--position top-left|…|bottom-right|text] [--width 10–100]
+
+layout legt fest, wo das Bild im Abschnitt steht und wie breit es ist (Medienplatzierung, #54): oben bzw. unten,
+links oder rechts mit Textumfluss, mittig ohne; `text` = an der Stelle im Manuskript. Breite in Prozent der nutzbaren
+Seitenbreite, die Höhe folgt. Ändert nur die Beschreibung img-….yml, nicht das Bild und nicht den Text; keine Freigabe.
 
 prompt setzt den Bild-Auftrag zusammen: Bildstil des Buchs (images.style), die
 Szene und für jede beteiligte Figur ihre feste Bildbeschreibung (`visual`, sonst
@@ -94,6 +99,36 @@ def all_images(base, config):
             meta = yaml.safe_load(meta_path.read_text(encoding='utf-8')) or {}
             out[meta.get('id', meta_path.stem)] = (meta, d / str(meta.get('file', '')), folder, meta_path)
     return out
+
+
+POSITIONS = ('top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right')
+POSITION_DE = {'top-left': 'oben links', 'top-center': 'oben mittig', 'top-right': 'oben rechts',
+               'bottom-left': 'unten links', 'bottom-center': 'unten mittig', 'bottom-right': 'unten rechts'}
+
+
+def layout_text(meta):
+    pos = POSITION_DE.get(meta.get('position'), 'an der Stelle im Text')
+    return f'{pos}, {meta.get("width_pct", 100)} % der Seitenbreite'
+
+
+def layout(base, config, iid, position=None, width=None):
+    """Platzierung eines Bildes ändern (Medienplatzierung, #54): position (oder 'text' = entfernen), width_pct."""
+    hit = all_images(base, config).get(iid)
+    if not hit:
+        raise SystemExit(f'Bild {iid} nicht gefunden')
+    meta, meta_path = dict(hit[0]), hit[3]
+    if width is not None:
+        if not 10 <= int(width) <= 100:
+            raise SystemExit('Breite in Prozent: 10 bis 100')
+        meta['width_pct'] = int(width)
+    if position == 'text':
+        meta.pop('position', None)
+    elif position:
+        if position not in POSITIONS:
+            raise SystemExit('Position: ' + ', '.join(POSITIONS))
+        meta['position'] = position
+    meta_path.write_text(yaml.safe_dump(meta, allow_unicode=True, sort_keys=False, width=10**6), encoding='utf-8')
+    return meta
 
 
 def image_size(path):
@@ -299,7 +334,9 @@ def placement_problems(texts):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
-    ap.add_argument('cmd', choices=['list', 'prompt', 'add', 'ref'])
+    ap.add_argument('cmd', choices=['list', 'prompt', 'add', 'ref', 'layout'])
+    ap.add_argument('--position', choices=POSITIONS + ('text',))
+    ap.add_argument('--width', type=int, help='bei layout: Breite in Prozent (10–100)')
     ap.add_argument('args', nargs='*')
     ap.add_argument('--scene', default='')
     ap.add_argument('--kind', default='illustration', choices=['illustration', 'graphic'],
@@ -337,6 +374,13 @@ def main(argv):
             print('\nDateien für die Referenzübergabe:')
             for ref in select_reference_images(base, a.references):
                 print(f'- {ref["id"]}: {ref["file"]}')
+        return 0
+    if a.cmd == 'layout':
+        if not a.args:
+            ap.error('layout braucht eine Bild-ID')
+        meta = layout(base, config, a.args[0], a.position, a.width)
+        print(f'✓ Bild {meta["id"]}: {layout_text(meta)}')
+        print(f'Commit-Nachricht: Bild „{meta.get("caption") or meta["id"]}“: Platzierung geändert')
         return 0
     if a.cmd == 'ref':
         if not a.args:

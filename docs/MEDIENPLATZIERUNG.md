@@ -6,7 +6,7 @@ Deutsch · [English](MEDIA-LAYOUT.en.md)
 
 ## Verbindliche Vorgaben
 
-Die folgenden Vorgaben wurden am 8. November 2026 bestätigt. Sie beschreiben das gewünschte Produktverhalten. Die Begrenzung auf ein Medium ist umgesetzt; die Platzierung mit Textumfluss und der Breitenregler sind im aktuellen Programm noch nicht umgesetzt.
+Die folgenden Vorgaben wurden am 8. November 2026 bestätigt. Sie beschreiben das gewünschte Produktverhalten. Die Begrenzung auf ein Medium, die Platzierung mit Textumfluss und der Breitenregler sind umgesetzt (#54); die praktische Prüfung in allen Formaten und Clients steht aus.
 
 ### Ein Medium je Abschnitt
 
@@ -40,8 +40,8 @@ Position und Breite bestimmen gemeinsam den Textumfluss. Fehlende Druckauflösun
 | Illustration und Referenzbild | Aufnahme, Auswahl, Referenzprotokoll und Freigabeschranken vorhanden. |
 | Beschriftetes Diagramm | Umgesetzt: Grafikaufträge (`images.py prompt --kind graphic`, Beschriftungen mit `--labels`) lassen gewünschte Schrift zu; nur Illustrationen verlangen „Ohne Schrift“. Fertige Diagramme lassen sich weiterhin separat erstellen und als PNG aufnehmen. |
 | Höchstens ein Medium | Umgesetzt: Projektprüfung (`validate_project.py`) und Ausgabe (Probedruck, Auflage) melden mehr als ein Medium im Abschnitt und ein mehrfach eingefügtes Bild als Fehler. Nicht eingefügte Varianten und Referenzbilder zählen nicht. |
-| Position und Textumfluss | Noch nicht umgesetzt; die Ausgabe setzt Bilder derzeit auf volle Satzbreite. |
-| Breitenregler | Noch keine Auswahl im Bildformular; die Ausgabe verwendet fest `width=100%`. |
+| Position und Textumfluss | Umgesetzt: sechs Positionen (`position` in der Bildbeschreibung, `images.py layout`, Bildformular). Oben/unten setzt das Bild an Anfang bzw. Ende des Abschnitts; links/rechts mit Textumfluss im PDF (`wrapfig`) und EPUB (`float`), mittig ohne. DOCX kann keinen Umfluss; dort steht das Bild in der gewählten Breite, der Bau meldet das. Im PDF kann ein umflossenes Bild kurz vor einem Seitenende über den unteren Rand ragen; im Probedruck prüfen. |
+| Breitenregler | Umgesetzt: Schieberegler mit Prozentanzeige im Bildformular (`width_pct`, 10–100 %); die Höhe folgt. Der Auflösungshinweis rechnet mit der gewählten Breite. |
 | Medienabschnitt im PDF | Umgesetzt: Bilder gleiten im PDF nicht mehr (`float`, Platzierung `H`), sondern stehen genau an ihrer Stelle. Überschrift und Bild bleiben auf derselben Seite, Text nach dem Bild rutscht nicht davor. Der Entwurfsvermerk im Probedruck steht in der Bildunterschrift und bleibt so beim Bild. |
 | Alternativtext | Umgesetzt: Weicht der gespeicherte Alternativtext von der Bildunterschrift ab, erhalten DOCX und EPUB ihn getrennt (Bildbeschreibung bzw. `alt`); die Bildunterschrift bleibt sichtbar. |
 

@@ -238,6 +238,37 @@ def section_approved(base, section, head, manuscript):
             and record.get('note') == 'content_sha256=' + digest)
 
 
+def image_meta(base):
+    """{img-id: Beschreibung} eines Buchs (nur gelesen, wenn ein Abschnitt ein Bild enthält)."""
+    import images
+    from render_view import load
+    return {k: v[0] for k, v in images.all_images(Path(base), load(base)[1]).items()}
+
+
+def place_media(base, text):
+    """Medienplatzierung (#54): Hat das (einzige) Bild des Abschnitts eine position, steht es oben bzw. unten im
+    Abschnitt statt an seiner Stelle im Text. Links/rechts mit Textumfluss: oben vor dem ersten, unten vor dem letzten
+    Absatz, damit Text um das Bild laufen kann; mittig vor dem ersten bzw. nach dem letzten Absatz."""
+    import images
+    refs = list(images.IMAGE_REF.finditer(text or ''))
+    if len(refs) != 1:
+        return text
+    pos = (image_meta(base).get(refs[0].group(2)) or {}).get('position')
+    if not pos:
+        return text
+    paras = [p for p in re.split(r'\n[ \t]*\n', text.strip()) if p.strip()]
+    idx = next((i for i, p in enumerate(paras) if refs[0].group(0) in p), None)
+    if idx is None or paras[idx].strip() != refs[0].group(0):
+        return text   # Bild steht nicht als eigener Absatz: nichts verschieben
+    img = paras.pop(idx)
+    vert, horiz = pos.split('-')
+    if vert == 'top':
+        paras.insert(0, img)
+    else:
+        paras.insert(len(paras) - 1 if horiz != 'center' and paras else len(paras), img)
+    return '\n\n'.join(paras)
+
+
 def same_title(a, b):
     return ' '.join(str(a or '').casefold().split()) == ' '.join(str(b or '').casefold().split())
 
@@ -271,7 +302,7 @@ def chapter_markdown(base, chapter, number, proof=False, plan=False, numbered=Fa
             skipped.append(f'{number}.{si} {s["title"]} ({reason})')
             if not proof:
                 continue
-        text = shift_headings(manuscript.strip(), 3)
+        text = place_media(base, shift_headings(manuscript.strip(), 3))
         if plan and is_empty_text(manuscript):
             _, goal, summary, _ = section_file(base, s)
             out += section_heading(chapter, s, number, si, numbered) + [plan_block(head.get('status'), goal, summary, section_runs(base, chapter, s)), '']
@@ -402,7 +433,7 @@ def matter_markdown(base, item, proof=False, config=None, plan=False):
                        for term, expl in sorted(entries, key=lambda e: german_key(e[0])))
         text = '\n\n'.join(x for x in (shift_headings(intro, 2), dl) if x)
     else:
-        text = shift_headings(text, 2)
+        text = place_media(base, shift_headings(text, 2))
     if kind in MATTER_SIGNED and (head.get('byline') or head.get('place_date')):
         sign = [x.strip() for x in (head.get('byline'), head.get('place_date')) if x and x.strip()]
         text += '\n\n::: signatur\n' + '\n'.join(f'| {x}' for x in sign) + '\n:::'
@@ -595,7 +626,10 @@ def resolve_images(base, config, md, proof=False):
             attrs += ' alt="' + alt_text.replace('\\', '\\\\').replace('"', '\\"') + '"'
         if draft:
             caption = (caption + ' ' if caption else '') + '[Bild: Entwurf, nicht freigegeben]{.gwstatus}'
-        return f'![{caption}]({path.resolve().as_posix()}){{{attrs} width=100%}}'
+        pos = meta.get('position') or ''
+        if pos:   # Medienplatzierung (#54): links/rechts mit Textumfluss (merkkasten.lua), mittig ohne
+            attrs += f' gwpos={pos.split("-")[1]}'
+        return f'![{caption}]({path.resolve().as_posix()}){{{attrs} width={int(meta.get("width_pct") or 100)}%}}'
     return images.IMAGE_REF.sub(sub, md), used
 
 

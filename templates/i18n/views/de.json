@@ -522,6 +522,7 @@
   "view.images.no_images_yet": "*Noch keine Bilder.*",
   "view.images.upload_image_attach_a_file": "Bild hochladen (Datei anhängen)",
   "view.images.approve": "freigeben",
+  "view.images.layout": "Lage und Breite ändern (jetzt {p_a})",
   "view.images.back_to_overview": "Zur Übersicht",
   "view.characters.characters": "### 🎭 Figuren",
   "view.characters.volume_of_series_series_characters_apply_to": "Band der Serie „{p_a}“: Figuren der Serie gelten in allen Bänden.",
