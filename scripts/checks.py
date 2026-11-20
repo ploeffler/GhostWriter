@@ -698,9 +698,13 @@ def localize(tag, language='de'):
                 CK_PILL=f'{name} {mark}{suffix}'.strip())   # Widget-Tag mit Klartext wie „Qualität ✓·“ (#340)
 
 
-def as_json(tag_list):
+JSON_KEYS = ('CK_TAG', 'CK_PILL', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT')
+# Projektübersicht liest CK_PILL nicht (#360).
+JSON_KEYS_SLIM = ('CK_TAG', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT')
+
+
+def as_json(tag_list, keep=JSON_KEYS):
     """Widget (ghostwriter-ui, data-gw-checks): kompakte JSON-Liste der Tags."""
-    keep = ('CK_TAG', 'CK_PILL', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT')
     return json.dumps([{k: t.get(k, '') for k in keep} for t in tag_list], ensure_ascii=False, separators=(',', ':'))
 
 
