@@ -363,3 +363,27 @@ class ChecksTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RecordAtCommitTest(unittest.TestCase):
+    """#406: --commit ≠ HEAD → Fingerabdrücke aus diesem Commit, Tag „seit Prüfung geändert“."""
+
+    def test_digests_from_given_commit(self):
+        import subprocess
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        base = Path(tmp.name) / 'buch'
+        shutil.copytree(ROOT / 'tests/fixtures/adhs', base)
+        git = lambda *a: subprocess.run(['git', '-C', str(base), '-c', 'user.name=t', '-c', 'user.email=t@t', *a],
+                                        capture_output=True, text=True, check=True).stdout.strip()
+        git('init', '-q'); git('add', '-A'); git('commit', '-qm', 'A')
+        a = git('rev-parse', 'HEAD')
+        _, config = load(base)
+        sec = config['structure']['chapters'][0]['sections'][0]
+        p = base / sec['path']
+        p.write_text(p.read_text(encoding='utf-8') + '\nKorrigiert.\n', encoding='utf-8')
+        git('commit', '-qam', 'B')
+        entry = checks.record(base, config, 'language', [sec['id']], 'failed', commit=a)
+        self.assertNotEqual(entry['digests'][sec['id']], checks.digests(base, config, [sec['id']])[sec['id']])
+        now = checks.record(base, config, 'language', [sec['id']], 'passed')
+        self.assertEqual(now['digests'][sec['id']], checks.digests(base, config, [sec['id']])[sec['id']])

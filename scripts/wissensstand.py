@@ -123,7 +123,8 @@ def sessions(base, limit):
 
 def collect(base, limit=10):
     base, config = load(base)
-    return {'title': ((config.get('project') or {}).get('title')) or '',
+    p = config.get('project') or {}
+    return {'title': p.get('title') or p.get('working_title') or p.get('title_short') or '',   # wie render_view (#397)
             'characters': characters(base, config), 'places': places(base), 'glossary': glossary(base, config),
             'chronology': chronology(base), 'sessions': sessions(base, limit)}
 

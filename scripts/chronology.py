@@ -211,8 +211,10 @@ def findings(data, names=None, language='de'):
         for b in items:
             b_start, b_end = bounds(b)
             if last is not None and reach is not None and b_start[0] > reach + ONE_DAY:
-                add('gap', f'{who(c)}: nothing between “{last["what"]}” (until {last.get("to")}) and “{b["what"]}” (from {b.get("from")})'
-                    if en else f'{who(c)}: zwischen „{last["what"]}“ (bis {last.get("to")}) und „{b["what"]}“ (ab {b.get("from")}) '
+                until = day_label(last['day_to'], language) if relative(last) and isinstance(last.get('day_to'), int) else last.get('to')
+                since = day_label(b['day'], language) if relative(b) else b.get('from')   # Erzählzeit: „Tag N“ (#409)
+                add('gap', f'{who(c)}: nothing between “{last["what"]}” (until {until}) and “{b["what"]}” (from {since})'
+                    if en else f'{who(c)}: zwischen „{last["what"]}“ (bis {until}) und „{b["what"]}“ (ab {since}) '
                            'fehlt ein Abschnitt', [last['id'], b['id']])
             if last is None or (reach is not None and (b_end is None or b_end[1] > reach)):
                 last, reach = b, (b_end[1] if b_end else None)

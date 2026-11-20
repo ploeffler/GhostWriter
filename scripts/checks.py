@@ -168,6 +168,26 @@ def digests(base, config, ids):
     return out
 
 
+def digests_at(base, config, ids, commit):
+    """Fingerabdrücke der Fassung in commit (#406): Manuskript wie section_file, aus git show gelesen."""
+    paths = {s['id']: s['path'] for _, s in sections(config)}
+    paths.update({i['id']: i['path'] for i in matter(config)})
+    out = {}
+    for sid in ids:
+        if sid not in paths:
+            continue
+        r = subprocess.run(['git', '-C', str(base), 'show', f'{commit}:./{paths[sid]}'], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise ValueError(f'{paths[sid]} gibt es in Commit {commit} nicht; ohne --commit oder mit --backfill eintragen')
+        text = r.stdout
+        m = re.match(r'\A---\n.*?\n---\n', text, re.S)
+        body = text[m.end():] if m else text
+        if sid in {s['id'] for _, s in sections(config)}:
+            body = body.split('\n## Manuskript\n', 1)[1].strip() if '\n## Manuskript\n' in body else ''
+        out[sid] = digest(body)
+    return out
+
+
 def head_commit(base):
     try:
         r = subprocess.run(['git', '-C', str(base), 'rev-parse', 'HEAD'], capture_output=True, text=True, timeout=10)
@@ -188,7 +208,9 @@ BACKFILL_NOTE = 'nachgetragen (#340) aus vorhandenem Bericht; geprüfte Fassung 
 
 def record(base, config, kind, scope, result, report=None, date=None, commit=None, note=None, run=None, time=None,
            backfill=False, notes=None):
-    """Einen Prüflauf eintragen; Fingerabdrücke und Commit werden vom heutigen Stand genommen.
+    """Einen Prüflauf eintragen; Fingerabdrücke und Commit werden vom heutigen Stand genommen. Ist ein anderer
+    Commit als HEAD angegeben, kommen die Fingerabdrücke aus diesem Commit (#406): Wurde danach korrigiert, zeigt
+    der Tag „seit Prüfung geändert“.
 
     backfill=True (#344): älteren Bericht nachtragen. Dann weder Fingerabdrücke noch HEAD-Commit (die geprüfte
     Fassung ist nicht bekannt, der Stand zeigt „unbekannt“); ein ausdrücklich angegebener Commit bleibt."""
@@ -206,11 +228,13 @@ def record(base, config, kind, scope, result, report=None, date=None, commit=Non
              'date': str(date or datetime.date.today().isoformat()), 'result': result}
     if time or not date:   # Uhrzeit (#340): angegeben oder jetzt, bei nachgetragenem Datum ohne Uhrzeit keine
         entry['time'] = str(time or datetime.datetime.now().strftime('%H:%M'))
-    commit = commit or (None if backfill else head_commit(base))
+    head = head_commit(base)
+    commit = commit or (None if backfill else head)
     if commit:
         entry['commit'] = commit
     if not backfill:
-        entry['digests'] = digests(base, config, ids)
+        same = not commit or not head or head.startswith(commit) or commit.startswith(head)
+        entry['digests'] = digests(base, config, ids) if same else digests_at(base, config, ids, commit)
     elif not note:
         note = BACKFILL_NOTE
     if report:
