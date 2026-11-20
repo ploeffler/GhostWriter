@@ -222,16 +222,21 @@ function Figure(el)
   local function clean(full)
     return el:walk({ Image = function(i)
       i.attributes['gwpos'] = nil
+      i.attributes['gwratio'] = nil
       if full then i.attributes['width'] = '100%' end
       return i
     end })
   end
+  local ratio = tonumber(img.attributes['gwratio'] or '0.75') or 0.75
   if FORMAT:match('latex') and (pos == 'left' or pos == 'right') then
     local caption = pandoc.write(pandoc.Pandoc({ pandoc.Plain(pandoc.utils.blocks_to_inlines(el.caption.long)) }), 'latex')
     local w = string.format('%.2f', pct / 100)
-    local tex = '\\begin{wrapfigure}{' .. (pos == 'left' and 'l' or 'r') .. '}{' .. w .. '\\textwidth}\n'
+    -- Platz für Bild und etwa vier Zeilen Bildunterschrift sichern, damit wrapfig nicht über die Seite rutscht
+    local need = string.format('%.3f', pct / 100 * ratio)
+    local tex = '\\needspace{\\dimexpr ' .. need .. '\\textwidth+4\\baselineskip\\relax}\n'
+      .. '\\begin{wrapfigure}{' .. (pos == 'left' and 'l' or 'r') .. '}{' .. w .. '\\textwidth}\n'
       .. '\\centering\\includegraphics[width=\\linewidth]{' .. img.src .. '}\n'
-      .. (caption:match('%S') and ('\\caption{' .. caption .. '}\n') or '')
+      .. (caption:match('%S') and ('\\setcapindent{0pt}\\caption{' .. caption .. '}\n') or '')
       .. '\\end{wrapfigure}'
     return pandoc.RawBlock('latex', tex)
   elseif FORMAT:match('html') or FORMAT:match('epub') then

@@ -277,6 +277,20 @@ def epub_css(ts):
     return '\n'.join(out)
 
 
+BABEL = {'de': 'ngerman', 'de-de': 'ngerman', 'de-at': 'naustrian', 'de-ch': 'nswissgerman', 'en': 'english',
+         'en-us': 'american', 'en-gb': 'british'}
+
+
+def babel_tex(lang):
+    """PDF: Silbentrennung und Sprache über babel ohne bidi=default. Pandoc lädt babel bei gesetztem lang für XeLaTeX
+    mit bidi=default; das verändert den Absatzbau und lässt umflossene Bilder (wrapfig, Medienplatzierung #54)
+    verrutschen. Deshalb lang nicht an Pandoc geben und babel hier laden; pdflang setzt hyperref."""
+    code = str(lang or 'de').lower()
+    name = BABEL.get(code) or BABEL.get(code.split('-')[0], 'ngerman')
+    return (f'\\usepackage{{babel}}\n\\babelprovide[main,import]{{{name}}}\n'
+            f'\\AtBeginDocument{{\\hypersetup{{pdflang={lang}}}}}\n')
+
+
 def image_notes(used, ts, formats=()):
     """Hinweise (#54): Auflösung unter etwa 300 dpi bei der gewählten Breite; Textumfluss, den DOCX nicht kann."""
     w = PAGE.get(ts['page_size'], PAGE['a5'])[0]
@@ -650,6 +664,8 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
                 if ts.get('initials'):
                     cmd += ['-M', 'gw-initials=true']
                 cmd += ['--pdf-engine=xelatex', '--include-in-header', str(BOOK / 'header.tex')]
+                if m.get('lang'):   # Sprache selbst laden: Pandocs babel mit bidi=default stört wrapfig (#54)
+                    extra_header.insert(0, str(write('sprache.tex', babel_tex(m.pop('lang')))))
                 layout = layout_tex(ts, meta)
                 if layout:
                     extra_header.append(str(write('layout.tex', layout)))

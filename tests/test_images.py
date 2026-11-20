@@ -192,14 +192,17 @@ class ImageTest(unittest.TestCase):
         sec_end = next((i for i in range(ref + 1, len(paras)) if paras[i].startswith('## ')), len(paras))
         self.assertEqual(sec_end - ref, 2)   # vor dem letzten Absatz des Abschnitts
         body, used = assemble.resolve_images(self.base, config, md)
-        self.assertRegex(body, r'gwpos=right width=40%\}')
+        self.assertRegex(body, r'gwpos=right gwratio=[0-9.]+ width=40%\}')
         notes = build_edition.image_notes(used, {'page_size': 'a5'}, ['pdf', 'docx'])
         self.assertTrue(any('nur in PDF und EPUB' in n for n in notes), notes)
+        self.assertIn('\\babelprovide[main,import]{ngerman}', build_edition.babel_tex('de'))   # ohne bidi=default (wrapfig)
+        self.assertIn('{naustrian}', build_edition.babel_tex('de-AT'))
         if _sh.which('pandoc'):
             lua = str(ROOT / 'templates/book/merkkasten.lua')
             tex = _sp.run(['pandoc', '-f', 'markdown', '-t', 'latex', '--lua-filter', lua], input=body,
                           capture_output=True, text=True, check=True).stdout
             self.assertIn('\\begin{wrapfigure}{r}{0.40\\textwidth}', tex)
+            self.assertIn('\\needspace{', tex)
             html = _sp.run(['pandoc', '-f', 'markdown', '-t', 'html', '--lua-filter', lua], input=body,
                            capture_output=True, text=True, check=True).stdout
             self.assertRegex(html, r'<figure [^>]*class="gw-right"[^>]*style="width:40%"')
