@@ -18,6 +18,10 @@ on:
         description: 'Formate, kommagetrennt (pdf, pdf_print, booklet, cover, docx, epub); leer = typesetting.formats'
         required: false
         default: ''
+      chapters:
+        description: 'Nur diese Kapitel, z. B. 1-4 oder 1,3 (leer = alle)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -75,11 +79,13 @@ jobs:
       - name: Vorabfassung bauen
         env:
           FORMATS: ${{ inputs.formats }}
+          CHAPTERS: ${{ inputs.chapters }}
           N: ${{ steps.info.outputs.preview }}
           GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           args=(--preview "$N" --out build --commit "$GITHUB_SHA")
           if [ -n "$FORMATS" ]; then args+=(--formats "$FORMATS"); fi
+          if [ -n "$CHAPTERS" ]; then args+=(--chapters "$CHAPTERS"); fi
           python scripts/build_edition.py . "${args[@]}"
 
       - name: Tag und Pre-Release anlegen

@@ -14,6 +14,10 @@ on:
         description: 'Formate, kommagetrennt (pdf, pdf_print, booklet, cover, docx, epub); cover = Umschlag mit Hilfslinien'
         required: false
         default: 'pdf'
+      chapters:
+        description: 'Nur diese Kapitel, z. B. 1-4 oder 1,3 (leer = alle)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -40,9 +44,10 @@ jobs:
       - name: Probedruck bauen
         env:
           FORMATS: ${{ inputs.formats }}
+          CHAPTERS: ${{ inputs.chapters }}
           GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          python scripts/build_edition.py . --proof --out probedruck --commit "$GITHUB_SHA" --formats "${FORMATS:-pdf}"
+          python scripts/build_edition.py . --proof --out probedruck --commit "$GITHUB_SHA" --formats "${FORMATS:-pdf}" ${CHAPTERS:+--chapters "$CHAPTERS"}
           {
             echo "## Probedruck"
             echo

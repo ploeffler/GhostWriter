@@ -68,6 +68,22 @@ class AssembleTests(unittest.TestCase):
         md, _, _ = assemble.chapter_markdown(self.base, ch, 1, numbered=True)
         self.assertEqual(len(re.findall(r'(?m)^## 1\.1 ', md)), 1)
 
+    def test_chapter_selection(self):
+        """#413: Kapitelauswahl für Probedruck und Vorabfassung."""
+        _, config = load(self.base)
+        n = len(config['structure']['chapters'])
+        self.assertEqual(assemble.chapter_selection(config, '1-3'), [1, 2, 3])
+        self.assertEqual(assemble.chapter_selection(config, '3, 1'), [1, 3])
+        self.assertEqual(assemble.chapter_selection(config, config['structure']['chapters'][1]['id']), [2])
+        self.assertIsNone(assemble.chapter_selection(config, ''))
+        with self.assertRaises(SystemExit):
+            assemble.chapter_selection(config, f'1-{n + 1}')
+        self.assertEqual(assemble.selection_text([1, 2, 3, 4], 5), 'Enthält Kapitel 1–4 von 5.')
+        self.assertEqual(assemble.selection_text([1, 3], 5), 'Enthält Kapitel 1 und 3 von 5.')
+        self.assertEqual(assemble.selection_text([1, 2], 2), '')
+        parts = assemble.book_parts(self.base, config, proof=True, only=[1, 3])
+        self.assertEqual([p[0] for p in parts], [1, 3])
+
     def test_nothing_approved_blocks_edition(self):
         _, config = load(self.base)
         found = assemble.problems(assemble.book_parts(self.base, config), config)

@@ -503,6 +503,38 @@ def find_chapter(config, key):
     raise SystemExit(f'Kapitel {key} nicht gefunden')
 
 
+def chapter_selection(config, spec):
+    """Kapitelauswahl (#413): „1-4“, „1,3,5“, Kapitel-IDs oder gemischt → sortierte Nummern; leer = None (alle)."""
+    spec = str(spec or '').strip()
+    if not spec:
+        return None
+    n = len(config['structure']['chapters'])
+    out = set()
+    for part in [p.strip() for p in spec.replace(';', ',').split(',') if p.strip()]:
+        m = re.fullmatch(r'(\d+)\s*[-–]\s*(\d+)', part)
+        if m:
+            a, b = int(m.group(1)), int(m.group(2))
+            if not 1 <= a <= b <= n:
+                raise SystemExit(f'Kapitelauswahl {part}: das Buch hat {n} Kapitel')
+            out.update(range(a, b + 1))
+        else:
+            if part.isdigit() and not 1 <= int(part) <= n:
+                raise SystemExit(f'Kapitel {part}: das Buch hat {n} Kapitel')
+            out.add(find_chapter(config, part)[0])
+    return sorted(out)
+
+
+def selection_text(numbers, total):
+    """„Enthält Kapitel 1–4 von 5.“ bzw. „Kapitel 1, 3 und 5 von 5“."""
+    if not numbers or len(numbers) == total:
+        return ''
+    if numbers == list(range(numbers[0], numbers[-1] + 1)) and len(numbers) > 1:
+        which = f'Kapitel {numbers[0]}–{numbers[-1]}'
+    else:
+        which = 'Kapitel ' + (', '.join(map(str, numbers[:-1])) + ' und ' + str(numbers[-1]) if len(numbers) > 1 else str(numbers[0]))
+    return f'Enthält {which} von {total}.'
+
+
 def book_parts(base, config, proof=False, plan=False, only=None):
     """Freigegebene Kapitel: [(nummer, kapitel, markdown, ausgelassen, marker)].
     proof=True: alle Kapitel und Abschnitte (Probedruck). plan=True: wie proof, Abschnitte ohne
@@ -510,7 +542,7 @@ def book_parts(base, config, proof=False, plan=False, only=None):
     proof = proof or plan
     parts = []
     for i, ch in enumerate(config['structure']['chapters'], start=1):
-        if only is not None and i != only:
+        if only is not None and (i not in only if isinstance(only, (list, set, tuple)) else i != only):
             continue
         chapter_approval = latest_approval(base, 'chapter', ch['id'])
         chapter_approved = (ch.get('status') == 'approved'
