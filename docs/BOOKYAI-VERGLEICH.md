@@ -87,8 +87,9 @@ reine KI-Unterstützung wird davon unterschieden.
 
 ## Bewertung und Empfehlung
 
-Die entscheidende offene Frage ist die Bedienung. Eine installierbare Web-App
-mit Offline-Arbeit ist bei GhostWriter für v1.0 geplant. Ob Einrichtung,
+Die entscheidende offene Frage ist die Bedienung. Bis v1.0 arbeitet GhostWriter
+im Chat; eine eigene Web-App mit Offline-Arbeit ist nach
+[D06/D19](ENTSCHEIDUNGEN-v1.0.md) erst nach v1.0 vorgesehen. Ob Einrichtung,
 Schreiben, Wiederaufnahme und Export einen durchgängigen, einfachen Ablauf
 ergeben, muss ein vollständiger Praxistest von der Idee bis zur druckfähigen
 Ausgabe zeigen. Eine Funktionsliste genügt dafür nicht.
