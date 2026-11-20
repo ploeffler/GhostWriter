@@ -13,10 +13,10 @@
         "required": ["id", "abschnitt", "art", "befund", "status"],
         "properties": {
           "id": {"type": "string", "pattern": "^b-[0-9]{3,}$"},
-          "abschnitt": {"type": "string", "minLength": 1, "description": "Abschnitts-ID"},
+          "abschnitt": {"type": "string", "minLength": 1, "description": "Abschnitts-ID, ID eines Teils von Vor-/Nachspann (mat-*) oder book für buchweite Befunde (#423)"},
           "absatz": {"type": "integer", "minimum": 1},
           "schweregrad": {"enum": ["gering", "mittel", "wesentlich", "blockierend"]},
-          "art": {"enum": ["rechtschreibung", "zeichensetzung", "grammatik", "wiederholung", "satzbau", "sprache", "fakt", "ton", "aufbau", "buchweit"]},
+          "art": {"enum": ["rechtschreibung", "zeichensetzung", "grammatik", "wiederholung", "satzbau", "sprache", "fakt", "kontinuitaet", "ton", "aufbau", "buchweit"]},
           "befund": {"type": "string", "minLength": 1},
           "richtung": {"type": "string", "description": "empfohlene Änderungsrichtung"},
           "alt": {"type": "string", "description": "genauer Wortlaut im Manuskript"},
