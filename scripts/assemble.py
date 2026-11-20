@@ -629,6 +629,8 @@ def resolve_images(base, config, md, proof=False):
         pos = meta.get('position') or ''
         if pos:   # Medienplatzierung (#54): links/rechts mit Textumfluss (merkkasten.lua), mittig ohne
             attrs += f' gwpos={pos.split("-")[1]}'
+            if meta.get('width_px') and meta.get('height_px'):   # Seitenverhältnis: Platz für das umflossene Bild sichern
+                attrs += f' gwratio={meta["height_px"] / meta["width_px"]:.3f}'
         return f'![{caption}]({path.resolve().as_posix()}){{{attrs} width={int(meta.get("width_pct") or 100)}%}}'
     return images.IMAGE_REF.sub(sub, md), used
 
