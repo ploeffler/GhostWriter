@@ -12,7 +12,7 @@ python3 scripts/chat_analysis.py <buch> prepare image_ideas --chapter 1 --source
 
 Die JSON-Datei enthält den kopierbaren Auftrag, Abschnittskennungen und benötigte Originalauszüge sowie `request_id` und `response_format`. Die vollständige Auftragsdatei an den gewählten Chat übergeben oder ihren Text kopieren; `answer` in der Rückgabe enthält das fachliche Ergebnis. Die getrennt aufbewahrte ursprüngliche Auftragsdatei dient beim Rücknehmen als Vergleichsbasis. Nicht durch eine vom anderen Chat neu erzeugte Auftragsdatei ersetzen.
 
-Arten: `characters`, `summaries`, `style`, `places`, `timeline`, `continuity`, `language`, `fact_checks`, `image_ideas`, `blurb`, `audience`, `series`. Glossar bleibt nach v1.0. Sprachliche Auffälligkeiten werden nach Rückgabe deterministisch mit dem vorhandenen lokalen Prüfer ermittelt.
+Arten: `characters`, `summaries`, `style`, `places`, `timeline`, `continuity`, `language`, `chronology`, `fact_checks`, `image_ideas`, `blurb`, `audience`, `series`. Glossar bleibt nach v1.0. Sprachliche Auffälligkeiten werden nach Rückgabe deterministisch mit dem vorhandenen lokalen Prüfer ermittelt.
 
 Für Serienvergleiche benötigte freigegebene Vorlagen explizit angeben:
 
@@ -49,13 +49,15 @@ Vor Speicherung werden Kapiteltext, Gliederung/Profil sowie verfügbare Regel-/P
 
 Geprüfte Ergebnisse liegen unter `analysis/chat-returns/<request_id>/`: unveränderte Auftragsdatei und nach Inhaltsfingerabdruck benannte Ergebnisdateien. Gleiche Rückgaben erzeugen keinen zweiten Ergebnisstand, verschiedene geprüfte Varianten überschreiben sich nicht. Es werden keine Manuskripte, Figuren, Freigaben oder Kosten geändert.
 
-Für die Arten der Hintergrundanalyse (`characters`, `summaries`, `style`, `places`, `timeline`, `continuity`, `language`) legt `accept` die geprüften Vorschläge zusätzlich als Lauf `analysis/<art>/run-NNN.json` (mit `.md`) im Format der Hintergrundläufe ab (#353); die Ausgabe nennt ihn unter `run_file`. Dieselbe Rückgabe ergibt immer denselben Lauf. Für Rückgaben, die vor dieser Änderung gespeichert wurden:
+Für die Arten der Hintergrundanalyse (`characters`, `summaries`, `style`, `places`, `timeline`, `continuity`, `language`, `chronology`) legt `accept` die geprüften Vorschläge zusätzlich als Lauf `analysis/<art>/run-NNN.json` (mit `.md`) im Format der Hintergrundläufe ab (#353); die Ausgabe nennt ihn unter `run_file`. Dieselbe Rückgabe ergibt immer denselben Lauf. Für Rückgaben, die vor dieser Änderung gespeichert wurden:
 
 ```sh
 python3 scripts/chat_analysis.py <buch> register analysis/chat-returns/<request_id>/<digest>.json
 ```
 
 Der Chatweg liest je Auftrag genau ein Kapitel und führt nichts mit einem zweiten Modell zusammen: Die Zeitleiste enthält deshalb nur Ereignisse, keine Auffälligkeiten (Zeitsprung, Widerspruch, unklar), Widersprüche über mehrere Stellen entstehen nicht, und Figuren und Schauplätze werden nur nach gleichem Namen zusammengefasst. Dafür bleibt die Hintergrundanalyse.
+
+**Chronologie (#364):** `prepare chronology --chapter N` liest die Rechercheläufe von Kapitel N, `prepare chronology --common` Figuren, Orte, Quellenliste und Sitzungen (nur Beiträge des Autors sowie die Themen „Recherche“ und „Entscheidungen“) – nie das Manuskript. Fundorte sind Dateipfade (`research/sources.md`, `conversations/<id>#m001`); geprüft wird wie im Hintergrundlauf (`analyze.verify_chronology`). Sind die Unterlagen zu umfangreich, bricht `prepare` mit dem Hinweis auf den Hintergrundlauf ab.
 
 ## Anschließende Bucharbeit
 

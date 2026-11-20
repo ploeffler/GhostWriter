@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       kind:
-        description: 'Analyse: characters, summaries, style, places, timeline, continuity, language (mehrere mit Komma)'
+        description: 'Analyse: characters, summaries, style, places, timeline, continuity, language, chronology (mehrere mit Komma)'
         default: characters
       scope:
         description: 'Bereich: book (ganzes Buch) oder Nummer eines Kapitels'

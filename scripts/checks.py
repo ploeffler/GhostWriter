@@ -49,12 +49,12 @@ LABELS = {
 }
 ANALYSIS_LABELS = {
     'de': {'characters': 'Figuren', 'summaries': 'Kurzbeschreibungen', 'style': 'Stil', 'places': 'Schauplätze',
-           'timeline': 'Zeitleiste', 'continuity': 'Widersprüche', 'language': 'Sprache'},
+           'timeline': 'Zeitleiste', 'continuity': 'Widersprüche', 'language': 'Sprache', 'chronology': 'Chronologie'},
     'en': {'characters': 'Characters', 'summaries': 'Summaries', 'style': 'Style', 'places': 'Places',
-           'timeline': 'Timeline', 'continuity': 'Continuity', 'language': 'Language'},
+           'timeline': 'Timeline', 'continuity': 'Continuity', 'language': 'Language', 'chronology': 'Chronology'},
 }
 ANALYSIS_SHORT = {'characters': 'AF', 'summaries': 'AK', 'style': 'ASt', 'places': 'AO', 'timeline': 'AZ',
-                  'continuity': 'AW', 'language': 'ASp'}
+                  'continuity': 'AW', 'language': 'ASp', 'chronology': 'AC'}
 RESULT_MARK = {'passed': '✓', 'passed_with_notes': '✓·', 'failed': '✗', 'incomplete': '…', 'unknown': '?'}
 RESULT_TEXT = {
     'de': {'passed': 'bestanden', 'passed_with_notes': 'bestanden mit Hinweisen', 'failed': 'nicht bestanden',

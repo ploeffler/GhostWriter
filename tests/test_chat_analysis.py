@@ -52,7 +52,7 @@ class ChatAnalysisTest(unittest.TestCase):
         self.assertEqual(request['snapshot']['chapter_id'], 'ch-01-endlich-eine-erklaerung')
 
     def test_all_kinds_prepare_without_key_or_network_and_only_one_chapter(self):
-        for kind in sorted(ca.KINDS):
+        for kind in sorted(ca.KINDS - {'chronology'}):   # Chronologie liest Unterlagen statt Kapiteltext (test_chronology_analysis)
             self.request = self.root / (kind + '.json')
             request = self.prepare(kind)
             self.assertTrue(all(key.startswith('1.') for key in request['snapshot']['texts']))
