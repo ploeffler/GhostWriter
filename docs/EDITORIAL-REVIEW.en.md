@@ -117,9 +117,9 @@ Always pass `--notes`: the number of open notes in the report, i.e. findings not
 yet applied or decided (0 if none are open). The project overview shows it per
 chapter (#362). A later fix only shows up with the next entry.
 
-## Cleaning up notes (autocorrector, #367)
+## Reviewing notes (notes review, #367)
 
-So that open notes can be cleaned up later without parsing free text, the
+So that open notes can be reviewed later without parsing free text, the
 assistant stores a saved report's findings as `editorial/<report>.yml` as well
 (schema `schemas/findings.schema.json`): per finding `id` (`b-001`), `abschnitt`
 (section ID), optional `absatz`, `schweregrad`, `art`, `befund`, `richtung`,
@@ -127,10 +127,10 @@ for language findings `alt` (exact wording) and `neu` (proposal), optional
 `frage`, and `status` (`offen`, `erledigt`, `entschieden`). `--notes` in the check
 log is the number of findings with `status: offen`.
 
-On request (“clean up notes”, “autocorrector”),
-`python3 scripts/autocorrect.py collect <book> [--chapter <chapter-id> …]` gathers
-all open findings in `editorial/bereinigung-<date>.yml` (schema
-`schemas/cleanup.schema.json`), split into **without the author** (`ohne_autor`)
+On request (“review notes”, “notes review”),
+`python3 scripts/hinweise.py collect <book> [--chapter <chapter-id> …]` gathers
+all open findings in `editorial/durchsicht-<date>.yml` (schema
+`schemas/notes-review.schema.json`), split into **without the author** (`ohne_autor`)
 and **author decision** (`autorenentscheidung`):
 
 - Only a purely linguistic finding with a proposal can be solved without the
@@ -143,16 +143,16 @@ and **author decision** (`autorenentscheidung`):
 - Each entry carries the sentence with up to two sentences before and after
   (`kontext`), chapter and section details and `entscheidung: offen`.
 
-`autocorrect.py show <book> [--open]` shows the dialogue chapter by chapter.
+`hinweise.py show <book> [--open]` shows the dialogue chapter by chapter.
 Each answer is stored with
-`autocorrect.py decide <book> <entry> --decision ja|nein|geändert [--new …]` and
+`hinweise.py decide <book> <entry> --decision ja|nein|geändert [--new …]` and
 uploaded without asking as a small addition to the open change package
-([Saving](SAVING.en.md#cleaning-up-notes)), so a later session can continue.
+([Saving](SAVING.en.md#reviewing-notes)), so a later session can continue.
 
 Not yet included (part 2 of #367): applying the decisions to the manuscript
 with the reopened sections and chapters shown, the follow-up check, writing the
-finding status back to the reports, and a widget. Until then the autocorrector
-changes no manuscript.
+finding status back to the reports, and a widget. Until then the notes review
+changes no manuscript; it only prepares the dialogue.
 
 ## Integration and limits
 

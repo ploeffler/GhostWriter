@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Autokorrektor (#367, Teil 1): offene Befunde aus Prüfberichten sammeln und als Bereinigungsdialog ablegen.
+"""Hinweisdurchsicht (#367, Teil 1): offene Befunde aus Prüfberichten sammeln und den Dialog zum Durchsehen vorbereiten.
 
 Befunde stehen maschinenlesbar neben dem Bericht in `editorial/<bericht>.yml` (Schema
-`schemas/findings.schema.json`). Der Autokorrektor liest nur diese Dateien, keinen Freitext.
+`schemas/findings.schema.json`). Die Hinweisdurchsicht liest nur diese Dateien, keinen Freitext.
 
-  python3 scripts/autocorrect.py collect <buch> [--chapter kap-01 …] [--date JJJJ-MM-TT]
-      sammelt alle offenen Befunde und schreibt editorial/bereinigung-<datum>.yml
-  python3 scripts/autocorrect.py show <buch> [--file editorial/bereinigung-….yml] [--open]
+  python3 scripts/hinweise.py collect <buch> [--chapter kap-01 …] [--date JJJJ-MM-TT]
+      sammelt alle offenen Befunde und schreibt editorial/durchsicht-<datum>.yml
+  python3 scripts/hinweise.py show <buch> [--file editorial/durchsicht-….yml] [--open]
       Textfassung des Dialogs: kapitelweise alt und neu, darunter die Autorenentscheidungen
-  python3 scripts/autocorrect.py decide <buch> <eintrag> --decision ja|nein|geändert [--new TEXT] [--file …]
+  python3 scripts/hinweise.py decide <buch> <eintrag> --decision ja|nein|geändert [--new TEXT] [--file …]
       schreibt nur `entscheidung` (und bei „geändert“ `neu`) in die Dialogdatei
 
 Prüfung beim Anlegen: `alt` muss im heutigen Manuskript des Abschnitts genau einmal vorkommen, sonst wird
@@ -43,7 +43,7 @@ def editorial(base):
 
 
 def is_findings_file(path):
-    return path.suffix == '.yml' and path.name != 'checks.yml' and not path.name.startswith('bereinigung-')
+    return path.suffix == '.yml' and path.name != 'checks.yml' and not path.name.startswith('durchsicht-')
 
 
 def findings_files(base):
@@ -53,7 +53,7 @@ def findings_files(base):
 
 def dialog_files(base):
     d = editorial(base)
-    return sorted(d.glob('bereinigung-*.yml')) if d.is_dir() else []
+    return sorted(d.glob('durchsicht-*.yml')) if d.is_dir() else []
 
 
 def read_yaml(path):
@@ -146,7 +146,7 @@ def collect(base, config, chapters=None, date=None, commit=None):
         del data['fassung']
     if skipped:
         data['ausgelassen'] = skipped
-    out = editorial(base) / f'bereinigung-{date}.yml'
+    out = editorial(base) / f'durchsicht-{date}.yml'
     out.parent.mkdir(parents=True, exist_ok=True)
     write_yaml(out, data)
     return out, data
@@ -185,7 +185,7 @@ def show(data, only_open=False):
     author = [e for e in data.get('autorenentscheidung') or [] if wanted(e)]
     total = entries(data)
     done = sum(e.get('entscheidung', 'offen') != 'offen' for _, e in total)
-    lines = [f'### 🧹 Bereinigung · {data.get("buch", "")}',
+    lines = [f'### 🧹 Hinweisdurchsicht · {data.get("buch", "")}',
              f'Stand {data.get("erstellt", "")} · {len(total)} Einträge · {done} entschieden · {len(total) - done} offen', '']
     if auto:
         lines += ['#### Ohne Autor lösbar', '']
@@ -222,7 +222,7 @@ def errors(base, config):
     from jsonschema import Draft202012Validator
     schemas = Path(__file__).resolve().parents[1] / 'schemas'
     fv = Draft202012Validator(json.loads((schemas / 'findings.schema.json').read_text(encoding='utf-8')))
-    dv = Draft202012Validator(json.loads((schemas / 'cleanup.schema.json').read_text(encoding='utf-8')))
+    dv = Draft202012Validator(json.loads((schemas / 'notes-review.schema.json').read_text(encoding='utf-8')))
     index = section_index(config)
     out = []
     for path, v, kind in [(p, fv, 'f') for p in findings_files(base)] + [(p, dv, 'd') for p in dialog_files(base)]:
@@ -277,7 +277,7 @@ def main(argv=None):
         if path and not path.is_absolute() and not path.exists():
             path = base / path
         if not path or not path.is_file():
-            print('Keine Bereinigungsdatei gefunden (zuerst collect).', file=sys.stderr)
+            print('Keine Durchsichtsdatei gefunden (zuerst collect).', file=sys.stderr)
             return 1
         if args.cmd == 'show':
             print(show(read_yaml(path), args.open), end='')
