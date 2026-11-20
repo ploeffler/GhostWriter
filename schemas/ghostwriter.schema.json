@@ -550,6 +550,23 @@
             "additionalProperties": false
           }
         },
+        "retired": {
+          "type": "array",
+          "description": "Entfernte, zusammengelegte Abschnitte (#293, scripts/sections.py): Einträge in approvals.yml und editorial/checks.yml zu diesen IDs gelten als historisch; keine Freigabe",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "action", "at"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^sec-[a-z0-9][a-z0-9-]*$"},
+              "title": {"type": "string"},
+              "action": {"enum": ["merged", "removed"]},
+              "merged_into": {"type": "string", "pattern": "^sec-[a-z0-9][a-z0-9-]*$"},
+              "archive": {"type": "string", "description": "Ablage der Abschnittsdatei unter archiv/ (nur action removed)"},
+              "at": {"type": "string", "format": "date"}
+            },
+            "additionalProperties": false
+          }
+        },
         "back_matter": {
           "type": "array",
           "description": "Nachspann nach dem letzten Kapitel (#57, #58): Epilog, Nachwort, Glossar, Danksagung; fehlt = keiner",

@@ -490,9 +490,11 @@ def check_project(project_dir):
             errs = schema_errors(APPROVALS, data, approvals_path)
             errors += errs
             if not errs:
-                known_by_kind = {'chapter': (chapter_ids, 'Kapitel'), 'section': (section_ids, 'Abschnitt'),
+                # Entfernte bzw. zusammengelegte Abschnitte (#293): ihre Protokolleinträge bleiben gültig.
+                retired = {r['id'] for r in (config['structure'].get('retired') or [])}
+                known_by_kind = {'chapter': (chapter_ids, 'Kapitel'), 'section': (section_ids | retired, 'Abschnitt'),
                                  'matter': (matter_ids, 'Teil des Vor-/Nachspanns'),
-                                 'writing': (section_ids | matter_ids, 'Abschnitt bzw. Teil'),
+                                 'writing': (section_ids | matter_ids | retired, 'Abschnitt bzw. Teil'),
                                  'image': (image_ids, 'Bild'),
                                  'rules': ({'rules-facts', 'rules-creativity', 'rules-approvals'}, 'Regelgruppe')}
                 historical = {}

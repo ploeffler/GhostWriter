@@ -77,6 +77,20 @@ ableiten. Nach dokumentierter Entscheidung kann der einzelne unveränderte Eintr
 nach dem Schema `historical_references` gekennzeichnet werden. Vor- und Nachspann
 sowie Bilder werden von dieser begrenzten Kandidatensuche nicht beurteilt.
 
+## Abschnitte zusammenlegen, entfernen oder verschieben
+
+Für Änderungen an der Kapitelgliederung gibt es `scripts/sections.py` (#293):
+`merge` legt Abschnitte zusammen, `remove` entfernt einen Abschnitt (Datei nach
+`archiv/`), `move` verschiebt ihn in ein anderes Kapitel. Das Skript zieht
+`ghostwriter.yml`, Nummern und Überschriften, die Abschnittslisten der
+Kapitel-READMEs, Laufdateien, Kosten und Markdown-Verweise nach. Abgeschlossene
+Abschnitte bleiben gesperrt, bis die Freigabe zurückgenommen ist; ein Manuskript
+wird nur nach ausdrücklicher Wahl angehängt, archiviert oder entfernt. Entfernte
+IDs stehen in `structure.retired`, damit das Freigabe- und Prüfprotokoll
+unverändert gültig bleibt. Übrige Verweise wie „Abschnitt 7.3“ im Fließtext meldet
+das Skript zur Prüfung. Vor dem Ausführen zeigt der Assistent, was sich ändert,
+und wartet auf die Bestätigung.
+
 ## Übernahme und formelle Freigabe
 
 Zum Abschluss die tatsächlichen Dateien und Entscheidungen in Alltagssprache
