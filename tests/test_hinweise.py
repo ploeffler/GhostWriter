@@ -12,7 +12,11 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 import hinweise  # noqa: E402
 import checks  # noqa: E402
 import validate_project  # noqa: E402
-from render_view import load  # noqa: E402
+from render_view import load, section_file  # noqa: E402
+
+
+def render_status(path):
+    return yaml.safe_load(path.read_text(encoding='utf-8').split('---')[1])['status']
 
 
 class HinweiseTest(unittest.TestCase):
@@ -87,10 +91,44 @@ class HinweiseTest(unittest.TestCase):
         self.assertTrue(any('ID doppelt: b-001' in e for e in errs), errs)
         self.assertTrue(any('sec-gibtsnicht unbekannt' in e for e in errs), errs)
 
+    def test_plan_apply_and_write_back(self):
+        path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        hinweise.decide(path, 'e-001', 'ja')
+        hinweise.decide(path, 'e-002', 'nein')
+        items = hinweise.plan(self.base, self.config, hinweise.read_yaml(path))
+        self.assertEqual([(m, e['id']) for m, e, _ in items], [('✅', 'e-001')])
+        res = hinweise.apply(self.base, self.config, path)
+        self.assertEqual([e['id'] for e in res['applied']], ['e-001'])
+        text = checks.manuscript(self.base, self.config, self.s11['id'])
+        self.assertIn(self.unique + 'x', text)
+        self.assertEqual(res['chapters'], [self.ch1['id']])
+        self.assertIn('Nachprüfung', hinweise.apply_text(res))
+        states = {b['id']: b['status'] for b in yaml.safe_load((self.base / 'editorial/sprache-kap-01.yml').read_text(encoding='utf-8'))['befunde']}
+        self.assertEqual((states['b-001'], states['b-005'], states['b-003']), ('erledigt', 'offen', 'offen'))
+        author = {e['befund'].split('#')[1]: e for e in hinweise.read_yaml(path)['autorenentscheidung']}
+        self.assertEqual(states[author[next(k for k in author if author[k]['id'] == 'e-002')]['befund'].split('#')[1]], 'entschieden')
+        with self.assertRaises(ValueError):
+            hinweise.decide(path, 'e-001', 'nein')
+        self.assertEqual(hinweise.apply(self.base, self.config, path)['applied'], [])
+        self.assertFalse(validate_project.check_project(self.base))
+
+    def test_plan_blocks_approved_section(self):
+        path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        hinweise.decide(path, 'e-001', 'ja')
+        f = self.base / self.s11['path']
+        f.write_text(f.read_text(encoding='utf-8').replace('status: ' + render_status(f), 'status: approved', 1), encoding='utf-8')
+        items = hinweise.plan(self.base, self.config, hinweise.read_yaml(path))
+        self.assertEqual(items[0][0], '⛔')
+        self.assertIn('wieder öffnen', hinweise.plan_text(items))
+        self.assertEqual(hinweise.apply(self.base, self.config, path)['applied'], [])
+        self.assertNotIn(self.unique + 'x', checks.manuscript(self.base, self.config, self.s11['id']))
+
     def test_cli(self):
         self.assertEqual(hinweise.main(['collect', str(self.base), '--date', '2026-11-20']), 0)
         self.assertEqual(hinweise.main(['decide', str(self.base), 'e-001', '--decision', 'ja']), 0)
         self.assertEqual(hinweise.main(['show', str(self.base), '--open']), 0)
+        self.assertEqual(hinweise.main(['plan', str(self.base)]), 0)
+        self.assertEqual(hinweise.main(['apply', str(self.base)]), 0)
 
 
 if __name__ == '__main__':

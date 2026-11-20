@@ -159,10 +159,21 @@ der Assistent lädt sie ohne Rückfrage als kleinen Nachtrag ins offene
 Änderungspaket ([Speichern](SPEICHERN.md#hinweise-durchsehen)). So setzt eine
 spätere Sitzung mit „Durchsicht fortsetzen“ an derselben Stelle fort.
 
-Noch nicht enthalten (Teil 2 von #367): das Umsetzen der Entscheidungen ins
-Manuskript mit Anzeige der wieder geöffneten Abschnitte und Kapitel, die
-Nachprüfung, das Zurückschreiben des Befundstatus in die Berichte und ein Widget.
-Bis dahin ändert die Hinweisdurchsicht kein Manuskript; sie bereitet nur den Dialog vor.
+Umgesetzt wird erst am Ende eines Kapitels oder auf Auftrag. Vorher zeigt
+`hinweise.py plan <buch> [--chapter …]` je entschiedenem Eintrag ✅ umsetzbar,
+⚠️ von Hand (ohne alten Wortlaut oder Vorschlag) oder ⛔ (Abschnitt oder Kapitel
+abgeschlossen, Wortlaut nicht mehr eindeutig). Abgeschlossenes öffnet der
+Assistent nicht selbst: Wieder öffnen ist eine eigene, ausdrücklich bestätigte
+Freigabe (`START.md`, „Freigaben“). `hinweise.py apply <buch> [--chapter …]` setzt
+nur die ✅-Einträge im Manuskript um, markiert sie mit `umgesetzt: true` und
+schreibt den Befundstatus zurück (`erledigt` für umgesetzt, `entschieden` für
+„nein“), damit sie beim nächsten `collect` nicht wieder erscheinen. Danach liest
+der Assistent alle geänderten Sätze im Zusammenhang neu, trägt für die
+betroffenen Kapitel eine Nachprüfung ein (Schlusskorrektur und Qualität, mit
+`--notes`) und fragt eigens nach dem neuen Abschluss. Gespeichert und übernommen
+wird wie bei anderen Buchänderungen.
+
+Noch nicht enthalten: ein Widget für den Dialog; bis dahin gibt es die Textfassung.
 
 ## Einbindung und Grenzen
 
