@@ -37,6 +37,19 @@
       "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
       "description": "Name des persönlichen Skills: <autor>-auf-<repo> (ohne claude/anthropic im Namen)"
     },
+    "subagent_models": {
+      "type": "object",
+      "description": "Modellklasse der Hilfsagenten je Prüfart (#418): small, medium, large; die App ordnet zu (Claude: haiku, sonnet, opus; Codex: eigene Agenten unter .codex/agents/). Fehlt eine Prüfart, gilt die Empfehlung aus docs/LEKTORAT.md.",
+      "properties": {
+        "proofreading": {"enum": ["small", "medium", "large"], "description": "Schlusskorrektur, mechanische Sprachkorrektur, Nachprüfung"},
+        "extraction": {"enum": ["small", "medium", "large"], "description": "Orte, Figuren, Zeitleiste aus dem Text herauslesen"},
+        "language": {"enum": ["small", "medium", "large"], "description": "Sprachlektorat (Stimme, Rhythmus)"},
+        "continuity": {"enum": ["small", "medium", "large"], "description": "Buchgedächtnis, Fakten- und Kontinuitätsabgleich"},
+        "structure": {"enum": ["small", "medium", "large"], "description": "Strukturlektorat"},
+        "writing": {"enum": ["small", "medium", "large"], "description": "neue Szenen und Textvorschläge in der Erzählstimme"}
+      },
+      "additionalProperties": false
+    },
     "git": {
       "type": "object",
       "description": "Git-Benutzer für Commits des Assistenten in diesem Repository (git config user.name/user.email); fehlt = beim Wiedereinstieg fragen",

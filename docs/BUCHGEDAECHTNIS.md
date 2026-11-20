@@ -114,6 +114,7 @@ kann (z. B. Claude Code). Er bekommt Auftrag, Prüfbereich und Fakten aus den
 Buchdateien und gibt nur Befunde mit Fundstellen und Belegen zurück, keine
 Kapiteltexte. Ohne Hilfsagenten kapitelweise nacheinander prüfen und je Kapitel
 nur die Befunde im Chat behalten ([Token sparen](CHAT-APPS.md#token-sparen-im-laufenden-chat-392)).
+Modellklasse: mittel (`continuity`), siehe [Modellwahl für Hilfsagenten](LEKTORAT.md#modellwahl-für-hilfsagenten-418).
 
 ## Wissensstand beim Wechsel ins Buch (#369)
 

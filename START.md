@@ -170,7 +170,7 @@ Ein Chat lässt sich nicht leeren; jede Ansicht bleibt im Verlauf stehen. Der Pr
 
 **Kurzer Übergabesatz (#392):** Am Ende einer Aufgabe genügt meist ein Satz statt der vollen Übergabe, zum Beispiel „Weiter mit *Titel*, Abschnitt 2.3: offene Frage zum Schluss“. Der neue Chat lädt Buchwissen und gesicherte Gespräche selbst (Wissensstand, Abschnitt 0, Schritt 4a); ungesicherte Gesprächsarbeit vorher mit dem Abschluss-Check sichern. Die volle Übergabe bleibt für „Chat wechseln“.
 
-**Viele Kapitel lesen:** Für Buchgedächtnis und Lektorat über mehrere Kapitel einen Hilfsagenten verwenden, wo die App das kann; er gibt nur Befunde mit Fundstellen zurück ([Buchgedächtnis](docs/BUCHGEDAECHTNIS.md), [Lektorat](docs/LEKTORAT.md)).
+**Viele Kapitel lesen:** Für Buchgedächtnis und Lektorat über mehrere Kapitel einen Hilfsagenten verwenden, wo die App das kann; er gibt nur Befunde mit Fundstellen zurück ([Buchgedächtnis](docs/BUCHGEDAECHTNIS.md), [Lektorat](docs/LEKTORAT.md)). Modell je Prüfart nach `subagent_models` in `assistant.yml`, sonst nach der Tabelle „Modellwahl für Hilfsagenten“ in `docs/LEKTORAT.md` (#418): mechanische Korrektur klein, Struktur und neuer Text groß; beim Start in einem Satz nennen, welche Klasse wofür läuft.
 
 Tipp für den Benutzer: In einem claude.ai-Projekt mit Startprompt und Link als Projektanweisung genügt im neuen Chat ein „Start“.
 

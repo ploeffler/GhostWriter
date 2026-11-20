@@ -14,6 +14,7 @@ Erzeugt aus `assistant.yml` mit `python scripts/assistant.py . skill` (#136). Ni
 {{GIT_LINES}}
 {{DISPLAY_LINE}}
 {{WORK_MODE_LINE}}
+{{SUBAGENT_LINE}}
 
 ## Autor und Stimme
 
