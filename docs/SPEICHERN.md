@@ -30,7 +30,7 @@ Nach bestätigter Übertragung ist die Sitzung **gesichert, noch nicht übernomm
 
 ## Die Zustände auseinanderhalten
 
-Die folgenden Begriffe beschreiben den Speicherstand; sie sind keine zusätzlichen Abschnitts- oder Kapitelzustände.
+Die folgenden Begriffe beschreiben den Speicherstand; sie sind keine zusätzlichen Abschnitts- oder Kapitelzustände. Kurz erklärt stehen sie auch im [Bedienglossar](BEDIENGLOSSAR.md#speichern-und-übernehmen).
 
 | Zustand | Was er bedeutet |
 |---|---|

@@ -10,7 +10,7 @@ This program documentation takes you from setup to an edition. Work in conversat
 - **Understand the process:** [Book lifecycle](BOOK-LIFECYCLE.en.md), [writing and revision](CREATION-CYCLE.en.md), [reviewing text](QUALITY-ASSURANCE.en.md).
 - **Keep your work:** [Saving and merging](SAVING.en.md), [conversation backups](SESSION-BACKUP.en.md).
 - **Shape your book:** [Images and references](IMAGES-AND-REFERENCES.en.md), [settings and output](SETTINGS.en.md).
-- **Something went wrong?** [Troubleshooting](TROUBLESHOOTING.en.md) or [help and commands](HELP.en.md).
+- **Something went wrong?** [Troubleshooting](TROUBLESHOOTING.en.md) or [help and commands](HELP.en.md). Terms are explained in the [user glossary](USER-GLOSSARY.en.md).
 
 ## See how it works
 

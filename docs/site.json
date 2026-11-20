@@ -221,6 +221,17 @@
       }
     },
     {
+      "id": "glossary",
+      "title": {
+        "de": "Bedienglossar",
+        "en": "User glossary"
+      },
+      "source": {
+        "de": "BEDIENGLOSSAR.md",
+        "en": "USER-GLOSSARY.en.md"
+      }
+    },
+    {
       "id": "troubleshooting",
       "title": {
         "de": "Probleme lösen",
