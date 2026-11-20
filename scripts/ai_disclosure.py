@@ -38,6 +38,12 @@ Benutzers schreibt ihn. Ändern sich Modus oder Dienste-Nennung, gilt er als
 nicht mehr bestätigt und wird geleert. Enthält ein eigener Text den Mustersatz
 schon, steht er nur einmal im Buch.
 
+Logo (#400): Zur KI-Angabe gehört verpflichtend das Kennzeichen „KI-unterstützt“
+(assets/KI-unterstuetzt.png), bei englischen Büchern „AI assisted“
+(assets/AI_assisted.png; auch Rückfall für andere Sprachen). Es steht über dem
+Wortlaut (im Impressum darunter), an jedem Ort und in jedem Format, und lässt sich nicht abwählen;
+fehlt die Grafik, kann keine Auflage gebaut werden.
+
 Der Hinweis auf die Entwicklung von GhostWriter („Entwickelt mit Unterstützung
 von Claude …“, templates/branding.yml) ist etwas anderes und kommt nie ins Buch.
 
@@ -75,6 +81,11 @@ LEGAL_HINT = ('Kennzeichnungspflichten (z. B. Art. 50 Abs. 4 der EU-KI-Verordnun
               'bitte selbst prüfen. Das ist keine Rechtsberatung.')
 
 
+# Kennzeichen zur KI-Angabe (#400): Sprache → Grafik; andere Sprachen erhalten das englische
+BADGES = {'de': ('assets/KI-unterstuetzt.png', 'KI-unterstützt'), 'en': ('assets/AI_assisted.png', 'AI assisted')}
+BADGE_WIDTH = '25mm'
+
+
 def settings(config):
     s = dict(DEFAULT)
     s.update((config or {}).get('ai_disclosure') or {})
@@ -85,6 +96,19 @@ def settings(config):
 
 def english(config):
     return str(((config or {}).get('project') or {}).get('language') or 'de').lower().startswith('en')
+
+
+def badge(config):
+    """(Pfad, Alternativtext) des verpflichtenden Kennzeichens zur KI-Angabe (#400)."""
+    lang = str(((config or {}).get('project') or {}).get('language') or 'de').lower()
+    rel, alt = BADGES['de'] if lang.startswith('de') else BADGES['en']
+    return ROOT / rel, alt
+
+
+def badge_markdown(config):
+    """Kennzeichen als Markdown-Bild (ohne Bildunterschrift, daher keine Abbildung)."""
+    path, alt = badge(config)
+    return f'![]({path.resolve().as_posix()}){{.ki-logo alt="{alt}" width={BADGE_WIDTH}}}'
 
 
 def placement(config):
@@ -291,6 +315,10 @@ def problems(config, has_part):
     """Hinderungsgründe für eine Auflage. has_part(kind) -> bool: freigegebener Teil vorhanden."""
     s = settings(config)
     out = []
+    path, _ = badge(config)
+    if not path.is_file():
+        out.append(f'KI-Angabe: Das verpflichtende Kennzeichen fehlt ({path.relative_to(ROOT).as_posix()}); '
+                   'bitte GhostWriter aktualisieren.')
     if s['mode'] != 'functions' and not s.get('text'):
         out.append('KI-Angabe: Der Zusatz zur Mindestangabe ist noch nicht bestätigt (Befehl „KI-Angabe“; '
                    'oder „nur Mindestangabe“ wählen).')
@@ -304,8 +332,14 @@ def problems(config, has_part):
 
 
 def for_book(config):
-    """(Ort, Wortlaut) für den Satz; die Mindestangabe gibt es immer (#356)."""
-    return placement(config), book_text(config)
+    """(Ort, Wortlaut) für den Satz; die Mindestangabe gibt es immer (#356).
+    Außer im Impressum steht das Kennzeichen (#400) als Bild vor dem Wortlaut; das Impressum
+    setzt es selbst (scripts/build_edition.py, badge())."""
+    place = placement(config)
+    text = book_text(config)
+    if place != 'imprint':
+        text = badge_markdown(config) + '\n\n' + text
+    return place, text
 
 
 def main(argv):

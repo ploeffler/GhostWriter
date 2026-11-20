@@ -548,12 +548,13 @@ def make_reference_docx(path, ts):
 
 def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedication, out, tag, formats, proof=False,
            proof_note='', date='', series_line='', ser=None, extra_tex='', top_level='chapter',
-           footer_label='Probedruck', commit='', front_cover=None):
+           footer_label='Probedruck', commit='', front_cover=None, badge=None):
     """Setzt die Formate (pdf, pdf_print, booklet, cover, epub, docx) aus fertigem Markdown; gibt die Dateien zurück.
     Gemeinsam für Auflagen und den Sammelband (scripts/build_omnibus.py, #116).
     front_cover (#324): None, 'proof' oder 'always' – die Vorderseite samt Leerseite kommt vor das Bildschirm-PDF;
     bei 'always' ohne hinterlegte Vorderseite ein Hinweis. Im Probedruck verhindert ein Fehler der Vorderseite
-    den Bau nicht (Warnung), in einer Auflage bricht er ab."""
+    den Bau nicht (Warnung), in einer Auflage bricht er ab.
+    badge (#400): (Pfad, Alternativtext) des Kennzeichens zur KI-Angabe unter dem Impressum oder None."""
     fonts = FONTS.get(ts['font'], FONTS['serif'])
     w, h = PAGE.get(ts['page_size'], PAGE['a5'])
     results = []
@@ -617,6 +618,9 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
             m = dict(common_meta)
             if kind == 'pdf':
                 lines = '\\\\\n'.join(latex_escape(l) for l in imprint)
+                if badge:   # Kennzeichen zur KI-Angabe (#400) unter dem Impressum
+                    lines += ('\\\\[4pt]\n\\includegraphics[width=' + ai_disclosure.BADGE_WIDTH + ']{'
+                              + badge[0].resolve().as_posix() + '}')
                 imp, extra_header = '', []
                 if ts.get('imprint') and ts.get('title_page'):
                     # Impressum auf die Rückseite der Titelseite (KOMA-Script)
@@ -667,7 +671,8 @@ def render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedicat
             else:
                 pre = ''
                 if ts.get('imprint'):
-                    pre = '# Impressum {.unnumbered .unlisted .impressum}\n\n' + '\n\n'.join(imprint) + '\n\n'
+                    pre = '# Impressum {.unnumbered .unlisted .impressum}\n\n' + '\n\n'.join(
+                        imprint + ([ai_disclosure.badge_markdown(config)] if badge else [])) + '\n\n'
                 if proof:
                     pre = f'::: probedruck\n{proof_note}\n:::\n\n' + pre
                 src = pre + body
@@ -857,7 +862,7 @@ def main(argv):
     results = render(base, config, ts, meta, common_meta, imprint, body, body_pdf, dedication, out, tag, args.formats,
                      args.proof, proof_note, args.date, series_line, ser,
                      footer_label=label if args.proof else 'Probedruck', commit=args.commit,
-                     front_cover=front_cover)
+                     front_cover=front_cover, badge=ai_disclosure.badge(config) if disc_lines else None)
 
     (out / 'edition.yml').write_text(yaml.safe_dump({
         'edition': args.edition, **({'preview': args.preview} if args.preview else {}),
