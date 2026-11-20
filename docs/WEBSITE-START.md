@@ -10,7 +10,7 @@ Die Programmdokumentation begleitet dich vom Einrichten bis zur Auflage. Du arbe
 - **Den Weg verstehen:** [Buchablauf](BUCHABLAUF.md), [Schreiben und Überarbeiten](ERSTELLUNGSKREISLAUF.md), [Texte prüfen](QUALITAETSSICHERUNG.md).
 - **Arbeit bewahren:** [Speichern und Übernehmen](SPEICHERN.md), [Gespräch sichern](SESSION-SICHERUNG.md).
 - **Dein Buch gestalten:** [Bilder und Referenzen](BILDER-UND-REFERENZBILDER.md), [Einstellungen und Ausgabe](EINSTELLUNGEN.md).
-- **Etwas klappt nicht?** [Probleme lösen](PROBLEME.md) oder [Hilfe und Befehle](HILFE.md).
+- **Etwas klappt nicht?** [Probleme lösen](PROBLEME.md) oder [Hilfe und Befehle](HILFE.md). Begriffe erklärt das [Bedienglossar](BEDIENGLOSSAR.md).
 
 ## So einfach geht’s
 

@@ -2,7 +2,7 @@
 
 [Deutsch](HILFE.md) · English
 
-Enter **Help** in the chat for a short list of commands and shortcuts for the current view. Use **Help changes**, **Help sessions** or **Help commands** to focus on a topic. Help only reads: it does not save, merge or approve anything. The assistant must disclose when tools needed for a command are unavailable.
+Enter **Help** in the chat for a short list of commands and shortcuts for the current view. Use **Help changes**, **Help sessions** or **Help commands** to focus on a topic. Help only reads: it does not save, merge or approve anything. The assistant must disclose when tools needed for a command are unavailable. The [user glossary](USER-GLOSSARY.en.md) explains the terms.
 
 ## Quick command reference
 
@@ -42,7 +42,7 @@ A **pull request** (change package) groups related saved changes. Preparing a pa
 | Saved in the repository / package saved | Named content successfully uploaded and confirmed; the package may still be open |
 | Checked | The stated checks were performed; merging is not yet confirmed |
 | Merged | The checked package was successfully included in the intended project version |
-| Finalized | A separate explicit decision that a section, part or chapter is done; its text is then locked until you reopen it (formerly “approved”) |
+| [Finalized](USER-GLOSSARY.en.md#finalized) | A separate explicit decision that a section, part or chapter is done; its text is then locked until you reopen it (formerly “approved”) |
 | Approved | A separate explicit decision about an image, an omnibus or an edition |
 | Writing allowed | The assistant may write or change this section's text |
 

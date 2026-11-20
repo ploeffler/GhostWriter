@@ -2,7 +2,7 @@
 
 Deutsch · [English](HELP.en.md)
 
-Schicke **Hilfe** im Chat. Du erhältst eine kurze Befehlsübersicht und die Kürzel der aktuellen Ansicht. Mit **Hilfe Änderungspakete**, **Hilfe Session** oder **Hilfe Befehle** kannst du gezielt nachlesen. Hilfe liest nur; sie speichert, übernimmt und bestätigt nichts. Der Assistent nennt offen, wenn ein Befehl in der verwendeten Umgebung mangels Werkzeugen nicht ausführbar ist.
+Schicke **Hilfe** im Chat. Du erhältst eine kurze Befehlsübersicht und die Kürzel der aktuellen Ansicht. Mit **Hilfe Änderungspakete**, **Hilfe Session** oder **Hilfe Befehle** kannst du gezielt nachlesen. Hilfe liest nur; sie speichert, übernimmt und bestätigt nichts. Der Assistent nennt offen, wenn ein Befehl in der verwendeten Umgebung mangels Werkzeugen nicht ausführbar ist. Was die Begriffe bedeuten, erklärt das [Bedienglossar](BEDIENGLOSSAR.md).
 
 ## Kurze Befehlsübersicht
 
@@ -42,7 +42,7 @@ Mit **Session sichern** wird dieses Paket geschnürt bzw. ergänzt. Nach abgesch
 | Im Repository gespeichert / Änderungspaket gespeichert | Benannte Inhalte erfolgreich übertragen und im Repository bestätigt; Paket kann noch offen sein |
 | Geprüft | Die genannten Prüfungen sind erfolgt; noch keine Übernahme zugesichert |
 | Übernommen | Das geprüfte Änderungspaket wurde erfolgreich in den vorgesehenen Projektstand übernommen (technisch: Merge) |
-| Abgeschlossen | Eigene ausdrückliche Entscheidung, dass ein Abschnitt, Teil oder Kapitel fertig ist; der Text ist danach gesperrt, bis du ihn wieder öffnest (früher „freigegeben“) |
+| [Abgeschlossen](BEDIENGLOSSAR.md#abgeschlossen) | Eigene ausdrückliche Entscheidung, dass ein Abschnitt, Teil oder Kapitel fertig ist; der Text ist danach gesperrt, bis du ihn wieder öffnest (früher „freigegeben“) |
 | Freigegeben | Eigene ausdrückliche Entscheidung über ein Bild, einen Sammelband oder eine Auflage |
 | Schreiben erlaubt | Der Assistent darf den Text dieses Abschnitts schreiben oder ändern |
 
