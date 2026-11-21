@@ -28,6 +28,8 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   sagt das ausdrücklich. Pro Lauf genau ein Abschnitt.
 - Claude-Leiste in Projektübersicht, Kapitel und Abschnitt. Claude kann Knöpfe anbieten, die nur eine Ansicht
   oder ein Formular öffnen (Liste `SAFE_ACTIONS` in `index.html`). Speichern und Freigeben bleiben eigene Schritte.
+  Will der Benutzer im Chat etwas ändern, sagt Claude nicht nur „kann ich nicht“, sondern bietet den Knopf zum
+  passenden Formular an, in dem er speichert.
 
 Nicht in der App: zeitgesteuerte Läufe, Auflagen, Bilder, Figuren, Löschen, Lektorat. Ebenso Läufe der Actions,
 Probedrucke und Nutzungsgrenzen, weil der GitHub-Konnektor sie nicht liefert. Klicks auf Fehlendes zeigen
