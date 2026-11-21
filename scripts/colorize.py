@@ -59,6 +59,7 @@ from pathlib import Path
 import yaml
 
 SOURCE = 'aufbereitet.jpg'
+SOURCE_FRONT = 'aufbereitet-1.jpg'   # Bild mit Rückseite: Vorderseite (aufbereitet-2.jpg = Rückseite)
 TARGET = 'coloriert.jpg'
 META = 'bild.yml'
 ALLOWED_ART = ('foto', 'foto-vom-foto')
@@ -338,6 +339,14 @@ def cost_entry(base, model, usage, folder, when):
 
 # ---------- Ablauf ----------
 
+def source_in(folder):
+    """aufbereitet.jpg, bei Bildern mit Rückseite die Vorderseite aufbereitet-1.jpg. → Pfad oder None"""
+    for name in (SOURCE, SOURCE_FRONT):
+        if (Path(folder) / name).is_file():
+            return Path(folder) / name
+    return None
+
+
 def resolve_folder(base, folder):
     base = Path(base).resolve()
     path = (base / folder).resolve()
@@ -359,9 +368,9 @@ def colorize(base, folder, *, proposal=None, tool=None, model=None, consent=Fals
         raise SystemExit(f'Farbhinweis zu lang (höchstens {MAX_HINT} Zeichen).')
     if hint and proposal:
         raise SystemExit('Ein Farbhinweis wirkt nur beim Aufruf bei Gemini, nicht mit --proposal.')
-    src = folder / SOURCE
-    if not src.is_file():
-        raise SystemExit(f'{SOURCE} fehlt in {folder.name}: zuerst aufbereiten.')
+    src = source_in(folder)
+    if src is None:
+        raise SystemExit(f'{SOURCE} (bzw. {SOURCE_FRONT}) fehlt in {folder.name}: zuerst aufbereiten.')
     target = folder / TARGET
     if target.exists() and not replace:
         raise SystemExit(f'{TARGET} gibt es schon; zum Ersetzen „replace“ setzen (die alte Fassung bleibt in der Historie).')
@@ -399,7 +408,7 @@ def colorize(base, folder, *, proposal=None, tool=None, model=None, consent=Fals
         extra += ('; Ausnahme: Minderjährige abgebildet, im Einzelfall ausdrücklich freigegeben '
                   '(Einverständnis der Abgebildeten bzw. der Familie)')
     line = (f'{TARGET}: {origin}, {today.strftime("%d.%m.%Y")}{extra}; nur Farbkanäle a/b übernommen, L-Kanal aus '
-            f'{SOURCE}; mittlere L-Abweichung {de(dev)}/255, Bildaufbau-Korrelation {de(info["correlation"])}. '
+            f'{src.name}; mittlere L-Abweichung {de(dev)}/255, Bildaufbau-Korrelation {de(info["correlation"])}. '
             'Farben sind Annahme, kein Beleg')
     add_processing(folder / META, line)
     cost = cost_entry(base, model, usage, folder, when) if usage is not None else None
@@ -427,10 +436,11 @@ def main(argv=None):
         folder = resolve_folder(a.base, a.folder)
         meta = load_meta(folder)
         check_locks(meta, a.minors_exception)
-        if not (folder / SOURCE).is_file():
-            raise SystemExit(f'{SOURCE} fehlt in {folder.name}: zuerst aufbereiten.')
+        src = source_in(folder)
+        if src is None:
+            raise SystemExit(f'{SOURCE} (bzw. {SOURCE_FRONT}) fehlt in {folder.name}: zuerst aufbereiten.')
         note = ' – Ausnahme: Minderjährige abgebildet' if meta.get('minderjaehrige') is True else ''
-        print(f'✓ {folder.name}: darf coloriert werden ({SOURCE} vorhanden, keine Sperre){note}')
+        print(f'✓ {folder.name}: darf coloriert werden ({src.name} vorhanden, keine Sperre){note}')
         return 0
     r = colorize(a.base, a.folder, proposal=a.proposal, tool=a.tool, model=a.model, consent=a.consent, replace=a.replace,
                  hint=a.hint, minors_exception=a.minors_exception)
