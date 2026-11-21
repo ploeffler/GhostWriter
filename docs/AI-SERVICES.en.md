@@ -55,6 +55,10 @@ If a key was accidentally pasted into a chat, revoke it with the provider and cr
 
 Literature catalogs such as Semantic Scholar and OpenAlex can be named in a research assignment for a web-enabled service to search. Search APIs requiring keys need a supported integration; they can be configured for later use. Sources supplement the research service rather than writing the book themselves.
 
+## Colorizing images with your own Gemini access
+
+With Google Gemini set up and the secret `GEMINI_API_KEY`, the workflow “Bild colorieren” colorizes black-and-white photos and keeps only the color ([colorizing photos](IMAGES-AND-REFERENCES.en.md#colorizing-photos-452)). To use another image model, enter it as the service's **model** (a name containing `image`, e.g. `gemini-2.5-flash-image`). Other image services with their own secret are not yet supported by the workflow.
+
 ## Queue agents
 
 The task queue uses GitHub issues. An agent may work on an issue and propose a pull request; the default is manual processing in chat. Configure an agent in **AI services** and follow its provider's GitHub setup. An agent running in Actions may need an API-key secret. Approvals remain with you: completing an issue or an agent's work is not a book approval.

@@ -1,0 +1,124 @@
+name: Bild colorieren
+
+# Färbt ein Schwarz-Weiß-Foto über den eigenen Google-Gemini-Zugang ein und übernimmt
+# davon nur die Farbe (#452, scripts/colorize.py): Helligkeit Pixel für Pixel aus
+# aufbereitet.jpg, aus dem Farbvorschlag nur die Farbkanäle a/b. Gesperrt für Bilder
+# mit Kindern oder Jugendlichen und für Dokumente (bild.yml). Braucht das Secret
+# GEMINI_API_KEY. Start von Hand (Run workflow, auf dem Buch-Branch) oder aus dem Chat
+# (START.md, „Bilder colorieren“). Ergebnis kommt als Commit auf den Arbeits-Branch
+# ghostwriter/<buch-branch> mit Änderungspaket; übernommen wird nur nach Bestätigung.
+
+on:
+  workflow_dispatch:
+    inputs:
+      folder:
+        description: 'Bildordner im Buch, z. B. quellen/bilder/2026-11-21-ehepaar (mit aufbereitet.jpg und bild.yml)'
+        required: true
+      consent:
+        description: 'Die Abgebildeten bzw. die Familie sind einverstanden; das Bild geht an Google'
+        type: boolean
+        default: false
+      model:
+        description: 'Gemini-Bildmodell (leer = ai_providers.services.google.model, sonst gemini-2.5-flash-image)'
+        default: ''
+      replace:
+        description: 'Vorhandenes coloriert.jpg ersetzen'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: work-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  colorize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python-Abhängigkeiten
+        run: pip install pyyaml jsonschema pillow numpy
+
+      - name: Nur Buch-Branches
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if ! python scripts/library.py is "$GITHUB_REF_NAME" --dir .; then
+            echo "::error::$GITHUB_REF_NAME ist kein Buch. Den Lauf auf dem Buch-Branch starten."; exit 1
+          fi
+
+      - name: Arbeits-Branch
+        id: work
+        run: |
+          work=$(python -c "import sys; sys.path.insert(0, 'scripts'); import library; print(library.work_branch(sys.argv[1]))" "$GITHUB_REF_NAME")
+          echo "branch=$work" >> "$GITHUB_OUTPUT"
+          # Offene Änderungen liegen im Arbeits-Branch (oft auch aufbereitet.jpg): von dort weiterarbeiten.
+          if git ls-remote --exit-code --heads origin "$work" >/dev/null; then
+            git fetch -q origin "$work"
+            git switch -q -c work "origin/$work"
+          else
+            git switch -q -c work
+          fi
+
+      - name: Sperren prüfen
+        env:
+          FOLDER: ${{ inputs.folder }}
+          CONSENT: ${{ inputs.consent }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python scripts/colorize.py . "$FOLDER" --check | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$CONSENT" != "true" ]; then
+            echo "::error::Ohne Einverständnis (consent) geht kein Bild an Google."; exit 1
+          fi
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::Kein Schlüssel: Secret GEMINI_API_KEY hinterlegen (docs/DIENSTE-NUTZEN.md, „API-Schlüssel als GitHub-Secret“)."; exit 1
+          fi
+
+      - name: Colorieren
+        env:
+          FOLDER: ${{ inputs.folder }}
+          MODEL: ${{ inputs.model }}
+          REPLACE: ${{ inputs.replace }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          args=(--consent)
+          if [ -n "$MODEL" ]; then args+=(--model "$MODEL"); fi
+          if [ "$REPLACE" = "true" ]; then args+=(--replace); fi
+          python scripts/colorize.py . "$FOLDER" "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Änderungspaket
+        env:
+          FOLDER: ${{ inputs.folder }}
+          WORK: ${{ steps.work.outputs.branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name GhostWriter
+          git config user.email ghostwriter@users.noreply.github.com
+          git add -- "$FOLDER"
+          if [ -f costs/project.yml ]; then git add costs/project.yml; fi
+          if git diff --cached --quiet; then echo "Nichts zu speichern"; exit 0; fi
+          git commit -q -m "Bild coloriert: $(basename "$FOLDER")" -m "GhostWriter-Aktion: image.colorize"
+          git push -q origin "HEAD:refs/heads/$WORK"
+          owner=${GITHUB_REPOSITORY%%/*}
+          open=$(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&head=$owner:$WORK&base=$GITHUB_REF_NAME" --jq 'length')
+          if [ "$open" = "0" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/pulls" -f base="$GITHUB_REF_NAME" -f head="$WORK" \
+              -f title="GhostWriter: offene Änderungen" \
+              -f body="Offene Änderungen aus GhostWriter. Übernommen wird erst nach Bestätigung im Chat." --jq '.html_url' | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Änderungspaket aktualisiert: $WORK" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi

@@ -44,7 +44,7 @@ jobs:
 
       - name: Abhängigkeiten installieren
         run: |
-          pip install pyyaml jsonschema requests pydantic pillow python-docx
+          pip install pyyaml jsonschema requests pydantic pillow numpy python-docx
           # Website-Pakete nur im Hauptrepository (Dokumentationswebsite)
           upstream=$(python -c "import yaml;print((yaml.safe_load(open('ghostwriter-manifest.yml')).get('upstream') or {}).get('repo',''))" 2>/dev/null || true)
           if [ "$upstream" = "$GITHUB_REPOSITORY" ] || [ ! -f ghostwriter-manifest.yml ]; then

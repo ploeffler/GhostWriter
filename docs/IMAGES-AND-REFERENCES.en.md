@@ -77,6 +77,16 @@ If the service does not support image references, say so clearly. Do not claim t
 - The user must be able to select multiple references individually. GhostWriter must not silently prioritize conflicting or outdated references.
 - Reference images do not automatically enter typesetting or a published edition.
 
+## Colorizing photos (#452)
+
+Black-and-white family photos can be colorized without an image model changing faces or shapes. The model only supplies a color proposal. Only its color (channels a/b in Lab) is kept; lightness comes pixel by pixel from the prepared image. Procedure and locks: `START.md`, “Fotos colorieren (#452)”; files: [data model](DATA-MODEL.md#bildordner-und-colorieren-452).
+
+- **With your own Google Gemini access:** workflow “Bild colorieren” (`.github/workflows/colorize.yml`) with the secret `GEMINI_API_KEY`. The chat never reads the key; the workflow sends the image to Google and puts the result into the change package.
+- **With another image service in the chat:** apply its proposal with `scripts/colorize.py --proposal`.
+- **Locked:** images showing children or teenagers (`minderjaehrige` must be explicitly `false`) and documents (`art` only `foto` or `foto-vom-foto`). These are never sent to an external service.
+- **Checks:** same aspect ratio, same composition and a mean lightness deviation below 1/255; otherwise nothing is written.
+- A colorized image is labelled “colorized later” in the book. The colors are an assumption, not evidence.
+
 ## Relationship to the existing illustration feature
 
 Feature #54 manages generated or supplied illustrations by section, including draft and approval status for editions. Reference management supplements it rather than replacing it.

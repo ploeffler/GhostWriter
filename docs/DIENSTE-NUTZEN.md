@@ -98,6 +98,10 @@ Recherchequellen liefern Treffer und Belege, schreiben aber keine Texte. Sie erg
 - **Kostenlose Kataloge wissenschaftlicher Literatur** (Semantic Scholar, OpenAlex): Hakst du sie an, nennt GhostWriter sie im Rechercheauftrag, und der Recherche-Dienst durchsucht sie über seine Websuche. Kein Konto nötig.
 - **Such-APIs mit Schlüssel** (Brave Search, Tavily, Exa, Parallel, Perplexity Sonar, SerpAPI): brauchen einen API-Schlüssel und lassen sich erst mit der eigenen Schnittstelle nutzen ([Weg 4](#weg-4-dienste-nur-mit-api-schlüssel)). Du kannst sie schon eintragen und den Schlüssel als [GitHub-Secret](#api-schlüssel-als-github-secret) hinterlegen, damit sie später verwendet werden.
 
+## Bilder colorieren mit eigenem Gemini-Zugang
+
+Ist Google Gemini mit dem Secret `GEMINI_API_KEY` eingetragen, färbt die Action „Bild colorieren“ Schwarz-Weiß-Fotos ein und übernimmt davon nur die Farbe ([Fotos colorieren](BILDER-UND-REFERENZBILDER.md#fotos-colorieren-452)). Ein eigenes Bildmodell kannst du unter **Einstellungen** des Dienstes als **Modell** eintragen (ein Name mit `image`, z. B. `gemini-2.5-flash-image`); sonst gilt diese Vorgabe. Andere Bilddienste mit eigenem Secret laufen noch nicht über die Action.
+
 ## Agenten für die Aufgaben-Warteschlange
 
 Die Warteschlange sind Aufgaben als Issues in GitHub (z. B. „Quelle in Abschnitt 2.3 prüfen“). Ein Agent kann ein Issue übernehmen, die Dateien bearbeiten und einen Pull Request anlegen. Standard ist **manuell**: Du arbeitest die Aufgaben im Chat ab.
