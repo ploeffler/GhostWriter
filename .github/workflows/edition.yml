@@ -28,6 +28,11 @@ concurrency:
   group: edition-${{ github.ref }}
   cancel-in-progress: false
 
+# Pipes wie „… | tee“ melden Fehler nur mit pipefail (#445); shell: bash = bash -eo pipefail.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   edition:
     # Auflagen entstehen nur auf Buch-Branches (Standard-Branch eines Einzelbuchs oder buch/*);

@@ -198,6 +198,9 @@ instead of product names:
 | Story memory, continuity | `continuity` | `medium` | sonnet |
 | Structural review | `structure` | `large` | opus |
 | New scenes, text suggestions in the narrative voice | `writing` | `large` | opus |
+| Research: searching, collecting sources, extracting facts (#449) | `research_search` | `small` | haiku |
+| Research: weighing sources, conflicts with the book and witnesses, marking conclusions (#449) | `research_review` | `medium` | sonnet |
+| Chapter research with suggestions for goal and summary (#449) | `chapter_research` | `medium` | sonnet |
 
 To change this permanently, set it in the assistant profile (`assistant.yml`,
 command `Profile`), for example:
@@ -215,6 +218,28 @@ agent's model. In Codex each class corresponds to its own agent under
 `model = "<small model>"` and a short description; `AGENTS.md` points to this
 table for delegation. Apps without per-agent model choice use the main model;
 the assistant then says so in one sentence.
+
+### Research runs with sub-agents (#449)
+
+Section research, chapter research and free research tasks use sub-agents
+where the app supports them; the binding procedure is in `START.md`,
+“Recherche mit Hilfsagenten (#449)”. In short:
+
+- One agent per section or research topic; independent topics run in parallel.
+  Agents get the question, scope and the needed facts, never manuscript text.
+- Agents return only the skeleton of the run file (question, findings, sources
+  with URL, conflicts, open questions, relevance), no full web pages and only
+  short quotes. The main assistant writes the run files in one commit.
+- Two stages: small agents search (`research_search`), then a medium agent
+  (`research_review`) or the main assistant checks the results against the
+  book profile, character sheets and witness statements. Evidence and own
+  conclusions stay separate.
+- Limits: check people named in the statements against historical sources
+  (directories, official calendars, newspaper archives, company registers,
+  parish-record hints, gravestone databases with historical entries); never
+  collect present-day data on living private persons. No paid services without
+  confirmation.
+- Without sub-agents (e.g. ChatGPT) research runs topic by topic as before.
 
 ## Integration and limits
 

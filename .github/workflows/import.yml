@@ -53,6 +53,11 @@ concurrency:
   group: import-${{ github.ref }}
   cancel-in-progress: false
 
+# Pipes wie „… | tee“ melden Fehler nur mit pipefail (#445); shell: bash = bash -eo pipefail.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   import:
     if: github.event_name == 'workflow_dispatch'
@@ -94,7 +99,10 @@ jobs:
           case "$STEP" in
             convert) python scripts/import_book.py . convert "$FILE" | tee -a "$GITHUB_STEP_SUMMARY"; msg="Manuskript umgewandelt: Vorschlag für die Gliederung" ;;
             edit)    python scripts/import_book.py . edit "$OPS" | tee -a "$GITHUB_STEP_SUMMARY"; msg="Import: Gliederung geändert" ;;
-            outline) python scripts/import_book.py . outline --plan | tee -a "$GITHUB_STEP_SUMMARY"
+            outline) if [ -z "$ANTHROPIC_API_KEY$OPENAI_API_KEY" ]; then
+                       echo "::error::Kein KI-Schlüssel: Secret ANTHROPIC_API_KEY oder OPENAI_API_KEY hinterlegen (docs/DIENSTE-NUTZEN.md, „API-Schlüssel als GitHub-Secret“)."; exit 1
+                     fi
+                     python scripts/import_book.py . outline --plan | tee -a "$GITHUB_STEP_SUMMARY"
                      if ! python scripts/limits.py . check && [ "$CONFIRM" != "true" ]; then
                        echo "::error::Weniger als 10 % des KI-Budgets übrig. Mit confirm_low_budget trotzdem starten."; exit 1
                      fi

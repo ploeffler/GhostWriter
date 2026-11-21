@@ -105,6 +105,9 @@ mit. GhostWriter hält den Stand im Repository, darum geht beim Wechsel nichts v
 - **Kleineres Modell für mechanische Prüfungen (#418):** Korrektur und
   Nachprüfung laufen mit einem kleinen Modell, Strukturlektorat und neuer Text
   mit einem großen; siehe [Modellwahl für Hilfsagenten](LEKTORAT.md#modellwahl-für-hilfsagenten-418).
+- **Recherche mit Hilfsagenten (#449):** je Recherchethema ein Agent, parallel;
+  in den Chat kommt nur das Gerüst der Laufdatei zurück, siehe `START.md`,
+  „Recherche mit Hilfsagenten (#449)“.
 
 Nicht übertragen: Einstellungen, die nur für Claude Code im Terminal gelten
 (Modellwahl in `settings.json`, Umgebungsvariablen, `/cost`). Offen bleibt eine

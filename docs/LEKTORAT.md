@@ -210,6 +210,9 @@ Produktnamen:
 | Buchgedächtnis, Kontinuität | `continuity` | mittel (`medium`) | sonnet |
 | Strukturlektorat | `structure` | groß (`large`) | opus |
 | Neue Szenen, Textvorschläge in der Erzählstimme | `writing` | groß (`large`) | opus |
+| Recherche: suchen, Quellen sammeln, Fakten herauslesen (#449) | `research_search` | klein (`small`) | haiku |
+| Recherche: Quellen bewerten, Widersprüche zu Buch und Zeitzeugen, Schlüsse kennzeichnen (#449) | `research_review` | mittel (`medium`) | sonnet |
+| Kapitelrecherche mit Vorschlägen für Ziel und Kurzbeschreibung (#449) | `chapter_research` | mittel (`medium`) | sonnet |
 
 Abweichend dauerhaft festlegen im Assistenten-Profil (`assistant.yml`, Befehl
 `Profil`), etwa:
@@ -227,6 +230,9 @@ Agenten übergeben. In Codex entspricht jede Klasse einem eigenen Agenten unter
 `model = "<kleines Modell>"` und einer kurzen Beschreibung; `AGENTS.md`
 verweist für die Delegation auf diese Tabelle. Apps ohne Modellwahl je Agent
 verwenden das Hauptmodell; der Assistent sagt das dann in einem Satz.
+
+Für Rechercheläufe gilt dieselbe Tabelle; Ablauf, Rückgabe und Grenzen der
+Recherche-Agenten stehen in `START.md`, „Recherche mit Hilfsagenten (#449)“.
 
 ## Einbindung und Grenzen
 

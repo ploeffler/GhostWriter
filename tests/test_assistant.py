@@ -167,6 +167,14 @@ class ProfileTest(unittest.TestCase):
         _, errs, _ = assistant.set_profile(self.d, {'subagent_models': {'language': 'riesig'}})
         self.assertTrue(errs)
 
+    def test_subagent_models_research(self):   # #449
+        prof, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'subagent_models': {'research_search': 'medium'}})
+        self.assertEqual(errs, [])
+        skill = assistant.skill_path(self.d, prof).read_text(encoding='utf-8')
+        self.assertIn('Recherche: Suche mittel', skill)
+        self.assertIn('Recherche: Abgleich mittel', skill)
+        self.assertIn('Kapitelrecherche mittel', skill)
+
     def test_invalid(self):
         _, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'git': {'name': 'x', 'email': 'kein-mail'}})
         self.assertTrue(errs)

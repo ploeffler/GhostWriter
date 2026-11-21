@@ -36,6 +36,11 @@ concurrency:
   group: analyse-${{ github.ref }}
   cancel-in-progress: false
 
+# Pipes wie „… | tee“ melden Fehler nur mit pipefail (#445); shell: bash = bash -eo pipefail.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   analyse:
     runs-on: ubuntu-latest

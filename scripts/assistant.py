@@ -49,10 +49,12 @@ OWN_RE = re.compile(re.escape(OWN_START) + r'\n?(.*?)' + re.escape(OWN_END), re.
 DISPLAY = {'einfach': 'Darstellung: einfach', 'uebersichtlich': 'Darstellung: übersichtlich',
            'erweitert': 'Darstellung: erweitert', 'text': 'Nur Text'}
 SUBAGENT_DEFAULT = {'proofreading': 'small', 'extraction': 'small', 'language': 'medium', 'continuity': 'medium',
-                    'structure': 'large', 'writing': 'large'}
+                    'structure': 'large', 'writing': 'large', 'research_search': 'small', 'research_review': 'medium',
+                    'chapter_research': 'medium'}
 SUBAGENT_DE = {'proofreading': 'Schlusskorrektur/Nachprüfung', 'extraction': 'Herauslesen (Orte, Figuren, Zeitleiste)',
                'language': 'Sprachlektorat', 'continuity': 'Buchgedächtnis', 'structure': 'Strukturlektorat',
-               'writing': 'neue Szenen/Textvorschläge'}
+               'writing': 'neue Szenen/Textvorschläge', 'research_search': 'Recherche: Suche',
+               'research_review': 'Recherche: Abgleich', 'chapter_research': 'Kapitelrecherche'}
 SIZE_DE = {'small': 'klein', 'medium': 'mittel', 'large': 'groß'}
 
 
