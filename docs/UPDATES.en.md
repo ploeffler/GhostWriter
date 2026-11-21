@@ -35,6 +35,8 @@ A single-book repository can continue working after the v0.6 update. To hold mul
 
 The workflow checks for a book, pending changes and an available `buch/<short-title>` branch name. It creates the book branch at the existing commit, preserving history, then converts the default branch to the program and library starter. Tags and releases continue to point to their original commits.
 
+**0.8.0** adds the character conversation: talk to a character in the chat, and new details go into the character profile only if you select them (#432). Checks on a pull request now run only the affected tests (#439). Also a market comparison of the v1.0 scope (#429) and milestones v0.8 and v0.9 in the roadmap (#436). Manuscript import and the analyses planned for v0.8 were already part of 0.7.0; only the check of the import notices in all four chat environments is still open (#124). Arrives like every update; the data version stays 1.
+
 **0.7.0** completes v0.7 (characters and images): image position in a section with text wrapping and a width slider in PDF, DOCX and EPUB (#54), a chronology from notes with analysis, narrative time without a calendar year and file export (#364, #379), merging, removing and moving sections (#293), leaner Open WebUI instructions (#296). Acceptance of v0.5 (#18), v0.6 (#41) and v0.7 (#54) passed. It arrives like any update; the data version stays 1 and new fields are optional.
 
 **0.6.1** bundles the changes merged since 0.6.0 (including characters, series, front and back matter, cover and print, manuscript import, chat analyses, session backups, and a bookshelf with editions and backups). It arrives like any update, with no action required and no new mandatory fields; the data version stays 1. Acceptance of v0.6 continues in #41.
