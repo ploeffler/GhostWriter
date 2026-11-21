@@ -209,6 +209,7 @@ class GeminiTest(unittest.TestCase):
         self.assertEqual(parts[1]['inline_data']['mime_type'], 'image/jpeg')
         self.assertTrue(parts[0]['text'].endswith(colorize.HINT_PREFIX + 'Die Fahne ist rot-weiß-rot.'))
         self.assertEqual(seen['body']['generationConfig']['responseModalities'], ['IMAGE'])
+        self.assertEqual(seen['body']['generationConfig']['imageConfig'], {'aspectRatio': '4:3'})
         self.assertEqual(r['model'], 'gemini-x-image')
         costs = yaml.safe_load((b.base / 'costs' / 'project.yml').read_text(encoding='utf-8'))
         entry = costs['entries'][0]
@@ -218,6 +219,19 @@ class GeminiTest(unittest.TestCase):
         meta = yaml.safe_load((b.folder / 'bild.yml').read_text(encoding='utf-8'))
         self.assertIn('Google Gemini (gemini-x-image', meta['bearbeitung'][-1])
         self.assertIn('Farbhinweis an das Modell: „Die Fahne ist rot-weiß-rot.“', meta['bearbeitung'][-1])
+
+    def test_padding_for_other_aspect(self):
+        img = gray(480, 260)                               # 1,85 : 1 wie ein Abzug mit Büttenrand
+        padded, name, box = colorize.pad_to_aspect(img)
+        self.assertEqual(name, '16:9')
+        self.assertEqual(padded.size, (480, 270))
+        self.assertEqual(box, (0, 5, 480, 260))
+        tinted_pad = tinted(padded, (1376, 774), red_box=False)   # Gemini liefert andere Größe, gleiches Format
+        back = colorize.crop_back(tinted_pad, padded.size, box)
+        self.assertEqual(back.size, img.size)
+        self.assertGreater(colorize.correlation(img.convert('RGB'), back), 0.9)
+        with self.assertRaisesRegex(SystemExit, 'Seitenverhältnis'):
+            colorize.crop_back(tinted(padded, (1408, 736)), padded.size, box)
 
     def test_no_image_and_model_default(self):
         b = Book()

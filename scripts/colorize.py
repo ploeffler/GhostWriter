@@ -72,6 +72,11 @@ PROMPT = ('Colorize this black-and-white photograph with natural, historically p
           'Only add color. Return only the image.')
 HINT_PREFIX = 'Known facts about the colors in this photo (use them): '
 MAX_HINT = 300
+# Seitenverhältnisse, die Gemini für Bilder einhält (imageConfig.aspectRatio). Das Foto wird
+# vor dem Senden mit neutralem Grau auf das nächstliegende ergänzt und danach wieder beschnitten.
+ASPECTS = {'1:1': 1.0, '2:3': 2 / 3, '3:2': 3 / 2, '3:4': 3 / 4, '4:3': 4 / 3, '4:5': 4 / 5, '5:4': 5 / 4,
+           '9:16': 9 / 16, '16:9': 16 / 9, '21:9': 21 / 9}
+PAD_GRAY = 128
 MAX_UPLOAD_PX = 1536
 MAX_ASPECT_DIFF = 0.02
 MIN_CORRELATION = 0.7
@@ -284,15 +289,44 @@ def prompt_for(hint=None):
     return f'{PROMPT} {HINT_PREFIX}{hint}' if hint else PROMPT
 
 
+def pad_to_aspect(img):
+    """Mit Grau auf das nächstliegende Gemini-Seitenverhältnis ergänzen (mittig).
+    → (ergänztes Bild, Name des Verhältnisses, Ausschnitt (x, y, Breite, Höhe) des Originals)"""
+    from PIL import Image
+    w, h = img.size
+
+    def padded(r):
+        return max(w, round(h * r)), max(h, round(w / r))
+
+    name = min(ASPECTS, key=lambda k: (padded(ASPECTS[k])[0] * padded(ASPECTS[k])[1], abs(ASPECTS[k] - w / h)))
+    pw, ph = padded(ASPECTS[name])
+    canvas = Image.new('RGB', (pw, ph), (PAD_GRAY,) * 3)
+    x, y = (pw - w) // 2, (ph - h) // 2
+    canvas.paste(img.convert('RGB'), (x, y))
+    return canvas, name, (x, y, w, h)
+
+
+def crop_back(result, padded_size, box):
+    """Antwort auf die ergänzte Größe bringen und den Ausschnitt des Originals herausschneiden."""
+    from PIL import Image
+    pw, ph = padded_size
+    if abs(result.width / result.height - pw / ph) / (pw / ph) > MAX_ASPECT_DIFF:
+        raise SystemExit(f'Farbvorschlag hat ein anderes Seitenverhältnis ({result.width}×{result.height} statt '
+                         f'{pw}×{ph} mit Rand); verworfen.')
+    x, y, w, h = box
+    return result.resize((pw, ph), Image.LANCZOS).crop((x, y, x + w, y + h))
+
+
 def gemini_proposal(img, model, key, timeout=180, hint=None):
     """Farbvorschlag von Gemini. → (Bild, usageMetadata)"""
     from PIL import Image
     small = img.copy()
     small.thumbnail((MAX_UPLOAD_PX, MAX_UPLOAD_PX))
+    padded, aspect, box = pad_to_aspect(small)
     body = {'contents': [{'parts': [{'text': prompt_for(hint)},
                                     {'inline_data': {'mime_type': 'image/jpeg',
-                                                     'data': base64.b64encode(jpeg_bytes(small, 92)).decode()}}]}],
-            'generationConfig': {'responseModalities': ['IMAGE']}}
+                                                     'data': base64.b64encode(jpeg_bytes(padded, 92)).decode()}}]}],
+            'generationConfig': {'responseModalities': ['IMAGE'], 'imageConfig': {'aspectRatio': aspect}}}
     req = urllib.request.Request(API.format(model=model), data=json.dumps(body).encode(), method='POST',
                                  headers={'Content-Type': 'application/json', 'x-goog-api-key': key})
     try:
@@ -307,7 +341,7 @@ def gemini_proposal(img, model, key, timeout=180, hint=None):
             if blob and blob.get('data'):
                 out = Image.open(io.BytesIO(base64.b64decode(blob['data'])))
                 out.load()
-                return out.convert('RGB'), data.get('usageMetadata') or {}
+                return crop_back(out.convert('RGB'), padded.size, box), data.get('usageMetadata') or {}
     reason = ', '.join(filter(None, [c.get('finishReason') for c in data.get('candidates') or []]
                               + [str((data.get('promptFeedback') or {}).get('blockReason') or '')]))
     raise SystemExit(f'Gemini hat kein Bild geliefert ({reason or "ohne Grund"}).')
