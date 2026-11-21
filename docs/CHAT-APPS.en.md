@@ -98,6 +98,9 @@ keeps its state in the repository, so nothing is lost when you switch.
 - **Smaller model for mechanical checks (#418):** proofreading and re-checks run
   on a small model, structural review and new text on a large one; see
   [Model choice for sub-agents](EDITORIAL-REVIEW.en.md#model-choice-for-sub-agents-418).
+- **Research with sub-agents (#449):** one agent per research topic, in
+  parallel; only the run-file skeleton comes back into the chat, see
+  [Research runs with sub-agents](EDITORIAL-REVIEW.en.md#research-runs-with-sub-agents-449).
 
 Not adopted: settings that only apply to Claude Code in the terminal (model
 choice in `settings.json`, environment variables, `/cost`). Still open: measuring

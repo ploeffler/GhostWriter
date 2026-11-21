@@ -24,6 +24,11 @@ permissions:
   contents: write
   pull-requests: read
 
+# Pipes wie „… | tee“ melden Fehler nur mit pipefail (#445); shell: bash = bash -eo pipefail.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   cleanup:
     runs-on: ubuntu-latest

@@ -39,14 +39,17 @@
     },
     "subagent_models": {
       "type": "object",
-      "description": "Modellklasse der Hilfsagenten je Prüfart (#418): small, medium, large; die App ordnet zu (Claude: haiku, sonnet, opus; Codex: eigene Agenten unter .codex/agents/). Fehlt eine Prüfart, gilt die Empfehlung aus docs/LEKTORAT.md.",
+      "description": "Modellklasse der Hilfsagenten je Prüfart bzw. Rechercheaufgabe (#418, #449): small, medium, large; die App ordnet zu (Claude: haiku, sonnet, opus; Codex: eigene Agenten unter .codex/agents/). Fehlt eine Prüfart, gilt die Empfehlung aus docs/LEKTORAT.md.",
       "properties": {
         "proofreading": {"enum": ["small", "medium", "large"], "description": "Schlusskorrektur, mechanische Sprachkorrektur, Nachprüfung"},
         "extraction": {"enum": ["small", "medium", "large"], "description": "Orte, Figuren, Zeitleiste aus dem Text herauslesen"},
         "language": {"enum": ["small", "medium", "large"], "description": "Sprachlektorat (Stimme, Rhythmus)"},
         "continuity": {"enum": ["small", "medium", "large"], "description": "Buchgedächtnis, Fakten- und Kontinuitätsabgleich"},
         "structure": {"enum": ["small", "medium", "large"], "description": "Strukturlektorat"},
-        "writing": {"enum": ["small", "medium", "large"], "description": "neue Szenen und Textvorschläge in der Erzählstimme"}
+        "writing": {"enum": ["small", "medium", "large"], "description": "neue Szenen und Textvorschläge in der Erzählstimme"},
+        "research_search": {"enum": ["small", "medium", "large"], "description": "Recherche: suchen, Quellen sammeln, Fakten herauslesen (#449)"},
+        "research_review": {"enum": ["small", "medium", "large"], "description": "Recherche: Quellen bewerten, Widersprüche zu Buch und Zeitzeugen (#449)"},
+        "chapter_research": {"enum": ["small", "medium", "large"], "description": "Kapitelrecherche mit Vorschlägen für Ziel und Kurzbeschreibung (#449)"}
       },
       "additionalProperties": false
     },
