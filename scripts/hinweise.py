@@ -185,9 +185,13 @@ def collect(base, config, chapters=None, date=None, commit=None, mode=None):
             else:
                 entry.update({'kontext': '', 'alt': alt})
             entry['neu'] = f.get('neu') or ''
+            if f.get('schweregrad'):
+                entry['schweregrad'] = f['schweregrad']
+            if f.get('varianten'):
+                entry['varianten'] = list(f['varianten'])
             entry['entscheidung'] = 'offen'
             solvable = (f.get('art') in LANGUAGE_KINDS and alt and entry['neu'] and entry['neu'] != alt
-                        and sid != BOOK)
+                        and sid != BOOK and f.get('schweregrad') != 'blockierend')   # Blockierendes entscheidet der Autor (#447)
             if solvable:
                 auto.append(entry)
             else:
@@ -196,6 +200,7 @@ def collect(base, config, chapters=None, date=None, commit=None, mode=None):
                 entry['art'] = kind
                 entry['frage'] = f.get('frage') or f.get('richtung') or QUESTION[kind]
                 author.append(entry)
+    author.sort(key=lambda e: e.get('schweregrad') != 'blockierend')   # Blockierendes zuerst (#447), sonst Reihenfolge wie gefunden
     for n, e in enumerate(auto + author, start=1):
         e['id'] = f'e-{n:03d}'
     date = str(date or datetime.date.today().isoformat())
@@ -274,12 +279,15 @@ def show(data, only_open=False):
     if author:
         lines += ['#### Autorenentscheidung', '']
         for e in author:
-            lines += [f'`{e["id"]}` · {e["abschnitt"]} · {e["art"]} · **{e.get("entscheidung", "offen")}** – {e.get("grund", "")}',
+            mark = '⛔ blockierend · ' if e.get('schweregrad') == 'blockierend' else ''
+            lines += [f'`{e["id"]}` · {mark}{e["abschnitt"]} · {e["art"]} · **{e.get("entscheidung", "offen")}** – {e.get("grund", "")}',
                       f'> Frage: {e.get("frage", "")}']
             if e.get('alt'):
                 lines += [f'> alt: {e["alt"]}']
             if e.get('neu'):
                 lines += [f'> Vorschlag: {e["neu"]}']
+            for k, v in enumerate(e.get('varianten') or [], start=1):
+                lines += [f'> Variante {k}: {v}']
             lines += ['']
     if data.get('ausgelassen'):
         lines += ['#### Nicht aufgenommen', ''] + [f'- {s["befund"]}: {s["grund"]}' for s in data['ausgelassen']] + ['']
@@ -435,11 +443,14 @@ def widget_values(base, path):
         r = {'E_ID': e['id'], 'E_WHERE': e['abschnitt'],
              'E_CHAPTER_TEXT': where(e) + (' · ' + STATUS_TEXT.get(e['chapter_status'], e['chapter_status'])
                                            if e.get('chapter_status') else ''),
-             'E_KIND': e.get('art', ''), 'E_REASON': e.get('grund', ''), 'E_CONTEXT': e.get('kontext', ''),
+             'E_KIND': e.get('art', ''),
+             'E_REASON': ('⛔ blockierend: ' if e.get('schweregrad') == 'blockierend' else '') + e.get('grund', ''),
+             'E_CONTEXT': e.get('kontext', ''),
              'E_OLD': e.get('alt', ''), 'E_NEW': e.get('neu', ''),
              'E_DECISION': 'umgesetzt' if e.get('umgesetzt') else e.get('entscheidung', 'offen')}
         if author:
-            r['E_QUESTION'] = e.get('frage', '')
+            r['E_QUESTION'] = e.get('frage', '') + ''.join(f' · Variante {k}: {v}' for k, v in
+                                                          enumerate(e.get('varianten') or [], start=1))   # #447
         return r
     rel = Path(path).resolve().relative_to(Path(base).resolve()).as_posix()
     values = {'REVIEW_FILE': rel, 'REVIEW_BOOK': data.get('buch', ''),

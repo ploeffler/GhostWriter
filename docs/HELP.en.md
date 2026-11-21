@@ -61,9 +61,11 @@ Book references and manuscript remain unchanged.
 - “Structural review of chapter 3.”
 - “Language review of section 2.3.”
 - “Proofread chapter 4.”
+- “Full check of chapter 3.”
 
 The [three review types](EDITORIAL-REVIEW.en.md) initially provide findings in
-chat; they do not change the manuscript or grant approval.
+chat; they do not change the manuscript or grant approval. The full chapter
+check (“Full check of chapter 3”) combines them and fixes only what needs no author.
 
 ## Example prompts
 

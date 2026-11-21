@@ -204,6 +204,48 @@ class HinweiseTest(unittest.TestCase):
         self.assertEqual(hinweise.apply(self.base, self.config, path)['applied'], [])
         self.assertNotIn(self.unique + 'x', checks.manuscript(self.base, self.config, self.s11['id']))
 
+    def test_blocking_first_with_variants(self):   # #447
+        f = self.base / 'editorial/sprache-kap-01.yml'
+        data = yaml.safe_load(f.read_text(encoding='utf-8'))
+        data['befunde'].append({'id': 'b-006', 'abschnitt': self.s11['id'], 'art': 'rechtschreibung',
+                                'schweregrad': 'blockierend', 'befund': 'Alter der Figur unklar',
+                                'alt': self.unique, 'neu': self.unique + 'y', 'frage': 'Wie alt ist sie?',
+                                'varianten': ['Alter nennen', 'Szene streichen'], 'status': 'offen'})
+        f.write_text(yaml.safe_dump(data, allow_unicode=True), encoding='utf-8')
+        path, out = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        self.assertNotIn('b-006', [e['befund'].split('#')[1] for e in out['ohne_autor']])
+        first = out['autorenentscheidung'][0]
+        self.assertEqual((first['befund'].split('#')[1], first['schweregrad']), ('b-006', 'blockierend'))
+        self.assertEqual(first['varianten'], ['Alter nennen', 'Szene streichen'])
+        text = hinweise.show(out)
+        self.assertIn('⛔ blockierend', text)
+        self.assertIn('> Variante 2: Szene streichen', text)
+        _, blocks = hinweise.widget_values(self.base, path)
+        self.assertTrue(blocks['AUTHOR'][0]['E_REASON'].startswith('⛔ blockierend: '))
+        self.assertIn('Variante 1: Alter nennen', blocks['AUTHOR'][0]['E_QUESTION'])
+        self.assertFalse(validate_project.check_project(self.base))
+
+    def test_full_chapter_check_chain(self):   # #447: Speichern, Nachprüfung, nur „ohne Autor“ umsetzen
+        (self.base / 'editorial/sprache-kap-01.md').write_text('# Rundumprüfung Kapitel 1\n', encoding='utf-8')
+        for kind in ('structure', 'language', 'proofreading', 'story_memory'):
+            checks.record(self.base, self.config, kind, [self.ch1['id']], 'passed_with_notes',
+                          report='editorial/sprache-kap-01.md', notes=3)
+        path, data = hinweise.collect(self.base, self.config, chapters=[self.ch1['id']], date='2026-11-20',
+                                      commit='abcdef1')
+        for e in data['ohne_autor']:
+            hinweise.decide(path, e['id'], 'ja')
+        res = hinweise.apply(self.base, self.config, path, [self.ch1['id']])
+        self.assertEqual([e['id'] for e in res['applied']], [e['id'] for e in data['ohne_autor']])
+        undecided = hinweise.read_yaml(path)['autorenentscheidung']
+        self.assertTrue(undecided and all(e['entscheidung'] == 'offen' for e in undecided))
+        for kind in ('proofreading', 'quality_correction'):
+            checks.record(self.base, self.config, kind, [self.ch1['id']], 'passed_with_notes', notes=len(undecided))
+        log = yaml.safe_load((self.base / 'editorial/checks.yml').read_text(encoding='utf-8'))
+        kinds = [e['kind'] for e in log['checks']]
+        self.assertEqual(kinds[-6:], ['structure', 'language', 'proofreading', 'story_memory', 'proofreading',
+                                      'quality_correction'])
+        self.assertFalse(validate_project.check_project(self.base))
+
     def test_widget_and_view(self):
         path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
         hinweise.decide(path, 'e-002', 'nein')
