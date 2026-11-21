@@ -86,7 +86,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'scripts'))
-from render_view import (character_file, character_items, load, matter_items, section_file)  # noqa: E402
+from render_view import (chapter_number, character_file, character_items, load, matter_items, section_file)  # noqa: E402
 
 PROVIDERS = {
     'anthropic': {'secret': 'ANTHROPIC_API_KEY', 'model': 'claude-haiku-5-5', 'merge_model': 'claude-sonnet-5-5'},
@@ -297,7 +297,7 @@ def text_parts(text, limit=MAX_BLOCK_CHARS):
 
 def blocks(base, config, scope=None, matter=True, split=True):
     """Ein Abschnitt je Block; überlange Abschnitte in begrenzte Teile zerlegen."""
-    want = None if scope in (None, '', 'book', 'buch') else int(scope)
+    want = None if scope in (None, '', 'book', 'buch') else chapter_number(config, scope)[0]   # Nummer oder ID (#434)
     units = []
     if want is None and matter:
         units.extend((i['id'], i['title'], i) for _, i in matter_items(config))
@@ -2094,7 +2094,7 @@ def apply_language(base, config, data, choices):
     if scope in ('book', 'buch', ''):
         covered = set(ids.values())
     else:
-        ch = config['structure']['chapters'][int(scope) - 1]
+        ch = chapter_number(config, scope)[1]
         covered = {x['id'] for x in ch['sections']}
     path = story_file(base, 'hints')
     have = (yaml.safe_load(path.read_text(encoding='utf-8')) or {}) if path.is_file() else {}

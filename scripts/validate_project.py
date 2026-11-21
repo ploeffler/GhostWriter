@@ -42,7 +42,11 @@ Geprüft werden:
   Art passt zur ID (writing: Abschnitt oder Vor-/Nachspann, section: Abschnitt,
   chapter: Kapitel, matter: Vor-/Nachspann)
 
-Endet mit Code 1, sobald ein Fehler gefunden wurde.
+
+Hinweise (⚠, kein Fehler): eine weitere `## `-Überschrift nach `## Manuskript` in einer Abschnitts-
+oder Vor-/Nachspanndatei, mit Datei und Zeile – meist eine Arbeitsnotiz, die sonst mit ins Buch käme (#435).
+
+Endet mit Code 1, sobald ein Fehler gefunden wurde; Hinweise ändern den Code nicht.
 """
 import hashlib
 import json
@@ -565,6 +569,39 @@ def check_project(project_dir):
     return errors
 
 
+MANUSCRIPT_MARK = '\n## Manuskript\n'
+
+
+def manuscript_warnings(project_dir):
+    """Hinweise ohne Fehler (#435): weitere `## `-Überschrift nach `## Manuskript` ist meist eine Arbeitsnotiz,
+    die sonst mit ins Buch käme (Grundregel „Ohne Vorrede und Nachwort“). Datei und Zeile."""
+    base = Path(project_dir)
+    try:
+        config = yaml.safe_load((base / 'ghostwriter.yml').read_text(encoding='utf-8')) or {}
+    except (OSError, yaml.YAMLError):
+        return []   # Lesefehler meldet check_project
+    paths = [s['path'] for ch in (config.get('structure') or {}).get('chapters') or [] for s in ch.get('sections') or []]
+    paths += [item['path'] for _, item in matter_items(config) if item.get('path')]
+    out = []
+    for rel in paths:
+        path = base / rel
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding='utf-8')
+        at = text.find(MANUSCRIPT_MARK)
+        if at < 0:
+            continue
+        line = text[:at + 1].count('\n') + 1   # Zeile von „## Manuskript“
+        fence = False
+        for offset, row in enumerate(text[at + 1:].split('\n')[1:], start=1):
+            if row.lstrip().startswith(('```', '~~~')):
+                fence = not fence
+            elif not fence and row.startswith('## ') and row[3:].strip():
+                out.append(f'{rel}:{line + offset}: Überschrift „{row.strip()}“ nach „## Manuskript“ – '
+                           'Arbeitsnotiz? Sie käme so mit ins Buch.')
+    return out
+
+
 def main(argv):
     if len(argv) < 2:
         print(__doc__)
@@ -579,6 +616,8 @@ def main(argv):
                 print(f'  - {e}')
         else:
             print(f'✓ {project_dir}')
+        for w in manuscript_warnings(project_dir):
+            print(f'  ⚠ {w}')
     return 1 if failed else 0
 
 

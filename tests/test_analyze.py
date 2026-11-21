@@ -491,6 +491,21 @@ class AnalyzeTest(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 analyze.run(self.base, 'language')
 
+    def test_scope_accepts_chapter_id(self):
+        """#434: Kapitelnummer und Kapitel-ID gleichwertig, unbekannte Angabe ohne Traceback."""
+        _, config = load(self.base)
+        ch = config['structure']['chapters'][0]
+        by_number = [key for key, _, _ in analyze.blocks(self.base, config, scope='1')]
+        self.assertEqual([key for key, _, _ in analyze.blocks(self.base, config, scope=ch['id'])], by_number)
+        with self.assertRaisesRegex(SystemExit, 'nicht gefunden'):
+            list(analyze.blocks(self.base, config, scope='ch-gibt-es-nicht'))
+        with self.assertRaisesRegex(SystemExit, 'nicht gefunden'):
+            list(analyze.blocks(self.base, config, scope='99'))
+        view = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'chapter', ch['id'],
+                               '--text'], capture_output=True, text=True)
+        self.assertEqual(view.returncode, 0, view.stderr)
+        self.assertNotIn('Traceback', view.stderr)
+
     def test_section_isolation_and_bounded_requests(self):
         _, config = load(self.base)
         chapter = config['structure']['chapters'][0]

@@ -795,7 +795,8 @@ class Index:
         return history(self.base, self.config, [sid], self.entries, self.language, self.now) if self.entries else []
 
     def open_notes(self, ch):
-        """Offene Hinweise (#362): Summe von `notes` aus dem neuesten Eintrag je Prüfart, der das Kapitel berührt.
+        """Offene Hinweise (#362): Summe von `notes` aus dem neuesten Eintrag je Prüfart, der das Kapitel berührt;
+        nennen mehrere dieser Einträge denselben Bericht, zählt er nur einmal (#437).
         None, wenn keiner dieser Einträge `notes` führt (dann nichts anzeigen statt raten)."""
         unit = {s['id'] for s in ch['sections']}
         latest = {}
@@ -803,7 +804,12 @@ class Index:
             rank = (when(e), i)
             if e['kind'] not in latest or rank >= latest[e['kind']][0]:
                 latest[e['kind']] = (rank, e)
-        found = [e['notes'] for _, e in latest.values() if isinstance(e.get('notes'), int)]
+        per_report = {}   # #437: ein Bericht mit mehreren Prüfarten zählt nur einmal (neuester Eintrag)
+        for rank, e in latest.values():
+            key = ('report', e['report']) if e.get('report') else ('kind', e['kind'])
+            if key not in per_report or rank >= per_report[key][0]:
+                per_report[key] = (rank, e)
+        found = [e['notes'] for _, e in per_report.values() if isinstance(e.get('notes'), int)]
         return sum(found) if found else None
 
     def recent(self, limit=3):

@@ -215,13 +215,13 @@ Stand der Werte: November 2026 (KDP-Hilfe „Cover“, BoD-Hinweise zur Umschlag
 
 Optionale `cover`-Felder: `image_mode` (`motif`/`finished`), `panel_backgrounds` (Hex-Farbwert je `front`/`spine`/`back`), `background_targets` (Verwendung der gemeinsamen Farbe) `back_blurb_position` (Lage des Klappentexts auf der Rückseite: `top` als Vorgabe, `middle` oder `bottom`, #416) und `text_boxes` (je `title`/`subtitle`/`author`). Textbereiche benötigen `x`, `y`, `width`, `height` in mm ab linker oberer Schnittkante; optional `font_size` (6–120 pt), `font` (`serif`/`sans`), `bold`, `color`, `align` (`left`/`center`/`right`), `visible`, `break_after` (Wortpositionen). 10 mm Sicherheitsabstand, keine stillen Überläufe. Texte bleiben dynamisch aus `project.*`; Buchgestaltung wird nicht in Programmdateien gespeichert. Bedienung, Beispiele und Ausgabegrenzen: [Grafische Cover gestalten](ANLEITUNG.md#grafische-cover-gestalten), [English](USER-GUIDE.en.md#design-graphic-covers).
 
-## Abschnittsdatei – Frontmatter-Beispiel
-
-```yaml
 ## Bediensprache (#74)
 
 `interface.language` ist eine optionale Buch-Einstellung (`de`, `en`, mit Sprachvariante). Vorrang: ausdrückliche Auswahl → `interface.language` → `assistant.yml: interface_language` auf dem Standard-Branch → Deutsch. Die Bediensprache ist unabhängig von `project.language`. Zunächst wird sie von den Tagesberichten verwendet; grafische Vorlagen und erzeugte Textansichten werden in weiteren Schritten migriert.
 
+## Abschnittsdatei – Frontmatter-Beispiel
+
+```yaml
 ---
 id: sec-01-purpose
 number: "1.1"
@@ -235,6 +235,8 @@ approvals:
 ```
 
 Der Kopf jeder Abschnittsdatei folgt [`schemas/section.schema.json`](../schemas/section.schema.json). `fact_check` übernimmt die Werte aus `workflow.yml` (`entities.section.fact_check`).
+
+Alles nach `## Manuskript` bis zum Dateiende ist Buchtext. Eine weitere Überschrift der Ebene 2 danach ist meist eine Arbeitsnotiz; `scripts/validate_project.py` meldet sie mit Datei und Zeile als Hinweis ⚠, ohne die Prüfung scheitern zu lassen (#435). Notizen gehören vor `## Manuskript` (etwa unter `## Notizen`) oder in eigene Dateien.
 
 ## Vor- und Nachspann
 
@@ -539,7 +541,7 @@ Die Analyse „Widersprüche“ (`continuity`) schreibt keine eigene Datei, sond
 ### Befunde und Hinweisdurchsicht (#367)
 
 - `editorial/<bericht>.yml` (Schema `schemas/findings.schema.json`): Befunde eines Prüfberichts mit `id` (`b-NNN`), `abschnitt` (Abschnitts-ID), `absatz`, `schweregrad` (`gering` … `blockierend`), `art`, `befund`, `richtung`, `alt`, `neu`, `frage`, `status` (`offen`, `erledigt`, `entschieden`). Andere YAML-Dateien unter `editorial/` ohne `befunde` sind keine Befunddateien.
-- `editorial/durchsicht-<datum>.yml` (Schema `schemas/notes-review.schema.json`, erzeugt mit `scripts/hinweise.py collect`): Kopf `buch`, `fassung`, `erstellt`, `quelle`, `anleitung`; Listen `ohne_autor` und `autorenentscheidung` mit `id` (`e-NNN`), `befund` (Quelle `<datei>#<id>`), `abschnitt` („1.2“), `section_id`, `chapter_id`, `chapter_status`, `datei`, `absatz`, `art`, `grund`, `kontext`, `alt`, `neu`, `entscheidung` (`offen`, `ja`, `nein`, `geändert`), `umgesetzt` (nach `hinweise.py apply`), bei Autorenentscheidungen zusätzlich `frage`; `ausgelassen` nennt nicht aufgenommene Befunde mit Grund.
+- `editorial/durchsicht-<datum>.yml` bzw. `durchsicht-<datum>-<n>.yml` für eine weitere Durchsicht am selben Tag (#438) (Schema `schemas/notes-review.schema.json`, erzeugt mit `scripts/hinweise.py collect`): Kopf `buch`, `fassung`, `erstellt`, `quelle`, `anleitung`; Listen `ohne_autor` und `autorenentscheidung` mit `id` (`e-NNN`), `befund` (Quelle `<datei>#<id>`), `abschnitt` („1.2“), `section_id`, `chapter_id`, `chapter_status`, `datei`, `absatz`, `art`, `grund`, `kontext`, `alt`, `neu`, `entscheidung` (`offen`, `ja`, `nein`, `geändert`), `umgesetzt` (nach `hinweise.py apply`), bei Autorenentscheidungen zusätzlich `frage`; `ausgelassen` nennt nicht aufgenommene Befunde mit Grund.
 - `scripts/validate_project.py` prüft beide gegen ihr Schema, eindeutige IDs und bekannte Abschnitte.
 
 ### Analyse im Hintergrund (#123)

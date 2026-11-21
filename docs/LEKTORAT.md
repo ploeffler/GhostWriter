@@ -122,8 +122,10 @@ Abschnittsformular zeigen den Lauf dann als Tag; ändert sich der Text danach,
 erscheint der Tag als „seit Prüfung geändert“. Der Eintrag ist keine Freigabe. Wurden Korrekturen schon übernommen, bevor der Bericht eingetragen wird, mit `--commit <geprüfter Commit>` eintragen: Die Fingerabdrücke kommen dann aus der geprüften Fassung, und der Tag zeigt richtig „seit Prüfung geändert“ (#406).
 `--notes` gehört immer dazu: die Zahl der offenen Hinweise im Bericht, also der
 Befunde, die noch nicht umgesetzt oder entschieden sind (0, wenn keine offen sind).
-Die Projektübersicht zeigt sie je Kapitel (#362). Wird ein Hinweis später
-umgesetzt, kommt die neue Zahl erst mit dem nächsten Eintrag.
+Die Projektübersicht zeigt sie je Kapitel (#362). Deckt ein Bericht mehrere
+Prüfarten ab, steht in jedem dieser Einträge dieselbe Gesamtzahl des Berichts;
+die Übersicht zählt den Bericht nur einmal, mit seinem neuesten Eintrag (#437).
+Wird ein Hinweis später umgesetzt, kommt die neue Zahl erst mit dem nächsten Eintrag.
 
 ## Hinweise durchsehen (Hinweisdurchsicht, #367)
 
@@ -138,7 +140,10 @@ z. B. `mat-nachwort`; für buchweite Befunde `book`, #423), optional `absatz`, `
 
 Auf Auftrag („Hinweise durchsehen“, „Hinweisdurchsicht“) sammelt
 `python3 scripts/hinweise.py collect <buch> [--chapter <kapitel-id> …]` alle
-offenen Befunde in `editorial/durchsicht-<datum>.yml` (Schema
+offenen Befunde in `editorial/durchsicht-<datum>.yml`. Gibt es die Durchsicht des
+Tages schon, bricht es ab, statt sie zu überschreiben (#438): `--merge` hängt neue
+Befunde an und lässt vorhandene Einträge samt Entscheidungen unverändert, `--new`
+legt `durchsicht-<datum>-2.yml` an (Schema
 `schemas/notes-review.schema.json`), getrennt in **Ohne Autor lösbar** und
 **Autorenentscheidung**:
 
