@@ -153,6 +153,20 @@ class ImportTest(unittest.TestCase):
         self.assertEqual({(e['kind'], e['action'], e['by']) for e in entries}, {('writing', 'granted', 'ploeffler')})
         self.assertEqual(import_book.status(self.book)['keep'], 'until_deleted')
 
+    def test_empty_headings_and_title_line(self):
+        """#441: leere Überschriften verbrauchen keine Nummer, kurze erste Zeile wird Titelvorschlag."""
+        body = ' '.join(['Wort'] * 50)
+        p = import_book.detect(f'Der Regenwald\n\n# \n\n# \n\n# \n\n{body}\n\n***\n\n{body}\n')
+        self.assertEqual(p['title'], 'Der Regenwald')
+        names = [s['title'] for s in p['chapters'][0]['sections']]
+        self.assertEqual(names, ['Abschnitt 1', 'Abschnitt 2'])
+        self.assertTrue(any('als Titel vorgeschlagen' in w for w in p['warnings']))
+        # vorhandener Titel bleibt, die Zeile bleibt dann Abschnitt; ein einzelner Teil wird nie zum Titel
+        p = import_book.detect(f'Der Regenwald\n\n# \n\n{body}\n', title='Aus den Eigenschaften')
+        self.assertEqual(p['title'], 'Aus den Eigenschaften')
+        self.assertEqual(len(p['chapters'][0]['sections']), 2)
+        self.assertEqual(import_book.detect('Nur eine Zeile\n')['chapters'][0]['sections'][0]['title'], 'Abschnitt 1')
+
     def test_plain_text_and_pdf(self):
         txt = self.tmp / 'roh.txt'
         txt.write_text('Kapitel 1\n\nEs begann.\n\nKapitel 2\n\nEs endete.\n', encoding='utf-8')

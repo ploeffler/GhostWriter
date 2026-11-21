@@ -81,6 +81,7 @@ SCENE = re.compile(r'(?m)^(?:[ \t]*(?:\*[ \t]*\*[ \t]*\*|\\\*[ \t]*\\\*[ \t]*\\\
 HEADING = re.compile(r'(?m)^(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*(?:\{[^}]*\})?[ \t]*$')
 CHAPTER_LINE = re.compile(r'(?im)^[ \t]*((?:kapitel|chapter)[ \t]+[\w.]+.*)$')
 LONG_WORDS = 4000
+TITLE_WORDS = 10   # #441: höchstens so viele Wörter in einer Titelzeile ohne Überschrift
 NO_STRUCTURE = ('Keine Gliederung erkannt: das Manuskript ist ein Kapitel. Kapitel lassen sich in der Vorschau teilen '
                 'oder mit KI vorschlagen.')
 # Aufbewahrung des Originals. Seit D21 gilt für neue Importe nur until_deleted; die übrigen
@@ -192,7 +193,7 @@ def section_from(title, text):
 
 
 def detect(md, title='', author='', fmt=''):
-    warnings = []
+    warnings, title_words = [], 0
     heads = [(len(m.group(1)), m.group(2).strip(), m.start(), m.end()) for m in HEADING.finditer(md)]
     if not heads:   # Klartext: Zeilen „Kapitel N …“ als Überschriften
         lines = [(1, m.group(1).strip(), m.start(), m.end()) for m in CHAPTER_LINE.finditer(md)]
@@ -209,8 +210,15 @@ def detect(md, title='', author='', fmt=''):
     chap_heads = [h for h in heads if h[0] == chap_level] if chap_level else []
     if not chap_heads:
         warnings.append(NO_STRUCTURE)
+        pieces = [t for t in scenes(md) if t.strip()]   # #441: leere Teile verbrauchen keine Nummer
+        first = pieces[0].strip() if pieces else ''
+        if len(pieces) > 1 and not title and '\n' not in first and words(first) <= TITLE_WORDS:
+            title = first.strip('*_ \t')   # #441: kurze Titelzeile vor der ersten Trennung
+            title_words = words(first)
+            pieces = pieces[1:]
+            warnings.append(f'Die erste Zeile „{title}“ ist als Titel vorgeschlagen, nicht als eigener Abschnitt.')
         chapters.append({'title': title or 'Kapitel 1', 'sections': [section_from(f'Abschnitt {i}', t) for i, t in
-                                                                      enumerate(scenes(md), start=1) if t.strip()] or
+                                                                      enumerate(pieces, start=1)] or
                          [section_from('Abschnitt 1', md)]})
     else:
         pre = md[:chap_heads[0][2]]
@@ -264,12 +272,15 @@ def detect(md, title='', author='', fmt=''):
                                 + (f' ({s["scenes"]} Szenen)' if s['scenes'] > 1 else ''))
     p = {'title': title, 'author': author, 'format': fmt, 'parts': parts, 'chapters': chapters, 'warnings': warnings,
          'images': images, 'structure': 'headings' if chap_heads else 'none'}
+    if title_words:
+        p['title_words'] = title_words   # zählt für „alle Wörter übernommen“ mit (#441)
     p['stats'] = stats(p, md)
     return p
 
 
 def stats(p, md=None):
-    total = sum(x['words'] for x in p['parts']) + sum(s['words'] for c in p['chapters'] for s in c['sections'])
+    total = (sum(x['words'] for x in p['parts']) + sum(s['words'] for c in p['chapters'] for s in c['sections'])
+             + p.get('title_words', 0))
     st = dict(p.get('stats') or {})
     if md is not None:
         st['words_original'] = words(md)
@@ -556,6 +567,7 @@ def edit(base, ops):
             ch.insert(0 if part.get('area') == 'front' else len(ch), {'title': part['title'], 'sections': [sec]})
         elif kind == 'outline':
             apply_outline(p, base, op.get('chapters'))
+            p.pop('title_words', None)   # neue Gliederung zählt alle Absätze, auch eine Titelzeile (#441)
             ch = p['chapters']
         elif kind == 'discard_outline':
             discard_outline(base)
