@@ -84,6 +84,8 @@ Black-and-white family photos can be colorized without an image model changing f
 - **With your own Google Gemini access:** workflow “Bild colorieren” (`.github/workflows/colorize.yml`) with the secret `GEMINI_API_KEY`. The chat never reads the key; the workflow sends the image to Google and puts the result into the change package.
 - **With another image service in the chat:** apply its proposal with `scripts/colorize.py --proposal`.
 - **Locked:** images showing children or teenagers (`minderjaehrige` must be explicitly `false`) and documents (`art` only `foto` or `foto-vom-foto`). These are never sent to an external service.
+- **Case-by-case exception:** an image showing children (`minderjaehrige: true`) can only be colorized with an explicit exception (`--minors-exception`, workflow input `minors_exception`) when the people shown or their family agree. `bild.yml` stays unchanged; the entry under `bearbeitung` records the exception. There is no exception for documents.
+- **Known colors:** what is known for certain (e.g. “The flag is red-white-red.”) goes to Gemini as a hint (`--hint`, workflow input `hint`, at most 300 characters) and is recorded under `bearbeitung`. Without a hint the model guesses.
 - **Checks:** same aspect ratio, same composition and a mean lightness deviation below 1/255; otherwise nothing is written.
 - A colorized image is labelled “colorized later” in the book. The colors are an assumption, not evidence.
 
