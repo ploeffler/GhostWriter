@@ -25,6 +25,12 @@ The original assessment refers to [Anthropic's GitHub integration help](https://
 
 The historical plan delegates creation of edition tags and releases and attachment of PDF, DOCX and EPUB files to a GitHub Action after the corresponding changes are merged.
 
+## Web app “GhostWriter für Claude” (experiment)
+
+Besides the chat there is an experimental web app that runs as an artifact in Claude: [GhostWriter für Claude](https://claude.ai/artifact/PQ3zcq4ofwwRcP7dMHMG9B). It shows the same widgets as the chat and carries out clicks directly. That covers saving a section, approvals, creating chapters and sections, reordering, project details, research and ghostwriting “now”, applying changes, the “Data” page and a Claude panel with suggestions. It reads and writes through each user's own GitHub connection, and Claude runs on that user's own account. There is no separate API, server or key.
+
+The same rules apply as in the chat. Everything goes to the working branch as one commit per action. Changes reach the book only through “apply changes” with confirmation, and every approval needs its own confirmation. Private repositories need the GitHub App “Claude Github MCP Connector” installed on the owner account. The app is not part of the v1.0 scope ([D06](ENTSCHEIDUNGEN-v1.0.md#d06--eigene-web-app-ohne-integrierten-modellaufruf)). Its files are not copied into libraries by the update. The app is currently German only. Setup, limits and maintenance: [apps/claude/README.md](../apps/claude/README.md) (German).
+
 ## Reading copy next to the view (#289)
 
 For the chapter and section views the assistant creates the text as a Markdown file with `scripts/assemble.py … reading N` or `N.M` and hands it over next to the view, again after every change (`START.md`, "Lesefassung"). As of 15 November 2026:
