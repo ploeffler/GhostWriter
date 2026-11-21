@@ -31,7 +31,7 @@ The linked guides remain authoritative. Technical identifiers in `code font` are
 ## Creation
 
 - <a id="creation-cycle"></a>**Creation cycle** (Erstellungskreislauf): The repeatable path along which a section develops: research, brainstorming, draft and revision, until you finalize it. New ideas lead back to the right step. See [creation cycle](CREATION-CYCLE.en.md).
-- <a id="research"></a>**Research** (Recherche): Collect sources, evidence, contradictions and open questions for a section (`research`). Earlier research runs are kept.
+- <a id="research"></a>**Research** (Recherche): Collect sources, evidence, contradictions and open questions for a section (`research`). Earlier research runs are kept. **With internet**, the chat's web search or the workflow “Recherche” with the assigned API service searches the web; **without internet**, only the model's own knowledge is used and the run says so. See [web research through the API](AI-SERVICES.en.md#web-research-through-the-api-462).
 - <a id="brainstorming"></a>**Brainstorming**: Discuss ideas, variants and requirements with the assistant (`brainstorming`).
 - <a id="character-conversation"></a>**Character conversation** (Figurengespräch): A chat conversation in which the assistant answers in the role of a character (`Talk to <Name>`). It saves nothing; new details go into the character profile only if you select them, never into the manuscript. See [user guide](USER-GUIDE.en.md#6-work-on-the-book).
 - <a id="draft"></a>**Draft** (Entwurf): The first text of a section. It is written only after you [allow writing](#allow-writing) (`writing`).

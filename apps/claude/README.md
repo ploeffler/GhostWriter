@@ -26,6 +26,12 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
 - Recherche und Ghostwriting „Sofort“ über Claude. Das Ergebnis wird zuerst gezeigt und erst auf Knopfdruck
   gespeichert, als Laufdatei und gegebenenfalls als Manuskript. Die Recherche läuft ohne Internet; die Laufdatei
   sagt das ausdrücklich. Pro Lauf genau ein Abschnitt.
+- Recherche mit Internet (#462): Ist für die Recherche ein Dienst mit API-Schlüssel eingestellt (Anthropic, OpenAI,
+  Google; sonst die Einstellungen des Standard-Branchs), fragt die App bei „Recherche“, ob mit Internet über diesen
+  Dienst oder ohne Internet über Claude recherchiert wird. „Mit Internet“ legt nur einen Auftrag
+  `<kapitel>/research/<abschnitt>/request-NNN.yml` auf den Arbeits-Branch. Der Commit startet die Action
+  „Recherche“, die mit dem Secret des Dienstes sucht und Laufdatei und Kosteneintrag ins Änderungspaket legt.
+  „Nachsehen“ zeigt Stand, Fehler oder Ergebnis (Quellen, Suchanfragen, Kosten).
 - Claude-Leiste in Projektübersicht, Kapitel und Abschnitt. Claude kann Knöpfe anbieten, die nur eine Ansicht
   oder ein Formular öffnen (Liste `SAFE_ACTIONS` in `index.html`). Speichern und Freigeben bleiben eigene Schritte.
   Will der Benutzer im Chat etwas ändern, sagt Claude nicht nur „kann ich nicht“, sondern bietet den Knopf zum

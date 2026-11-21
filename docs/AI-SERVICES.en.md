@@ -55,6 +55,16 @@ If a key was accidentally pasted into a chat, revoke it with the provider and cr
 
 Literature catalogs such as Semantic Scholar and OpenAlex can be named in a research assignment for a web-enabled service to search. Search APIs requiring keys need a supported integration; they can be configured for later use. Sources supplement the research service rather than writing the book themselves.
 
+## Web research through the API (#462)
+
+If a service with an API key is assigned to **research**, the workflow “Recherche” (`.github/workflows/research.yml`) researches on the web with that service's built-in search. Currently supported: **Anthropic**, **OpenAI** and **Google Gemini**. Further providers, and search APIs for services without their own web search, follow in part 2 of #462.
+
+- **Which service:** the one assigned to research; otherwise the first selected service with API-key access that can research; if the book has no settings, a library's default-branch settings apply.
+- **Key:** the secret named in the service settings (e.g. `GEMINI_API_KEY`). The workflow reads only that secret; only names ending in `_API_KEY` are accepted.
+- **Start:** in the [Claude web app](../apps/claude/README.md) via research → **With internet via …**, from the chat, or under *Actions → Recherche → Run workflow* on the book branch with the section ID.
+- **Result:** a research run with sources and a cost entry in the change set. The source list comes only from the web-search evidence (title, link, retrieval date), never from the model's text. Nothing is applied without your confirmation.
+- **Costs:** tokens and search requests are recorded for every run and count towards the AI budget. For an estimated amount, enter prices in the service settings: per million input and output tokens and per 1000 searches, in the project currency. Without prices the amount is “unavailable”. With less than 10 % of the budget left, a run starts only with explicit confirmation.
+
 ## Colorizing images with your own Gemini access
 
 With Google Gemini set up and the secret `GEMINI_API_KEY`, the workflow “Bild colorieren” colorizes black-and-white photos and keeps only the color ([colorizing photos](IMAGES-AND-REFERENCES.en.md#colorizing-photos-452)). To use another image model, enter it as the service's **model** (a name containing `image`, e.g. `gemini-2.5-flash-image`). Other image services with their own secret are not yet supported by the workflow.
