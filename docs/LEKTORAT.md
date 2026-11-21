@@ -140,7 +140,10 @@ z. B. `mat-nachwort`; für buchweite Befunde `book`, #423), optional `absatz`, `
 
 Auf Auftrag („Hinweise durchsehen“, „Hinweisdurchsicht“) sammelt
 `python3 scripts/hinweise.py collect <buch> [--chapter <kapitel-id> …]` alle
-offenen Befunde in `editorial/durchsicht-<datum>.yml` (Schema
+offenen Befunde in `editorial/durchsicht-<datum>.yml`. Gibt es die Durchsicht des
+Tages schon, bricht es ab, statt sie zu überschreiben (#438): `--merge` hängt neue
+Befunde an und lässt vorhandene Einträge samt Entscheidungen unverändert, `--new`
+legt `durchsicht-<datum>-2.yml` an (Schema
 `schemas/notes-review.schema.json`), getrennt in **Ohne Autor lösbar** und
 **Autorenentscheidung**:
 

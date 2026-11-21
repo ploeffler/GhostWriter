@@ -132,7 +132,10 @@ log is the number of findings with `status: offen`.
 
 On request (“review notes”, “notes review”),
 `python3 scripts/hinweise.py collect <book> [--chapter <chapter-id> …]` gathers
-all open findings in `editorial/durchsicht-<date>.yml` (schema
+all open findings in `editorial/durchsicht-<date>.yml`. If the review for that day
+already exists, it stops instead of overwriting it (#438): `--merge` appends new
+findings and leaves existing entries and their decisions unchanged, `--new` creates
+`durchsicht-<date>-2.yml` (schema
 `schemas/notes-review.schema.json`), split into **without the author** (`ohne_autor`)
 and **author decision** (`autorenentscheidung`):
 

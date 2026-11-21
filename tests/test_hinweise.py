@@ -64,6 +64,34 @@ class HinweiseTest(unittest.TestCase):
         self.assertEqual([s['befund'].split('#')[1] for s in data['ausgelassen']], ['b-003'])
         self.assertFalse(validate_project.check_project(self.base))
 
+    def test_collect_twice_same_day_keeps_decisions(self):
+        """#438: zweite Durchsicht am selben Tag überschreibt nichts."""
+        path, _ = hinweise.collect(self.base, self.config, date='2026-11-21', commit='abcdef1')
+        hinweise.decide(path, 'e-001', 'geändert', 'Eigene Fassung')
+        before = path.read_text(encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, '--merge'):
+            hinweise.collect(self.base, self.config, date='2026-11-21')
+        self.assertEqual(path.read_text(encoding='utf-8'), before)
+        # neuer Befund kommt dazu, die Entscheidung bleibt
+        f = self.base / 'editorial/sprache-kap-01.yml'
+        data = yaml.safe_load(f.read_text(encoding='utf-8'))
+        data['befunde'].append({'id': 'b-006', 'abschnitt': self.s11['id'], 'art': 'ton', 'befund': 'neu',
+                                'status': 'offen'})
+        f.write_text(yaml.safe_dump(data, allow_unicode=True), encoding='utf-8')
+        same, merged = hinweise.collect(self.base, self.config, date='2026-11-21', mode='merge')
+        self.assertEqual(same, path)
+        e1 = next(e for e in merged['ohne_autor'] if e['id'] == 'e-001')
+        self.assertEqual((e1['entscheidung'], e1['neu']), ('geändert', 'Eigene Fassung'))
+        ids = [e['id'] for _, e in hinweise.entries(merged)]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual([e['befund'].split('#')[1] for _, e in hinweise.entries(merged)].count('b-006'), 1)
+        # weitere Datei für denselben Tag; sie ist dann die neueste
+        second, _ = hinweise.collect(self.base, self.config, date='2026-11-21', mode='new')
+        self.assertEqual(second.name, 'durchsicht-2026-11-21-2.yml')
+        self.assertEqual(hinweise.latest(self.base), second)
+        third, _ = hinweise.collect(self.base, self.config, date='2026-11-21', mode='new')
+        self.assertEqual(third.name, 'durchsicht-2026-11-21-3.yml')
+
     def test_decide_and_show(self):
         path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
         hinweise.decide(path, 'e-001', 'geändert', 'Eigene Fassung')

@@ -4,8 +4,10 @@
 Befunde stehen maschinenlesbar neben dem Bericht in `editorial/<bericht>.yml` (Schema
 `schemas/findings.schema.json`). Die Hinweisdurchsicht liest nur diese Dateien, keinen Freitext.
 
-  python3 scripts/hinweise.py collect <buch> [--chapter kap-01 …] [--date JJJJ-MM-TT]
-      sammelt alle offenen Befunde und schreibt editorial/durchsicht-<datum>.yml
+  python3 scripts/hinweise.py collect <buch> [--chapter kap-01 …] [--date JJJJ-MM-TT] [--merge | --new]
+      sammelt alle offenen Befunde und schreibt editorial/durchsicht-<datum>.yml; gibt es die Datei schon,
+      bricht es ab (#438): --merge hängt neue Befunde an und lässt vorhandene Einträge samt Entscheidungen
+      unverändert, --new legt durchsicht-<datum>-2.yml (nächste freie Nummer) an
   python3 scripts/hinweise.py show <buch> [--file editorial/durchsicht-….yml] [--open]
       Textfassung des Dialogs: kapitelweise alt und neu, darunter die Autorenentscheidungen
   python3 scripts/hinweise.py decide <buch> <eintrag> --decision ja|nein|geändert [--new TEXT] [--file …]
@@ -58,9 +60,42 @@ def findings_files(base):
     return sorted(p for p in d.glob('*.yml') if is_findings_file(p)) if d.is_dir() else []
 
 
+def dialog_order(path):
+    """durchsicht-<datum>.yml vor durchsicht-<datum>-2.yml, -3 … (#438)."""
+    m = re.fullmatch(r'durchsicht-(.+?)(?:-(\d+))?\.yml', path.name)
+    return (m.group(1), int(m.group(2) or 1)) if m else (path.stem, 0)
+
+
 def dialog_files(base):
     d = editorial(base)
-    return sorted(d.glob('durchsicht-*.yml')) if d.is_dir() else []
+    return sorted(d.glob('durchsicht-*.yml'), key=dialog_order) if d.is_dir() else []
+
+
+def merge_dialog(old, new):
+    """Vorhandene Einträge bleiben samt `entscheidung`, `neu` und `umgesetzt` unverändert; neue Befunde
+    (nach `befund`) kommen mit fortlaufenden IDs dazu (#438)."""
+    seen = {e.get('befund') for _, e in entries(old)}
+    used = [int(e['id'][2:]) for _, e in entries(old) if re.fullmatch(r'e-\d+', str(e.get('id', '')))]
+    n = max(used, default=0)
+    added = 0
+    for group in ('ohne_autor', 'autorenentscheidung'):
+        old.setdefault(group, [])
+        for e in new.get(group) or []:
+            if e['befund'] in seen:
+                continue
+            n += 1
+            added += 1
+            e['id'] = f'e-{n:03d}'
+            old[group].append(e)
+    old['quelle'] = list(dict.fromkeys((old.get('quelle') or []) + (new.get('quelle') or [])))
+    if new.get('fassung'):
+        old['fassung'] = new['fassung']
+    skipped = [x for x in new.get('ausgelassen') or [] if x.get('befund') not in seen]
+    if skipped:
+        old['ausgelassen'] = skipped
+    else:
+        old.pop('ausgelassen', None)
+    return old, added
 
 
 def read_yaml(path):
@@ -104,8 +139,11 @@ def context(text, alt):
     return re.sub(r'\s+', ' ', text[a:b]).strip()
 
 
-def collect(base, config, chapters=None, date=None, commit=None):
-    """Offene Befunde sammeln; Rückgabe (Pfad, Daten). Schreibt die Dialogdatei."""
+def collect(base, config, chapters=None, date=None, commit=None, mode=None):
+    """Offene Befunde sammeln; Rückgabe (Pfad, Daten). Schreibt die Dialogdatei.
+
+    Gibt es die Dialogdatei des Tages schon, ohne `mode` Abbruch (#438); `mode='merge'` hängt an,
+    `mode='new'` schreibt durchsicht-<datum>-<n>.yml."""
     import checks
     base = Path(base)
     index = section_index(config)
@@ -170,6 +208,18 @@ def collect(base, config, chapters=None, date=None, commit=None):
     if skipped:
         data['ausgelassen'] = skipped
     out = editorial(base) / f'durchsicht-{date}.yml'
+    if out.exists():
+        if mode == 'merge':
+            data, _ = merge_dialog(read_yaml(out), data)
+        elif mode == 'new':
+            n = 2
+            while (editorial(base) / f'durchsicht-{date}-{n}.yml').exists():
+                n += 1
+            out = editorial(base) / f'durchsicht-{date}-{n}.yml'
+        else:
+            raise ValueError(f'{out.relative_to(base).as_posix()} gibt es schon, mit möglichen Entscheidungen. '
+                             'Mit --merge neue Befunde anhängen (Entscheidungen bleiben) oder mit --new eine '
+                             'weitere Durchsicht für heute anlegen.')
     out.parent.mkdir(parents=True, exist_ok=True)
     write_yaml(out, data)
     return out, data
@@ -446,6 +496,9 @@ def main(argv=None):
     c.add_argument('project')
     c.add_argument('--chapter', action='append', help='nur dieses Kapitel (mehrfach möglich)')
     c.add_argument('--date')
+    how = c.add_mutually_exclusive_group()
+    how.add_argument('--merge', action='store_true', help='an die Durchsicht des Tages anhängen (#438)')
+    how.add_argument('--new', action='store_true', help='weitere Durchsicht für denselben Tag anlegen (#438)')
     s = sub.add_parser('show', help='Dialog als Text zeigen')
     s.add_argument('project')
     s.add_argument('--file')
@@ -471,7 +524,8 @@ def main(argv=None):
     base = Path(base)
     try:
         if args.cmd == 'collect':
-            path, data = collect(base, config, args.chapter, args.date)
+            path, data = collect(base, config, args.chapter, args.date,
+                                 mode='merge' if args.merge else 'new' if args.new else None)
             print(f'{path.relative_to(base).as_posix()}: {len(data["ohne_autor"])} ohne Autor lösbar, '
                   f'{len(data["autorenentscheidung"])} Autorenentscheidungen, {len(data.get("ausgelassen") or [])} nicht aufgenommen')
             return 0
