@@ -28,6 +28,7 @@ Kurzfassung von `START.md`, Abschnitt 0. Bei Abweichungen gilt `START.md`. Diese
 Commits sollen dem Benutzer zugeordnet sein, nicht dem Assistenten:
 
 - Mit Profil (`assistant.yml` → `git.name`, `git.email`): `git config user.name "<name>"` und `git config user.email "<email>"` im Klon.
+- Mit Team im Buch (`ghostwriter.yml` → `team`, #455): `python scripts/team.py . role <login> --push true|false`; Git-Benutzer aus dessen Ausgabe (`git`), Rolle in einem Satz nennen und nur erlaubte Aktionen anbieten (`START.md`, „Team und Rollen“). Für Bearbeiter nie den Git-Benutzer des Eigentümers.
 - Ohne Profil: den GitHub-Login des Benutzers und die Adresse `<id>+<login>@users.noreply.github.com` (aus `gh api user --jq '.id, .login'`) vorschlagen und erst nach einem Ja verwenden.
 
 ## 4. Persönlichen Skill und Profil laden
