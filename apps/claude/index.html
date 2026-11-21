@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GhostWriter für Claude</title>
+<link rel="stylesheet" href="vendor/icons.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+<style>
+/* VOICE: GhostWriter selbst – dieselben Widgets wie im Chat, nur ohne Chat dazwischen.
+   IDEA: der Chat-Verlauf wird zur App: oben die Ansicht, daneben Claude.
+   PICTURE: das jeweilige GhostWriter-Widget (Bücherregal, Projektübersicht, Kapitel, Abschnitt).
+   COLOUR and TYPE: Host-Variablen wie im Claude-Chat, Akzent GhostWriter-Orange; Systemschrift wie die Widgets.
+   LAYOUT: Kopfzeile, Widget mittig bis 900px; im Abschnitt Widget links, Claude rechts, unter 1100px gestapelt. */
+:root{color-scheme:light dark;
+  --surface-1:light-dark(#ffffff,#262624);--surface-2:light-dark(#f7f6f3,#30302e);--bg-page:light-dark(#faf9f5,#1f1e1d);
+  --text-primary:light-dark(#141413,#f5f4ef);--text-secondary:light-dark(#3d3d3a,#c2c0b6);--text-muted:light-dark(#73726c,#9a988e);
+  --text-accent:light-dark(#b4560f,#f0a060);--bg-accent:light-dark(#fdf0e4,#3a2a1d);--border-accent:light-dark(#e8a36a,#a8602a);
+  --border:light-dark(rgb(31 30 29/.15),rgb(222 220 209/.15));--border-strong:light-dark(rgb(31 30 29/.3),rgb(222 220 209/.3));--border-stronger:light-dark(rgb(31 30 29/.45),rgb(222 220 209/.45));
+  --text-warning:light-dark(#8a5a00,#f0c56b);--bg-warning:light-dark(#fff7e0,#33290f);--border-warning:light-dark(#e6c36a,#7a6220);
+  --text-danger:light-dark(#b3261e,#ff8a80);--bg-danger:light-dark(#fdecea,#3a1b19);--border-danger:light-dark(#f0a39d,#8a3a33);
+  --text-success:light-dark(#1f7a4a,#6fd39d);--bg-success:light-dark(#e8f6ee,#17301f);--border-success:light-dark(#8fd0ab,#2f6b46);
+  --radius:0;--gap-xs:4px;--gap-sm:8px;--gap-md:12px;--gap-lg:20px;--pad-sm:8px;--pad-md:12px;--pad-lg:16px;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg-page);color:var(--text-primary);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:clip}
+a{color:var(--text-accent)}
+button,input,textarea{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:10px max(3vw,14px);background:var(--surface-1);border-bottom:.5px solid var(--border)}
+.brand{display:flex;gap:8px;align-items:center;font-weight:600;font-size:17px;border:0;background:none;padding:0;cursor:pointer}
+.brand i{color:#e8731c;font-size:20px}
+.crumbs{display:flex;flex-wrap:wrap;gap:2px;align-items:center;color:var(--text-muted);font-size:14px;flex:1}
+.crumbs button{min-height:34px;border:0;padding:0 6px;background:none;color:var(--text-muted);cursor:pointer}
+.crumbs button:hover{color:var(--text-primary)}
+main{max-width:1320px;margin:0 auto;padding:clamp(16px,3vw,32px) max(3vw,14px) 60px}
+.one{max-width:900px;margin:0 auto}
+.desk{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,380px);gap:20px;align-items:start}
+@media(max-width:1100px){.desk{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface-1);border:.5px solid var(--border);padding:var(--pad-lg)}
+.btn{min-height:40px;border:.5px solid var(--border-strong);background:var(--surface-1);padding:0 14px;cursor:pointer}
+.btn.pri{background:#e8731c;border-color:#e8731c;color:#fff;font-weight:600}
+.btn:disabled{opacity:.45;cursor:default}
+.link{border:0;background:none;padding:0;color:var(--text-accent);text-decoration:underline;cursor:pointer;font-size:14px}
+:focus-visible{outline:2px solid #e8731c;outline-offset:2px}
+input.in,textarea.in{width:100%;border:.5px solid var(--border-strong);background:var(--surface-1);padding:10px 12px;font-size:16px}
+.note{padding:10px 14px;margin:0 0 14px;font-size:14px;border:.5px solid}
+.note.ok{background:var(--bg-success);color:var(--text-success);border-color:var(--border-success)}
+.note.warn{background:var(--bg-warning);color:var(--text-warning);border-color:var(--border-warning)}
+.note.err{background:var(--bg-danger);color:var(--text-danger);border-color:var(--border-danger)}
+.note.info{background:var(--surface-2);color:var(--text-secondary);border-color:var(--border)}
+.note pre{white-space:pre-wrap;font:12px/1.45 var(--font-mono);background:var(--surface-1);border:.5px solid var(--border);padding:8px;margin:8px 0 0;color:var(--text-secondary)}
+.dim{color:var(--text-muted);font-size:14px}
+.chk{list-style:none;margin:0;padding:0}
+.chk li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:10px 0;border-top:.5px solid var(--border)}
+.chk li:first-child{border-top:0}
+.chk .w{font-size:13px;color:var(--text-muted)}.chk .nt{grid-column:1/-1;font-size:13px;color:var(--text-muted)}
+.res{font-size:12px;font-weight:600;white-space:nowrap;padding:1px 7px;border:.5px solid currentColor;align-self:start}
+.res.passed{color:var(--text-success)}.res.passed_with_notes{color:var(--text-accent)}.res.failed{color:var(--text-danger)}.res.incomplete,.res.unknown{color:var(--text-muted)}
+.report h1{font-size:26px;line-height:1.15;margin:0 0 12px}.report h2{font-size:19px;margin:20px 0 6px}.report h3{font-size:16px;margin:14px 0 4px}
+.report p,.report li{max-width:76ch}.report blockquote{margin:0 0 10px;padding:6px 12px;border-left:3px solid #e8731c}
+aside.claude{position:sticky;top:70px;display:flex;flex-direction:column;max-height:calc(100vh - 90px);background:var(--surface-1);border:.5px solid var(--border)}
+@media(max-width:1100px){aside.claude{position:static;max-height:none}}
+.ch-head{padding:12px 14px;border-bottom:.5px solid var(--border)}.ch-head b{font-size:15px}.ch-head p{margin:2px 0 0;font-size:12px;color:var(--text-muted)}
+.msgs{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-height:140px}
+.msg{font-size:14px;line-height:1.55}.msg.u{align-self:flex-end;background:var(--bg-accent);padding:7px 11px;max-width:90%}
+.msg.a p{margin:0 0 7px}.msg.a ul,.msg.a ol{margin:0 0 7px;padding-left:20px}.msg.a h4{margin:8px 0 3px;font-size:14px}
+.msg.a code{background:var(--surface-2);padding:0 4px}.msg.a blockquote{margin:0 0 7px;padding:6px 10px;border-left:3px solid #e8731c;background:var(--surface-2);white-space:pre-wrap}
+.quick{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px}
+.quick button{min-height:32px;font-size:12px;border:.5px solid var(--border-strong);background:var(--surface-1);padding:0 10px;cursor:pointer}
+.ask{display:flex;gap:8px;padding:10px 14px;border-top:.5px solid var(--border)}
+.ask textarea{min-height:40px;max-height:150px;resize:vertical}
+#gw *:not(.spin){border-radius:0 !important}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:#e8731c;border-radius:50%;animation:r .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes r{to{transform:rotate(1turn)}}@media(prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</head>
+<body>
+<header>
+  <button class="brand" id="home"><i class="ti ti-feather" aria-hidden="true"></i>GhostWriter</button>
+  <nav class="crumbs" id="crumbs" aria-label="Pfad"></nav>
+</header>
+<main id="app"><p class="dim"><span class="spin"></span>Wird geladen …</p></main>
+<script>
+{
+const GH = "github";
+const EDITORIAL = ["structure","language","proofreading","story_memory","quality_correction"];
+const LABEL = {structure:["Struktur","S"],language:["Sprache","L"],proofreading:["Korrektur","K"],story_memory:["Gedächtnis","G"],quality_correction:["Qualität","Q"]};
+const KIND_LONG = {structure:"Strukturlektorat",language:"Sprachlektorat",proofreading:"Schlusskorrektur",story_memory:"Buchgedächtnis",quality_correction:"Qualitätsprüfung"};
+const ANA = {characters:"Figuren",summaries:"Kurzbeschreibungen",style:"Stil",places:"Schauplätze",timeline:"Zeitleiste",continuity:"Widersprüche",language:"Sprache",chronology:"Chronologie"};
+const ANA_SHORT = {characters:"AF",summaries:"AK",style:"ASt",places:"AO",timeline:"AZ",continuity:"AW",language:"ASp",chronology:"AC"};
+const MARK = {passed:"✓",passed_with_notes:"✓·",failed:"✗",incomplete:"…",unknown:"?"};
+const RES = {passed:"bestanden",passed_with_notes:"bestanden mit Hinweisen",failed:"nicht bestanden",incomplete:"unvollständig",unknown:"Ergebnis unbekannt"};
+const STATE = {current:"aktuell",changed:"seit Prüfung geändert",unknown:"Stand unbekannt"};
+const LEGEND = "Prüfungen: S Struktur · L Sprache · K Korrektur · G Gedächtnis · Q Qualität · A… Analyse · ✓ bestanden · ✓· mit Hinweisen · ✗ nicht bestanden · … unvollständig · * seit Prüfung geändert · ? Stand bzw. Ergebnis unbekannt.";
+const LEGEND_LATEST = LEGEND + " Ein Tag zeigt nur die neueste Prüfung je Art. Ein Tag ist keine Freigabe.";
+const LEGEND_FULL = LEGEND + " Ein Tag zeigt nur die neueste Prüfung je Art; frühere stehen unter „Frühere Prüfungen“. Ein Tag ist keine Freigabe.";
+const MK = {"PLATZHALTER-ANEKDOTE":"anekdote","QUELLE PRÜFEN":"quelle","MEDIZIN PRÜFEN":"medizin","RECHT PRÜFEN":"recht","KONTINUITÄT PRÜFEN":"kontinuitaet"};
+const MK_LABEL = {anekdote:"Platzhalter-Anekdote",quelle:"Quelle prüfen",medizin:"Medizin prüfen",recht:"Recht prüfen",kontinuitaet:"Kontinuität prüfen"};
+const MARKER_RE = /\[(PLATZHALTER-ANEKDOTE|QUELLE PRÜFEN|MEDIZIN PRÜFEN|RECHT PRÜFEN|KONTINUITÄT PRÜFEN)(?::\s*([^\]]*))?\]/g;
+
+const S = {mcp:null, sample:null, ready:false, owner:"", repo:"", lib:null, book:null, idx:null, cfg:{}, readRef:"", head:"", pr:null, checks:[], files:new Map(), view:"", sec:null, secNo:"", secFile:null, chap:null, msg:null, chat:[], busy:false, report:null, showAll:false, rules:""};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const store = {get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const deDate = iso => { const m = /(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? `${m[3]}.${m[2]}.${m[1]}` : ""; };
+const rankOf = (e, i) => whenOf(e) + "|" + String(i).padStart(6, "0");
+
+/* ---------- GitHub über den Konnektor ---------- */
+function errText(e){
+  const c = e && e.code, m = (e && e.message) || String(e);
+  if (c === "server_not_connected") return "GitHub ist in deinem Claude-Konto nicht verbunden: claude.ai → Einstellungen → Konnektoren → github verbinden, dann die Seite neu laden.";
+  if (c === "needs_reauth") return "Die GitHub-Verbindung ist abgelaufen. Verbinde github unter claude.ai → Einstellungen → Konnektoren neu.";
+  if (c === "selection_required") return "Du hast mehrere GitHub-Konnektoren. Wähle in der Abfrage von Claude einen aus und versuche es erneut.";
+  if (c === "not_in_manifest" || c === "approval_required" || c === "consent_required") return "Diese App darf GitHub noch nicht benutzen. Erlaube den Zugriff in der Abfrage von Claude („Weiter“) und versuche es erneut.";
+  if (c === "blocked_by_policy") return "Deine Organisation erlaubt diesen GitHub-Zugriff nicht.";
+  if (c === "server_unavailable") return "GitHub antwortet gerade nicht. Bitte gleich noch einmal versuchen.";
+  if (/404|not found/i.test(m)) return "Nicht gefunden. Prüfe den Namen des Repositorys. Ist es privat, muss die GitHub-App „Claude Github MCP Connector“ auf dem Konto installiert sein, dem das Repository gehört: github.com/apps/claude-github-mcp-connector → Install → Repository freigeben.";
+  if (/403|permission|forbidden/i.test(m)) return "GitHub verweigert den Zugriff. Die GitHub-App braucht Schreibrechte für dieses Repository.";
+  return "Fehler: " + m.slice(0, 300);
+}
+const call = (tool, input) => S.mcp ? S.mcp.callTool(GH, tool, input, {cache:false}) : Promise.reject({code:"server_not_connected", message:"no mcp"});
+function fileOf(res){
+  let text = null, sha = null, commit = null;
+  for (const b of (res && res.content) || []){
+    if (b.type === "resource" && b.resource){ if (typeof b.resource.text === "string") text = b.resource.text; const m = /\/sha\/([0-9a-f]{40})\//.exec(b.resource.uri || ""); if (m) commit = m[1]; }
+    else if (b.type === "text"){ const m = /SHA:\s*([0-9a-f]{40})/.exec(b.text); if (m) sha = m[1]; else if (text === null) text = b.text; }
+  }
+  return {text, sha, commit};
+}
+async function getFile(path, ref, fresh){
+  const key = (ref || "") + "|" + path;
+  if (!fresh && S.files.has(key)) return S.files.get(key);
+  const input = {owner:S.owner, repo:S.repo, path};
+  if (ref) input.ref = "refs/heads/" + ref;
+  const f = fileOf(await call("get_file_contents", input));
+  if (f.text === null) throw {message:"Datei nicht lesbar: " + path};
+  S.files.set(key, f);
+  return f;
+}
+async function pool(items, n, fn){ const out = new Array(items.length); let i = 0; await Promise.all(Array.from({length:Math.min(n, items.length)}, async () => { while (i < items.length){ const k = i++; try { out[k] = await fn(items[k]); } catch (e) { out[k] = null; } } })); return out; }
+const workOf = b => b.work_branch || "ghostwriter/" + b.branch;
+async function openPR(b){
+  const res = await call("list_pull_requests", {owner:S.owner, repo:S.repo, state:"open", head:S.owner + ":" + workOf(b), base:b.branch, perPage:5});
+  const p = Array.isArray(res.payload) ? res.payload[0] : null;
+  return p ? {number:p.number, url:p.html_url, head:p.head && p.head.sha} : null;
+}
+async function prCommits(pr){
+  try { const c = await call("pull_request_read", {method:"get_commits", owner:S.owner, repo:S.repo, pullNumber:pr.number, perPage:100}); pr.list = Array.isArray(c.payload) ? c.payload : []; pr.commits = pr.list.length || 1; } catch (e) { pr.list = []; pr.commits = 1; }
+  return pr;
+}
+
+/* ---------- Abschnittsdateien ---------- */
+function part(text, name){ const re = new RegExp("^## " + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\n\\n([\\s\\S]*?)(?=^## |(?![\\s\\S]))", "m"); const m = re.exec(text); const v = m ? m[1].trim() : ""; return v === "Offen." ? "" : v; }
+const msOf = t => { const k = "\n## Manuskript\n", i = t.indexOf(k); return i < 0 ? "" : t.slice(i + k.length).trim(); };
+function front(t){ const m = /^---\n([\s\S]*?)\n---\n/.exec(t); try { return (m && window.jsyaml && window.jsyaml.load(m[1])) || {}; } catch (e) { return {}; } }
+function words(t){ t = t.replace(/<!--[\s\S]*?-->/g, " ").replace(/^\[\^[^\]]+\]:.*(?:\n(?: {2,}|\t).*)*/gm, " ").replace(/\[\^[^\]]+\]/g, " "); return (t.match(/[\p{L}\p{N}_][\p{L}\p{N}_'’-]*/gu) || []).length; }
+const fmtNum = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+function block(md, h){
+  const re = new RegExp("^## " + h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[ \\t]*\\n", "m"), m = re.exec(md); if (!m) return null;
+  const start = m.index + m[0].length, n = /^## /m.exec(md.slice(start)); return {start, end: n ? start + n.index : md.length};
+}
+function setBlock(md, h, val){ const b = block(md, h); if (!b) return md; const tail = md.slice(b.end); return md.slice(0, b.start) + "\n" + (val.replace(/\s+$/, "") || "Offen.") + "\n" + (tail ? "\n" : "") + tail; }
+function setFact(md, v){ return md.replace(/^(---\n[\s\S]*?^fact_check:[ \t]*)(\S+)/m, (all, a) => a + v); }
+async function sha16(t){ try { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t.trim())); return "sha256:" + [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("").slice(0, 16); } catch (e) { return null; } }
+const chapters = () => S.struct || [];
+const allSecs = () => chapters().flatMap(c => (c.sections || []).map(s => ({c, s})));
+const cached = path => S.files.get(S.readRef + "|" + path);
+async function loadSecFiles(list, label){
+  let done = 0; const todo = list.filter(({s}) => !cached(s.path)).length;
+  const tick = () => { const el = document.querySelector("#app .dim"); if (label && el && todo > 3) el.innerHTML = `<span class="spin"></span>${esc(label)} – Abschnitt ${done} von ${todo}`; };
+  return pool(list, 10, async ({s}) => { const was = !!cached(s.path); const f = await getFile(s.path, S.readRef); if (!f.dg) f.dg = await sha16(msOf(f.text)); if (!was){ done++; tick(); } return f; });
+}
+
+/* ---------- Prüfprotokoll (wie scripts/checks.py) ---------- */
+const whenOf = e => (String(e.date || "") + (e.time ? " " + e.time : "")).trim();
+function label(kind){ if (kind.startsWith("analysis:")){ const a = kind.slice(9); return ["Analyse " + (ANA[a] || a), ANA_SHORT[a] || "A"]; } return LABEL[kind] || [kind, kind[0].toUpperCase()]; }
+function resolve(scope){ const sc = Array.isArray(scope) ? scope : [scope]; return allSecs().filter(({c, s}) => sc.includes("book") || sc.includes(c.id) || sc.includes(s.id)).map(({s}) => s.id); }
+function nowDigest(id){ const x = allSecs().find(v => v.s.id === id); const f = x && cached(x.s.path); return f && f.dg; }
+function stateOf(e, hit){
+  const saved = e.digests || {}, cov = hit.filter(i => i in saved);
+  if (!cov.length) return "unknown";
+  let unknown = false;
+  for (const i of cov){ const n = nowDigest(i); if (!n){ unknown = true; continue; } if (n !== saved[i]) return "changed"; }
+  return unknown ? "unknown" : "current";
+}
+function localize(t){
+  const [name, short] = label(t.CK_KIND), mark = MARK[t.CK_RESULT] || "";
+  let suf = {changed:"*", unknown:"?"}[t.CK_STATE] || ""; if (mark === "?" && suf === "?") suf = "";
+  return Object.assign(t, {CK_LABEL:name, CK_SHORT:short, CK_MARK:mark, CK_RESULT_TEXT:RES[t.CK_RESULT] || t.CK_RESULT, CK_STATE_TEXT:STATE[t.CK_STATE],
+    CK_TEXT:`${name}: ${RES[t.CK_RESULT] || t.CK_RESULT}, ${t.CK_WHEN || t.CK_DATE} · ${STATE[t.CK_STATE]}` + (t.CK_PARTIAL ? " · teilweise" : ""),
+    CK_TAG:short + mark + suf, CK_PILL:(name + " " + mark + suf).trim()});
+}
+function touching(unit){ const out = []; S.checks.forEach((e, i) => { const hit = resolve(e.scope || []).filter(x => unit.has(x)); if (hit.length) out.push([i, e, hit]); }); return out; }
+function mkTag(e, hit, unit){ return localize({CK_KIND:e.kind, CK_RESULT:e.result, CK_DATE:String(e.date || ""), CK_WHEN:whenOf(e), CK_REPORT:e.report || "", CK_STATE:stateOf(e, hit), CK_PARTIAL:hit.length < unit.size ? "1" : "", CK_ID:String(e.id || ""), CK_NOTE:e.note || ""}); }
+const kindOrder = k => { const i = EDITORIAL.indexOf(k); return i < 0 ? 99 : i; };
+function tagsFor(ids){
+  const unit = new Set(ids); if (!unit.size || !S.checks.length) return [];
+  const latest = {};
+  for (const [i, e, hit] of touching(unit)){ const r = rankOf(e, i); if (!latest[e.kind] || r >= latest[e.kind][0]) latest[e.kind] = [r, e, hit]; }
+  return Object.entries(latest).sort((a, b) => (kindOrder(a[0]) - kindOrder(b[0])) || a[0].localeCompare(b[0])).map(([, v]) => mkTag(v[1], v[2], unit));
+}
+function historyFor(ids){
+  const unit = new Set(ids); if (!unit.size || !S.checks.length) return [];
+  const hits = touching(unit).sort((a, b) => rankOf(b[1], b[0]).localeCompare(rankOf(a[1], a[0])));
+  const seen = new Set(), out = [];
+  for (const [, e, hit] of hits){ if (!seen.has(e.kind)){ seen.add(e.kind); continue; } out.push(mkTag(e, hit, unit)); }
+  return out;
+}
+const pick = (list, keys) => JSON.stringify(list.map(t => Object.fromEntries(keys.map(k => [k, t[k] || ""]))));
+const J_FULL = ["CK_TAG","CK_PILL","CK_TEXT","CK_RESULT","CK_STATE","CK_REPORT"], J_SLIM = ["CK_TAG","CK_TEXT","CK_RESULT","CK_STATE","CK_REPORT"];
+const J_HIST = ["CK_KIND","CK_LABEL","CK_WHEN","CK_DATE","CK_TAG","CK_MARK","CK_TEXT","CK_RESULT","CK_STATE","CK_REPORT","CK_ID","CK_NOTE"];
+function recentText(){
+  const seen = new Set(), out = [];
+  S.checks.map((e, i) => [i, e]).sort((a, b) => rankOf(b[1], b[0]).localeCompare(rankOf(a[1], a[0]))).forEach(([, e]) => { if (seen.has(e.kind) || out.length >= 3) return; seen.add(e.kind); out.push(`${label(e.kind)[0]} ${MARK[e.result] || ""} ${e.date || ""}`.trim()); });
+  return out.join(" · ");
+}
+
+/* ---------- Daten für die Vorlagen (wie scripts/render_view.py) ---------- */
+function bookRow(b){
+  const ready = b.status === "ready", st = b.sections_total || 0, sa = b.sections_approved || 0, ed = b.current_edition || 0;
+  return {BOOK_BRANCH:b.branch, BOOK_TITLE:b.title || b.title_short || "Ohne Titel", BOOK_TITLE_SHORT:b.title_short || b.branch.split("/").pop(),
+    BOOK_AUTHOR_TEXT:b.author ? "von " + b.author : "", BOOK_STATE:ready ? "ready" : "setup", BOOK_STATE_TEXT:ready ? "eingerichtet" : "im Aufbau",
+    BOOK_PROGRESS:st ? Math.round(100 * sa / st) : 0,
+    BOOK_PROGRESS_TEXT:ready ? `${sa} von ${plural(st, "Abschnitt", "Abschnitten")} freigegeben · ${b.chapters_approved || 0} von ${plural(b.chapters_total || 0, "Kapitel", "Kapiteln")}` : "Gliederung noch offen",
+    BOOK_EDITION_TEXT:ed ? "Auflage " + ed : "noch keine Auflage", BOOK_COST:(b.cost && b.cost.text) || "–",
+    BOOK_PENDING_TEXT:b.pending ? plural(b.pending, "Änderung", "Änderungen") + " offen" : "",
+    BOOK_UPDATED_TEXT:b.updated_at ? `${ready ? "zuletzt geändert" : "angelegt"} am ${deDate(b.updated_at)}` : "",
+    BOOK_SERIES:"", BOOK_SERIES_TITLE:"", BOOK_SERIES_KEY:"", BOOK_VOLUME_TEXT:""};
+}
+function libraryData(){
+  const books = S.lib.books || [], rows = books.map(bookRow);
+  const editions = books.flatMap(b => (b.editions || []).map(e => { const n = e && typeof e === "object" ? (e.number || e.edition) : e; return n ? {E_BOOK_BRANCH:b.branch, E_NUMBER:n, E_TEXT:"Auflage " + n, E_DATE_TEXT:deDate((e && (e.date || e.published)) || ""), E_TAG:(e && e.tag) || ""} : null; }).filter(Boolean));
+  const d = {LANGUAGE:"de", LIBRARY_NAME:S.owner + "/" + S.repo, BOOK_COUNT_TEXT:plural(rows.length, "Buch", "Bücher"), EMPTY:rows.length ? "" : "1", UPDATED_TEXT:"", SESSION_COUNT_TEXT:"", BOOKS:rows};
+  if (editions.length) d.EDITIONS = editions;
+  return d;
+}
+const base = () => ({LANGUAGE:"de", HEAD_SHA:S.head});
+const shortTitle = () => (S.cfg.project || {}).title_short || S.book.title_short || S.book.title;
+async function projectData(){
+  await loadSecFiles(allSecs(), "Projektübersicht wird geladen");
+  const p = S.cfg.project || {}, ix = S.idx.project || {};
+  const rows = chapters().map((c, i) => {
+    let w = 0, done = 0;
+    for (const s of c.sections || []){ const f = cached(s.path); if (!f) continue; w += words(msOf(f.text)); done += front(f.text).status === "approved" ? 1 : 0; }
+    const tags = tagsFor((c.sections || []).map(s => s.id));
+    return {CHAPTER_NUMBER:i + 1, CHAPTER_TITLE:c.title, CHAPTER_STATUS:c.status, CHAPTER_COST:(c.cost && c.cost.text) || "–", CHAPTER_COST_HINT:"Summe der Abschnittskosten",
+      CHAPTER_ID:c.id, CHAPTER_WORDS:w, CHAPTER_WORDS_TEXT:fmtNum(w) + (w === 1 ? " Wort" : " Wörter"),
+      CHAPTER_APPROVED_TEXT:(c.sections || []).length ? `${done} von ${c.sections.length}` : "", CHAPTER_CHECKS_JSON:pick(tags, J_SLIM), CHAPTER_NOTES_TEXT:"", CHAPTER_CHECK_DETAILS:""};
+  });
+  const longest = Math.max(0, ...rows.map(r => r.CHAPTER_WORDS));
+  rows.forEach(r => { r.CHAPTER_WORDS_PCT = longest ? Math.round(100 * r.CHAPTER_WORDS / longest) : 0; });
+  const ed = p.current_edition || ix.current_edition || 0;
+  const d = Object.assign(base(), {PROJECT_TITLE:p.title || p.working_title || ix.title || S.book.title, PROJECT_TITLE_SHORT:shortTitle(),
+    PROJECT_AUTHOR:p.author || ix.author || "", PROJECT_DESCRIPTION_SHORT:p.description_short || "", PROJECT_DESCRIPTION:p.description || "",
+    PROJECT_COST:(ix.cost && ix.cost.text) || "–", PROJECT_COST_HINT:"Zusätzliche KI-API-Kosten über das GhostWriter-Backend",
+    PROJECT_EDITION_TEXT:ed ? "Auflage " + ed : "noch keine Auflage", CREDIT_TEXT:"Entwickelt mit Unterstützung von Claude (Anthropic)", CREDIT_URL:"https://claude.ai", CHAPTERS:rows});
+  if (S.checks.length){ d.CHECKS_RECENT_TEXT = recentText(); d.CHECKS_LEGEND = LEGEND_LATEST; }
+  if (S.pr){ const n = S.pr.commits || 1; Object.assign(d, {PENDING_COUNT:n, PENDING_TEXT:plural(n, "Änderung", "Änderungen"), PENDING_PR:S.pr.number}); }
+  if ((S.lib.books || []).length >= 2) d.LIBRARY_COUNT = S.lib.books.length;
+  return d;
+}
+async function chapterData(ci){
+  const c = chapters()[ci], secs = c.sections || [];
+  await loadSecFiles(secs.map(s => ({c, s})), "Kapitel wird geladen");
+  const readme = await getFile(c.path + "/README.md", S.readRef).then(f => f.text).catch(() => "");
+  const sub = /^\*([^*].*)\*$/m.exec(readme);
+  let markers = 0, approved = 0;
+  const rows = secs.map((s, si) => {
+    const f = cached(s.path), t = f ? f.text : "", ms = msOf(t), st = f ? (front(t).status || s.status) : s.status;
+    const cnt = k => (ms.match(new RegExp("\\[" + k, "g")) || []).length;
+    const m = {a:cnt("PLATZHALTER-ANEKDOTE"), q:cnt("QUELLE PRÜFEN"), me:cnt("MEDIZIN PRÜFEN"), r:cnt("RECHT PRÜFEN"), k:cnt("KONTINUITÄT PRÜFEN")};
+    markers += m.a + m.q + m.me + m.r + m.k; approved += st === "approved" ? 1 : 0;
+    return {SECTION_ID:s.id, SECTION_NUMBER:`${ci + 1}.${si + 1}`, SECTION_TITLE:s.title, SECTION_STATUS:st, SECTION_COST:(s.cost && s.cost.text) || "–",
+      MARKERS_ANEKDOTE:m.a, MARKERS_QUELLE:m.q, MARKERS_MEDIZIN:m.me, MARKERS_RECHT:m.r, MARKERS_KONTINUITAET:m.k, SECTION_CHECKS_JSON:pick(tagsFor([s.id]), J_FULL)};
+  });
+  const n = secs.length, ids = secs.map(s => s.id), tags = tagsFor(ids), hist = historyFor(ids);
+  const d = Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), CHAPTER_ID:c.id, CHAPTER_NUMBER:ci + 1,
+    CHAPTER_GOAL:part(readme, "Ziel des Kapitels"), CHAPTER_SUMMARY:part(readme, "Kurzbeschreibung"), CHAPTER_TITLE:c.title, CHAPTER_SUBTITLE:sub ? sub[1] : (c.subtitle || ""),
+    SECTION_COUNT_TEXT:n + (n === 1 ? " Abschnitt" : " Abschnitte"), MARKER_COUNT_TEXT:markers ? `${markers} offene${markers === 1 ? "r" : ""} Marker` : "keine offenen Marker",
+    CHAPTER_COST:(c.cost && c.cost.text) || "–", CHAPTER_COST_HINT:"Summe der Abschnittskosten", APPROVED_COUNT_TEXT:`${approved} von ${n}`,
+    CHAPTER_APPROVABLE:c.status === "ready_for_approval" && n && approved === n ? "true" : "", CHAPTER_REVISION_READY:"", SECTIONS:rows});
+  if (S.checks.length) d.CHECKS_LEGEND = LEGEND_FULL;
+  if (tags.length) d.CHECKS_JSON = pick(tags, J_FULL);
+  if (hist.length){ d.CHECKS_HISTORY_COUNT = hist.length; d.CHECKS_HISTORY_JSON = pick(hist, J_HIST); }
+  return d;
+}
+async function sectionData(id){
+  const x = allSecs().find(v => v.s.id === id); if (!x) throw {message:"Abschnitt nicht gefunden."};
+  const ci = chapters().indexOf(x.c), secs = x.c.sections, si = secs.indexOf(x.s);
+  const f = await getFile(x.s.path, S.readRef); if (!f.dg) f.dg = await sha16(msOf(f.text));
+  const t = f.text, h = front(t), ms = msOf(t), markers = [];
+  for (const m of ms.matchAll(MARKER_RE)) markers.push({MARKER_TYPE:MK[m[1]], MARKER_LABEL:MK_LABEL[MK[m[1]]], MARKER_TEXT:(m[2] || "").trim() || "–"});
+  const nav = k => k >= 0 && k < secs.length ? [secs[k].id, `Abschnitt ${ci + 1}.${k + 1} „${secs[k].title}“ bearbeiten`] : ["", ""];
+  const [pid, ptx] = nav(si - 1), [nid, ntx] = nav(si + 1), ap = h.approvals || {}, waived = ((S.cfg.workflow || {}).require_section_writing_approval === false);
+  const tags = tagsFor([id]), hist = historyFor([id]);
+  const d = Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), CHAPTER_ID:x.c.id, CHAPTER_NUMBER:ci + 1,
+    SECTION_ID:id, SECTION_NUMBER:`${ci + 1}.${si + 1}`, SECTION_TITLE:x.s.title, SECTION_STATUS:h.status || x.s.status, SECTION_COST:(x.s.cost && x.s.cost.text) || "–",
+    SECTION_COST_HINT:"Summe der Kosteneinträge", SECTION_GOAL:part(t, "Ziel des Abschnitts"), SECTION_SUMMARY:part(t, "Kurzbeschreibung"), SECTION_MANUSCRIPT:ms,
+    MARKER_COUNT_TEXT:markers.length ? `${markers.length} offene${markers.length === 1 ? "r" : ""} Marker` : "keine offenen Marker",
+    FACT_CHECK:h.fact_check || "disabled", APPROVAL_WRITING:String(!!ap.writing || waived), APPROVAL_SECTION:String(!!ap.section),
+    PREV_SECTION_ID:pid, PREV_SECTION_PROMPT:ptx, NEXT_SECTION_ID:nid, NEXT_SECTION_PROMPT:ntx, MARKERS:markers});
+  if (tags.length) d.CHECKS_JSON = pick(tags, J_FULL);
+  if (hist.length){ d.CHECKS_HISTORY_COUNT = hist.length; d.CHECKS_HISTORY_JSON = pick(hist, J_HIST); }
+  return {d, x, f};
+}
+function mergeData(){
+  const list = S.pr.list || [];
+  return Object.assign(base(), {HEAD_SHA:S.pr.head || S.head, PENDING_TEXT:plural(S.pr.commits || list.length || 1, "Änderung", "Änderungen"), PENDING_PR:S.pr.number, BOOK_BRANCH:S.book.branch, WORK_BRANCH:workOf(S.book),
+    CHANGES:list.map(c => ({CHANGE_MESSAGE:String(c.message || "").split("\n")[0], CHANGE_DATE:(c.author && c.author.date) ? new Date(c.author.date).toLocaleString("de-AT", {day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit"}) : "", CHANGE_SHA:String(c.sha || "").slice(0, 7)}))});
+}
+
+/* ---------- Darstellung ---------- */
+function crumbs(){
+  const c = [];
+  if (S.owner && S.lib) c.push(`<button data-go="library">${esc(S.owner + "/" + S.repo)}</button>`);
+  if (S.book) c.push(`›<button data-go="project">${esc(S.book.title_short || S.book.title)}</button>`);
+  if (S.book && S.chap != null && S.chap >= 0) c.push(`›<button data-go="chapter">Kapitel ${S.chap + 1}</button>`);
+  if (S.sec) c.push(`›<span style="padding:0 6px">${esc(S.secNo)}</span>`);
+  $("crumbs").innerHTML = c.join(" ");
+}
+const msgBox = () => S.msg ? `<div class="note ${S.msg.kind}" role="status">${S.msg.html}</div>` : "";
+function busy(t){ $("app").innerHTML = `<div class="one"><p class="dim"><span class="spin"></span>${esc(t)}</p></div>`; }
+function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
+function widget(name, data, extra){ $("app").innerHTML = `<div class="one">${msgBox()}<div id="gw"></div>${extra || ""}</div>`; gwRender(name, data); crumbs(); window.scrollTo(0, 0); }
+function desk(name, data, extra, key){
+  if (S.chatKey !== key){ S.chat = []; S.chatKey = key; }
+  $("app").innerHTML = `<div class="desk"><div>${msgBox()}<div id="gw"></div>${extra || ""}</div>${claudePanel()}</div>`;
+  gwRender(name, data); crumbs(); renderChat(); window.scrollTo(0, 0);
+}
+async function show(view, arg){
+  S.view = view;
+  try {
+    if (view === "connect"){ crumbs(); return connectView(); }
+    if (view === "library"){ S.book = null; S.chap = null; S.sec = null; crumbs(); return widget("buecherregal", libraryData()); }
+    if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, checksCard(), "project"); }
+    if (view === "chapter"){ S.chap = arg; S.sec = null; crumbs(); busy("Kapitel wird geladen …"); const d = await chapterData(arg); return desk("kapitelansicht", d, "", "chapter:" + (chapters()[arg] || {}).id); }
+    if (view === "data"){ S.book = null; S.chap = null; S.sec = null; crumbs(); busy("Daten werden gesammelt …"); const d = await dataData(); return widget("daten", d); }
+    if (view === "section"){
+      busy("Abschnitt wird geladen …");
+      const {d, x, f} = await sectionData(arg);
+      S.sec = x.s; S.secNo = d.SECTION_NUMBER; S.chap = chapters().indexOf(x.c); S.secFile = f;
+      return desk("abschnitt-bearbeiten", d, "", "section:" + x.s.id);
+    }
+    if (view === "merge"){ crumbs(); return widget("aenderungen-uebernehmen", mergeData()); }
+    if (view === "report"){ $("app").innerHTML = `<div class="one"><div class="card report"><button class="btn" data-go="back" style="margin-bottom:16px">‹ Zurück</button><p class="dim">${esc(S.report.path)}</p>${mdDoc(S.report.text)}</div></div>`; window.scrollTo(0, 0); return; }
+  } catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; $("app").innerHTML = `<div class="one">${msgBox()}</div>`; }
+}
+function connectView(){
+  const warn = !S.ready ? `<p class="dim"><span class="spin"></span>Verbindung zu GitHub wird geprüft …</p>` : !S.mcp ? `<div class="note warn"><b>GitHub-Verbindung nicht verfügbar.</b> Diese App liest und speichert über deinen GitHub-Konnektor in Claude. Verbinde ihn unter claude.ai → Einstellungen → Konnektoren und öffne die App danach erneut.</div>` : "";
+  $("app").innerHTML = `<div class="one"><div class="card"><div style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><i class="ti ti-books" style="font-size:22px;color:#e8731c"></i><b style="font-size:20px">GhostWriter öffnen</b></div>
+    <p class="dim" style="margin:0 0 14px">Deine GhostWriter-Bibliothek auf GitHub – mit denselben Ansichten wie im Chat. Gelesen und gespeichert wird über deinen GitHub-Konnektor, Claude arbeitet über dein eigenes Claude-Konto. Keine Tokens, keine Schlüssel.</p>
+    ${warn}${msgBox()}
+    <form id="fConnect" style="display:flex;gap:8px;flex-wrap:wrap"><input class="in" id="repoIn" style="flex:1 1 240px" placeholder="owner/repo, z. B. chillyconcane/YAWA" value="${esc(store.get("gw.repo") || "")}" autocomplete="off"><button class="btn pri" ${S.mcp ? "" : "disabled"}>Öffnen</button></form>
+    <details class="dim" style="margin-top:14px"><summary>Einmalig einrichten</summary><ol><li>In claude.ai unter Einstellungen → Konnektoren den Konnektor <b>github</b> verbinden.</li><li>Für private Repositorys auf GitHub die App <a href="https://github.com/apps/claude-github-mcp-connector" target="_blank" rel="noopener">Claude Github MCP Connector</a> auf dem Konto installieren, dem das Repository gehört, und das Repository freigeben. Nur „autorisiert“ reicht nicht.</li><li>Beim ersten Öffnen fragt Claude, ob diese App GitHub benutzen darf – mit „Weiter“ bestätigen.</li></ol></details>
+    <p class="dim" style="margin:12px 0 0">Speichern legt Änderungen auf dem Arbeits-Branch ab und öffnet ein Änderungspaket. Ins Buch übernommen wird erst nach deiner Bestätigung.</p></div></div>`;
+}
+function checksCard(){
+  if (!S.checks.length) return "";
+  const scopeName = sc => (Array.isArray(sc) ? sc : [sc]).map(id => { if (id === "book") return "ganzes Buch"; let r = id; chapters().forEach((c, ci) => { if (c.id === id) r = "Kapitel " + (ci + 1); (c.sections || []).forEach((s, si) => { if (s.id === id) r = `Abschnitt ${ci + 1}.${si + 1}`; }); }); return r; }).join(", ");
+  const kn = k => k.startsWith("analysis:") ? "Analyse: " + (ANA[k.slice(9)] || k.slice(9)) : (KIND_LONG[k] || k);
+  const fd = e => deDate(String(e.date || "")) + (e.time ? ", " + e.time : "");
+  const list = S.checks.map((e, i) => [i, e]).sort((a, b) => rankOf(b[1], b[0]).localeCompare(rankOf(a[1], a[0]))).map(v => v[1]);
+  const items = (S.showAll ? list : list.slice(0, 5)).map(e => `<li><div><b>${esc(kn(e.kind))}</b> <span class="w">· ${esc(scopeName(e.scope || []))} · ${esc(fd(e))}</span></div><span class="res ${esc(e.result)}">${esc(RES[e.result] || e.result)}</span>${e.note ? `<div class="nt">${esc(e.note)}</div>` : ""}${e.report ? `<div class="nt"><button class="link" data-report="${esc(e.report)}">Bericht öffnen</button></div>` : ""}</li>`).join("");
+  return `<div class="card" style="margin-top:16px"><b>Prüfberichte</b><ul class="chk" style="margin-top:6px">${items}</ul>${list.length > 5 ? `<button class="link" data-act="allchecks" style="margin-top:6px">${S.showAll ? "Weniger anzeigen" : "Alle " + list.length + " Prüfungen"}</button>` : ""}</div>`;
+}
+function mdDoc(t){
+  const L = esc(t.replace(/^---\n[\s\S]*?\n---\n/, "")).split("\n"), out = []; let list = null;
+  const inl = x => x.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<i>$2</i>");
+  for (const l of L){
+    const li = /^\s*(?:[-*]|\d+[.)])\s+(.*)/.exec(l);
+    if (li){ if (!list){ list = /^\s*\d/.test(l) ? "ol" : "ul"; out.push(`<${list}>`); } out.push(`<li>${inl(li[1])}</li>`); continue; }
+    if (list){ out.push(`</${list}>`); list = null; }
+    const h = /^(#{1,4})\s+(.*)/.exec(l);
+    if (h) out.push(`<h${h[1].length}>${inl(h[2])}</h${h[1].length}>`);
+    else if (/^&gt;\s?/.test(l)) out.push(`<blockquote>${inl(l.replace(/^&gt;\s?/, ""))}</blockquote>`);
+    else if (/^\s*\|/.test(l)) out.push(`<p><code>${l}</code></p>`);
+    else if (l.trim() && !/^-{3,}$/.test(l.trim())) out.push(`<p>${inl(l)}</p>`);
+  }
+  if (list) out.push(`</${list}>`);
+  return out.join("");
+}
+
+/* ---------- Laden ---------- */
+async function loadRepo(spec){
+  const m = /(?:github\.com\/)?([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(spec.trim());
+  if (!m){ S.msg = {kind:"err", html:"Bitte als owner/repo eingeben."}; return show("connect"); }
+  [S.owner, S.repo] = [m[1], m[2]]; store.set("gw.repo", S.owner + "/" + S.repo); S.files.clear(); S.lib = null;
+  busy("Bücherregal wird geladen …");
+  try { S.lib = JSON.parse((await getFile("library.json")).text); }
+  catch (e) {
+    try { await getFile("ghostwriter-index.json"); S.lib = {books:[{branch:"main", title:S.repo, status:"ready", work_branch:"ghostwriter/main"}]}; }
+    catch (e2) { S.msg = {kind:"err", html:esc(errText(e))}; S.owner = ""; return show("connect"); }
+  }
+  S.msg = null;
+  if ((S.lib.books || []).length === 1) return openBook(S.lib.books[0].branch);
+  show("library");
+}
+async function loadBookData(ref, overlay){
+  S.readRef = ref; S.files.clear();
+  S.idx = {project:{}, chapters:[]};
+  try { const ix = await getFile("ghostwriter-index.json", ref, true); S.idx = JSON.parse(ix.text); S.head = ix.commit || S.head; } catch (e) {}
+  const gy = await getFile("ghostwriter.yml", ref, true); if (gy.commit) S.head = gy.commit;
+  S.cfg = {}; try { S.cfg = window.jsyaml.load(gy.text) || {}; } catch (e) {}
+  buildStruct();
+  S.checks = []; try { const d = window.jsyaml.load((await getFile("editorial/checks.yml", ref)).text); S.checks = ((d && d.checks) || []).filter(e => e && e.kind && e.result); } catch (e) {}
+  S.rules = await getFile("SCHREIBREGELN.md", ref).then(f => f.text.slice(0, 8000)).catch(() => "");
+  if (overlay){ // eben Geschriebenes sofort zeigen, auch wenn GitHub noch den alten Stand liefert
+    const old = new Map(); overlay.forEach(f => { const k = ref + "|" + f.path, o = S.files.get(k); if (!o || o.text !== f.content) S.files.set(k, {text:f.content, commit:(o && o.commit) || S.head, sha:""}); });
+    const g = overlay.find(f => f.path === "ghostwriter.yml"); if (g){ try { S.cfg = window.jsyaml.load(g.content) || S.cfg; } catch (e) {} buildStruct(); }
+  }
+}
+function buildStruct(){
+  const ixC = new Map((S.idx.chapters || []).map(c => [c.id, c])), ixS = new Map((S.idx.chapters || []).flatMap(c => (c.sections || []).map(s => [s.id, s])));
+  const src = (S.cfg.structure && S.cfg.structure.chapters) || S.idx.chapters || [];
+  S.struct = src.map(c => ({id:c.id, title:c.title, path:c.path, status:c.status || (ixC.get(c.id) || {}).status || "planned", cost:(ixC.get(c.id) || {}).cost,
+    sections:(c.sections || []).map(s => ({id:s.id, title:s.title, path:s.path, status:(ixS.get(s.id) || {}).status || "planned", cost:(ixS.get(s.id) || {}).cost}))}));
+}
+async function openBook(branch){
+  S.book = (S.lib.books || []).find(b => b.branch === branch); if (!S.book) return;
+  S.chap = null; S.sec = null; S.chat = []; S.msg = null; S.showAll = false; crumbs(); busy("Buch wird geöffnet …");
+  try {
+    S.pr = await openPR(S.book).catch(() => null);
+    if (S.pr) await prCommits(S.pr);
+    await loadBookData(S.pr ? workOf(S.book) : S.book.branch);
+    show("project");
+  } catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; S.book = null; show("library"); }
+}
+
+/* ---------- Aktionen aus den Widgets ---------- */
+function parseAction(text){
+  let m = /```gw\n([\s\S]*?)\n```/.exec(text);
+  if (m){ try { const o = JSON.parse(m[1]); const a = o.action; delete o.action; return {action:a, data:o, text:text.split("\n\n")[0]}; } catch (e) {} }
+  m = /`gw:([^\s`]+)([^`]*)`/.exec(text);
+  if (m){ const data = {}; m[2].trim().split(/\s+/).filter(Boolean).forEach(kv => { const i = kv.indexOf("="); if (i < 0) return; const k = kv.slice(0, i), v = kv.slice(i + 1); data[k] = /^-?\d+$/.test(v) ? Number(v) : v === "true" ? true : v === "false" ? false : v; }); return {action:m[1], data, text:text.split("\n\n")[0]}; }
+  return {action:"", data:{}, text};
+}
+window.sendPrompt = text => { const a = parseAction(String(text)); setTimeout(() => act(a), 0); };
+const chIndex = id => chapters().findIndex(c => c.id === id);
+function back(){ const f = S.from || {view:"project"}; S.from = null; return show(f.view, f.arg); }
+function here(){ return S.view === "section" ? {view:"section", arg:S.sec && S.sec.id} : S.view === "chapter" ? {view:"chapter", arg:S.chap} : {view:"project"}; }
+async function act({action, data, text}){
+  try {
+    switch (action){
+      case "library.book.open": return openBook(data.branch);
+      case "view.library": S.msg = null; return show("library");
+      case "view.project": S.msg = null; return show("project");
+      case "view.chapter": S.msg = null; return show("chapter", chIndex(data.chapter_id));
+      case "view.section": S.msg = null; return show("section", data.section_id);
+      case "section.update": return saveSection(data);
+      case "view.data": S.msg = null; return show("data");
+      case "changes.merge.open": S.msg = null; return S.pr ? show("merge") : show("project");
+      case "changes.merge": return merge(data);
+      case "form.cancel": S.msg = {kind:"info", html:"Abgebrochen – nichts wurde gespeichert."}; return back();
+      case "approval.open": S.from = here(); S.msg = null; return form("freigabe-bestaetigen", await approvalData(data));
+      case "approval.confirm": return approve(data);
+      case "project.edit": S.from = here(); S.msg = null; return form("projektdaten-bearbeiten", projectEditData());
+      case "project.update": return projectUpdate(data);
+      case "chapter.create.open": S.from = here(); S.msg = null; return form("kapitel-anlegen", Object.assign(base(), {POSITIONS:positions(chapters().map((c, i) => [`Kapitel ${i + 1}`, c.title]), "Kapitel 1", "Als erstes Kapitel")}));
+      case "chapter.create": return chapterCreate(data);
+      case "chapter.edit.open": S.from = here(); S.msg = null; return form("kapitel-bearbeiten", await chapterEditData(data.chapter_id));
+      case "chapter.update": return chapterUpdate(data);
+      case "section.create.open": { S.from = here(); S.msg = null; const ci = chIndex(data.chapter_id), c = chapters()[ci];
+        return form("abschnitt-anlegen", Object.assign(base(), {CHAPTER_ID:c.id, CHAPTER_NUMBER:ci + 1, CHAPTER_TITLE:c.title, FACT_CHECK_DEFAULT:(S.cfg.workflow || {}).fact_checking_default || "optional",
+          POSITIONS:positions(c.sections.map((s, si) => [`${ci + 1}.${si + 1}`, s.title]), `${ci + 1}.1`, "Als erster Abschnitt")})); }
+      case "section.create": return sectionCreate(data);
+      case "chapter.reorder.open": S.from = here(); S.msg = null; return form("reihenfolge", Object.assign(base(), {REORDER_KIND:"chapter", REORDER_HEADING:"Kapitelreihenfolge ändern", CHAPTER_ID:"", CHAPTER_NUMBER:"", ITEMS:chapters().map((c, i) => ({ITEM_ID:c.id, ITEM_NUMBER:String(i + 1), ITEM_TITLE:c.title}))}));
+      case "section.reorder.open": { S.from = here(); S.msg = null; const ci = chIndex(data.chapter_id), c = chapters()[ci];
+        return form("reihenfolge", Object.assign(base(), {REORDER_KIND:"section", REORDER_HEADING:`Abschnittsreihenfolge in Kapitel ${ci + 1} ändern`, CHAPTER_ID:c.id, CHAPTER_NUMBER:ci + 1, ITEMS:c.sections.map((s, si) => ({ITEM_ID:s.id, ITEM_NUMBER:`${ci + 1}.${si + 1}`, ITEM_TITLE:s.title}))})); }
+      case "chapter.reorder": return reorder(null, data.order);
+      case "section.reorder": return reorder(data.chapter_id, data.order);
+      case "run.start": return runStart(data);
+      default: return unsupported(text, action, data);
+    }
+  } catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; return show(S.view === "form" ? "project" : S.view, S.view === "section" ? S.sec && S.sec.id : S.chap); }
+}
+function form(name, data){ S.view = "form"; widget(name, data); }
+function positions(items, first, only){
+  if (!items.length) return [{POSITION_LABEL:only, POSITION_SELECTED:"selected"}];
+  const out = [{POSITION_LABEL:`Am Anfang (vor ${first})`, POSITION_SELECTED:""}];
+  items.forEach(([n, t], i) => out.push({POSITION_LABEL:i === items.length - 1 ? `Am Ende (nach ${n} „${t}“)` : `Nach ${n} „${t}“`, POSITION_SELECTED:i === items.length - 1 ? "selected" : ""}));
+  return out;
+}
+function unsupported(text, action, data){
+  const prompt = text + (action ? `\n\n\`gw:${action}${Object.entries(data || {}).map(([k, v]) => ` ${k}=${typeof v === "object" ? JSON.stringify(v) : v}`).join("")}\`` : "");
+  S.msg = {kind:"info", html:`<b>Das geht in dieser App noch nicht.</b> Im Chat mit GhostWriter löst du es mit diesem Text aus: <button class="link" data-act="copy">Text kopieren</button><pre id="cpy">${esc(prompt)}</pre>`};
+  const old = document.querySelector("#app .note"), html = msgBox();
+  if (old) old.outerHTML = html; else if ($("gw")) $("gw").insertAdjacentHTML("beforebegin", html);
+  window.scrollTo(0, 0);
+}
+
+/* ---------- Schreiben ins Repository (ein Commit je Aufgabe, Arbeits-Branch, Änderungspaket) ---------- */
+async function prepareWork(){
+  const b = S.book, work = workOf(b);
+  if (await openPR(b)) return work;
+  const bk = await getFile("ghostwriter.yml", b.branch, true);
+  const wk = await getFile("ghostwriter.yml", work, true).catch(() => null);
+  if (!wk){ await call("create_branch", {owner:S.owner, repo:S.repo, branch:work, from_branch:b.branch}); return work; }
+  if (wk.commit && bk.commit && wk.commit === bk.commit) return work;
+  // Arbeits-Branch ist älter als das Buch: erst auf den Buchstand bringen (nur Buch → Arbeits-Branch)
+  try {
+    await call("create_pull_request", {owner:S.owner, repo:S.repo, head:b.branch, base:work, title:`GhostWriter: Arbeits-Branch auf den Stand von ${b.branch} bringen`, body:"Automatisch vor dem nächsten Speichern: übernimmt den aktuellen Buchstand in den Arbeits-Branch. Das Buch selbst ändert sich dadurch nicht."});
+    const r = await call("list_pull_requests", {owner:S.owner, repo:S.repo, state:"open", head:S.owner + ":" + b.branch, base:work, perPage:5});
+    const p = Array.isArray(r.payload) && r.payload[0];
+    if (p) await call("merge_pull_request", {owner:S.owner, repo:S.repo, pullNumber:p.number, merge_method:"merge", commit_title:`Buchstand von ${b.branch} in den Arbeits-Branch übernommen`});
+  } catch (e) { if (!/no commits|nothing to compare|already/i.test((e && e.message) || "")) throw e; }
+  return work;
+}
+async function commit(files, message, opts){
+  const b = S.book, work = workOf(b);
+  files = files.filter(f => f && typeof f.content === "string");
+  if (!files.length) return {nothing:true};
+  await call("push_files", {owner:S.owner, repo:S.repo, branch:work, files, message:message + "\n\nGhostWriter für Claude" + (opts && opts.action ? `\nGhostWriter-Aktion: ${opts.action}` : "")});
+  let pr = await openPR(b), note = "";
+  if (!pr){ try { await call("create_pull_request", {owner:S.owner, repo:S.repo, head:work, base:b.branch, title:`GhostWriter: Änderungen für ${b.branch}`, body:"Angelegt mit GhostWriter für Claude. Übernahme ins Buch nur nach ausdrücklicher Bestätigung."}); pr = await openPR(b); } catch (e) { note = errText(e); } }
+  if (pr) await prCommits(pr);
+  S.pr = pr;
+  await loadBookData(work, files);
+  return {pr, note};
+}
+function savedMsg(what, r){
+  if (r.nothing) return {kind:"info", html:"Keine Änderungen – nichts gespeichert."};
+  return r.pr ? {kind:"ok", html:`<b>${esc(what)}</b> Änderungspaket <a href="${esc(r.pr.url)}" target="_blank" rel="noopener">#${r.pr.number}</a> ist offen – übernehmen kannst du es in der Projektübersicht.`}
+              : {kind:"warn", html:`<b>${esc(what)}</b> Gespeichert auf dem Arbeits-Branch. Das Änderungspaket konnte nicht angelegt werden: ${esc(r.note)}`};
+}
+const failMsg = e => ({kind:"err", html:"<b>Nicht gespeichert.</b> " + esc(errText(e)) + (e && (e.code === "server_unavailable" || e.code === "upstream_error") ? " Möglicherweise ist es trotzdem angekommen – lade neu, bevor du es nochmals versuchst." : "")});
+async function readAll(paths, ref){ const out = {}; await pool(paths, 8, async p => { try { out[p] = (await getFile(p, ref, true)).text; } catch (e) { out[p] = null; } }); return out; }
+
+/* Text-Bausteine (ghostwriter.yml, Abschnittsdateien, Kapitel-README) */
+const yq = s => JSON.stringify(String(s));
+function slug(t){ return String(t).toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss").normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "") || "ohne-titel"; }
+const pad2 = n => String(n).padStart(2, "0");
+const ind = l => l.length - l.trimStart().length;
+function splitStructure(text){
+  const L = text.split("\n"), si = L.findIndex(l => /^structure:\s*$/.test(l));
+  const ci = L.findIndex((l, i) => i > si && /^  chapters:\s*(\[\])?\s*$/.test(l));
+  if (si < 0 || ci < 0) throw {message:"Die Gliederung in ghostwriter.yml hat ein unerwartetes Format."};
+  const first = L.findIndex((l, i) => i > ci && l.trim() !== ""), I = first > 0 && /^\s*- /.test(L[first]) && ind(L[first]) >= 2 ? ind(L[first]) : 4, K = I + 2;
+  let end = ci + 1; while (end < L.length && (L[end].trim() === "" || ind(L[end]) > I || (ind(L[end]) === I && L[end].trimStart().startsWith("- ")))) end++;
+  while (end > ci + 1 && L[end - 1].trim() === "") end--;
+  const chs = []; L.slice(ci + 1, end).forEach(l => { if (ind(l) === I && l.trimStart().startsWith("- ")) chs.push([l]); else if (chs.length) chs[chs.length - 1].push(l); });
+  let J = null;
+  const parsed = chs.map(lines => {
+    const k = lines.findIndex(l => ind(l) === K && /^\s*sections:/.test(l));
+    const head = k < 0 ? lines : lines.slice(0, k), rest = k < 0 ? [] : lines.slice(k + 1);
+    const f = rest.find(l => l.trim() !== ""); const j = f && f.trimStart().startsWith("- ") && ind(f) >= K ? ind(f) : null; if (j != null && J == null) J = j;
+    let e = 0; if (j != null) while (e < rest.length && (rest[e].trim() === "" || ind(rest[e]) > j || (ind(rest[e]) === j && rest[e].trimStart().startsWith("- ")))) e++;
+    const secs = []; rest.slice(0, e).forEach(l => { if (ind(l) === j && l.trimStart().startsWith("- ")) secs.push([l]); else if (secs.length) secs[secs.length - 1].push(l); });
+    return {head, secs, tail:rest.slice(e), id:(/- id:\s*"?([^"\s]+)/.exec(lines[0]) || [])[1]};
+  });
+  const quoted = chs.length ? /- id:\s*"/.test(chs[0][0]) : false;
+  return {pre:L.slice(0, ci), chs:parsed, post:L.slice(end), I, K, J:J == null ? K : J, quoted};
+}
+function joinStructure(st){
+  const out = [...st.pre, st.chs.length ? "  chapters:" : "  chapters: []"], sp = n => " ".repeat(n);
+  st.chs.forEach(c => { out.push(...c.head); out.push(sp(st.K) + (c.secs.length ? "sections:" : "sections: []")); c.secs.forEach(s => out.push(...s)); out.push(...c.tail); });
+  return [...out, ...st.post].join("\n");
+}
+const setLine = (lines, key, value, st) => { const re = new RegExp("^" + " ".repeat(st.K) + key + ":"); const i = lines.findIndex(l => re.test(l)); if (i >= 0) lines[i] = " ".repeat(st.K) + key + ": " + value; };
+const idv = (st, v) => st.quoted ? yq(v) : v;
+const secEntry = (st, id, title, path) => [" ".repeat(st.J) + "- id: " + idv(st, id), " ".repeat(st.J + 2) + "title: " + yq(title), " ".repeat(st.J + 2) + "path: " + idv(st, path)];
+const chEntry = (st, id, title, path) => [" ".repeat(st.I) + "- id: " + idv(st, id), " ".repeat(st.K) + "title: " + yq(title), " ".repeat(st.K) + "path: " + idv(st, path), " ".repeat(st.K) + "status: planned"];
+const idOfBlock = b => (/- id:\s*"?([^"\s]+)/.exec(b[0]) || [])[1];
+function fmSet(text, key, value){
+  const m = /^---\n([\s\S]*?)\n---\n/.exec(text); if (!m) return text;
+  let fm = m[1];
+  if (key === "writing" || key === "section") fm = fm.replace(new RegExp("^(\\s+" + key + ":\\s*)(true|false)", "m"), (a, p) => p + value);
+  else fm = new RegExp("^" + key + ":", "m").test(fm) ? fm.replace(new RegExp("^(" + key + ":[ \\t]*)([^#\\n]*?)([ \\t]*(#.*)?)$", "m"), (a, p, v, c) => p + value + (c || "")) : fm + `\n${key}: ${value}`;
+  return "---\n" + fm + "\n---\n" + text.slice(m[0].length);
+}
+function readmeSet(text, h, val){ return block(text, h) ? setBlock(text, h, val) : text; }
+async function renumber(scopeIds, files, ref, orig){
+  // Nummern und Überschriften der Abschnitte und die Abschnittslisten der Kapitel-READMEs (wie scripts/sections.py renumber)
+  const chs = chapters(), need = [];
+  chs.forEach(c => { if (!scopeIds || scopeIds.includes(c.id)){ need.push(c.path + "/README.md"); c.sections.forEach(s => need.push(s.path)); } });
+  const missing = need.filter(p => !(p in files)), got = await readAll(missing, ref); Object.assign(files, got); if (orig) missing.forEach(p => { if (!(p in orig)) orig[p] = got[p]; });
+  chs.forEach((c, ci) => {
+    if (scopeIds && !scopeIds.includes(c.id)) return;
+    const rows = c.sections.map((s, si) => {
+      let t = files[s.path]; if (t == null) return `| ${ci + 1}.${si + 1} | ${s.title} | \`${s.status || "planned"}\` |`;
+      const h = front(t), num = `${ci + 1}.${si + 1}`;
+      if (String(h.number) !== num){ t = t.replace(/^number: .*$/m, `number: "${num}"`).replace(new RegExp("^# " + String(h.number).replace(".", "\\.") + " ", "m"), `# ${num} `); files[s.path] = t; }
+      return `| ${num} | ${s.title} | \`${h.status || "planned"}\` |`;
+    });
+    const rp = c.path + "/README.md"; let r = files[rp]; if (r == null) return;
+    r = r.replace(/^# Kapitel \d+ /m, `# Kapitel ${ci + 1} `);
+    const table = "| Nummer | Abschnitt | Status |\n|---|---|---|\n" + rows.map(x => x + "\n").join("");
+    r = /^\| Nummer \| Abschnitt \| Status \|$/m.test(r) ? r.replace(/^\| Nummer \| Abschnitt \| Status \|\n\|---\|---\|---\|\n(?:\|.*\n)*/m, table) : r;
+    files[rp] = r;
+  });
+  return files;
+}
+function changed(files, orig){ return Object.entries(files).filter(([p, c]) => c != null && c !== orig[p]).map(([path, content]) => ({path, content})); }
+
+/* Abschnitt speichern */
+async function saveSection(data){
+  const x = allSecs().find(v => v.s.id === data.section_id); if (!x) return;
+  const seen = S.secFile; busy("Wird gespeichert …");
+  try {
+    const work = await prepareWork();
+    const cur = await getFile(x.s.path, work, true);
+    if (seen && seen.sha && cur.sha && seen.sha !== cur.sha && seen.text !== cur.text) throw {message:"Der Abschnitt wurde inzwischen an anderer Stelle geändert. Lade ihn neu (deine Eingaben vorher kopieren)."};
+    const h = front(cur.text), ap = h.approvals || {};
+    let md = cur.text;
+    md = setBlock(md, "Ziel des Abschnitts", data.goal || ""); md = setBlock(md, "Kurzbeschreibung", data.summary || "");
+    if (data.manuscript != null && data.manuscript.trim() !== msOf(cur.text)){
+      if (ap.section) throw {message:"Der Abschnitt ist abgeschlossen. Den Text kannst du erst ändern, wenn du ihn wieder öffnest."};
+      md = setBlock(md, "Manuskript", data.manuscript);
+    }
+    if (data.fact_check) md = setFact(md, data.fact_check);
+    const r = await commit(md === cur.text ? [] : [{path:x.s.path, content:md}], `Abschnitt ${S.secNo} „${x.s.title}“ gespeichert`, {action:"section.update"});
+    S.msg = savedMsg("Gespeichert.", r);
+  } catch (e) { S.msg = failMsg(e); }
+  show("section", x.s.id);
+}
+
+/* Freigaben (START.md, „Freigaben“) */
+const EMPTY_MS = ["", "Noch nicht begonnen.", "Offen."];
+async function login(){ if (S.login) return S.login; try { const r = await call("get_me", {}); S.login = (r.payload && r.payload.login) || "chat"; } catch (e) { S.login = "chat"; } return S.login; }
+async function sha256full(t){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t.trim())); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
+function nowIso(){ const d = new Date(), o = -d.getTimezoneOffset(), p = n => String(Math.abs(n)).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${o >= 0 ? "+" : "-"}${p(Math.trunc(o / 60))}:${p(o % 60)}`; }
+async function approvalState(data){
+  const kind = data.kind, revoke = !!data.revoke, checks = [], add = (s, t) => checks.push({CHECK_STATE:s, CHECK_TEXT:t});
+  const waived = ((S.cfg.workflow || {}).require_section_writing_approval === false);
+  let v = {};
+  if (kind === "chapter"){
+    const ci = chIndex(data.chapter_id), c = chapters()[ci];
+    const fl = await readAll(c.sections.map(s => s.path), S.readRef), open = c.sections.filter(s => front(fl[s.path] || "").status !== "approved").length;
+    v = {target:c.id, label:`Kapitel ${ci + 1} „${c.title}“`, c, ci};
+    if (revoke){ v.title = "Kapitel wieder öffnen"; v.button = "Wieder öffnen"; if (c.status !== "approved") add("block", "Das Kapitel ist nicht abgeschlossen."); v.effect = "Das Kapitel geht zurück auf „in Arbeit“. Die Abschlüsse der Abschnitte bleiben bestehen."; }
+    else { v.title = "Kapitel abschließen"; v.button = "Abschließen";
+      if (c.status === "approved") add("block", "Das Kapitel ist bereits abgeschlossen.");
+      if (open) add("block", `${open} von ${c.sections.length} Abschnitten sind noch nicht abgeschlossen.`); else add("ok", `Alle ${c.sections.length} Abschnitte sind abgeschlossen.`);
+      if (!["ready_for_approval", "approved"].includes(c.status)) add("block", `Das Kapitel steht auf „${ST(c.status)}“ statt „bereit zum Abschluss“. Erst zusammenführen und durchsehen.`);
+      v.effect = "Das Kapitel wird abgeschlossen. Du bestätigst das zusammengeführte Kapitel in diesem Stand."; }
+    return {v, checks, kind, revoke};
+  }
+  const x = allSecs().find(q => q.s.id === data.section_id), ci = chapters().indexOf(x.c), si = x.c.sections.indexOf(x.s);
+  const f = await getFile(x.s.path, S.readRef, true), h = front(f.text), ap = Object.assign({writing:false, section:false}, h.approvals || {}), ms = msOf(f.text);
+  if (waived) ap.writing = true;
+  v = {target:x.s.id, label:`Abschnitt ${ci + 1}.${si + 1} „${x.s.title}“`, x, f, h, ms};
+  const marks = (ms.match(MARKER_RE) || []).length;
+  if (kind === "writing" && revoke){
+    v.title = v.button = "Schreiben sperren";
+    if (waived) add("block", "Bei der Stufe „Zügig“ ist keine Schreibfreigabe nötig.");
+    if (!ap.writing) add("block", "Schreiben ist nicht erlaubt.");
+    if (ap.section) add("block", "Der Abschnitt ist abgeschlossen. Zuerst den Abschnitt wieder öffnen.");
+    v.effect = "Schreiben wird gesperrt. Das Manuskript bleibt, wie es ist; weitergeschrieben werden kann erst nach einer neuen Freigabe.";
+  } else if (kind === "writing"){
+    v.title = v.button = "Schreiben erlauben";
+    if (waived) add("block", "Bei der Stufe „Zügig“ ist keine Schreibfreigabe nötig.");
+    if (ap.writing && !waived) add("block", "Schreiben ist bereits erlaubt.");
+    add(part(f.text, "Ziel des Abschnitts") ? "ok" : "warn", part(f.text, "Ziel des Abschnitts") ? "Ziel des Abschnitts ist angegeben." : "Ziel des Abschnitts fehlt noch.");
+    add(part(f.text, "Kurzbeschreibung") ? "ok" : "warn", part(f.text, "Kurzbeschreibung") ? "Kurzbeschreibung ist angegeben." : "Kurzbeschreibung fehlt noch.");
+    v.effect = "Schreiben wird erlaubt; danach darf das Manuskript geschrieben werden." + (["planned", "research", "brainstorming", "ready_to_write"].includes(h.status) ? " Der Abschnitt geht auf „Schreiben“." : "");
+  } else if (revoke){
+    v.title = "Abschnitt wieder öffnen"; v.button = "Wieder öffnen";
+    if (!ap.section) add("block", "Der Abschnitt ist nicht abgeschlossen.");
+    if (x.c.status === "approved") add("warn", `Damit wird auch Kapitel ${ci + 1} wieder geöffnet (zurück auf „in Arbeit“).`);
+    add("warn", "Schreiben wird dabei gesperrt; zum Weiterschreiben danach „Schreiben erlauben“.");
+    v.effect = "Der Abschnitt wird wieder geöffnet und geht auf „Überarbeitung“.";
+  } else {
+    v.title = "Abschnitt abschließen"; v.button = "Abschließen";
+    if (ap.section) add("block", "Der Abschnitt ist bereits abgeschlossen.");
+    if (!ap.writing) add("block", "Schreiben ist für diesen Abschnitt nicht erlaubt.");
+    if (EMPTY_MS.includes(ms.trim())) add("block", "Es gibt noch kein Manuskript."); else add("ok", `Manuskript: ${fmtNum(words(ms))} Wörter.`);
+    add(marks ? "warn" : "ok", marks ? `${marks} offene${marks === 1 ? "r" : ""} Marker – sie bleiben im abgeschlossenen Text.` : "Keine offenen Marker.");
+    if (h.fact_check === "requested") add("warn", "Ein Faktencheck ist angefordert – ist er erledigt?");
+    v.effect = "Der Abschnitt wird abgeschlossen. Du bestätigst den Text so, wie er im Abschnittsformular steht; danach ist er gesperrt und lässt sich nur nach „Wieder öffnen“ ändern.";
+  }
+  return {v, checks, kind, revoke};
+}
+const ST = s => ({planned:"geplant", in_progress:"in Arbeit", ready_for_approval:"bereit zum Abschluss", approved:"abgeschlossen", writing:"Schreiben", revision:"Überarbeitung", research:"Recherche"}[s] || s);
+async function approvalData(data){
+  const {v, checks, kind, revoke} = await approvalState(data);
+  return Object.assign(base(), {APPROVAL_KIND:kind, APPROVAL_REVOKE:revoke ? "true" : "", APPROVAL_TITLE:v.title, APPROVAL_BUTTON:v.button, APPROVAL_EFFECT:v.effect,
+    TARGET_ID:v.target, TARGET_LABEL:v.label, HEAD_SHORT:String(S.head || "").slice(0, 7), CHECKS:checks});
+}
+async function approve(data){
+  busy("Wird festgehalten …");
+  try {
+    const work = await prepareWork(); await loadBookData(work);
+    const {v, checks, kind, revoke} = await approvalState(data);
+    if (checks.some(c => c.CHECK_STATE === "block")) throw {message:"Die Freigabe ist nicht möglich: " + checks.filter(c => c.CHECK_STATE === "block").map(c => c.CHECK_TEXT).join(" ")};
+    const by = await login(), at = nowIso(), headSha = data.expected_head_sha || S.head;
+    const files = {}, orig = {}, entries = [];
+    const entry = (k, id, action, note) => entries.push([`  - kind: ${k}`, `    id: ${id}`, `    action: ${action}`, `    at: ${yq(at)}`, `    by: ${by}`, `    commit: ${headSha}`, ...(note ? [`    note: ${yq(note)}`] : [])].join("\n"));
+    const gyPath = "ghostwriter.yml";
+    const load = async p => { if (!(p in files)){ const t = (await getFile(p, work, true).catch(() => ({text:null}))).text; files[p] = t; orig[p] = t; } return files[p]; };
+    let msg = "";
+    if (kind === "chapter"){
+      const c = v.c, newSt = revoke ? "in_progress" : "approved";
+      const st = splitStructure(await load(gyPath)); setLine(st.chs[v.ci].head, "status", newSt, st); files[gyPath] = joinStructure(st);
+      const rp = c.path + "/README.md"; const r = await load(rp); if (r != null) files[rp] = r.replace(/(^## Kapitelstatus\n\n)`[^`]*`/m, `$1\`${newSt}\``);
+      entry("chapter", c.id, revoke ? "revoked" : "granted");
+      msg = `Kapitel ${v.ci + 1} ${revoke ? "wieder geöffnet" : "abgeschlossen"}`;
+    } else {
+      const p = v.x.s.path; let t = await load(p); const h = front(t);
+      if (kind === "writing"){
+        t = fmSet(t, "writing", revoke ? "false" : "true");
+        if (!revoke && ["planned", "research", "brainstorming", "ready_to_write"].includes(h.status)) t = fmSet(t, "status", "writing");
+        entry("writing", v.x.s.id, revoke ? "revoked" : "granted");
+        msg = `${v.label}: Schreiben ${revoke ? "gesperrt" : "erlaubt"}`;
+      } else if (!revoke){
+        t = fmSet(t, "section", "true"); t = fmSet(t, "status", "approved");
+        entry("section", v.x.s.id, "granted", "content_sha256=" + await sha256full(msOf(orig[p])));
+        msg = `${v.label} abgeschlossen`;
+      } else {
+        t = fmSet(t, "section", "false"); t = fmSet(t, "status", "revision"); t = fmSet(t, "writing", "false");
+        entry("section", v.x.s.id, "revoked"); entry("writing", v.x.s.id, "revoked");
+        if (v.x.c.status === "approved"){
+          const ci = chapters().indexOf(v.x.c), st = splitStructure(await load(gyPath)); setLine(st.chs[ci].head, "status", "in_progress", st); files[gyPath] = joinStructure(st);
+          const rp = v.x.c.path + "/README.md"; const r = await load(rp); if (r != null) files[rp] = r.replace(/(^## Kapitelstatus\n\n)`[^`]*`/m, "$1`in_progress`");
+          entry("chapter", v.x.c.id, "revoked");
+        }
+        msg = `${v.label} wieder geöffnet`;
+      }
+      files[p] = t;
+      await load(v.x.c.path + "/README.md"); await renumber([v.x.c.id], files, work, orig);
+    }
+    const ap = await load("approvals.yml");
+    files["approvals.yml"] = (ap == null ? "entries:\n" : ap.replace(/\s*$/, "\n").replace(/^entries:\s*\[\]\s*$/m, "entries:")) + entries.join("\n") + "\n";
+    const r = await commit(changed(files, orig), msg, {action:"approval.confirm"});
+    S.msg = savedMsg(msg + ".", r);
+  } catch (e) { S.msg = failMsg(e); }
+  back();
+}
+
+/* Projektdaten */
+function projectEditData(){
+  const p = S.cfg.project || {};
+  return Object.assign(base(), {PROJECT_TITLE:p.title || p.working_title || "", PROJECT_SUBTITLE:p.subtitle || "", PROJECT_TITLE_SHORT:p.title_short || "", PROJECT_AUTHOR:p.author || "",
+    PROJECT_DESCRIPTION_SHORT:p.description_short || "", PROJECT_DESCRIPTION:p.description || "", PROJECT_LANGUAGE:p.language || "de", PROJECT_BOOK_TYPE:p.book_type || "",
+    PROJECT_TARGET_AUDIENCE:p.target_audience || "", PROJECT_TRANSLATIONS:(p.translations_planned || []).join(", ")});
+}
+function projectSet(text, key, value){
+  // ein Feld im Block project: ersetzen (Kommentar bleibt), einfügen oder entfernen (value === null)
+  const L = text.split("\n"), pi = L.findIndex(l => /^project:\s*$/.test(l)); if (pi < 0) throw {message:"ghostwriter.yml hat keinen Abschnitt „project“."};
+  let end = pi + 1; while (end < L.length && (L[end].trim() === "" || /^ {2}/.test(L[end]))) end++;
+  const re = new RegExp("^  " + key + ":"), i = L.findIndex((l, k) => k > pi && k < end && re.test(l));
+  if (value === null){ if (i >= 0) L.splice(i, 1); return L.join("\n"); }
+  if (i >= 0){ const m = /^(  [a-z_]+:[ \t]*)("(?:[^"\\]|\\.)*"|\[[^\]]*\]|[^#]*?)([ \t]*#.*)?$/.exec(L[i]); L[i] = m ? m[1] + value + (m[3] || "") : `  ${key}: ${value}`; }
+  else { let last = end; while (last > pi + 1 && L[last - 1].trim() === "") last--; L.splice(last, 0, `  ${key}: ${value}`); }
+  return L.join("\n");
+}
+async function projectUpdate(d){
+  busy("Wird gespeichert …");
+  try {
+    const work = await prepareWork(); const cur = (await getFile("ghostwriter.yml", work, true)).text; let t = cur;
+    for (const k of ["title", "subtitle", "title_short", "author", "description_short", "description", "book_type", "target_audience"]){
+      if (!(k in d)) continue; const v = String(d[k] || "").trim(), was = String(((S.cfg.project || {})[k]) || "").trim();
+      if (v === was || (k === "title" && !was && v === String((S.cfg.project || {}).working_title || "").trim())) continue;
+      t = projectSet(t, k, v ? yq(v) : (k === "title" ? yq(v) : null));
+    }
+    if (d.language) t = projectSet(t, "language", yq(d.language));
+    if (d.language === (S.cfg.project || {}).language) delete d.language;
+    if (Array.isArray(d.translations_planned) && d.translations_planned.join(",") !== ((S.cfg.project || {}).translations_planned || []).join(",")) t = projectSet(t, "translations_planned", "[" + d.translations_planned.join(", ") + "]");
+    const r = await commit(t === cur ? [] : [{path:"ghostwriter.yml", content:t}], "Projektdaten geändert", {action:"project.update"});
+    S.msg = savedMsg("Projektdaten gespeichert.", r);
+  } catch (e) { S.msg = failMsg(e); }
+  S.from = null; show("project");
+}
+
+/* Kapitel */
+async function chapterEditData(id){
+  const ci = chIndex(id), c = chapters()[ci], r = await getFile(c.path + "/README.md", S.readRef).then(f => f.text).catch(() => ""), sub = /^\*([^*].*)\*$/m.exec(r);
+  return Object.assign(base(), {CHAPTER_ID:c.id, CHAPTER_NUMBER:ci + 1, CHAPTER_TITLE:c.title, CHAPTER_SUBTITLE:sub ? sub[1] : "", CHAPTER_SUMMARY:part(r, "Kurzbeschreibung"), CHAPTER_GOAL:part(r, "Ziel des Kapitels")});
+}
+async function chapterUpdate(d){
+  busy("Wird gespeichert …");
+  const ci = chIndex(d.chapter_id);
+  try {
+    const work = await prepareWork(); await loadBookData(work);
+    const c = chapters()[ci], files = {}, orig = {};
+    const gy = (await getFile("ghostwriter.yml", work, true)).text; orig["ghostwriter.yml"] = gy;
+    const st = splitStructure(gy); setLine(st.chs[ci].head, "title", yq(d.title), st); files["ghostwriter.yml"] = joinStructure(st);
+    const rp = c.path + "/README.md"; let r = (await getFile(rp, work, true).catch(() => ({text:null}))).text; orig[rp] = r;
+    if (r != null){
+      r = r.replace(/^# Kapitel (\d+) [–-] .*$/m, `# Kapitel $1 – ${d.title}`);
+      const hasSub = /^\*([^*].*)\*$/m.test(r);
+      if (hasSub) r = d.subtitle ? r.replace(/^\*([^*].*)\*$/m, `*${d.subtitle}*`) : r.replace(/^\*([^*].*)\*\n\n?/m, "");
+      else if (d.subtitle) r = r.replace(/^(# Kapitel .*\n)/m, `$1\n*${d.subtitle}*\n`);
+      r = readmeSet(r, "Kurzbeschreibung", d.summary || ""); r = readmeSet(r, "Ziel des Kapitels", d.goal || "");
+      files[rp] = r;
+    }
+    const res = await commit(changed(files, orig), `Kapitel ${ci + 1} „${d.title}“ bearbeitet`, {action:"chapter.update"});
+    S.msg = savedMsg("Kapitel gespeichert.", res);
+  } catch (e) { S.msg = failMsg(e); }
+  S.from = null; show("chapter", ci);
+}
+async function chapterCreate(d){
+  busy("Kapitel wird angelegt …");
+  try {
+    const work = await prepareWork(); await loadBookData(work);
+    const chs = chapters(), pos = Math.max(0, Math.min(Number(d.position) || 0, chs.length));
+    const nums = chs.map(c => +((/chapters\/(\d+)-/.exec(c.path) || [])[1] || 0)), dn = pad2(Math.max(chs.length, ...nums, 0) + 1), sl = slug(d.title);
+    let id = `ch-${dn}-${sl}`; const ids = new Set(chs.map(c => c.id)); for (let k = 2; ids.has(id); k++) id = `ch-${dn}-${sl}-${k}`;
+    const path = `chapters/${dn}-${sl}`;
+    const gy = (await getFile("ghostwriter.yml", work, true)).text, st = splitStructure(gy);
+    st.chs.splice(pos, 0, {head:chEntry(st, id, d.title, path), secs:[], tail:[], id});
+    const files = {"ghostwriter.yml":joinStructure(st)}, orig = {"ghostwriter.yml":gy};
+    files[path + "/README.md"] = `# Kapitel ${pos + 1} – ${d.title}\n\n## Kurzbeschreibung\n\n${(d.summary || "").trim() || "Offen."}\n\n## Ziel des Kapitels\n\n${(d.goal || "").trim() || "Offen."}\n\n## Abschnitte\n\n| Nummer | Abschnitt | Status |\n|---|---|---|\n\n## Kapitelstatus\n\n\`planned\`\n\n## Kapitelzusammenführung\n\nNoch nicht begonnen.\n`;
+    orig[path + "/README.md"] = null;
+    S.cfg.structure = window.jsyaml.load(files["ghostwriter.yml"]).structure; buildStruct();
+    if (pos < chs.length) await renumber(chapters().slice(pos + 1).map(c => c.id), files, work, orig);
+    const r = await commit(changed(files, orig), `Kapitel ${pos + 1} „${d.title}“ angelegt`, {action:"chapter.create"});
+    S.msg = savedMsg(`Kapitel „${d.title}“ angelegt.`, r);
+    S.from = null; return show("chapter", chIndex(id));
+  } catch (e) { S.msg = failMsg(e); S.from = null; show("project"); }
+}
+async function sectionCreate(d){
+  busy("Abschnitt wird angelegt …");
+  try {
+    const work = await prepareWork(); await loadBookData(work);
+    const ci = chIndex(d.chapter_id), c = chapters()[ci], pos = Math.max(0, Math.min(Number(d.position) || 0, c.sections.length));
+    const nums = c.sections.map(s => +((/sections\/(\d+)-/.exec(s.path) || [])[1] || 0)), fn = pad2(Math.max(c.sections.length, ...nums, 0) + 1), sl = slug(d.title);
+    let id = `sec-${pad2(ci + 1)}-${fn}-${sl}`; const ids = new Set(allSecs().map(v => v.s.id)); for (let k = 2; ids.has(id); k++) id = `sec-${pad2(ci + 1)}-${fn}-${sl}-${k}`;
+    const path = `${c.path}/sections/${fn}-${sl}.md`, num = `${ci + 1}.${pos + 1}`, fc = ["disabled", "optional", "requested"].includes(d.fact_check) ? d.fact_check : "optional";
+    const file = `---\nid: ${id}\nnumber: "${num}"\ntitle: ${yq(d.title)}\nstatus: planned\nfact_check: ${fc}   # disabled | optional | requested\napprovals:\n  writing: false\n  section: false\n---\n\n# ${num} ${d.title}\n\n## Ziel des Abschnitts\n\n${(d.goal || "").trim() || "Offen."}\n\n## Kurzbeschreibung\n\n${(d.summary || "").trim() || "Offen."}\n\n## Recherche- und Brainstorming-Ergebnisse\n\nWerden in separaten Laufdateien dokumentiert.\n\n## Manuskript\n\nNoch nicht begonnen.\n`;
+    const gy = (await getFile("ghostwriter.yml", work, true)).text, st = splitStructure(gy);
+    st.chs[ci].secs.splice(pos, 0, secEntry(st, id, d.title, path));
+    const files = {"ghostwriter.yml":joinStructure(st), [path]:file}, orig = {"ghostwriter.yml":gy, [path]:null};
+    S.cfg.structure = window.jsyaml.load(files["ghostwriter.yml"]).structure; buildStruct();
+    await renumber([c.id], files, work, orig);
+    const r = await commit(changed(files, orig), `Abschnitt ${num} „${d.title}“ angelegt`, {action:"section.create"});
+    S.msg = savedMsg(`Abschnitt ${num} „${d.title}“ angelegt.`, r);
+    S.from = null; return show("section", id);
+  } catch (e) { S.msg = failMsg(e); S.from = null; show("project"); }
+}
+async function reorder(chapterId, order){
+  busy("Reihenfolge wird gespeichert …");
+  const ci = chapterId ? chIndex(chapterId) : -1;
+  try {
+    const work = await prepareWork(); await loadBookData(work);
+    const gy = (await getFile("ghostwriter.yml", work, true)).text, st = splitStructure(gy);
+    const list = chapterId ? st.chs[ci].secs : st.chs, idOf = b => chapterId ? idOfBlock(b) : b.id;
+    if (!Array.isArray(order) || order.length !== list.length || !order.every(id => list.some(b => idOf(b) === id))) throw {message:"Die Reihenfolge passt nicht zum aktuellen Stand. Bitte neu öffnen."};
+    const sorted = order.map(id => list.find(b => idOf(b) === id));
+    if (chapterId) st.chs[ci].secs = sorted; else st.chs = sorted;
+    const files = {"ghostwriter.yml":joinStructure(st)}, orig = {"ghostwriter.yml":gy};
+    S.cfg.structure = window.jsyaml.load(files["ghostwriter.yml"]).structure; buildStruct();
+    await renumber(chapterId ? [chapterId] : null, files, work, orig);
+    const r = await commit(changed(files, orig), chapterId ? `Abschnittsreihenfolge in Kapitel ${ci + 1} geändert` : "Kapitelreihenfolge geändert", {action:chapterId ? "section.reorder" : "chapter.reorder"});
+    S.msg = savedMsg("Reihenfolge gespeichert.", r);
+  } catch (e) { S.msg = failMsg(e); }
+  S.from = null; chapterId ? show("chapter", chIndex(chapterId)) : show("project");
+}
+
+/* KI-Lauf „Sofort“ (Recherche, Ghostwriting) über Claude in der App */
+async function runStart(d){
+  if (d.mode !== "immediate"){ S.msg = {kind:"info", html:"„Zeitgesteuert“ ist noch nicht verfügbar. Nimm „Sofort“."}; return show("section", d.section_id); }
+  if (!S.sample){ S.msg = {kind:"warn", html:"Claude ist in dieser Ansicht nicht verfügbar."}; return show("section", d.section_id); }
+  const x = allSecs().find(v => v.s.id === d.section_id), f = await getFile(x.s.path, S.readRef, true), h = front(f.text), ap = h.approvals || {};
+  const waived = ((S.cfg.workflow || {}).require_section_writing_approval === false);
+  if (d.task === "writing" && !(ap.writing || waived)){ S.msg = {kind:"warn", html:"<b>Ghostwriting ist für diesen Abschnitt nicht erlaubt.</b> Erlaube zuerst das Schreiben (unten bei „Schreiben und Abschluss“)."}; return show("section", d.section_id); }
+  if (d.task === "writing" && ap.section){ S.msg = {kind:"warn", html:"Der Abschnitt ist abgeschlossen. Zum Schreiben zuerst wieder öffnen."}; return show("section", d.section_id); }
+  if (S.view !== "section" || !S.sec || S.sec.id !== d.section_id) await show("section", d.section_id);
+  else { S.msg = null; await show("section", d.section_id); }
+  const runs = await runFiles(x, "research");
+  const prompt = d.task === "research"
+    ? `Erstelle einen Recherchelauf für diesen Abschnitt. WICHTIG: Du hast in dieser App keinen Internetzugang. Recherchiere aus deinem Wissen, kennzeichne Unsicherheiten ausdrücklich, erfinde keine Quellen, URLs, Zitate oder Zahlen. Nenne nur Quellen, die du sicher kennst, jeweils mit dem Vermerk „bitte prüfen“, und schreibe ausdrücklich, dass keine Internetrecherche stattgefunden hat.
+Antworte NUR mit dem Inhalt zwischen den Zeilen <<<RECHERCHE und RECHERCHE>>>, gegliedert in genau diese Überschriften: ## Fragestellung und Suchumfang, ## Rechercheergebnisse, ## Quellen, ## Widersprüche und Unsicherheiten, ## Offene Fragen, ## Relevanz für den Abschnitt. Davor höchstens zwei Sätze Zusammenfassung.`
+    : `Schreibe das Manuskript dieses einen Abschnitts (Ghostwriting). Grundlage: Ziel, Kurzbeschreibung, Buchprofil, Schreibregeln und die Rechercheläufe unten. Erfinde keine Fakten; offene Stellen als Marker wie [QUELLE PRÜFEN: …] oder [PLATZHALTER-ANEKDOTE: …]. Vermeide KI-typische Muster (ankündigende Schlusssätze, Floskeln, Dreierreihen von Adjektiven, erklärende Moral). Nur dieser Abschnitt.
+Setze den vollständigen Manuskripttext zwischen die Zeilen <<<MANUSKRIPT und MANUSKRIPT>>>. Danach in zwei, drei Sätzen: wichtigste Annahmen und Stellen, die der Autor prüfen sollte.${runs.length ? "\n\nRECHERCHELÄUFE DES ABSCHNITTS\n" + runs.map(r => r.text.slice(0, 6000)).join("\n\n---\n\n") : "\n\n(Keine Rechercheläufe vorhanden.)"}`;
+  S.pendingRun = {task:d.task, section_id:d.section_id};
+  chat(prompt, d.task === "research" ? "Recherche · Sofort" : "Ghostwriting · Sofort");
+}
+async function runFiles(x, folder){
+  const dir = `${x.c.path}/${folder}/${x.s.id}`;
+  try { const r = await call("get_file_contents", {owner:S.owner, repo:S.repo, path:dir, ref:"refs/heads/" + S.readRef});
+    const list = (Array.isArray(r.payload) ? r.payload : []).filter(e => /^run-\d+\.md$/.test(e.name)).sort((a, b) => a.name.localeCompare(b.name));
+    const out = []; for (const e of list.slice(-3)) out.push({name:e.name, text:(await getFile(e.path || dir + "/" + e.name, S.readRef)).text});
+    out.count = list.length; out.max = Math.max(0, ...list.map(e => +e.name.slice(4, -3)));
+    return out;
+  } catch (e) { const o = []; o.count = 0; o.max = 0; return o; }
+}
+async function saveRun(i){
+  const m = S.chat[i], run = m.run, x0 = allSecs().find(v => v.s.id === run.section_id); if (!x0) return;
+  const RES_RE = /<<<RECHERCHE\n?([\s\S]*?)RECHERCHE>>>/, body = run.task === "research" ? (RES_RE.exec(m.content) || [])[1] : (PROPOSAL.exec(m.content) || [])[1];
+  if (!body){ S.msg = {kind:"err", html:"Im Ergebnis fehlt der Teil zum Speichern. Bitte den Lauf wiederholen."}; return show("section", run.section_id); }
+  busy(run.task === "research" ? "Recherche wird gespeichert …" : "Entwurf wird gespeichert …");
+  try {
+    const work = await prepareWork(); await loadBookData(work);
+    const x = allSecs().find(v => v.s.id === run.section_id); if (!x) throw {message:"Abschnitt nicht gefunden."};
+    const folder = run.task === "research" ? "research" : "writing", runs = await runFiles(x, folder), n = String(runs.max + 1).padStart(3, "0"), today = nowIso().slice(0, 10);
+    const ci = chapters().indexOf(x.c), si = x.c.sections.indexOf(x.s), num = `${ci + 1}.${si + 1}`;
+    const cur = (await getFile(x.s.path, work, true)).text, h = front(cur), files = {}, orig = {[x.s.path]:cur};
+    let t = cur;
+    if (run.task === "research"){
+      files[`${x.c.path}/research/${x.s.id}/run-${n}.md`] = `---\nid: run-${n}\ntype: research\nsection_id: ${x.s.id}\nstatus: completed\ndate: ${today}\nprovider: chat\nmodel: claude\n---\n\n# Recherchelauf ${n}\n\n> Erstellt mit GhostWriter für Claude, ohne Internetrecherche. Angaben und Quellen vor der Verwendung prüfen.\n\n${body.trim()}\n`;
+      if (h.status === "planned") t = fmSet(t, "status", "research");
+    } else {
+      if ((h.approvals || {}).section) throw {message:"Der Abschnitt ist inzwischen abgeschlossen."};
+      const old = msOf(cur), had = !EMPTY_MS.includes(old.trim()), newSt = ["writing", "revision"].includes(h.status) && had ? "revision" : "writing";
+      t = setBlock(t, "Manuskript", body.trim()); t = fmSet(t, "status", newSt);
+      const marks = {}; for (const mm of body.matchAll(MARKER_RE)) marks[mm[1]] = (marks[mm[1]] || 0) + 1;
+      files[`${x.c.path}/writing/${x.s.id}/run-${n}.md`] = `---\nid: run-${n}\ntype: writing\nsection_id: ${x.s.id}\nstatus: completed\ndate: ${today}\nprovider: chat\nmodel: claude\nmode: immediate\n---\n\n# Ghostwriting-Lauf ${n}\n\nProtokoll des Laufs. Der geschriebene Text steht im Manuskript der\nAbschnittsdatei, nicht hier (kein zweites Exemplar des Buchtexts).\n\n## Grundlage\n\n- Recherche: ${(await runFiles(x, "research")).map(r => r.name).join(", ") || "keine"}\n- Ziel und Kurzbeschreibung des Abschnitts\n- Schreibregeln und Buchprofil\n\n## Ergebnis\n\n- Wörter: ${words(body)}\n- Neue Marker: ${Object.entries(marks).map(([k, v]) => `${v}× ${k}`).join(", ") || "keine"}\n- Statuswechsel: ${h.status} → ${newSt}\n\n## Hinweise\n\n${m.content.replace(PROPOSAL, "").trim() || "–"}\n`;
+    }
+    files[x.s.path] = t;
+    await renumber([x.c.id], files, work, orig);
+    const r = await commit(changed(files, orig), run.task === "research" ? `Recherche für Abschnitt ${num}` : `Entwurf für Abschnitt ${num}`, {action:"run.start"});
+    m.saved = true; S.msg = savedMsg(run.task === "research" ? "Recherche gespeichert." : "Entwurf gespeichert.", r);
+  } catch (e) { S.msg = failMsg(e); }
+  show("section", run.section_id);
+}
+
+async function merge(data){
+  if (!S.pr || Number(data.pull_request) !== S.pr.number) return;
+  busy("Wird übernommen …");
+  try {
+    const input = {owner:S.owner, repo:S.repo, pullNumber:S.pr.number, merge_method:"merge"};
+    if (data.expected_head_sha) input.expectedHeadSha = data.expected_head_sha;
+    await call("merge_pull_request", input);
+    S.msg = {kind:"ok", html:`<b>Übernommen.</b> Änderungspaket #${S.pr.number} ist jetzt im Buch.`};
+    S.pr = null; await loadBookData(S.book.branch);
+  } catch (e) { S.msg = {kind:"err", html:"<b>Nicht übernommen.</b> " + esc(errText(e))}; }
+  S.from = null; show("project");
+}
+
+
+/* Seite „Daten“ (wie render_view.py data; Läufe der Actions sind über den Konnektor nicht abrufbar) */
+async function dataData(){
+  const lib = S.lib || {}, prog = lib.program || {}, own = S.owner, rp = S.repo;
+  const [repoR, brR, prR, upR] = await Promise.all([
+    call("search_repositories", {query:`repo:${own}/${rp}`, minimal_output:false}).catch(() => null),
+    (async () => { const all = []; for (let pg = 1; pg <= 5; pg++){ const r = await call("list_branches", {owner:own, repo:rp, perPage:100, page:pg}); const a = Array.isArray(r.payload) ? r.payload : []; all.push(...a); if (a.length < 100) break; } return all; })().catch(() => null),
+    call("list_pull_requests", {owner:own, repo:rp, state:"open", perPage:100}).catch(() => null),
+    (async () => { const [u, ref] = String(prog.upstream || "ploeffler/GhostWriter:main").split(":"); const [o, r] = u.split("/");
+      const f = fileOf(await call("get_file_contents", {owner:o, repo:r, path:"ghostwriter-manifest.yml", ref:"refs/heads/" + (ref || "main")})); return (window.jsyaml.load(f.text) || {}).version; })().catch(() => null)
+  ]);
+  const repo = repoR && repoR.payload && Array.isArray(repoR.payload.items) ? repoR.payload.items[0] : null, pulls = prR && Array.isArray(prR.payload) ? prR.payload : [];
+  const size = repo && repo.size, sizeText = size == null ? "Größe unbekannt" : size >= 1024 ? (size / 1024).toFixed(1).replace(".", ",") + " MB" : size + " KB";
+  const vis = repo ? (repo.private ? "privat" : "öffentlich") : "Sichtbarkeit unbekannt", brText = brR ? plural(brR.length, "Branch", "Branches") : "Zahl der Branches unbekannt";
+  const vcmp = (a, b) => { const x = String(a || "").split(".").map(Number), y = String(b || "").split(".").map(Number); for (let i = 0; i < Math.max(x.length, y.length); i++){ const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
+  const upd = upR == null ? "nicht abgefragt" : vcmp(upR, prog.version) > 0 ? `neuere Version ${upR} verfügbar` : "aktuell";
+  const books = (lib.books || []).map(b => {
+    const pr = pulls.find(p => ((p.head || {}).ref) === b.work_branch), pending = b.pending || 0, ed = b.last_edition;
+    return {B_TITLE:b.title || b.title_short || b.branch, B_BRANCH:b.branch, B_COMMIT_TEXT:[deDate(b.updated_at), b.last_commit || ""].filter(Boolean).join(" · "),
+      B_PENDING_TEXT:pending ? `${plural(pending, "Änderung", "Änderungen")} ausstehend` + (pr ? ` · Änderungspaket #${pr.number}` : "") : "keine ausstehenden Änderungen", B_PENDING:pending ? "1" : "",
+      B_AUTOMERGE_TEXT:"Änderungen sofort übernehmen: " + (b.auto_merge ? "an" : "aus"),
+      B_EDITION_TEXT:ed ? `Auflage ${ed.number} vom ${deDate(ed.date)} (${ed.tag})` : "noch keine Auflage",
+      B_PROOF_TEXT:"in dieser App nicht abrufbar", B_DATA_TEXT:`Datenstand ${b.data_version != null ? b.data_version : "?"}` + (b.migration_pending ? " – Umstellung ausstehend, kommt mit dem nächsten Update" : " – aktuell"),
+      B_MIGRATION:b.migration_pending ? "1" : "", B_CHECK:"", B_CHECK_TEXT:"Prüfläufe in dieser App nicht abrufbar"};
+  });
+  const sec = lib.secrets, srows = (lib.secret_names || []).map(n => { const v = sec == null ? null : sec[n], st = v == null ? "unknown" : v ? "yes" : "no"; return {S_NAME:n, S_STATE:st, S_TEXT:{yes:"hinterlegt", no:"fehlt", unknown:"unbekannt"}[st]}; });
+  const d = Object.assign(base(), {LIBRARY_NAME:own + "/" + rp,
+    PROGRAM_VERSION_TEXT:`GhostWriter ${prog.version || "?"} · Hauptrepository ${prog.upstream || "?"}`, PROGRAM_UPDATE_TEXT:upd, PROGRAM_BEHIND:"",
+    PROGRAM_LAST_UPDATE_TEXT:prog.last_update ? "letzter Update-Lauf am " + deDate(prog.last_update) : "noch kein Update-Lauf",
+    PROGRAM_SKIPPED_TEXT:(prog.skipped_workflows || []).length ? "Workflow-Dateien übersprungen (Secret GHOSTWRITER_UPDATE_TOKEN fehlt): " + prog.skipped_workflows.join(", ") : "",
+    UI_TEXT:`ghostwriter-ui ${prog.ui_version || "?"} · Commit ${String(prog.ui_commit || "").slice(0, 7)}`, GITHUB_KNOWN:repo || brR ? "1" : "",
+    REPO_TEXT:`${vis} · ${sizeText} · ${brText}`, CLEANUP_URL:`https://github.com/${own}/${rp}/actions/workflows/cleanup.yml`, TASKS_URL:`https://github.com/${own}/${rp}/issues?q=is%3Aissue+is%3Aopen+L%C3%B6schaufgaben`, LIMITS_TEXT:"",
+    BOOKS:books, SECRETS:srows,
+    RUNS:[{R_NAME:"Läufe der Actions auf GitHub ansehen", R_STATE:"other", R_TEXT:"in dieser App nicht abrufbar – auf GitHub öffnen", R_URL:`https://github.com/${own}/${rp}/actions`}]});
+  if (upR != null && vcmp(upR, prog.version) > 0) d.PROGRAM_UPDATE_TEXT += " – einspielen mit der Action „GhostWriter aktualisieren“ oder im Chat";
+  return d;
+}
+/* ---------- Claude ---------- */
+const QUICK = {
+  section:{"Stil und Lesbarkeit prüfen":"Prüf Stil und Lesbarkeit dieses Abschnitts nach den Schreibregeln. Nenne die wichtigsten Stellen mit kurzem Zitat und Verbesserungsvorschlag.",
+    "Überarbeitung vorschlagen":"Schlag eine überarbeitete Fassung des Manuskripts vor, die den Schreibregeln folgt, und erkläre kurz die wichtigsten Änderungen.",
+    "Anschluss an den vorigen Abschnitt prüfen":"Lies den vorigen Abschnitt und prüf, ob dieser Abschnitt inhaltlich und stilistisch gut daran anschließt (Figuren, Zeit, Ort, Ton). Nenne konkrete Stellen."},
+  chapter:{"Was ist in diesem Kapitel offen?":"Was ist in diesem Kapitel noch offen? Sieh dir Bearbeitungsstand, Ziele und offene Marker der Abschnitte an und nenne die nächsten sinnvollen Schritte.",
+    "Roten Faden prüfen":"Lies die Abschnitte dieses Kapitels (höchstens die ersten acht) und prüf, ob sie zum Ziel des Kapitels passen und gut aufeinander aufbauen. Nenne konkrete Stellen.",
+    "Nächsten Abschnitt vorschlagen":"Welcher Abschnitt dieses Kapitels sollte als Nächstes bearbeitet werden, und warum? Biete ihn mit einem Knopf zum Öffnen an."},
+  project:{"Wo stehe ich?":"Fass kurz zusammen, wo das Buch steht: wie viele Abschnitte in welchem Bearbeitungsstand, offenes Änderungspaket, was als Nächstes ansteht.",
+    "Was soll ich als Nächstes tun?":"Schlag mir die zwei, drei sinnvollsten nächsten Schritte für dieses Buch vor und biete passende Knöpfe an.",
+    "Gliederung prüfen":"Sieh dir die Gliederung an: Passen Reihenfolge und Titel der Kapitel und Abschnitte zueinander? Gibt es Lücken oder Doppelungen? Nur Vorschläge."}
+};
+const scopeOf = () => String(S.chatKey || "project").split(":")[0];
+function claudePanel(){
+  const on = !!S.sample, sc = scopeOf();
+  const what = {section:"Arbeitet mit dem geöffneten Abschnitt", chapter:`Arbeitet mit Kapitel ${(S.chap || 0) + 1}`, project:"Arbeitet mit dem ganzen Buch"}[sc];
+  return `<aside class="claude" aria-label="Claude"><div class="ch-head"><b>Claude</b><p>${on ? what + " · über dein Claude-Konto" : "Claude ist in dieser Ansicht nicht verfügbar."}</p></div>
+  <div class="msgs" id="msgs"></div>
+  <div class="quick">${Object.keys(QUICK[sc]).map(q => `<button data-q="${esc(q)}" ${on ? "" : "disabled"}>${esc(q)}</button>`).join("")}</div>
+  <form class="ask" id="fAsk"><textarea class="in" id="askIn" rows="1" placeholder="Frage an Claude …" ${on ? "" : "disabled"}></textarea><button class="btn pri" aria-label="Senden" ${on ? "" : "disabled"}><i class="ti ti-send"></i></button></form></aside>`;
+}
+function md(t){
+  const lines = esc(t).split("\n"), out = []; let list = null;
+  const inl = s => s.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<i>$2</i>");
+  for (const l of lines){
+    const li = /^\s*(?:[-*•]|\d+[.)])\s+(.*)/.exec(l);
+    if (li){ if (!list){ list = /^\s*\d/.test(l) ? "ol" : "ul"; out.push(`<${list}>`); } out.push(`<li>${inl(li[1])}</li>`); continue; }
+    if (list){ out.push(`</${list}>`); list = null; }
+    if (/^#{1,6}\s/.test(l)) out.push(`<h4>${inl(l.replace(/^#+\s*/, ""))}</h4>`);
+    else if (/^&gt;\s?/.test(l)) out.push(`<blockquote>${inl(l.replace(/^&gt;\s?/, ""))}</blockquote>`);
+    else if (l.trim()) out.push(`<p>${inl(l)}</p>`);
+  }
+  if (list) out.push(`</${list}>`);
+  return out.join("");
+}
+const PROPOSAL = /<<<MANUSKRIPT\n?([\s\S]*?)MANUSKRIPT>>>/;
+function renderChat(){
+  const box = $("msgs"); if (!box) return;
+  box.innerHTML = S.chat.length ? S.chat.map((m, i) => {
+    if (m.role === "user") return `<div class="msg u">${esc(m.label || m.content)}</div>`;
+    const p = PROPOSAL.exec(m.content), res = /<<<RECHERCHE\n?([\s\S]*?)(RECHERCHE>>>|$)/.exec(m.content);
+    let shown = m.content.replace(PROPOSAL, m.run ? "\n*(Entwurf für das Manuskript – mit „Als Entwurf speichern“ übernehmen oder erst ins Formular.)*\n" : "\n*(Vorschlag für das Manuskript – mit dem Knopf unten ins Formular übernehmen.)*\n");
+    if (res) shown = shown.replace(/<<<RECHERCHE\n?/, "").replace(/RECHERCHE>>>/, "");
+    const done = !S.busy && m.content;
+    const runBtn = m.run && done && !m.saved && (m.run.task === "research" ? res && res[2] : p) ? `<button class="btn pri" data-act="saverun" data-i="${i}">${m.run.task === "research" ? "Recherche speichern" : "Als Entwurf speichern"}</button> ` : (m.saved ? '<span class="dim">Gespeichert.</span> ' : "");
+    const acts = []; shown = shown.replace(ACTION_RE, (all, json) => { const a = safeAction(json); if (a) acts.push(a); return ""; }).replace(/<<<AKTION[\s\S]*$/, "");
+    const actBtns = done ? acts.map(a => `<button class="btn" data-act="run" data-a="${esc(JSON.stringify(a))}"><i class="ti ti-arrow-right"></i> ${esc(a.label)}</button> `).join("") : "";
+    return `<div class="msg a">${m.content ? md(shown) : '<span class="dim"><span class="spin"></span>Claude arbeitet …</span>'}${runBtn}${actBtns}${p && done && scopeOf() === "section" ? `<button class="btn" data-act="apply" data-i="${i}">Ins Formular übernehmen</button>` : ""}</div>`;
+  }).join("") : `<p class="dim" style="margin:0">${scopeOf() === "section" ? "Frag Claude zum Abschnitt." : scopeOf() === "chapter" ? "Frag Claude zu diesem Kapitel." : "Frag Claude zum Buch – etwa wo du stehst oder was als Nächstes dran ist."} Claude ändert nichts selbst: Es schlägt vor und bietet Knöpfe an; gespeichert wird erst in den Formularen, mit deiner Bestätigung.</p>`;
+  box.scrollTop = box.scrollHeight;
+}
+const ACTION_RE = /<<<AKTION\s*([\s\S]*?)\s*AKTION>>>/g;
+const SAFE_ACTIONS = ["view.project", "view.chapter", "view.section", "view.data", "project.edit", "chapter.create.open", "chapter.edit.open", "section.create.open", "chapter.reorder.open", "section.reorder.open", "approval.open", "changes.merge.open", "run.start"];
+function safeAction(json){
+  // nur Ansichten und Formulare öffnen; alles, was schreibt, bestätigt der Benutzer danach im Formular
+  let a; try { a = JSON.parse(json); } catch (e) { return null; }
+  if (!a || !SAFE_ACTIONS.includes(a.action)) return null;
+  if (a.action === "run.start") a.mode = "immediate";
+  const ok = id => !id || allSecs().some(v => v.s.id === id) || chapters().some(c => c.id === id);
+  if (!ok(a.section_id) || !ok(a.chapter_id)) return null;
+  a.label = String(a.label || a.action).slice(0, 60); return a;
+}
+const ACTION_HELP = `Du kannst dem Benutzer Knöpfe anbieten, die eine Ansicht oder ein Formular öffnen. Schreib dafür je Knopf eine eigene Zeile:
+<<<AKTION {"action":"…","label":"kurzer Knopftext", …Daten} AKTION>>>
+Erlaubt: view.project; view.chapter {chapter_id}; view.section {section_id}; project.edit; chapter.create.open; chapter.edit.open {chapter_id}; section.create.open {chapter_id}; chapter.reorder.open; section.reorder.open {chapter_id}; approval.open {kind:"writing"|"section", section_id, revoke?} bzw. {kind:"chapter", chapter_id, revoke?}; changes.merge.open; run.start {section_id, task:"research"|"writing"}. IDs nur aus buch_struktur. Knöpfe öffnen nur – gespeichert, freigegeben oder übernommen wird erst nach Bestätigung durch den Benutzer. Höchstens drei Knöpfe.`;
+function context(){
+  const p = S.cfg.project || {}, sc = scopeOf();
+  if (sc !== "section"){
+    const prof = ["Titel: " + (p.title || p.working_title || S.book.title), "Autor: " + (p.author || ""), "Buchtyp: " + (p.book_type || ""), "Zielgruppe: " + (p.target_audience || ""), "Sprache: " + (p.language || "de"), "Beschreibung: " + (p.description || p.description_short || "")].filter(l => !/: $/.test(l)).join("\n");
+    const c = sc === "chapter" ? chapters()[S.chap] : null;
+    return `Du bist der Assistent in GhostWriter, einem Werkzeug für Buchprojekte auf GitHub. Antworte auf Deutsch, knapp, in Alltagssprache.
+Regeln: Nenne keine Datei-, Feld- oder Werkzeugnamen (sag „Bearbeitungsstand“, „abschließen“, „Änderungspaket“). Behaupte nie, etwas gespeichert oder geändert zu haben. Erfinde keine Fakten über das Buch. Gib nie ein ganzes Kapitel oder Buch aus. Bearbeitungsstände: planned geplant, research Recherche, brainstorming Ideensammlung, ready_to_write bereit zum Schreiben, writing Schreiben, revision Überarbeitung, ready_for_approval bereit zum Abschluss, approved abgeschlossen, in_progress in Arbeit.
+Mit buch_struktur siehst du die Gliederung (mit IDs), mit abschnitt_lesen liest du einen Abschnitt, mit kapitel_lesen Ziel und Kurzbeschreibung eines Kapitels.
+${ACTION_HELP}
+
+BUCHPROFIL
+${prof}
+Offenes Änderungspaket: ${S.pr ? "#" + S.pr.number + " (noch nicht ins Buch übernommen)" : "keins"}
+${c ? `
+GEÖFFNETES KAPITEL ${S.chap + 1} „${c.title}“ (ID ${c.id}, Stand ${c.status})
+Abschnitte: ${c.sections.map((s, si) => `${S.chap + 1}.${si + 1} ${s.title} [${s.status}] (ID ${s.id})`).join("; ") || "keine"}` : ""}`;
+  }
+  const t = S.secFile.text, cur = $("gw-ms") ? $("gw-ms").value : msOf(t);
+  const prof = ["Titel: " + (p.title || S.book.title), "Buchtyp: " + (p.book_type || ""), "Zielgruppe: " + (p.target_audience || ""), "Sprache: " + (p.language || "de"), "Beschreibung: " + (p.description || "")].filter(l => !/: $/.test(l)).join("\n");
+  return `Du bist der Schreibassistent in GhostWriter, einem Werkzeug für Buchprojekte auf GitHub. Antworte auf Deutsch, knapp, in Alltagssprache.
+Regeln: Nenne keine Datei-, Feld- oder Werkzeugnamen (sag „Bearbeitungsstand“, „Freigabe“, „Änderungspaket“). Behaupte nie, etwas gespeichert oder geändert zu haben – du kannst nur vorschlagen. Erfinde keine Fakten über das Buch; halte dich an Buchprofil, Schreibregeln und Text. Gib nie ein ganzes Kapitel oder Buch aus, höchstens einen Abschnitt.
+Wenn du eine vollständige neue Fassung des Manuskripts dieses Abschnitts vorschlägst, setze NUR den Manuskripttext zwischen die Zeilen <<<MANUSKRIPT und MANUSKRIPT>>> (ohne Überschrift). Sonst keine solchen Marker.
+Mit abschnitt_lesen kannst du andere Abschnitte lesen, mit buch_struktur die Gliederung sehen.
+${ACTION_HELP}
+
+BUCHPROFIL
+${prof}
+
+SCHREIBREGELN DES BUCHS
+${S.rules || "(keine eigenen Schreibregeln hinterlegt)"}
+
+AKTUELLER ABSCHNITT ${S.secNo} „${S.sec.title}“
+Ziel: ${($("gw-goal") && $("gw-goal").value) || part(t, "Ziel des Abschnitts") || "–"}
+Kurzbeschreibung: ${($("gw-summary") && $("gw-summary").value) || part(t, "Kurzbeschreibung") || "–"}
+Manuskript (Stand im Formular, ggf. noch nicht gespeichert):
+${cur.slice(0, 40000)}`;
+}
+const TOOLS = [
+  {name:"buch_struktur", description:"Gliederung des Buchs: Kapitel und Abschnitte mit Nummer, ID, Titel und Bearbeitungsstand.", inputSchema:{type:"object", properties:{}}, execute: async () => chapters().map((c, ci) => ({kapitel:ci + 1, id:c.id, titel:c.title, stand:c.status, abschnitte:(c.sections || []).map((s, si) => ({nummer:`${ci + 1}.${si + 1}`, id:s.id, titel:s.title, stand:s.status}))}))},
+  {name:"kapitel_lesen", description:"Kurzbeschreibung und Ziel eines Kapitels, z. B. nummer 2.", inputSchema:{type:"object", properties:{nummer:{type:"number"}}, required:["nummer"]}, execute: async ({nummer}) => {
+    const c = chapters()[Number(nummer) - 1]; if (!c) throw new Error("Kapitel " + nummer + " gibt es nicht.");
+    const r = (await getFile(c.path + "/README.md", S.readRef).catch(() => ({text:""}))).text; return {nummer, id:c.id, titel:c.title, stand:c.status, kurzbeschreibung:part(r, "Kurzbeschreibung"), ziel:part(r, "Ziel des Kapitels")};
+  }},
+  {name:"abschnitt_lesen", description:"Liest Ziel, Kurzbeschreibung und Manuskript eines anderen Abschnitts, z. B. nummer \"2.3\".", inputSchema:{type:"object", properties:{nummer:{type:"string"}}, required:["nummer"]}, execute: async ({nummer}) => {
+    const [a, b] = String(nummer).split(".").map(Number), c = chapters()[a - 1], s = c && (c.sections || [])[b - 1]; if (!s) throw new Error("Abschnitt " + nummer + " gibt es nicht.");
+    const t = (await getFile(s.path, S.readRef)).text; return {nummer, titel:s.title, ziel:part(t, "Ziel des Abschnitts"), kurzbeschreibung:part(t, "Kurzbeschreibung"), manuskript:msOf(t).slice(0, 20000)};
+  }}
+];
+async function chat(q, label){
+  if (!S.sample || S.busy || !q.trim()) return;
+  S.busy = true; S.chat.push({role:"user", content:q.trim(), label}); const a = {role:"assistant", content:"", run:S.pendingRun || null}; S.pendingRun = null; S.chat.push(a); renderChat();
+  const hist = S.chat.slice(0, -1).map((m, i) => ({role:m.role, content: i === 0 ? context() + "\n\nANFRAGE:\n" + m.content : m.content}));
+  try { const r = await S.sample(hist, {tools:TOOLS, cache:false, onText:({text}) => { a.content = text; renderChat(); }}); a.content = r.text || a.content; }
+  catch (e) { a.content = e.code === "not_granted" ? "Claude ist für diese App nicht freigegeben." : e.code === "rate_limited" ? "Dein Claude-Kontingent ist gerade ausgeschöpft. Bitte später noch einmal versuchen." : "Claude konnte nicht antworten: " + (e.message || e); }
+  S.busy = false; renderChat();
+}
+
+/* ---------- Ereignisse ---------- */
+document.addEventListener("click", async ev => {
+  const t = ev.target.closest("button"); if (!t) return;
+  if (t.id === "home"){ S.owner = ""; S.lib = null; S.book = null; S.sec = null; S.chap = null; S.msg = null; return show("connect"); }
+  const d = t.dataset;
+  if (d.go === "library"){ S.msg = null; show("library"); }
+  else if (d.go === "project"){ S.msg = null; show("project"); }
+  else if (d.go === "chapter"){ S.msg = null; show("chapter", S.chap); }
+  else if (d.go === "back") show(S.report.from, S.report.arg);
+  else if (d.report){ const from = S.view, arg = from === "section" ? S.sec.id : S.chap; busy("Bericht wird geladen …"); try { S.report = {path:d.report, text:(await getFile(d.report, S.readRef)).text, from, arg}; show("report"); } catch (e) { S.msg = {kind:"err", html:"Bericht nicht gefunden: " + esc(d.report)}; show(from, arg); } }
+  else if (d.act === "allchecks"){ S.showAll = !S.showAll; show("project"); }
+  else if (d.act === "copy"){ try { await navigator.clipboard.writeText($("cpy").textContent); t.textContent = "Kopiert"; } catch (e) { t.textContent = "Kopieren nicht möglich – Text markieren"; } }
+  else if (d.q) chat((QUICK[scopeOf()] || {})[d.q] || d.q, d.q);
+  else if (d.act === "run"){ let a; try { a = JSON.parse(d.a); } catch (e) { return; } const label = a.label; delete a.label; act({action:a.action, data:a, text:label}); }
+  else if (d.act === "saverun") saveRun(+d.i);
+  else if (d.act === "apply"){ const p = PROPOSAL.exec(S.chat[+d.i].content), el = $("gw-ms"); if (p && el){ el.value = p[1].trim(); el.dispatchEvent(new Event("input", {bubbles:true})); el.scrollIntoView({behavior:"smooth", block:"center"}); } }
+});
+document.addEventListener("submit", ev => {
+  if (ev.target.id === "fConnect"){ ev.preventDefault(); loadRepo($("repoIn").value); }
+  if (ev.target.id === "fAsk"){ ev.preventDefault(); const el = $("askIn"), q = el.value; el.value = ""; chat(q); }
+});
+document.addEventListener("keydown", ev => { if (ev.target.id === "askIn" && ev.key === "Enter" && !ev.shiftKey && !ev.isComposing){ ev.preventDefault(); $("fAsk").requestSubmit(); } });
+
+show("connect");
+(async () => {
+  const use = n => (window.claude && typeof window.claude.use === "function") ? window.claude.use(n).catch(() => null) : Promise.resolve(null);
+  const [m, s] = await Promise.all([use("mcp"), use("sample")]);
+  S.mcp = m; S.sample = s; S.ready = true;
+  if (S.view === "connect") show("connect");
+})();
+}
+</script>
+<script src="vendor/gw-lite.js"></script>
+</body>
+</html>
