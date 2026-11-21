@@ -22,6 +22,7 @@
           "alt": {"type": "string", "description": "genauer Wortlaut im Manuskript"},
           "neu": {"type": "string", "description": "Vorschlag"},
           "frage": {"type": "string", "description": "was der Autor entscheiden oder angeben muss"},
+          "varianten": {"type": "array", "items": {"type": "string", "minLength": 1}, "maxItems": 3, "description": "zwei bis drei Lösungsvorschläge zur Frage, vor allem bei blockierenden Befunden (#447)"},
           "status": {"enum": ["offen", "erledigt", "entschieden"]}
         },
         "additionalProperties": false

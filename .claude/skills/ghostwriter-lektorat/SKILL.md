@@ -1,6 +1,6 @@
 ---
 name: ghostwriter-lektorat
-description: Strukturlektorat, Sprachlektorat oder Schlusskorrektur eines vorhandenen GhostWriter-Manuskripts; auch structural review, language review und proofreading. Für gezielte redaktionelle Prüfaufträge, nicht für Software-Reviews oder neue Manuskriptentwürfe.
+description: Strukturlektorat, Sprachlektorat, Schlusskorrektur oder Rundumprüfung eines Kapitels in einem vorhandenen GhostWriter-Manuskript; auch structural review, language review, proofreading und full chapter check. Für gezielte redaktionelle Prüfaufträge, nicht für Software-Reviews oder neue Manuskriptentwürfe.
 ---
 
 # GhostWriter-Lektorat
@@ -19,6 +19,11 @@ Textfassung. Ein Prüfauftrag allein autorisiert keine Manuskriptkorrekturen,
 Profil- oder Statusänderungen, Speicherung oder Veröffentlichung. Bereits
 explizit beauftragte Korrekturen bleiben innerhalb ihres erlaubten Umfangs möglich.
 Eine bestandene Prüfung ersetzt keine Autorenfreigabe.
+**Rundumprüfung (#447):** „Rundumprüfung Kapitel N“ bzw. „Kapitel N komplett
+prüfen“ folgt dem gleichnamigen Abschnitt der Anleitung. Nur dieser Auftrag
+schließt das Beheben der `hinweise.py`-Einträge unter „Ohne Autor lösbar“ ein,
+sonst nichts. Abgeschlossene Abschnitte (`approvals.section: true`) werden nie
+geändert; keine Freigabe, kein Übernehmen ohne ausdrückliche Bestätigung.
 Wird ein Bericht gespeichert, den Lauf mit `scripts/checks.py record` ins
 Prüfprotokoll `editorial/checks.yml` eintragen (#331); daraus entstehen die
 Prüf-Tags in den Ansichten. Dabei immer `--notes <n>` mitgeben: Zahl der offenen

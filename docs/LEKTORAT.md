@@ -1,8 +1,8 @@
-# Lektorat: drei Prüfarten
+# Lektorat: Prüfarten und Rundumprüfung
 
 Deutsch · [English](EDITORIAL-REVIEW.en.md)
 
-Die drei Prüfarten sind gezielte Arbeitsaufträge im Chat. Sie ergänzen die
+Die drei Prüfarten und die Rundumprüfung, die sie bündelt, sind gezielte Arbeitsaufträge im Chat. Sie ergänzen die
 [Qualitätssicherung](QUALITAETSSICHERUNG.md); deren Prüfumfang, Korrekturschleife,
 Schweregrade und Freigaben bleiben verbindlich. Sie sind keine automatischen
 Programmläufe und benötigen keinen zusätzlichen KI-Dienst.
@@ -14,6 +14,7 @@ Programmläufe und benötigen keinen zusätzlichen KI-Dienst.
 | Strukturlektorat | Trägt der Aufbau die beabsichtigte Wirkung oder Argumentation? | „Strukturlektorat für Kapitel 3.“ |
 | Sprachlektorat | Ist der Text verständlich und bleibt er in der vereinbarten Stimme? | „Sprachlektorat für Abschnitt 2.3.“ |
 | Schlusskorrektur | Welche Schreib-, Zeichensetzungs- und Konsistenzfehler sind noch vorhanden? | „Schlusskorrektur für Kapitel 4.“ |
+| Rundumprüfung (#447) | Was ist an diesem Kapitel noch offen, und was davon lässt sich ohne Autor beheben? | „Rundumprüfung Kapitel 3“, „Kapitel 3 komplett prüfen“ |
 
 Gleichbedeutende freie Formulierungen verstehen, etwa „Prüfe Kapitel 3 auf
 Struktur und Dramaturgie“. Ist die Prüfart aus dem Auftrag klar, direkt damit
@@ -135,7 +136,7 @@ legt der Assistent beim Speichern eines Berichts dessen Befunde zusätzlich als
 `id` (`b-001`), `abschnitt` (Abschnitts-ID; für Vor- und Nachspann die ID des Teils,
 z. B. `mat-nachwort`; für buchweite Befunde `book`, #423), optional `absatz`, `schweregrad`,
 `art`, `befund`, `richtung`, bei Sprachbefunden `alt` (genauer Wortlaut) und `neu`
-(Vorschlag), optional `frage`, dazu `status` (`offen`, `erledigt`, `entschieden`).
+(Vorschlag), optional `frage` und `varianten` (zwei bis drei Lösungsvorschläge, #447), dazu `status` (`offen`, `erledigt`, `entschieden`).
 `--notes` im Prüfprotokoll ist die Zahl der Befunde mit `status: offen`.
 
 Auf Auftrag („Hinweise durchsehen“, „Hinweisdurchsicht“) sammelt
@@ -159,6 +160,8 @@ legt `durchsicht-<datum>-2.yml` an (Schema
   Kapitel. Buchweite Befunde (`abschnitt: book`) sind immer Autorenentscheidungen;
   `apply` setzt sie nicht selbst um, sondern meldet sie zum Umsetzen von Hand.
   Mit `--chapter` bleiben beide außen vor.
+- Blockierende Befunde (`schweregrad: blockierend`) sind immer Autorenentscheidungen
+  und stehen dort zuerst, mit „⛔ blockierend“ und ihren `varianten` (#447).
 - `alt` muss im heutigen Manuskript genau einmal vorkommen. Sonst wird der
   Befund nicht aufgenommen und unter `ausgelassen` mit Grund gemeldet.
 - Jeder Eintrag trägt den betroffenen Satz mit bis zu zwei Sätzen davor und
@@ -186,6 +189,78 @@ betroffenen Kapitel eine Nachprüfung ein (Schlusskorrektur und Qualität, mit
 wird wie bei anderen Buchänderungen.
 
 Im Chat zeigt `render_view.py notes-review` den Dialog als Widget (Vorlage `hinweisdurchsicht`, ab UI 0.58.0) mit „Übernehmen“, „Nicht ändern“ und „Anders formulieren“ je Eintrag und „Umsetzen prüfen“; die Textfassung ist `--text`.
+
+## Rundumprüfung eines Kapitels (#447)
+
+Die Rundumprüfung prüft ein Kapitel in einem Durchgang vollständig: Struktur,
+Sprache, Schlusskorrektur, Grundregeln mit KI-Mustern und Buchgedächtnis. Sie
+behebt nur, was ohne Autor lösbar ist, legt alles andere als Dialog ab und stellt
+das Ergebnis als Änderungspaket bereit. Übernommen wird nichts. Repository,
+Git-Benutzer und Erzählstimme kommen aus `assistant.yml` und dem Buchprofil,
+die Modelle aus `subagent_models`; feste Namen gibt es nicht.
+
+**Was der Auftrag erlaubt:** Abweichend vom gemeinsamen Arbeitsauftrag schließt
+eine Rundumprüfung das Beheben der Einträge ein, die `hinweise.py collect` unter
+**Ohne Autor lösbar** einordnet, und sonst nichts: keine Autorenentscheidung,
+keine Struktur-, Fakten- oder Tonänderung, keine Freigabe und kein Übernehmen.
+Abgeschlossene Abschnitte (`approvals.section: true`) und abgeschlossene Kapitel
+werden nie geändert; ihre Befunde bleiben im Dialog (`plan` zeigt sie als ⛔).
+
+1. **Vorbereiten.** Lesestand bestimmen (bei offenem Änderungspaket der
+   Arbeits-Branch, sonst der Buch-Branch) und den Commit merken.
+   `python3 scripts/chapter_revision.py <buch> <N>` muss „verfügbar“ melden;
+   sonst nur den vorhandenen Teil prüfen und das Ergebnis `incomplete` setzen.
+   Lesen: Buchprofil (`style`, `style.avoid`, `style.features`), Kapitel-README,
+   Lesefassung (`python3 scripts/assemble.py <buch> reading <N>`), die
+   Nachbarkapitel, `planning/`, Figuren und Zeitleiste. Befunde früherer Berichte
+   (`editorial/*.yml`) mit `status: entschieden` oder `erledigt` nicht erneut melden.
+2. **Analysen ohne KI.** `python3 scripts/analyze.py <buch> run --kind language
+   --scope <N>`. Dazu die Grundregel „nichts aus anderen Büchern übernehmen“
+   prüfen: Gibt es in der Bibliothek ein Buch, an dem sich dieses orientiert,
+   gemeinsame Folgen von fünf Wörtern und übernommene Figurennamen zählen und
+   jeden Treffer als Befund aufnehmen.
+3. **Prüfungen verteilen.** Wo die App Hilfsagenten kennt, parallel und mit der
+   Modellklasse nach der [Tabelle](#modellwahl-für-hilfsagenten-418):
+   Schlusskorrektur (`proofreading`, klein), Grundregeln und KI-Muster
+   (`templates/qa/ki-muster.yml`, `style.avoid`; Klasse wie `proofreading`),
+   Sprachlektorat (`language`, mittel), Buchgedächtnis und Kontinuität
+   (`continuity`, mittel), Strukturlektorat (`structure`, groß). Jeder Agent
+   liefert nur eine Befundliste nach `schemas/findings.schema.json`; `alt` ist
+   der genaue Wortlaut, der im Manuskript genau einmal vorkommt. Bei sexuellen
+   oder sexualisierten Szenen ist „alle Figuren eindeutig erwachsen“ immer
+   blockierend zu prüfen. Ohne Hilfsagenten dieselben Prüfungen in derselben
+   Reihenfolge nacheinander; die Modellklasse ist dann nur eine Empfehlung.
+4. **Zusammenführen.** Doppelte Befunde zusammenlegen, Schweregrade nach der
+   [Korrekturschleife](QUALITAETSSICHERUNG.md#korrekturschleife) vereinheitlichen (KI-Muster und
+   Verstöße gegen Grundregeln mindestens `wesentlich`) und jedes `alt` gegen das
+   Manuskript prüfen. Ergebnis je Prüfart: `failed`, `passed_with_notes` oder
+   `passed` (bzw. `incomplete`, siehe Schritt 1).
+5. **Speichern.** Bericht `editorial/kapitel-NN-pruefung-<datum>.md` und
+   `editorial/kapitel-NN-pruefung-<datum>.yml`, dann je Prüfart
+   `python3 scripts/checks.py record <buch> --kind <art> --scope <kapitel-id>
+   --result … --report … --notes <n> --commit <geprüfter Commit>` (Arten
+   `structure`, `language`, `proofreading`, `story_memory`) und
+   `python3 scripts/validate_project.py <buch>`. Ein Commit auf dem Arbeits-Branch;
+   das Änderungspaket anlegen oder aktualisieren.
+6. **Ohne Autor Behebbares beheben.** `hinweise.py collect <buch> --chapter
+   <kapitel-id>`, dann nur die Einträge unter **Ohne Autor lösbar** mit
+   `decide … --decision ja`, danach `plan` und `apply`. Jeden geänderten Satz mit
+   zwei Sätzen davor und danach neu lesen (Echos, Zeitform, Rhythmus) und die
+   Nachprüfung als `proofreading` und `quality_correction` eintragen.
+7. **Dialoge vorbereiten, nicht ausgeben.** Die übrigen Einträge bleiben in der
+   Durchsicht, Vorschläge in der Erzählstimme des Buchs. Blockierende Befunde
+   bekommen in der Befunddatei eine `frage` und zwei bis drei `varianten`;
+   `collect` stellt sie in der Durchsicht an den Anfang der
+   Autorenentscheidungen, markiert sie mit „⛔ blockierend“ und setzt sie nie
+   unter „Ohne Autor lösbar“. Im Chat erscheint kein Dialoginhalt.
+8. **Nachziehen.** Die Sprachanalyse wiederholen und im Bericht den Abschnitt
+   „Stand nach der Rundumprüfung“ ergänzen. Autorenentscheidungen aus früheren
+   Dialogen, die als Stilmittel gelten, gehören nach Bestätigung in
+   `style.features` bzw. in die Kapitel-README.
+9. **Abschluss im Chat.** Ergebnis je Prüfart mit Modell, Zahl der offenen
+   Punkte, Namen der Dialogdateien, automatisch geänderte Stellen (alt → neu, je
+   eine Zeile) und der Link zum Änderungspaket mit „noch nicht übernommen“. Das
+   Übernehmen und die Hinweisdurchsicht als Auswahl anbieten.
 
 ## Viele Kapitel: Hilfsagent (#392)
 

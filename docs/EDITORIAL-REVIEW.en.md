@@ -1,8 +1,8 @@
-# Editorial review: three review types
+# Editorial review: review types and full chapter check
 
 [Deutsch](LEKTORAT.md) · English
 
-These review types are focused chat assignments. They extend
+These review types and the full chapter check that combines them are focused chat assignments. They extend
 [quality assurance](QUALITY-ASSURANCE.en.md); its scope, correction loop,
 severity levels and approval rules remain binding. They are not automated
 program runs and require no additional AI service.
@@ -14,6 +14,7 @@ program runs and require no additional AI service.
 | Structural review | Does the structure support the intended experience or argument? | “Structural review of chapter 3.” |
 | Language review | Is the text clear and faithful to the agreed voice? | “Language review of section 2.3.” |
 | Proofreading | What spelling, punctuation and consistency errors remain? | “Proofread chapter 4.” |
+| Full chapter check (#447) | What is still open in this chapter, and what of it can be fixed without the author? | “Full check of chapter 3”, “Check chapter 3 completely” |
 
 Understand equivalent requests such as “Check chapter 3 for structure and
 pacing.” Proceed when the requested type is clear. For a general editorial
@@ -127,7 +128,7 @@ assistant stores a saved report's findings as `editorial/<report>.yml` as well
 (section ID; for front and back matter the part's ID, e.g. `mat-nachwort`; for
 book-wide findings `book`, #423), optional `absatz`, `schweregrad`, `art`, `befund`, `richtung`,
 for language findings `alt` (exact wording) and `neu` (proposal), optional
-`frage`, and `status` (`offen`, `erledigt`, `entschieden`). `--notes` in the check
+`frage` and `varianten` (two or three proposed solutions, #447), and `status` (`offen`, `erledigt`, `entschieden`). `--notes` in the check
 log is the number of findings with `status: offen`.
 
 On request (“review notes”, “notes review”),
@@ -150,6 +151,8 @@ and **author decision** (`autorenentscheidung`):
   a chapter. Book-wide findings (`abschnitt: book`) are always author decisions;
   `apply` does not apply them itself but reports them for manual work. With
   `--chapter` both are left out.
+- Blocking findings (`schweregrad: blockierend`) are always author decisions and
+  come first there, marked “⛔ blockierend” with their `varianten` (#447).
 - `alt` must occur exactly once in today's manuscript; otherwise the finding is
   left out and listed under `ausgelassen` with the reason.
 - Each entry carries the sentence with up to two sentences before and after
@@ -175,6 +178,78 @@ asks separately about finalizing again. Saving and merging work as for other
 book changes.
 
 In the chat, `render_view.py notes-review` shows the dialogue as a widget (template `hinweisdurchsicht`, UI 0.58.0 and later) with “Accept”, “Do not change” and “Rephrase” per entry and “Check what can be applied”; `--text` gives the text version.
+
+## Full chapter check (#447)
+
+The full chapter check reviews one chapter completely in a single pass:
+structure, language, proofreading, ground rules with AI patterns, and story
+memory. It fixes only what can be solved without the author, stores everything
+else as a dialogue and provides the result as a change package. Nothing is
+merged. Repository, Git user and narrative voice come from `assistant.yml` and
+the book profile, models from `subagent_models`; there are no fixed names.
+
+**What the assignment permits:** Unlike the shared assignment, a full chapter
+check includes fixing the entries that `hinweise.py collect` puts under
+**without the author** (`ohne_autor`), and nothing else: no author decision, no
+change of structure, facts or tone, no approval and no merge. Finalized sections
+(`approvals.section: true`) and finalized chapters are never changed; their
+findings stay in the dialogue (`plan` shows them as ⛔).
+
+1. **Prepare.** Determine the version to read (the work branch if a change
+   package is open, otherwise the book branch) and note the commit.
+   `python3 scripts/chapter_revision.py <book> <N>` must report “available”;
+   otherwise check only what exists and set the result to `incomplete`. Read
+   the book profile (`style`, `style.avoid`, `style.features`), the chapter
+   README, the reading version (`python3 scripts/assemble.py <book> reading <N>`),
+   the neighbouring chapters, `planning/`, characters and timeline. Do not report
+   again findings from earlier reports (`editorial/*.yml`) with status
+   `entschieden` or `erledigt`.
+2. **Checks without AI.** `python3 scripts/analyze.py <book> run --kind language
+   --scope <N>`. Also check the ground rule “take nothing from other books”: if
+   this book is modelled on another book in the library, count shared five-word
+   sequences and borrowed character names and record each hit as a finding.
+3. **Distribute the checks.** Where the app supports sub-agents, run them in
+   parallel with the model class from the [table](#model-choice-for-sub-agents-418):
+   proofreading (`proofreading`, small), ground rules and AI patterns
+   (`templates/qa/ki-muster.yml`, `style.avoid`; same class as `proofreading`),
+   language review (`language`, medium), story memory and continuity
+   (`continuity`, medium), structural review (`structure`, large). Each agent
+   returns only a findings list following `schemas/findings.schema.json`; `alt`
+   is the exact wording that occurs exactly once in the manuscript. In sexual or
+   sexualized scenes, “all characters clearly adult” is always checked as
+   blocking. Without sub-agents, run the same checks one after the other in the
+   same order; the model class is then only a recommendation.
+4. **Merge.** Combine duplicates, align severity with the
+   [correction loop](QUALITY-ASSURANCE.en.md#correction-loop) (AI patterns and
+   ground-rule violations at least `wesentlich`) and check every `alt` against
+   the manuscript. Result per review type: `failed`, `passed_with_notes` or
+   `passed` (or `incomplete`, see step 1).
+5. **Save.** Report `editorial/kapitel-NN-pruefung-<date>.md` and
+   `editorial/kapitel-NN-pruefung-<date>.yml`, then for each review type
+   `python3 scripts/checks.py record <book> --kind <type> --scope <chapter-id>
+   --result … --report … --notes <n> --commit <checked commit>` (types
+   `structure`, `language`, `proofreading`, `story_memory`) and
+   `python3 scripts/validate_project.py <book>`. One commit on the work branch;
+   create or update the change package.
+6. **Fix what needs no author.** `hinweise.py collect <book> --chapter
+   <chapter-id>`, then only the entries under **without the author** with
+   `decide … --decision ja`, followed by `plan` and `apply`. Reread each changed
+   sentence with two sentences before and after (echoes, tense, rhythm) and
+   record the follow-up check as `proofreading` and `quality_correction`.
+7. **Prepare dialogues, do not show them.** The remaining entries stay in the
+   notes review, with proposals in the book's narrative voice. Blocking findings
+   get a `frage` and two or three `varianten` in the findings file; `collect`
+   puts them first among the author decisions, marks them “⛔ blockierend” and
+   never lists them as solvable without the author. No dialogue content appears
+   in the chat.
+8. **Follow up.** Rerun the language analysis and add the section “State after
+   the full chapter check” to the report. Earlier author decisions that count as
+   stylistic devices go, after confirmation, into `style.features` or the
+   chapter README.
+9. **Wrap-up in the chat.** Result per review type with model, number of open
+   points, names of the dialogue files, automatically changed passages (old →
+   new, one line each) and the link to the change package marked “not merged
+   yet”. Offer merging and the notes review as choices.
 
 ## Many chapters: sub-agent (#392)
 
