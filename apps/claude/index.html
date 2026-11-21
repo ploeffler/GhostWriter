@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GhostWriter für Claude</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2296%22 height=%2296%22 viewBox=%220 0 96 96%22 role=%22img%22%3E%3Ctitle%3EGhostWriter App-Symbol%3C/title%3E%3Crect width=%2296%22 height=%2296%22 rx=%2222%22 fill=%22#374151%22/%3E%3Cg transform=%22translate%280 -1%29%22%3E%3Cpath d=%22M70 12 C 48 18, 32 36, 28 62 L 34 64 C 40 44, 52 30, 70 12 Z%22 fill=%22#D1D5DB%22/%3E%3Cpath d=%22M70 12 C 74 30, 64 48, 40 62 L 34 64 C 52 48, 62 32, 70 12 Z%22 fill=%22#F07F2E%22/%3E%3Cpath d=%22M28 62 L 22 80 L 34 64 Z%22 fill=%22#F3F4F6%22/%3E%3Cpath d=%22M22 80 q 6 -6 12 0 t 12 0 t 12 0%22 fill=%22none%22 stroke=%22#6FBF8A%22 stroke-width=%225%22 stroke-linecap=%22round%22/%3E%3Ccircle cx=%2252%22 cy=%2238%22 r=%223%22 fill=%22#374151%22/%3E%3Ccircle cx=%2260%22 cy=%2230%22 r=%223%22 fill=%22#374151%22/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="vendor/icons.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
 <style>
@@ -29,7 +30,7 @@ a{color:var(--text-accent)}
 button,input,textarea{font:inherit;color:inherit}
 header{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:10px max(3vw,14px);background:var(--surface-1);border-bottom:.5px solid var(--border)}
 .brand{display:flex;gap:8px;align-items:center;font-weight:600;font-size:17px;border:0;background:none;padding:0;cursor:pointer}
-.brand i{color:#e8731c;font-size:20px}
+.brand svg{width:30px;height:30px;flex:none;margin:-3px 0}.logo-a{fill:light-dark(#6B7280,#D1D5DB)}.logo-b{fill:#F07F2E}.logo-c{fill:light-dark(#374151,#F3F4F6)}.logo-w{fill:none;stroke:light-dark(#4F9D69,#6FBF8A);stroke-width:4.5;stroke-linecap:round}.logo-d{fill:light-dark(#F3F4F6,#374151)}
 .crumbs{display:flex;flex-wrap:wrap;gap:2px;align-items:center;color:var(--text-muted);font-size:14px;flex:1}
 .crumbs button{min-height:34px;border:0;padding:0 6px;background:none;color:var(--text-muted);cursor:pointer}
 .crumbs button:hover{color:var(--text-primary)}
@@ -78,7 +79,7 @@ aside.claude{position:sticky;top:70px;display:flex;flex-direction:column;max-hei
 </head>
 <body>
 <header>
-  <button class="brand" id="home"><i class="ti ti-feather" aria-hidden="true"></i>GhostWriter</button>
+  <button class="brand" id="home"><svg viewBox="0 0 96 96" aria-hidden="true"><g transform="translate(4 2)"><path class="logo-a" d="M70 12 C 48 18, 32 36, 28 62 L 34 64 C 40 44, 52 30, 70 12 Z"/><path class="logo-b" d="M70 12 C 74 30, 64 48, 40 62 L 34 64 C 52 48, 62 32, 70 12 Z"/><path class="logo-c" d="M28 62 L 22 80 L 34 64 Z"/><path class="logo-w" d="M22 80 q 6 -6 12 0 t 12 0 t 12 0"/><circle class="logo-d" cx="52" cy="38" r="3"/><circle class="logo-d" cx="60" cy="30" r="3"/></g></svg>GhostWriter</button>
   <nav class="crumbs" id="crumbs" aria-label="Pfad"></nav>
 </header>
 <main id="app"><p class="dim"><span class="spin"></span>Wird geladen …</p></main>
