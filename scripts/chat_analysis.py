@@ -42,8 +42,24 @@ CHRONOLOGY_COMMON = 0              # --common: Figuren, Orte, Quellenliste, Sitz
 CHRONOLOGY_CHAT_CHARS = 4 * analyze.MAX_BLOCK_CHARS
 
 
-def chronology_snapshot(base, config, scope):
-    """Chronologie im Chat (#364): Rechercheläufe eines Kapitels bzw. (scope 0) die gemeinsamen Unterlagen."""
+def chronology_parts(texts, limit=None):
+    """Unterlagen in Teile für je einen Chat-Auftrag (#450): feste Reihenfolge, jeder Teil höchstens limit Zeichen."""
+    limit = limit or CHRONOLOGY_CHAT_CHARS
+    parts, current, size = [], {}, 0
+    for where, text in texts.items():
+        if current and size + len(text) > limit:
+            parts.append(current)
+            current, size = {}, 0
+        current[where] = text
+        size += len(text)
+    if current:
+        parts.append(current)
+    return parts
+
+
+def chronology_snapshot(base, config, scope, piece=None):
+    """Chronologie im Chat (#364): Rechercheläufe eines Kapitels bzw. (scope 0) die gemeinsamen Unterlagen.
+    Zu umfangreiche Unterlagen werden in Teilen gelesen (#450, piece = 1 …)."""
     chapters = config['structure']['chapters']
     if scope == CHRONOLOGY_COMMON:
         key, title, part = 'common', 'Gemeinsame Unterlagen (Figuren, Orte, Quellen, Sitzungen)', 'common'
@@ -54,16 +70,25 @@ def chronology_snapshot(base, config, scope):
     texts = dict(analyze.chronology_units(base, config, part))
     if not texts:
         raise ValueError('Keine Unterlagen zum Lesen')
-    if sum(len(v) for v in texts.values()) > CHRONOLOGY_CHAT_CHARS:
-        raise ValueError('Unterlagen zu umfangreich für den Chat; den Hintergrundlauf (Action „Analyse“, Art chronology) verwenden')
-    return key, title, texts
+    total = sum(len(v) for v in texts.values())
+    if piece is None:
+        if total > CHRONOLOGY_CHAT_CHARS:
+            n = len(chronology_parts(texts))
+            raise ValueError(f'Unterlagen zu umfangreich für einen Chat-Auftrag ({total} Zeichen, höchstens '
+                             f'{CHRONOLOGY_CHAT_CHARS}): in {n} Teilen vorbereiten (--part 1 bis --part {n}) oder den '
+                             'Hintergrundlauf (Action „Analyse“, Art chronology) verwenden')
+        return key, title, texts
+    parts = chronology_parts(texts)
+    if not isinstance(piece, int) or not 1 <= piece <= len(parts):
+        raise ValueError(f'Teil {piece} gibt es nicht (1 bis {len(parts)})')
+    return key, f'{title}, Teil {piece} von {len(parts)}', parts[piece - 1]
 
 
-def snapshot(base, scope, references=(), kind=None):
+def snapshot(base, scope, references=(), kind=None, part=None):
     _, config = load(Path(base))
     chapters = config['structure']['chapters']
     if kind == 'chronology':
-        key, title, texts = chronology_snapshot(Path(base), config, int(scope))
+        key, title, texts = chronology_snapshot(Path(base), config, int(scope), part)
         rules = {}
         for relative in ('workflow.yml', 'assistant.yml', 'ghostwriter-manifest.yml', '.ghostwriter/update.yml'):
             path = Path(base) / relative
@@ -115,7 +140,7 @@ def write_once(path, value):
     return path
 
 
-def prepare(base, kind, scope, source_commit, output, references=()):
+def prepare(base, kind, scope, source_commit, output, references=(), part=None):
     if kind not in KINDS:
         raise ValueError('Unbekannte Analyseart')
     if not re.fullmatch(r'[a-fA-F0-9]{40}', source_commit or ''):
@@ -124,7 +149,9 @@ def prepare(base, kind, scope, source_commit, output, references=()):
         raise ValueError('Genau eine positive Kapitelnummer erforderlich')
     if references and kind != 'series':
         raise ValueError('Zusätzliche Vorlagen nur für Serienabgleich auswählen')
-    state = snapshot(base, scope, references, kind)
+    if part is not None and kind != 'chronology':
+        raise ValueError('--part nur für chronology')
+    state = snapshot(base, scope, references, kind, part)
     spec = analyze.KINDS.get(kind)
     system = (spec or {}).get('system') or EXTRA_KINDS.get(kind) or 'Sprachliche Hinweise aus dem Text ableiten.'
     if kind in AI_PATTERN_KINDS:            # #305: Regeln gegen KI-typische Muster beim Formulieren und Prüfen
@@ -140,6 +167,8 @@ def prepare(base, kind, scope, source_commit, output, references=()):
               + analyze.block_text(state['texts']))
     request = {'format': 1, 'kind': kind, 'scope': scope, 'source_commit': source_commit.lower(),
                'snapshot': state, 'prompt': prompt, 'references': list(references)}
+    if part is not None:
+        request['part'] = part
     request['request_id'] = digest(request)
     request['response_format'] = {'request_id': request['request_id'], 'kind': kind, 'answer': {}}
     write_once(output, request)
@@ -189,7 +218,7 @@ def accept(base, request_file, response_file):
     body = {k: v for k, v in request.items() if k not in ('request_id', 'response_format')}
     if digest(body) != request.get('request_id'):
         raise ValueError('Auftragsdatei wurde verändert')
-    if snapshot(base, request['scope'], request.get('references', []), request['kind']) != request['snapshot']:
+    if snapshot(base, request['scope'], request.get('references', []), request['kind'], request.get('part')) != request['snapshot']:
         raise ValueError('Buchstand oder Profil inzwischen geändert; Auftrag neu vorbereiten')
     response = json.loads(Path(response_file).read_text(encoding='utf-8'))
     if (not isinstance(response, dict) or response.get('request_id') != request['request_id']
@@ -249,6 +278,7 @@ def main():
     p.add_argument('kind', choices=sorted(KINDS))
     p.add_argument('--chapter', type=int, help='Kapitelnummer (bei chronology: Rechercheläufe dieses Kapitels)')
     p.add_argument('--common', action='store_true', help='nur chronology: Figuren, Orte, Quellenliste und Sitzungen')
+    p.add_argument('--part', type=int, help='nur chronology: Teil N zu umfangreicher Unterlagen (#450)')
     p.add_argument('--source-commit', required=True)
     p.add_argument('--out', required=True)
     p.add_argument('--reference', action='append', default=[])
@@ -265,7 +295,7 @@ def main():
             if args.chapter is None and not args.common:
                 raise ValueError('--chapter N angeben (bei chronology auch --common)')
             scope = CHRONOLOGY_COMMON if args.common else args.chapter
-            request = prepare(args.project, args.kind, scope, args.source_commit, args.out, args.reference)
+            request = prepare(args.project, args.kind, scope, args.source_commit, args.out, args.reference, args.part)
             print(json.dumps({'request_id': request['request_id'], 'file': args.out}, ensure_ascii=False))
         elif args.command == 'register':
             kind, run = register(args.project, args.result)

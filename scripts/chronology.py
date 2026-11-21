@@ -23,6 +23,7 @@ wenn der Widerspruch für jeden Tag des Zeitraums gilt.
 Aufruf:
   python3 scripts/chronology.py <buch> check [--json] [--language en]
   python3 scripts/chronology.py <buch> export [--out story/zeitleiste.html] [--language en]
+  python3 scripts/chronology.py <buch> export --columns [--format md|html] [--out …]   Zeitleiste in Spalten (#450)
   python3 scripts/chronology.py <buch> import-md     Tabelle aus story/chronologie.md als Vorschlagslauf (#379)
 
 Erzählzeit (#379): Für eine Handlung ohne Kalenderjahr steht oben `epoch` (label, optional weekday von Tag 0);
@@ -32,6 +33,10 @@ Abgleich mit der Text-Zeitleiste (#364, Art text): Ereignisse in story/timeline.
 (chr-…, von Hand bzw. im Chat gesetzt) werden geprüft – eindeutige Jahres- bzw. Datumsangabe in `when`, die nicht
 zum Eintrag passt, und Ereignis in einem anderen Kapitel als `chapter` des Eintrags. Relative Angaben bleiben ungeprüft.
 export schreibt eine eigenständige HTML-Datei (statisches SVG, Hinweise, Liste; ohne Skript und Netz).
+export --columns (#450) schreibt eine Tabelle je Abschnitt (`sections` oben in der Datei): Zeilen nach `row`
+(sonst Datum), Spalten nach `layer` (Vorgabe history, family, research; eigene Spalten über `columns`). Ohne
+`layer` wird geschätzt: Angabe/Romanfreiheit → family, Beleg mit Figuren → research, sonst history.
+Quellen mit Titel und Link stehen in `sources`. Zum Gegenlesen durch Zeitzeugen, nie Teil des Buchs.
   python3 scripts/render_view.py <buch> timeline --text [--status documented,reported] [--repo …]
 """
 import argparse
@@ -678,6 +683,156 @@ TIME_RX = re.compile(r'(\d{1,2})[:.](\d{2})(?:\s*[–-]\s*(\d{1,2})[:.](\d{2}))?
 HOUR_RX = re.compile(r'(?<![\d:.])(\d{1,2})\s*Uhr\b')
 
 
+# ---------- Zeitleiste in Spalten (#450) ----------
+
+COLUMNS = {'de': [('history', 'Zeitgeschichte'), ('family', 'Familie (erzählt)'), ('research', 'Recherche mit Quellen')],
+           'en': [('history', 'History'), ('family', 'Family (as told)'), ('research', 'Research with sources')]}
+COLUMNS_EXPORT = 'story/zeitleiste-spalten'
+COL_TEXT = {'de': {'time': 'Zeit', 'title': 'Zeitleiste in Spalten', 'more': 'Weitere Einträge',
+                   'uncertain': 'unsicher', 'invented': 'Romanfreiheit', 'reported': 'Angabe',
+                   'note': 'Erzeugt aus `story/chronology.yml`; nicht von Hand ändern, sondern die Chronologie ändern und neu '
+                           'erzeugen. Arbeitsmittel, nie Teil des Buchs.',
+                   'guessed': 'Einträge ohne Spalte (`layer`) eingeordnet nach Belegstand und Figuren'},
+            'en': {'time': 'Time', 'title': 'Timeline in columns', 'more': 'More entries',
+                   'uncertain': 'uncertain', 'invented': 'invented', 'reported': 'as told',
+                   'note': 'Generated from `story/chronology.yml`; do not edit by hand, change the chronology and generate '
+                           'again. Working material, never part of the book.',
+                   'guessed': 'entries without a column (`layer`) placed by evidence and characters'}}
+
+
+def layer_of(e):
+    """Spalte eines Eintrags: `layer`, sonst geschätzt – Angaben und Erinnerungen zur Familie, Belege mit Figuren zur
+    Recherche, Belege ohne Figuren zur Zeitgeschichte. Ohne `layer` ist das nur eine Näherung."""
+    if e.get('layer'):
+        return e['layer']
+    if e.get('status') in ('reported', 'invented'):
+        return 'family'
+    return 'research' if e.get('characters') else 'history'
+
+
+def _in_section(e, sec):
+    start, end = bounds(e)
+    if not start or relative(e):
+        return False
+    lo, hi = interval(sec.get('from')), interval(sec.get('to'))
+    if not lo and not hi:
+        return False
+    first = start[0]
+    return (not lo or first >= lo[0]) and (not hi or first <= hi[1])
+
+
+def column_layout(data, language='de'):
+    """Abschnitte → Zeilen → Zellen je Spalte. → {columns, sections, guessed}"""
+    lang = 'en' if language == 'en' else 'de'
+    t = COL_TEXT[lang]
+    cols = [(c['id'], c.get('title') or c['id']) for c in data.get('columns') or []] or list(COLUMNS[lang])
+    entries = sorted(data.get('entries') or [], key=sort_key)
+    for e in entries:
+        if layer_of(e) not in [c for c, _ in cols]:
+            cols.append((layer_of(e), layer_of(e)))
+    secs = [dict(s, items=[]) for s in data.get('sections') or []]
+    rest = {'title': t['more'] if secs else '', 'items': []}
+    for e in entries:
+        target = next((s for s in secs if e.get('row') and e['row'] in (s.get('rows') or [])), None) \
+            or next((s for s in secs if _in_section(e, s)), None) or rest
+        target['items'].append(e)
+    out = []
+    for s in secs + [rest]:
+        if not s['items']:
+            continue
+        rows, order = {}, list(s.get('rows') or [])
+        for e in s['items']:
+            label = e.get('row') or date_label(e, language)
+            rows.setdefault(label, []).append(e)
+        labels = [x for x in order if x in rows] + [x for x in rows if x not in order]
+        out.append({'title': s.get('title', ''), 'rows': [
+            {'label': lab, 'cells': {c: [e for e in rows[lab] if layer_of(e) == c] for c, _ in cols}} for lab in labels]})
+    return {'columns': cols, 'sections': out, 'guessed': sum(1 for e in entries if not e.get('layer'))}
+
+
+def cell_text(e, row_label, language='de', link=lambda title, url: f'[{title}]({url})'):
+    t = COL_TEXT['en' if language == 'en' else 'de']
+    text = e['what'].strip()
+    when = date_label(e, language)
+    if when and when != row_label:
+        text = f'{when}: {text}'
+    if e.get('status') in ('uncertain', 'invented'):
+        text += f' ({t[e["status"]]})'
+    refs = [link(s['title'], s['url']) if s.get('url') else s['title'] for s in e.get('sources') or [] if s.get('title')]
+    if e.get('source') and not refs:
+        refs = [e['source']]
+    if refs:
+        text += ' – ' + '; '.join(refs)
+    if e.get('note'):
+        text += f' *{e["note"].strip()}*'
+    return text
+
+
+def columns_markdown(base, config, language='de'):
+    t = COL_TEXT['en' if language == 'en' else 'de']
+    data = read(base) or {'entries': []}
+    lay = column_layout(data, language)
+    p = config.get('project') or {}
+    title = p.get('title_short') or p.get('title') or p.get('working_title') or ''
+    esc = lambda x: str(x).replace('|', '\\|').replace('\n', ' ')
+    lines = [f'# {title} – {t["title"]}' if title else f'# {t["title"]}', '', t['note']]
+    if lay['guessed']:
+        lines[-1] += f' {lay["guessed"]} {t["guessed"]}.'
+    lines.append('')
+    head = '| ' + ' | '.join([t['time']] + [esc(name) for _, name in lay['columns']]) + ' |'
+    for sec in lay['sections']:
+        if sec['title']:
+            lines += [f'## {sec["title"]}', '']
+        lines += [head, '|' + ' --- |' * (len(lay['columns']) + 1)]
+        for row in sec['rows']:
+            cells = ['<br>'.join(esc(cell_text(e, row['label'], language)) + f' `{e["id"]}`' for e in row['cells'][c])
+                     for c, _ in lay['columns']]
+            lines.append('| ' + ' | '.join([esc(row['label'])] + cells) + ' |')
+        lines.append('')
+    if not lay['sections']:
+        lines += [TEXT['en' if language == 'en' else 'de']['empty'], '']
+    return '\n'.join(lines)
+
+
+def columns_html(base, config, language='de'):
+    t = COL_TEXT['en' if language == 'en' else 'de']
+    data = read(base) or {'entries': []}
+    lay = column_layout(data, language)
+    esc = lambda x: html.escape(str(x or ''), quote=True)
+    p = config.get('project') or {}
+    title = p.get('title_short') or p.get('title') or p.get('working_title') or ''
+    md_link = re.compile(r'\[([^\]]+)\]\((https?://[^)\s]+)\)')
+
+    def cell(e, label):
+        raw = cell_text(e, label, language)
+        out, pos = [], 0
+        for m in md_link.finditer(raw):
+            out.append(esc(raw[pos:m.start()]))
+            out.append(f'<a href="{esc(m.group(2))}">{esc(m.group(1))}</a>')
+            pos = m.end()
+        out.append(esc(raw[pos:]))
+        return re.sub(r'\*([^*]+)\*', r'<em>\1</em>', ''.join(out)) + f' <code>{esc(e["id"])}</code>'
+    body = []
+    for sec in lay['sections']:
+        if sec['title']:
+            body.append(f'<h2>{esc(sec["title"])}</h2>')
+        body.append('<table><thead><tr><th>' + esc(t['time']) + '</th>'
+                    + ''.join(f'<th>{esc(n)}</th>' for _, n in lay['columns']) + '</tr></thead><tbody>')
+        for row in sec['rows']:
+            body.append('<tr><th scope="row">' + esc(row['label']) + '</th>' + ''.join(
+                '<td>' + '<br>'.join(cell(e, row['label']) for e in row['cells'][c]) + '</td>' for c, _ in lay['columns'])
+                + '</tr>')
+        body.append('</tbody></table>')
+    note = esc(t['note'].replace('`', '')) + (f' {lay["guessed"]} {esc(t["guessed"].replace("`", ""))}.' if lay['guessed'] else '')
+    heading = f'{title} – {t["title"]}' if title else t['title']
+    return ('<!DOCTYPE html>\n<html lang="' + ('en' if language == 'en' else 'de') + '"><head><meta charset="utf-8">'
+            f'<title>{esc(heading)}</title><style>body{{font-family:system-ui,sans-serif;margin:2rem;line-height:1.4}}'
+            'table{border-collapse:collapse;width:100%;margin-bottom:2rem}th,td{border:1px solid #bbb;padding:.4rem;'
+            'vertical-align:top;text-align:left}thead th{background:#eee}tbody th{white-space:nowrap;font-weight:600}'
+            'code{color:#777;font-size:.8em}@media print{a{color:inherit}}</style></head><body>'
+            f'<h1>{esc(heading)}</h1><p>{note}</p>' + ''.join(body) + '</body></html>\n')
+
+
 def md_rows(text):
     """Zeilen der ersten Tabelle: (kopf, [zeilen]) mit Zellen als Liste."""
     rows = [l for l in text.splitlines() if l.strip().startswith('|')]
@@ -765,7 +920,9 @@ def main(argv):
     ap.add_argument('project')
     ap.add_argument('cmd', choices=['check', 'export', 'import-md'])
     ap.add_argument('--json', action='store_true')
-    ap.add_argument('--out', help=f'bei export: Zieldatei (Standard {EXPORT})')
+    ap.add_argument('--out', help=f'bei export: Zieldatei (Standard {EXPORT}, mit --columns {COLUMNS_EXPORT}.md bzw. .html)')
+    ap.add_argument('--columns', action='store_true', help='bei export: Zeitleiste in Spalten (#450)')
+    ap.add_argument('--format', choices=['md', 'html'], default='md', help='bei export --columns: Markdown oder HTML')
     ap.add_argument('--language', choices=['de', 'en'], default='de')
     a = ap.parse_args(argv[1:])
     base, config = load(a.project)
@@ -774,6 +931,13 @@ def main(argv):
         run_id, out = import_md_run(base, config)
         print(f'✓ analysis/chronology/{run_id}.json: {len(out["items"])} Vorschläge aus {MD_SOURCE} '
               f'(Tag 0 = {out["epoch"]["label"]}); ansehen mit render_view.py analysis-suggest --draft analysis/chronology/{run_id}.json')
+        return 0
+    if a.cmd == 'export' and a.columns:
+        out = Path(a.out) if a.out else Path(base) / f'{COLUMNS_EXPORT}.{a.format}'
+        out.parent.mkdir(parents=True, exist_ok=True)
+        render = columns_html if a.format == 'html' else columns_markdown
+        out.write_text(render(base, config, a.language), encoding='utf-8')
+        print(f'✓ {out}')
         return 0
     if a.cmd == 'export':
         out = Path(a.out) if a.out else Path(base) / EXPORT
