@@ -421,6 +421,30 @@ def new_book(title, short='', author='', found=(), manifest=None):
     return r
 
 
+BOT_IDENTITY = ['-c', 'user.name=GhostWriter', '-c', 'user.email=ghostwriter@users.noreply.github.com']
+
+
+def commit_identity(cwd='.'):
+    """Git-Benutzer für Commits aus dem Chat oder lokal (#442).
+
+    In GitHub Actions der feste Benutzer „GhostWriter“. Sonst der Git-Benutzer aus assistant.yml
+    (CLAUDE.md, Punkt 4), dann die vorhandene git config; nur wenn beides fehlt, „GhostWriter“.
+    Ergebnis: Argumente vor dem git-Befehl (leer = git config gilt).
+    """
+    import os
+    if os.environ.get('GITHUB_ACTIONS') == 'true':
+        return BOT_IDENTITY
+    profile_file = Path(cwd, 'assistant.yml')
+    try:
+        git = ((yaml.safe_load(profile_file.read_text(encoding='utf-8')) or {}).get('git') or {}) if profile_file.is_file() else {}
+    except yaml.YAMLError:
+        git = {}
+    if isinstance(git, dict) and str(git.get('name') or '').strip() and str(git.get('email') or '').strip():
+        return ['-c', f'user.name={str(git["name"]).strip()}', '-c', f'user.email={str(git["email"]).strip()}']
+    configured = subprocess.run(['git', 'config', 'user.name'], cwd=cwd, capture_output=True, text=True).stdout.strip()
+    return [] if configured else BOT_IDENTITY
+
+
 def create_book(title, short='', author='', cwd=ROOT, namespace='refs/remotes/origin', manifest=None, base='HEAD', series_id=''):
     """Lokal: Branch buch/<slug> von base anlegen, ghostwriter.yml setzen, ein Commit. Gibt das Ergebnis von new_book zurück.
     Mit series_id (#116) zusätzlich ein Commit auf base (Standard-Branch): das Buch als nächster Band der Serie."""
@@ -438,6 +462,7 @@ def create_book(title, short='', author='', cwd=ROOT, namespace='refs/remotes/or
     if r['taken']:
         return r
     run = lambda *a: subprocess.run(['git', *a], cwd=cwd, check=True, capture_output=True, text=True)
+    who = commit_identity(cwd)   # vor dem Wechsel: assistant.yml liegt auf dem Standard-Branch (#442)
     start = run('rev-parse', '--abbrev-ref', base).stdout.strip()
     run('switch', '-q', '-c', r['branch'], base)
     cfg = Path(cwd, 'ghostwriter.yml')
@@ -455,14 +480,14 @@ def create_book(title, short='', author='', cwd=ROOT, namespace='refs/remotes/or
         paths.append('.ghostwriter/update.yml')
     run('add', *paths)
     run('rm', '-r', '-q', '--ignore-unmatch', 'series')   # Serien bleiben auf dem Standard-Branch (#116)
-    run('-c', 'user.name=GhostWriter', '-c', 'user.email=ghostwriter@users.noreply.github.com', 'commit', '-q',
+    run(*who, 'commit', '-q',
         '-m', f'Neues Buch angelegt: {r["fields"]["working_title"]}', '-m', 'GhostWriter-Aktion: library.book.create')
     if series_id:
         import series
         run('switch', '-q', start)
         s, n = series.add(cwd, series_id, r['branch'])
         run('add', str(series.series_file('.', s['id'])))
-        run('-c', 'user.name=GhostWriter', '-c', 'user.email=ghostwriter@users.noreply.github.com', 'commit', '-q',
+        run(*who, 'commit', '-q',
             '-m', f'Band {n} zur Serie „{s["title"]}“ hinzugefügt', '-m', 'GhostWriter-Aktion: library.book.create')
         r['series'], r['volume'] = s['id'], n
         run('switch', '-q', r['branch'])

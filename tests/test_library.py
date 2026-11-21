@@ -1,5 +1,6 @@
 """Bibliothek (#36): Erkennungsregel, Namen, Eindeutigkeit der Kurztitel, Git-Auflistung."""
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -357,6 +358,30 @@ class NewBookTest(unittest.TestCase):
         r2 = library.create_book('Gartenjahr', '', '', self.d, 'refs/heads', MANIFEST, base='main')
         self.assertTrue(r2['taken'])
         self.assertEqual(self.g('rev-parse', '--abbrev-ref', 'HEAD').strip(), 'main')
+
+    def test_create_uses_git_user_from_profile_or_config(self):
+        """#442: im Chat/lokal gilt der Git-Benutzer aus assistant.yml bzw. git config, nur in Actions „GhostWriter“."""
+        from unittest import mock
+        author = lambda: self.g('log', '-1', '--format=%an <%ae>|%cn').strip()
+        home = tempfile.mkdtemp()   # keine globale git config der Testmaschine
+        env = {'GITHUB_ACTIONS': '', 'HOME': home, 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': str(Path(home, 'x'))}
+        with mock.patch.dict(os.environ, env):
+            Path(self.d, 'assistant.yml').write_text('git:\n  name: Anna Autorin\n  email: anna@example.org\n', encoding='utf-8')
+            library.create_book('Erstes Buch', 'eins', 'Anna', self.d, 'refs/heads', MANIFEST, base='main')
+            self.assertEqual(author(), 'Anna Autorin <anna@example.org>|Anna Autorin')
+            self.g('checkout', '-q', 'main')
+            Path(self.d, 'assistant.yml').unlink()
+            library.create_book('Zweites Buch', 'zwei', 'Anna', self.d, 'refs/heads', MANIFEST, base='main')
+            self.assertEqual(author(), 'GhostWriter <ghostwriter@users.noreply.github.com>|GhostWriter')   # nichts gesetzt
+            self.g('checkout', '-q', 'main')
+            subprocess.run(['git', 'config', 'user.name', 'Lokal'], cwd=self.d, check=True)
+            subprocess.run(['git', 'config', 'user.email', 'lokal@example.org'], cwd=self.d, check=True)
+            library.create_book('Drittes Buch', 'drei', 'Anna', self.d, 'refs/heads', MANIFEST, base='main')
+            self.assertEqual(author(), 'Lokal <lokal@example.org>|Lokal')
+        self.g('checkout', '-q', 'main')
+        with mock.patch.dict(os.environ, {'GITHUB_ACTIONS': 'true'}):
+            library.create_book('Viertes Buch', 'vier', 'Anna', self.d, 'refs/heads', MANIFEST, base='main')
+            self.assertTrue(author().startswith('GhostWriter <'))
 
     def test_new_requires_title(self):
         self.assertIn('Arbeitstitel fehlt', library.new_book('', 'X', '', [], MANIFEST)['taken'])
