@@ -86,3 +86,32 @@ class MissingSectionFileTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ManuscriptNoteWarningTest(unittest.TestCase):
+    """#435: weitere ##-Überschrift nach „## Manuskript“ als Hinweis, nicht als Fehler."""
+
+    def test_heading_after_manuscript_is_warned_not_failed(self):
+        import subprocess
+        import tempfile
+        sys.path.insert(0, str(ROOT / 'scripts'))
+        import validate_project
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            shutil.copytree(FIXTURE, project, dirs_exist_ok=True)
+            self.assertEqual(validate_project.manuscript_warnings(project), [])
+            config = yaml.safe_load((project / 'ghostwriter.yml').read_text(encoding='utf-8'))
+            rel = config['structure']['chapters'][0]['sections'][0]['path']
+            path = project / rel
+            text = path.read_text(encoding='utf-8')
+            self.assertIn('\n## Manuskript\n', text)
+            path.write_text(text.rstrip('\n') + '\n\n```\n## im Codeblock\n```\n\n## Figurenanalyse\n\nNotiz.\n',
+                            encoding='utf-8')
+            warnings = validate_project.manuscript_warnings(project)
+            self.assertEqual(len(warnings), 1, warnings)
+            line = path.read_text(encoding='utf-8').split('\n').index('## Figurenanalyse') + 1
+            self.assertTrue(warnings[0].startswith(f'{rel}:{line}: Überschrift „## Figurenanalyse“'), warnings)
+            run = subprocess.run([sys.executable, str(ROOT / 'scripts/validate_project.py'), str(project)],
+                                 capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+            self.assertIn('⚠', run.stdout)
