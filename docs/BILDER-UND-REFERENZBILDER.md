@@ -79,6 +79,16 @@ Wenn der verwendete Dienst keine Bildreferenzen unterstützt, muss GhostWriter d
 - Bei mehreren Referenzen muss der Benutzer sie einzeln auswählen können; GhostWriter darf widersprüchliche oder veraltete Referenzen nicht stillschweigend priorisieren.
 - Referenzbilder werden nicht automatisch in den Buchsatz oder eine veröffentlichte Ausgabe aufgenommen.
 
+## Fotos colorieren (#452)
+
+Schwarz-Weiß-Fotos aus Familienbesitz lassen sich einfärben, ohne dass ein Bildmodell Gesichter oder Formen verändert. Das Modell liefert nur einen Farbvorschlag. Übernommen wird davon allein die Farbe (Kanäle a/b im Lab-Farbraum); die Helligkeit kommt Pixel für Pixel aus dem aufbereiteten Bild. Ablauf und Sperren stehen in `START.md`, „Fotos colorieren (#452)“, die Dateien im [Datenmodell](DATA-MODEL.md#bildordner-und-colorieren-452).
+
+- **Mit eigenem Google-Gemini-Zugang:** Action „Bild colorieren“ (`.github/workflows/colorize.yml`) mit dem Secret `GEMINI_API_KEY`. Der Chat liest den Schlüssel nicht; die Action schickt das Bild an Google und legt das Ergebnis ins Änderungspaket.
+- **Mit einem anderen Bilddienst im Chat:** dessen Farbvorschlag mit `scripts/colorize.py --proposal` übernehmen.
+- **Gesperrt:** Bilder mit Kindern oder Jugendlichen (`minderjaehrige` muss ausdrücklich `false` sein) und Dokumente (`art` nur `foto` oder `foto-vom-foto`). Diese Bilder gehen an keinen externen Dienst.
+- **Geprüft wird:** gleiches Seitenverhältnis, gleicher Bildaufbau und eine mittlere Helligkeitsabweichung unter 1/255. Sonst wird nichts geschrieben.
+- Ein coloriertes Bild wird im Buch als „nachträglich coloriert“ gekennzeichnet. Die Farben sind eine Annahme, kein Beleg.
+
 ## Abgrenzung zur bestehenden Illustrationsfunktion
 
 Die bestehende Funktion #54 verwaltet erzeugte bzw. bereitgestellte Illustrationen abschnittsbezogen und kennt deren Entwurf- und Freigabestatus für die Buchausgabe. Die neue Referenzverwaltung ergänzt dies, ersetzt es aber nicht.

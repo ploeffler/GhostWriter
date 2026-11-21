@@ -334,6 +334,10 @@ Jeder Bildauftrag ist ein unveränderlicher Lauf `run-NNN.md` daneben (`runs.ill
 
 `scripts/images.py` setzt den Bild-Auftrag zusammen (`prompt`: Bildstil, Szene und die festen Bildmerkmale `visual` der Figuren aus #53), legt Bilder ab (`add`, verkleinert auf `max_px`) und listet sie.
 
+### Bildordner und Colorieren (#452)
+
+Skript `scripts/colorize.py`, Action „Bild colorieren“. Ein Bildordner im Buch (frei gewählter Pfad, z. B. `quellen/bilder/<JJJJ-MM-TT>-<kurzname>/`) enthält `aufbereitet.jpg` (gleichmäßig aufbereitete Fassung) und `bild.yml`; das Skript schreibt daneben `coloriert.jpg`. Gelesen werden aus `bild.yml` nur `art` (coloriert wird nur bei `foto` und `foto-vom-foto`) und `minderjaehrige` (muss ausdrücklich `false` sein); an `bearbeitung` (Liste von Texten) hängt es einen Eintrag mit Werkzeug, Modell, Datum, „nur Farbkanäle a/b übernommen“, mittlerer L-Abweichung und Korrelation an, der Rest der Datei bleibt unverändert. Weitere Felder legt das Buch selbst fest; ein Schema gibt es nicht. Ein Aufruf über die API ergibt einen Kosteneintrag in `costs/project.yml` (`activity_id` `act-colorize-NNN`, `source: action_api`, `image_units: 1`, `cost_status: unavailable`).
+
 ## Rückgaben von Chat-Analysen
 
 Der [Anbieter-API-freie Analyseweg](CHAT-ANALYSEN.md) verwendet `analysis/chat-returns/<request_id>/request.json` als unveränderte Auftragsbasis und nach Inhaltsfingerabdruck benannte Ergebnis-JSONs. Ein Ergebnis hat `status: proposal`, `verified`, `dropped_without_evidence`, `source_commit`, `chapter_id` und `external_claims_checked: false`. Es ist weder ein Manuskript noch ein Freigabeeintrag. Bestehende API-Analyseformate bleiben unverändert. Für die Arten der Hintergrundanalyse legt `accept` die geprüften Vorschläge zusätzlich als Lauf `analysis/{kind}/run-NNN` im selben Format ab (#353, `source: chat`); ungeprüfte Rückgaben werden nie zu Läufen.
