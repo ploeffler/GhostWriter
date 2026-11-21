@@ -10,9 +10,31 @@
       "type": "string",
       "pattern": "^[0-9]{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12][0-9]|3[01]))?)?$",
       "description": "ISO-Datum, auch nur Jahr (1944) oder Monat (1944-05)"
-    }
+    },
+    "layer": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Spalte (#450): history, family, research oder eine eigene aus columns"}
   },
   "properties": {
+    "columns": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Spalten der Zeitleiste in Spalten (#450); fehlt = history (Zeitgeschichte), family (Familie, erzählt), research (Recherche mit Quellen)",
+      "items": {"type": "object", "required": ["id"], "properties": {"id": {"$ref": "#/$defs/layer"}, "title": {"type": "string", "minLength": 1}}, "additionalProperties": false}
+    },
+    "sections": {
+      "type": "array",
+      "description": "Abschnitte der Zeitleiste in Spalten (#450), z. B. „Vorgeschichte“; ein Eintrag gehört zum ersten Abschnitt, dessen rows seine row nennt, sonst zum ersten, in dessen Zeitraum (from/to) sein Datum liegt",
+      "items": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "title": {"type": "string", "minLength": 1},
+          "from": {"$ref": "#/$defs/date"},
+          "to": {"$ref": "#/$defs/date"},
+          "rows": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "Zeilen in dieser Reihenfolge (Text wie in row)"}
+        },
+        "additionalProperties": false
+      }
+    },
     "epoch": {
       "type": "object",
       "description": "Bezugstag der Erzählzeit (#379), z. B. für eine Romanhandlung ohne Kalenderjahr; Einträge mit day zählen ab hier",
@@ -55,7 +77,14 @@
           "chapter": {"type": "string", "description": "ID des Kapitels, in dem es erzählt wird bzw. werden soll"},
           "age": {"type": "integer", "minimum": 0, "maximum": 150, "description": "genanntes Alter der ersten Figur in characters zu diesem Zeitpunkt"},
           "same_as": {"type": "string", "pattern": "^chr-[0-9]{3,}$", "description": "anderer Eintrag zum selben Ereignis (andere Quelle, anderes Datum)"},
-          "note": {"type": "string"}
+          "note": {"type": "string"},
+          "layer": {"$ref": "#/$defs/layer", "description": "Spalte in der Zeitleiste in Spalten (#450): history Zeitgeschichte, family Erzählung, research Recherche; fehlt = geschätzt"},
+          "row": {"type": "string", "minLength": 1, "description": "Zeile der Zeitleiste in Spalten (#450), z. B. „4. November, Sonntag“; Einträge mit gleicher row stehen in einer Zeile"},
+          "sources": {
+            "type": "array",
+            "description": "Quellen mit Titel und Link (#450), neben bzw. statt source",
+            "items": {"type": "object", "required": ["title"], "properties": {"title": {"type": "string", "minLength": 1}, "url": {"type": "string", "pattern": "^https?://\\S+$"}}, "additionalProperties": false}
+          }
         },
         "additionalProperties": false
       }

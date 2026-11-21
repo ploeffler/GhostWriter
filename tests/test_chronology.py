@@ -233,6 +233,73 @@ class TimelineLinkTest(BookTest):
         self.assertNotIn('Einträge', out)
 
 
+class ColumnsTest(BookTest):   # #450: Zeitleiste in Spalten
+    def data(self):
+        return {'sections': [{'title': 'Vorgeschichte', 'to': '1955'},
+                             {'title': '1956 bis zur Flucht', 'from': '1956', 'to': '1957', 'rows': ['4. November, Sonntag', '1956']}],
+                'entries': [
+                    entry(1, what='Ungarischer Volksaufstand', date='1956-10-23', layer='history'),
+                    entry(2, what='Die Familie hört Radio | Freies Europa', date='1956-11-04', status='reported',
+                          layer='family', row='4. November, Sonntag'),
+                    entry(3, what='Sowjetische Truppen greifen Budapest an', date='1956-11-04', layer='research',
+                          row='4. November, Sonntag', sources=[{'title': 'ANNO, Kleine Zeitung 5.11.1956',
+                                                                'url': 'https://anno.onb.ac.at/x'}]),
+                    entry(4, what='Großvater kommt nach Graz', date='1921', status='uncertain', layer='family'),
+                    entry(5, what='Belegt ohne Spalte', date='1938'),
+                    entry(6, what='Erzählt ohne Spalte', date='1938', status='reported'),
+                    entry(7, what='Später', date='1990', layer='history')]}
+
+    def test_layout_and_markdown(self):
+        (self.base / 'story').mkdir(exist_ok=True)
+        (self.base / 'story/chronology.yml').write_text(yaml.safe_dump(self.data(), allow_unicode=True), encoding='utf-8')
+        self.assertEqual(self.errors(), [])
+        lay = chr_.column_layout(chr_.read(self.base))
+        self.assertEqual([c for c, _ in lay['columns']], ['history', 'family', 'research'])
+        self.assertEqual([s['title'] for s in lay['sections']], ['Vorgeschichte', '1956 bis zur Flucht', 'Weitere Einträge'])
+        self.assertEqual(lay['guessed'], 2)
+        first = lay['sections'][1]['rows'][0]
+        self.assertEqual(first['label'], '4. November, Sonntag')
+        self.assertEqual([e['id'] for e in first['cells']['family']], ['chr-002'])
+        self.assertEqual([e['id'] for e in first['cells']['research']], ['chr-003'])
+        pre = {r['label']: r['cells'] for r in lay['sections'][0]['rows']}
+        self.assertEqual([e['id'] for e in pre['1938']['history']], ['chr-005'])
+        self.assertEqual([e['id'] for e in pre['1938']['family']], ['chr-006'])
+        md = chr_.columns_markdown(self.base, self.config)
+        self.assertIn('| Zeit | Zeitgeschichte | Familie (erzählt) | Recherche mit Quellen |', md)
+        self.assertIn('## 1956 bis zur Flucht', md)
+        self.assertIn('Radio \\| Freies Europa', md)
+        self.assertIn('[ANNO, Kleine Zeitung 5.11.1956](https://anno.onb.ac.at/x)', md)
+        self.assertIn('Großvater kommt nach Graz (unsicher)', md)
+        self.assertIn('2 Einträge ohne Spalte', md)
+        self.assertEqual(self.view('--columns').strip(), md.strip())
+        self.assertIn('| Time | History | Family (as told) | Research with sources |', chr_.columns_markdown(self.base, self.config, 'en'))
+        widget = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'timeline', '--columns',
+                                 '--repo', 'o/r'], capture_output=True, text=True, check=True).stdout
+        self.assertNotIn('<script', widget)
+
+    def test_export_and_validation(self):
+        data = self.data()
+        data['columns'] = [{'id': 'history', 'title': 'Welt'}, {'id': 'family'}]
+        (self.base / 'story').mkdir(exist_ok=True)
+        (self.base / 'story/chronology.yml').write_text(yaml.safe_dump(data, allow_unicode=True), encoding='utf-8')
+        subprocess.run([sys.executable, str(ROOT / 'scripts/chronology.py'), str(self.base), 'export', '--columns',
+                        '--format', 'html'], check=True, capture_output=True)
+        page = (self.base / 'story/zeitleiste-spalten.html').read_text(encoding='utf-8')
+        self.assertTrue(page.startswith('<!DOCTYPE html>'))
+        self.assertIn('<th>Welt</th><th>family</th><th>research</th>', page)   # fehlende Spalte wird angehängt
+        self.assertIn('<a href="https://anno.onb.ac.at/x">ANNO, Kleine Zeitung 5.11.1956</a>', page)
+        self.assertNotIn('<script', page)
+        subprocess.run([sys.executable, str(ROOT / 'scripts/chronology.py'), str(self.base), 'export', '--columns'],
+                       check=True, capture_output=True)
+        self.assertIn('| Zeit | Welt |', (self.base / 'story/zeitleiste-spalten.md').read_text(encoding='utf-8'))
+        data['entries'][0]['layer'] = 'Groß'
+        data['entries'][1]['sources'] = [{'title': 'x', 'url': 'ftp://x'}]
+        (self.base / 'story/chronology.yml').write_text(yaml.safe_dump(data, allow_unicode=True), encoding='utf-8')
+        errs = '\n'.join(self.errors())
+        self.assertIn('Groß', errs)
+        self.assertIn('ftp://x', errs)
+
+
 class NarrativeTimeTest(BookTest):
     """Erzählzeit ohne Kalenderjahr: epoch, day, time, Import aus story/chronologie.md (#379)."""
 

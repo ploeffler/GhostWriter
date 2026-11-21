@@ -153,5 +153,27 @@ class ChronologyAnalysisTest(unittest.TestCase):
             ca.prepare(self.base, 'summaries', 0, 'a' * 40, self.root / 'req3.json')
 
 
+    def test_chat_path_in_parts(self):   # #450: zu umfangreich → in Teilen statt Abbruch
+        with patch.object(ca, 'CHRONOLOGY_CHAT_CHARS', 120):
+            with self.assertRaisesRegex(ValueError, r'in (\d+) Teilen vorbereiten \(--part 1'):
+                ca.prepare(self.base, 'chronology', 0, 'a' * 40, self.root / 'big.json')
+            parts = ca.chronology_parts(dict(analyze.chronology_units(self.base, self.config, 'common')))
+            self.assertGreater(len(parts), 1)
+            seen = {}
+            for n in range(1, len(parts) + 1):
+                req = ca.prepare(self.base, 'chronology', 0, 'a' * 40, self.root / f'part-{n}.json', part=n)
+                self.assertEqual(req['part'], n)
+                self.assertIn(f'Teil {n} von {len(parts)}', req['snapshot']['title'])
+                seen.update(req['snapshot']['texts'])
+            self.assertEqual(seen, dict(analyze.chronology_units(self.base, self.config, 'common')))
+            with self.assertRaisesRegex(ValueError, 'gibt es nicht'):
+                ca.prepare(self.base, 'chronology', 0, 'a' * 40, self.root / 'x.json', part=len(parts) + 1)
+            req = json.loads((self.root / 'part-1.json').read_text(encoding='utf-8'))
+            response = self.root / 'resp-1.json'
+            response.write_text(ca.canonical({'request_id': req['request_id'], 'kind': 'chronology', 'answer': {'items': []}}))
+            ca.accept(self.base, self.root / 'part-1.json', response)   # Teil wird beim Annehmen gleich wieder gelesen
+        with self.assertRaisesRegex(ValueError, '--part nur'):
+            ca.prepare(self.base, 'summaries', 1, 'a' * 40, self.root / 'y.json', part=1)
+
 if __name__ == '__main__':
     unittest.main()

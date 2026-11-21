@@ -57,7 +57,7 @@ python3 scripts/chat_analysis.py <buch> register analysis/chat-returns/<request_
 
 Der Chatweg liest je Auftrag genau ein Kapitel und führt nichts mit einem zweiten Modell zusammen: Die Zeitleiste enthält deshalb nur Ereignisse, keine Auffälligkeiten (Zeitsprung, Widerspruch, unklar), Widersprüche über mehrere Stellen entstehen nicht, und Figuren und Schauplätze werden nur nach gleichem Namen zusammengefasst. Dafür bleibt die Hintergrundanalyse.
 
-**Chronologie (#364):** `prepare chronology --chapter N` liest die Rechercheläufe von Kapitel N, `prepare chronology --common` Figuren, Orte, Quellenliste und Sitzungen (nur Beiträge des Autors sowie die Themen „Recherche“ und „Entscheidungen“) – nie das Manuskript. Fundorte sind Dateipfade (`research/sources.md`, `conversations/<id>#m001`); geprüft wird wie im Hintergrundlauf (`analyze.verify_chronology`). Sind die Unterlagen zu umfangreich, bricht `prepare` mit dem Hinweis auf den Hintergrundlauf ab.
+**Chronologie (#364):** `prepare chronology --chapter N` liest die Rechercheläufe von Kapitel N, `prepare chronology --common` Figuren, Orte, Quellenliste und Sitzungen (nur Beiträge des Autors sowie die Themen „Recherche“ und „Entscheidungen“) – nie das Manuskript. Fundorte sind Dateipfade (`research/sources.md`, `conversations/<id>#m001`); geprüft wird wie im Hintergrundlauf (`analyze.verify_chronology`). Sind die Unterlagen für einen Auftrag zu umfangreich, nennt `prepare` Größe und Zahl der Teile (#450); dann je Teil `prepare chronology --common --part N` (bzw. `--chapter N --part M`), jeden Auftrag einzeln beantworten und annehmen. Die Teile folgen der festen Reihenfolge der Unterlagen (Figuren, Orte, Quellenliste, Sitzungen); ohne Teile bleibt der Hintergrundlauf.
 
 ## Anschließende Bucharbeit
 

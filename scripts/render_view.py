@@ -3996,6 +3996,7 @@ def main():
     ap.add_argument('--repo', help='owner/name des Buch-Repositorys; ohne Angabe aus GITHUB_REPOSITORY bzw. git remote origin (#134)')
     ap.add_argument('--branch', default='main')
     ap.add_argument('--status', help='bei timeline: nur Einträge mit diesem Belegstand (documented, reported, uncertain, invented; mehrere mit Komma)')
+    ap.add_argument('--columns', action='store_true', help='bei timeline: Zeitleiste in Spalten als Tabelle (#450, immer Text)')
     ap.add_argument('--revoke', action='store_true', help='bei approval-*: Freigabe zurücknehmen statt erteilen')
     ap.add_argument('--upstream', help='JSON-Datei mit dem Update-Stand (behind, upstream, version, installed) für die Projektübersicht')
     ap.add_argument('--limits', help='JSON-Datei von limits.py check --json (Projektübersicht: Hinweis Vorwarnung bzw. Automatik pausiert); ohne Angabe nur das KI-Budget aus costs/')
@@ -4054,7 +4055,9 @@ def main():
         out = project_view(base, config, args)
     elif args.view == 'timeline':   # Chronologie (#354): Vorlage zeitleiste bzw. Textfassung
         import chronology
-        if args.text:
+        if args.columns:   # Drei-Spalten-Ansicht (#450): Markdown-Tabelle, auch im Widget-Modus (kein eigenes Widget)
+            out = chronology.columns_markdown(base, config, language=UI.get('language', 'de'))
+        elif args.text:
             out = chronology.text_view(base, config, [x.strip() for x in (args.status or '').split(',') if x.strip()] or None,
                                        language=UI.get('language', 'de'))
         else:
