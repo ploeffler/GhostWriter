@@ -23,6 +23,7 @@ concurrency:
 permissions:
   contents: read
   issues: read      # Meilensteine für die Roadmap-Prüfung
+  pull-requests: read   # geänderte Dateien für die Testauswahl (#439)
 
 jobs:
   validate:
@@ -73,6 +74,25 @@ jobs:
         run: |
           upstream=$(python -c "import yaml;print((yaml.safe_load(open('ghostwriter-manifest.yml')).get('upstream') or {}).get('repo',''))" 2>/dev/null || true)
           if [ "$upstream" = "$GITHUB_REPOSITORY" ] || [ ! -f ghostwriter-manifest.yml ]; then echo "program=1" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Testumfang bestimmen
+        # Pull Requests: nur die Tests zu den geänderten Dateien, Satzpakete nur bei Bedarf (#439).
+        # Im Zweifel und auf dem Standard-Branch: alle Tests (scripts/select_tests.py).
+        if: steps.kind.outputs.program == '1'
+        id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          files="repos/$GITHUB_REPOSITORY/pulls/$PR/files"
+          if [ -n "$PR" ] && [ -f scripts/select_tests.py ] \
+             && gh api "$files" --paginate --jq '.[] | select(.status != "removed") | .filename' > /tmp/changed.txt \
+             && gh api "$files" --paginate --jq '.[] | select(.status == "removed" or .status == "renamed") | (.previous_filename // .filename)' > /tmp/removed.txt; then
+            python scripts/select_tests.py --files /tmp/changed.txt --removed /tmp/removed.txt --github-output "$GITHUB_OUTPUT"
+          else
+            printf 'mode=full\ntests=\nsatz=1\n' >> "$GITHUB_OUTPUT"
+            echo "Alle Tests"
+          fi
 
       - name: Branches holen
         # Serien (#116): Figuren und Bände stehen auf dem Standard-Branch
@@ -129,7 +149,7 @@ jobs:
       - name: Satzpakete – Cache-Schlüssel
         # PDF-/EPUB-Tests brauchen pandoc, XeLaTeX und poppler-utils (wie proof/edition/omnibus), qpdf für die Vorderseite im PDF (#324);
         # ohne sie werden diese Tests übersprungen. Nur im Hauptrepository.
-        if: steps.kind.outputs.program == '1'
+        if: steps.kind.outputs.program == '1' && steps.scope.outputs.satz == '1'
         id: tex
         env:
           PAKETE: >-
@@ -140,7 +160,7 @@ jobs:
           echo "key=satz-${ImageOS:-ubuntu}-$(echo "$PAKETE" | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
 
       - name: Satzpakete – heruntergeladene Pakete aus dem Cache
-        if: steps.kind.outputs.program == '1'
+        if: steps.kind.outputs.program == '1' && steps.scope.outputs.satz == '1'
         id: satz-cache
         uses: actions/cache/restore@v4
         with:
@@ -148,7 +168,7 @@ jobs:
           key: ${{ steps.tex.outputs.key }}
 
       - name: Satzpakete installieren
-        if: steps.kind.outputs.program == '1'
+        if: steps.kind.outputs.program == '1' && steps.scope.outputs.satz == '1'
         run: |
           start=$(date +%s)
           mkdir -p ~/apt-satz/partial
@@ -162,7 +182,7 @@ jobs:
 
       - name: Satzpakete – Cache sichern
         # Gleich nach der Installation, damit der Cache auch bei roten Tests entsteht
-        if: steps.kind.outputs.program == '1' && steps.satz-cache.outputs.cache-hit != 'true'
+        if: steps.kind.outputs.program == '1' && steps.scope.outputs.satz == '1' && steps.satz-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ~/apt-satz
@@ -170,8 +190,17 @@ jobs:
 
       - name: Tests (Kontextplanung, Zusammenführung)
         if: steps.kind.outputs.program == '1'
+        env:
+          MODE: ${{ steps.scope.outputs.mode }}
+          TESTS: ${{ steps.scope.outputs.tests }}
         run: |
-          if [ -d tests ]; then python -m unittest discover -s tests -p "test_*.py"; fi
+          [ -d tests ] || exit 0
+          if [ "$MODE" = "subset" ]; then
+            echo "Nur die betroffenen Tests: $TESTS"
+            PYTHONPATH=tests python -m unittest $TESTS
+          else
+            python -m unittest discover -s tests -p "test_*.py"
+          fi
 
       - name: Doku passt zum Programm
         # Aktionen und Platzhalter der Vorlagen (ghostwriter-ui im festen Commit),
