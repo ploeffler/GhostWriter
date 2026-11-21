@@ -30,6 +30,12 @@ Keiner der Wege legt verlässlich Tags und Releases an. Vorschlag: Eine Auflage 
 
 Welcher Weg für v0.5 gilt, wird am Ende von v0.2 entschieden.
 
+## Web-App „GhostWriter für Claude“ (Versuch)
+
+Neben dem Chat gibt es einen Versuch mit einer Web-App, die als Artefakt in Claude läuft: [GhostWriter für Claude](https://claude.ai/artifact/PQ3zcq4ofwwRcP7dMHMG9B). Sie zeigt dieselben Widgets wie der Chat und führt Klicks direkt aus: Abschnitt speichern, Freigaben, Kapitel und Abschnitte anlegen, Reihenfolge, Projektdaten, Recherche und Ghostwriting „Sofort“, Änderungen übernehmen, die Seite „Daten“ und eine Claude-Leiste mit Vorschlägen. Gelesen und geschrieben wird über die GitHub-Verbindung des jeweiligen Benutzers. Claude läuft über dessen eigenes Konto. Es gibt keine eigene API, keinen Server und keine Schlüssel.
+
+Es gelten dieselben Regeln wie im Chat. Alles kommt auf den Arbeits-Branch, als ein Commit je Aktion. Ins Buch kommt es nur über „Änderungen übernehmen“ mit Bestätigung, und jede Freigabe braucht eine eigene Bestätigung. Für private Repositorys muss die GitHub-App „Claude Github MCP Connector“ auf dem Besitzerkonto installiert sein. Die App gehört nicht zum Lieferumfang von v1.0 ([D06](ENTSCHEIDUNGEN-v1.0.md#d06--eigene-web-app-ohne-integrierten-modellaufruf)). Ihre Dateien kommen mit dem Update nicht in die Bibliotheken. Einrichtung, Grenzen und Nachziehen: [apps/claude/README.md](../apps/claude/README.md).
+
 ## Dateien im Chat übergeben (#260)
 
 „Manuskript ausgeben“ baut das PDF in der Action „Manuskript ausgeben“; der Chat holt es mit `scripts/fetch_artifact.py` ab und übergibt es als Datei. Stand 11.11.2026, **noch nicht in allen Apps praktisch geprüft**:
