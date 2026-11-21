@@ -2383,8 +2383,15 @@ FC_TEXT = {'disabled': 'aus', 'optional': 'optional', 'requested': 'angefordert'
 
 
 def chapter_number(config, where):
-    n = int(where)
-    return n, config['structure']['chapters'][n - 1]
+    """Kapitelnummer oder Kapitel-ID → (Nummer, Kapitel); unbekannt: kurze Meldung statt Traceback (#434)."""
+    chapters = config['structure']['chapters']
+    key = str(where if where is not None else '').strip()
+    if key.isdigit() and 1 <= int(key) <= len(chapters):
+        return int(key), chapters[int(key) - 1]
+    for n, ch in enumerate(chapters, start=1):
+        if ch.get('id') == key:
+            return n, ch
+    raise SystemExit(f'Kapitel „{key}“ nicht gefunden: Kapitelnummer (1–{len(chapters)}) oder Kapitel-ID angeben.')
 
 
 def chapter_readme(base, ch):
@@ -4066,7 +4073,7 @@ def main():
             values, blocks = hinweise.widget_values(base, path)
             out = fill('hinweisdurchsicht.html', values, blocks)
     elif args.view == 'chapter':
-        out = chapter_view(base, config, args, int(args.where))
+        out = chapter_view(base, config, args, chapter_number(config, args.where)[0])
     else:
         c, s = (int(x) for x in args.where.split('.'))
         out = section_view(base, config, args, c, s)

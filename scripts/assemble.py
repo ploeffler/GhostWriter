@@ -494,7 +494,7 @@ def matter_notes(matter):
 
 def find_chapter(config, key):
     chapters = config['structure']['chapters']
-    if key.isdigit():
+    if key.isdigit() and 1 <= int(key) <= len(chapters):
         n = int(key)
         return n, chapters[n - 1]
     for i, ch in enumerate(chapters, start=1):
