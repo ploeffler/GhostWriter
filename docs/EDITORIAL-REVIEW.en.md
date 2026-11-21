@@ -115,7 +115,9 @@ form then show the run as a tag; if the text changes afterwards, the tag reads
 “changed since check”. The entry is not an approval.
 Always pass `--notes`: the number of open notes in the report, i.e. findings not
 yet applied or decided (0 if none are open). The project overview shows it per
-chapter (#362). A later fix only shows up with the next entry.
+chapter (#362). If one report covers several check types, each of these entries
+carries the same total of the report; the overview counts the report only once,
+using its newest entry (#437). A later fix only shows up with the next entry.
 
 ## Reviewing notes (notes review, #367)
 

@@ -116,6 +116,15 @@ class ChecksTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed', notes=-1)
         self.assertIn('| 3 |', render_view.project_view(self.base, self.config, args()))
+        # #437: ein Bericht für mehrere Prüfarten zählt nur einmal
+        report = self.base / 'editorial' / 'gesamt.md'
+        report.parent.mkdir(exist_ok=True)
+        report.write_text('# Bericht\n', encoding='utf-8')
+        for kind in ('structure', 'language', 'proofreading'):
+            checks.record(self.base, self.config, kind, [self.ch1['id']], 'passed_with_notes', date='2026-11-19',
+                          notes=21, report='editorial/gesamt.md')
+        row = render_view.project_view(self.base, self.config, args(text=False)).data['CHAPTERS'][0]
+        self.assertEqual(row['CHAPTER_NOTES'], 21)
 
     def test_manuscript_words_without_footnotes(self):
         self.assertEqual(render_view.manuscript_words('Ein Satz[^1] mit <!-- x y --> vier.\n\n[^1]: Fußnote hier.'), 4)
