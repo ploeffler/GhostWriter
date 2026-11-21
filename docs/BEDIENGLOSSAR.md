@@ -31,7 +31,7 @@ Verbindlich bleiben die verlinkten Anleitungen. Technische Kennungen in `Code-Sc
 ## Erstellung
 
 - <a id="erstellungskreislauf"></a>**Erstellungskreislauf:** Der wiederholbare Weg, auf dem ein Abschnitt entsteht: Recherche, Brainstorming, Entwurf und Überarbeitung, bis du ihn abschließt. Neue Ideen führen an die passende Stelle zurück. Siehe [Erstellungskreislauf](ERSTELLUNGSKREISLAUF.md).
-- <a id="recherche"></a>**Recherche:** Quellen, Belege, Widersprüche und offene Fragen zum Abschnitt sammeln (`research`). Frühere Rechercheläufe bleiben erhalten.
+- <a id="recherche"></a>**Recherche:** Quellen, Belege, Widersprüche und offene Fragen zum Abschnitt sammeln (`research`). Frühere Rechercheläufe bleiben erhalten. **Mit Internet** recherchiert der Chat mit Websuche oder die Action „Recherche“ über den eingestellten Dienst mit API-Schlüssel; **ohne Internet** nur aus dem Wissen des Modells, die Laufdatei sagt das ausdrücklich. Siehe [Recherche mit Internet über die API](DIENSTE-NUTZEN.md#recherche-mit-internet-über-die-api-462).
 - <a id="brainstorming"></a>**Brainstorming:** Ideen, Varianten und Vorgaben mit dem Assistenten besprechen (`brainstorming`).
 - <a id="entwurf"></a>**Entwurf:** Der erste Text eines Abschnitts. Er entsteht erst, nachdem du das [Schreiben erlaubt](#schreiben-erlauben) hast (`writing`).
 - <a id="ueberarbeitung"></a>**Überarbeitung:** Der Entwurf wird mit dir verbessert und als Ganzes geprüft (`revision`). Ein wieder geöffneter Abschnitt kehrt hierher zurück.

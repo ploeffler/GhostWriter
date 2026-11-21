@@ -139,6 +139,18 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
   const pr = pushes.length > n && lastPush("recherche");
   ok(pr && paths(pr).some(p => /\/research\/[^/]+\/run-\d{3}\.md$/.test(p)) && /^Recherche für Abschnitt \d+\.\d+/.test(pr.message), "Recherche: Laufdatei und Commit-Nachricht");
 
+  // Recherche mit Internet (#462): Auswahl, wenn ein Anbieter mit API eingestellt ist (Buch oder Bibliothek)
+  const s2 = w.__S(); s2.cfg.ai_providers = {available: ["google"], services: {google: {access: "api", api_key_secret: "GEMINI_API_KEY"}}};
+  await send(gwa("run.start", {section_id: sec.id, task: "research", mode: "immediate"}));
+  const web = d.querySelector("[data-act=webres]");
+  ok(!!web && /Google Gemini/.test(note()) && !!d.querySelector("[data-act=offres]"), "Recherche: Auswahl mit/ohne Internet");
+  n = pushes.length;
+  if (web){ w.__S().cfg.ai_providers = s2.cfg.ai_providers; web.click(); await sleep(400); await idle(); }
+  const pw = pushes.length > n && lastPush("recherche-internet");
+  const rq = pw && pw.files.find(f => /\/research\/[^/]+\/request-\d{3}\.yml$/.test(f.path));
+  ok(rq && paths(pw).length === 1 && /provider: google/.test(rq.content) && new RegExp("section_id: " + sec.id).test(rq.content) && /Recherche läuft/.test(note()),
+     "Recherche mit Internet: nur der Auftrag in einem Commit");
+
   console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen` : "\nAlles in Ordnung", "– Commits zum Nachsehen in", OUT);
   process.exit(failed ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

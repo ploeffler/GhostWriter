@@ -576,7 +576,9 @@ entries:
     cost_status: actual         # actual | estimated | manually_entered | unavailable
 ```
 
-Kosteneinträge schreibt in v0.5 nur das Backend bzw. der Assistent nach einem kostenpflichtigen Backend-Aufruf; für Chat-Läufe entsteht kein Eintrag. v1.0 ergänzt nach Möglichkeit automatischen Provider-Import, Preisberechnung, Währungsumrechnung und Budgetwarnungen.
+Kosteneinträge schreibt in v0.5 nur das Backend bzw. der Assistent nach einem kostenpflichtigen Backend-Aufruf; für Chat-Läufe entsteht kein Eintrag. Seit #462 schreibt die Action „Recherche“ (`scripts/research.py`) je Lauf einen Eintrag mit `source: action_api`, `activity_type: research`, `run_id` `research/<abschnitt>/run-NNN`, Tokens und der Zahl der Suchanfragen in `other_usage_quantity`; `cost_amount` ist geschätzt aus `ai_providers.services.<id>.price_input_per_mtok`, `price_output_per_mtok` und `price_per_1k_searches` (fehlt der Suchpreis, sagt das die Notiz), ohne Preise `cost_status: unavailable`.
+
+**Recherche mit Internet (#462).** Ein Auftrag aus der Claude-Web-App liegt als `<kapitel>/research/<abschnitt>/request-NNN.yml` auf dem Arbeits-Branch (`section_id`, `requested_at`, `requested_by`, `provider` zur Anzeige, optional `question`, `model`, `confirm_low_budget`) und startet die Action. Erfolg löscht den Auftrag und ältere fehlgeschlagene Aufträge des Abschnitts; ein Fehler bleibt mit `error` und `failed_at` im Auftrag stehen und wird nicht wiederholt. Der Lauf `run-NNN.md` hat den Kopf aus `templates/research-run.md`, dazu `web_research: true`, `searches`, `sources` (Zahl), `input_tokens`, `output_tokens`, `cost` und gegebenenfalls `request`; der Abschnitt `## Quellen` kommt nur aus den Belegen der Websuche (je Quelle eine Zeile mit verlinktem Titel und „abgerufen am JJJJ-MM-TT“). Ein Abschnitt im Stand `planned` geht auf `research`. v1.0 ergänzt nach Möglichkeit automatischen Provider-Import, Preisberechnung, Währungsumrechnung und Budgetwarnungen.
 
 
 

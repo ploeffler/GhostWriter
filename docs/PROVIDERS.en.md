@@ -12,7 +12,7 @@ You do not need new subscriptions for GhostWriter. The setup conversation asks w
 
 You can add services later through **AI services** in the project overview (`D` in the text view). Select the services you have and assign tasks. Each service has a **Guide** link explaining [how to use it](AI-SERVICES.en.md), a **Website** link, and settings for access method, model, GitHub connection, plan, monthly cost and notes. For API access, record only the GitHub secret's name. See [connector setup](CONNECTOR-SETUP.en.md) for chat connections.
 
-The configuration is stored in `ai_providers.services`. Validation reports tasks assigned to a service outside `available`, and settings for services you have not selected.
+The configuration is stored in `ai_providers.services`. For runs through the API (e.g. [web research](AI-SERVICES.en.md#web-research-through-the-api-462)) you can enter prices per service in the project currency: `price_input_per_mtok`, `price_output_per_mtok` (per million tokens) and `price_per_1k_searches`; GhostWriter estimates the cost entry from them, otherwise only tokens and searches are recorded. Validation reports tasks assigned to a service outside `available`, and settings for services you have not selected.
 
 ```yaml
 ai_providers:

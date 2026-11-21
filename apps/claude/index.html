@@ -388,7 +388,7 @@ function mdDoc(t){
 async function loadRepo(spec){
   const m = /(?:github\.com\/)?([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(spec.trim());
   if (!m){ S.msg = {kind:"err", html:"Bitte als owner/repo eingeben."}; return show("connect"); }
-  [S.owner, S.repo] = [m[1], m[2]]; store.set("gw.repo", S.owner + "/" + S.repo); S.files.clear(); S.lib = null;
+  [S.owner, S.repo] = [m[1], m[2]]; store.set("gw.repo", S.owner + "/" + S.repo); S.files.clear(); S.lib = null; S.libCfg = undefined; S.webWait = null;
   busy("Bücherregal wird geladen …");
   try { S.lib = JSON.parse((await getFile("library.json")).text); }
   catch (e) {
@@ -852,6 +852,11 @@ async function reorder(chapterId, order){
 /* KI-Lauf „Sofort“ (Recherche, Ghostwriting) über Claude in der App */
 async function runStart(d){
   if (d.mode !== "immediate"){ S.msg = {kind:"info", html:"„Zeitgesteuert“ ist noch nicht verfügbar. Nimm „Sofort“."}; return show("section", d.section_id); }
+  if (d.task === "research" && !d.offline){
+    const w = await webProvider();
+    if (w){ S.msg = {kind:"info", html:`<b>Wie soll recherchiert werden?</b> Mit Internet über ${esc(w.name)}: Eine GitHub-Action sucht im Netz und legt die Recherche mit Quellen ins Änderungspaket (meist ein bis zwei Minuten, Kosten bei ${esc(w.name)} werden erfasst). Ohne Internet: Claude hier in der App, nur aus eigenem Wissen.<div style="margin-top:8px"><button class="btn pri" data-act="webres" data-s="${esc(d.section_id)}"><i class="ti ti-file-search"></i> Mit Internet über ${esc(w.name)}</button> <button class="btn" data-act="offres" data-s="${esc(d.section_id)}">Ohne Internet über Claude</button></div>`};
+      return show("section", d.section_id); }
+  }
   if (!S.sample){ S.msg = {kind:"warn", html:"Claude ist in dieser Ansicht nicht verfügbar."}; return show("section", d.section_id); }
   const x = allSecs().find(v => v.s.id === d.section_id), f = await getFile(x.s.path, S.readRef, true), h = front(f.text), ap = h.approvals || {};
   const waived = ((S.cfg.workflow || {}).require_section_writing_approval === false);
@@ -876,6 +881,71 @@ async function runFiles(x, folder){
     out.count = list.length; out.max = Math.max(0, ...list.map(e => +e.name.slice(4, -3)));
     return out;
   } catch (e) { const o = []; o.count = 0; o.max = 0; return o; }
+}
+/* Recherche mit Internet über den eingestellten Anbieter: Auftrag für die Action „Recherche“ (#462) */
+const WEB_PROVIDERS = {anthropic:"Anthropic", openai:"OpenAI", google:"Google Gemini"};
+function pickWeb(ap){
+  if (!ap) return null;
+  const r = ((ap.research || {}).provider || "").trim(), sv = ap.services || {};
+  if (r) return WEB_PROVIDERS[r] ? r : null;
+  return (ap.available || []).find(p => WEB_PROVIDERS[p] && (sv[p] || {}).access === "api") || null;
+}
+async function webProvider(){
+  const ap = S.cfg.ai_providers || {};
+  let id = pickWeb(ap);
+  const bookSet = ((ap.research || {}).provider || "").trim() || (ap.available || []).length;
+  if (!id && !bookSet){
+    if (S.libCfg === undefined){ S.libCfg = null; try { S.libCfg = window.jsyaml.load((await getFile("ghostwriter.yml", "", true)).text) || null; } catch (e) {} }
+    id = pickWeb(S.libCfg && S.libCfg.ai_providers);
+  }
+  return id ? {id, name:WEB_PROVIDERS[id]} : null;
+}
+async function listDir(dir, ref){
+  try { const r = await call("get_file_contents", {owner:S.owner, repo:S.repo, path:dir, ref:"refs/heads/" + ref}); return Array.isArray(r.payload) ? r.payload : []; }
+  catch (e) { return []; }
+}
+async function webResearch(id, confirmLow){
+  const x0 = allSecs().find(v => v.s.id === id); if (!x0) return;
+  const w = await webProvider(); if (!w) return runStart({section_id:id, task:"research", mode:"immediate", offline:true});
+  busy("Rechercheauftrag wird gespeichert …");
+  try {
+    const work = await prepareWork(); await loadBookData(work);
+    const x = allSecs().find(v => v.s.id === id); if (!x) throw {message:"Abschnitt nicht gefunden."};
+    const dir = `${x.c.path}/research/${x.s.id}`, list = await listDir(dir, work);
+    const n = String(Math.max(0, ...list.map(e => (/^request-(\d+)\.yml$/.exec(e.name) || [])[1] || 0).map(Number)) + 1).padStart(3, "0");
+    const file = `section_id: ${x.s.id}\nrequested_at: "${nowIso()}"\nrequested_by: GhostWriter für Claude\nprovider: ${w.id}\n` + (confirmLow ? "confirm_low_budget: true\n" : "");
+    const r = await commit([{path:`${dir}/request-${n}.yml`, content:file}], `Rechercheauftrag für Abschnitt ${x.s.id} (mit Internet, ${w.name})`, {action:"research.web"});
+    S.webWait = {id, request:`request-${n}`, since:Date.now()};
+    S.msg = {kind:"info", html:`<b>Recherche läuft bei GitHub über ${esc(w.name)}.</b> Das dauert meist ein bis zwei Minuten. Das Ergebnis kommt ins Änderungspaket${r.pr ? ` <a href="${esc(r.pr.url)}" target="_blank" rel="noopener">#${r.pr.number}</a>` : ""}. <button class="btn" data-act="webcheck" data-s="${esc(id)}"><i class="ti ti-refresh"></i> Nachsehen</button>`};
+  } catch (e) { S.msg = failMsg(e); }
+  show("section", id);
+}
+async function webCheck(id){
+  const x = allSecs().find(v => v.s.id === id); if (!x) return;
+  busy("Wird nachgesehen …");
+  const work = workOf(S.book), dir = `${x.c.path}/research/${x.s.id}`, list = await listDir(dir, work);
+  const want = (S.webWait && S.webWait.id === id && S.webWait.request) || "";
+  const req = list.find(e => e.name === want + ".yml");
+  const again = `<button class="btn" data-act="webcheck" data-s="${esc(id)}"><i class="ti ti-refresh"></i> Nochmals nachsehen</button>`;
+  if (req){
+    let data = {}; try { data = window.jsyaml.load((await getFile(`${dir}/${req.name}`, work, true)).text) || {}; } catch (e) {}
+    if (data.error){
+      const low = /KI-Budget/.test(data.error);
+      S.msg = {kind:"err", html:`<b>Nicht recherchiert.</b> ${esc(data.error)}<div style="margin-top:8px">${low ? `<button class="btn" data-act="webreslow" data-s="${esc(id)}">Trotzdem starten</button> ` : ""}<button class="btn" data-act="offres" data-s="${esc(id)}">Ohne Internet über Claude</button></div>`};
+      S.webWait = null;
+    } else S.msg = {kind:"info", html:`<b>Die Recherche läuft noch.</b> Den Fortschritt siehst du auf GitHub unter „Actions“ → „Recherche“. ${again}`};
+  } else {
+    let run = null;
+    for (const e of list.filter(e => /^run-\d+\.md$/.test(e.name)).sort((a, b) => b.name.localeCompare(a.name))){
+      try { const t = (await getFile(`${dir}/${e.name}`, work, true)).text; if (!want || t.includes("request: " + want)){ run = {name:e.name, head:front(t)}; break; } } catch (err) {}
+    }
+    if (run){
+      const h = run.head, cost = h.cost == null ? "Kosten ohne Preisangabe erfasst" : `Kosten etwa ${String(h.cost).replace(".", ",")}`;
+      S.msg = {kind:"ok", html:`<b>Recherche ist da:</b> ${esc(run.name)} mit ${h.sources || 0} Quellen aus ${h.searches || 0} Suchanfragen (${esc(cost)}). <button class="link" data-report="${esc(dir + "/" + run.name)}">Ansehen</button> – übernehmen kannst du sie mit dem Änderungspaket in der Projektübersicht.`};
+      S.webWait = null; await loadBookData(work);
+    } else S.msg = {kind:"info", html:`<b>Noch kein Ergebnis.</b> ${again}`};
+  }
+  show("section", id);
 }
 async function saveRun(i){
   const m = S.chat[i], run = m.run, x0 = allSecs().find(v => v.s.id === run.section_id); if (!x0) return;
@@ -1095,6 +1165,10 @@ document.addEventListener("click", async ev => {
   else if (d.q) chat((QUICK[scopeOf()] || {})[d.q] || d.q, d.q);
   else if (d.act === "run"){ let a; try { a = JSON.parse(d.a); } catch (e) { return; } const label = a.label; delete a.label; act({action:a.action, data:a, text:label}); }
   else if (d.act === "saverun") saveRun(+d.i);
+  else if (d.act === "webres") webResearch(d.s);
+  else if (d.act === "webreslow") webResearch(d.s, true);
+  else if (d.act === "webcheck") webCheck(d.s);
+  else if (d.act === "offres"){ S.msg = null; runStart({section_id:d.s, task:"research", mode:"immediate", offline:true}); }
   else if (d.act === "apply"){ const p = PROPOSAL.exec(S.chat[+d.i].content), el = $("gw-ms"); if (p && el){ el.value = p[1].trim(); el.dispatchEvent(new Event("input", {bubbles:true})); el.scrollIntoView({behavior:"smooth", block:"center"}); } }
 });
 document.addEventListener("submit", ev => {
