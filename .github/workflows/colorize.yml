@@ -3,7 +3,8 @@ name: Bild colorieren
 # Färbt ein Schwarz-Weiß-Foto über den eigenen Google-Gemini-Zugang ein und übernimmt
 # davon nur die Farbe (#452, scripts/colorize.py): Helligkeit Pixel für Pixel aus
 # aufbereitet.jpg, aus dem Farbvorschlag nur die Farbkanäle a/b. Gesperrt für Bilder
-# mit Kindern oder Jugendlichen und für Dokumente (bild.yml). Braucht das Secret
+# mit Kindern oder Jugendlichen (Ausnahme nur ausdrücklich: minors_exception) und für
+# Dokumente (bild.yml). Bekannte Farben gehen als Hinweis mit (hint). Braucht das Secret
 # GEMINI_API_KEY. Start von Hand (Run workflow, auf dem Buch-Branch) oder aus dem Chat
 # (START.md, „Bilder colorieren“). Ergebnis kommt als Commit auf den Arbeits-Branch
 # ghostwriter/<buch-branch> mit Änderungspaket; übernommen wird nur nach Bestätigung.
@@ -23,6 +24,13 @@ on:
         default: ''
       replace:
         description: 'Vorhandenes coloriert.jpg ersetzen'
+        type: boolean
+        default: false
+      hint:
+        description: 'Bekannte Farben als Hinweis an das Modell, z. B. „Die Fahne ist rot-weiß-rot.“ (optional)'
+        default: ''
+      minors_exception:
+        description: 'Ausnahme: Kinder oder Jugendliche abgebildet (minderjaehrige: true), Familie ausdrücklich einverstanden'
         type: boolean
         default: false
 
@@ -78,9 +86,12 @@ jobs:
         env:
           FOLDER: ${{ inputs.folder }}
           CONSENT: ${{ inputs.consent }}
+          MINORS_EXCEPTION: ${{ inputs.minors_exception }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python scripts/colorize.py . "$FOLDER" --check | tee -a "$GITHUB_STEP_SUMMARY"
+          check=(--check)
+          if [ "$MINORS_EXCEPTION" = "true" ]; then check+=(--minors-exception); fi
+          python scripts/colorize.py . "$FOLDER" "${check[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
           if [ "$CONSENT" != "true" ]; then
             echo "::error::Ohne Einverständnis (consent) geht kein Bild an Google."; exit 1
           fi
@@ -93,11 +104,15 @@ jobs:
           FOLDER: ${{ inputs.folder }}
           MODEL: ${{ inputs.model }}
           REPLACE: ${{ inputs.replace }}
+          HINT: ${{ inputs.hint }}
+          MINORS_EXCEPTION: ${{ inputs.minors_exception }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           args=(--consent)
           if [ -n "$MODEL" ]; then args+=(--model "$MODEL"); fi
           if [ "$REPLACE" = "true" ]; then args+=(--replace); fi
+          if [ -n "$HINT" ]; then args+=(--hint "$HINT"); fi
+          if [ "$MINORS_EXCEPTION" = "true" ]; then args+=(--minors-exception); fi
           python scripts/colorize.py . "$FOLDER" "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Änderungspaket
