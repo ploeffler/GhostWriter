@@ -41,6 +41,10 @@ Vorläufige Minimalrechte: **Contents: Read and write**, **Metadata: Read-only**
 
 Die Endpunkte sind Anforderungen, keine bereits vorhandene API.
 
+## E. Referenzbilder (geplant)
+
+Der hostingneutrale API-Vertrag für Upload, Freigabe, Rücknahme, Versionshistorie und tatsächliche Bilddienstübergabe steht in [VISUAL-REFERENCE-API.md](VISUAL-REFERENCE-API.md) (Issue #143). Die dort beschriebenen Endpunkte sind Architekturvorgaben, noch keine ausführbare API.
+
 ## D. Abnahmetests
 
 - falsche Redirect URI oder fehlender/falscher State wird abgelehnt;
