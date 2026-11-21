@@ -1,0 +1,31 @@
+{
+  "base_commit": "007f529b9b38543b019e9859f195aaf5cb96cff2",
+  "baseline_validation_errors": 0,
+  "ledger_by_replaced_without_authenticated_identity": true,
+  "validation_errors_after_by_change": 0,
+  "assembly_errors_after_by_change": 0,
+  "manuscript_change_detected_by_validator": true,
+  "manuscript_change_detected_by_assembler": true,
+  "openwebui_write_observations": [
+    {
+      "branch_kind": "work",
+      "accepted": true,
+      "authenticated_requester_supplied": false,
+      "simulated_write_calls": 4
+    },
+    {
+      "branch_kind": "book",
+      "accepted": true,
+      "authenticated_requester_supplied": false,
+      "simulated_write_calls": 4
+    }
+  ],
+  "commit_files_has_user_context_parameter": false,
+  "has_user_specific_valves": false,
+  "limitations": [
+    "Lokale fiktive Daten und simulierter HTTP-Transport, keine echten GitHub-Aufrufe.",
+    "Keine tatsächlichen Konten, Rechte oder Branch-Regeln abgefragt.",
+    "Zeigt Grenzen der Programmprüfungen, keine Umgehung nachgewiesener GitHub-Rechte.",
+    "Kein erfolgreicher Rollenabnahmetest; beobachtete Lücke bleibt offen."
+  ]
+}

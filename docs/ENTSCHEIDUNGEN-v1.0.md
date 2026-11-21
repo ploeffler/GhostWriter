@@ -33,6 +33,8 @@ Beschluss D03 (bestätigt am 08.11.2026 durch „übernehmen“):
 - Gleichzeitiges Speichern: Schreibvorgänge werden nacheinander verarbeitet und gegen den aktuellen Stand geprüft. Konflikte werden angezeigt; Eingaben bleiben erhalten.
 - Inhaltliche Freigaben: Nur der Eigentümer oder ausdrücklich benannte Freigabeberechtigte dürfen Abschnitte, Kapitel und Auflagen freigeben. Bestehende ausdrückliche Freigaben und Schutzregeln bleiben wirksam.
 
+**Präzisierung vom 16. November 2026:** Für die Zusammenarbeit sind persönliche GitHub-Konten bestätigt (Benutzerantwort: „Ja, persönliche GitHub-Konten verwenden“). Ein gemeinsames schreibberechtigtes Token ersetzt keine Personenbindung. Eigentümer oder ausdrücklich benannte Freigabeberechtigte bleiben maßgeblich; die Entscheidung ist kein Nachweis einer bereits implementierten Rechteprüfung.
+
 ## D04 – Entscheidung #169 verbindlich machen
 
 Beschluss D04 (bestätigt am 08.11.2026 durch „ja - für den benutzer ist diese trennung/unterteilung nicht sichtbar“):

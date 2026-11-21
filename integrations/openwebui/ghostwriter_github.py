@@ -1,7 +1,7 @@
 """
 title: GhostWriter GitHub
 description: GitHub lesen und Aufgaben als gemeinsamen Commit speichern.
-version: 1.7.1
+version: 1.7.2
 requirements: requests,pydantic,pyyaml
 """
 import asyncio
@@ -845,9 +845,11 @@ class Tools:
         return await self._run(op)
 
     async def delete_merged_work_branch(self, repo: str, pull_number: int, expected_head_sha: str) -> str:
-        """Löscht ausschließlich den unveränderten ghostwriter/*-Branch eines bereits gemergten PR. Nie Buch-Branches löschen."""
+        """Löscht den passenden übernommenen Arbeitsbranch atomar nur beim bestätigten Head. Bei Fehler neu lesen, keine unbedingte Löschung."""
         def op(t):
             root = self._repo(repo)
+            if not re.fullmatch(r"[0-9a-f]{40}", expected_head_sha or "") or expected_head_sha == "0" * 40:
+                raise ValueError("Vollständiger bestätigter Head erforderlich.")
             pr = self._http(t, "GET", root+f"/pulls/{pull_number}")
             branch = pr["head"]["ref"]
             if not pr.get("merged") or branch != "ghostwriter/"+pr["base"]["ref"] or pr["head"]["repo"]["full_name"].lower() != repo.lower():
@@ -855,7 +857,21 @@ class Tools:
             sha = self._http(t, "GET", root+"/git/ref/heads/"+quote(branch, safe="/"))["object"]["sha"]
             if sha != expected_head_sha or sha != pr["head"]["sha"]:
                 raise ValueError("Arbeits-Branch hat neue Änderungen; nicht gelöscht.")
-            self._http(t, "DELETE", root+"/git/refs/heads/"+quote(branch, safe="/"), expected=(204,))
+            repository_id = self._http(t, "GET", root).get("node_id")
+            if not isinstance(repository_id, str) or not repository_id.strip():
+                raise ValueError("Repository-Node-ID fehlt; Branch nicht gelöscht.")
+            # beforeOid wird auf dem Server zusammen mit der Löschung geprüft.
+            # Ein weiterer GET allein würde das Zeitfenster nicht schließen.
+            response = self._http(t, "POST", "/graphql", data={
+                "query": "mutation DeleteCheckedBranch($input: UpdateRefsInput!) { updateRefs(input: $input) { clientMutationId } }",
+                "variables": {"input": {"repositoryId": repository_id,
+                    "clientMutationId": "ghostwriter-checked-delete", "refUpdates": [{
+                        "name": "refs/heads/" + branch, "beforeOid": expected_head_sha,
+                        "afterOid": "0" * 40, "force": False}]}}})
+            result = (response.get("data") or {}).get("updateRefs") if isinstance(response, dict) else None
+            if (not isinstance(response, dict) or response.get("errors") or not isinstance(result, dict)
+                    or result.get("clientMutationId") != "ghostwriter-checked-delete"):
+                raise ValueError("Löschung nicht bestätigt. Stand und Berechtigungen neu prüfen; kein unbedingter Löschversuch.")
             return {"deleted": branch}
         return await self._run(op)
 
