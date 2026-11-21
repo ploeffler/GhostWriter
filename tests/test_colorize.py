@@ -136,6 +136,16 @@ class LockTest(unittest.TestCase):
         self.assertEqual(colorize.prompt_for(None), colorize.PROMPT)
         self.assertTrue(colorize.prompt_for('  Die Fahne\n ist rot-weiß-rot. ').endswith('Die Fahne ist rot-weiß-rot.'))
 
+    def test_front_side_source(self):
+        b = Book()
+        (b.folder / 'aufbereitet.jpg').rename(b.folder / 'aufbereitet-1.jpg')
+        base = colorize.open_image(b.folder / 'aufbereitet-1.jpg')
+        r = colorize.colorize(b.base, 'quellen/bilder/x', proposal=b.proposal(tinted(base)), tool='Test')
+        self.assertIn('L-Kanal aus aufbereitet-1.jpg', r['line'])
+        (b.folder / 'aufbereitet-1.jpg').unlink()
+        with self.assertRaisesRegex(SystemExit, 'aufbereitet-1.jpg'):
+            colorize.main([str(b.base), 'quellen/bilder/x', '--check'])
+
     def test_outside_book(self):
         b = Book()
         (b.base / 'anderes').mkdir()
