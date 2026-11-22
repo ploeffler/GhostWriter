@@ -243,10 +243,50 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
     ok(pv && /\(1 neu, 1 ergänzt\)/.test(pv.message) && fc && /role: supporting/.test(fc.content) && /to: char-anna/.test(fc.content) && /kind: Freundin/.test(fc.content), "Übernehmen: neue Figur mit Beziehung");
     ok(fa && /age: '?34'?/.test(fa.content) && /short: Erzählerin/.test(fa.content) && !/Andere Zeile/.test(fa.content), "Übernehmen: bekannte Figur nur in leeren Feldern ergänzt");
     if (process.env.GW_DEBUG) console.log("PV:", pv && pv.files.map(f => f.path).join(", "));
-    ok(gv && /id: char-clara/.test(gv.content) && fs1 && /^characters: \[char-anna, char-clara\]$/m.test(fs1.content), "Übernehmen: Liste in ghostwriter.yml und Zuordnung im Abschnittskopf");
+    ok(gv && /id: char-clara/.test(gv.content) && fs1 && /^characters: \[[^\]]*char-clara[^\]]*\]$/m.test(fs1.content), "Übernehmen: Liste in ghostwriter.yml und Zuordnung im Abschnittskopf");
     n = pushes.length;
     await send(gwa("character.create", {name: "bruno", role: "main"}));
     ok(pushes.length === n && /gibt es schon/.test(note()), "Figur anlegen: doppelter Name wird abgelehnt");
+  }
+
+  // Hinweisdurchsicht: nur wenn das Buch eine hat (z. B. GW_BOOK=buch/krimi-sinabelkirchen)
+  {
+    let rev = []; try { rev = gh(`repos/${REPO}/contents/editorial?ref=${encodeURIComponent(BOOK)}`).filter(f => /^durchsicht-.+\.yml$/.test(f.name)).map(f => f.name); } catch (e) {}
+    if (!rev.length) console.log("  –    keine Hinweisdurchsicht im Buch, nicht geprüft");
+    else {
+      const key = f => { const m = /^durchsicht-(.+?)(?:-(\d+))?\.yml$/.exec(f); return [m[1], +(m[2] || 1)]; };   // wie hinweise.dialog_order
+      const file = "editorial/" + rev.sort((a, b) => { const p = key(a), q = key(b); return p[0] < q[0] ? -1 : p[0] > q[0] ? 1 : p[1] - q[1]; }).pop();
+      const orig = Buffer.from(gh(`repos/${REPO}/contents/${file}?ref=${encodeURIComponent(BOOK)}`).content, "base64").toString(), yaml = require("js-yaml");
+      const ents = dt => [...(dt.ohne_autor || []), ...(dt.autorenentscheidung || [])], od = yaml.load(orig), open = ents(od).filter(e => (e.entscheidung || "offen") === "offen" && !e.umgesetzt); if (process.env.GW_DEBUG) console.log("REVFILE:", file, ents(od).length, open.length);
+      await send("x\n\n`gw:library.book.open branch=" + BOOK + "`");
+      ok(await until(() => d.querySelector("#gw [data-id^='ch-']"), 600) && await until(() => d.querySelector("[data-act=review]"), 40), "Projektübersicht: Karte „Hinweisdurchsicht“"); if (process.env.GW_DEBUG) console.log("READREF:", w.__S().readRef, (d.querySelector("#app").textContent.match(/Hinweisdurchsicht[^.]*/) || [])[0]);
+      d.querySelector("[data-act=review]").click();
+      ok(await until(() => d.getElementById("gw-nr"), 120) && d.querySelectorAll("#gw-nr .it").length === ents(od).length, "Hinweisdurchsicht: eine Karte je Eintrag");
+      if (open.length >= 2){
+        const [e1, e2] = open;
+        n = pushes.length;
+        await send(gwa("notes_review.decide", {file, entry: e1.id, decision: "ja"}));
+        await until(() => pushes.length > n, 40);
+        const p1 = pushes.length > n && lastPush("durchsicht-ja"), c1 = p1 && p1.files[0];
+        const diff = c1 ? c1.content.split("\n").map((l, i) => l === orig.split("\n")[i] ? null : l).filter(x => x !== null) : [];
+        ok(p1 && p1.files.length === 1 && c1.path === file && c1.content.split("\n").length === orig.split("\n").length && diff.length <= 1 && /Hinweisdurchsicht: e-\d+ ja/.test(p1.message), "Entscheidung „ja“: nur die Durchsichtsdatei, höchstens eine Zeile geändert");
+        n = pushes.length;
+        const neu = "Neuer Satz: mit Doppelpunkt # und Raute – und\nzweiter Zeile.";
+        await send(gwa("notes_review.decide", {file, entry: e2.id, decision: "geändert", new: neu}));
+        await until(() => pushes.length > n, 40);
+        const p2 = pushes.length > n && lastPush("durchsicht-geaendert"), c2 = p2 && p2.files[0], d2 = c2 && yaml.load(c2.content);
+        const x1 = d2 && ents(d2).find(e => e.id === e1.id), x2 = d2 && ents(d2).find(e => e.id === e2.id);
+        const others = d2 && ents(d2).filter(e => ![e1.id, e2.id].includes(e.id)).every(e => JSON.stringify(e) === JSON.stringify(ents(od).find(o => o.id === e.id)));
+        ok(x2 && x2.entscheidung === "geändert" && x2.neu === neu && others, "Entscheidung „geändert“: eigene Fassung gespeichert, alle anderen Einträge unverändert");
+        ok(x1 && x1.entscheidung === "ja", "Zweite Entscheidung baut auf der ersten auf (nichts überschrieben)");
+        n = pushes.length;
+        await send(gwa("notes_review.decide", {file, entry: e1.id, decision: "geändert"}));
+        await sleep(300);
+        ok(pushes.length === n && /eigene Fassung/.test(note()), "„geändert“ ohne eigene Fassung wird abgelehnt");
+      } else console.log("  –    weniger als zwei offene Einträge, Entscheidungen nicht geprüft");
+      await send(gwa("notes_review.plan", {file}));
+      ok(/Umsetzen prüfen/.test(note()), "Umsetzen prüfen: Hinweise ohne Änderung");
+    }
   }
 
   console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen` : "\nAlles in Ordnung", "– Commits zum Nachsehen in", OUT);

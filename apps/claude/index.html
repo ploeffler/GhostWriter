@@ -353,8 +353,9 @@ async function show(view, arg){
   try {
     if (view === "connect"){ crumbs(); return connectView(); }
     if (view === "library"){ S.book = null; S.chap = null; S.sec = null; crumbs(); return widget("buecherregal", libraryData()); }
-    if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, checksCard(), "project"); }
+    if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, checksCard() + await reviewCard(), "project"); }
     if (view === "chapter"){ S.chap = arg; S.sec = null; crumbs(); busy("Kapitel wird geladen …"); const d = await chapterData(arg); return desk("kapitelansicht", d, "", "chapter:" + (chapters()[arg] || {}).id); }
+    if (view === "review"){ crumbs(); busy("Hinweisdurchsicht wird geladen …"); return widget("hinweisdurchsicht", await reviewData(arg)); }
     if (view === "characters"){ S.chap = null; S.sec = null; crumbs(); busy("Figuren werden geladen …"); return widget("figuren", await charListData()); }
     if (view === "data"){ S.book = null; S.chap = null; S.sec = null; crumbs(); busy("Daten werden gesammelt …"); const d = await dataData(); return widget("daten", d); }
     if (view === "section"){
@@ -492,6 +493,9 @@ async function act({action, data, text}){
       case "section.reorder": return reorder(data.chapter_id, data.order);
       case "view.characters": S.msg = null; S.from = null; return show("characters");
       case "view.character": S.from = {view:"characters"}; S.msg = null; return form("figur-bearbeiten", await charEditData(data.character_id));
+      case "view.notes_review": { S.msg = null; const fs = await reviewFiles(); const f = data.file || (fs.length ? "editorial/" + fs[fs.length - 1] : ""); if (!f){ S.msg = {kind:"info", html:"Es gibt noch keine Hinweisdurchsicht in diesem Buch."}; return show("project"); } return show("review", f); }
+      case "notes_review.decide": return reviewDecide(data);
+      case "notes_review.plan": return reviewPlan(data);
       case "character.suggest": return characterSuggest(data);
       case "character.suggest.apply": return characterSuggestApply(data);
       case "character.create": return characterCreate(data);
@@ -1088,6 +1092,105 @@ async function characterSuggestApply(d){
   S.from = null; show("characters");
 }
 
+/* Hinweisdurchsicht (#367): editorial/durchsicht-*.yml – Eintrag für Eintrag entscheiden, jede Antwort als kleiner Nachtrag */
+const REVIEW_DECISIONS = ["ja", "nein", "geändert"], CH_STATUS = {planned:"geplant", in_progress:"in Arbeit", ready_for_assembly:"bereit zum Zusammenführen", assembly:"im Zusammenführen", review:"in Prüfung", ready_for_approval:"bereit zum Abschluss", approved:"abgeschlossen"};
+const reviewKey = n => { const m = /^durchsicht-(.+?)(?:-(\d+))?\.yml$/.exec(n); return m ? [m[1], +(m[2] || 1)] : [n.replace(/\.yml$/, ""), 0]; };   // wie hinweise.dialog_order
+const reviewCmp = (a, b) => { const x = reviewKey(a), y = reviewKey(b); return x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : x[1] - y[1]; };
+async function reviewFiles(){ return (await listDir("editorial", S.readRef)).filter(e => /^durchsicht-.+\.yml$/.test(e.name)).map(e => e.name).sort(reviewCmp); }
+const reviewEntries = data => [...(data.ohne_autor || []).map(e => ["ohne_autor", e]), ...(data.autorenentscheidung || []).map(e => ["autorenentscheidung", e])];
+const reviewState = e => e.umgesetzt ? "umgesetzt" : (e.entscheidung || "offen");
+async function reviewLoad(file, fresh){
+  const key = S.readRef + "|" + file, last = S.reviewText && S.reviewText[file];
+  const text = (!fresh && last != null) ? last : (await getFile(file, S.readRef, true)).text;
+  return {text, data:window.jsyaml.load(text) || {}};
+}
+const reviewWhere = e => e.chapter_id ? "Kapitel " + String(e.abschnitt).split(".")[0] : e.abschnitt;
+async function reviewData(file){
+  const {data} = await reviewLoad(file, true), all = reviewEntries(data), done = all.filter(([, e]) => (e.entscheidung || "offen") !== "offen").length;
+  const [y, m, dd] = String(data.erstellt || "").split("-");
+  const row = (e, author) => Object.assign({E_ID:e.id, E_WHERE:e.abschnitt, E_CHAPTER_TEXT:reviewWhere(e) + (e.chapter_status ? " · " + (CH_STATUS[e.chapter_status] || e.chapter_status) : ""), E_KIND:e.art || "",
+    E_REASON:(e.schweregrad === "blockierend" ? "⛔ blockierend: " : "") + (e.grund || ""), E_CONTEXT:e.kontext || "", E_OLD:e.alt || "", E_NEW:e.neu || "", E_DECISION:reviewState(e)},
+    author ? {E_QUESTION:(e.frage || "") + (e.varianten || []).map((v, k) => ` · Variante ${k + 1}: ${v}`).join("")} : {});
+  const d = Object.assign(base(), {REVIEW_FILE:file, REVIEW_BOOK:data.buch || "", REVIEW_DATE_TEXT:dd ? `Stand ${dd}.${m}.${y}` : "", REVIEW_COUNT_TEXT:`${all.length} Einträge · ${done} entschieden · ${all.length - done} offen`});
+  if ((data.ohne_autor || []).length) d.AUTO = data.ohne_autor.map(e => row(e, false));
+  if ((data.autorenentscheidung || []).length) d.AUTHOR = data.autorenentscheidung.map(e => row(e, true));
+  if ((data.ausgelassen || []).length) d.SKIPPED = data.ausgelassen.map(x => ({SK_REF:x.befund, SK_REASON:x.grund}));
+  return d;
+}
+async function reviewCard(){
+  let files = []; try { files = await reviewFiles(); } catch (e) {}
+  if (!files.length) return "";
+  const rows = [];
+  for (const f of files.slice(-3).reverse()){
+    try { const {data} = await reviewLoad("editorial/" + f, true), all = reviewEntries(data), done = all.filter(([, e]) => (e.entscheidung || "offen") !== "offen").length;
+      rows.push(`<li><div><b>${esc(f.replace(/^durchsicht-|\.yml$/g, ""))}</b> <span class="w">· ${done} von ${all.length} entschieden${all.length - done ? `, ${all.length - done} offen` : ""}</span></div><button class="btn" data-act="review" data-f="${esc("editorial/" + f)}">${all.length - done ? "Weitermachen" : "Ansehen"}</button></li>`); } catch (e) {}
+  }
+  return rows.length ? `<div class="card" style="margin-top:16px"><b>Hinweisdurchsicht</b><p class="dim" style="margin:2px 0 4px">Änderungsvorschläge aus der Prüfung, Eintrag für Eintrag entscheiden. Jede Antwort wird sofort als kleiner Nachtrag gespeichert; ins Manuskript kommt nichts von selbst.</p><ul class="chk">${rows.join("")}</ul></div>` : "";
+}
+function reviewSet(text, id, decision, neu){
+  // nur die Zeilen dieses Eintrags ändern (Rest der Datei bleibt Zeichen für Zeichen), dann gegenprüfen
+  const L = text.split("\n"), i = L.findIndex(l => l === "- id: " + id); if (i < 0) throw {message:`Eintrag ${id} nicht gefunden.`};
+  let j = i + 1; while (j < L.length && (L[j].startsWith("  ") || L[j] === "")) j++;
+  const blk = L.slice(i, j), setKey = (key, val) => {
+    const dumped = window.jsyaml.dump({[key]:val}, {lineWidth:100}).replace(/\n$/, "").split("\n").map(l => "  " + l);
+    const k = blk.findIndex(l => l.startsWith("  " + key + ":"));
+    if (k >= 0){ let e = k + 1; while (e < blk.length && /^    /.test(blk[e])) e++; blk.splice(k, e - k, ...dumped); } else { let end = blk.length; while (end > 1 && blk[end - 1] === "") end--; blk.splice(end, 0, ...dumped); }
+  };
+  setKey("entscheidung", decision); if (neu != null) setKey("neu", neu);
+  const out = [...L.slice(0, i), ...blk, ...L.slice(j)].join("\n");
+  const a = window.jsyaml.load(text), b = window.jsyaml.load(out), ea = reviewEntries(a), eb = reviewEntries(b);
+  const same = ea.length === eb.length && ea.every(([g, e], k) => eb[k][0] === g && (e.id === id ? true : JSON.stringify(e) === JSON.stringify(eb[k][1])));
+  const t = eb.find(([, e]) => e.id === id);
+  if (!same || !t || t[1].entscheidung !== decision || (neu != null && t[1].neu !== neu)) throw {message:"Die Durchsichtsdatei ließ sich nicht sicher ändern; bitte im Chat mit GhostWriter entscheiden."};
+  return out;
+}
+function flash(kind, html){
+  S.msg = {kind, html}; const old = document.querySelector("#app .note"), box = msgBox();
+  if (old) old.outerHTML = box; else if ($("gw")) $("gw").insertAdjacentHTML("beforebegin", box);
+}
+async function reviewDecide(d){
+  // nacheinander abarbeiten, damit schnelle Klicks sich nicht überschreiben
+  S.reviewChain = (S.reviewChain || Promise.resolve()).then(async () => {
+    try {
+      const file = String(d.file || ""), decision = d.decision;
+      if (!/^editorial\/durchsicht-[^/]+\.yml$/.test(file) || !REVIEW_DECISIONS.includes(decision)) throw {message:"Ungültige Angabe."};
+      if (decision === "geändert" && !String(d.new || "").trim()) throw {message:"Bei „geändert“ gehört die eigene Fassung dazu."};
+      const work = await prepareWork(); S.readRef = work;
+      const {text, data} = await reviewLoad(file, !(S.reviewText && S.reviewText[file] != null)), e = (reviewEntries(data).find(([, x]) => x.id === d.entry) || [])[1];
+      if (!e) throw {message:`Eintrag ${d.entry} nicht gefunden.`};
+      if (e.umgesetzt) throw {message:`${d.entry} ist schon umgesetzt.`};
+      const out = reviewSet(text, d.entry, decision, decision === "geändert" ? String(d.new).trim() : (typeof d.new === "string" ? d.new : null));
+      const r = await commit([{path:file, content:out}], `Hinweisdurchsicht: ${d.entry} ${decision}`, {action:"notes_review.decide"});
+      (S.reviewText = S.reviewText || {})[file] = out;
+      const all = reviewEntries(window.jsyaml.load(out)), open = all.filter(([, x]) => (x.entscheidung || "offen") === "offen").length;
+      flash(r.pr || r.nothing ? "ok" : "warn", `<b>${esc(d.entry)}: ${esc(decision)}</b> – gespeichert. ${open ? `Noch ${open} offen.` : "Alle Einträge entschieden. Umsetzen prüfen zeigt, was ins Manuskript kommen kann."}`);
+    } catch (e) { flash("err", "<b>Nicht gespeichert.</b> " + esc(errText(e))); }
+  });
+  return S.reviewChain;
+}
+async function reviewPlan(d){
+  try {
+    busy("Wird geprüft …");
+    const file = String(d.file || ""), {data} = await reviewLoad(file, true), secs = allSecs(), lines = [];
+    await loadSecFiles(secs, "Wird geprüft");
+    for (const [, e] of reviewEntries(data)){
+      if (e.umgesetzt || !["ja", "geändert"].includes(e.entscheidung)) continue;
+      let mark, why;
+      const x = secs.find(v => v.s.id === e.section_id), f = x && cached(x.s.path), ms = f ? msOf(f.text) : "";
+      if (e.section_id === "book"){ mark = "⚠️"; why = "buchweit: von Hand in den betroffenen Abschnitten umsetzen"; }
+      else if (!x){ mark = "⛔"; why = "Abschnitt gibt es nicht mehr"; }
+      else if (!e.alt || !e.neu){ mark = "⚠️"; why = "ohne alten Wortlaut oder Vorschlag: von Hand umsetzen"; }
+      else if (x.c.status === "approved"){ mark = "⛔"; why = `Kapitel ${String(e.abschnitt).split(".")[0]} ist abgeschlossen: erst wieder öffnen`; }
+      else if (front(f.text).status === "approved"){ mark = "⛔"; why = `Abschnitt ${e.abschnitt} ist abgeschlossen: erst wieder öffnen`; }
+      else if (ms.split(e.alt).length - 1 !== 1){ mark = "⛔"; why = `alter Wortlaut kommt ${ms.split(e.alt).length - 1}-mal vor: Text hat sich geändert`; }
+      else { mark = "✅"; why = "umsetzbar"; }
+      lines.push(`<div>${mark} <code>${esc(e.id)}</code> · ${esc(e.abschnitt)} · ${esc(why)}</div>`);
+    }
+    S.msg = {kind:"info", html:`<b>Umsetzen prüfen</b> (ändert noch nichts)${lines.length ? lines.join("") : "<div>Keine entschiedenen Einträge zum Umsetzen.</div>"}<div class="dim" style="margin-top:6px">Umsetzen ins Manuskript geht in dieser App noch nicht; dafür den Chat mit GhostWriter nehmen.</div>`};
+  } catch (e) { S.msg = failMsg(e); }
+  show("review", d.file);
+}
+
 /* KI-Lauf „Sofort“ (Recherche, Ghostwriting) über Claude in der App */
 async function runStart(d){
   if (d.task === "research" && (d.mode === "web" || (d.mode === "immediate" && !d.offline))){
@@ -1372,7 +1475,7 @@ function renderChat(){
   box.scrollTop = box.scrollHeight;
 }
 const ACTION_RE = /<<<AKTION\s*([\s\S]*?)\s*AKTION>>>/g;
-const SAFE_ACTIONS = ["view.project", "view.chapter", "view.section", "view.data", "project.edit", "chapter.create.open", "chapter.edit.open", "section.create.open", "chapter.reorder.open", "section.reorder.open", "approval.open", "changes.merge.open", "run.start", "view.characters", "view.character", "character.suggest"];
+const SAFE_ACTIONS = ["view.project", "view.chapter", "view.section", "view.data", "project.edit", "chapter.create.open", "chapter.edit.open", "section.create.open", "chapter.reorder.open", "section.reorder.open", "approval.open", "changes.merge.open", "run.start", "view.characters", "view.character", "character.suggest", "view.notes_review"];
 function safeAction(json){
   // nur Ansichten und Formulare öffnen; alles, was schreibt, bestätigt der Benutzer danach im Formular
   let a; try { a = JSON.parse(json); } catch (e) { return null; }
@@ -1384,7 +1487,7 @@ function safeAction(json){
 }
 const ACTION_HELP = `Du kannst dem Benutzer Knöpfe anbieten, die eine Ansicht oder ein Formular öffnen. Schreib dafür je Knopf eine eigene Zeile:
 <<<AKTION {"action":"…","label":"kurzer Knopftext", …Daten} AKTION>>>
-Erlaubt: view.project; view.characters; view.character {character_id}; character.suggest {scope: book | Kapitelnummer | N.M}; view.chapter {chapter_id}; view.section {section_id}; project.edit; chapter.create.open; chapter.edit.open {chapter_id}; section.create.open {chapter_id}; chapter.reorder.open; section.reorder.open {chapter_id}; approval.open {kind:"writing"|"section", section_id, revoke?} bzw. {kind:"chapter", chapter_id, revoke?}; changes.merge.open; run.start {section_id, task:"research"|"writing"}. IDs nur aus buch_struktur. Knöpfe öffnen nur – gespeichert, freigegeben oder übernommen wird erst nach Bestätigung durch den Benutzer. Höchstens drei Knöpfe.
+Erlaubt: view.project; view.notes_review; view.characters; view.character {character_id}; character.suggest {scope: book | Kapitelnummer | N.M}; view.chapter {chapter_id}; view.section {section_id}; project.edit; chapter.create.open; chapter.edit.open {chapter_id}; section.create.open {chapter_id}; chapter.reorder.open; section.reorder.open {chapter_id}; approval.open {kind:"writing"|"section", section_id, revoke?} bzw. {kind:"chapter", chapter_id, revoke?}; changes.merge.open; run.start {section_id, task:"research"|"writing"}. IDs nur aus buch_struktur. Knöpfe öffnen nur – gespeichert, freigegeben oder übernommen wird erst nach Bestätigung durch den Benutzer. Höchstens drei Knöpfe.
 Will der Benutzer etwas ändern, anlegen, verschieben, freigeben, abschließen, recherchieren oder schreiben lassen, antworte nie nur, dass du das nicht kannst. Sag in einem Satz, dass er es über den Knopf öffnet und dort mit Speichern bestätigt, und biete den passenden Knopf an (für Manuskripttext: run.start mit task "writing" oder den Abschnitt mit view.section öffnen). Gibt es für den Wunsch keinen Knopf, sag das kurz und nenne die Ansicht, in der es am ehesten geht.`;
 function context(){
   const p = S.cfg.project || {}, sc = scopeOf();
@@ -1453,6 +1556,7 @@ document.addEventListener("click", async ev => {
   else if (d.go === "chapter"){ S.msg = null; show("chapter", S.chap); }
   else if (d.go === "back") show(S.report.from, S.report.arg);
   else if (d.report){ const from = S.view, arg = from === "section" ? S.sec.id : S.chap; busy("Bericht wird geladen …"); try { S.report = {path:d.report, text:(await getFile(d.report, S.readRef)).text, from, arg}; show("report"); } catch (e) { S.msg = {kind:"err", html:"Bericht nicht gefunden: " + esc(d.report)}; show(from, arg); } }
+  else if (d.act === "review"){ S.msg = null; show("review", d.f); }
   else if (d.act === "allchecks"){ S.showAll = !S.showAll; show("project"); }
   else if (d.act === "copy"){ try { await navigator.clipboard.writeText($("cpy").textContent); t.textContent = "Kopiert"; } catch (e) { t.textContent = "Kopieren nicht möglich – Text markieren"; } }
   else if (d.q) chat((QUICK[scopeOf()] || {})[d.q] || d.q, d.q);

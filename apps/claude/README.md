@@ -40,6 +40,19 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   Der Push startet die Action in der Fassung des Arbeits-Branchs. Weicht `research.yml` dort vom Buch-Branch ab
   (Änderungspaket älter als das letzte Update), bringt die App das Änderungspaket vorher auf den Buchstand
   (`update_pull_request_branch`).
+- Figuren (#53): Liste (Knopf „Figuren (n)“ in der Projektübersicht), Formular mit Beschreibung, Notizen und
+  Beziehungen, Figur anlegen und speichern. Die Dateien (`characters/<id>.md`, Block `characters` in
+  `ghostwriter.yml`) entstehen wie bei `scripts/characters.py`; ein Commit je Aktion auf den Arbeits-Branch.
+  „Figuren aus dem Text vorschlagen“ (Buch, Kapitel oder Abschnitt): Claude liest die Texte in Teilen zu je
+  etwa 40 000 Zeichen und schlägt nur aus dem Text vor; die Fundstellen prüft die App ohne KI gegen den Text und
+  verwirft nicht belegte. Übernommen wird nach Auswahl: neue Figuren, bei bekannten nur leere Felder,
+  Beziehungen und die Zuordnung zu Abschnitten in einem Commit. **Noch nicht in der App:** Profilbilder,
+  Figuren der Serie, Teile von Vor- und Nachspann als Bereich.
+- Hinweisdurchsicht (#367): Karte „Hinweisdurchsicht“ in der Projektübersicht, Ansicht mit einer Karte je Eintrag
+  aus `editorial/durchsicht-*.yml`. „Übernehmen“, „Nicht ändern“ und eigene Fassung speichern jede Antwort sofort
+  als kleinen Nachtrag (nur die Zeilen des Eintrags ändern sich, die Datei wird danach gegengeprüft; schnelle
+  Klicks laufen nacheinander). „Umsetzen prüfen“ zeigt ✅/⚠️/⛔, ändert aber nichts. **Noch nicht in der App:**
+  das Umsetzen ins Manuskript (`hinweise.py apply`); das geht weiter im Chat.
 - Claude-Leiste in Projektübersicht, Kapitel und Abschnitt. Claude kann Knöpfe anbieten, die nur eine Ansicht
   oder ein Formular öffnen (Liste `SAFE_ACTIONS` in `index.html`). Speichern und Abschließen bleiben eigene Schritte.
   Will der Benutzer im Chat etwas ändern, sagt Claude nicht nur „kann ich nicht“, sondern bietet den Knopf zum
