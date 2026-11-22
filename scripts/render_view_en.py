@@ -302,6 +302,8 @@ def render(template, data, config, renderer, base):
     elif template == 'buecherregal':
         rows = data.get('BOOKS', [])
         lines = ['### 📚 ' + tr('ui.library_2'), data['LIBRARY_NAME'] + ' · ' + data['BOOK_COUNT_TEXT'], '']
+        if data.get('JOBS_TEXT'):
+            lines += ['**' + data['JOBS_TEXT'] + '**', '']
         lines += renderer.session_lines(data.get('SESSIONS', []))
         if rows:
             lines += [native('library_table'), '|--:|---|---|---|---|--:|']
@@ -313,6 +315,7 @@ def render(template, data, config, renderer, base):
                     lines += ['| | **' + cell(label) + '** | | | | |']
                 title = (row['BOOK_VOLUME_TEXT'] + ': ' if row['BOOK_VOLUME_TEXT'] else '') + row['BOOK_TITLE']
                 pending = ' · ⏳ ' + row['BOOK_PENDING_TEXT'] if row['BOOK_PENDING_TEXT'] else ''
+                pending += ' · 📋 ' + row['BOOK_JOBS_TEXT'] if row.get('BOOK_JOBS_TEXT') else ''
                 lines += [f'| {i} | **{cell(title)}** ({cell(row["BOOK_TITLE_SHORT"])}){pending} | {row["BOOK_STATE_TEXT"]} | {renderer.progress_bar(row["BOOK_APPROVED_SECTION_COUNT"], row["BOOK_SECTION_COUNT"])} {row["BOOK_PROGRESS_TEXT"]} | {row["BOOK_EDITION_TEXT"]} | {row["BOOK_COST"]} |']
                 lines += [f'| {e["E_KEY"]} | ↳ {cell(e["E_TEXT"])}{" · " + cell(e["E_DETAIL"]) if e["E_DETAIL"] else ""} | | | | |'
                           for e in data.get('EDITIONS', []) if e['E_BOOK_BRANCH'] == row['BOOK_BRANCH']]
