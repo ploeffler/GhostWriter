@@ -83,7 +83,7 @@ GhostWriter wurde mit Unterstützung von Claude (Anthropic) entwickelt; dieser H
 - [KI-Dienste nutzen](DIENSTE-NUTZEN.md) · [KI-Anbieter](PROVIDERS.md) · [Chat-Apps](CHAT-APPS.md) · [Connector einrichten](CONNECTOR-SETUP.md)
 - [Datei- und Statusmodell](DATA-MODEL.md) · [Architektur](ARCHITECTURE.md) · [Workflow-Modell](WORKFLOW-MODEL.md) · [Integration](INTEGRATION.md) · [Buchkontext](CONTEXT.md)
 - [Bilder und visuelle Referenzen](BILDER-UND-REFERENZBILDER.md): Upload, Freigabe und gezielte Verwendung im Erstellungspfad
-- [Produktclip](../media/produktclip/README.md)
+- [Produktclip](https://github.com/ploeffler/GhostWriter/blob/main/media/produktclip/README.md)
 
 ---
 
