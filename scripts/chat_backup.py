@@ -659,6 +659,77 @@ def section_checkpoint(repository, base, session, payload, expected_head, review
     return result
 
 
+# ---------- Sicherung im Hintergrund (#487) ----------
+
+def receipt_dir():
+    """Ablage der Quittungen außerhalb des Repositorys (nie committet); GHOSTWRITER_RECEIPT_DIR für Tests."""
+    import os
+    return Path(os.environ.get('GHOSTWRITER_RECEIPT_DIR') or Path(tempfile.gettempdir()) / 'ghostwriter-sicherung')
+
+
+def receipt_path(session):
+    return receipt_dir() / f'{identifier(session)}.json'
+
+
+def write_receipt(path, data):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    tmp = path.with_suffix('.tmp')
+    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+    tmp.replace(path)
+
+
+def read_receipt(path):
+    try:
+        return json.loads(Path(path).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+
+
+def start_background(argv, raw, path):
+    """Dieselbe Antwortsicherung in einem eigenen Prozess starten; sofort zurückkehren.
+
+    Die Eingabe geht über eine Datei mit Nur-Besitzer-Rechten, die der Hintergrundlauf
+    danach löscht. Die Quittung zeigt erst „läuft“, dann das Ergebnis oder den Fehler."""
+    previous = read_receipt(path)
+    if previous and previous.get('state') == 'running':
+        raise ValueError('Vorige Hintergrundsicherung läuft noch; erst mit wait abwarten')
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    fd, data_file = tempfile.mkstemp(prefix='eingabe-', suffix='.json', dir=path.parent)
+    with open(fd, 'w', encoding='utf-8') as fh:
+        fh.write(raw)
+    write_receipt(path, {'state': 'running', 'started': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')})
+    rest = [a for a in argv if a != '--background']
+    rest[rest.index('-') if '-' in rest else 2] = data_file
+    log = open(path.with_suffix('.log'), 'w', encoding='utf-8')
+    subprocess.Popen([sys.executable, str(Path(__file__).resolve()), *rest, '--receipt', str(path)],
+                     stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+    return {'status': 'background_started', 'receipt': str(path)}
+
+
+def wait_receipt(path, timeout=180):
+    """Auf die Quittung einer Hintergrundsicherung warten. Liefert sie samt state saved|failed|missing."""
+    deadline = time.monotonic() + timeout
+    while True:
+        data = read_receipt(path)
+        if data is None:
+            return {'state': 'missing'}
+        if data.get('state') != 'running' or time.monotonic() > deadline:
+            return data
+        time.sleep(1)
+
+
+def pending_receipts(directory=None):
+    """Hintergrundsicherungen, die noch laufen oder fehlgeschlagen sind (für den Abschluss-Check)."""
+    directory = Path(directory or receipt_dir())
+    out = []
+    for path in sorted(directory.glob('*.json')) if directory.is_dir() else []:
+        data = read_receipt(path) or {}
+        if data.get('state') in ('running', 'failed'):
+            out.append({'session': path.stem, 'state': data['state'], 'error': data.get('error')})
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='action', required=True)
@@ -680,6 +751,13 @@ def main():
     q = sub.add_parser('answer-checkpoint', parents=[s], add_help=False, help='Ausgewertete Antwort sofort und vor weiterer Chat-Ausgabe sichern')
     q.add_argument('--review', help='JSON-Datei mit answer_message_id und belegtem Fragenstand; '
                    'fehlt sie, enthält die Eingabe {"payload": …, "review": …} (auch „-“ für stdin, #314)')
+    q.add_argument('--background', action='store_true',
+                   help='im Hintergrund sichern und sofort zurückkehren; Ergebnis später mit wait lesen (#487)')
+    q.add_argument('--receipt', help=argparse.SUPPRESS)   # nur der Hintergrundlauf selbst
+    w = sub.add_parser('wait', help='auf die Quittung der Hintergrundsicherung einer Session warten (#487)')
+    w.add_argument('session')
+    w.add_argument('--timeout', type=int, default=180)
+    p = sub.add_parser('pending', help='laufende oder fehlgeschlagene Hintergrundsicherungen auflisten (#487)')
     r = sub.add_parser('resume')
     r.add_argument('repository')
     r.add_argument('session')
@@ -692,10 +770,26 @@ def main():
     a.add_argument('--expected-base', required=True)
     a.add_argument('--confirmed', action='store_true')
     args = parser.parse_args()
+    receipt = getattr(args, 'receipt', None)
     try:
+        if args.action == 'wait':
+            result = wait_receipt(receipt_path(args.session), args.timeout)
+            print(canonical(result), end='')
+            if result.get('state') != 'saved':
+                raise SystemExit(2)
+            return
+        if args.action == 'pending':
+            print(canonical({'pending': pending_receipts()}), end='')
+            return
         if args.action in ('save', 'checkpoint', 'answer-checkpoint'):
             raw = sys.stdin.read() if args.input == '-' else Path(args.input).read_text(encoding='utf-8')
+            if receipt:
+                Path(args.input).unlink(missing_ok=True)   # Eingabedatei des Hintergrundlaufs
             payload = json.loads(raw)
+            if getattr(args, 'background', False):
+                json.loads(raw)   # offensichtliche Formfehler sofort melden, nicht erst in der Quittung
+                print(canonical(start_background(sys.argv[1:], raw, receipt_path(args.session))), end='')
+                return
             if args.action == 'answer-checkpoint' and not args.review:
                 if set(payload) != {'payload', 'review'}:
                     raise ValueError('Ohne --review braucht die Eingabe genau die Felder payload und review')
@@ -715,10 +809,16 @@ def main():
                             args.expected_base, confirmed=args.confirmed)
         else:
             result = resume(args.repository, args.session, args.base)
+        if receipt:
+            ok = result.get('status') != 'blocked'   # PR noch offen: Inhalt ist trotzdem oben
+            write_receipt(receipt, {'state': 'saved' if ok else 'failed', 'result': result, 'head': result.get('head'),
+                                    **({} if ok else {'error': result.get('status')})})
         print(canonical(result), end='')
         if result.get('status') in ('remote_saved_pr_pending', 'blocked'):
             raise SystemExit(2)
     except (ValueError, OSError, KeyError) as exc:
+        if receipt:
+            write_receipt(receipt, {'state': 'failed', 'error': reason(exc)})
         # Keine Inhalte aus fehlerhaftem JSON oder fremden Fehlermeldungen ausgeben.
         parser.exit(1, f'Chat-Sicherung nicht abgeschlossen ({reason(exc)}). Eingaben und Zugriff prüfen.\n')
 

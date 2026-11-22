@@ -80,13 +80,25 @@ def chat_prs(repo):
         return None
 
 
+def background():
+    """Antwortsicherungen im Hintergrund, die noch laufen oder fehlgeschlagen sind (#487)."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import chat_backup
+        return chat_backup.pending_receipts()
+    except Exception:   # Der Abschluss-Check bleibt lesend und bricht daran nie ab.
+        return []
+
+
 def status(base, chat=None, repo=None):
     base, config = load(base)
-    data = {'chat': chat, 'local': local_changes(base), 'chat_prs': chat_prs(repo), 'waiting': waiting(base, config)}
+    data = {'chat': chat, 'local': local_changes(base), 'chat_prs': chat_prs(repo), 'waiting': waiting(base, config),
+            'background': background()}
     local = data['local']
-    data['open'] = bool(chat == 'new' or local['uncommitted'] or local['unpushed'] or data['chat_prs'] or data['waiting'])
+    data['open'] = bool(chat == 'new' or local['uncommitted'] or local['unpushed'] or data['chat_prs'] or data['waiting']
+                        or data['background'])
     choices = []
-    if chat == 'new' or local['uncommitted'] or local['unpushed']:
+    if chat == 'new' or local['uncommitted'] or local['unpushed'] or data['background']:
         choices.append('Alles sichern und hochladen')
     if chat == 'new':
         choices.append('Nur das Gespräch sichern')
@@ -107,6 +119,9 @@ def text(data):
         lines.append(f'- {len(local["uncommitted"])} Datei(en) geändert, noch nicht gespeichert')
     if local['unpushed']:
         lines.append(f'- {local["unpushed"]} Änderung(en) gespeichert, aber noch nicht hochgeladen')
+    for b in data.get('background') or []:
+        lines.append(f'- Antwortsicherung im Hintergrund {"läuft noch" if b["state"] == "running" else "fehlgeschlagen"} '
+                     f'(Session {b["session"]}): erst `chat_backup.py wait {b["session"]}`, bei Fehler erneut sichern')
     if data['chat_prs']:
         nums = ', '.join(f'#{p["number"]}' for p in data['chat_prs'])
         lines.append(f'- {len(data["chat_prs"])} gesicherte(s) Gespräch(e) noch nicht übernommen ({nums}); erst danach im Wissensstand')

@@ -110,6 +110,23 @@ python3 scripts/chat_backup.py answer-checkpoint <git-url> <session-id> - --base
 JSON
 ```
 
+**Im Hintergrund (#487).** Mit `answer_backup: hintergrund` in `assistant.yml`
+hängt der Assistent `--background` an denselben Aufruf. Der Helfer schreibt die
+Eingabe in eine Datei mit Nur-Besitzer-Rechten, startet die Sicherung als eigenen
+Prozess und meldet sofort `background_started`; Auswertung und nächste Frage
+kommen ohne Wartezeit. Die Quittung liegt außerhalb des Repositorys
+(`<tmp>/ghostwriter-sicherung/<session>.json`) und zeigt `running`, danach `saved`
+mit `head` oder `failed` mit Grund. Vor der nächsten Antwortsicherung, bei
+„Session sichern“ und am Dialogabschluss liest der Assistent sie mit
+`python3 scripts/chat_backup.py wait <session>` (wartet höchstens 180 s, Exitcode 2
+bei Fehler). Fehlgeschlagenes nennt er offen und sichert es erneut, bevor es
+weitergeht. Eine zweite Hintergrundsicherung derselben Session startet nicht,
+solange die vorige läuft. Der Abschluss-Check (`session_end.py`) zeigt laufende
+und fehlgeschlagene Hintergrundsicherungen (`chat_backup.py pending`). Abwägung:
+schneller, aber bricht der Chat genau während der Sicherung ab (etwa am Ende des
+Guthabens), kann die letzte Antwort fehlen; davor schützt die Vorgabe
+`vor_antwort`. Nur in Clients mit Shell (Claude Code, Claude mit Shell).
+
 Der Helfer holt dafür nur den einen Commit des Sitzungsbranchs ohne Dateiinhalte
 und checkt nur den Sicherungsordner dieser Sitzung aus; den PR schlägt er je
 Antwort einmal nach. Die Langform mit zwei Dateien bleibt gültig.
