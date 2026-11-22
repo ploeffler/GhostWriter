@@ -4,7 +4,10 @@ name: Projektdateien prüfen
 # Pushes nur auf dem Standard-Branch und auf Buch-Branches (buch/*) prüfen,
 # Arbeits-Branches über ihren Pull Request. Reine Bot-Ausgaben (Übersichtsdatei,
 # Bücherregal) lösen keine Prüfung aus. Ein neuer Push bricht den älteren Lauf
-# desselben Branchs bzw. PRs ab (außer auf dem Standard-Branch).
+# desselben Branchs bzw. PRs ab, auch auf dem Standard-Branch: geprüft wird der neueste Stand.
+# Hauptrepository (#485): Ein grüner voller PR-Lauf hinterlegt den geprüften Baum als
+# Artefakt „validate-full-<tree>“. Hat der Merge-Commit auf dem Standard-Branch genau diesen
+# Baum, laufen die Tests dort nicht noch einmal (nur Schema, Doku, Website).
 
 on:
   push:
@@ -18,11 +21,12 @@ on:
 
 concurrency:
   group: validate-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref_name != github.event.repository.default_branch }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
   issues: read      # Meilensteine für die Roadmap-Prüfung
+  actions: read     # Artefakte „validate-full-<tree>“ finden (#485)
   pull-requests: read   # geänderte Dateien für die Testauswahl (#439)
 
 jobs:
@@ -83,9 +87,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           files="repos/$GITHUB_REPOSITORY/pulls/$PR/files"
-          if [ -n "$PR" ] && [ -f scripts/select_tests.py ] \
+          tree=$(git rev-parse 'HEAD^{tree}')
+          echo "tree=$tree" >> "$GITHUB_OUTPUT"
+          # Standard-Branch: Baum schon in einem grünen vollen PR-Lauf geprüft? Dann keine Tests (#485).
+          if [ -z "$PR" ] && [ "$GITHUB_REF_NAME" = "$DEFAULT_BRANCH" ] \
+             && run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=validate-full-$tree&per_page=5" \
+                      --jq '[.artifacts[] | select(.expired | not) | .workflow_run.id][0] // empty' 2>/dev/null) \
+             && [ -n "$run" ] \
+             && [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq .conclusion 2>/dev/null)" = "success" ]; then
+            printf 'mode=skip\ntests=\nsatz=0\n' >> "$GITHUB_OUTPUT"
+            echo "Tests übersprungen: Baum $tree schon geprüft im Lauf https://github.com/$GITHUB_REPOSITORY/actions/runs/$run" | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ -n "$PR" ] && [ -f scripts/select_tests.py ] \
              && gh api "$files" --paginate --jq '.[] | select(.status != "removed") | .filename' > /tmp/changed.txt \
              && gh api "$files" --paginate --jq '.[] | select(.status == "removed" or .status == "renamed") | (.previous_filename // .filename)' > /tmp/removed.txt; then
             python scripts/select_tests.py --files /tmp/changed.txt --removed /tmp/removed.txt --github-output "$GITHUB_OUTPUT"
@@ -195,7 +210,9 @@ jobs:
           TESTS: ${{ steps.scope.outputs.tests }}
         run: |
           [ -d tests ] || exit 0
-          if [ "$MODE" = "subset" ]; then
+          if [ "$MODE" = "skip" ]; then
+            echo "Keine Tests: derselbe Stand wurde schon im Pull Request vollständig geprüft (#485)."
+          elif [ "$MODE" = "subset" ]; then
             echo "Nur die betroffenen Tests: $TESTS"
             PYTHONPATH=tests python -m unittest $TESTS
           else
@@ -221,3 +238,15 @@ jobs:
       - name: Dokumentationswebsite lokal aufbauen und prüfen (ohne Veröffentlichung)
         if: steps.kind.outputs.program == '1'
         run: python scripts/build_docs_site.py
+
+      - name: Geprüften Stand vermerken
+        # Nur nach einem grünen vollen Lauf im Pull Request (letzter Schritt): der Lauf auf dem
+        # Standard-Branch erkennt daran den schon geprüften Baum (#485).
+        if: steps.kind.outputs.program == '1' && github.event_name == 'pull_request' && steps.scope.outputs.mode == 'full'
+        run: echo "${{ steps.scope.outputs.tree }}" > /tmp/validate-tree.txt
+      - if: steps.kind.outputs.program == '1' && github.event_name == 'pull_request' && steps.scope.outputs.mode == 'full'
+        uses: actions/upload-artifact@v4
+        with:
+          name: validate-full-${{ steps.scope.outputs.tree }}
+          path: /tmp/validate-tree.txt
+          retention-days: 7
