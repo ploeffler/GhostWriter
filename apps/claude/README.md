@@ -46,8 +46,14 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   „Figuren aus dem Text vorschlagen“ (Buch, Kapitel oder Abschnitt): Claude liest die Texte in Teilen zu je
   etwa 40 000 Zeichen und schlägt nur aus dem Text vor; die Fundstellen prüft die App ohne KI gegen den Text und
   verwirft nicht belegte. Übernommen wird nach Auswahl: neue Figuren, bei bekannten nur leere Felder,
-  Beziehungen und die Zuordnung zu Abschnitten in einem Commit. **Noch nicht in der App:** Profilbilder,
-  Figuren der Serie, Teile von Vor- und Nachspann als Bereich.
+  Beziehungen und die Zuordnung zu Abschnitten in einem Commit.
+  Profilbilder (#417): Liste und Formular zeigen das Bild aus `portrait` im Figurenkopf, sonst das erste
+  freigegebene Referenzbild mit Rolle `visual_reference` und Link `person:<id>`. Die App lädt das Bild über den
+  Konnektor, schneidet es quadratisch zu und verkleinert es (80 bzw. 192 Pixel); das Original bleibt unberührt
+  und wird nie ins Buch geschrieben. Ohne freigegebenes Bild, bei zu großer Datei (über 12 MB) oder wenn der
+  Konnektor das Bild nicht liefert, bleibt das Feld leer. Ein anderes Bild wählt man wie im Chat mit
+  `portrait: ref-img-…` im Figurenkopf. **Noch nicht in der App:** Figuren der Serie, Teile von Vor- und
+  Nachspann als Bereich.
 - Hinweisdurchsicht (#367): Karte „Hinweisdurchsicht“ in der Projektübersicht, Ansicht mit einer Karte je Eintrag
   aus `editorial/durchsicht-*.yml`. „Übernehmen“, „Nicht ändern“ und eigene Fassung speichern jede Antwort sofort
   als kleinen Nachtrag (nur die Zeilen des Eintrags ändern sich, die Datei wird danach gegengeprüft; schnelle
