@@ -10,7 +10,7 @@ Program files listed under `managed` in `ghostwriter-manifest.yml` are updated, 
 
 The update is validated before it is pushed. If validation fails, the branch is not updated and a failure issue is opened. The workflow retries certain server errors and retries once when the branch advances during the run. Its summary reports what happened for each branch. Books are not downgraded to an older program version.
 
-In a library, the workflow updates the default branch and then each eligible book branch. Working branches are not updated directly. A failure on one book does not stop the others. The project overview may offer **Update einspielen** (install update) when a newer upstream state is available.
+In a library, the workflow updates the default branch and then each eligible book branch. Working branches are not updated on their own. An open change package (work branch `ghostwriter/<book>` with an open pull request to the book) receives the new book state right after its book is updated, so workflows and checks there run with the new program version (#470). On a conflict the change package stays unchanged and the summary names the files; only a conflicting overview file is regenerated. Work branches without an open pull request are left alone; a dry run only reports. A failure on one book does not stop the others. The project overview may offer **Update einspielen** (install update) when a newer upstream state is available.
 
 ## Daily report and GitHub notifications
 
