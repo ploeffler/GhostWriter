@@ -141,9 +141,14 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
 
   // Recherche mit Internet (#462): Auswahl, wenn ein Anbieter mit API eingestellt ist (Buch oder Bibliothek)
   const s2 = w.__S(); s2.cfg.ai_providers = {available: ["google"], services: {google: {access: "api", api_key_secret: "GEMINI_API_KEY"}}};
-  await send(gwa("run.start", {section_id: sec.id, task: "research", mode: "immediate"}));
+  await send("x\n\n`gw:view.section section_id=" + sec.id + "`"); await sleep(500);
+  const card = d.querySelector('.gw-card[data-task="Recherche"]');
+  const sch = card && card.querySelector('.gw-opt[data-mode="zeitgesteuert"]'), imm = card && card.querySelector('.gw-opt[data-mode="sofort"]');
+  ok(sch && !sch.disabled && /Mit Internet/.test(sch.textContent) && imm && imm.disabled && /ohne Internet/.test(imm.textContent),
+     "Abschnittssteuerung: „Mit Internet“ aktiv, „Sofort“ ohne Internet ausgegraut");
+  if (sch){ sch.click(); await sleep(300); await idle(); }
   const web = d.querySelector("[data-act=webres]");
-  ok(!!web && /Google Gemini/.test(note()) && !!d.querySelector("[data-act=offres]"), "Recherche: Auswahl mit/ohne Internet");
+  ok(!!web && /Google Gemini/.test(note()) && !d.querySelector("[data-act=offres]"), "Recherche: Rückfrage vor dem Start mit Internet");
   n = pushes.length;
   if (web){ w.__S().cfg.ai_providers = s2.cfg.ai_providers; web.click(); await sleep(400); await idle(); }
   const pw = pushes.length > n && lastPush("recherche-internet");

@@ -27,11 +27,13 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   gespeichert, als Laufdatei und gegebenenfalls als Manuskript. Die Recherche läuft ohne Internet; die Laufdatei
   sagt das ausdrücklich. Pro Lauf genau ein Abschnitt.
 - Recherche mit Internet (#462): Ist für die Recherche ein Dienst mit API-Schlüssel eingestellt (Anthropic, OpenAI,
-  Google; sonst die Einstellungen des Standard-Branchs), fragt die App bei „Recherche“, ob mit Internet über diesen
-  Dienst oder ohne Internet über Claude recherchiert wird. „Mit Internet“ legt nur einen Auftrag
+  Google; sonst die Einstellungen des Standard-Branchs), zeigt die Abschnittssteuerung bei „Recherche“ statt
+  „Zeitgesteuert“ den aktiven Knopf „Mit Internet · GitHub-Action (Dienst)“; „Sofort · hier in der App“ ist dann
+  ausgegraut (Claude hat in der App keine Websuche). Nach einer Rückfrage legt die App nur einen Auftrag
   `<kapitel>/research/<abschnitt>/request-NNN.yml` auf den Arbeits-Branch. Der Commit startet die Action
   „Recherche“, die mit dem Secret des Dienstes sucht und Laufdatei und Kosteneintrag ins Änderungspaket legt.
-  „Nachsehen“ zeigt Stand, Fehler oder Ergebnis (Quellen, Suchanfragen, Kosten).
+  „Nachsehen“ zeigt Stand, Fehler oder Ergebnis (Quellen, Suchanfragen, Kosten). Ohne solchen Dienst bleibt
+  „Sofort“ die Recherche ohne Internet über Claude.
   Fehlt die Action im Arbeits-Branch (Änderungspaket älter als das Update), bringt die App das Änderungspaket vorher
   auf den Buchstand (`update_pull_request_branch`).
 - Claude-Leiste in Projektübersicht, Kapitel und Abschnitt. Claude kann Knöpfe anbieten, die nur eine Ansicht
