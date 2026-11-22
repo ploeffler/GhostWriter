@@ -40,6 +40,7 @@ import os
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -58,7 +59,7 @@ MAX_MANUSCRIPT = 6000
 PROVIDERS = {
     'anthropic': {'model': 'claude-sonnet-5-5', 'label': 'Anthropic'},
     'openai': {'model': 'gpt-5', 'label': 'OpenAI'},
-    'google': {'model': 'gemini-2.5-flash', 'label': 'Google Gemini'},
+    'google': {'model': 'gemini-3.8-flash', 'label': 'Google Gemini'},
 }
 
 HEADINGS = ['Fragestellung und Suchumfang', 'Rechercheergebnisse', 'Quellen', 'Widersprüche und Unsicherheiten',
@@ -266,6 +267,66 @@ def call_google(key, model, system, user):
 
 CALLS = {'anthropic': call_anthropic, 'openai': call_openai, 'google': call_google}
 
+# Gemini liefert Quellen als befristete Weiterleitungen (vertexaisearch.cloud.google.com/grounding-api-redirect/…)
+# und als Titel nur die Domain. In der Action werden sie zur echten Adresse und zum Seitentitel aufgelöst.
+REDIRECT_HOSTS = ('vertexaisearch.cloud.google.com',)
+RESOLVE_TIMEOUT = 10
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+def _title(url):
+    try:
+        req = urllib.request.Request(url, headers={'user-agent': 'Mozilla/5.0 (GhostWriter Recherche)'})
+        with urllib.request.urlopen(req, timeout=RESOLVE_TIMEOUT) as r:
+            if 'html' not in (r.headers.get('content-type') or ''):
+                return ''
+            raw = r.read(65536).decode(r.headers.get_content_charset() or 'utf-8', 'replace')
+        m = re.search(r'(?is)<title[^>]*>(.*?)</title>', raw)
+        import html
+        return re.sub(r'\s+', ' ', html.unescape(m.group(1))).strip()[:200] if m else ''
+    except Exception:
+        return ''
+
+
+def resolve_source(src):
+    """Weiterleitung auflösen (Location-Kopf, ohne ihr zu folgen) und Seitentitel holen; Fehler lassen die Quelle unverändert."""
+    url = src['url']
+    if urllib.parse.urlparse(url).hostname not in REDIRECT_HOSTS:
+        return src
+    try:
+        opener = urllib.request.build_opener(_NoRedirect)
+        target = None
+        for method in ('HEAD', 'GET'):          # manche Weiterleitungen antworten nur auf GET
+            req = urllib.request.Request(url, method=method, headers={'user-agent': 'Mozilla/5.0 (GhostWriter Recherche)'})
+            try:
+                opener.open(req, timeout=RESOLVE_TIMEOUT)
+                return src
+            except urllib.error.HTTPError as e:
+                target = e.headers.get('location') if 300 <= e.code < 400 else None
+            if target:
+                break
+        if not target or not target.startswith('http'):
+            return src
+        domain = src['title']
+        title = _title(target)
+        return {'title': f'{title} ({domain})' if title and domain and domain not in title else (title or domain or target),
+                'url': target}
+    except Exception:
+        return src
+
+
+def resolve_sources(sources):
+    if not any(urllib.parse.urlparse(s['url']).hostname in REDIRECT_HOSTS for s in sources):
+        return sources
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        out = list(pool.map(resolve_source, sources))
+    return _sources([(s['title'], s['url']) for s in out])
+
 
 # ---------- Ergebnis ----------
 
@@ -332,6 +393,7 @@ def run(base, section_id, question=None, provider=None, model=None, defaults=Non
         raise ResearchError(f'Abschnitt {number} ist abgeschlossen. Zum Recherchieren zuerst wieder öffnen.')
     system, user = prompts(config, ch, sec, text, number, question)
     res = CALLS[cfg['provider']](key, cfg['model'], system, user)
+    res['sources'] = resolve_sources(res['sources'])
     body = strip_sources(res['text'])
     if not body:
         raise ResearchError('Der Anbieter hat keinen Text geliefert. Bitte später noch einmal versuchen.')
