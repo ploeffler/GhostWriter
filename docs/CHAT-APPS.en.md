@@ -17,6 +17,8 @@ At the time of the assessment, the built-in GitHub connections in Claude and Cha
 
 The original assessment refers to [Anthropic's GitHub integration help](https://support.claude.com/en/articles/10167454-use-the-github-integration), [OpenAI's GitHub connection help](https://help.openai.com/en/articles/11145903-connecting-github-to-chatgpt) and the official [GitHub MCP server](https://github.com/github/github-mcp-server). These are links for checking current information, not evidence that every capability is available in a particular session.
 
+**Field report of 22 November 2026 (#22, reported by the owner):** Work with repositories was done in both Claude and ChatGPT. Changing a file with a commit, creating a branch, opening a pull request and merging a pull request worked in both apps, and a GhostWriter form saved as a pull request in ChatGPT. A mixed path was used; which connection was used in each app (custom connector, Codex or Claude Code) is not recorded per column. The custom-connector column therefore stays without individual evidence until this is added per app and plan.
+
 ## Ways to work with the repository
 
 1. **Claude with a working environment:** The tested session could create commits, branches and pull requests and merge them. Tags and releases were rejected in that session.

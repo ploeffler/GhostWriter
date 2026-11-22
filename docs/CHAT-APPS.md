@@ -15,6 +15,8 @@ Die **eingebauten GitHub-Verbindungen** beider Apps können nur lesen. Für Weg 
 | Tag und Release anlegen | nein | nein: in der Sitzung vom 31.10.2026 von GitHub abgelehnt („not permitted for this session type“), ebenso Branches löschen | nein | nicht belegt | nicht belegt |
 | Chat-Vorlagen als Widget mit Rückmeldung in den Chat | ja (Inline-Widgets) | ja, wenn die Sitzung Widgets anbietet | nein, Textfassung nötig | nein | wie die jeweilige App |
 
+**Praxisbericht vom 22.11.2026 (#22, Angabe des Eigentümers):** In Claude und in ChatGPT wurde mit Repositories gearbeitet; Datei ändern mit Commit, Branch anlegen, Pull Request anlegen und Pull Request mergen funktionierten in beiden Apps, und ein GhostWriter-Formular speicherte in ChatGPT als Pull Request. Genutzt wurde ein gemischter Weg; welche Verbindung je App im Einzelnen im Einsatz war (eigener Connector, Codex oder Claude Code), ist nicht je Spalte festgehalten. Die Spalte „Eigener Connector“ bleibt deshalb ohne ausdrückliche Einzelbelege, bis das je App und je Tarif nachgetragen ist.
+
 Belege:
 - Claude: Die GitHub-Integration synchronisiert nur Dateinamen und Inhalte eines Branches, ohne Commit-Historie und Pull Requests ([Anthropic-Hilfe: Use the GitHub integration](https://support.claude.com/en/articles/10167454-use-the-github-integration)).
 - ChatGPT: Der GitHub-Connector in Chat und Deep Research ist zum Lesen gedacht; Codex kann Branches pushen und Pull Requests öffnen ([Übersicht vom 9.7.2026](https://www.usecarly.com/blog/chatgpt-github-integration/)). Die Hilfeseite von OpenAI ([Connecting GitHub to ChatGPT](https://help.openai.com/en/articles/11145903-connecting-github-to-chatgpt)) war beim Abruf nicht erreichbar.
