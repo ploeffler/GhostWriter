@@ -264,7 +264,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Auflage` | Formular „Neue Auflage erzeugen“ |
 | `Zeitleiste` | Chronologie aus Unterlagen und Recherche mit Hinweisen, wo die Daten nicht zusammenpassen (Abschnitt „Chronologie“, #354) |
 | `Einstellungen`, `KI-Dienste` | das jeweilige Formular |
-| `Alle Einstellungen` | Übersicht aller Einstellungen mit Wert, Herkunft und Formular (`render_view.py . settings-overview [gruppe]`, nur lesend, immer als Tabelle, #299) |
+| `Alle Einstellungen` | Übersicht aller Einstellungen mit Wert, Herkunft und Formular (`render_view.py . settings-overview [gruppe | bibliothek | serie <id> | sammelband <id>]`, nur lesend, Widget bzw. `--text`, #299) |
 | `In den Buchtext einarbeiten` | besprochene Inhalte in den Manuskriptentwurf im Chat integrieren; noch keine Repository-Änderung |
 | `Buchstand aktualisieren` | aktuellen Buchstand aus dem Buch-Repository neu lesen und den Chat-Kontext abgleichen; nicht gespeicherte Entwürfe erhalten und Abweichungen zeigen |
 | `Buchstand speichern` | freigegebene Chat-Änderungen in das Buch-Repository übertragen und im Arbeits-Branch als offenen Pull Request speichern |

@@ -372,6 +372,19 @@ Grafische Zeitleiste der Chronologie (#354, ab UI 0.56.0; `render_view.py timeli
 
 Zeitraum, Filter nach Belegstand und Auswahl eines Eintrags wirken nur in der Ansicht; gesendet wird nur `view.project`.
 
+### `einstellungen.html`
+
+Alle Einstellungen (#299, ab UI 0.64.0; `render_view.py <ordner> settings-overview [wo]`, Befehl „Alle Einstellungen“). Nur lesend. Gefüllt von `settings_overview.widget_values()`; die Textfassung (`--text`) ist `settings_overview.markdown()`, auch auf Englisch. `wo`: leer bzw. eine Gruppe (`typesetting`) für das Buch, `bibliothek`, `serie <ser-id>`, `sammelband <ser-id>`.
+
+| Platzhalter | Quelle |
+|---|---|
+| `SETTINGS_KIND` | `book`, `library`, `series` oder `omnibus` (Zurück-Knopf: Projektübersicht bzw. Bücherregal) |
+| `SETTINGS_TITLE` | „Alle Einstellungen“, dazu Seite und Titel |
+| `SETTINGS_INTRO` | Zahl der Einstellungen und der eigenen Werte |
+| Block `GROUPS`: `G_KEY`, `G_TITLE`, `G_ROWS` | je Gruppe; `G_ROWS` ist eine JSON-Liste mit `key`, `label` (Abschnittstitel bei „Abweichend vom Buch“), `value` (Anzeigetext), `origin` (`book`, `library`, `default`, `unset`, `own`, `series`, `omnibus`, `section`), `origin_text`, `differs` (weicht von der Vorgabe ab), `form_text` (Formular bzw. „nur in der Datei“) |
+
+Filter „Nur eigene Werte“ und Suche wirken nur in der Ansicht; gesendet wird nur `view.project` bzw. `view.library`.
+
 ### `hinweisdurchsicht.html`
 
 Hinweisdurchsicht (#367, ab UI 0.58.0; `render_view.py notes-review [<datei>]`, Aktion `view.notes_review`). Ohne Datei die neueste `editorial/durchsicht-*.yml`. Gefüllt von `hinweise.widget_values()`; die Textfassung (`--text`) ist `hinweise.show()`. Ablauf und Grenzen: [Lektorat, „Hinweise durchsehen“](../../docs/LEKTORAT.md#hinweise-durchsehen-hinweisdurchsicht-367).

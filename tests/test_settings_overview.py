@@ -40,13 +40,60 @@ class SettingsOverviewTest(unittest.TestCase):
         self.assertEqual(rows['analysis.price_input_per_mtok']['form'], 'analysis-settings')
         self.assertIsNone(rows['images.max_px']['form'])
 
+    def test_library_series_omnibus_and_sections(self):
+        """Teil 2: Bibliothek, Serie, Sammelband, Abweichungen je Abschnitt, Englisch."""
+        import shutil
+        import tempfile
+        import types
+        from unittest.mock import patch
+        import yaml
+        rows = {r['key']: r for r in so.profile_rows({'display': 'erweitert', 'git': {'name': 'a'}, 'answer_backup': 'hintergrund'})}
+        self.assertEqual((rows['display']['origin'], rows['display']['differs'], rows['display']['form']), ('own', True, 'display'))
+        self.assertEqual(rows['answers']['origin'], 'default')
+        self.assertIn('answer_backup', rows)
+        self.assertNotIn('skill', rows)
+        fake = types.SimpleNamespace(get=lambda base, sid: ({'id': 'ser-a', 'title': 'Reihe', 'issn': '1234-5678'}, None),
+                                     omnibus=lambda base, sid: {'title': 'Sammelband A', 'typesetting': {'font_size': 10},
+                                                                'publication': {'publisher': 'V'}})
+        with patch.dict(sys.modules, {'series': fake}):
+            kind, title, data = so.page(Path('.'), {}, {}, 'serie ser-a')
+            self.assertEqual((kind, {r['key']: r['origin'] for r in data}['issn']), ('series', 'own'))
+            kind, title, data = so.page(Path('.'), {}, {}, 'sammelband ser-a')
+            data = {r['key']: r for r in data}
+            self.assertEqual((data['typesetting.font_size']['origin'], data['typesetting.font_size']['differs']), ('omnibus', True))
+            self.assertEqual(data['typesetting.toc']['origin'], 'default')
+            self.assertEqual(data['publication.publisher']['origin'], 'omnibus')
+        rows = {r['key']: r for r in so.rows({'_series': {'title': 'Reihe', 'volume': 2}})}
+        self.assertEqual((rows['series.volume']['value'], rows['series.volume']['origin']), (2, 'series'))
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d) / 'buch'
+            shutil.copytree(ROOT / 'tests/fixtures/adhs', base)
+            config = yaml.safe_load((base / 'ghostwriter.yml').read_text(encoding='utf-8'))
+            section = config['structure']['chapters'][0]['sections'][0]
+            path = base / section['path']
+            text = path.read_text(encoding='utf-8')
+            path.write_text(re.sub(r'(?m)^fact_check:.*$', 'fact_check: requested', text, count=1)
+                            if re.search(r'(?m)^fact_check:', text) else text.replace('---\n', '---\nfact_check: requested\n', 1),
+                            encoding='utf-8')
+            sections = so.section_rows(base, config)
+            self.assertEqual([(r['key'], r['value']) for r in sections], [('1.1', 'requested')])
+            out = so.markdown(base, config, {}, None, 'en')
+            self.assertIn('#### Different from the book', out)
+            self.assertIn('| Setting | Value | Origin | Change in |', out)
+            values, blocks = so.widget_values(base, config, {}, None, 'de')
+            self.assertEqual(values['SETTINGS_KIND'], 'book')
+            self.assertEqual(blocks['GROUPS'][-1]['G_KEY'], 'sections')
+
     def test_markdown_view_through_render_view(self):
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(ROOT / 'tests/fixtures/adhs'),
-                              'settings-overview', '--repo', 'x/y'], capture_output=True, text=True, check=True).stdout
+                              'settings-overview', '--repo', 'x/y', '--text'], capture_output=True, text=True, check=True).stdout
         self.assertIn('### Alle Einstellungen', out)
         self.assertIn('| `typesetting.page_size` |', out)
         self.assertIn('nur in der Datei', out)
         self.assertNotIn('<script', out)
+        widget = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(ROOT / 'tests/fixtures/adhs'),
+                                 'settings-overview', '--repo', 'x/y'], capture_output=True, text=True, check=True).stdout
+        self.assertIn('GW.render("einstellungen"', widget)
 
 
 if __name__ == '__main__':
