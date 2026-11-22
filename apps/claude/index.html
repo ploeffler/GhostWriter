@@ -101,7 +101,7 @@ const MK = {"PLATZHALTER-ANEKDOTE":"anekdote","QUELLE PRÜFEN":"quelle","MEDIZIN
 const MK_LABEL = {anekdote:"Platzhalter-Anekdote",quelle:"Quelle prüfen",medizin:"Medizin prüfen",recht:"Recht prüfen",kontinuitaet:"Kontinuität prüfen"};
 const MARKER_RE = /\[(PLATZHALTER-ANEKDOTE|QUELLE PRÜFEN|MEDIZIN PRÜFEN|RECHT PRÜFEN|KONTINUITÄT PRÜFEN)(?::\s*([^\]]*))?\]/g;
 
-const S = {mcp:null, sample:null, ready:false, owner:"", repo:"", lib:null, book:null, idx:null, cfg:{}, readRef:"", head:"", pr:null, checks:[], files:new Map(), view:"", sec:null, secNo:"", secFile:null, chap:null, msg:null, chat:[], busy:false, report:null, showAll:false, rules:""};
+const S = {mcp:null, sample:null, ready:false, owner:"", repo:"", lib:null, book:null, idx:null, cfg:{}, readRef:"", head:"", pr:null, checks:[], files:new Map(), view:"", sec:null, secNo:"", secFile:null, chap:null, msg:null, chat:[], busy:false, report:null, showAll:false, rules:"", webJobs:{}};
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const store = {get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
@@ -404,7 +404,7 @@ function mdDoc(t){
 async function loadRepo(spec){
   const m = /(?:github\.com\/)?([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(spec.trim());
   if (!m){ S.msg = {kind:"err", html:"Bitte als owner/repo eingeben."}; return show("connect"); }
-  [S.owner, S.repo] = [m[1], m[2]]; store.set("gw.repo", S.owner + "/" + S.repo); S.files.clear(); S.lib = null; S.libCfg = undefined; S.webWait = null;
+  [S.owner, S.repo] = [m[1], m[2]]; store.set("gw.repo", S.owner + "/" + S.repo); S.files.clear(); S.lib = null; S.libCfg = undefined; S.webJobs = {};
   busy("Bücherregal wird geladen …");
   try { S.lib = JSON.parse((await getFile("library.json")).text); }
   catch (e) {
@@ -941,40 +941,80 @@ async function webResearch(id, confirmLow){
     }
     await loadBookData(work);
     const x = allSecs().find(v => v.s.id === id); if (!x) throw {message:"Abschnitt nicht gefunden."};
-    const dir = `${x.c.path}/research/${x.s.id}`, list = await listDir(dir, work);
-    const n = String(Math.max(0, ...list.map(e => (/^request-(\d+)\.yml$/.exec(e.name) || [])[1] || 0).map(Number)) + 1).padStart(3, "0");
-    const file = `section_id: ${x.s.id}\nrequested_at: "${nowIso()}"\nrequested_by: GhostWriter für Claude\nprovider: ${w.id}\n` + (confirmLow ? "confirm_low_budget: true\n" : "");
-    const r = await commit([{path:`${dir}/request-${n}.yml`, content:file}], `Rechercheauftrag für Abschnitt ${x.s.id} (mit Internet, ${w.name})`, {action:"research.web"});
-    S.webWait = {id, request:`request-${n}`, since:Date.now()};
-    S.msg = {kind:"info", html:`<b>Recherche läuft bei GitHub über ${esc(w.name)}.</b> Das dauert meist ein bis zwei Minuten. Das Ergebnis kommt ins Änderungspaket${r.pr ? ` <a href="${esc(r.pr.url)}" target="_blank" rel="noopener">#${r.pr.number}</a>` : ""}. <button class="btn" data-act="webcheck" data-s="${esc(id)}"><i class="ti ti-refresh"></i> Nachsehen</button>`};
+    const dir = `${x.c.path}/research/${x.s.id}`, jobs = await sectionJobs(x, work);
+    // „Trotzdem starten“ (#483): den wartenden Auftrag bestätigen statt einen zweiten anzulegen
+    const waiting = confirmLow && jobs.find(j => j.state === "waiting_budget");
+    let r, name;
+    if (waiting){
+      const d = Object.assign({}, waiting.data, {confirm_low_budget:true}); delete d.waiting;
+      name = waiting.name;
+      r = await commit([{path:`${dir}/${name}.yml`, content:window.jsyaml.dump(d, {lineWidth:-1})}], `Rechercheauftrag für Abschnitt ${x.s.id} trotz knappem KI-Budget bestätigt`, {action:"research.web"});
+    } else {
+      const list = await listDir(dir, work);
+      name = "request-" + String(Math.max(0, ...list.map(e => (/^request-(\d+)\.yml$/.exec(e.name) || [])[1] || 0).map(Number)) + 1).padStart(3, "0");
+      const file = `type: research\nsection_id: ${x.s.id}\nrequested_at: "${nowIso()}"\nrequested_by: web-app\nprovider: ${w.id}\n` + (confirmLow ? "confirm_low_budget: true\n" : "");
+      r = await commit([{path:`${dir}/${name}.yml`, content:file}], `Rechercheauftrag für Abschnitt ${x.s.id} (mit Internet, ${w.name})`, {action:"research.web"});
+    }
+    const mine = S.webJobs[id] = S.webJobs[id] || [];
+    if (!mine.includes(name)) mine.push(name);
+    const ahead = jobs.filter(j => j.name !== name && j.state === "open").length;
+    S.msg = {kind:"info", html:`<b>${waiting ? "Bestätigt – die Recherche läuft" : "Recherche ist in der Warteschlange"} (GitHub, ${esc(w.name)}).</b> ${ahead ? `Vor ihr ${ahead === 1 ? "wartet ein Auftrag" : `warten ${ahead} Aufträge`} zu diesem Abschnitt. ` : ""}Das dauert meist ein bis zwei Minuten; du kannst die App solange schließen. Das Ergebnis kommt ins Änderungspaket${r.pr ? ` <a href="${esc(r.pr.url)}" target="_blank" rel="noopener">#${r.pr.number}</a>` : ""}. <button class="btn" data-act="webcheck" data-s="${esc(id)}"><i class="ti ti-refresh"></i> Nachsehen</button>`};
   } catch (e) { S.msg = failMsg(e); }
   show("section", id);
+}
+/* Aufträge der Hintergrund-Warteschlange an einem Abschnitt (#476/#483), Zustände wie scripts/jobs.py */
+function jobState(d){
+  if (d.error) return "failed";
+  if (d.waiting === "budget" && !d.confirm_low_budget) return "waiting_budget";
+  return "open";
+}
+async function sectionJobs(x, work){
+  const dir = `${x.c.path}/research/${x.s.id}`, out = [];
+  for (const e of (await listDir(dir, work)).filter(e => /^request-\d+\.yml$/.test(e.name)).sort((a, b) => a.name.localeCompare(b.name))){
+    let data = {}; try { data = window.jsyaml.load((await getFile(`${dir}/${e.name}`, work, true)).text) || {}; } catch (err) {}
+    if ((data.type || "research") === "research") out.push({name:e.name.replace(/\.yml$/, ""), data, state:jobState(data)});
+  }
+  return out;
 }
 async function webCheck(id){
   const x = allSecs().find(v => v.s.id === id); if (!x) return;
   busy("Wird nachgesehen …");
-  const work = workOf(S.book), dir = `${x.c.path}/research/${x.s.id}`, list = await listDir(dir, work);
-  const want = (S.webWait && S.webWait.id === id && S.webWait.request) || "";
-  const req = list.find(e => e.name === want + ".yml");
+  const work = workOf(S.book), dir = `${x.c.path}/research/${x.s.id}`;
+  const jobs = await sectionJobs(x, work), names = jobs.map(j => j.name);
+  const mine = S.webJobs[id] || [], gone = mine.filter(n => !names.includes(n));
   const again = `<button class="btn" data-act="webcheck" data-s="${esc(id)}"><i class="ti ti-refresh"></i> Nochmals nachsehen</button>`;
-  if (req){
-    let data = {}; try { data = window.jsyaml.load((await getFile(`${dir}/${req.name}`, work, true)).text) || {}; } catch (e) {}
-    if (data.error){
-      const low = /KI-Budget/.test(data.error);
-      S.msg = {kind:"err", html:`<b>Nicht recherchiert.</b> ${esc(data.error)}<div style="margin-top:8px">${low ? `<button class="btn" data-act="webreslow" data-s="${esc(id)}">Trotzdem starten</button> ` : ""}<button class="btn" data-act="offres" data-s="${esc(id)}">Ohne Internet über Claude</button></div>`};
-      S.webWait = null;
-    } else S.msg = {kind:"info", html:`<b>Die Recherche läuft noch.</b> Den Fortschritt siehst du auf GitHub unter „Actions“ → „Recherche“. ${again}`};
-  } else {
-    let run = null;
-    for (const e of list.filter(e => /^run-\d+\.md$/.test(e.name)).sort((a, b) => b.name.localeCompare(a.name))){
-      try { const t = (await getFile(`${dir}/${e.name}`, work, true)).text; if (!want || t.includes("request: " + want)){ run = {name:e.name, head:front(t)}; break; } } catch (err) {}
+  // Fertig: Aufträge, die verschwunden sind, haben eine Laufdatei mit `request: <name>`
+  const done = [];
+  if (gone.length || !jobs.length){
+    const runs = (await listDir(dir, work)).filter(e => /^run-\d+\.md$/.test(e.name)).sort((a, b) => b.name.localeCompare(a.name));
+    for (const e of runs){
+      if (gone.length && done.length >= gone.length) break;
+      try { const t = (await getFile(`${dir}/${e.name}`, work, true)).text, h = front(t);
+        if (gone.includes(h.request) || (!mine.length && h.web_research && !done.length)) done.push({name:e.name, head:h}); } catch (err) {}
+      if (!mine.length && done.length) break;
     }
-    if (run){
-      const h = run.head, cost = h.cost == null ? "Kosten ohne Preisangabe erfasst" : `Kosten etwa ${String(h.cost).replace(".", ",")}`;
-      S.msg = {kind:"ok", html:`<b>Recherche ist da:</b> ${esc(run.name)} mit ${h.sources || 0} Quellen aus ${h.searches || 0} Suchanfragen (${esc(cost)}). <button class="link" data-report="${esc(dir + "/" + run.name)}">Ansehen</button> – übernehmen kannst du sie mit dem Änderungspaket in der Projektübersicht.`};
-      S.webWait = null; await loadBookData(work);
-    } else S.msg = {kind:"info", html:`<b>Noch kein Ergebnis.</b> ${again}`};
   }
+  const lines = [], btns = new Set();
+  for (const r of done){
+    const h = r.head, cost = h.cost == null ? "Kosten ohne Preisangabe erfasst" : `Kosten etwa ${String(h.cost).replace(".", ",")}`;
+    lines.push(`<b>Fertig:</b> ${esc(r.name)} mit ${h.sources || 0} Quellen aus ${h.searches || 0} Suchanfragen (${esc(cost)}). <button class="link" data-report="${esc(dir + "/" + r.name)}">Ansehen</button>`);
+  }
+  for (const j of jobs){
+    if (j.state === "open") lines.push(`<b>Wartet bzw. läuft:</b> ${esc(j.name)}${j.data.confirm_low_budget ? " (trotz knappem Budget bestätigt)" : ""}.`);
+    else if (j.state === "waiting_budget"){ lines.push(`<b>Wartet auf deine Bestätigung:</b> ${esc(j.name)} – das KI-Budget ist fast aufgebraucht.`); btns.add(`<button class="btn" data-act="webreslow" data-s="${esc(id)}">Trotzdem starten</button>`); }
+    else {
+      lines.push(`<b>Fehlgeschlagen:</b> ${esc(j.name)} – ${esc(j.data.error)}`);
+      if (/KI-Budget/.test(j.data.error)) btns.add(`<button class="btn" data-act="webreslow" data-s="${esc(id)}">Trotzdem starten</button>`);
+      btns.add(`<button class="btn" data-act="offres" data-s="${esc(id)}">Ohne Internet über Claude</button>`);
+    }
+  }
+  const pending = jobs.some(j => j.state === "open"), missing = gone.length > done.length;
+  if (done.length){ S.webJobs[id] = mine.filter(n => names.includes(n)); await loadBookData(work); }
+  if (!lines.length) lines.push(missing ? "<b>Noch kein Ergebnis.</b>" : "<b>Keine Rechercheaufträge zu diesem Abschnitt.</b>");
+  if (done.length) lines.push("Übernehmen kannst du Ergebnisse mit dem Änderungspaket in der Projektübersicht.");
+  if (pending || missing) btns.add(again);
+  const kind = jobs.some(j => j.state === "failed") ? "err" : done.length && !pending ? "ok" : "info";
+  S.msg = {kind, html:lines.map(l => `<div>${l}</div>`).join("") + (btns.size ? `<div style="margin-top:8px">${[...btns].join(" ")}</div>` : "")};
   show("section", id);
 }
 async function saveRun(i){

@@ -32,6 +32,8 @@ const html = fs.readFileSync(path.join(APP, "index.html"), "utf8")
 
 const pushes = [], cache = {}, updates = [];
 let staleWork = false;
+// Nachgebildete Dateien (Aufträge, Laufdateien) über den echten Daten: Pfad → Text
+const fake = {};
 const WRITES = ["push_files", "create_or_update_file", "create_pull_request", "create_branch", "merge_pull_request", "update_pull_request_branch"];
 const mcp = {callTool: async (srv, tool, input) => {
   if (tool === "get_file_contents"){
@@ -39,10 +41,12 @@ const mcp = {callTool: async (srv, tool, input) => {
     if (staleWork && input.path === ".github/workflows" && /ghostwriter\//.test(input.ref || "")) return {content: [], payload: [{name: "research.yml", sha: "alt"}]};
     let ref = input.ref ? input.ref.replace("refs/heads/", "") : "main";
     if (ref.startsWith("ghostwriter/")) ref = ref.slice("ghostwriter/".length);   // Arbeits-Branch = Buchstand
+    if (fake[input.path] != null) return {content: [{type: "resource", resource: {uri: `repo://x/sha/${"a".repeat(40)}/contents/${input.path}`, text: fake[input.path]}}, {type: "text", text: "successfully downloaded text file (SHA: f)"}]};
+    const extra = Object.keys(fake).filter(f => f.startsWith(input.path + "/") && !f.slice(input.path.length + 1).includes("/")).map(f => ({name: f.split("/").pop(), path: f, type: "file", sha: "f"}));
     const key = `${input.owner}/${input.repo}|${ref}|${input.path}`;
-    if (!cache[key]){ try { cache[key] = gh(`repos/${input.owner}/${input.repo}/contents/${encodeURI(input.path)}?ref=${encodeURIComponent(ref)}`); } catch (e) { throw {code: "tool_error", message: "404 Not Found"}; } }
+    if (!cache[key]){ try { cache[key] = gh(`repos/${input.owner}/${input.repo}/contents/${encodeURI(input.path)}?ref=${encodeURIComponent(ref)}`); } catch (e) { if (!extra.length) throw {code: "tool_error", message: "404 Not Found"}; cache[key] = []; } }
     const j = cache[key];
-    if (Array.isArray(j)) return {content: [], payload: j};
+    if (Array.isArray(j)) return {content: [], payload: j.filter(e => !extra.some(x => x.name === e.name)).concat(extra)};
     return {content: [{type: "resource", resource: {uri: `repo://x/sha/${"a".repeat(40)}/contents/${input.path}`, text: Buffer.from(j.content, "base64").toString("utf8")}}, {type: "text", text: `successfully downloaded text file (SHA: ${j.sha})`}]};
   }
   if (tool === "list_pull_requests" && staleWork) return {content: [], payload: [{number: 1, html_url: "https://example/pull/1", head: {sha: "a"}}]};
@@ -160,8 +164,30 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
   ok(updates.length === 1 && updates[0].pullNumber === 1 && !staleWork, "Recherche mit Internet: veraltetes Änderungspaket wird auf den Buchstand gebracht");
   const pw = pushes.length > n && lastPush("recherche-internet");
   const rq = pw && pw.files.find(f => /\/research\/[^/]+\/request-\d{3}\.yml$/.test(f.path));
-  ok(rq && paths(pw).length === 1 && /provider: google/.test(rq.content) && new RegExp("section_id: " + sec.id).test(rq.content) && /Recherche läuft/.test(note()),
+  ok(rq && paths(pw).length === 1 && /provider: google/.test(rq.content) && new RegExp("section_id: " + sec.id).test(rq.content) && /in der Warteschlange/.test(note()),
      "Recherche mit Internet: nur der Auftrag in einem Commit");
+
+  // Warteschlange (#483): neues Format, mehrere Aufträge, Zustände, „Trotzdem starten“
+  ok(rq && /^type: research$/m.test(rq.content) && /^requested_by: web-app$/m.test(rq.content), "Auftrag im neuen Format (type, requested_by)");
+  const dir = rq ? rq.path.replace(/\/request-\d{3}\.yml$/, "") : "";
+  const mineName = rq ? rq.path.split("/").pop().replace(".yml", "") : "";
+  const checkNow = async () => { const b = d.querySelector("[data-act=webcheck]"); if (b){ b.click(); await sleep(400); await idle(); } return note(); };
+  fake[`${dir}/${mineName}.yml`] = rq ? rq.content : "";
+  fake[`${dir}/request-090.yml`] = `type: research\nsection_id: ${sec.id}\nrequested_at: "2026-11-22T20:00:00Z"\nwaiting: budget\n`;
+  fake[`${dir}/request-091.yml`] = `type: research\nsection_id: ${sec.id}\nrequested_at: "2026-11-22T20:01:00Z"\nerror: Anbieter antwortet mit 404\nfailed_at: "2026-11-22T20:02:00Z"\n`;
+  let t1 = await checkNow();
+  ok(/Wartet bzw\. läuft/.test(t1) && /Wartet auf deine Bestätigung/.test(t1) && /Fehlgeschlagen:.*404/.test(t1)
+     && d.querySelector("[data-act=webreslow]") && d.querySelector("[data-act=offres]"), "Nachsehen: wartet / wartet auf Bestätigung / fehlgeschlagen");
+  n = pushes.length;
+  const low = d.querySelector("[data-act=webreslow]"); if (low){ low.click(); await sleep(400); await idle(); }
+  const pt = pushes.length > n && lastPush("trotzdem-starten");
+  const cf = pt && pt.files[0];
+  ok(cf && paths(pt).length === 1 && /request-090\.yml$/.test(cf.path) && /confirm_low_budget: true/.test(cf.content) && !/waiting:/.test(cf.content),
+     "Trotzdem starten: bestätigt den wartenden Auftrag statt einen neuen anzulegen");
+  delete fake[`${dir}/${mineName}.yml`];
+  fake[`${dir}/run-099.md`] = `---\nid: run-099\ntype: research\nsection_id: ${sec.id}\nweb_research: true\nsearches: 4\nsources: 7\ncost: 0.01\nrequest: ${mineName}\n---\n\n# Recherchelauf 099\n`;
+  t1 = await checkNow();
+  ok(/Fertig:.*run-099.*7 Quellen/.test(t1) && /Fehlgeschlagen/.test(t1), "Nachsehen: fertiger Auftrag mit Laufdatei, übrige Zustände bleiben sichtbar");
 
   console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen` : "\nAlles in Ordnung", "– Commits zum Nachsehen in", OUT);
   process.exit(failed ? 1 : 0);
