@@ -2911,6 +2911,19 @@ def plural(n, one, many):
     return f'{n} {one if n == 1 else many}'
 
 
+def jobs_text(info, total=False):
+    """Hintergrund-Warteschlange (#484): „Warteschlange: 2 fertig · 1 wartet“ bzw. leer."""
+    if not info:
+        return ''
+    import jobs
+    lang = UI.get('language', 'de')
+    text = jobs.status_text(info, lang)
+    if not text:
+        return ''
+    label = ('Background queue' if total else 'Queue') if lang == 'en' else ('Hintergrund-Warteschlange' if total else 'Warteschlange')
+    return f'{label}: {text}'
+
+
 def book_row(b):
     ready = b['status'] == 'ready'
     st, sa = b.get('sections_total', 0), b.get('sections_approved', 0)
@@ -2930,7 +2943,8 @@ def book_row(b):
             'BOOK_EDITION_TEXT': f'Auflage {ed}' if ed else 'noch keine Auflage',
             'BOOK_COST': (b.get('cost') or {}).get('text') or money(0, False),
             'BOOK_PENDING_TEXT': f'{plural(b["pending"], "Änderung", "Änderungen")} offen' if b.get('pending') else '',
-            'BOOK_UPDATED_TEXT': f'{"zuletzt geändert" if ready else "angelegt"} am {de_date(b.get("updated_at"))}' if b.get('updated_at') else ''}
+            'BOOK_UPDATED_TEXT': f'{"zuletzt geändert" if ready else "angelegt"} am {de_date(b.get("updated_at"))}' if b.get('updated_at') else '',
+            'BOOK_JOBS_TEXT': jobs_text(b.get('jobs'))}
 
     if UI.get('language') == 'en':
         result.update({
@@ -3038,8 +3052,11 @@ def library_view(base, config, args):
     override = json.loads(Path(args.sessions).read_text(encoding='utf-8')) if getattr(args, 'sessions', None) else None
     sessions = session_rows(data, by_branch, override)
     count = plural(len(rows), 'Buch', 'Bücher') + (f' · {plural(len(ser), "Serie", "Serien")}' if ser else '')
+    totals = {k: sum((b.get('jobs') or {}).get(k, 0) for b in books) for k in ('done', 'failed', 'waiting', 'waiting_budget')}
+    jobs_total = jobs_text(totals, total=True)
     if args.text:
-        out = [f'### 📚 Bücherregal', f'{repo_label(args)} · {count}', ''] + session_lines(sessions)
+        out = [f'### 📚 Bücherregal', f'{repo_label(args)} · {count}', ''] + ([f'**{jobs_total}**', ''] if jobs_total else []) \
+            + session_lines(sessions)
         if rows:
             out += ['| # | Buch | Status | Fortschritt | Auflage | Kosten |', '|--:|---|---|---|---|--:|']
             group = None
@@ -3049,7 +3066,8 @@ def library_view(base, config, args):
                     label = f'📚 **Serie „{r["BOOK_SERIES_TITLE"]}“** (`{r["BOOK_SERIES_KEY"]}`)' if group else '**Einzelne Bücher**'
                     out.append(f'| | {label} | | | | |')
                 vol = f'{r["BOOK_VOLUME_TEXT"]}: ' if r['BOOK_VOLUME_TEXT'] else ''
-                out.append(f'| {i} | {vol}**{r["BOOK_TITLE"]}** ({r["BOOK_TITLE_SHORT"]}){" · ⏳ " + r["BOOK_PENDING_TEXT"] if r["BOOK_PENDING_TEXT"] else ""} | '
+                out.append(f'| {i} | {vol}**{r["BOOK_TITLE"]}** ({r["BOOK_TITLE_SHORT"]}){" · ⏳ " + r["BOOK_PENDING_TEXT"] if r["BOOK_PENDING_TEXT"] else ""}'
+                           f'{" · 📋 " + r["BOOK_JOBS_TEXT"] if r["BOOK_JOBS_TEXT"] else ""} | '
                            f'{"✅ eingerichtet" if r["BOOK_STATE"] == "ready" else "🚧 im Aufbau"} | {progress_bar(r["BOOK_APPROVED_SECTION_COUNT"], r["BOOK_SECTION_COUNT"])} {r["BOOK_PROGRESS_TEXT"]} | {r["BOOK_EDITION_TEXT"]} | {r["BOOK_COST"]} |')
                 out += [f'| {e["E_KEY"]} | ↳ {e["E_TEXT"]}{" · " + e["E_DETAIL"] if e["E_DETAIL"] else ""} | | | | |'
                         for e in editions if e['E_BOOK_BRANCH'] == r['BOOK_BRANCH']]
@@ -3076,6 +3094,7 @@ def library_view(base, config, args):
                                       'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
                                       'SESSION_COUNT_NUMBER': len(sessions),
                                       'SESSION_COUNT_TEXT': f'{view_message("library.session.heading")} ({len(sessions)})' if sessions else '',
+                                      'JOBS_TEXT': jobs_total,
                                       'UPDATED_TEXT': ''}, blocks)
 
 

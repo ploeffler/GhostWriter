@@ -321,6 +321,14 @@ def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None, pull
         entry['last_edition'] = last_edition(entry['slug'], cwd)
         out.append(entry)
     names = sorted({'GHOSTWRITER_UPDATE_TOKEN'} | {n for b in out for n in b.pop('secret_names', [])})
+    try:   # Hintergrund-Warteschlange je Buch (#484): nur aus Auftrags- und Laufdateien
+        import jobs
+        status = jobs.remote_status(cwd, namespace + '/')
+    except Exception:   # noqa: BLE001 – ohne Warteschlange keine Zahlen
+        status = {}
+    for b in out:
+        if b['branch'] in status:
+            b['jobs'] = {k: v for k, v in status[b['branch']].items() if k in ('done', 'failed', 'waiting', 'waiting_budget')}
     data = {'format': 1, 'program': program_info(cwd, manifest), 'secret_names': names, 'books': out,
             'sessions': session_backups(namespace, cwd, pulls)}
     ser = series_entries(cwd, out)

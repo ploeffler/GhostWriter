@@ -7,6 +7,7 @@ Aufruf:
                                         [--model M] [--confirm-low-budget] [--requested-by NAME]
   python scripts/jobs.py <buch> process [--defaults datei] [--limit 5] [--push-to <arbeits-branch>]
   python scripts/jobs.py <ordner> remote [--start] [--paused] [--dry-run]   (Kontrolllauf, #481)
+  python scripts/jobs.py <ordner> report [--json] [--language en]           (Wiedereinstieg, #484)
 
 Auftrag (Schema schemas/job.schema.json): eine Datei `request-NNN.yml`.
 - Recherche (`type: research`, Vorgabe, wenn `type` fehlt): am Abschnitt unter
@@ -279,6 +280,81 @@ def remote_pending(base='.', ref_prefix='refs/remotes/origin/'):
     return out
 
 
+RUN_PATTERNS = ('chapters/*/research/*/run-*.md', 'matter/research/*/run-*.md')
+
+
+def remote_status(base='.', ref_prefix='refs/remotes/origin/'):
+    """Stand der Warteschlange je Buch aus Auftrags- und Laufdateien, ohne KI (#484):
+    {buch: {done, failed, waiting, waiting_budget, done_sections, failed_reasons}}. Fertig heißt: Lauf aus
+    einem Auftrag (`request:` im Kopf) im Änderungspaket, aber noch nicht im Buch übernommen."""
+    import fnmatch
+    import library
+    prefix = library.settings(library.load_manifest())['work_prefix']
+    out = {}
+    for ref in git(base, 'for-each-ref', '--format=%(refname)', ref_prefix + prefix).stdout.split():
+        book = ref[len(ref_prefix) + len(prefix):]
+        book_ref = ref_prefix + book
+        names = git(base, 'ls-tree', '-r', '--name-only', ref, '--', 'chapters', 'matter', 'jobs', check=False).stdout.splitlines()
+        merged = set(git(base, 'ls-tree', '-r', '--name-only', book_ref, '--', 'chapters', 'matter', check=False).stdout.splitlines())
+        info = {'done': 0, 'failed': 0, 'waiting': 0, 'waiting_budget': 0, 'done_sections': [], 'failed_reasons': []}
+        for name in names:
+            if any(fnmatch.fnmatch(name, pat) for pat in JOB_PATTERNS) and REQUEST_RE.match(Path(name).name):
+                try:
+                    data = yaml.safe_load(git(base, 'show', f'{ref}:{name}').stdout) or {}
+                except (RuntimeError, yaml.YAMLError):
+                    continue
+                st = state(data) if isinstance(data, dict) else 'failed'
+                if st == 'failed':
+                    info['failed'] += 1
+                    info['failed_reasons'].append(f'{Path(name).parent.name}: {str((data or {}).get("error") or "")[:120]}')
+                elif st == 'waiting_budget':
+                    info['waiting_budget'] += 1
+                else:
+                    info['waiting'] += 1
+            elif any(fnmatch.fnmatch(name, pat) for pat in RUN_PATTERNS) and name not in merged:
+                head = git(base, 'show', f'{ref}:{name}', check=False).stdout[:600]
+                if re.search(r'(?m)^request:\s*request-\d+', head):
+                    info['done'] += 1
+                    info['done_sections'].append(Path(name).parent.name)
+        if any(info[k] for k in ('done', 'failed', 'waiting', 'waiting_budget')):
+            out[book] = info
+    return out
+
+
+def status_text(info, language='de'):
+    """„2 fertig · 1 fehlgeschlagen · 3 warten“ bzw. leer."""
+    en = language == 'en'
+    parts = []
+    if info.get('done'):
+        parts.append(f'{info["done"]} ' + ('done' if en else 'fertig'))
+    if info.get('failed'):
+        parts.append(f'{info["failed"]} ' + ('failed' if en else 'fehlgeschlagen'))
+    waiting = (info.get('waiting') or 0) + (info.get('waiting_budget') or 0)
+    if waiting:
+        parts.append(f'{waiting} ' + ('waiting' if en else 'warten' if waiting != 1 else 'wartet'))
+    return ' · '.join(parts)
+
+
+def report(status, language='de'):
+    """Meldung beim Wiedereinstieg (#484); leer, wenn es nichts zu melden gibt."""
+    if not status:
+        return ''
+    en = language == 'en'
+    total = {k: sum(i[k] for i in status.values()) for k in ('done', 'failed', 'waiting', 'waiting_budget')}
+    lines = [('Since your last visit: ' if en else 'Seit deinem letzten Besuch: ') + status_text(total, language)
+             + (' (background queue)' if en else ' (Hintergrund-Warteschlange)')]
+    for book, info in sorted(status.items()):
+        line = f'- {book}: {status_text(info, language)}'
+        if info['done_sections']:
+            line += (' – results: ' if en else ' – Ergebnisse: ') + ', '.join(sorted(set(info['done_sections']))[:5])
+        lines.append(line)
+        lines += [f'  - {"failed" if en else "fehlgeschlagen"}: {r}' for r in info['failed_reasons'][:3]]
+        if info['waiting_budget']:
+            lines.append('  - ' + (f'{info["waiting_budget"]} waiting for confirmation (budget)' if en else
+                                   f'{info["waiting_budget"]} warten auf Bestätigung (Budget): „Trotzdem starten“'))
+    return '\n'.join(lines)
+
+
 def start_pending(pending, paused=False, dry_run=False, base='.', run=None):
     """Je Buch mit offenen Aufträgen die Abarbeitung starten (workflow_dispatch auf dem Buch-Branch, ohne
     section). Pausierte Automatik oder Probelauf: nichts starten, nur melden. Gibt Berichtszeilen zurück."""
@@ -315,7 +391,8 @@ def listing(base):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('base')
-    ap.add_argument('cmd', choices=['list', 'enqueue', 'process', 'remote'])
+    ap.add_argument('cmd', choices=['list', 'enqueue', 'process', 'remote', 'report'])
+    ap.add_argument('--language', default='de')
     ap.add_argument('--start', action='store_true', help='remote: Abarbeitung je Buch starten')
     ap.add_argument('--paused', action='store_true', help='remote: Automatik pausiert, nur melden')
     ap.add_argument('--dry-run', action='store_true')
@@ -342,6 +419,11 @@ def main(argv=None):
                 names = {'open': 'wartet', 'waiting_budget': 'wartet auf Bestätigung (Budget)', 'failed': 'fehlgeschlagen'}
                 print('\n'.join(f'- {names[x["state"]]}: {x["request"]}' + (f' – {x["error"]}' if x['error'] else '')
                                 for x in data) or '- Keine Aufträge.')
+            return 0
+        if a.cmd == 'report':
+            status = remote_status(base)
+            print(json.dumps(status, ensure_ascii=False, indent=1) if a.json else report(status, a.language) or
+                  ('Nothing new in the background queue.' if a.language == 'en' else 'Nichts Neues in der Hintergrund-Warteschlange.'))
             return 0
         if a.cmd == 'remote':
             pending = remote_pending(base)

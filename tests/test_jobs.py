@@ -218,6 +218,38 @@ class ChatTest(Base):
         self.assertIn('nie `dispatches` mit `section`', part)
 
 
+class ReportTest(Base):
+    """#484: Meldung beim Wiedereinstieg und Zahlen im Bücherregal, nur aus Auftrags- und Laufdateien."""
+    def test_status_report_and_library_numbers(self):
+        git(self.base, 'push', '-q', 'origin', 'HEAD:refs/heads/buch/b')
+        git(self.base, 'fetch', '-q', 'origin')
+        self.assertEqual(jobs.remote_status(self.base), {})                 # ohne Neues nichts
+        self.assertEqual(jobs.report({}), '')
+        for sid in ('sec-01-01', 'sec-01-02', 'sec-02-01'):
+            self.add(sid, '2026-11-22T20:00:00+00:00')
+        with self.fake_run(fail='sec-01-02'), mock.patch.object(jobs, 'budget_low', return_value=False):
+            jobs.process(self.base, limit=2, push_to='ghostwriter/buch/b')
+        git(self.base, 'fetch', '-q', 'origin')
+        status = jobs.remote_status(self.base)
+        info = status['buch/b']
+        self.assertEqual({k: info[k] for k in ('done', 'failed', 'waiting', 'waiting_budget')},
+                         {'done': 1, 'failed': 1, 'waiting': 1, 'waiting_budget': 0})
+        self.assertEqual(info['done_sections'], ['sec-01-01'])
+        text = jobs.report(status)
+        self.assertTrue(text.startswith('Seit deinem letzten Besuch: 1 fertig · 1 fehlgeschlagen · 1 wartet'))
+        self.assertIn('sec-01-02: Anbieter antwortet nicht', text)
+        self.assertIn('Since your last visit', jobs.report(status, 'en'))
+        # Übernommen ins Buch: nicht mehr „fertig“
+        git(self.base, 'push', '-q', 'origin', 'origin/ghostwriter/buch/b:refs/heads/buch/b')
+        git(self.base, 'fetch', '-q', 'origin')
+        self.assertEqual(jobs.remote_status(self.base)['buch/b']['done'], 0)
+        import render_view
+        self.assertEqual(render_view.jobs_text({'done': 2, 'failed': 0, 'waiting': 1, 'waiting_budget': 1}),
+                         'Warteschlange: 2 fertig · 2 warten')
+        self.assertEqual(render_view.jobs_text({'done': 0, 'failed': 0, 'waiting': 0, 'waiting_budget': 0}), '')
+        self.assertEqual(render_view.jobs_text(None), '')
+
+
 class WorkflowTest(unittest.TestCase):
     def test_workflow_queue(self):
         text = (ROOT / '.github/workflows/research.yml').read_text(encoding='utf-8')
