@@ -46,6 +46,15 @@ step's questions, results and open items, with evidence in the supplied messages
 The last message must be the new user answer. Unpublished evaluation belongs in
 topics. Open items and incomplete discussions are allowed.
 
+**Fast path (#314): one call per answer.** Pass question, answer and review as one
+JSON object `{"payload": …, "review": …}` on standard input (`-` as input, no
+`--review`), without writing files first or re-reading the session between
+answers. Take `--expected-head` from the previous receipt's `head`. From the
+second step on, `context` (taken from the session), `coverage` (default: wording of
+question and answer, no known gaps) and `topics` may be omitted. The helper fetches
+only the session branch's single commit without file contents, checks out only this
+session's folder and looks up the PR once per answer. The two-file form remains valid.
+
 Each record lives in `conversations/<session-id>/answers/<sequence>.json`.
 Loading combines the snapshot and records in storage order. Its `answers` list
 also preserves earlier evaluations and each step’s coverage and gaps. Existing message IDs
