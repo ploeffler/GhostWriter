@@ -43,7 +43,8 @@ const mcp = {callTool: async (srv, tool, input) => {
     if (ref.startsWith("ghostwriter/")) ref = ref.slice("ghostwriter/".length);   // Arbeits-Branch = Buchstand
     if (fakeBin[input.path]) return {content: [{type: "resource", resource: {uri: `repo://x/sha/${"a".repeat(40)}/contents/${input.path}`, mimeType: "image/jpeg", blob: fakeBin[input.path]}}, {type: "text", text: "successfully downloaded binary file (SHA: f)"}]};
     if (fake[input.path] != null) return {content: [{type: "resource", resource: {uri: `repo://x/sha/${"a".repeat(40)}/contents/${input.path}`, text: fake[input.path]}}, {type: "text", text: "successfully downloaded text file (SHA: f)"}]};
-    const extra = Object.keys(fake).filter(f => f.startsWith(input.path + "/") && !f.slice(input.path.length + 1).includes("/")).map(f => ({name: f.split("/").pop(), path: f, type: "file", sha: "f"}));
+    const under = Object.keys(fake).filter(f => f.startsWith(input.path + "/")), dirs = [...new Set(under.filter(f => f.slice(input.path.length + 1).includes("/")).map(f => f.slice(input.path.length + 1).split("/")[0]))];
+    const extra = under.filter(f => !f.slice(input.path.length + 1).includes("/")).map(f => ({name: f.split("/").pop(), path: f, type: "file", sha: "f"})).concat(dirs.map(n => ({name: n, path: input.path + "/" + n, type: "dir", sha: "d"})));
     const key = `${input.owner}/${input.repo}|${ref}|${input.path}`;
     if (!cache[key]){ try { cache[key] = gh(`repos/${input.owner}/${input.repo}/contents/${encodeURI(input.path)}?ref=${encodeURIComponent(ref)}`); } catch (e) { if (!extra.length) throw {code: "tool_error", message: "404 Not Found"}; cache[key] = []; } }
     const j = cache[key];
@@ -54,6 +55,7 @@ const mcp = {callTool: async (srv, tool, input) => {
   if (tool === "list_pull_requests" || tool === "pull_request_read") return {content: [], payload: []};
   if (tool === "get_me") return {content: [], payload: {login: "test"}};
   if (tool === "search_repositories") return {content: [], payload: {items: [gh(`repos/${REPO}`)]}};
+  if (tool === "search_repositories" && process.env.GW_DEFAULT_SEARCH) return {content: [], payload: {items: [{default_branch: "main"}]}};
   if (tool === "list_branches") return {content: [], payload: gh(`repos/${input.owner}/${input.repo}/branches?per_page=100&page=${input.page || 1}`)};
   if (tool === "update_pull_request_branch"){ updates.push(input); staleWork = false; return {content: []}; }
   if (WRITES.includes(tool)){ if (tool === "push_files") pushes.push(input); return {content: []}; }
@@ -259,6 +261,52 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
     n = pushes.length;
     await send(gwa("character.create", {name: "bruno", role: "main"}));
     ok(pushes.length === n && /gibt es schon/.test(note()), "Figur anlegen: doppelter Name wird abgelehnt");
+  }
+
+  // Figuren der Serie: Serie auf dem Standard-Branch nachgebildet
+  {
+    const gy0 = fake["ghostwriter.yml"], opi = '---\nid: char-opi\nname: Opi\nrole: main\nshort: Der Großvater\n---\n\n# Opi\n\n## Beschreibung\n\nAlt\n\n## Notizen\n';
+    fake["series/ser-test/series.yml"] = `id: ser-test\ntitle: Teststrolche\nkind: continuous\nvolumes:\n- ${BOOK}\n`;
+    fake["series/ser-test/characters/char-opi.md"] = opi;
+    await send("x\n\n`gw:library.book.open branch=" + BOOK + "`");
+    await until(() => d.querySelector("#gw [data-id^='ch-']"), 600);
+    await send("x\n\n`gw:view.characters`");
+    ok(d.querySelectorAll("#gw .gw-ch[data-id]").length === 3 && !!d.querySelector('#gw .gw-src[data-s="series"]') && /aus der Serie/.test(d.getElementById("gw-figuren").textContent), "Serie: Figur der Serie in der Liste mit Herkunft");
+    await send("x\n\n`gw:view.character character_id=char-opi`");
+    ok(d.getElementById("gw-figur") && d.getElementById("gw-figur").dataset.source === "series" && d.getElementById("gw-figur").dataset.series === "ser-test", "Serie: Formular erkennt die Figur der Serie");
+    n = pushes.length;
+    await send(gwa("character.series.update", {series_id: "ser-test", character_id: "char-opi", name: "Opi", role: "main", short: "Neuer Satz"}));
+    const ps1 = pushes.length > n && lastPush("serie-speichern");
+    ok(ps1 && ps1.branch === "main" && ps1.files.length === 1 && ps1.files[0].path === "series/ser-test/characters/char-opi.md" && /short: Neuer Satz/.test(ps1.files[0].content) && /Alt/.test(ps1.files[0].content) && /Figur „Opi“ der Serie gespeichert/.test(ps1.message), "Serie: Figur der Serie speichern, direkt auf dem Standard-Branch");
+    n = pushes.length;
+    await send(gwa("character.update", {character_id: "char-opi", name: "Opi", role: "main"}));
+    ok(pushes.length === n && /gehört zur Serie/.test(note()), "Serie: character.update lehnt eine Figur der Serie ab");
+    n = pushes.length;
+    await send(gwa("character.detach", {character_id: "char-opi"}));
+    const pd = pushes.length > n && lastPush("serie-kopie");
+    ok(pd && pd.branch.startsWith("ghostwriter/") && pd.files.some(f => f.path === "characters/char-opi.md" && f.content === opi) && pd.files.some(f => f.path === "ghostwriter.yml" && /id: char-opi/.test(f.content)), "Serie: Kopie nur für dieses Buch (Datei und Eintrag)");
+    // Kopie im Buch: Zustand nachgebildet, dann angleichen
+    fake["ghostwriter.yml"] = gy0.replace(/^structure:/m, "  - id: char-opi\n    name: Opi\n    path: characters/char-opi.md\nstructure:").replace("  - id: char-opi\n    name: Opi", "- id: char-opi\n  name: Opi").replace("    path: characters/char-opi.md", "  path: characters/char-opi.md");
+    fake["characters/char-opi.md"] = opi.replace("Alt", "Anders");
+    n = pushes.length;
+    await send(gwa("character.align", {character_id: "char-opi"}));
+    const pa2 = pushes.length > n && lastPush("serie-angleichen"), ga = pa2 && pa2.files.find(f => f.path === "ghostwriter.yml");
+    ok(pa2 && pa2.files.length === 1 && ga && !/char-opi/.test(ga.content) && /bleibt im Buch liegen/.test(note()), "Serie: angleichen entfernt den Eintrag, Hinweis auf die liegende Datei");
+    fake["ghostwriter.yml"] = gy0; delete fake["characters/char-opi.md"];
+    n = pushes.length;
+    await send(gwa("character.adopt", {character_id: "char-anna"}));
+    const pm = pushes.slice(n);
+    ok(pm.length === 2 && pm[0].branch === "main" && pm[0].files[0].path === "series/ser-test/characters/char-anna.md" && /^# Anna$/m.test(pm[0].files[0].content) && pm[1].branch.startsWith("ghostwriter/") && !/char-anna/.test(pm[1].files.find(f => f.path === "ghostwriter.yml").content), "Serie: in die Serie übernehmen (Standard-Branch, dann Buch ohne Eintrag)");
+    // Vorschlag: neue Figur als Figur der Serie
+    await send(gwa("character.suggest", {scope: "book"}));
+    ok(await until(() => d.getElementById("gw-fv"), 120) && !!d.querySelector("#gw-fv .ser"), "Serie: Vorschlag bietet „als Figur der Serie anlegen“");
+    const clara = [...d.querySelectorAll("#gw-fv .card")].find(c => c.querySelector(".nm").value === "Clara");
+    if (clara){ clara.querySelector(".ser").checked = true; clara.querySelector(".ser").dispatchEvent(new w.Event("change", {bubbles: true})); }
+    n = pushes.length;
+    d.getElementById("gw-apply").click(); await sleep(500); await idle();
+    const pv2 = pushes.slice(n), sc = pv2.find(p => p.branch === "main");
+    ok(sc && sc.files.some(f => /^series\/ser-test\/characters\/char-clara\.md$/.test(f.path)) && pv2.some(p => p.branch.startsWith("ghostwriter/") && !p.files.some(f => f.path === "characters/char-clara.md")), "Serie: neue Figur landet in der Serie, nicht im Buch");
+    delete fake["series/ser-test/series.yml"]; delete fake["series/ser-test/characters/char-opi.md"]; w.__S().series = null; w.__S().seriesFor = null;
   }
 
   // Hinweisdurchsicht: nur wenn das Buch eine hat (z. B. GW_BOOK=buch/krimi-sinabelkirchen)
