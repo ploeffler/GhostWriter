@@ -15,6 +15,9 @@ Deutsch · [English](SETTINGS.en.md)
 | `Ausgabe` oder `Umschlag` | Satz, Schrift, Absätze, Titelei, Formate, Impressum, Druckprofil und Umschlag |
 | `KI-Angabe` | Ob und wo im Buch eine bestätigte Angabe zur KI-Nutzung steht |
 | `Daten` oder `Update` | Tatsächlichen Programm- und Update-Stand anzeigen |
+| `Alle Einstellungen` | Übersicht aller rund 100 Einstellungen des Buchs: aktueller Wert, Herkunft (eigener Wert im Buch, aus der Bibliothek, Vorgabe, nicht gesetzt) und in welchem Formular man sie ändert; Abweichungen von der Vorgabe fett (#299) |
+
+**Alle Einstellungen** (`render_view.py <buch> settings-overview [gruppe]`, auch `scripts/settings_overview.py`) ist nur lesend und kommt als Tabelle, auch in Claude (noch ohne eigenes Widget). Die Liste entsteht aus dem Schema, neue Einstellungen erscheinen also von selbst; was in keinem Formular steht, heißt „nur in der Datei“ und wird in `ghostwriter.yml` bzw. im Chat geändert. Aus der Bibliothek (`assistant.yml`) kommen die Bediensprache und, solange das Buch kein eigenes Stilprofil hat, die Angaben der Standard-Erzählstimme. Serie, Sammelband und abweichende Einstellungen je Kapitel oder Abschnitt zeigt die Übersicht noch nicht.
 
 Das Öffnen eines Formulars speichert nichts. Erst die jeweilige Speicheraktion ändert Einstellungen. [Speichern und Übernehmen](SPEICHERN.md) erklärt, wann Änderungen im Buchstand ankommen.
 
