@@ -32,7 +32,10 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   ausgegraut (Claude hat in der App keine Websuche). Nach einer Rückfrage legt die App nur einen Auftrag
   `<kapitel>/research/<abschnitt>/request-NNN.yml` auf den Arbeits-Branch. Der Commit startet die Action
   „Recherche“, die mit dem Secret des Dienstes sucht und Laufdatei und Kosteneintrag ins Änderungspaket legt.
-  „Nachsehen“ zeigt Stand, Fehler oder Ergebnis (Quellen, Suchanfragen, Kosten). Ohne solchen Dienst bleibt
+  Der Auftrag hat das Format der Hintergrund-Warteschlange (`type: research`, `requested_by: web-app`, #483).
+  „Nachsehen“ zeigt alle Aufträge des Abschnitts mit Zustand (wartet bzw. läuft, wartet auf Bestätigung,
+  fehlgeschlagen) und fertige Ergebnisse (Quellen, Suchanfragen, Kosten). „Trotzdem starten“ bestätigt einen
+  Auftrag, der wegen knappem KI-Budget wartet (`confirm_low_budget: true`), statt einen zweiten anzulegen. Ohne solchen Dienst bleibt
   „Sofort“ die Recherche ohne Internet über Claude.
   Der Push startet die Action in der Fassung des Arbeits-Branchs. Weicht `research.yml` dort vom Buch-Branch ab
   (Änderungspaket älter als das letzte Update), bringt die App das Änderungspaket vorher auf den Buchstand
