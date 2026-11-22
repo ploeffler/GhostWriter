@@ -33,7 +33,7 @@ const html = fs.readFileSync(path.join(APP, "index.html"), "utf8")
 const pushes = [], cache = {}, updates = [];
 let staleWork = false;
 // Nachgebildete Dateien (Aufträge, Laufdateien) über den echten Daten: Pfad → Text
-const fake = {};
+const fake = {}, fakeBin = {};
 const WRITES = ["push_files", "create_or_update_file", "create_pull_request", "create_branch", "merge_pull_request", "update_pull_request_branch"];
 const mcp = {callTool: async (srv, tool, input) => {
   if (tool === "get_file_contents"){
@@ -41,6 +41,7 @@ const mcp = {callTool: async (srv, tool, input) => {
     if (staleWork && input.path === ".github/workflows" && /ghostwriter\//.test(input.ref || "")) return {content: [], payload: [{name: "research.yml", sha: "alt"}]};
     let ref = input.ref ? input.ref.replace("refs/heads/", "") : "main";
     if (ref.startsWith("ghostwriter/")) ref = ref.slice("ghostwriter/".length);   // Arbeits-Branch = Buchstand
+    if (fakeBin[input.path]) return {content: [{type: "resource", resource: {uri: `repo://x/sha/${"a".repeat(40)}/contents/${input.path}`, mimeType: "image/jpeg", blob: fakeBin[input.path]}}, {type: "text", text: "successfully downloaded binary file (SHA: f)"}]};
     if (fake[input.path] != null) return {content: [{type: "resource", resource: {uri: `repo://x/sha/${"a".repeat(40)}/contents/${input.path}`, text: fake[input.path]}}, {type: "text", text: "successfully downloaded text file (SHA: f)"}]};
     const extra = Object.keys(fake).filter(f => f.startsWith(input.path + "/") && !f.slice(input.path.length + 1).includes("/")).map(f => ({name: f.split("/").pop(), path: f, type: "file", sha: "f"}));
     const key = `${input.owner}/${input.repo}|${ref}|${input.path}`;
@@ -74,6 +75,11 @@ const sample = async (hist, o) => {
 
 const dom = new JSDOM(html, {runScripts: "dangerously", url: "https://app.example/", beforeParse(w){
   w.claude = {use: async n => n === "mcp" ? mcp : n === "sample" ? sample : null};
+  // Bildverarbeitung gibt es in jsdom nicht: Stubs, die Größe und Zuschnitt festhalten
+  w.__draws = []; w.URL.createObjectURL = () => "blob:test"; w.URL.revokeObjectURL = () => {};
+  w.Image = class { set src(v){ this.naturalWidth = 300; this.naturalHeight = 200; setTimeout(() => this.onload && this.onload(), 0); } };
+  w.HTMLCanvasElement.prototype.getContext = function(){ const c = this; return {drawImage: (...a) => w.__draws.push({size: c.width, a})}; };
+  w.HTMLCanvasElement.prototype.toDataURL = function(t){ return "data:image/jpeg;base64,STUB" + this.width; };
   w.crypto.subtle = require("crypto").webcrypto.subtle; w.TextEncoder = TextEncoder; w.scrollTo = () => {};
   w.addEventListener("error", e => { console.log("JS-Fehler:", e.message); failed++; });
 }});
@@ -207,11 +213,17 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
     fake["ghostwriter.yml"] = withChars;
     fake["characters/char-anna.md"] = '---\nid: char-anna\nname: Anna\nrole: main\nshort: Erzählerin\ntraits:\n- ruhig\nrelations:\n- to: char-bruno\n  kind: Bruder\n---\n\n# Anna\n\n## Beschreibung\n\nLangtext\n\n## Notizen\n\nNotiz\n';
     fake["characters/char-bruno.md"] = '---\nid: char-bruno\nname: Bruno\nrole: supporting\n---\n\n# Bruno\n\n## Beschreibung\n\n<Wer ist die Figur?>\n\n## Notizen\n';
+    fake["reference-images/ref-img-001.yml"] = "id: ref-img-001\nstatus: approved\nfile: anna.jpg\nroles:\n- visual_reference\nlinks:\n- kind: person\n  id: char-anna\n";
+    fake["reference-images/ref-img-002.yml"] = "id: ref-img-002\nstatus: draft\nfile: bruno.jpg\nroles:\n- visual_reference\nlinks:\n- kind: person\n  id: char-bruno\n";
+    fake["reference-images/anna.jpg"] = "x"; fake["reference-images/bruno.jpg"] = "x"; fakeBin["reference-images/anna.jpg"] = "AAAA";
     await send("x\n\n`gw:library.book.open branch=" + BOOK + "`");
     ok(await until(() => d.querySelector("#gw [data-id^='ch-']"), 600) && !!d.getElementById("gw-chars"), "Projektübersicht: Knopf „Figuren (2)“");
     await send("x\n\n`gw:view.characters`");
     ok(d.querySelectorAll("#gw .gw-ch[data-id]").length === 2 && /Hauptfigur/.test(d.getElementById("gw-figuren").textContent) && /Erzählerin/.test(d.getElementById("gw-figuren").textContent), "Figurenliste mit Rolle und Satz");
+    ok(d.querySelectorAll("#gw-figuren img[src^='data:image/jpeg']").length === 1 && /STUB80/.test(d.getElementById("gw-figuren").innerHTML), "Figurenliste: Profilbild nur bei freigegebenem Referenzbild (80 px)");
+    ok(w.__draws.length >= 1 && w.__draws[0].a[1] === 50 && w.__draws[0].a[3] === 200, "Profilbild: quadratisch aus der Mitte zugeschnitten");
     await send("x\n\n`gw:view.character character_id=char-anna`");
+    ok(/STUB192/.test(d.getElementById("gw-figur").innerHTML), "Figurenformular: Profilbild (192 px)");
     ok(d.getElementById("f-name").value === "Anna" && d.getElementById("f-short").value === "Erzählerin" && /Langtext/.test(d.getElementById("f-desc").value) && d.querySelectorAll(".gw-rel").length === 1, "Figurenformular mit Feldern und Beziehung");
     n = pushes.length;
     d.getElementById("f-short").value = "Neuer Satz";

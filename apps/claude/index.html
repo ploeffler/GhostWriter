@@ -893,21 +893,57 @@ function charUsage(){
   chapters().forEach((c, ci) => (c.sections || []).forEach((s, si) => { const f = cached(s.path); if (!f) return; (front(f.text).characters || []).forEach(id => (out[id] = out[id] || []).push(`${ci + 1}.${si + 1}`)); }));
   return out;
 }
+/* Profilbilder (#417): `portrait` im Figurenkopf, sonst das erste freigegebene Referenzbild mit Rolle visual_reference und Link person:<id>;
+   immer nur eine quadratisch beschnittene, verkleinerte Ableitung, nie das Original */
+function blobOf(res){
+  for (const b of (res && res.content) || []){
+    if (b.type === "resource" && b.resource && typeof b.resource.blob === "string") return {b64:b.resource.blob, mime:b.resource.mimeType || "image/jpeg"};
+    if (b.type === "image" && typeof b.data === "string") return {b64:b.data, mime:b.mimeType || "image/jpeg"};
+  }
+  return null;
+}
+async function refImages(){
+  if (S.refs && S.refs.ref === S.readRef) return S.refs.list;
+  const dir = "reference-images", entries = await listDir(dir, S.readRef), byName = new Map(entries.map(e => [e.name, e]));
+  const metas = await pool(entries.filter(e => /^ref-img-.+\.yml$/.test(e.name)).sort((a, b) => a.name.localeCompare(b.name)), 8, async e => window.jsyaml.load((await getFile(dir + "/" + e.name, S.readRef)).text) || {});
+  const list = metas.filter(m => m && m.status === "approved" && m.file && byName.has(String(m.file))).map(m => { const f = byName.get(String(m.file)); return {id:m.id, path:dir + "/" + m.file, sha:f.sha || "", size:f.size || 0, roles:m.roles || [], links:m.links || []}; });
+  S.refs = {ref:S.readRef, list}; return list;
+}
+const portraitOf = (id, head, refs) => (head.portrait && refs.find(m => m.id === head.portrait)) || refs.find(m => m.roles.includes("visual_reference") && m.links.some(l => l.kind === "person" && l.id === id)) || null;
+async function portraitData(ref, px){
+  if (!ref || (ref.size && ref.size > 12 * 1024 * 1024)) return "";
+  const key = `${ref.path}|${ref.sha}|${px}`; S.portraits = S.portraits || new Map();
+  if (S.portraits.has(key)) return S.portraits.get(key);
+  let url = "";
+  try {
+    const b = blobOf(await call("get_file_contents", {owner:S.owner, repo:S.repo, path:ref.path, ref:"refs/heads/" + S.readRef})); if (!b) throw new Error("kein Bild");
+    const bin = atob(b.b64), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const obj = URL.createObjectURL(new Blob([bytes], {type:b.mime}));
+    const img = await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => no(new Error("Bild nicht lesbar")); im.src = obj; });
+    URL.revokeObjectURL(obj);
+    const c = document.createElement("canvas"); c.width = c.height = px; const sq = Math.min(img.naturalWidth, img.naturalHeight);
+    c.getContext("2d").drawImage(img, (img.naturalWidth - sq) / 2, (img.naturalHeight - sq) / 2, sq, sq, 0, 0, px, px);
+    url = c.toDataURL("image/jpeg", 0.7);
+  } catch (e) { url = ""; }   // ohne Bild bleibt das Feld leer
+  S.portraits.set(key, url); return url;
+}
 async function charListData(){
   await loadSecFiles(allSecs(), "Figuren werden geladen");
   const used = charUsage(), items = charItems();
   const heads = await pool(items, 8, async it => charParts(await charFile(it)).head);
-  const rows = items.map((it, i) => { const h = heads[i] || {}; return {C_PORTRAIT:"", C_ID:it.id, C_NAME:it.name, C_ROLE:ROLE_DE[h.role] || "", C_SHORT:h.short || "", C_USED:(used[it.id] || []).join(", ") || "–", C_SOURCE:"", C_SOURCE_TEXT:""}; });
+  const refs = await refImages().catch(() => []), pics = await pool(items.map((it, i) => portraitOf(it.id, heads[i] || {}, refs)), 3, ref => portraitData(ref, 80));
+  const rows = items.map((it, i) => { const h = heads[i] || {}; return {C_PORTRAIT:pics[i] || "", C_ID:it.id, C_NAME:it.name, C_ROLE:ROLE_DE[h.role] || "", C_SHORT:h.short || "", C_USED:(used[it.id] || []).join(", ") || "–", C_SOURCE:"", C_SOURCE_TEXT:""}; });
   return Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), SERIES_TITLE:"", CHARACTERS:rows});
 }
 async function charEditData(id){
   await loadSecFiles(allSecs());
   const it = charItems().find(c => c.id === id); if (!it) throw {message:"Figur nicht gefunden."};
   const {head, desc, notes} = charParts(await charFile(it)), names = new Map(charItems().map(c => [c.id, c.name]));
+  const pref = portraitOf(it.id, head, await refImages().catch(() => [])), pic = await portraitData(pref, 192);
   return Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), CHARACTER_ID:it.id, CHARACTER_NAME:it.name, CHARACTER_ROLE:head.role || "main", CHARACTER_SHORT:head.short || "",
     CHARACTER_AGE:head.age == null ? "" : String(head.age), CHARACTER_APPEARANCE:head.appearance || "", CHARACTER_TRAITS:(head.traits || []).join(", "), CHARACTER_VOICE:head.voice || "",
     CHARACTER_VISUAL:head.visual || "", CHARACTER_DESCRIPTION:desc, CHARACTER_NOTES:notes, CHARACTER_USED:(charUsage()[it.id] || []).join(", ") || "noch nirgends",
-    CHARACTER_PORTRAIT:"", CHARACTER_PORTRAIT_ID:"", CHARACTER_SOURCE:"", CHARACTER_SOURCE_TEXT:"", SERIES_ID:"", SERIES_TITLE:"",
+    CHARACTER_PORTRAIT:pic, CHARACTER_PORTRAIT_ID:pic && pref ? pref.id : "", CHARACTER_SOURCE:"", CHARACTER_SOURCE_TEXT:"", SERIES_ID:"", SERIES_TITLE:"",
     RELATIONS:(head.relations || []).map(r => ({R_TO:r.to, R_NAME:names.get(r.to) || r.to, R_KIND:r.kind})), OTHERS:charItems().filter(c => c.id !== it.id).map(c => ({O_ID:c.id, O_NAME:c.name}))});
 }
 function charApply(head, desc, notes, d){
