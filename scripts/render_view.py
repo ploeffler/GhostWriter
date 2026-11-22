@@ -87,6 +87,13 @@ def attach_series(base, config):
             config['characters'].append(it)
 
 
+def small(text):
+    """Kleingedrucktes in Textfassungen (#498): Markdown statt <sub>, das Chats roh zeigen.
+    Kursiv, außer der Text enthält selbst Markdown-Zeichen; dann eine normale Zeile."""
+    text = str(text).strip()
+    return f'_{text}_' if text and not re.search(r'[_*`]', text) else text
+
+
 def manuscript_words(text):
     """Wörter im Manuskripttext ohne Fußnoten (#362): Fußnotendefinitionen, -verweise und Kommentare fallen weg."""
     text = re.sub(r'<!--.*?-->', ' ', text, flags=re.S)
@@ -1594,7 +1601,7 @@ def project_view(base, config, args):
                     if r.get('CHAPTER_CHECK_DETAILS'):
                         lines.append(f'- Kapitel {r["CHAPTER_NUMBER"]}: {r["CHAPTER_CHECK_DETAILS"]}')
                         lines += ['  ' + x for x in checks.history_text(r.get('CHAPTER_HISTORY') or [])]
-            lines += ['', f'<sub>{values["CHECKS_LEGEND"]}</sub>']
+            lines += ['', small(f'{values["CHECKS_LEGEND"]}')]
         elif rows:
             # Letzte Spalte: Kürzel zum Bearbeiten des Kapitels (wie der Bearbeiten-Knopf der Kapitelansicht).
             lines += ['| # | Kapitel | Umfang | Fertig | Kosten | Status | |', '|--:|---|--:|--:|--:|---|:-:|']
@@ -1630,7 +1637,7 @@ def project_view(base, config, args):
                   ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
         lines += [menu(items)]
         if values.get('CREDIT_TEXT'):
-            lines += ['', f'<sub>{values["CREDIT_TEXT"]}</sub>']
+            lines += ['', small(f'{values["CREDIT_TEXT"]}')]
         return '\n'.join(lines) + '\n'
     blocks = {'CHAPTERS': rows}
     if analyses:
@@ -1708,14 +1715,14 @@ def chapter_view(base, config, args, cnum):
         if rows and ck:   # mit Spalte „Prüfungen“ (#331)
             lines += ['| # | Abschnitt | Marker | Kosten | Status | Prüfungen |', '|--:|---|---|--:|---|---|']
             lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {marks(r)} | {r["SECTION_COST"]} | {display_status(r["SECTION_STATUS"])} | {r["SECTION_CHECKS_TEXT"]} |' for r in rows]
-            lines += ['', f'<sub>{values["CHECKS_LEGEND"]}</sub>']
+            lines += ['', small(f'{values["CHECKS_LEGEND"]}')]
             if counts_total:
-                lines += ['', f'<sub>{MARKER_LEGEND}</sub>']
+                lines += ['', small(f'{MARKER_LEGEND}')]
         elif rows:
             lines += ['| # | Abschnitt | Marker | Kosten | Status |', '|--:|---|---|--:|---|']
             lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {marks(r)} | {r["SECTION_COST"]} | {display_status(r["SECTION_STATUS"])} |' for r in rows]
             if counts_total:
-                lines += ['', f'<sub>{MARKER_LEGEND}</sub>']
+                lines += ['', small(f'{MARKER_LEGEND}')]
         else:
             lines += ['*Noch keine Abschnitte.*']
         lines += ['', '---']
@@ -2632,7 +2639,7 @@ def project_settings_view(base, config, args):
                              view_message('settings.disclosure_row', p_a=ai_disc_text(config)),
                              view_message('settings.analysis_row'),
                              view_message('settings.output_row'),
-                             '', f'<sub>{upd_text} · Limits: {lim_sum}</sub>'] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', view_message('settings.form_hint')]) + '\n'
+                             '', small(f'{upd_text} · Limits: {lim_sum}')] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', view_message('settings.form_hint')]) + '\n'
     def b(v):
         return 'true' if v else 'false'
     return fill('projekteinstellungen.html', {'FACT_CHECK_DEFAULT': fc, 'PAGE_SIZE': ts['page_size'], 'FONT': ts['font'],
@@ -2688,7 +2695,7 @@ def analysis_settings_view(base, config, args):
     return '\n'.join([view_message('view.analysis_settings.heading'), '', view_message('view.analysis_settings.intro'), '',
                       view_message('settings.fields_table'), '|---|---|---|']
                      + [f'| {k} | {esc(v)} | {h} |' for k, v, h in rows]
-                     + ['', f"<sub>🔑 {view_message('view.analysis_settings.keys_hint')}</sub>", '',
+                     + ['', small(f"🔑 {view_message('view.analysis_settings.keys_hint')}"), '',
                         view_message('view.analysis_settings.form_hint')]) + '\n'
 
 
@@ -2735,7 +2742,7 @@ def ai_disclosure_view(base, config, args):
         lines += ['> ' + l if l else '>' for l in (s['text'] or view_message('view.ai_disclosure.empty')).splitlines()] + ['']
     if proposal and proposal != s['text'] and s['mode'] in ad.SUGGESTED:
         lines += [view_message('view.ai_disclosure.suggestion_based_on_recorded_runs'), ''] + ['> ' + l if l else '>' for l in proposal.splitlines()] + ['']
-    lines += [f"<sub>⚖️ {view_message('disclosure.legal_hint')}</sub>", '', '---',
+    lines += [small(f"⚖️ {view_message('disclosure.legal_hint')}"), '', '---',
               view_message('view.ai_disclosure.reply_with_disclosure_placement_name_services_yes')
               + (view_message('view.ai_disclosure.ok_accepts_the_suggestion') if proposal and s['mode'] in ad.SUGGESTED else '')
               + view_message('view.ai_disclosure.x_cancels')]
@@ -2848,7 +2855,7 @@ def chapter_research_view(base, config, args):
             lines += ['', view_message('view.chapter_research.context'), '', view_message('view.chapter_research.chapter_weight'), '|---|---|---|'] + ctx
         tname = {'goal': view_message('view.chapter_research.research_the_chapter_goal'), 'sections': view_message('view.chapter_research.create_sections'), 'summary': view_message('view.chapter_research.create_a_summary')}
         lines += ['', view_message('view.chapter_research.task', p_a=tname.get(task, view_message('view.chapter_research.none_question_only'))),
-                  '', f'<sub>{values["RESEARCH_PROVIDER_TEXT"]} · {count}</sub>', '',
+                  '', small(f'{values["RESEARCH_PROVIDER_TEXT"]} · {count}'), '',
                   view_message('view.chapter_research.edit_with_one_goal_or_summary_per')]
         return '\n'.join(lines) + '\n'
     return fill('kapitelrecherche.html', values, {'SUGGESTED_SECTIONS': proposals})
@@ -3912,7 +3919,7 @@ def choice_view(base, config, args):
         out += ['', view_message('view.choice.reply_with_the_codes_e_g_enter', p_a=example)
                 + (view_message('view.choice.s_skips') if spec.get('skippable') else '')]
         if spec.get('note'):
-            out += ['', f'<sub>{spec["note"]}</sub>']
+            out += ['', small(f'{spec["note"]}')]
         return '\n'.join(out) + '\n'
     questions, options = [], []
     for i, q in enumerate(qs, 1):
