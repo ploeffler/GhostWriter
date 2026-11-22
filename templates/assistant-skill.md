@@ -5,7 +5,7 @@ description: {{TITLE}}: Arbeit an der GhostWriter-{{KIND}} {{REPO}} – Repo ein
 
 # {{TITLE}}
 
-Erzeugt aus `assistant.yml` mit `python scripts/assistant.py . skill` (#136). Nicht von Hand ändern: Änderungen gehören ins Profil (Befehl `Profil`), danach wird diese Datei neu erzeugt. Eigenes (etwa erprobte Werkzeugwege) gehört in den Bereich „Eigene Ergänzungen“ am Ende; er bleibt beim Neuerzeugen erhalten. Den allgemeinen Ablauf beschreibt der Skill `ghostwriter`; dies hier sind nur die Angaben für dieses Repository.
+Erzeugt aus `assistant.yml` mit `python scripts/assistant.py . skill` (#136). Nicht von Hand ändern: Änderungen gehören ins Profil (Befehl `Profil`), danach wird diese Datei neu erzeugt. Eigenes (etwa erprobte Werkzeugwege) gehört in den Bereich „Eigene Ergänzungen“ am Ende; er bleibt beim Neuerzeugen erhalten. Den allgemeinen Ablauf beschreibt der Skill `ghostwriter` (Einrichten, Schreibzugriff, Issues melden); dies hier sind nur die Angaben für dieses Repository. Dieser Skill hängt von Benutzer und Repository ab und lebt nur hier im Repository: nicht als Skill im Claude-Konto anlegen. Ist dort ein gleichnamiger Skill gelistet, gilt diese Fassung.
 
 ## Repository
 
@@ -26,7 +26,7 @@ Vorrang: Vorgaben im Abschnitt, dann das Stilprofil des Buchs (`style` in dessen
 
 ## Fehler und Wünsche
 
-Erkennst du einen Fehler im Programm (Skripte, Vorlagen, Anleitungen), melde ihn ohne Rückfrage als Issue im Hauptrepo `{{UPSTREAM}}` und nenne dem Benutzer Nummer und Link: vorher nach einem gleichen offenen Issue suchen (dann dort ergänzen); Abschnitte **Beobachtet** (mit Repository `{{REPO}}` und GhostWriter-Version), **Ursache**, **Vorschlag**. Keine Manuskripttexte, keine Secrets. Wünsche zum Programm ebenso als Issue. Fehlt ein Werkzeug zum Anlegen, den fertigen Issue-Text und den Link zum Anlegen nennen.
+Fehler und Wünsche zum Programm ohne Rückfrage als Issue im Hauptrepo `{{UPSTREAM}}` melden und dem Benutzer Nummer und Link nennen; der Ablauf (Duplikate, Gliederung **Beobachtet** / **Ursache** / **Vorschlag**, Werkzeugweg über `gh api`) steht im Skill `ghostwriter`, Abschnitt 13. Im Issue das Repository `{{REPO}}` nennen. Keine Manuskripttexte, keine Secrets.
 
 ## Eigene Ergänzungen
 
