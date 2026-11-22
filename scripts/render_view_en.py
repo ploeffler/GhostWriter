@@ -11,6 +11,13 @@ RESOURCE = Path(__file__).resolve().parents[1] / 'templates' / 'ui' / 'i18n'
 
 
 @lru_cache(maxsize=None)
+def small(text):
+    """Fine print in text output (#498): Markdown instead of <sub>, which chats show raw."""
+    import re
+    text = str(text).strip()
+    return f'_{text}_' if text and not re.search(r'[_*`]', text) else text
+
+
 def texts():
     return json.loads((RESOURCE / 'en.json').read_text(encoding='utf-8'))
 
@@ -209,7 +216,7 @@ def render(template, data, config, renderer, base):
             lines += [f'| {r["CHAPTER_NUMBER"]} | {cell(r["CHAPTER_TITLE"])} | {r.get("CHAPTER_WORDS_TEXT", "–")} | {r.get("CHAPTER_APPROVED_TEXT") or "–"} | {r["CHAPTER_COST"]} | {renderer.STATUS_ICON.get(r["CHAPTER_STATUS"], "•")} {status(r["CHAPTER_STATUS"])} | `B{r["CHAPTER_NUMBER"]}` |' for r in rows]
             current = (config.get('workflow') or {}).get('current_chapter_id')
             if data.get('CHECKS_LEGEND'):
-                lines += [''] + check_lines(rows, 'CHAPTER_CHECKS', 'CHAPTER_NUMBER') + ['', '<sub>' + data['CHECKS_LEGEND'] + '</sub>']
+                lines += [''] + check_lines(rows, 'CHAPTER_CHECKS', 'CHAPTER_NUMBER') + ['', small(data['CHECKS_LEGEND'])]
             chips = [('**`' + str(r['CHAPTER_NUMBER']) + '`**' if r['CHAPTER_ID'] == current else '`' + str(r['CHAPTER_NUMBER']) + '`') for r in rows]
             lines += ['', '**' + native('open_chapters') + ':** ' + ' '.join(chips)]
         else:
@@ -232,7 +239,7 @@ def render(template, data, config, renderer, base):
         items += [('D', tr('ui.ai_services')), ('P', tr('ui.edit_project_details')), ('N', tr('ui.add_a_new_chapter')), ('R', native('chapter_order')), ('V', tr('ui.front_and_back_matter')), ('FI', native('figures', number=data.get('CHARACTER_COUNT', 0))), ('FV', tr('ui.suggest_characters_from_the_text_whole_book')), ('A', tr('ui.create_a_new_edition')), ('E', tr('ui.project_settings'))]
         lines += ['', '---', menu(items)]
         if data.get('CREDIT_TEXT'):
-            lines += ['', '<sub>' + data['CREDIT_TEXT'] + '</sub>']
+            lines += ['', small(data['CREDIT_TEXT'])]
     elif template == 'kapitelansicht':
         rows = data.get('SECTIONS', [])
         lines = [native('chapter_heading', number=data['CHAPTER_NUMBER'], title=data['CHAPTER_TITLE']), '']
@@ -251,7 +258,7 @@ def render(template, data, config, renderer, base):
             if data.get('CHECKS_LEGEND'):
                 if data.get('CHECKS'):
                     lines += ['', '🧪 **Checks (chapter):** ' + ' · '.join(f'`{t["CK_TAG"]}` {t["CK_TEXT"]}' for t in data['CHECKS'])]
-                lines += [''] + check_lines(rows, 'SECTION_CHECKS', 'SECTION_NUMBER') + ['', '<sub>' + data['CHECKS_LEGEND'] + '</sub>']
+                lines += [''] + check_lines(rows, 'SECTION_CHECKS', 'SECTION_NUMBER') + ['', small(data['CHECKS_LEGEND'])]
         else:
             lines += [native('no_sections')]
         number = str(data['CHAPTER_NUMBER'])
