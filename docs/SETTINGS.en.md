@@ -15,6 +15,9 @@
 | `Output` or `Cover` | Typesetting, fonts, paragraphs, front matter, formats, imprint, print profile and cover |
 | `AI disclosure` | Where the minimum AI-use statement appears, its list of functions, and an optional confirmed addition |
 | `Data` or `Update` | Show the actual program and update level |
+| `All settings` (`Alle Einstellungen`) | Overview of all roughly 100 book settings: current value, origin (own value in the book, from the library, default, not set) and which form changes it; values differing from the default in bold (#299) |
+
+**All settings** (`render_view.py <book> settings-overview [group]`, also `scripts/settings_overview.py`) is read-only and comes as a table, in Claude too (no dedicated widget yet, German labels only). The list is generated from the schema, so new settings appear automatically; settings without a form are marked “nur in der Datei” (file only). From the library (`assistant.yml`) come the interface language and, while the book has no style profile of its own, the default narrative voice. Series, omnibus and per-chapter or per-section deviations are not shown yet.
 
 Opening a form saves nothing. Use its save action to change settings. [Saving and merging](SAVING.en.md) explains when changes reach the book branch.
 

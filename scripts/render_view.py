@@ -3985,7 +3985,7 @@ def resolve_repo(base, args):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline', 'notes-review'] + list(FORMS))
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline', 'notes-review', 'settings-overview'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--darstellung', choices=['einfach', 'uebersichtlich', 'erweitert'],
@@ -4030,6 +4030,10 @@ def main():
     UI['language'] = language
     UI['timezone'] = args.timezone
     requested_text = args.text
+    if args.view == 'settings-overview':   # „Alle Einstellungen“ (#299): Markdown, auch im Widget-Modus (noch kein eigenes Widget)
+        import settings_overview
+        sys.stdout.write(settings_overview.markdown(config, profile, args.where, (config.get('project') or {}).get('title')))
+        return
     if language == 'en':
         if args.view not in (render_view_en.CLI_VIEWS | view_i18n.DIRECT_VIEWS) and (not args.ui_ref or args.text):
             raise SystemExit('English native text output is not yet available for this view. Use --language de, or preview the translated UI templates with --ui-ref <checked-ui-commit> without --text.')
