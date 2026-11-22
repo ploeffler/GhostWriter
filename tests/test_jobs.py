@@ -163,11 +163,15 @@ class RemoteTest(Base):
         jobs.commit_push(self.base, 'Aufträge', 'ghostwriter/buch/b')
         git(self.base, 'fetch', '-q', 'origin')
         pending = jobs.remote_pending(self.base)
-        self.assertEqual(pending, {'buch/b': 1})                       # nur der offene zählt
+        self.assertEqual(pending, {'buch/b': {'research.yml': 1}})     # nur der offene zählt
         calls = []
         ok = lambda args: calls.append(args) or subprocess.CompletedProcess(args, 0, '', '')
         lines = jobs.start_pending(pending, base=self.base, run=ok)
         self.assertEqual(calls, [['gh', 'workflow', 'run', 'research.yml', '--ref', 'buch/b']])
+        calls.clear()
+        jobs.start_pending({'buch/b': {'import.yml': 1, 'colorize.yml': 2}}, base=self.base, run=ok)
+        self.assertEqual(calls, [['gh', 'workflow', 'run', 'colorize.yml', '--ref', 'buch/b'],
+                                 ['gh', 'workflow', 'run', 'import.yml', '--ref', 'buch/b', '-f', 'step=queue']])
         self.assertIn('gestartet', lines[-1])
         calls.clear()
         lines = jobs.start_pending(pending, paused=True, base=self.base, run=ok)
@@ -250,22 +254,89 @@ class ReportTest(Base):
         self.assertEqual(render_view.jobs_text(None), '')
 
 
+class OtherTypesTest(Base):
+    """#479: Analyse, Colorieren und Import über dieselbe Warteschlange."""
+    def fake_runner(self, fail=None):
+        def runner(base, job):
+            f = job['data'].get(job['type']) or {}
+            self.calls.append((job['type'], dict(f)))
+            if fail and f.get('folder') == fail:
+                raise research.ResearchError('Bild fehlt')
+            out = Path(base) / 'analysis' / f'{len(self.calls)}.txt'
+            out.parent.mkdir(exist_ok=True)
+            out.write_text('ergebnis')
+            return {'label': f'{job["type"]} {len(self.calls)}', 'paths': ['analysis'], 'action': f'{job["type"]}.x'}
+        return runner
+
+    def test_three_per_type_each_saved_error_continues(self):
+        for i in range(3):
+            jobs.main([str(self.base), 'enqueue', '--type', 'colorize', '--field', f'folder=bilder/{i}', '--field', 'consent=true'])
+        jobs.enqueue(self.base, 'analysis', fields={'kind': 'style', 'scope': 'book', 'unbekannt': 'x'})
+        files = jobs.files(self.base)
+        self.assertEqual([p.relative_to(self.base).as_posix() for p in files],
+                         ['jobs/request-001.yml', 'jobs/request-002.yml', 'jobs/request-003.yml', 'jobs/request-004.yml'])
+        first = yaml.safe_load(files[0].read_text())
+        self.assertEqual(first['colorize'], {'folder': 'bilder/0', 'consent': True})
+        self.assertNotIn('unbekannt', yaml.safe_load(files[3].read_text())['analysis'])   # nur bekannte Felder
+        with mock.patch.dict(jobs.RUNNERS, {'colorize': self.fake_runner(fail='bilder/1')}), \
+                mock.patch.object(jobs, 'budget_low', return_value=False):
+            results, remaining = jobs.process(self.base, push_to='ghostwriter/buch/b', types=['colorize'])
+        self.assertEqual([r['ok'] for r in results], [True, False, True])
+        self.assertEqual(remaining, 0)                                         # die Analyse zählt hier nicht
+        self.assertEqual([j['type'] for j in jobs.queue(self.base)], ['analysis'])
+        git(self.base, 'fetch', '-q', 'origin')
+        log = git(self.base, 'log', '--format=%s%n%b', 'origin/ghostwriter/buch/b')
+        self.assertEqual(log.count('GhostWriter-Aktion: colorize.x'), 2)       # je Ergebnis ein Commit
+        self.assertIn('fehlgeschlagen', log)
+
+    def test_free_import_steps_ignore_budget_and_colorize_needs_consent(self):
+        jobs.enqueue(self.base, 'import', fields={'step': 'convert', 'file': 'import/original/a.docx'})
+        jobs.enqueue(self.base, 'import', fields={'step': 'outline'})
+        with mock.patch.dict(jobs.RUNNERS, {'import': self.fake_runner()}), mock.patch.object(jobs, 'budget_low', return_value=True):
+            results, _ = jobs.process(self.base, commit=False)
+        self.assertEqual([(r['ok'], r.get('waiting', False)) for r in results], [(True, False), (False, True)])
+        jobs.enqueue(self.base, 'colorize', fields={'folder': 'bilder/x'})
+        job = jobs.queue(self.base, types=['colorize'])[0]
+        with mock.patch.object(jobs, 'script', return_value=''):
+            with self.assertRaisesRegex(research.ResearchError, 'Einverständnis'):
+                jobs.run_colorize(self.base, job)
+
+    def test_jobs_only_counted_on_their_branch(self):
+        git(self.base, 'push', '-q', 'origin', 'HEAD:refs/heads/buch/b')
+        jobs.enqueue(self.base, 'analysis', fields={'kind': 'style'})           # gehört auf den Buch-Branch
+        jobs.enqueue(self.base, 'colorize', fields={'folder': 'f', 'consent': True})
+        jobs.commit_push(self.base, 'Aufträge', 'ghostwriter/buch/b')
+        git(self.base, 'fetch', '-q', 'origin')
+        self.assertEqual(jobs.remote_pending(self.base), {'buch/b': {'colorize.yml': 1}})
+        git(self.base, 'push', '-q', 'origin', 'HEAD:refs/heads/buch/b', '--force')
+        git(self.base, 'fetch', '-q', 'origin')
+        self.assertEqual(jobs.remote_pending(self.base)['buch/b'], {'analyse.yml': 1, 'colorize.yml': 1})
+
+
 class WorkflowTest(unittest.TestCase):
     def test_workflow_queue(self):
+        """#480/#479: alle vier Actions legen Aufträge im Job prep an (ohne Gruppe, nie verdrängt) und arbeiten
+        im Job process in der gemeinsamen Gruppe je Buch ab."""
+        for wf, type_ in (('research', 'research'), ('analyse', 'analysis'), ('colorize', 'colorize'), ('import', 'import')):
+            with self.subTest(wf=wf):
+                text = (ROOT / f'.github/workflows/{wf}.yml').read_text(encoding='utf-8')
+                data = yaml.safe_load(text)
+                self.assertNotIn('concurrency', data)                          # nicht auf Workflow-Ebene
+                self.assertNotIn('concurrency', data['jobs']['prep'])
+                job = data['jobs']['process']
+                self.assertEqual(job['concurrency']['group'], 'jobs-${{ needs.prep.outputs.book }}')
+                self.assertEqual(job['timeout-minutes'], 30)
+                self.assertIn(f'--type {type_}', text)
+                self.assertIn(f'--types {type_}', text)
+                self.assertIn(f'gh workflow run {wf}.yml', text)
+                self.assertEqual(data['permissions']['actions'], 'write')
+                on = data.get('on', data.get(True))
+                for name, spec in on['workflow_dispatch']['inputs'].items():
+                    self.assertFalse(spec.get('required', False), name)       # ohne Eingaben = nur abarbeiten
         text = (ROOT / '.github/workflows/research.yml').read_text(encoding='utf-8')
-        data = yaml.safe_load(text)
-        job = data['jobs']['research']
-        self.assertEqual(job['concurrency']['group'], 'research-${{ needs.book.outputs.book }}')
-        self.assertEqual(job['timeout-minutes'], 30)
-        self.assertIn('scripts/jobs.py . process', text)
-        self.assertIn('scripts/jobs.py . enqueue', text)
-        self.assertIn('gh workflow run research.yml', text)
-        self.assertEqual(data['permissions']['actions'], 'write')
-        on = data.get('on', data.get(True))
-        self.assertFalse(on['workflow_dispatch']['inputs']['section'].get('required', False))
         for secret in ('ANTHROPIC', 'OPENAI', 'GOOGLE'):
             self.assertIn(f'GHOSTWRITER_RESEARCH_KEY_{secret}: ${{{{ steps.provider.outputs.secret_{secret.lower()}', text)
-
+        self.assertIn('-f step=queue', (ROOT / '.github/workflows/import.yml').read_text(encoding='utf-8'))
 
 if __name__ == '__main__':
     unittest.main()

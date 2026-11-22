@@ -4,7 +4,10 @@ name: Analyse im Hintergrund
 # Vorschläge ab (#123, #124, scripts/analyze.py): Figuren, Kurzbeschreibungen
 # und Ziele, Stilprofil, Schauplätze, Zeitleiste, Widersprüche, Sprache (ohne KI). Nichts am Buch wird geändert; übernommen wird im Chat. Nur
 # geänderte Kapitel werden neu gelesen (Zwischenspeicher analysis/cache/).
-# Start von Hand (Run workflow, auf dem Buch-Branch) oder aus dem Chat
+# Hintergrund-Warteschlange (#479): Jeder Start legt einen Auftrag `jobs/request-NNN.yml` (type: analysis)
+# auf dem Buch-Branch an (Job prep, nie verdrängt); Job process arbeitet die Analyse-Aufträge des Buchs der
+# Reihe nach ab, in einer Gruppe je Buch mit Recherche, Colorieren und Import. Start ohne `kind` = nur
+# abarbeiten. Start von Hand (Run workflow, auf dem Buch-Branch) oder aus dem Chat
 # (START.md, „Analysen im Hintergrund“). Braucht das Secret ANTHROPIC_API_KEY bzw.
 # OPENAI_API_KEY (nicht für „Sprache“: Rechtschreibung und Grammatik prüft ein im Runner
 # gestarteter LanguageTool-Server, ohne KI und ohne Kosten, #280). Kosten kommen nach costs/project.yml (source: action_api)
@@ -15,8 +18,8 @@ on:
   workflow_dispatch:
     inputs:
       kind:
-        description: 'Analyse: characters, summaries, style, places, timeline, continuity, language, chronology (mehrere mit Komma)'
-        default: characters
+        description: 'Analyse: characters, summaries, style, places, timeline, continuity, language, chronology (mehrere mit Komma; leer = nur die Warteschlange abarbeiten)'
+        default: ''
       scope:
         description: 'Bereich: book (ganzes Buch) oder Nummer eines Kapitels'
         default: book
@@ -31,23 +34,26 @@ on:
 
 permissions:
   contents: write
+  actions: write   # Selbstneustart
 
-concurrency:
-  group: analyse-${{ github.ref }}
-  cancel-in-progress: false
-
-# Pipes wie „… | tee“ melden Fehler nur mit pipefail (#445); shell: bash = bash -eo pipefail.
 defaults:
   run:
     shell: bash
 
+env:
+  LIMIT: '3'
+
 jobs:
-  analyse:
+  prep:
+    # Auftrag sofort ablegen (#479): dieser Job hat keine Concurrency-Gruppe und kann daher nicht
+    # durch einen späteren Start verdrängt werden. Liefert den Buchnamen für die Gruppe je Buch.
     runs-on: ubuntu-latest
+    outputs:
+      book: ${{ steps.book.outputs.book }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # Serie (#116): Figuren der Serie vom Standard-Branch
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -56,12 +62,93 @@ jobs:
       - name: Python-Abhängigkeiten
         run: pip install pyyaml jsonschema
 
-      # Rechtschreibung und Grammatik für „Sprache“ (#280): LanguageTool 6.6 (letzte feste Version, Prüfsumme
-      # geprüft) als lokaler Server; das Paket (~250 MB) bleibt im Zwischenspeicher der Actions.
+      - name: Buch
+        id: book
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          prefix=$(sed -n 's/^[[:space:]]*work_prefix:[[:space:]]*["'"'"']\{0,1\}\([^"'"'"' ]*\).*/\1/p' ghostwriter-manifest.yml | head -n1)
+          prefix=${prefix:-ghostwriter/}
+          book=${GITHUB_REF_NAME#"$prefix"}
+          if [ "$book" = "$GHOSTWRITER_DEFAULT_BRANCH" ] && ! python scripts/library.py is "$book" --dir .; then
+            echo "::error::$book ist kein Buch. Den Lauf auf dem Buch-Branch starten."; exit 1
+          fi
+          echo "book=$book" >> "$GITHUB_OUTPUT"
+
+      - name: Auftrag anlegen
+        if: inputs.kind != ''
+        env:
+          BOOK: ${{ steps.book.outputs.book }}
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          KIND: ${{ inputs.kind }}
+          SCOPE: ${{ inputs.scope }}
+          PROFILE: ${{ inputs.prompt_profile }}
+          CONFIRM: ${{ inputs.confirm_low_budget }}
+        run: |
+          target="$BOOK"
+          git config user.name GhostWriter
+          git config user.email ghostwriter@users.noreply.github.com
+          if git ls-remote --exit-code --heads origin "$target" >/dev/null; then
+            git fetch -q origin "$target"; git switch -q -C target "origin/$target"
+          else
+            git fetch -q origin "$BOOK"; git switch -q -C target "origin/$BOOK"
+          fi
+          git fetch -q origin "$GITHUB_REF_NAME"
+          git restore --source="origin/$GITHUB_REF_NAME" --worktree -- scripts
+          args=(--type analysis --requested-by workflow_dispatch --push-to "$target")
+          args+=(--field "kind=$KIND" --field "scope=${SCOPE:-book}")
+          if [ "$PROFILE" = "true" ]; then args+=(--field prompt_profile=true); fi
+          if [ "$CONFIRM" = "true" ]; then args+=(--confirm-low-budget); fi
+          python scripts/jobs.py . enqueue "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  process:
+    needs: prep
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Ein Lauf je Buch über alle Arten der Hintergrund-Warteschlange (research, analysis, colorize, import)
+    concurrency:
+      group: jobs-${{ needs.prep.outputs.book }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python-Abhängigkeiten
+        run: pip install pyyaml jsonschema
+
+      - name: Ziel-Branch
+        id: work
+        env:
+          BOOK: ${{ needs.prep.outputs.book }}
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if ! python scripts/library.py is "$BOOK" --dir .; then
+            echo "::error::$BOOK ist kein Buch. Den Lauf auf dem Buch-Branch starten."; exit 1
+          fi
+          target="$BOOK"
+          if git ls-remote --exit-code --heads origin "$target" >/dev/null; then
+            git fetch -q origin "$target"; git switch -q -C target "origin/$target"
+          else
+            git fetch -q origin "$BOOK"; git switch -q -C target "origin/$BOOK"
+          fi
+          # Programm immer vom Buch-Branch (ein Arbeits-Branch kann älter sein)
+          git fetch -q origin "$BOOK"
+          git restore --source="origin/$BOOK" --worktree -- scripts
+          git config user.name GhostWriter
+          git config user.email ghostwriter@users.noreply.github.com
+          echo "book=$BOOK" >> "$GITHUB_OUTPUT"
+          echo "branch=$target" >> "$GITHUB_OUTPUT"
+
       - name: LanguageTool vorbereiten
         id: lt
-        if: contains(inputs.kind, 'language')
-        run: echo "use=1" >> "$GITHUB_OUTPUT"
+        run: |
+          # Nur wenn ein offener Auftrag die Art „language“ enthält (Sprachprüfung ohne KI, #280)
+          if grep -rqs --include='request-*.yml' -e 'language' jobs/ 2>/dev/null; then echo "use=1" >> "$GITHUB_OUTPUT"; fi
 
       - uses: actions/setup-java@v4
         if: steps.lt.outputs.use == '1'
@@ -102,53 +189,24 @@ jobs:
           cat "$RUNNER_TEMP/languagetool.log"
           echo "::error::LanguageTool ist nicht gestartet."; exit 1
 
-      - name: Nur Buch-Branches
-        env:
-          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: |
-          if ! python scripts/library.py is "$GITHUB_REF_NAME" --dir .; then
-            echo "::error::$GITHUB_REF_NAME ist kein Buch. Den Lauf auf dem Buch-Branch starten."; exit 1
-          fi
 
-      - name: Umfang und Limits
+      - name: Warteschlange abarbeiten (analysis)
+        id: jobs
         env:
-          CONFIRM: ${{ inputs.confirm_low_budget }}
+          WORK: ${{ steps.work.outputs.branch }}
           GH_TOKEN: ${{ github.token }}
-        run: |
-          python scripts/analyze.py . plan --kind "${{ inputs.kind }}" --scope "${{ inputs.scope }}" | tee -a "$GITHUB_STEP_SUMMARY"
-          if ! python scripts/limits.py . check; then
-            if [ "$CONFIRM" != "true" ]; then
-              echo "::error::Weniger als 10 % des KI-Budgets übrig. Mit confirm_low_budget trotzdem starten."; exit 1
-            fi
-          fi
-
-      - name: Analysieren
-        env:
           GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          GHOSTWRITER_PROMPT_PROFILE: ${{ inputs.prompt_profile && '1' || '0' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python scripts/analyze.py . run --kind "${{ inputs.kind }}" --scope "${{ inputs.scope }}"
-
-      - name: Vorschläge ablegen
-        # Nur Daten (analysis/, costs/project.yml), kein Buchtext: direkt auf den Buch-Branch
         run: |
-          git config user.name GhostWriter
-          git config user.email ghostwriter@users.noreply.github.com
-          git add analysis
-          if [ -f costs/project.yml ]; then git add costs/project.yml; fi
-          if git diff --cached --quiet; then echo "Nichts abzulegen"; exit 0; fi
-          msg=$(python - "${{ inputs.kind }}" <<'PY'
-          import sys
-          sys.path.insert(0, 'scripts')
-          import analyze
-          parts = []
-          for k in [x.strip() for x in sys.argv[1].split(',') if x.strip()]:
-              h = analyze.latest('.', k) or {}
-              parts.append(f'{analyze.KINDS[k]["label"]} {h.get("suggestions", 0)} ({h.get("id", "–")})')
-          print('Analyse im Hintergrund: ' + ', '.join(parts))
-          PY
-          )
-          git commit -q -m "$msg" -m "GhostWriter-Aktion: analysis.start"
-          git pull -q --rebase origin "$GITHUB_REF_NAME"
-          git push -q origin "HEAD:$GITHUB_REF_NAME"
+          python scripts/jobs.py . process --types analysis --limit "$LIMIT" --push-to "$WORK" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Selbstneustart
+        if: steps.jobs.outputs.remaining != '' && steps.jobs.outputs.remaining != '0'
+        env:
+          BOOK: ${{ steps.work.outputs.book }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Ohne Eingaben: der nächste Lauf arbeitet nur die Warteschlange ab (gleiche Gruppe, also danach).
+          gh workflow run analyse.yml --ref "$BOOK" -R "$GITHUB_REPOSITORY"
+          echo "Noch ${{ steps.jobs.outputs.remaining }} Aufträge offen: nächster Lauf gestartet." | tee -a "$GITHUB_STEP_SUMMARY"

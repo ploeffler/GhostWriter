@@ -262,16 +262,17 @@ class WorkflowTest(unittest.TestCase):
         self.assertEqual(set(on), {'workflow_dispatch'})
         self.assertEqual(set(on['workflow_dispatch']['inputs']),
                          {'folder', 'consent', 'model', 'replace', 'hint', 'minors_exception'})
-        self.assertEqual(data['permissions'], {'contents': 'write', 'pull-requests': 'write'})
+        self.assertEqual(data['permissions'], {'contents': 'write', 'pull-requests': 'write', 'actions': 'write'})
         self.assertEqual(data['defaults']['run']['shell'], 'bash')
         text = (ROOT / '.github' / 'workflows' / 'colorize.yml').read_text(encoding='utf-8')
         self.assertIn('secrets.GEMINI_API_KEY', text)
-        self.assertIn('--check', text)
-        self.assertIn('--minors-exception', text)
-        self.assertIn('--hint "$HINT"', text)
+        self.assertIn('--field "hint=$HINT"', text)                # Hinweis über env in den Auftrag (#479)
         self.assertNotIn('${{ inputs.hint }}"', text)          # nur über env, nie direkt im Skript
         self.assertIn('GhostWriter: offene Änderungen', text)
-        self.assertIn('GhostWriter-Aktion: image.colorize', text)
+        # Ausführung seit #479 in der Hintergrund-Warteschlange (scripts/jobs.py)
+        jobs_src = (ROOT / 'scripts' / 'jobs.py').read_text(encoding='utf-8')
+        for needle in ("'--check'", "'--minors-exception'", "'--hint'", "'image.colorize'", 'consent'):
+            self.assertIn(needle, jobs_src)
 
 
 if __name__ == '__main__':
