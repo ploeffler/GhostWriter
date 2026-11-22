@@ -1,21 +1,25 @@
 name: Recherche
 
-# Recherche mit Internet über den eingestellten Recherche-Anbieter (#462, scripts/research.py):
-# Anbieter aus ai_providers.research.provider des Buchs (sonst erster passender Dienst aus
-# available, sonst Einstellungen des Standard-Branchs), Schlüssel aus dem Secret, das in
-# ai_providers.services.<id>.api_key_secret steht (Werte gelangen nie in Ausgaben).
-# Start von Hand (Run workflow, auf dem Buch-Branch), aus dem Chat oder über einen Auftrag
-# <kapitel>/research/<abschnitt>/request-NNN.yml, den die Claude-Web-App auf den
-# Arbeits-Branch legt. Ergebnis: Rechercheeintrag mit Quellen aus den Suchbelegen und ein
-# Kosteneintrag als Commit auf ghostwriter/<buch-branch> mit Änderungspaket; übernommen wird
-# nur nach Bestätigung.
+# Hintergrund-Warteschlange (#476, Teil 1 #480), erste Art: Recherche mit Internet über den
+# eingestellten Anbieter (#462, scripts/research.py). Jeder Startweg legt nur einen Auftrag an,
+# abgearbeitet wird die Warteschlange des Buchs (scripts/jobs.py):
+# - Claude-Web-App bzw. Chat: Auftrag <kapitel>/research/<abschnitt>/request-NNN.yml auf dem
+#   Arbeits-Branch; der Push startet diesen Lauf.
+# - Start von Hand (Run workflow auf dem Buch-Branch) mit `section`: legt den Auftrag an und
+#   arbeitet die Warteschlange ab; ohne `section` nur abarbeiten („Warteschlange anstoßen“).
+# Ein Lauf je Buch (Concurrency-Gruppe aus dem Buchnamen, gleich für Buch- und Arbeits-Branch).
+# Reihenfolge: Buchreihenfolge, dann Auftragszeit. Je Auftrag: Budget prüfen (darunter wartet er
+# auf Bestätigung), ausführen, Ergebnis committen und hochladen; ein Fehler stoppt die übrigen
+# nicht. Höchstens LIMIT Aufträge je Lauf, danach startet sich der Lauf selbst neu.
+# Schlüssel: je Anbieter aus dem Secret, das in ai_providers.services.<id>.api_key_secret steht
+# (Werte gelangen nie in Ausgaben). Ergebnis im Änderungspaket; übernommen wird nur nach Bestätigung.
 
 on:
   workflow_dispatch:
     inputs:
       section:
-        description: 'Abschnitts-ID, z. B. sec-01-02-ankunft'
-        required: true
+        description: 'Abschnitts-ID, z. B. sec-01-02-ankunft (leer = nur die Warteschlange abarbeiten)'
+        default: ''
       question:
         description: 'Fragestellung (leer = aus Ziel und Kurzbeschreibung des Abschnitts)'
         default: ''
@@ -29,26 +33,49 @@ on:
         description: 'Auch starten, wenn weniger als 10 % des KI-Budgets übrig sind'
         type: boolean
         default: false
-  # Nur Aufträge aus der Claude-Web-App; andere Pushes auf Arbeits-Branches starten keinen Lauf (#287).
+  # Nur Aufträge; andere Pushes auf Arbeits-Branches starten keinen Lauf (#287).
   push:
     branches: ['ghostwriter/**']
-    paths: ['chapters/*/research/*/request-*.yml']
+    paths: ['chapters/*/research/*/request-*.yml', 'matter/research/*/request-*.yml', 'jobs/request-*.yml']
 
 permissions:
   contents: write
   pull-requests: write
-
-concurrency:
-  group: research-${{ github.ref }}
-  cancel-in-progress: false
+  actions: write   # Selbstneustart per workflow_dispatch
 
 defaults:
   run:
     shell: bash
 
+env:
+  LIMIT: '5'
+
 jobs:
-  research:
+  book:
+    # Buchname für die Concurrency-Gruppe: Buch- und Arbeits-Branch laufen nacheinander (#480)
     runs-on: ubuntu-latest
+    outputs:
+      book: ${{ steps.name.outputs.book }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: ghostwriter-manifest.yml
+          sparse-checkout-cone-mode: false
+      - id: name
+        run: |
+          # Präfix der Arbeits-Branches wie scripts/library.py (Vorgabe ghostwriter/), ohne Python-Abhängigkeiten
+          prefix=$(sed -n 's/^[[:space:]]*work_prefix:[[:space:]]*["'"'"']\{0,1\}\([^"'"'"' ]*\).*/\1/p' ghostwriter-manifest.yml | head -n1)
+          prefix=${prefix:-ghostwriter/}
+          book=${GITHUB_REF_NAME#"$prefix"}
+          echo "book=$book" >> "$GITHUB_OUTPUT"
+
+  research:
+    needs: book
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: research-${{ needs.book.outputs.book }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,84 +91,76 @@ jobs:
       - name: Buch und Arbeits-Branch
         id: work
         env:
+          BOOK: ${{ needs.book.outputs.book }}
           GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          EVENT: ${{ github.event_name }}
         run: |
-          if [ "$EVENT" = "push" ]; then
-            book=$(python -c "import sys; sys.path.insert(0, 'scripts'); import library; p = library.settings(library.load_manifest())['work_prefix']; b = sys.argv[1]; print(b[len(p):] if b.startswith(p) else '')" "$GITHUB_REF_NAME")
-            work="$GITHUB_REF_NAME"
-          else
-            book="$GITHUB_REF_NAME"
-            work=$(python -c "import sys; sys.path.insert(0, 'scripts'); import library; print(library.work_branch(sys.argv[1]))" "$book")
-            # Offene Änderungen liegen im Arbeits-Branch: von dort weiterarbeiten.
-            if git ls-remote --exit-code --heads origin "$work" >/dev/null; then
-              git fetch -q origin "$work"
-              git switch -q -c work "origin/$work"
-            else
-              git switch -q -c work
-            fi
+          if [ -z "$BOOK" ] || ! python scripts/library.py is "$BOOK" --dir .; then
+            echo "::error::${BOOK:-$GITHUB_REF_NAME} ist kein Buch. Den Lauf auf dem Buch-Branch starten."; exit 1
           fi
-          if [ -z "$book" ] || ! python scripts/library.py is "$book" --dir .; then
-            echo "::error::${book:-$GITHUB_REF_NAME} ist kein Buch. Den Lauf auf dem Buch-Branch starten."; exit 1
+          work=$(python -c "import sys; sys.path.insert(0, 'scripts'); import library; print(library.work_branch(sys.argv[1]))" "$BOOK")
+          # Immer auf dem neuesten Stand des Arbeits-Branchs arbeiten (dort liegen die Aufträge).
+          if git ls-remote --exit-code --heads origin "$work" >/dev/null; then
+            git fetch -q origin "$work"
+            git switch -q -C work "origin/$work"
+          else
+            git fetch -q origin "$BOOK"
+            git switch -q -C work "origin/$BOOK"
           fi
           # Programm immer vom Buch-Branch: der Arbeits-Branch kann vor dem letzten Update entstanden sein.
-          git fetch -q origin "$book"
-          git restore --source="origin/$book" --worktree -- scripts providers.yml
-          echo "book=$book" >> "$GITHUB_OUTPUT"
+          git fetch -q origin "$BOOK"
+          git restore --source="origin/$BOOK" --worktree -- scripts providers.yml
+          git config user.name GhostWriter
+          git config user.email ghostwriter@users.noreply.github.com
+          echo "book=$BOOK" >> "$GITHUB_OUTPUT"
           echo "branch=$work" >> "$GITHUB_OUTPUT"
           defaults="$RUNNER_TEMP/defaults.yml"
           if [ -n "$GHOSTWRITER_DEFAULT_BRANCH" ] && git show "origin/$GHOSTWRITER_DEFAULT_BRANCH:ghostwriter.yml" > "$defaults" 2>/dev/null; then
             echo "defaults=$defaults" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Anbieter
-        id: provider
-        env:
-          PROVIDER: ${{ inputs.provider }}
-          MODEL: ${{ inputs.model }}
-          DEFAULTS: ${{ steps.work.outputs.defaults }}
-        run: |
-          args=()
-          if [ -n "$PROVIDER" ]; then args+=(--provider "$PROVIDER"); fi
-          if [ -n "$MODEL" ]; then args+=(--model "$MODEL"); fi
-          if [ -n "$DEFAULTS" ]; then args+=(--defaults "$DEFAULTS"); fi
-          if ! python scripts/research.py . provider "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"; then
-            if [ "${{ github.event_name }}" = "push" ]; then echo "failed=true" >> "$GITHUB_OUTPUT"; else exit 1; fi
-          fi
-
-      - name: Budget
-        id: budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if python scripts/limits.py . check; then echo "low=false" >> "$GITHUB_OUTPUT"; else echo "low=true" >> "$GITHUB_OUTPUT"; fi
-
-      - name: Recherchieren
+      - name: Auftrag anlegen (Start von Hand mit Abschnitt)
+        if: github.event_name == 'workflow_dispatch' && inputs.section != ''
         env:
           SECTION: ${{ inputs.section }}
           QUESTION: ${{ inputs.question }}
           PROVIDER: ${{ inputs.provider }}
           MODEL: ${{ inputs.model }}
           CONFIRM: ${{ inputs.confirm_low_budget }}
-          LOW: ${{ steps.budget.outputs.low }}
+          WORK: ${{ steps.work.outputs.branch }}
+        run: |
+          args=(--section "$SECTION" --requested-by workflow_dispatch --push-to "$WORK")
+          if [ -n "$QUESTION" ]; then args+=(--question "$QUESTION"); fi
+          if [ -n "$PROVIDER" ]; then args+=(--provider "$PROVIDER"); fi
+          if [ -n "$MODEL" ]; then args+=(--model "$MODEL"); fi
+          if [ "$CONFIRM" = "true" ]; then args+=(--confirm-low-budget); fi
+          python scripts/jobs.py . enqueue "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Anbieter
+        id: provider
+        env:
           DEFAULTS: ${{ steps.work.outputs.defaults }}
-          # Secret-Name aus den Einstellungen (nur Namen wie GEMINI_API_KEY, research.py prüft das)
-          GHOSTWRITER_RESEARCH_KEY: ${{ steps.provider.outputs.secret && secrets[steps.provider.outputs.secret] || '' }}
         run: |
           args=()
           if [ -n "$DEFAULTS" ]; then args+=(--defaults "$DEFAULTS"); fi
-          if [ "$LOW" = "true" ]; then args+=(--budget-low); fi
-          if [ "${{ github.event_name }}" = "push" ]; then
-            # Fehler stehen danach im Auftrag (error), die App zeigt sie an; der Commit folgt trotzdem.
-            python scripts/research.py . process "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY" || true
-          else
-            args+=(--section "$SECTION")
-            if [ -n "$QUESTION" ]; then args+=(--question "$QUESTION"); fi
-            if [ -n "$PROVIDER" ]; then args+=(--provider "$PROVIDER"); fi
-            if [ -n "$MODEL" ]; then args+=(--model "$MODEL"); fi
-            if [ "$CONFIRM" = "true" ]; then args+=(--confirm-low-budget); fi
-            python scripts/research.py . run "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
+          # Voreingestellter Anbieter zur Anzeige; ein Fehler steht danach im jeweiligen Auftrag.
+          python scripts/research.py . provider "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY" || true
+          # Secret-Namen je Anbieter (nur Namen wie GEMINI_API_KEY, research.py prüft das)
+          python scripts/research.py . provider --each "${args[@]}"
+
+      - name: Warteschlange abarbeiten
+        id: jobs
+        env:
+          WORK: ${{ steps.work.outputs.branch }}
+          DEFAULTS: ${{ steps.work.outputs.defaults }}
+          GH_TOKEN: ${{ github.token }}
+          GHOSTWRITER_RESEARCH_KEY_ANTHROPIC: ${{ steps.provider.outputs.secret_anthropic && secrets[steps.provider.outputs.secret_anthropic] || '' }}
+          GHOSTWRITER_RESEARCH_KEY_OPENAI: ${{ steps.provider.outputs.secret_openai && secrets[steps.provider.outputs.secret_openai] || '' }}
+          GHOSTWRITER_RESEARCH_KEY_GOOGLE: ${{ steps.provider.outputs.secret_google && secrets[steps.provider.outputs.secret_google] || '' }}
+        run: |
+          args=(--limit "$LIMIT" --push-to "$WORK")
+          if [ -n "$DEFAULTS" ]; then args+=(--defaults "$DEFAULTS"); fi
+          # Fehler stehen danach im Auftrag (error), Wartende mit waiting: budget; jeder Auftrag ist schon gespeichert.
+          python scripts/jobs.py . process "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Änderungspaket
         env:
@@ -149,24 +168,24 @@ jobs:
           WORK: ${{ steps.work.outputs.branch }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name GhostWriter
-          git config user.email ghostwriter@users.noreply.github.com
-          git restore --source=HEAD --staged --worktree -- scripts providers.yml
-          for d in chapters matter; do if [ -d "$d" ]; then git add -A -- "$d"; fi; done
-          if git diff --cached --quiet; then echo "Nichts zu speichern"; exit 0; fi
-          git commit -q -m "Recherche mit Internet" -m "GhostWriter-Aktion: research.web"
-          # Die App kann inzwischen weiter gespeichert haben: bis zu drei Versuche mit Rebase.
-          for i in 1 2 3; do
-            if git push -q origin "HEAD:refs/heads/$WORK"; then pushed=1; break; fi
-            git fetch -q origin "$WORK" && git rebase -q "origin/$WORK" || { git rebase --abort; break; }
-          done
-          if [ -z "${pushed:-}" ]; then echo "::error::Ergebnis konnte nicht auf $WORK gespeichert werden."; exit 1; fi
+          if ! git ls-remote --exit-code --heads origin "$WORK" >/dev/null; then echo "Nichts zu speichern"; exit 0; fi
           owner=${GITHUB_REPOSITORY%%/*}
           open=$(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&head=$owner:$WORK&base=$BOOK" --jq 'length')
-          if [ "$open" = "0" ]; then
+          ahead=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BOOK...$WORK" --jq '.ahead_by')
+          if [ "$open" = "0" ] && [ "${ahead:-0}" != "0" ]; then
             gh api "repos/$GITHUB_REPOSITORY/pulls" -f base="$BOOK" -f head="$WORK" \
               -f title="GhostWriter: offene Änderungen" \
               -f body="Offene Änderungen aus GhostWriter. Übernommen wird erst nach Bestätigung." --jq '.html_url' | tee -a "$GITHUB_STEP_SUMMARY"
           else
-            echo "Änderungspaket aktualisiert: $WORK" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "Änderungspaket: $WORK" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Selbstneustart
+        if: steps.jobs.outputs.remaining != '' && steps.jobs.outputs.remaining != '0'
+        env:
+          BOOK: ${{ steps.work.outputs.book }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Ohne section: der nächste Lauf arbeitet nur die Warteschlange ab (gleiche Gruppe, also danach).
+          gh workflow run research.yml --ref "$BOOK" -R "$GITHUB_REPOSITORY"
+          echo "Noch ${{ steps.jobs.outputs.remaining }} Aufträge offen: nächster Lauf gestartet." | tee -a "$GITHUB_STEP_SUMMARY"

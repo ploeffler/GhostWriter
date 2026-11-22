@@ -5,6 +5,7 @@ Aufruf: python scripts/validate_project.py <projektordner> [<projektordner> ...]
 
 Geprüft werden:
 - ghostwriter.yml gegen schemas/ghostwriter.schema.json
+- Aufträge der Hintergrund-Warteschlange (request-NNN.yml) gegen schemas/job.schema.json (#480)
 - jede Abschnittsdatei aus structure.chapters: Datei vorhanden, Kopf gegen
   schemas/section.schema.json, ID und Titel wie in ghostwriter.yml, Nummer
   passend zur Reihenfolge
@@ -82,6 +83,7 @@ TIMELINE = validator('timeline.schema.json')
 CHRONOLOGY = validator('chronology.schema.json')
 HINTS = validator('hints.schema.json')
 CHECKS = validator('checks.schema.json')
+JOB = validator('job.schema.json')
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
 
 
@@ -226,6 +228,12 @@ def check_project(project_dir):
     if (base / 'assistant.yml').is_file():   # Assistenten-Profil und persönlicher Skill (#136)
         import assistant
         errors += [f'{base}/{e}' for e in assistant.check(base)]
+
+    import jobs   # Aufträge der Hintergrund-Warteschlange (#480)
+    for path in jobs.files(base):
+        data = load_yaml(path, errors)
+        if data is not None:
+            errors += schema_errors(JOB, data, path)
 
     chapter_ids, section_ids = set(), set()
     for ci, chapter in enumerate(config['structure']['chapters'], start=1):
