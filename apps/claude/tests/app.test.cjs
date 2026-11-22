@@ -30,10 +30,13 @@ const html = fs.readFileSync(path.join(APP, "index.html"), "utf8")
   // nur im Test: Zustand von außen erreichbar
   .replace("window.sendPrompt = text =>", "window.__S = () => S; window.__rc = () => renderChat(); window.sendPrompt = text =>");
 
-const pushes = [], cache = {};
+const pushes = [], cache = {}, updates = [];
+let staleWork = false;
 const WRITES = ["push_files", "create_or_update_file", "create_pull_request", "create_branch", "merge_pull_request", "update_pull_request_branch"];
 const mcp = {callTool: async (srv, tool, input) => {
   if (tool === "get_file_contents"){
+    // Arbeits-Branch mit älterer research.yml nachbilden, bis die App ihn auf den Buchstand bringt
+    if (staleWork && input.path === ".github/workflows" && /ghostwriter\//.test(input.ref || "")) return {content: [], payload: [{name: "research.yml", sha: "alt"}]};
     let ref = input.ref ? input.ref.replace("refs/heads/", "") : "main";
     if (ref.startsWith("ghostwriter/")) ref = ref.slice("ghostwriter/".length);   // Arbeits-Branch = Buchstand
     const key = `${input.owner}/${input.repo}|${ref}|${input.path}`;
@@ -42,10 +45,12 @@ const mcp = {callTool: async (srv, tool, input) => {
     if (Array.isArray(j)) return {content: [], payload: j};
     return {content: [{type: "resource", resource: {uri: `repo://x/sha/${"a".repeat(40)}/contents/${input.path}`, text: Buffer.from(j.content, "base64").toString("utf8")}}, {type: "text", text: `successfully downloaded text file (SHA: ${j.sha})`}]};
   }
+  if (tool === "list_pull_requests" && staleWork) return {content: [], payload: [{number: 1, html_url: "https://example/pull/1", head: {sha: "a"}}]};
   if (tool === "list_pull_requests" || tool === "pull_request_read") return {content: [], payload: []};
   if (tool === "get_me") return {content: [], payload: {login: "test"}};
   if (tool === "search_repositories") return {content: [], payload: {items: [gh(`repos/${REPO}`)]}};
   if (tool === "list_branches") return {content: [], payload: gh(`repos/${input.owner}/${input.repo}/branches?per_page=100&page=${input.page || 1}`)};
+  if (tool === "update_pull_request_branch"){ updates.push(input); staleWork = false; return {content: []}; }
   if (WRITES.includes(tool)){ if (tool === "push_files") pushes.push(input); return {content: []}; }
   throw {code: "tool_error", message: "im Test nicht nachgebildet: " + tool};
 }};
@@ -150,7 +155,9 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
   const web = d.querySelector("[data-act=webres]");
   ok(!!web && /Google Gemini/.test(note()) && !d.querySelector("[data-act=offres]"), "Recherche: Rückfrage vor dem Start mit Internet");
   n = pushes.length;
+  staleWork = true;
   if (web){ w.__S().cfg.ai_providers = s2.cfg.ai_providers; web.click(); await sleep(400); await idle(); }
+  ok(updates.length === 1 && updates[0].pullNumber === 1 && !staleWork, "Recherche mit Internet: veraltetes Änderungspaket wird auf den Buchstand gebracht");
   const pw = pushes.length > n && lastPush("recherche-internet");
   const rq = pw && pw.files.find(f => /\/research\/[^/]+\/request-\d{3}\.yml$/.test(f.path));
   ok(rq && paths(pw).length === 1 && /provider: google/.test(rq.content) && new RegExp("section_id: " + sec.id).test(rq.content) && /Recherche läuft/.test(note()),
