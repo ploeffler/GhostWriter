@@ -58,7 +58,16 @@ const mcp = {callTool: async (srv, tool, input) => {
   if (WRITES.includes(tool)){ if (tool === "push_files") pushes.push(input); return {content: []}; }
   throw {code: "tool_error", message: "im Test nicht nachgebildet: " + tool};
 }};
+let suggestPrompt = null;
 const sample = async (hist, o) => {
+  if (/schlägst Figuren vor/.test((hist[0] || {}).content || "")){   // Figuren aus dem Text: Antwort nachgestellt, Zitat aus dem echten Text
+    suggestPrompt = hist[0].content;
+    const body = suggestPrompt.split(/TEXT \(Teil[^\n]*\n\n/)[1] || "", mm = /### (\d+\.\d+) [^\n]*\n\n([^\n]{40,})/.exec(body), key = mm ? mm[1] : "1.1", quote = mm ? mm[2].slice(0, 30) : "";
+    const t = "```json\n" + JSON.stringify({items: [
+      {name: "Anna", aliases: [], role: "main", short: "Andere Zeile", age: "34", traits: [], sections: [key], evidence: [{where: key, quote}]},
+      {name: "Clara", aliases: ["Frau K."], role: "supporting", short: "Nachbarin", age: "", traits: ["laut"], relations: [{to: "Anna", kind: "Freundin"}], sections: [key], evidence: [{where: key, quote}, {where: key, quote: "ein erfundenes Zitat, das nirgends steht"}]}]}) + "\n```";
+    o.onText({text: t}); return {text: t};
+  }
   const t = 'Vorschlag.\n<<<AKTION {"action":"view.project","label":"Zur Übersicht"} AKTION>>>\n<<<AKTION {"action":"approval.confirm","label":"Direkt freigeben"} AKTION>>>';
   o.onText({text: t}); return {text: t};
 };
@@ -222,6 +231,19 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
     const pn = pushes.length > n && lastPush("figur-anlegen");
     const gy3 = pn && pn.files.find(f => f.path === "ghostwriter.yml"), nf = pn && pn.files.find(f => f.path === "characters/char-ben-mueller.md");
     ok(pn && gy3 && nf && /id: char-ben-mueller/.test(gy3.content) && /^role: supporting$/m.test(nf.content) && /^# Ben Müller$/m.test(nf.content), "Figur anlegen: neue Datei und Eintrag in ghostwriter.yml");
+    // Figuren aus dem Text vorschlagen und übernehmen
+    await send(gwa("character.suggest", {scope: "book"}));
+    ok(await until(() => d.getElementById("gw-fv"), 120) && d.querySelectorAll("#gw-fv .card").length === 2, "Vorschlag: zwei Figuren aus dem Text");
+    const fv = d.getElementById("gw-fv").textContent; if (process.env.GW_DEBUG) console.log("FV:", fv.replace(/\s+/g, " ").slice(0, 600));
+    ok(/schon da: Anna/.test(fv) && [...d.querySelectorAll("#gw-fv .nm")].some(i => i.value === "Clara") && !/erfundenes Zitat/.test(fv), "Vorschlag: bekannte Figur erkannt, nicht belegte Fundstelle verworfen");
+    n = pushes.length;
+    d.getElementById("gw-apply").click(); await sleep(400); await idle();
+    const pv = pushes.length > n && lastPush("figuren-vorschlag");
+    const fc = pv && pv.files.find(f => f.path === "characters/char-clara.md"), fa = pv && pv.files.find(f => f.path === "characters/char-anna.md"), gv = pv && pv.files.find(f => f.path === "ghostwriter.yml"), fs1 = pv && pv.files.find(f => /sections\//.test(f.path));
+    ok(pv && /\(1 neu, 1 ergänzt\)/.test(pv.message) && fc && /role: supporting/.test(fc.content) && /to: char-anna/.test(fc.content) && /kind: Freundin/.test(fc.content), "Übernehmen: neue Figur mit Beziehung");
+    ok(fa && /age: '?34'?/.test(fa.content) && /short: Erzählerin/.test(fa.content) && !/Andere Zeile/.test(fa.content), "Übernehmen: bekannte Figur nur in leeren Feldern ergänzt");
+    if (process.env.GW_DEBUG) console.log("PV:", pv && pv.files.map(f => f.path).join(", "));
+    ok(gv && /id: char-clara/.test(gv.content) && fs1 && /^characters: \[char-anna, char-clara\]$/m.test(fs1.content), "Übernehmen: Liste in ghostwriter.yml und Zuordnung im Abschnittskopf");
     n = pushes.length;
     await send(gwa("character.create", {name: "bruno", role: "main"}));
     ok(pushes.length === n && /gibt es schon/.test(note()), "Figur anlegen: doppelter Name wird abgelehnt");

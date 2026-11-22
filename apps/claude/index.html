@@ -492,6 +492,8 @@ async function act({action, data, text}){
       case "section.reorder": return reorder(data.chapter_id, data.order);
       case "view.characters": S.msg = null; S.from = null; return show("characters");
       case "view.character": S.from = {view:"characters"}; S.msg = null; return form("figur-bearbeiten", await charEditData(data.character_id));
+      case "character.suggest": return characterSuggest(data);
+      case "character.suggest.apply": return characterSuggestApply(data);
       case "character.create": return characterCreate(data);
       case "character.update": return characterUpdate(data);
       case "run.start": return runStart(data);
@@ -965,6 +967,127 @@ async function characterUpdate(d){
   S.from = null; show("characters");
 }
 
+/* Figuren aus dem Text vorschlagen (#53): Claude liest die Texte, es entsteht nur ein Vorschlag; übernommen wird nach Auswahl */
+const SUGGEST_FIELDS = ["role", "short", "age", "appearance", "traits", "voice"], SUGGEST_SIZE = 40000;
+function suggestScope(scope){
+  // → {scope: book | N | N.M, list: [[Schlüssel, Titel, Abschnitt]]} oder null (Teile von Vor-/Nachspann und Serien gibt es hier noch nicht)
+  const chs = chapters(); scope = String(scope || "book").trim();
+  const sec = (ci, si) => [`${ci + 1}.${si + 1}`, chs[ci].sections[si].title, chs[ci].sections[si]];
+  if (scope === "book" || scope === "buch") return {scope:"book", list:allSecs().map(({c, s}) => sec(chs.indexOf(c), c.sections.indexOf(s)))};
+  if (/^\d+$/.test(scope)){ const ci = +scope - 1; return chs[ci] ? {scope, list:chs[ci].sections.map((x, si) => sec(ci, si))} : null; }
+  if (/^\d+\.\d+$/.test(scope)){ const [a, b] = scope.split(".").map(Number); return chs[a - 1] && chs[a - 1].sections[b - 1] ? {scope, list:[sec(a - 1, b - 1)]} : null; }
+  const x = allSecs().find(v => v.s.id === scope); if (x){ const ci = chs.indexOf(x.c), si = x.c.sections.indexOf(x.s); return {scope:`${ci + 1}.${si + 1}`, list:[sec(ci, si)]}; }
+  const ci = chs.findIndex(c => c.id === scope); return ci >= 0 ? {scope:String(ci + 1), list:chs[ci].sections.map((y, si) => sec(ci, si))} : null;
+}
+const scopeText = sc => sc === "book" ? "ganzes Buch" : /^\d+$/.test(sc) ? "Kapitel " + sc : "Abschnitt " + sc;
+function parseSuggest(text){
+  const m = /```(?:json)?\s*([\s\S]*?)```/.exec(text) || [null, text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)];
+  try { const o = JSON.parse(m[1]); return Array.isArray(o) ? o : (o.items || []); } catch (e) { return null; }
+}
+const norm = t => String(t || "").replace(/\s+/g, " ").trim().toLowerCase();
+function mergeSuggest(into, items){
+  for (const it of items){
+    if (!it || !String(it.name || "").trim()) continue;
+    const names = [it.name, ...(it.aliases || [])].map(norm);
+    const hit = into.find(x => [x.name, ...(x.aliases || [])].map(norm).some(n => names.includes(n)));
+    if (!hit){ into.push(Object.assign({aliases:[], traits:[], relations:[], sections:[], evidence:[]}, it)); continue; }
+    ["role", "short", "age", "appearance", "voice"].forEach(k => { if (!hit[k] && it[k]) hit[k] = it[k]; });
+    const add = (k, key) => { (it[k] || []).forEach(v => { if (!(hit[k] || (hit[k] = [])).some(w => key(w) === key(v))) hit[k].push(v); }); };
+    add("aliases", norm); add("traits", norm); add("sections", String); add("relations", r => norm(r.to) + "|" + norm(r.kind)); add("evidence", e => norm(e.where) + "|" + norm(e.quote));
+  }
+}
+function matchChar(it, items){
+  const names = [it.name, ...(it.aliases || [])].map(norm).filter(Boolean);
+  return items.find(c => names.includes(norm(c.name)) || names.includes(c.id));
+}
+async function characterSuggest(d){
+  const sc = suggestScope(d.scope);
+  if (!sc){ S.msg = {kind:"info", html:"<b>Das geht in dieser App noch nicht für diesen Bereich.</b> Figuren aus dem Text schlägt die App für das ganze Buch, ein Kapitel oder einen Abschnitt vor."}; return show("characters"); }
+  if (!S.sample){ S.msg = {kind:"warn", html:"Claude ist in dieser Ansicht nicht verfügbar."}; return show("characters"); }
+  try {
+    busy("Texte werden gelesen …");
+    const files = await loadSecFiles(sc.list.map(([, , s]) => ({s})), "Texte werden gelesen");
+    const blocks = sc.list.map(([key, title, s], i) => { const ms = files[i] ? msOf(files[i].text).trim() : ""; return EMPTY_MS.includes(ms) ? null : {key, text:`### ${key} ${title}\n\n${ms}\n`}; }).filter(Boolean);
+    if (!blocks.length){ S.msg = {kind:"info", html:"In diesem Bereich steht noch kein Text. Schreibe zuerst etwas, dann kann ich Figuren vorschlagen."}; return show("characters"); }
+    const chunks = []; let cur = [], len = 0;
+    for (const b of blocks){ if (cur.length && len + b.text.length > SUGGEST_SIZE){ chunks.push(cur); cur = []; len = 0; } cur.push(b); len += b.text.length; }
+    if (cur.length) chunks.push(cur);
+    const known = charItems().map(c => `- ${c.name} (${c.id})`).join("\n") || "keine";
+    const found = [];
+    for (let i = 0; i < chunks.length; i++){
+      busy(`Figuren werden gesucht – Teil ${i + 1} von ${chunks.length} …`);
+      const body = chunks[i].map(b => b.text).join("\n");
+      const prompt = `Du liest Textabschnitte eines Buchs und schlägst Figuren vor – nur aus dem Text, nichts erfinden, nichts aus Weltwissen ergänzen. Was der Text nicht sagt, bleibt leer. Personen, die nur erwähnt werden (Autoren von Quellen, Fachleute im Sachbuch), nur vorschlagen, wenn sie im Text handeln oder sprechen. Dieselbe Person unter mehreren Namen zusammenführen (aliases).\n\nBEKANNTE FIGUREN\n${known}\n\nAntworte NUR mit einem JSON-Block, ohne weiteren Text:\n\`\`\`json\n{"items":[{"name":"","aliases":[],"role":"main|supporting|minor","short":"ein Satz","age":"","appearance":"","traits":[],"voice":"","relations":[{"to":"Name der anderen Figur","kind":"Art"}],"sections":["1.2"],"evidence":[{"where":"1.2","quote":"kurze wörtliche Stelle aus dem Text"}]}]}\n\`\`\`\n"sections" nennt die Abschnittsnummern (wie in den Überschriften ###), in denen die Figur vorkommt.\n\nTEXT (Teil ${i + 1} von ${chunks.length})\n\n${body}`;
+      const r = await S.sample([{role:"user", content:prompt}], {cache:false, onText:() => {}});
+      const items = parseSuggest(r.text || ""); if (!items) throw {message:"Claude hat keine auswertbare Antwort geliefert. Bitte nochmals versuchen."};
+      const src = norm(chunks[i].map(b => b.text).join(" "));
+      items.forEach(it => { it.evidence = (it.evidence || []).filter(e => e && e.quote && src.includes(norm(e.quote))); });   // Fundstellen prüfen, ohne KI
+      mergeSuggest(found, items);
+    }
+    S.suggest = {scope:sc.scope, items:found};
+    const known2 = charItems(), rows = found.map((it, i) => {
+      const hit = matchChar(it, known2), details = [it.age ? "Alter: " + it.age : "", it.appearance || "", (it.traits || []).join(", "), it.voice ? "spricht: " + it.voice : ""].filter(Boolean).join("; ");
+      return {S_IDX:i, S_NAME:it.name, S_ALIASES:(it.aliases || []).join(", "), S_ROLE:["main", "supporting", "minor"].includes(it.role) ? it.role : "supporting", S_SHORT:it.short || "", S_DETAILS:details, S_SECTIONS:(it.sections || []).join(", "),
+        S_EVIDENCE:(it.evidence || []).slice(0, 3).map(e => `${e.where || ""}: „${e.quote}“`).join(" · "), S_STATE:hit ? "existing" : "new", S_EXISTING:hit ? hit.name : "", S_STATE_TEXT:hit ? "schon da: " + hit.name : "neu"};
+    });
+    S.from = {view:"characters"}; S.msg = null;
+    return form("figuren-vorschlag", Object.assign(base(), {SCOPE:sc.scope, SCOPE_TEXT:scopeText(sc.scope), SUGGEST_COUNT_TEXT:plural(rows.length, "Vorschlag", "Vorschläge"), SERIES_ID:"", SERIES_TITLE:"", RUN_ID:"", RUN_TEXT:"", CONFLICTS_TEXT:"", SERIES_LEVEL:"",
+      SUGGESTIONS:rows, MERGE:charItems().map(c => ({M_ID:c.id, M_NAME:c.name}))}));
+  } catch (e) { S.msg = e.code ? {kind:"err", html:esc(e.code === "not_granted" ? "Claude ist für diese App nicht freigegeben." : e.code === "rate_limited" ? "Dein Claude-Kontingent ist gerade ausgeschöpft. Bitte später noch einmal versuchen." : errText(e))} : {kind:"err", html:esc(errText(e))}; show("characters"); }
+}
+function setSecChars(text, ids){
+  const m = /^---\n([\s\S]*?)\n---\n/.exec(text); if (!m) return text;
+  let head = (m[1] + "\n").replace(/^characters:.*\n?/m, "").replace(/\n+$/, "");
+  if (ids.length){ const line = "characters: [" + ids.join(", ") + "]"; head = /^approvals:/m.test(head) ? head.replace(/^approvals:/m, line + "\napprovals:") : head + "\n" + line; }
+  return "---\n" + head + "\n---\n" + text.slice(m[0].length);
+}
+async function characterSuggestApply(d){
+  busy("Figuren werden übernommen …");
+  try {
+    const sug = S.suggest; if (!sug || !Array.isArray(d.choices)) throw {message:"Der Vorschlag ist nicht mehr da. Bitte die Figuren nochmals vorschlagen lassen."};
+    const picked = d.choices.map(c => Object.assign({}, sug.items[c.index], {name:String(c.name || "").trim(), role:c.role, short:c.short, merge_into:c.merge_into})).filter(it => it.name);
+    const work = await prepareWork(); await loadBookData(work);
+    const gy = (await getFile("ghostwriter.yml", work, true)).text, list = charItems().map(c => ({id:c.id, name:c.name, path:c.path}));
+    const files = {}, orig = {"ghostwriter.yml":gy}, ids = {}, created = [], updated = [], texts = {};
+    const text = async path => { if (!(path in texts)){ texts[path] = files[path] != null ? files[path] : (await getFile(path, work, true).catch(() => ({text:""}))).text; orig[path] = texts[path] || null; } return texts[path]; };
+    const put = (path, t) => { files[path] = t; texts[path] = t; };
+    for (const it of picked){
+      const hit = it.merge_into ? list.find(c => c.id === it.merge_into || norm(c.name) === norm(it.merge_into)) : matchChar(it, list);
+      if (hit){
+        ids[it.name] = hit.id;
+        const {head, desc, notes} = charParts(await text(hit.path)), fill = {};
+        SUGGEST_FIELDS.forEach(k => { if (it[k] && !head[k] && !(Array.isArray(it[k]) && !it[k].length)) fill[k] = it[k]; });
+        if (Object.keys(fill).length){ put(hit.path, charApply(head, desc, notes, fill).text); updated.push(hit.name); }
+        continue;
+      }
+      let cid = "char-" + (tagSlug(it.name) || "figur"), n = 2; const b0 = cid; while (list.some(c => c.id === cid)) cid = `${b0}-${n++}`;
+      const role = ["main", "supporting", "minor"].includes(it.role) ? it.role : "supporting", path = `characters/${cid}.md`;
+      const start = `---\nid: ${cid}\nname: ${yq(it.name)}\nrole: ${role}\nshort: ${yq(it.short || "")}\n---\n\n# ${it.name}\n\n## Beschreibung\n\n<Wer ist die Figur, was will sie, was fürchtet sie? Nur Arbeitsgrundlage, kommt nicht ins Buch.>\n\n## Notizen\n`;
+      const {head, desc, notes} = charParts(start), fill = {}; SUGGEST_FIELDS.slice(2).forEach(k => { if (it[k] && !(Array.isArray(it[k]) && !it[k].length)) fill[k] = it[k]; });
+      put(path, Object.keys(fill).length ? charApply(head, desc, notes, fill).text : start); orig[path] = null;
+      list.push({id:cid, name:it.name, path}); ids[it.name] = cid; created.push(it.name);
+    }
+    for (const it of picked){   // Beziehungen: nur neue Einträge
+      const cid = ids[it.name], c = list.find(x => x.id === cid), rels = (it.relations || []).filter(r => r && r.to && r.kind);
+      if (!c || !rels.length) continue;
+      const {head, desc, notes} = charParts(await text(c.path)), have = new Set((head.relations || []).map(r => r.to + "|" + r.kind)), next = [...(head.relations || [])];
+      for (const r of rels){ const o = list.find(x => x.id === (ids[r.to] || r.to) || norm(x.name) === norm(r.to)); if (o && o.id !== cid && !have.has(o.id + "|" + r.kind)){ next.push({to:o.id, kind:r.kind}); have.add(o.id + "|" + r.kind); } }
+      if (next.length !== (head.relations || []).length) put(c.path, charApply(head, desc, notes, {relations:next}).text);
+    }
+    const bySec = {};   // Zuordnung zu Abschnitten: ergänzen, nichts entfernen
+    for (const it of picked) for (const key of it.sections || []) if (/^\d+\.\d+$/.test(String(key))) (bySec[key] = bySec[key] || []).push(ids[it.name]);
+    for (const [key, add] of Object.entries(bySec)){
+      const [a, b] = key.split(".").map(Number), sec = chapters()[a - 1] && chapters()[a - 1].sections[b - 1]; if (!sec) continue;
+      const t = await text(sec.path), have = front(t).characters || [], merged = [...have, ...add.filter((v, i) => v && !have.includes(v) && add.indexOf(v) === i)];
+      if (merged.length !== have.length) put(sec.path, setSecChars(t, merged));
+    }
+    if (created.length) files["ghostwriter.yml"] = charListWrite(gy, list);
+    const r = await commit(changed(files, orig), `Figuren aus dem Text übernommen (${created.length} neu, ${updated.length} ergänzt)`, {action:"character.suggest.apply"});
+    S.suggest = null; S.msg = savedMsg(`Figuren übernommen: ${created.length} neu, ${updated.length} ergänzt.`, r);
+  } catch (e) { S.msg = failMsg(e); }
+  S.from = null; show("characters");
+}
+
 /* KI-Lauf „Sofort“ (Recherche, Ghostwriting) über Claude in der App */
 async function runStart(d){
   if (d.task === "research" && (d.mode === "web" || (d.mode === "immediate" && !d.offline))){
@@ -1249,7 +1372,7 @@ function renderChat(){
   box.scrollTop = box.scrollHeight;
 }
 const ACTION_RE = /<<<AKTION\s*([\s\S]*?)\s*AKTION>>>/g;
-const SAFE_ACTIONS = ["view.project", "view.chapter", "view.section", "view.data", "project.edit", "chapter.create.open", "chapter.edit.open", "section.create.open", "chapter.reorder.open", "section.reorder.open", "approval.open", "changes.merge.open", "run.start", "view.characters", "view.character"];
+const SAFE_ACTIONS = ["view.project", "view.chapter", "view.section", "view.data", "project.edit", "chapter.create.open", "chapter.edit.open", "section.create.open", "chapter.reorder.open", "section.reorder.open", "approval.open", "changes.merge.open", "run.start", "view.characters", "view.character", "character.suggest"];
 function safeAction(json){
   // nur Ansichten und Formulare öffnen; alles, was schreibt, bestätigt der Benutzer danach im Formular
   let a; try { a = JSON.parse(json); } catch (e) { return null; }
@@ -1261,7 +1384,7 @@ function safeAction(json){
 }
 const ACTION_HELP = `Du kannst dem Benutzer Knöpfe anbieten, die eine Ansicht oder ein Formular öffnen. Schreib dafür je Knopf eine eigene Zeile:
 <<<AKTION {"action":"…","label":"kurzer Knopftext", …Daten} AKTION>>>
-Erlaubt: view.project; view.characters; view.character {character_id}; view.chapter {chapter_id}; view.section {section_id}; project.edit; chapter.create.open; chapter.edit.open {chapter_id}; section.create.open {chapter_id}; chapter.reorder.open; section.reorder.open {chapter_id}; approval.open {kind:"writing"|"section", section_id, revoke?} bzw. {kind:"chapter", chapter_id, revoke?}; changes.merge.open; run.start {section_id, task:"research"|"writing"}. IDs nur aus buch_struktur. Knöpfe öffnen nur – gespeichert, freigegeben oder übernommen wird erst nach Bestätigung durch den Benutzer. Höchstens drei Knöpfe.
+Erlaubt: view.project; view.characters; view.character {character_id}; character.suggest {scope: book | Kapitelnummer | N.M}; view.chapter {chapter_id}; view.section {section_id}; project.edit; chapter.create.open; chapter.edit.open {chapter_id}; section.create.open {chapter_id}; chapter.reorder.open; section.reorder.open {chapter_id}; approval.open {kind:"writing"|"section", section_id, revoke?} bzw. {kind:"chapter", chapter_id, revoke?}; changes.merge.open; run.start {section_id, task:"research"|"writing"}. IDs nur aus buch_struktur. Knöpfe öffnen nur – gespeichert, freigegeben oder übernommen wird erst nach Bestätigung durch den Benutzer. Höchstens drei Knöpfe.
 Will der Benutzer etwas ändern, anlegen, verschieben, freigeben, abschließen, recherchieren oder schreiben lassen, antworte nie nur, dass du das nicht kannst. Sag in einem Satz, dass er es über den Knopf öffnet und dort mit Speichern bestätigt, und biete den passenden Knopf an (für Manuskripttext: run.start mit task "writing" oder den Abschnitt mit view.section öffnen). Gibt es für den Wunsch keinen Knopf, sag das kurz und nenne die Ansicht, in der es am ehesten geht.`;
 function context(){
   const p = S.cfg.project || {}, sc = scopeOf();
