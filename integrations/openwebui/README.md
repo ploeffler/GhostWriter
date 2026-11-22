@@ -89,6 +89,21 @@ Der Report ist weiterhin vertraulich zu behandeln, da Prüfsummen bekannte
 Inhalte wiedererkennbar machen können. Die Chat-Anwendung kann die sichtbare
 Diagnoseantwort wie andere Nachrichten im Verlauf speichern.
 
+**Schlankere Anfragen (Direkt-Pipe 1.10, #285):** Die Statusregeln aus
+`workflow.yml` (etwa 1.200 Tokens) gehen nur noch an das Modell, wenn die
+Nachricht nach Status, Abschluss, Freigabe, Übergang oder Voraussetzung klingt,
+und dann nur für die gezeigte Einheit (Abschnitt oder Kapitel). Der gespeicherte
+Status der Auswahl bleibt immer dabei; Statusfragen beantwortet die Pipe weiter
+selbst aus den vollständigen Regeln. Alte Ansichten der Pipe (Bibliothek, Buch,
+Kapitel, Abschnitt) gehen nur noch als eine Zeile an das Modell, etwa
+`[GhostWriter-Ansicht: Kapitel 8 · Die Verhandlung]`. Die jüngste Ansicht bleibt
+vollständig, außer bei einer Abschnittsansicht, deren Text ohnehin im
+Kontextblock steht. Erkannt werden Ansichten an ihrer gespeicherten
+Navigationsquittung, nicht am Text; Modellantworten und der gespeicherte Chat
+bleiben unverändert. `Prompt-Profil` zeigt gekürzte Einträge mit der Herkunft
+„Ansicht gekürzt“. Die Ersparnis bitte vor und nach dem Update mit
+`Prompt-Profil` messen; sie hängt von der Verlaufslänge ab.
+
 Für die Untersuchung **normaler Modellaufrufe** kann zusätzlich die Pipe-Valve
 `PROMPT_PROFILE` eingeschaltet werden (Vorgabe `false`). Dann entsteht vor jeder
 Weiterleitung ein Metadatenreport im Open-WebUI-Serverprotokoll mit Präfix
@@ -157,7 +172,7 @@ Die Darstellungs- und Antwortmodusbefehle aus `START.md` führt die Pipe direkt 
 
 Fehlt die Übersichtsdatei oder passt sie nicht zur Kapitelstruktur, steht das in der Ansicht; Freigaben, Kosten und Marker werden dann nicht geschätzt. Die Übersichtsdatei wird von der Action „Übersichtsdatei aktualisieren“ erzeugt und kann direkt nach einem Push kurz hinterherhinken. Ansichten schreiben nichts und erteilen keine Freigaben.
 
-Für das Update **beide** Codeeinträge ersetzen: Direkt-Funktion ab 1.8.0 (aktuell 1.9.2) und GitHub-Werkzeug ab 1.5.0 (aktuell 1.7.1); die Valves bleiben. Mit Werkzeug 1.4 meldet die Pipe bei Darstellungsbefehlen, dass das Werkzeug aktualisiert werden muss; Navigation und Gespräch funktionieren weiter. Freie Gesprächsbeiträge erfahren über die Systemanweisung die aktuelle Darstellung und die verfügbaren Befehle, damit das Modell sie nicht mehr für nicht vorhanden erklärt; das bleibt eine Anweisung, keine Garantie für die Modellantwort.
+Für das Update **beide** Codeeinträge ersetzen: Direkt-Funktion ab 1.8.0 (aktuell 1.10.0) und GitHub-Werkzeug ab 1.5.0 (aktuell 1.7.1); die Valves bleiben. Mit Werkzeug 1.4 meldet die Pipe bei Darstellungsbefehlen, dass das Werkzeug aktualisiert werden muss; Navigation und Gespräch funktionieren weiter. Freie Gesprächsbeiträge erfahren über die Systemanweisung die aktuelle Darstellung und die verfügbaren Befehle, damit das Modell sie nicht mehr für nicht vorhanden erklärt; das bleibt eine Anweisung, keine Garantie für die Modellantwort.
 
 ### Auswahl und aktuelle Buchstände
 
