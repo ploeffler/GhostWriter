@@ -58,7 +58,7 @@ MAX_MANUSCRIPT = 6000
 PROVIDERS = {
     'anthropic': {'model': 'claude-sonnet-5-5', 'label': 'Anthropic'},
     'openai': {'model': 'gpt-5', 'label': 'OpenAI'},
-    'google': {'model': 'gemini-2.5-flash', 'label': 'Google Gemini'},
+    'google': {'model': 'gemini-3.8-flash', 'label': 'Google Gemini'},
 }
 
 HEADINGS = ['Fragestellung und Suchumfang', 'Rechercheergebnisse', 'Quellen', 'Widersprüche und Unsicherheiten',

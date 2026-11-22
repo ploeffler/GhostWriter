@@ -82,7 +82,7 @@ class ResolveTest(unittest.TestCase):
         tmp, base = book()
         with tmp:
             c = research.resolve(base)
-            self.assertEqual((c['provider'], c['secret'], c['model']), ('google', 'GEMINI_API_KEY', 'gemini-2.5-flash'))
+            self.assertEqual((c['provider'], c['secret'], c['model']), ('google', 'GEMINI_API_KEY', 'gemini-3.8-flash'))
 
     def test_research_role_wins_and_model_from_settings(self):
         tmp, base = book({'available': ['google', 'anthropic'], 'research': {'provider': 'anthropic', 'model': 'm1'},
@@ -94,7 +94,7 @@ class ResolveTest(unittest.TestCase):
     def test_image_model_of_service_is_not_used(self):
         tmp, base = book({'available': ['google'], 'services': {'google': {'access': 'api', 'model': 'gemini-2.5-flash-image'}}})
         with tmp:
-            self.assertEqual(research.resolve(base)['model'], 'gemini-2.5-flash')
+            self.assertEqual(research.resolve(base)['model'], 'gemini-3.8-flash')
 
     def test_library_defaults(self):
         tmp, base = book({'available': [], 'research': {'provider': ''}})
