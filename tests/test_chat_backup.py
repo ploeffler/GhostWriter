@@ -460,6 +460,46 @@ class BackupTest(unittest.TestCase):
         self.assertTrue(receipt['reply_ready'])
         self.assertEqual(receipt['head'], cb.resume(str(self.remote), 'test-session')['head'])
 
+    def test_short_answer_from_stdin_inherits_context_and_fetches_shallow(self):
+        # #314: zweiter Schritt als eine kombinierte Eingabe über stdin, ohne context/coverage/topics;
+        # nur ein flacher Abruf ohne Dateiinhalte, nur ein PR-Nachschlagen.
+        review = self.answer_review()
+        first = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload, self.base, review)
+        short = {'payload': {'messages': [{'id': '4', 'role': 'assistant', 'content': 'Nächste Frage?'},
+                                          {'id': '5', 'role': 'user', 'content': 'Zweite Antwort'}]},
+                 'review': {**review, 'answer_message_id': '5',
+                            'items': [{'id': 'q2', 'question': 'Nächste Frage', 'status': 'answered', 'evidence': ['5']}]}}
+        output, calls, lookups = io.StringIO(), [], []
+        real_run = cb.run
+        def transport(*args, **kwargs):
+            calls.append(args)
+            return real_run(*args, **kwargs)
+        def prs(*args, **kwargs):
+            lookups.append(args)
+            return [{'state': 'OPEN', 'baseRefName': 'main', 'url': 'https://example.invalid/pr/1'}]
+        argv = ['chat_backup.py', 'answer-checkpoint', str(self.remote), 'test-session', '-', '--base', 'main',
+                '--expected-head', first['head'], '--github-repo', 'test/repo']
+        with patch.object(sys, 'argv', argv), patch.object(sys, 'stdin', io.StringIO(json.dumps(short))), \
+             patch.object(cb, 'run', side_effect=transport), patch.object(cb, 'session_prs', side_effect=prs), \
+             contextlib.redirect_stdout(output):
+            cb.main()
+        receipt = json.loads(output.getvalue())
+        self.assertTrue(receipt['reply_ready'])
+        self.assertEqual(receipt['pr'], 'https://example.invalid/pr/1')
+        self.assertEqual(len(lookups), 1)
+        clones = [c for c in calls if c[:2] == ('git', 'clone')]
+        self.assertEqual(len(clones), 1)
+        self.assertIn('--depth', clones[0])
+        self.assertIn('--filter=blob:none', clones[0])
+        restored = cb.resume(str(self.remote), 'test-session')
+        self.assertEqual([m['id'] for m in restored['topics']['conversation']['messages']], ['1', '2', '3', '4', '5'])
+
+    def test_short_answer_needs_context_on_first_step(self):
+        review = self.answer_review()
+        payload = {k: v for k, v in self.payload.items() if k != 'context'}
+        with self.assertRaisesRegex(ValueError, 'Erste Antwort'):
+            cb.answer_checkpoint(str(self.remote), 'main', 'test-session', payload, self.base, review)
+
     def test_small_answer_delta_preserves_history_and_full_save_compacts(self):
         first = self.save()
         payload = copy.deepcopy(self.payload)

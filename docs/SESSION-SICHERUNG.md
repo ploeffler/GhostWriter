@@ -92,6 +92,28 @@ Speicheraufruf kann weiterhin einen ungesicherten letzten Schritt hinterlassen.
 python3 scripts/chat_backup.py answer-checkpoint <git-url> <session-id> <nachtrag.json> --review <antwortstand.json> --base <zielbranch> --expected-head <gelesener-sicherungs-head> --github-repo <owner/repo>
 ```
 
+**Schnell (#314): ein Aufruf je Antwort.** Frage und Antwort samt Fragenstand in
+einem einzigen Befehl über die Standardeingabe übergeben; keine Dateien vorher
+schreiben, keine Sitzung oder Statusansicht zwischen den Antworten neu lesen. Den
+erwarteten Head nimmt der Assistent aus der Quittung des vorigen Schritts
+(`head`), beim ersten Schritt aus dem gelesenen Ausgangsstand. Ab dem zweiten
+Schritt dürfen `context` (kommt aus der Sitzung), `coverage` (Vorgabe: Wortlaut
+von Frage und Antwort, keine bekannten Lücken) und `topics` fehlen:
+
+```sh
+python3 scripts/chat_backup.py answer-checkpoint <git-url> <session-id> - --base <zielbranch> --expected-head <head-der-letzten-quittung> --github-repo <owner/repo> <<'JSON'
+{"payload": {"messages": [{"id": "m7", "role": "assistant", "content": "<gestellte Frage>"},
+                          {"id": "m8", "role": "user", "content": "<Antwort im Wortlaut>"}]},
+ "review": {"section_id": "<abschnitt>", "source_commit": "<gelesener Buchstand>", "answer_message_id": "m8",
+            "dialogue_complete": false, "awaiting_reply": true,
+            "items": [{"id": "q3", "question": "<Frage>", "status": "answered", "evidence": ["m8"]}]}}
+JSON
+```
+
+Der Helfer holt dafür nur den einen Commit des Sitzungsbranchs ohne Dateiinhalte
+und checkt nur den Sicherungsordner dieser Sitzung aus; den PR schlägt er je
+Antwort einmal nach. Die Langform mit zwei Dateien bleibt gültig.
+
 `nachtrag.json` hat dieselben Felder wie die vollständige Sicherung (`context`,
 `coverage`, `messages`, `topics`), enthält aber nur die Frage und neue Antwort
 mit beständigen Nachrichtenkennungen sowie die neue Auswertung und offenen Punkte

@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.parse
@@ -204,6 +205,11 @@ def save(repository, base, session, payload, expected_head, *, github_repo=None,
          origin=None, now=None, incremental=False):
     """Vollständigen verfügbaren Snapshot übergeben; remote vor Erfolg bestätigen."""
     session = identifier(session)
+    if incremental and payload.get('context') is None:
+        payload = {**payload, 'context': {'project': '(aus der Sitzung)'}}   # nach dem Lesen ersetzt
+        inherit = True
+    else:
+        inherit = False
     topics = validate(payload)  # vor jedem Schreibzugriff prüfen
     origin = origin_info(origin)
     if not re.fullmatch(r'[0-9a-f]{40,64}', expected_head):
@@ -211,14 +217,29 @@ def save(repository, base, session, payload, expected_head, *, github_repo=None,
     branch = f'ghostwriter/chat/{session}'
     with tempfile.TemporaryDirectory(prefix='ghostwriter-chat-') as temp:
         work = Path(temp) / 'repo'
-        run('git', 'clone', '--quiet', '--no-checkout', '--', repository, str(work))
+        # Schnell (#314): nur den einen Commit (Sitzungsbranch bzw. Ziel) ohne Dateiinhalte holen und
+        # nur den Sicherungsordner dieser Sitzung auschecken – kein vollständiger Klon je Antwort.
+        remote = run('git', 'ls-remote', '--heads', '--', repository, f'refs/heads/{branch}')
+        existing = remote.split()[0] if remote else None
+        ref = branch if existing else base
+        try:
+            run('git', 'clone', '--quiet', '--no-checkout', '--depth', '1', '--filter=blob:none',
+                '--single-branch', '--branch', ref, '--', repository, str(work), timeout=120)
+        except ValueError as error:
+            raise ValueError(f'Zielbranch {ref} nicht lesbar: {error}') from None
         def git(*args):
             return run('git', *args, cwd=work)
-        remote = git('ls-remote', '--heads', 'origin', f'refs/heads/{branch}')
-        existing = remote.split()[0] if remote else None
-        source = existing or git('rev-parse', '--verify', '--end-of-options', f'origin/{base}^{{commit}}')
+        source = git('rev-parse', '--verify', '--end-of-options', 'HEAD^{commit}')
+        if existing and source != existing:
+            raise ValueError('Stand inzwischen geändert; Sicherung neu lesen und abgleichen')
         if source != expected_head:
             raise ValueError('Stand inzwischen geändert; Sicherung neu lesen und abgleichen')
+        # Symbolische Links im Sicherungspfad schon im Baum erkennen (Sparse-Checkout legt sie sonst nicht an).
+        for line in (git('ls-tree', 'HEAD', '--', 'conversations', f'conversations/{session}').splitlines()
+                     + git('ls-tree', '-r', 'HEAD', '--', f'conversations/{session}').splitlines()):
+            if line.startswith('120000 '):
+                raise ValueError('Sicherungsordner darf kein symbolischer Link sein')
+        git('sparse-checkout', 'set', '--no-cone', f'/conversations/{session}/')
         git('checkout', '--quiet', '--detach', source)
         git('config', 'user.name', author_name)
         git('config', 'user.email', author_email)
@@ -234,10 +255,16 @@ def save(repository, base, session, payload, expected_head, *, github_repo=None,
             raise ValueError('Bestehender Branch enthält keine passende Sitzung')
         if info and (info['base'] != base or info['session'] != session):
             raise ValueError('Sitzung oder Zielbasis stimmt nicht überein')
+        known_pr = None
         if info and github_repo:
             prs = session_prs(github_repo, branch, work)
             if len(prs) > 1 or any(p['state'] != 'OPEN' or p['baseRefName'] != base for p in prs):
                 raise ValueError('Sitzung abgeschlossen oder PR uneindeutig; neue Sitzung verwenden')
+            known_pr = prs[0]['url'] if prs else None
+        if inherit:
+            if not info:
+                raise ValueError('Erste Antwort einer Sitzung braucht context (Buch bzw. Programm)')
+            payload = {**payload, 'context': info['context']}
         if info and info['context'] != payload['context']:
             raise ValueError('Sitzungskontext geändert; neue Sitzung verwenden')
         if not info:
@@ -245,7 +272,7 @@ def save(repository, base, session, payload, expected_head, *, github_repo=None,
                     'source_commit': source, 'context': payload['context']}
         if incremental:
             return append_answer(work, root, info, payload, existing, branch, session,
-                                 github_repo, base, origin, now)
+                                 github_repo, base, origin, now, known_pr)
         # Auch kleine Antwortnachträge gehören zum bisherigen Gesprächsstand.
         pending = sorted((root / 'answers').glob('*.json'))
         included = info.get('snapshot_answers', [])
@@ -347,7 +374,7 @@ def read_topics(root, info):
     return topics
 
 
-def append_answer(work, root, info, payload, existing, branch, session, github_repo, base, origin, now):
+def append_answer(work, root, info, payload, existing, branch, session, github_repo, base, origin, now, known_pr=None):
     """Nur den neuen Frage-Antwort-Schritt übertragen; kein Verlaufssnapshot."""
     def git(*args):
         return run('git', *args, cwd=work)
@@ -406,7 +433,8 @@ def append_answer(work, root, info, payload, existing, branch, session, github_r
               'pr': None}
     if github_repo:
         try:
-            result['pr'] = open_pr(github_repo, base, branch, session, work)
+            # Der PR wurde vor dem Schreiben schon geprüft; nur beim ersten Schritt anlegen (#314).
+            result['pr'] = known_pr or open_pr(github_repo, base, branch, session, work)
         except (ValueError, KeyError, TypeError) as error:
             result.update(status='remote_saved_pr_pending', warning='Inhalte gesichert; PR noch nicht bestätigt.')
             result['cause'] = reason(error)
@@ -597,9 +625,17 @@ def validate_review(payload, review, *, answer=False):
             raise ValueError('Antwortsicherung braucht die letzte Benutzerantwort als belegten aktuellen Beitrag')
 
 
+ANSWER_COVERAGE = {'description': 'Gestellte Frage und Antwort dieses Schritts im Wortlaut', 'gaps': []}
+
+
 def answer_checkpoint(repository, base, session, payload, expected_head, review, **kwargs):
-    """Ausgewertete Antwort vor sichtbarer Folgeantwort sichern, auch bei offenen Fragen."""
-    validate_review(payload, review, answer=True)
+    """Ausgewertete Antwort vor sichtbarer Folgeantwort sichern, auch bei offenen Fragen.
+
+    Kurzform (#314): `context` darf ab dem zweiten Schritt fehlen (kommt aus der Sitzung),
+    `coverage` fehlt → Wortlaut von Frage und Antwort ohne bekannte Lücken, `topics` darf fehlen."""
+    payload = {'coverage': ANSWER_COVERAGE, 'topics': {}, **payload}
+    check = payload if payload.get('context') is not None else {**payload, 'context': {'project': '(aus der Sitzung)'}}
+    validate_review(check, review, answer=True)
     enriched = {**payload, 'topics': {**payload['topics'], 'section_answer': canonical(review)}}
     result = save(repository, base, session, enriched, expected_head, atomic=True, incremental=True, **kwargs)
     result.update(trigger='section_answer_evaluated', section_id=review['section_id'],
@@ -642,7 +678,8 @@ def main():
     c = sub.add_parser('checkpoint', parents=[s], add_help=False, help='Nach abgeschlossenem Abschnittsdialog automatisch sichern')
     c.add_argument('--review', required=True, help='JSON-Datei mit belegtem Abschluss der besprochenen Punkte')
     q = sub.add_parser('answer-checkpoint', parents=[s], add_help=False, help='Ausgewertete Antwort sofort und vor weiterer Chat-Ausgabe sichern')
-    q.add_argument('--review', required=True, help='JSON-Datei mit answer_message_id und belegtem Fragenstand')
+    q.add_argument('--review', help='JSON-Datei mit answer_message_id und belegtem Fragenstand; '
+                   'fehlt sie, enthält die Eingabe {"payload": …, "review": …} (auch „-“ für stdin, #314)')
     r = sub.add_parser('resume')
     r.add_argument('repository')
     r.add_argument('session')
@@ -657,12 +694,18 @@ def main():
     args = parser.parse_args()
     try:
         if args.action in ('save', 'checkpoint', 'answer-checkpoint'):
-            payload = json.loads(Path(args.input).read_text(encoding='utf-8'))
+            raw = sys.stdin.read() if args.input == '-' else Path(args.input).read_text(encoding='utf-8')
+            payload = json.loads(raw)
+            if args.action == 'answer-checkpoint' and not args.review:
+                if set(payload) != {'payload', 'review'}:
+                    raise ValueError('Ohne --review braucht die Eingabe genau die Felder payload und review')
+                payload, combined_review = payload['payload'], payload['review']
             options = dict(github_repo=args.github_repo, author_name=args.author_name, author_email=args.author_email,
                            origin={'device': args.device, 'os': args.os_name, 'client': args.client,
                                    'client_version': args.client_version})
             if args.action in ('checkpoint', 'answer-checkpoint'):
-                review = json.loads(Path(args.review).read_text(encoding='utf-8'))
+                review = (combined_review if args.action == 'answer-checkpoint' and not args.review
+                          else json.loads(Path(args.review).read_text(encoding='utf-8')))
                 checkpoint = answer_checkpoint if args.action == 'answer-checkpoint' else section_checkpoint
                 result = checkpoint(args.repository, args.base, args.session, payload, args.expected_head, review, **options)
             else:
