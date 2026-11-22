@@ -81,7 +81,7 @@ If the service does not support image references, say so clearly. Do not claim t
 
 Black-and-white family photos can be colorized without an image model changing faces or shapes. The model only supplies a color proposal. Only its color (channels a/b in Lab) is kept; lightness comes pixel by pixel from the prepared image. Procedure and locks: `START.md`, “Fotos colorieren (#452)”; files: [data model](DATA-MODEL.md#bildordner-und-colorieren-452).
 
-- **With your own Google Gemini access:** workflow “Bild colorieren” (`.github/workflows/colorize.yml`) with the secret `GEMINI_API_KEY`. The chat never reads the key; the workflow sends the image to Google and puts the result into the change package.
+- **With your own Google Gemini access:** workflow “Bild colorieren” (`.github/workflows/colorize.yml`) with the secret `GEMINI_API_KEY`. The chat never reads the key; the workflow sends the image to Google and puts the result into the change package. Every start adds a job to the background queue (#479): ten photos in the evening all get colorized, one after another.
 - **With another image service in the chat:** apply its proposal with `scripts/colorize.py --proposal`.
 - **Locked:** images showing children or teenagers (`minderjaehrige` must be explicitly `false`) and documents (`art` only `foto` or `foto-vom-foto`). These are never sent to an external service.
 - **Case-by-case exception:** an image showing children (`minderjaehrige: true`) can only be colorized with an explicit exception (`--minors-exception`, workflow input `minors_exception`) when the people shown or their family agree. `bild.yml` stays unchanged; the entry under `bearbeitung` records the exception. There is no exception for documents.
