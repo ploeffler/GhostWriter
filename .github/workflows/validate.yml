@@ -99,7 +99,8 @@ jobs:
              && [ -n "$run" ] \
              && [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq .conclusion 2>/dev/null)" = "success" ]; then
             printf 'mode=skip\ntests=\nsatz=0\n' >> "$GITHUB_OUTPUT"
-            echo "Tests übersprungen: Baum $tree schon geprüft im Lauf https://github.com/$GITHUB_REPOSITORY/actions/runs/$run" | tee -a "$GITHUB_STEP_SUMMARY"
+            msg="Tests übersprungen: Baum $tree schon geprüft im Lauf https://github.com/$GITHUB_REPOSITORY/actions/runs/$run"
+            echo "$msg"; echo "$msg" >> "$GITHUB_STEP_SUMMARY"
           elif [ -n "$PR" ] && [ -f scripts/select_tests.py ] \
              && gh api "$files" --paginate --jq '.[] | select(.status != "removed") | .filename' > /tmp/changed.txt \
              && gh api "$files" --paginate --jq '.[] | select(.status == "removed" or .status == "renamed") | (.previous_filename // .filename)' > /tmp/removed.txt; then
