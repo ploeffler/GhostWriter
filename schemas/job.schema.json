@@ -12,6 +12,8 @@
     "requested_by": {"type": "string", "description": "Herkunft, z. B. chat, web-app, workflow_dispatch oder ein Name"},
     "provider": {"type": "string", "description": "Anbieter für diesen Auftrag; fehlt = Einstellung für die Art"},
     "model": {"type": "string"},
+    "priority": {"type": "boolean", "description": "vorgezogen (#478): läuft vor allen anderen; die Buchreihenfolge gilt nur unter gleichem Rang"},
+    "after": {"type": "string", "description": "erst nach diesem Auftrag (Pfad im Buch oder Dateiname); wartet, bis er erledigt oder fehlgeschlagen ist. Ringe und fehlende Ziele werden ignoriert"},
     "confirm_low_budget": {"type": "boolean", "description": "auch bei KI-Budget unter der Schwelle ausführen"},
     "waiting": {"enum": ["budget"], "description": "wartet auf Bestätigung; mit confirm_low_budget: true läuft er wieder"},
     "error": {"type": "string", "description": "fehlgeschlagen; läuft nicht erneut"},
