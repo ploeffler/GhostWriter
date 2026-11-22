@@ -5,8 +5,13 @@ Spart Actions-Minuten: Ein Pull Request, der nur Doku oder einzelne Skripte änd
 lässt nur die Tests laufen, die diese Dateien betreffen, und installiert die
 Satzpakete (TeX, pandoc) nur, wenn ein ausgewählter Test sie braucht.
 
+START.md, CLAUDE.md, AGENTS.md, Vorlagen unter templates/ und einzelne Workflows
+unter .github/workflows/ bekommen die Tests, die die Datei (oder ihren Ordner als
+Ganzes) nennen, und die Tests der Skripte, die das tun (#485). Nennt sie niemand,
+läuft alles.
+
 Im Zweifel die volle Suite: bei Programmdateien ohne zugeordneten Test, bei
-Workflows, Schemas, Vorlagen, Manifest, START.md, Testdaten und gelöschten Dateien.
+Schemas, Manifest, Testdaten, Starter, Website-Aufbau und gelöschten Dateien.
 Auf dem Standard-Branch läuft die volle Suite, außer derselbe Baum wurde schon im
 Pull Request vollständig geprüft (validate.yml, #485).
 
@@ -23,10 +28,13 @@ ROOT = Path(__file__).resolve().parent.parent
 TESTS = ROOT / 'tests'
 
 # Diese Dateien betreffen Ablauf, Daten oder Verteilung so breit, dass die volle Suite läuft.
-FULL_FILES = {'START.md', 'CLAUDE.md', 'AGENTS.md', 'workflow.yml', 'ghostwriter-manifest.yml',
-              'requirements.txt'}
-FULL_PREFIXES = ('.github/', 'schemas/', 'templates/', 'tests/data/', 'tests/fixtures/', 'testdata/',
+FULL_FILES = {'workflow.yml', 'ghostwriter-manifest.yml', 'requirements.txt'}
+FULL_PREFIXES = ('.github/', 'schemas/', 'tests/data/', 'tests/fixtures/', 'testdata/',
                  'scripts/docsite/', '.claude/', 'starter/')
+# Diese Dateien bekommen die Tests, die sie nennen (#485); nennt sie niemand, läuft alles.
+MAPPED_FILES = {'START.md', 'CLAUDE.md', 'AGENTS.md'}
+MAPPED_PREFIXES = ('templates/', '.github/workflows/')
+SEP = r"""(?:/|['"]\s*[/,]\s*['"])"""   # templates/ui oder 'templates' / 'ui' oder 'templates', 'ui'
 SATZ = re.compile(r'pandoc|xelatex|pdftotext|qpdf')
 DOC_REF = re.compile(r"""docs/|['"]docs['"]""")
 FULL_SHARE = 0.6   # mehr als 60 % der Tests ausgewählt: gleich alles
@@ -62,6 +70,30 @@ def importers(module, scripts=None):
     return found
 
 
+def mention_patterns(path):
+    """Muster für Code, der die Datei nennt oder ihren Ordner als Ganzes durchläuft."""
+    parts = path.split('/')
+    joined = lambda seg: SEP.join(re.escape(x) for x in seg)
+    # nur als Zeichenkette im Code ('START.md', ROOT / 'templates' / 'ui'), nicht in Hilfetexten
+    pats = [re.compile(rf"""['"]{joined(parts)}['"]""")]
+    for k in range(len(parts) - 1, 0, -1):   # Ordner: nur wenn er als Ganzes durchlaufen wird
+        pats.append(re.compile(rf"""['"]{joined(parts[:k])}['"]\s*\)?\s*(?:\.\s*r?glob|\.iterdir)"""))
+    return pats
+
+
+def mentioned_by(path, files, scripts=None):
+    """Tests, die die Datei nennen, und Tests der Skripte (samt Importeuren), die sie nennen."""
+    scripts = sorted((ROOT / 'scripts').glob('*.py')) if scripts is None else scripts
+    pats = mention_patterns(path)
+    hit = lambda f: any(p.search(f.read_text(encoding='utf-8')) for p in pats)
+    found = {f.stem for f in files if hit(f)}
+    for script in scripts:
+        if hit(script):
+            for module in importers(script.stem, scripts):
+                found |= users_of(module, files)
+    return found
+
+
 def is_doc(path):
     return path.endswith(('.md', '.svg', '.png', '.jpg')) and '/' not in path.strip('/') \
         or path.startswith(('docs/', 'assets/'))
@@ -76,9 +108,15 @@ def select(changed, removed=(), files=None):
     chosen = set()
     for path in changed:
         name = Path(path).name
-        if path in FULL_FILES or path.startswith(FULL_PREFIXES):
+        if path in MAPPED_FILES or (path.startswith(MAPPED_PREFIXES) and path.count('/') >= 1
+                                    and not (path.startswith('.github/') and path.count('/') != 2)):
+            users = mentioned_by(path, files)
+            if not users:
+                return 'full', [], True
+            chosen |= users
+        elif path in FULL_FILES or path.startswith(FULL_PREFIXES):
             return 'full', [], True
-        if path.startswith('tests/') and name.startswith('test_') and name.endswith('.py'):
+        elif path.startswith('tests/') and name.startswith('test_') and name.endswith('.py'):
             chosen.add(Path(path).stem)
         elif path.startswith('scripts/') and path.endswith('.py') and path.count('/') == 1:
             stem = Path(path).stem

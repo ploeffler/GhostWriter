@@ -43,6 +43,27 @@ class SelectTestsTest(unittest.TestCase):
             self.assertEqual(self.sel(changed)[0], 'full', changed)
         self.assertEqual(self.sel([f'{DOCS}/a.md'], removed=['scripts/tool.py'])[0], 'full')
 
+    def test_mapped_files_run_the_tests_that_name_them(self):
+        """#485: START.md, Vorlagen und einzelne Workflows nicht mehr pauschal voll."""
+        (self.tmp / 'test_start.py').write_text("ROOT / 'START.md'\n", encoding='utf-8')
+        (self.tmp / 'test_vorlage.py').write_text("ROOT / 'templates' / 'zz' / 'neu.md'\n", encoding='utf-8')
+        (self.tmp / 'test_wf.py').write_text("(ROOT / '.github' / 'workflows').glob('*.yml')\n", encoding='utf-8')
+        (self.tmp / 'test_prosa.py').write_text('# siehe templates/zz/alt.md\n', encoding='utf-8')
+        for i in range(5, 12):
+            (self.tmp / f'test_other{i}.py').write_text('pass\n', encoding='utf-8')
+        self.files = sorted(self.tmp.glob('test_*.py'))
+        self.assertEqual(self.sel(['START.md']), ('subset', ['test_start'], False))
+        self.assertEqual(self.sel(['templates/zz/neu.md']), ('subset', ['test_vorlage'], False))
+        self.assertEqual(self.sel(['.github/workflows/zz-neu.yml']), ('subset', ['test_wf'], False))
+        # nur im Kommentar genannt, Unterordner von .github außerhalb der Workflows: weiter voll
+        self.assertEqual(self.sel(['templates/zz/alt.md'])[0], 'full')
+        self.assertEqual(self.sel(['.github/ISSUE_TEMPLATE/x.md'])[0], 'full')
+
+    def test_real_repository_start_change_is_small(self):
+        mode, tests, _ = select_tests.select(['START.md'])
+        self.assertEqual(mode, 'subset')
+        self.assertIn('test_check_docs', tests)
+
     def test_large_selection_becomes_full(self):
         changed = [f'tests/test_other{i}.py' for i in range(5)]
         self.assertEqual(self.sel(changed)[0], 'full')

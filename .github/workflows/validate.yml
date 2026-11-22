@@ -82,6 +82,7 @@ jobs:
       - name: Testumfang bestimmen
         # Pull Requests: nur die Tests zu den geänderten Dateien, Satzpakete nur bei Bedarf (#439).
         # Im Zweifel und auf dem Standard-Branch: alle Tests (scripts/select_tests.py).
+        # START.md, Vorlagen und einzelne Workflows: die Tests, die sie nennen (#485).
         if: steps.kind.outputs.program == '1'
         id: scope
         env:
