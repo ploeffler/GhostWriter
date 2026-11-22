@@ -7,7 +7,8 @@ Satzpakete (TeX, pandoc) nur, wenn ein ausgewählter Test sie braucht.
 
 Im Zweifel die volle Suite: bei Programmdateien ohne zugeordneten Test, bei
 Workflows, Schemas, Vorlagen, Manifest, START.md, Testdaten und gelöschten Dateien.
-Auf dem Standard-Branch läuft immer die volle Suite (validate.yml).
+Auf dem Standard-Branch läuft die volle Suite, außer derselbe Baum wurde schon im
+Pull Request vollständig geprüft (validate.yml, #485).
 
   python scripts/select_tests.py --files <datei-mit-pfaden> [--removed <datei>] [--github-output <datei>]
 
