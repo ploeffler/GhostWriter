@@ -234,6 +234,9 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn('secrets[steps.provider.outputs.secret]', text)
         self.assertNotIn('toJSON(secrets)', text)
         self.assertIn('scripts/limits.py . check', text)
+        # Skripte vom Buch-Branch, nicht vom veralteten Arbeits-Branch
+        self.assertIn('git restore --source="origin/$book" --worktree -- scripts providers.yml', text)
+        self.assertIn('git restore --source=HEAD --staged --worktree -- scripts providers.yml', text)
 
     def test_workflow_python_snippets_run(self):
         # Die Einzeiler im Schritt „Buch und Arbeits-Branch“ wirklich ausführen (Fehler in YAWA, #462)
