@@ -68,7 +68,7 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           if [ "$EVENT" = "push" ]; then
-            book=$(python -c "import sys; sys.path.insert(0, 'scripts'); import library; p = library.settings()['work_prefix']; b = sys.argv[1]; print(b[len(p):] if b.startswith(p) else '')" "$GITHUB_REF_NAME")
+            book=$(python -c "import sys; sys.path.insert(0, 'scripts'); import library; p = library.settings(library.load_manifest())['work_prefix']; b = sys.argv[1]; print(b[len(p):] if b.startswith(p) else '')" "$GITHUB_REF_NAME")
             work="$GITHUB_REF_NAME"
           else
             book="$GITHUB_REF_NAME"
