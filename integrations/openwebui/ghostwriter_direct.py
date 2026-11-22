@@ -1,7 +1,7 @@
 """
 title: GhostWriter Direkt
 description: Start und Bibliothek direkt ausführen, Gespräch an das Basismodell weitergeben.
-version: 1.9.2
+version: 1.10.0
 required_open_webui_version: 0.13.0
 requirements: pydantic
 """
@@ -175,7 +175,7 @@ def openwebui_report(payload, origins=None):
               'top_p', 'top_k', 'num_ctx', 'max_tokens', 'seed', 'stop', 'response_format'}
     visible = {key: value for key, value in payload.items() if key in fields}
     result = report(request_plan(visible, 'openwebui-pipe'), visible)
-    allowed = {'openwebui.input.messages', 'read_start_md.content', 'pipe.current_context'}
+    allowed = {'openwebui.input.messages', 'read_start_md.content', 'pipe.current_context', 'pipe.view_shortened'}
     for row in result['components']:
         match = row['source'].removeprefix('$.messages[').removesuffix(']')
         label = origins[int(match)] if match.isdigit() and origins and int(match) < len(origins) else None
@@ -314,8 +314,8 @@ class Pipe:
 
     def _navigation_diagnostic(self, tools):
         lines = [self._text("### Navigation prüfen", "### Check navigation"), "",
-                 self._text("Direkt-Pipe: 1.9.2. Prüfung ohne Modell- oder GitHub-Aufruf.",
-                            "Direct pipe: 1.9.2. Check without model or GitHub calls."), ""]
+                 self._text("Direkt-Pipe: 1.10.0. Prüfung ohne Modell- oder GitHub-Aufruf.",
+                            "Direct pipe: 1.10.0. Check without model or GitHub calls."), ""]
         try:
             functions = self._functions(tools)
         except ValueError as error:
@@ -552,6 +552,53 @@ class Pipe:
                 return None
         return None
 
+    STATUS_TOPIC = re.compile(
+        r"status|zust[aä]nd|freigeb|freigab|abschlie(?:ß|ss)|abgeschlossen|fertig|übernehm|uebernehm|bereit|voraussetz|"
+        r"wieder öffnen|wieder oeffnen|approv|finali[sz]|transition|requir|prerequisit|ready|state", re.I)
+
+    def _model_facts(self, command, facts):
+        """Statusregeln nur mitschicken, wenn die Frage danach klingt, und nur für die gezeigte Einheit (#285).
+
+        `_status_answer` bekommt weiter die vollständigen Fakten."""
+        rules = facts.get("status_rules")
+        if not isinstance(rules, dict):
+            return facts
+        trimmed = {k: v for k, v in facts.items() if k != "status_rules"}
+        if not self.STATUS_TOPIC.search(command):
+            return trimmed
+        entity = "section" if facts.get("level") == "section" else "chapter" if facts.get("level") in ("chapter", "book") else None
+        trimmed["status_rules"] = {entity: rules[entity]} if entity in rules else rules
+        return trimmed
+
+    def _pipe_views(self, body, scope):
+        """Positionen der Assistentenantworten, die die Pipe als Ansicht erzeugt hat (gespeicherte Quittung)."""
+        if not scope:
+            return []
+        messages = body.get("messages", [])
+        keys = {i: self._view_key(messages[:i + 1]) for i, m in enumerate(messages)
+                if isinstance(m, dict) and m.get("role") == "assistant"}
+        if not keys:
+            return []
+        try:
+            db = self._state()
+            try:
+                stored = {row[0] for row in db.execute(
+                    "SELECT view_key FROM views WHERE scope=? AND view_key IN (%s)" % ",".join("?" * len(keys)),
+                    (scope, *keys.values()))}
+            finally:
+                db.close()
+        except (OSError, sqlite3.Error):
+            return []   # Kürzen ist nur eine Ersparnis; ohne Speicher bleibt der Verlauf vollständig.
+        return [i for i, key in keys.items() if key in stored]
+
+    @staticmethod
+    def _view_stub(content):
+        """Eine Zeile statt der ganzen alten Ansicht, z. B. „[GhostWriter-Ansicht: Kapitel 8 · Die Verhandlung]“."""
+        text = re.sub(r"\n*<!-- ghostwriter-nav:[A-Za-z0-9_.-]+ -->", "", content if isinstance(content, str) else "")
+        first = next((line.strip().lstrip("#").strip().strip("*").strip() for line in text.splitlines() if line.strip()), "")
+        first = first if len(first) <= 80 else first[:77].rstrip() + "…"
+        return "[GhostWriter-Ansicht: " + (first or "–") + "]"
+
     def _status_answer(self, command, facts):
         """Statusauskünfte aus echten Regeln beantworten, ohne generiertes Modellwissen."""
         if not re.search(r"\b(?:status(?:werte?n?|es)?|zust[aä]nd\w*|states?)\b", command):
@@ -673,7 +720,8 @@ class Pipe:
                   'assistant': self._text('Assistent', 'Assistant'), 'tools': self._text('Werkzeuge', 'Tools')}
         origins = {'openwebui.input.messages': self._text('Vom Chat übergeben', 'Supplied by chat'),
                    'read_start_md.content': self._text('Geladene Startanweisungen', 'Loaded startup instructions'),
-                   'pipe.current_context': self._text('Aktueller Kontext und Gesprächsregeln', 'Current context and conversation rules')}
+                   'pipe.current_context': self._text('Aktueller Kontext und Gesprächsregeln', 'Current context and conversation rules'),
+                   'pipe.view_shortened': self._text('Ansicht gekürzt', 'View shortened')}
         for row in profile['components']:
             origin = origins.get(row.get('origin'), self._text('Unbekannt', 'Unknown'))
             lines.append(f"| {row['position'] + 1} | {labels.get(row['kind'], self._text('Weitere', 'Other'))} | {origin} | ~{row['estimated_tokens']} |")
@@ -798,6 +846,7 @@ class Pipe:
             payload["messages"] = [dict(message) for message in body.get("messages", [])]
             origin_labels = [{"source": "openwebui.input.messages", "position": i}
                              for i in range(len(payload["messages"]))]
+            shorten = self._pipe_views(body, scope)
             source = startup.get("content")
             if isinstance(source, str) and source.strip():
                 instructions = {"role": "system", "content": "GhostWriter-Projektanweisungen (intern):\n" + source}
@@ -822,6 +871,16 @@ class Pipe:
             status_answer = self._status_answer(command, facts)
             if status_answer is not None:
                 return status_answer
+            # Alte Ansichten der Pipe im Verlauf kürzen (#285). Nur die Kopie an das Modell, nicht den
+            # gespeicherten Chat und nicht die Schlüssel der Quittungen. Die jüngste Ansicht bleibt ganz,
+            # außer bei einer Abschnittsansicht: deren Text steht ohnehin im Kontextblock.
+            if shorten and not (current and facts.get("level") == "section"):
+                shorten = shorten[:-1]
+            offset = 1 if origin_labels and origin_labels[0].get("source") == "read_start_md.content" else 0
+            for index in shorten:
+                message = payload["messages"][index + offset]
+                payload["messages"][index + offset] = {**message, "content": self._view_stub(message.get("content"))}
+                origin_labels[index + offset] = {"source": "pipe.view_shortened", "position": index}
             instructions = self._text(
                 "Du bist GhostWriter, der Schreibassistent. Antworte auf Deutsch, sofern der Benutzer keine andere Sprache wünscht. "
                 "In diesem Gesprächspfad lieferst du ausschließlich eine Textantwort aus dem bereits geladenen Kontext. "
@@ -867,7 +926,7 @@ class Pipe:
                 (" Extended answers: state technical details such as reading branch, file and status IDs."
                  if modes["answers"] == "extended" else ""))
             context_message = {"role": "system", "content": instructions +"\n\nAktueller Kontext / Current context:\n" +
-                               json.dumps(facts, ensure_ascii=False)}
+                               json.dumps(self._model_facts(command, facts), ensure_ascii=False)}
             if current and facts.get("level") == "section":
                 # Genau der ausgewählte Abschnitt; niemals ein Kapitel-Manuskript.
                 context_message["content"] += "\n\nAusgewählter Abschnitt / Selected section (data):\n" + re.sub(

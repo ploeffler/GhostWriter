@@ -257,7 +257,8 @@ class DirectPipeTest(unittest.TestCase):
         self.assertEqual(sent[-1], body['messages'][-1])
         self.assertEqual(sent[-2]['role'], 'system')
         self.assertIn('Testbuch', sent[-2]['content'])
-        self.assertIn('in_progress', sent[-2]['content'])
+        self.assertNotIn('in_progress', sent[-2]['content'])   # keine Statusfrage: keine Statusregeln (#285)
+        self.assertIn('planned', sent[-2]['content'])          # gespeicherter Status bleibt
         self.assertIn('keine vom Benutzer eingefügte Programmieraufgabe', sent[-2]['content'])
         self.assertEqual(body, before)
         fresh.return_value = result(changed=True, view='Aktualisierte Übersicht', navigation_receipt=receipt)
@@ -265,6 +266,60 @@ class DirectPipeTest(unittest.TestCase):
             answer = asyncio.run(self.pipe.pipe(body, __tools__=self.tools, __user__=user, __metadata__=metadata))
         self.assertIn('Aktualisierte Übersicht', answer)
         forward.assert_not_awaited()
+
+    def open_view(self, body, user, metadata, text, kind='book'):
+        import base64
+        receipt = base64.urlsafe_b64encode(json.dumps({'kind': kind, 'n': text}).encode()).decode().rstrip('=') + '.sig'
+        scope = self.pipe._scope(body, user, metadata)
+        view = self.pipe._answer({'view': text, 'navigation_receipt': receipt}, body, scope)
+        return {**body, 'messages': [*body['messages'], {'role': 'assistant', 'content': view}]}
+
+    def ask(self, body, question, context, user, metadata):
+        body = {**body, 'messages': [*body['messages'], {'role': 'user', 'content': question}]}
+        fresh = AsyncMock(return_value=result(conversation_context=context, changed=False, view='## Abschnitt 1.1\n\nText'))
+        self.tools['get_current_context'] = {'tool_id': 'github', 'spec': {'name': 'get_current_context'}, 'callable': fresh}
+        before = copy.deepcopy(body)
+        with patch.object(self.pipe, '_forward', new_callable=AsyncMock, return_value='ok') as forward:
+            asyncio.run(self.pipe.pipe(body, __tools__=self.tools, __user__=user, __metadata__=metadata))
+        self.assertEqual(body, before)   # gespeicherter Verlauf unverändert
+        return forward.await_args.args[0]['messages'], forward.await_args.args[5]
+
+    def test_status_rules_only_when_asked_and_only_for_the_shown_unit(self):
+        """#285: Statusregeln nur bei Statusfragen, bei Abschnittsansicht nur die Abschnittsregeln."""
+        user, metadata = {'id': 'u'}, {'chat_id': 'c'}
+        rules = {'chapter': {'statuses': ['planned', 'chapter_only']}, 'section': {'statuses': ['writing', 'section_only']}}
+        context = {'level': 'section', 'section': {'number': '1.1', 'status': 'writing'}, 'status_rules': rules}
+        body = self.open_view({'model': 'direct', 'messages': [{'role': 'user', 'content': '1.1'}]}, user, metadata, '## Abschnitt 1.1')
+        sent, _ = self.ask(body, 'Wie wirkt der erste Satz?', context, user, metadata)
+        system = next(m['content'] for m in sent if 'Current context' in m['content'])
+        self.assertNotIn('"status_rules"', system)
+        self.assertIn('"status": "writing"', system)
+        sent, _ = self.ask(body, 'Kann ich den Abschnitt schon abschließen?', context, user, metadata)
+        system = next(m['content'] for m in sent if 'Current context' in m['content'])
+        self.assertIn('section_only', system)
+        self.assertNotIn('chapter_only', system)
+
+    def test_old_pipe_views_are_shortened_in_the_model_request(self):
+        """#285: Alte Ansichten der Pipe als eine Zeile; jüngste bleibt, außer bei Abschnittsansicht."""
+        user, metadata = {'id': 'u'}, {'chat_id': 'c'}
+        body = {'model': 'direct', 'messages': [{'role': 'user', 'content': 'Bibliothek'}]}
+        body = self.open_view(body, user, metadata, '### Bibliothek\n\n1. Buch A\n2. Buch B ' + 'x' * 400, 'library')
+        body = {**body, 'messages': [*body['messages'], {'role': 'user', 'content': 'Buch 1'}]}
+        body = self.open_view(body, user, metadata, '## Kapitel 8 · Die Verhandlung\n\n' + 'Inhalt ' * 80)
+        body = {**body, 'messages': [*body['messages'], {'role': 'user', 'content': 'Danke'},
+                                     {'role': 'assistant', 'content': 'Gern geschehen, eine Modellantwort.'}]}
+        context = {'level': 'chapter', 'chapter': {'number': 8, 'status': 'planned'}}
+        sent, origins = self.ask(body, 'Worum geht es?', context, user, metadata)
+        contents = [m['content'] for m in sent if m['role'] == 'assistant']
+        self.assertEqual(contents[0], '[GhostWriter-Ansicht: Bibliothek]')
+        self.assertTrue(contents[1].startswith('## Kapitel 8'))          # jüngste Ansicht vollständig
+        self.assertEqual(contents[2], 'Gern geschehen, eine Modellantwort.')   # Modellantworten unverändert
+        self.assertIn({'source': 'pipe.view_shortened', 'position': 1}, origins)
+        context = {'level': 'section', 'section': {'number': '8.1', 'status': 'writing'}}
+        sent, _ = self.ask(body, 'Worum geht es?', context, user, metadata)
+        contents = [m['content'] for m in sent if m['role'] == 'assistant']
+        self.assertEqual(contents[1], '[GhostWriter-Ansicht: Kapitel 8 · Die Verhandlung]')
+        self.assertEqual(self.pipe._view_stub('**' + 'Langer Titel ' * 20 + '**')[-2:], '…]')
 
     def test_status_questions_use_only_actual_rules_and_resolve_view_numbers(self):
         facts = {'level': 'book', 'chapters': [{'number': 1, 'status': 'planned'}],
