@@ -23,7 +23,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 TEMPLATES = ['buecherregal', 'projektuebersicht', 'kapitelansicht', 'abschnitt-bearbeiten', 'aenderungen-uebernehmen',
              'freigabe-bestaetigen', 'kapitel-anlegen', 'kapitel-bearbeiten', 'abschnitt-anlegen', 'reihenfolge',
-             'projektdaten-bearbeiten', 'daten']
+             'projektdaten-bearbeiten', 'daten', 'figuren', 'figur-bearbeiten', 'figuren-vorschlag', 'hinweisdurchsicht']
 KEY_RE = re.compile(r'(?:ui|status|runtime)\.[a-z0-9_]+')
 
 

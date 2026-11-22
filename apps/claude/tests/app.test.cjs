@@ -58,7 +58,16 @@ const mcp = {callTool: async (srv, tool, input) => {
   if (WRITES.includes(tool)){ if (tool === "push_files") pushes.push(input); return {content: []}; }
   throw {code: "tool_error", message: "im Test nicht nachgebildet: " + tool};
 }};
+let suggestPrompt = null;
 const sample = async (hist, o) => {
+  if (/schlägst Figuren vor/.test((hist[0] || {}).content || "")){   // Figuren aus dem Text: Antwort nachgestellt, Zitat aus dem echten Text
+    suggestPrompt = hist[0].content;
+    const body = suggestPrompt.split(/TEXT \(Teil[^\n]*\n\n/)[1] || "", mm = /### (\d+\.\d+) [^\n]*\n\n([^\n]{40,})/.exec(body), key = mm ? mm[1] : "1.1", quote = mm ? mm[2].slice(0, 30) : "";
+    const t = "```json\n" + JSON.stringify({items: [
+      {name: "Anna", aliases: [], role: "main", short: "Andere Zeile", age: "34", traits: [], sections: [key], evidence: [{where: key, quote}]},
+      {name: "Clara", aliases: ["Frau K."], role: "supporting", short: "Nachbarin", age: "", traits: ["laut"], relations: [{to: "Anna", kind: "Freundin"}], sections: [key], evidence: [{where: key, quote}, {where: key, quote: "ein erfundenes Zitat, das nirgends steht"}]}]}) + "\n```";
+    o.onText({text: t}); return {text: t};
+  }
   const t = 'Vorschlag.\n<<<AKTION {"action":"view.project","label":"Zur Übersicht"} AKTION>>>\n<<<AKTION {"action":"approval.confirm","label":"Direkt freigeben"} AKTION>>>';
   o.onText({text: t}); return {text: t};
 };
@@ -188,6 +197,97 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
   fake[`${dir}/run-099.md`] = `---\nid: run-099\ntype: research\nsection_id: ${sec.id}\nweb_research: true\nsearches: 4\nsources: 7\ncost: 0.01\nrequest: ${mineName}\n---\n\n# Recherchelauf 099\n`;
   t1 = await checkNow();
   ok(/Fertig:.*run-099.*7 Quellen/.test(t1) && /Fehlgeschlagen/.test(t1), "Nachsehen: fertiger Auftrag mit Laufdatei, übrige Zustände bleiben sichtbar");
+
+  // Figuren: die Bibliothek hat (noch) keine, deshalb nachgebildet über den echten ghostwriter.yml
+  {
+    const realGy = Buffer.from(gh(`repos/${REPO}/contents/ghostwriter.yml?ref=${encodeURIComponent(BOOK)}`).content, "base64").toString();
+    const withChars = realGy.replace(/^characters:.*\n(?:(?:[ -].*|)\n)*/m, "").replace(/^structure:/m,
+      `characters:\n- id: char-anna\n  name: Anna\n  path: characters/char-anna.md\n- id: char-bruno\n  name: Bruno\n  path: characters/char-bruno.md\nstructure:`);
+    const secOne = w.__S().struct[0].sections[0];
+    fake["ghostwriter.yml"] = withChars;
+    fake["characters/char-anna.md"] = '---\nid: char-anna\nname: Anna\nrole: main\nshort: Erzählerin\ntraits:\n- ruhig\nrelations:\n- to: char-bruno\n  kind: Bruder\n---\n\n# Anna\n\n## Beschreibung\n\nLangtext\n\n## Notizen\n\nNotiz\n';
+    fake["characters/char-bruno.md"] = '---\nid: char-bruno\nname: Bruno\nrole: supporting\n---\n\n# Bruno\n\n## Beschreibung\n\n<Wer ist die Figur?>\n\n## Notizen\n';
+    await send("x\n\n`gw:library.book.open branch=" + BOOK + "`");
+    ok(await until(() => d.querySelector("#gw [data-id^='ch-']"), 600) && !!d.getElementById("gw-chars"), "Projektübersicht: Knopf „Figuren (2)“");
+    await send("x\n\n`gw:view.characters`");
+    ok(d.querySelectorAll("#gw .gw-ch[data-id]").length === 2 && /Hauptfigur/.test(d.getElementById("gw-figuren").textContent) && /Erzählerin/.test(d.getElementById("gw-figuren").textContent), "Figurenliste mit Rolle und Satz");
+    await send("x\n\n`gw:view.character character_id=char-anna`");
+    ok(d.getElementById("f-name").value === "Anna" && d.getElementById("f-short").value === "Erzählerin" && /Langtext/.test(d.getElementById("f-desc").value) && d.querySelectorAll(".gw-rel").length === 1, "Figurenformular mit Feldern und Beziehung");
+    n = pushes.length;
+    d.getElementById("f-short").value = "Neuer Satz";
+    d.getElementById("gw-save").click(); await sleep(300); await idle();
+    const pf = pushes.length > n && lastPush("figur-bearbeiten");
+    const af = pf && pf.files.find(f => f.path === "characters/char-anna.md");
+    ok(pf && paths(pf).join() === "characters/char-anna.md" && /short: Neuer Satz/.test(af.content) && /^# Anna$/m.test(af.content) && /## Beschreibung\n\nLangtext\n/.test(af.content) && /kind: Bruder/.test(af.content),
+       "Figur speichern: nur die Figurendatei, Beschreibung und Beziehung bleiben");
+    n = pushes.length;
+    await send(gwa("character.update", {character_id: "char-anna", name: "Anna Neu", role: "main"}));
+    const pr2 = pushes.length > n && lastPush("figur-umbenannt");
+    const gy2 = pr2 && pr2.files.find(f => f.path === "ghostwriter.yml");
+    ok(pr2 && gy2 && /- id: char-anna\n  name: "Anna Neu"\n  path: characters\/char-anna\.md/.test(gy2.content) && /id: char-bruno/.test(gy2.content) && gy2.content.includes(withChars.slice(withChars.indexOf("structure:"))),
+       "Figur umbenennen: Name auch in ghostwriter.yml, Gliederung unverändert");
+    n = pushes.length;
+    await send(gwa("character.create", {name: "Ben Müller", role: "supporting"}));
+    const pn = pushes.length > n && lastPush("figur-anlegen");
+    const gy3 = pn && pn.files.find(f => f.path === "ghostwriter.yml"), nf = pn && pn.files.find(f => f.path === "characters/char-ben-mueller.md");
+    ok(pn && gy3 && nf && /id: char-ben-mueller/.test(gy3.content) && /^role: supporting$/m.test(nf.content) && /^# Ben Müller$/m.test(nf.content), "Figur anlegen: neue Datei und Eintrag in ghostwriter.yml");
+    // Figuren aus dem Text vorschlagen und übernehmen
+    await send(gwa("character.suggest", {scope: "book"}));
+    ok(await until(() => d.getElementById("gw-fv"), 120) && d.querySelectorAll("#gw-fv .card").length === 2, "Vorschlag: zwei Figuren aus dem Text");
+    const fv = d.getElementById("gw-fv").textContent; if (process.env.GW_DEBUG) console.log("FV:", fv.replace(/\s+/g, " ").slice(0, 600));
+    ok(/schon da: Anna/.test(fv) && [...d.querySelectorAll("#gw-fv .nm")].some(i => i.value === "Clara") && !/erfundenes Zitat/.test(fv), "Vorschlag: bekannte Figur erkannt, nicht belegte Fundstelle verworfen");
+    n = pushes.length;
+    d.getElementById("gw-apply").click(); await sleep(400); await idle();
+    const pv = pushes.length > n && lastPush("figuren-vorschlag");
+    const fc = pv && pv.files.find(f => f.path === "characters/char-clara.md"), fa = pv && pv.files.find(f => f.path === "characters/char-anna.md"), gv = pv && pv.files.find(f => f.path === "ghostwriter.yml"), fs1 = pv && pv.files.find(f => /sections\//.test(f.path));
+    ok(pv && /\(1 neu, 1 ergänzt\)/.test(pv.message) && fc && /role: supporting/.test(fc.content) && /to: char-anna/.test(fc.content) && /kind: Freundin/.test(fc.content), "Übernehmen: neue Figur mit Beziehung");
+    ok(fa && /age: '?34'?/.test(fa.content) && /short: Erzählerin/.test(fa.content) && !/Andere Zeile/.test(fa.content), "Übernehmen: bekannte Figur nur in leeren Feldern ergänzt");
+    if (process.env.GW_DEBUG) console.log("PV:", pv && pv.files.map(f => f.path).join(", "));
+    ok(gv && /id: char-clara/.test(gv.content) && fs1 && /^characters: \[[^\]]*char-clara[^\]]*\]$/m.test(fs1.content), "Übernehmen: Liste in ghostwriter.yml und Zuordnung im Abschnittskopf");
+    n = pushes.length;
+    await send(gwa("character.create", {name: "bruno", role: "main"}));
+    ok(pushes.length === n && /gibt es schon/.test(note()), "Figur anlegen: doppelter Name wird abgelehnt");
+  }
+
+  // Hinweisdurchsicht: nur wenn das Buch eine hat (z. B. GW_BOOK=buch/krimi-sinabelkirchen)
+  {
+    let rev = []; try { rev = gh(`repos/${REPO}/contents/editorial?ref=${encodeURIComponent(BOOK)}`).filter(f => /^durchsicht-.+\.yml$/.test(f.name)).map(f => f.name); } catch (e) {}
+    if (!rev.length) console.log("  –    keine Hinweisdurchsicht im Buch, nicht geprüft");
+    else {
+      const key = f => { const m = /^durchsicht-(.+?)(?:-(\d+))?\.yml$/.exec(f); return [m[1], +(m[2] || 1)]; };   // wie hinweise.dialog_order
+      const file = "editorial/" + rev.sort((a, b) => { const p = key(a), q = key(b); return p[0] < q[0] ? -1 : p[0] > q[0] ? 1 : p[1] - q[1]; }).pop();
+      const orig = Buffer.from(gh(`repos/${REPO}/contents/${file}?ref=${encodeURIComponent(BOOK)}`).content, "base64").toString(), yaml = require("js-yaml");
+      const ents = dt => [...(dt.ohne_autor || []), ...(dt.autorenentscheidung || [])], od = yaml.load(orig), open = ents(od).filter(e => (e.entscheidung || "offen") === "offen" && !e.umgesetzt); if (process.env.GW_DEBUG) console.log("REVFILE:", file, ents(od).length, open.length);
+      await send("x\n\n`gw:library.book.open branch=" + BOOK + "`");
+      ok(await until(() => d.querySelector("#gw [data-id^='ch-']"), 600) && await until(() => d.querySelector("[data-act=review]"), 40), "Projektübersicht: Karte „Hinweisdurchsicht“"); if (process.env.GW_DEBUG) console.log("READREF:", w.__S().readRef, (d.querySelector("#app").textContent.match(/Hinweisdurchsicht[^.]*/) || [])[0]);
+      d.querySelector("[data-act=review]").click();
+      ok(await until(() => d.getElementById("gw-nr"), 120) && d.querySelectorAll("#gw-nr .it").length === ents(od).length, "Hinweisdurchsicht: eine Karte je Eintrag");
+      if (open.length >= 2){
+        const [e1, e2] = open;
+        n = pushes.length;
+        await send(gwa("notes_review.decide", {file, entry: e1.id, decision: "ja"}));
+        await until(() => pushes.length > n, 40);
+        const p1 = pushes.length > n && lastPush("durchsicht-ja"), c1 = p1 && p1.files[0];
+        const diff = c1 ? c1.content.split("\n").map((l, i) => l === orig.split("\n")[i] ? null : l).filter(x => x !== null) : [];
+        ok(p1 && p1.files.length === 1 && c1.path === file && c1.content.split("\n").length === orig.split("\n").length && diff.length <= 1 && /Hinweisdurchsicht: e-\d+ ja/.test(p1.message), "Entscheidung „ja“: nur die Durchsichtsdatei, höchstens eine Zeile geändert");
+        n = pushes.length;
+        const neu = "Neuer Satz: mit Doppelpunkt # und Raute – und\nzweiter Zeile.";
+        await send(gwa("notes_review.decide", {file, entry: e2.id, decision: "geändert", new: neu}));
+        await until(() => pushes.length > n, 40);
+        const p2 = pushes.length > n && lastPush("durchsicht-geaendert"), c2 = p2 && p2.files[0], d2 = c2 && yaml.load(c2.content);
+        const x1 = d2 && ents(d2).find(e => e.id === e1.id), x2 = d2 && ents(d2).find(e => e.id === e2.id);
+        const others = d2 && ents(d2).filter(e => ![e1.id, e2.id].includes(e.id)).every(e => JSON.stringify(e) === JSON.stringify(ents(od).find(o => o.id === e.id)));
+        ok(x2 && x2.entscheidung === "geändert" && x2.neu === neu && others, "Entscheidung „geändert“: eigene Fassung gespeichert, alle anderen Einträge unverändert");
+        ok(x1 && x1.entscheidung === "ja", "Zweite Entscheidung baut auf der ersten auf (nichts überschrieben)");
+        n = pushes.length;
+        await send(gwa("notes_review.decide", {file, entry: e1.id, decision: "geändert"}));
+        await sleep(300);
+        ok(pushes.length === n && /eigene Fassung/.test(note()), "„geändert“ ohne eigene Fassung wird abgelehnt");
+      } else console.log("  –    weniger als zwei offene Einträge, Entscheidungen nicht geprüft");
+      await send(gwa("notes_review.plan", {file}));
+      ok(/Umsetzen prüfen/.test(note()), "Umsetzen prüfen: Hinweise ohne Änderung");
+    }
+  }
 
   console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen` : "\nAlles in Ordnung", "– Commits zum Nachsehen in", OUT);
   process.exit(failed ? 1 : 0);
