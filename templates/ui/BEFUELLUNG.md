@@ -170,10 +170,11 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | Block `HINTS`: `H_KIND_TEXT`, `H_TEXT`, `H_QUOTE` | sprachliche Hinweise zum Abschnitt aus `story/hints.yml` (#124): Art („Langer Satz“, „Wortwiederholung“, „Gleiche Satzanfänge“, „Füllwörter“, „KI-typisches Muster“, #305), Hinweis, Fundstelle; ohne Hinweise weglassen |
 | `PREV_SECTION_ID`, `PREV_SECTION_PROMPT`, `NEXT_SECTION_ID`, `NEXT_SECTION_PROMPT` | Nachbarabschnitte im selben Kapitel, Text „Abschnitt N.M „Titel“ bearbeiten“; am Rand leer |
 | `CHARACTERS_ENABLED`, Block `ALL_CHARACTERS`: `C_ID`, `C_NAME`, `C_ON` | nur wenn das Buch Figuren hat (#53): `1`; je Figur ID, Name und `1`, wenn sie in `characters` des Abschnittskopfs steht |
+| `RESEARCH_QUEUE_AVAILABLE`, `RESEARCH_QUEUE_TEXT` | Option „Warteschlange“ der Recherche (#482, ab UI 0.65.0): `true`, wenn für die Recherche ein Dienst mit API eingestellt ist (Buch, sonst Standard-Branch der Bibliothek; `research_queue_values()`), sonst `false`; Text „mit Internet über <Dienst>“, sonst leer. Der Klick sendet `run.start` mit `task: research`, `mode: scheduled` |
 
 ### `abschnittssteuerung.html`
 
-`SECTION_ID`, `SECTION_NUMBER`, `SECTION_TITLE` wie im Abschnittsformular.
+`SECTION_ID`, `SECTION_NUMBER`, `SECTION_TITLE` wie im Abschnittsformular, ebenso `RESEARCH_QUEUE_AVAILABLE` und `RESEARCH_QUEUE_TEXT`.
 
 ### `projektdaten-bearbeiten.html`
 
@@ -812,7 +813,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `section.reorder.open` | `chapter_id` | Abschnittsreihenfolge ändern | Vorlage `reihenfolge` (`render_view.py section-reorder N`) | – |
 | `section.reorder` | `chapter_id`, `order` (alle Abschnitts-IDs des Kapitels in neuer Reihenfolge), `expected_head_sha` | Abschnittsreihenfolge speichern | `sections` des Kapitels umsortieren; IDs und Dateinamen bleiben; danach Kapitelansicht | `POST …/chapters/{chapter_id}/sections/reorder` |
 | `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `manuscript`, bei Büchern mit Figuren `characters` (Liste von IDs, #53), `expected_head_sha` (nie `approvals`) | Abschnitt speichern | Abschnittsdatei schreiben, danach Abschnittsformular | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
-| `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen und Lauf-Datei, Ergebnis und Statuswechsel speichern (`START.md`, „KI-Lauf „Sofort““); ein Kosteneintrag nur für kostenpflichtige KI-API-Aufrufe über das Backend, nie für Chat-Arbeit | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
+| `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; `scheduled` gibt es für `research` (#482): Auftrag in die Hintergrund-Warteschlange (`scripts/jobs.py enqueue`, `START.md`, „Recherche mit Internet in der Action“), sonst `immediate` | Lauf ausführen und Lauf-Datei, Ergebnis und Statuswechsel speichern (`START.md`, „KI-Lauf „Sofort““); ein Kosteneintrag nur für kostenpflichtige KI-API-Aufrufe über das Backend, nie für Chat-Arbeit | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
 | `view.timeline` | – | Zeitleiste zeigen (#354) | `render_view.py timeline` (Vorlage `zeitleiste`) | – |
 | `view.notes_review` | optional `file` | Hinweisdurchsicht zeigen (#367) | `render_view.py notes-review [<file>]` (Vorlage `hinweisdurchsicht`); ohne Dialogdatei zuerst `scripts/hinweise.py collect .` | – |
 | `notes_review.decide` | `file`, `entry`, `decision` (`ja`, `nein`, `geändert`), bei `geändert` `new` | Antwort zu einem Eintrag speichern (#367) | `python scripts/hinweise.py decide . <entry> --decision <decision> [--new …] --file <file>`, ohne Rückfrage als kleiner Nachtrag ins offene Änderungspaket (`docs/SPEICHERN.md`, „Hinweise durchsehen“); danach die nächste offene Stelle bzw. das Widget erneut. Ändert kein Manuskript | – |

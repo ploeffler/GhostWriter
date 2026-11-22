@@ -188,6 +188,36 @@ class RemoteTest(Base):
         self.assertTrue(step['continue-on-error'])
 
 
+class ChatTest(Base):
+    """#482: drei Recherchen im Chat kurz hintereinander werden drei Aufträge, alle erledigt."""
+    def test_three_chat_requests_all_done(self):
+        for q in ('A', 'B', 'C'):
+            jobs.main([str(self.base), 'enqueue', '--section', 'sec-01-01', '--question', q, '--requested-by', 'chat',
+                       '--push-to', 'ghostwriter/buch/b'])
+        git(self.base, 'fetch', '-q', 'origin')
+        self.assertEqual(len(self.remote_files('request-')), 3)              # jeder Auftrag sofort gesichert
+        with self.fake_run(), mock.patch.object(jobs, 'budget_low', return_value=False):
+            results, remaining = jobs.process(self.base, push_to='ghostwriter/buch/b')
+        self.assertEqual(([r['ok'] for r in results], remaining), ([True, True, True], 0))
+        self.assertEqual([c[1] for c in self.calls], ['request-001', 'request-002', 'request-003'])
+
+    def test_section_view_offers_queue_only_with_api_service(self):
+        import render_view
+        self.assertEqual(render_view.research_queue_values(self.base)['RESEARCH_QUEUE_AVAILABLE'], 'false')
+        cfg = yaml.safe_load((self.base / 'ghostwriter.yml').read_text())
+        cfg['ai_providers'] = {'available': ['google'], 'services': {'google': {'access': 'api', 'api_key_secret': 'GEMINI_API_KEY'}}}
+        (self.base / 'ghostwriter.yml').write_text(yaml.safe_dump(cfg))
+        values = render_view.research_queue_values(self.base)
+        self.assertEqual(values['RESEARCH_QUEUE_AVAILABLE'], 'true')
+        self.assertIn('mit Internet über', values['RESEARCH_QUEUE_TEXT'])
+
+    def test_start_md_uses_jobs_not_dispatch(self):
+        text = (ROOT / 'START.md').read_text(encoding='utf-8')
+        part = text[text.index('### Recherche mit Internet in der Action'):text.index('### Vor- und Nachspann')]
+        self.assertIn('scripts/jobs.py . enqueue', part)
+        self.assertIn('nie `dispatches` mit `section`', part)
+
+
 class WorkflowTest(unittest.TestCase):
     def test_workflow_queue(self):
         text = (ROOT / '.github/workflows/research.yml').read_text(encoding='utf-8')

@@ -104,9 +104,10 @@ Hast du für **Recherche** einen Dienst mit API-Schlüssel eingestellt, recherch
 
 - **Welcher Dienst:** der bei **Recherche** zugeteilte. Ist dort keiner gewählt, der erste angehakte Dienst mit Zugang **API-Schlüssel**, der recherchieren kann. Steht im Buch gar nichts, gelten in einer Bibliothek die Einstellungen des Standard-Branchs.
 - **Schlüssel:** das Secret, dessen Namen du unter **Einstellungen** eingetragen hast (z. B. `GEMINI_API_KEY`). Die Action liest nur dieses Secret. Erlaubt sind nur Namen, die auf `_API_KEY` enden.
-- **Starten:** in der [Claude-Web-App](https://github.com/ploeffler/GhostWriter/blob/main/apps/claude/README.md) beim Abschnitt „Recherche“ → **Mit Internet über …**, im Chat oder unter *Actions → Recherche → Run workflow* auf dem Buch-Branch mit der Abschnitts-ID.
+- **Starten:** in der [Claude-Web-App](https://github.com/ploeffler/GhostWriter/blob/main/apps/claude/README.md) beim Abschnitt „Recherche“ → **Mit Internet über …**, im Chat in der Abschnittsansicht mit **Recherche → Warteschlange · mit Internet über …** oder mit dem Wunsch „mit Internet recherchieren“, oder unter *Actions → Recherche → Run workflow* auf dem Buch-Branch mit der Abschnitts-ID.
+- **Hintergrund-Warteschlange (#476):** Jeder Start legt einen Auftrag an. Du kannst also mehrere Recherchen kurz hintereinander einreihen, auch für verschiedene Abschnitte, und später die Ergebnisse ansehen. Je Buch läuft immer nur ein Lauf; er arbeitet die Aufträge in Buchreihenfolge ab und speichert jedes Ergebnis sofort. Ein Fehler hält die übrigen nicht auf. Bleibt etwas liegen, holt es der tägliche Lauf „GhostWriter aktualisieren“ ab.
 - **Ergebnis:** ein Rechercheeintrag mit Quellen und ein Kosteneintrag im Änderungspaket. Die Quellenliste stammt nur aus den Belegen der Websuche (Titel, Link, Abrufdatum), nicht aus dem Text des Modells. Gemini liefert befristete Weiterleitungslinks mit der Domain als Titel; die Action löst sie zur echten Adresse mit Seitentitel auf (gelingt das nicht, bleibt der Weiterleitungslink stehen). Übernommen wird erst mit deiner Bestätigung.
-- **Kosten:** Tokens und Suchanfragen werden bei jedem Lauf erfasst und zählen zum KI-Budget. Damit auch ein Betrag geschätzt wird, trägst du unter **Einstellungen** des Dienstes die Preise ein: je 1 Mio. Eingabe- und Ausgabe-Tokens und je 1000 Suchanfragen, in der Projektwährung. Ohne Preise steht der Betrag auf „unbekannt“. Sind weniger als 10 % des Budgets übrig, startet der Lauf nur mit ausdrücklicher Bestätigung.
+- **Kosten:** Tokens und Suchanfragen werden bei jedem Lauf erfasst und zählen zum KI-Budget. Damit auch ein Betrag geschätzt wird, trägst du unter **Einstellungen** des Dienstes die Preise ein: je 1 Mio. Eingabe- und Ausgabe-Tokens und je 1000 Suchanfragen, in der Projektwährung. Ohne Preise steht der Betrag auf „unbekannt“. Sind weniger als 10 % des Budgets übrig, wartet ein Auftrag auf deine Bestätigung („Trotzdem starten“); das Budget wird vor jedem Auftrag geprüft.
 
 ## Bilder colorieren mit eigenem Gemini-Zugang
 
@@ -114,7 +115,7 @@ Ist Google Gemini mit dem Secret `GEMINI_API_KEY` eingetragen, färbt die Action
 
 ## Agenten für die Aufgaben-Warteschlange
 
-Die Warteschlange sind Aufgaben als Issues in GitHub (z. B. „Quelle in Abschnitt 2.3 prüfen“). Ein Agent kann ein Issue übernehmen, die Dateien bearbeiten und einen Pull Request anlegen. Standard ist **manuell**: Du arbeitest die Aufgaben im Chat ab.
+Nicht zu verwechseln mit der Hintergrund-Warteschlange (Aufträge für Recherche und andere Hintergrundarbeiten, siehe oben). Die Aufgaben-Warteschlange sind Aufgaben als Issues in GitHub (z. B. „Quelle in Abschnitt 2.3 prüfen“). Ein Agent kann ein Issue übernehmen, die Dateien bearbeiten und einen Pull Request anlegen. Standard ist **manuell**: Du arbeitest die Aufgaben im Chat ab.
 
 Wenn du einen Agenten schon nutzt (zum Beispiel über ein GitHub-Copilot-Abo):
 

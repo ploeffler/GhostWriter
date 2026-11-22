@@ -1754,6 +1754,29 @@ def section_hints(base, sid):
             for h in data.get('hints') or [] if h.get('section') == sid]
 
 
+def research_queue_values(base):
+    """Option „Warteschlange“ der Recherche (#482): verfügbar, wenn ein Dienst mit API für die Recherche
+    eingestellt ist (Buch, sonst Standard-Branch der Bibliothek); Text mit dem Dienst."""
+    try:
+        import research
+        defaults = None
+        head = subprocess.run(['git', '-C', str(base), 'symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD'],
+                              capture_output=True, text=True).stdout.strip()
+        if head:
+            lib = subprocess.run(['git', '-C', str(base), 'show', f'{head}:ghostwriter.yml'], capture_output=True, text=True)
+            if lib.returncode == 0:
+                import tempfile
+                tmp = tempfile.NamedTemporaryFile('w', suffix='.yml', delete=False, encoding='utf-8')
+                tmp.write(lib.stdout)
+                tmp.close()
+                defaults = tmp.name
+        cfg = research.resolve(base, defaults)
+    except Exception:   # noqa: BLE001 – ohne Dienst mit API bleibt die Option aus
+        return {'RESEARCH_QUEUE_AVAILABLE': 'false', 'RESEARCH_QUEUE_TEXT': ''}
+    text = f'with internet via {cfg["name"]}' if UI.get('language') == 'en' else f'mit Internet über {cfg["name"]}'
+    return {'RESEARCH_QUEUE_AVAILABLE': 'true', 'RESEARCH_QUEUE_TEXT': text}
+
+
 def section_view(base, config, args, cnum, snum):
     p = config['project']
     ch = config['structure']['chapters'][cnum - 1]
@@ -1784,6 +1807,7 @@ def section_view(base, config, args, cnum, snum):
               'APPROVAL_SECTION': str(head['approvals']['section']).lower(),
               'PREV_SECTION_ID': prev_id, 'PREV_SECTION_PROMPT': prev_text,
               'NEXT_SECTION_ID': next_id, 'NEXT_SECTION_PROMPT': next_text}
+    values.update(research_queue_values(base))
     chars = character_items(config)
     in_section = head.get('characters') or []
     if chars:   # Figuren (#53): Auswahl im Abschnittsformular
