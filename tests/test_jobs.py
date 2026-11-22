@@ -22,7 +22,7 @@ def git(cwd, *args):
                           capture_output=True, text=True).stdout.strip()
 
 
-class QueueTest(unittest.TestCase):
+class Base(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
@@ -71,6 +71,9 @@ class QueueTest(unittest.TestCase):
         out = git(self.base, 'ls-tree', '-r', '--name-only', 'origin/ghostwriter/buch/b')
         return sorted(p for p in out.splitlines() if pattern in p)
 
+
+
+class QueueTest(Base):
     def test_order_book_then_time(self):
         self.add('sec-02-01', '2026-11-22T20:00:00+00:00')
         self.add('sec-01-02', '2026-11-22T21:00:00+00:00')
@@ -146,6 +149,43 @@ class QueueTest(unittest.TestCase):
         env = {k: v for k, v in os.environ.items() if not k.startswith(research.KEY_ENV)}
         with mock.patch.dict(os.environ, dict(env, GHOSTWRITER_RESEARCH_KEY='x'), clear=True):
             self.assertEqual(research.api_key('google'), 'x')   # alter Weg: ein Schlüssel
+
+
+class RemoteTest(Base):
+    """#481: Kontrolllauf im Update-Lauf findet liegengebliebene Aufträge und startet die Abarbeitung."""
+    def test_remote_pending_and_start(self):
+        git(self.base, 'push', '-q', 'origin', 'HEAD:refs/heads/buch/b')
+        self.add('sec-01-01', '2026-11-22T20:00:00+00:00')
+        failed = self.add('sec-01-02', '2026-11-22T20:00:00+00:00')
+        failed.write_text(yaml.safe_dump({'section_id': 'sec-01-02', 'error': 'x'}))
+        waiting = self.add('sec-02-01', '2026-11-22T20:00:00+00:00')
+        waiting.write_text(yaml.safe_dump({'section_id': 'sec-02-01', 'waiting': 'budget'}))
+        jobs.commit_push(self.base, 'Aufträge', 'ghostwriter/buch/b')
+        git(self.base, 'fetch', '-q', 'origin')
+        pending = jobs.remote_pending(self.base)
+        self.assertEqual(pending, {'buch/b': 1})                       # nur der offene zählt
+        calls = []
+        ok = lambda args: calls.append(args) or subprocess.CompletedProcess(args, 0, '', '')
+        lines = jobs.start_pending(pending, base=self.base, run=ok)
+        self.assertEqual(calls, [['gh', 'workflow', 'run', 'research.yml', '--ref', 'buch/b']])
+        self.assertIn('gestartet', lines[-1])
+        calls.clear()
+        lines = jobs.start_pending(pending, paused=True, base=self.base, run=ok)
+        self.assertEqual(calls, [])
+        self.assertIn('1 Aufträge warten; Automatik pausiert', lines[0])
+        self.assertIn('Probelauf', jobs.start_pending(pending, dry_run=True, base=self.base, run=ok)[-1])
+        self.assertEqual(calls, [])
+        lines = jobs.start_pending({'buch/fehlt': 2}, base=self.base, run=ok)
+        self.assertIn('kein Buch-Branch', lines[-1])
+        self.assertIn('keine liegengebliebenen', jobs.start_pending({}, base=self.base)[0])
+
+    def test_update_workflow_step(self):
+        data = yaml.safe_load((ROOT / '.github/workflows/update.yml').read_text(encoding='utf-8'))
+        self.assertEqual(data['permissions']['actions'], 'write')
+        step = next(s for s in data['jobs']['update']['steps'] if s.get('name') == 'Hintergrund-Warteschlange prüfen')
+        self.assertIn('scripts/jobs.py . remote', step['run'])
+        self.assertIn('--paused', step['run'])
+        self.assertTrue(step['continue-on-error'])
 
 
 class WorkflowTest(unittest.TestCase):
