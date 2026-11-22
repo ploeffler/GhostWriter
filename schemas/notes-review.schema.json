@@ -27,11 +27,12 @@
         "umgesetzt": {"type": "boolean", "description": "ins Manuskript übernommen (hinweise.py apply)"},
         "begruendung": {"type": "string", "description": "Begründung des Autors zu seiner Entscheidung, z. B. warum eine Stelle bleibt"},
         "weitere_ersetzungen": {"type": "array", "description": "weitere Stellen derselben Entscheidung; setzt der Assistent von Hand um",
-          "items": {"type": "object", "required": ["alt", "neu"], "additionalProperties": false,
+          "items": {"type": "object", "required": ["alt", "neu"],
                     "properties": {"alt": {"type": "string"}, "neu": {"type": "string"}, "datei": {"type": "string"}}}},
         "notiz": {"type": "string", "description": "Vermerk zur Umsetzung, z. B. in welcher anderen Datei sie erfolgte"}
       },
-      "additionalProperties": false
+      "$comment": "Weitere Angaben des Assistenten sind erlaubt und bleiben erhalten; geprüft werden die festen Felder (YAWA #357)",
+      "additionalProperties": true
     }
   },
   "properties": {

@@ -182,7 +182,8 @@ is `nein`. The author's reasoning goes into `begruendung`. Further places change
 by the same decision go into `weitere_ersetzungen` (`alt`, `neu`, optional
 `datei`); `apply` only changes the first place, the assistant applies the others
 by hand. Where something was applied (for example in `story/chronologie.md`)
-goes into `notiz`; `umgesetzt` stays `true`/`false`. The check rejects other fields.
+goes into `notiz`; `umgesetzt` stays `true`/`false`. Further own details in an entry are allowed
+and kept; only the fixed fields are checked.
 
 In the chat, `render_view.py notes-review` shows the dialogue as a widget (template `hinweisdurchsicht`, UI 0.58.0 and later) with “Accept”, “Do not change” and “Rephrase” per entry and “Check what can be applied”; `--text` gives the text version.
 

@@ -132,8 +132,10 @@ class HinweiseTest(unittest.TestCase):
         entry.update(entscheidung='geändert', begruendung='bewusst so', notiz='story/chronologie.md angepasst',
                      weitere_ersetzungen=[{'alt': 'a', 'neu': 'b', 'datei': 'x.md'}])
         self.assertEqual(list(Draft202012Validator(schema).iter_errors(data)), [])
+        entry['eigene_angabe'] = 'bleibt erhalten'   # weitere Angaben erlaubt
+        self.assertEqual(list(Draft202012Validator(schema).iter_errors(data)), [])
         for bad in ({'entscheidung': 'so belassen'}, {'umgesetzt': 'in der Chronologie'},
-                    {'weitere_ersetzungen': [{'alt': 'a'}]}, {'begruendung_autor': 'x'}):
+                    {'weitere_ersetzungen': [{'alt': 'a'}]}):
             with self.subTest(bad=bad):
                 broken = {**entry, **bad}
                 group = 'autorenentscheidung' if data['autorenentscheidung'] else 'ohne_autor'

@@ -194,7 +194,8 @@ dieselbe Entscheidung weitere Stellen, stehen sie als `weitere_ersetzungen`
 (je `alt`, `neu`, optional `datei`) im Eintrag; `apply` setzt nur die erste Stelle
 um, die weiteren übernimmt der Assistent von Hand. Was wo umgesetzt wurde (etwa
 eine Änderung in `story/chronologie.md`), steht in `notiz`; `umgesetzt` bleibt
-`true`/`false`. Andere Felder lehnt die Prüfung ab.
+`true`/`false`. Weitere eigene Angaben im Eintrag sind erlaubt und bleiben
+erhalten; geprüft werden nur die festen Felder.
 
 Im Chat zeigt `render_view.py notes-review` den Dialog als Widget (Vorlage `hinweisdurchsicht`, ab UI 0.58.0) mit „Übernehmen“, „Nicht ändern“ und „Anders formulieren“ je Eintrag und „Umsetzen prüfen“; die Textfassung ist `--text`.
 
