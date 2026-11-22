@@ -909,7 +909,17 @@ async function webResearch(id, confirmLow){
   const w = await webProvider(); if (!w) return runStart({section_id:id, task:"research", mode:"immediate", offline:true});
   busy("Rechercheauftrag wird gespeichert …");
   try {
-    const work = await prepareWork(); await loadBookData(work);
+    const work = await prepareWork();
+    // Der Auftrag startet die Action aus dem Arbeits-Branch: ein älteres Änderungspaket erst auf den Buchstand bringen.
+    if (!(await listDir(".github/workflows", work)).some(e => e.name === "research.yml")){
+      const pr = await openPR(S.book);
+      if (pr){ busy("Änderungspaket wird auf den Buchstand gebracht …");
+        await call("update_pull_request_branch", {owner:S.owner, repo:S.repo, pullNumber:pr.number});
+        for (let i = 0; i < 10 && !(await listDir(".github/workflows", work)).some(e => e.name === "research.yml"); i++) await new Promise(r => setTimeout(r, 1500)); }
+      if (!(await listDir(".github/workflows", work)).some(e => e.name === "research.yml"))
+        throw {message:"In diesem Buch fehlt die Action „Recherche“. Zuerst GhostWriter aktualisieren (Actions → GhostWriter aktualisieren) und das Änderungspaket übernehmen oder auf den Buchstand bringen."};
+    }
+    await loadBookData(work);
     const x = allSecs().find(v => v.s.id === id); if (!x) throw {message:"Abschnitt nicht gefunden."};
     const dir = `${x.c.path}/research/${x.s.id}`, list = await listDir(dir, work);
     const n = String(Math.max(0, ...list.map(e => (/^request-(\d+)\.yml$/.exec(e.name) || [])[1] || 0).map(Number)) + 1).padStart(3, "0");
