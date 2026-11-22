@@ -644,6 +644,19 @@ Für Kapitel und Abschnitte.
 | `CHAPTER_ID`, `CHAPTER_NUMBER` | bei Abschnitten das Kapitel, sonst leer |
 | Block `ITEMS`: `ITEM_ID`, `ITEM_NUMBER`, `ITEM_TITLE` | Kapitel bzw. Abschnitte in der bisherigen Reihenfolge |
 
+### `warteschlange.html`
+
+Hintergrund-Warteschlange (#478, ab UI 0.67.0; `render_view.py queue`, `--text` als Textfassung, Deutsch und Englisch). Gefüllt von `queue_view.widget_values()`; die Textfassung ist `queue_view.text_view()`. Liest nur; die Reihenfolge folgt festen Regeln (`docs/DATA-MODEL.md`, „Hintergrund-Warteschlange“).
+
+| Platzhalter | Quelle |
+|---|---|
+| `QUEUE_BOOK`, `QUEUE_COUNT_TEXT`, `QUEUE_EMPTY` | `project.title_short` bzw. `title`, „N Aufträge“ bzw. „keine Aufträge“, `1` bei leerer Warteschlange |
+| Block `PENDING` (wartende Aufträge): `J_TITLE`, `J_DETAIL`, `J_STATE_TEXT`, `J_WHEN_TEXT`, `J_PRIORITY_TEXT`, `J_BLOCKED_TEXT`, `J_NOTE`, `J_PRIO_DISABLED`, `J_ARGS` | Art und Abschnitt („Recherche · 2.1 Titel“), Frage bzw. Angaben der Art, Zustand (wartet, wartet auf Bestätigung wegen Budget, wartet auf einen anderen Auftrag), „eingereicht …“, „vorgezogen“ (sonst leer), „Erst nach <Pfad>“ (sonst leer), Hinweis bei Ring in `after`, `disabled` bei schon vorgezogenen, JSON `{"request":"<Pfad im Buch>"}` |
+| Block `FAILED`: `J_TITLE`, `J_DETAIL`, `J_WHEN_TEXT` | Auftrag mit `error`, Grund, „fehlgeschlagen …“ |
+| Block `DONE`: `J_TITLE`, `J_DETAIL` | Rechercheläufe mit `request:` im Kopf, noch nicht im Buch-Branch (nur auf dem Arbeits-Branch erkennbar) |
+
+„Vorziehen“ sendet `queue.prioritize`, „Abbrechen“ (mit Rückfrage) `queue.cancel`, beide mit `request`.
+
 ### `analyse-einstellungen.html`
 
 Formular „Analyse-Einstellungen“ (`render_view.py analysis-settings`, #299, ab UI 0.47.0) für den Block `analysis`.
@@ -818,6 +831,8 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; `scheduled` gibt es für `research` (#482): Auftrag in die Hintergrund-Warteschlange (`scripts/jobs.py enqueue`, `START.md`, „Recherche mit Internet in der Action“), sonst `immediate` | Lauf ausführen und Lauf-Datei, Ergebnis und Statuswechsel speichern (`START.md`, „KI-Lauf „Sofort““); ein Kosteneintrag nur für kostenpflichtige KI-API-Aufrufe über das Backend, nie für Chat-Arbeit | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
 | `view.timeline` | – | Zeitleiste zeigen (#354) | `render_view.py timeline` (Vorlage `zeitleiste`) | – |
 | `view.notes_review` | optional `file` | Hinweisdurchsicht zeigen (#367) | `render_view.py notes-review [<file>]` (Vorlage `hinweisdurchsicht`); ohne Dialogdatei zuerst `scripts/hinweise.py collect .` | – |
+| `queue.prioritize` | `request` (Pfad des Auftrags im Buch) | Auftrag vorziehen (#478) | `python scripts/jobs.py . prioritize --request <request> --push-to ghostwriter/<buch>` bzw. `priority: true` in die Auftragsdatei schreiben, ein Commit auf den Arbeits-Branch; nur wartende Aufträge. Danach `render_view.py queue` erneut | – |
+| `queue.cancel` | `request` | Auftrag abbrechen (#478) | `python scripts/jobs.py . cancel --request <request> --push-to ghostwriter/<buch>` bzw. Auftragsdatei löschen, ein Commit; nur wartende Aufträge, ein laufender lässt sich nicht stoppen. Danach `render_view.py queue` erneut | – |
 | `notes_review.decide` | `file`, `entry`, `decision` (`ja`, `nein`, `geändert`), bei `geändert` `new` | Antwort zu einem Eintrag speichern (#367) | `python scripts/hinweise.py decide . <entry> --decision <decision> [--new …] --file <file>`, ohne Rückfrage als kleiner Nachtrag ins offene Änderungspaket (`docs/SPEICHERN.md`, „Hinweise durchsehen“); danach die nächste offene Stelle bzw. das Widget erneut. Ändert kein Manuskript | – |
 | `notes_review.plan` | `file` | Umsetzen prüfen (#367) | `python scripts/hinweise.py plan . --file <file>` zeigen (✅/⚠️/⛔). Wieder öffnen nur über die gewohnte Freigabe; umsetzen (`hinweise.py apply .`) erst auf ausdrücklichen Auftrag als eigener Änderungsschritt | – |
 | `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | Vorlage `auflage-erzeugen` (`render_view.py edition-create`) | – |

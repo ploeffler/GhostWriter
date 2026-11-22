@@ -4035,7 +4035,7 @@ def resolve_repo(base, args):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline', 'notes-review', 'settings-overview'] + list(FORMS))
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline', 'notes-review', 'settings-overview', 'queue'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--darstellung', choices=['einfach', 'uebersichtlich', 'erweitert'],
@@ -4138,6 +4138,13 @@ def main():
         else:
             values, blocks = hinweise.widget_values(base, path)
             out = fill('hinweisdurchsicht.html', values, blocks)
+    elif args.view == 'queue':   # Hintergrund-Warteschlange (#478): Vorlage warteschlange bzw. Textfassung
+        import queue_view
+        if args.text:
+            out = queue_view.text_view(base, config, language)
+        else:
+            values, blocks = queue_view.widget_values(base, config, language)
+            out = fill('warteschlange.html', values, blocks)
     elif args.view == 'chapter':
         out = chapter_view(base, config, args, chapter_number(config, args.where)[0])
     else:
