@@ -62,7 +62,7 @@ If a service with an API key is assigned to **research**, the workflow “Recher
 - **Which service:** the one assigned to research; otherwise the first selected service with API-key access that can research; if the book has no settings, a library's default-branch settings apply.
 - **Key:** the secret named in the service settings (e.g. `GEMINI_API_KEY`). The workflow reads only that secret; only names ending in `_API_KEY` are accepted.
 - **Start:** in the [Claude web app](https://github.com/ploeffler/GhostWriter/blob/main/apps/claude/README.md) via research → **With internet via …**, from the chat, or under *Actions → Recherche → Run workflow* on the book branch with the section ID.
-- **Result:** a research run with sources and a cost entry in the change set. The source list comes only from the web-search evidence (title, link, retrieval date), never from the model's text. Nothing is applied without your confirmation.
+- **Result:** a research run with sources and a cost entry in the change set. The source list comes only from the web-search evidence (title, link, retrieval date), never from the model's text. Gemini returns temporary redirect links titled with the domain; the workflow resolves them to the real address and page title (if that fails, the redirect link stays). Nothing is applied without your confirmation.
 - **Costs:** tokens and search requests are recorded for every run and count towards the AI budget. For an estimated amount, enter prices in the service settings: per million input and output tokens and per 1000 searches, in the project currency. Without prices the amount is “unavailable”. With less than 10 % of the budget left, a run starts only with explicit confirmation.
 
 ## Colorizing images with your own Gemini access

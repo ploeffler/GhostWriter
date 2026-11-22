@@ -192,6 +192,32 @@ class RunTest(unittest.TestCase):
         self.assertIn('keine Belege', (base / head['path']).read_text())
 
 
+class SourceTest(unittest.TestCase):
+    def test_gemini_redirect_resolved_with_title(self):
+        import urllib.error
+        redirect = 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/ABC'
+
+        class Opener:
+            def open(self, req, timeout=None):
+                raise urllib.error.HTTPError(req.full_url, 302, 'Found', {'location': 'https://www.nih.gov/studie'}, None)
+        with mock.patch.object(research.urllib.request, 'build_opener', return_value=Opener()), \
+                mock.patch.object(research, '_title', return_value='Emotionale Dysregulation bei ADHS'):
+            out = research.resolve_sources([{'title': 'nih.gov', 'url': redirect},
+                                            {'title': 'B', 'url': 'https://b.example'}])
+        self.assertEqual(out[0], {'title': 'Emotionale Dysregulation bei ADHS (nih.gov)', 'url': 'https://www.nih.gov/studie'})
+        self.assertEqual(out[1]['url'], 'https://b.example')
+
+    def test_unresolvable_redirect_kept(self):
+        redirect = 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/XYZ'
+
+        class Opener:
+            def open(self, req, timeout=None):
+                raise OSError('offline')
+        with mock.patch.object(research.urllib.request, 'build_opener', return_value=Opener()):
+            out = research.resolve_sources([{'title': 'nih.gov', 'url': redirect}])
+        self.assertEqual(out, [{'title': 'nih.gov', 'url': redirect}])
+
+
 class ProcessTest(unittest.TestCase):
     def test_request_done_and_failed(self):
         tmp, base = book()
