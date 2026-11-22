@@ -17,11 +17,24 @@ Kurzfassung von `START.md`, Abschnitt 0. Bei Abweichungen gilt `START.md`. Diese
 - Ist `upstream.repo` in `ghostwriter-manifest.yml` dieses Repository selbst, ist es das Programm-Repository (Entwicklung, kein Buch; siehe `CLAUDE.md`).
 - Bibliothek oder Einzelbuch: Hat der Standard-Branch Kapitel (`structure.chapters` in `ghostwriter.yml`), ist er selbst das Buch; sonst sind die Bücher die Branches `buch/*` (`library.json`).
 
-## 2. Schreibzugriff prüfen (ohne etwas zu ändern)
+## 2. Einrichten und Schreibzugriff prüfen (ohne etwas zu ändern)
 
-- `gh api repos/<owner>/<repo> --jq .permissions.push` bzw. die GitHub-Verbindung des Chats.
-- Mit einem Klon zusätzlich `git push --dry-run origin HEAD`.
-- Ergebnis in einem Satz nennen; ohne Schreibzugriff gilt `START.md`, Abschnitt 7 (Dateien im Chat ausgeben).
+In einer Claude-Sitzung mit Repository-Werkzeugen:
+
+1. Repository einbinden: `add_repo` mit `owner`, `repo` und `access: push`. Ohne diesen Schritt liefern die GitHub-Werkzeuge bei privaten Repositorys 404.
+2. Flach klonen, großzügiges Timeout: `git clone --depth 1 https://github.com/<owner>/<repo> /home/claude/<repo>`, danach `register_repo_root`.
+
+Vor dem ersten Commit der Sitzung, ohne Rückfrage:
+
+```bash
+gh api user --jq .login                                   # erwarteter Login (Profil: git.name)
+gh api repos/<owner>/<repo> --jq .permissions.push        # muss true sein
+git push --dry-run origin HEAD:refs/heads/zz-schreibtest  # muss „[new branch]“ melden, legt nichts an
+```
+
+- Ergebnis in einem Satz nennen („✓ Schreibzugriff als <login> auf <owner>/<repo> geprüft.“).
+- Schlägt eine Prüfung fehl: in einem Satz sagen, welche (falscher Login, kein Push-Recht, Push abgelehnt), und nichts committen. Ohne Schreibzugriff gilt `START.md`, Abschnitt 7 (Dateien im Chat ausgeben).
+- Ohne Klon reicht die GitHub-Verbindung des Chats für die Prüfung von `permissions.push`.
 
 ## 3. Git-Benutzer setzen
 
@@ -35,6 +48,7 @@ Commits sollen dem Benutzer zugeordnet sein, nicht dem Assistenten:
 - Gibt es `assistant.yml`, den persönlichen Skill `.claude/skills/<skill>/SKILL.md` lesen (Name in `assistant.yml` → `skill`). Er enthält Autor und Standard-Erzählstimme.
 - `python scripts/assistant.py . check` meldet, ob der Skill zum Profil passt; sonst `python scripts/assistant.py . skill` und als Commit vorschlagen.
 - Fehlt `assistant.yml`: einmal anbieten, ein Profil anzulegen (`START.md`, „Assistenten-Profil“), nicht drängen.
+- Der persönliche Skill hängt von Benutzer und Repository ab und lebt **nur im Repository**, nicht als Skill im Claude-Konto. Ist im Chat ein Konto-Skill mit demselben Namen (oder fast derselben Beschreibung) gelistet, gilt die Fassung im Repository; einmal darauf hinweisen und vorschlagen, die Kopie in den Claude-Einstellungen unter „Skills“ zu entfernen. Eigenes gehört in den Bereich „Eigene Ergänzungen“ des erzeugten Skills.
 
 ## 5. Darstellungsmodus festlegen
 
@@ -105,6 +119,8 @@ Die folgenden einzelnen Chat-Befehle sind feste Abkürzungen. Sie gelten für da
 
 **Abschluss-Check (#298, #372):** Beim Verabschieden und am Ende einer Befragung `python scripts/session_end.py . status --chat new|none --repo <owner>/<repo>`; nichts offen → nur verabschieden, sonst die vorgeschlagene Auswahl anbieten. Freigaben und `Session übernehmen` nur als eigene Auswahl (`docs/SESSION-SICHERUNG.md`).
 
+**Neue Geschichte bzw. neues Buch:** zuerst knapp klären, was zu Figuren, Ort, Zeit und Länge fehlt (nur Fehlendes fragen, als Auswahl wo möglich); dann schreiben.
+
 ## 10. Bilder und visuelle Referenzen
 
 - Bilder können jederzeit nachträglich hochgeladen und einer Person, einem Ort, einem Gegenstand, Kapitel oder Abschnitt zugeordnet werden.
@@ -158,9 +174,20 @@ GhostWriter darf Verbesserungspotenziale selbstständig erkennen, klassifizieren
 
 Erkennst du einen Fehler im Programm (Skripte, Vorlagen, Anleitungen), melde ihn **ohne Rückfrage** als Issue im Hauptrepository und nenne dem Benutzer Nummer und Link (Standard, #330; gilt auch ohne persönlichen Skill). Fehlt ein Werkzeug zum Anlegen, den fertigen Issue-Text und den Link zum Anlegen nennen. Betrifft etwas das Programm, nicht das Buch:
 
-1. Im Hauptrepository (`upstream.repo`) nach einem gleichen offenen Issue suchen.
-2. Sonst ein Issue mit den Abschnitten **Beobachtet** (Repository, GhostWriter-Version aus `ghostwriter-manifest.yml`, was passiert ist), **Ursache** (soweit bekannt, mit Datei und Stelle) und **Vorschlag**.
-3. Keine Manuskripttexte, keine Secrets, keine privaten Angaben ins Issue.
+1. **Zugriff:** In Claude `add_repo` mit dem Hauptrepository (`upstream.repo`) und `access: push`; klonen nur, wenn Code gelesen werden muss.
+2. **Ursache belegen:** Bei Verhalten von Skripten oder Anleitungen die Stelle suchen und konkret nennen (Datei, Zeile oder Befehl). Keine Vermutung als Tatsache melden.
+3. **Duplikate:** nach einem gleichen offenen Issue suchen. Gibt es eins, kein neues anlegen, sondern die neuen Beobachtungen als Kommentar ergänzen.
+4. **Text** (Deutsch, sachlich, nie in der Erzählstimme des Buchs): kurzer Titel mit betroffener Datei oder Ansicht; Abschnitte **Beobachtet** (was passiert ist und was erwartet war; Repository; GhostWriter-Version aus `ghostwriter-manifest.yml` bzw. `program.version` und `program.ui_version` in `library.json`), **Ursache** (belegte Stellen) und **Vorschlag** (nummerierte, umsetzbare Punkte). Mehrere unabhängige Probleme: je ein Issue; zusammenhängende mit `#<Nummer>` verknüpfen.
+5. **Anlegen:** Text in eine Datei schreiben, dann `gh api repos/<upstream>/issues -f title="…" -F body=@datei.md --jq '.number, .html_url'`; ergänzen mit `gh api repos/<upstream>/issues/<n>/comments -F body=@datei.md`, ändern mit `gh api -X PATCH repos/<upstream>/issues/<n> -F body=@datei.md`. Schließen nur auf Wunsch des Benutzers.
+6. **Melden:** je angelegtem oder ergänztem Issue Nummer, Titel und Link in einer Zeile.
+
+Erprobte Werkzeugwege in Claude:
+
+- `gh api` über den Proxy der Sitzung funktioniert und legt Issues als der verbundene Benutzer an, auch wenn `gh auth status` „token invalid“ meldet.
+- Nicht erneut probieren: `issue_write` der GitHub-Verbindung (403 „Resource not accessible by integration“ im Hauptrepository, 404 bei privaten Repositorys), Issues aus dem Buch-Repository ins Hauptrepository verschieben (anderer Besitzer), Pull Request aus dem Buch-Repository (kein Fork), das Secret `GHOSTWRITER_UPDATE_TOKEN` (nur für Updates), ein Zwischen-Issue im Buch-Repository.
+- Bei einem Fehler die Meldung einmal prüfen, nicht in Schleife wiederholen; sonst den fertigen Text als Datei geben und den Link `https://github.com/<upstream>/issues/new` nennen.
+
+Keine Manuskripttexte, keine Secrets und keine privaten Angaben ins Issue: Das Hauptrepository ist öffentlich.
 
 ---
 
