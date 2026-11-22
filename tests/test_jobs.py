@@ -337,6 +337,10 @@ class WorkflowTest(unittest.TestCase):
         for secret in ('ANTHROPIC', 'OPENAI', 'GOOGLE'):
             self.assertIn(f'GHOSTWRITER_RESEARCH_KEY_{secret}: ${{{{ steps.provider.outputs.secret_{secret.lower()}', text)
         self.assertIn('-f step=queue', (ROOT / '.github/workflows/import.yml').read_text(encoding='utf-8'))
+        for wf in ('research', 'analyse', 'colorize', 'import'):   # #62: pausiert kein Selbstneustart
+            data = yaml.safe_load((ROOT / f'.github/workflows/{wf}.yml').read_text(encoding='utf-8'))
+            step = next(st for st in data['jobs']['process']['steps'] if st.get('name') == 'Selbstneustart')
+            self.assertIn("vars.GHOSTWRITER_ACTIONS_PAUSED != 'true'", step['if'])
 
 if __name__ == '__main__':
     unittest.main()
