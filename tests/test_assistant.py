@@ -138,6 +138,14 @@ class ProfileTest(unittest.TestCase):
         self.assertIn('- Eigener Werkzeugweg: gh api …', p.read_text(encoding='utf-8'))
         self.assertIn('- Autor: Neu', p.read_text(encoding='utf-8'))
 
+    def test_answer_backup_in_background(self):   # #487
+        prof, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'answer_backup': 'hintergrund'})
+        self.assertEqual(errs, [])
+        skill = assistant.skill_path(self.d, prof).read_text(encoding='utf-8')
+        self.assertIn('--background', skill)
+        _, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'answer_backup': 'irgendwann'})
+        self.assertTrue(errs)
+
     def test_display_and_answers(self):   # #330
         prof, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'display': 'erweitert', 'answers': 'erweitert'})
         self.assertEqual(errs, [])

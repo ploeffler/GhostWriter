@@ -182,8 +182,6 @@ def render(base, profile):
 def display_line(profile):
     """Darstellungsmodus und Antwortmodus als Standard dieses Repositorys (#330)."""
     disp, ans = profile.get('display'), profile.get('answers')
-    if not disp and not ans:
-        return '- Darstellungsmodus in Claude: Widget (`render_view.py` ohne `--text`).'
     parts = []
     if disp:
         parts.append(f'- Darstellungsmodus: „{DISPLAY[disp]}“ ist der Standard dieses Repositorys, in jedem neuen Chat; '
@@ -192,6 +190,9 @@ def display_line(profile):
         parts.append('- Darstellungsmodus in Claude: Widget (`render_view.py` ohne `--text`).')
     if ans:
         parts.append(f'- Antwortmodus: {ANSWERS[ans]} als Standard dieses Repositorys; „Erweiterte Antworten an/aus“ im Chat geht vor.')
+    if profile.get('answer_backup') == 'hintergrund':
+        parts.append('- Antwortsicherung im Abschnittsdialog: im Hintergrund (`chat_backup.py answer-checkpoint … --background`), '
+                     'nächste Frage sofort; vor der nächsten Sicherung `chat_backup.py wait <session>` (START.md, #487).')
     return '\n'.join(parts)
 
 
@@ -303,7 +304,7 @@ def set_profile(base, changes, force=False):
     hand = handwritten(base, prof)
     if hand and not force:
         return None, [handwritten_error(hand.relative_to(base))], None
-    order = ['format', 'repo', 'skill', 'interface_language', 'work_modes', 'display', 'answers', 'subagent_models', 'startup', 'git',
+    order = ['format', 'repo', 'skill', 'interface_language', 'work_modes', 'display', 'answers', 'answer_backup', 'subagent_models', 'startup', 'git',
              'author', 'voice', 'upstream']
     prof = {k: prof[k] for k in order if k in prof}
     header = '# Assistenten-Profil (#136): gilt für alle Bücher dieses Repositorys; daraus entsteht\n' \

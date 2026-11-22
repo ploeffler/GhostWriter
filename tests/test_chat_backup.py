@@ -460,6 +460,49 @@ class BackupTest(unittest.TestCase):
         self.assertTrue(receipt['reply_ready'])
         self.assertEqual(receipt['head'], cb.resume(str(self.remote), 'test-session')['head'])
 
+    def test_background_answer_checkpoint_returns_at_once_and_writes_receipt(self):
+        """#487: --background kehrt sofort zurück; der Hintergrundlauf schreibt die Quittung, wait liest sie."""
+        receipts = self.root / 'quittungen'
+        review = self.answer_review()
+        raw = json.dumps({'payload': self.payload, 'review': review})
+        argv = ['chat_backup.py', 'answer-checkpoint', str(self.remote), 'test-session', '-', '--base', 'main',
+                '--expected-head', self.base, '--github-repo', 'test/repo', '--background']
+        started, output = [], io.StringIO()
+        env = patch.dict('os.environ', {'GHOSTWRITER_RECEIPT_DIR': str(receipts)})
+        env.start()
+        self.addCleanup(env.stop)
+        with patch.object(sys, 'argv', argv), patch.object(sys, 'stdin', io.StringIO(raw)), \
+             patch.object(cb.subprocess, 'Popen', side_effect=lambda cmd, **kw: started.append(cmd)), \
+             contextlib.redirect_stdout(output):
+            cb.main()
+        self.assertEqual(json.loads(output.getvalue())['status'], 'background_started')
+        self.assertEqual(cb.read_receipt(cb.receipt_path('test-session'))['state'], 'running')
+        self.assertEqual(cb.pending_receipts()[0]['state'], 'running')
+        with self.assertRaisesRegex(ValueError, 'läuft noch'):   # nie zwei Sicherungen derselben Session zugleich
+            cb.start_background(argv[1:], raw, cb.receipt_path('test-session'))
+        cmd = started[0]
+        self.assertNotIn('--background', cmd)
+        self.assertIn('--receipt', cmd)
+        data_file = Path(cmd[cmd.index('test-session') + 1])
+        self.assertEqual(data_file.read_text(encoding='utf-8'), raw)
+        # Hintergrundlauf nachstellen: derselbe Aufruf mit Datei und --receipt
+        with patch.object(sys, 'argv', ['chat_backup.py', *cmd[2:]]), \
+             patch.object(cb, 'open_pr', return_value='https://example.invalid/pr/1'), \
+             contextlib.redirect_stdout(io.StringIO()):
+            cb.main()
+        self.assertFalse(data_file.exists())   # Eingabe gelöscht
+        done = cb.wait_receipt(cb.receipt_path('test-session'), timeout=1)
+        self.assertEqual(done['state'], 'saved')
+        self.assertEqual(done['head'], cb.resume(str(self.remote), 'test-session')['head'])
+        self.assertEqual(cb.pending_receipts(), [])
+        cb.write_receipt(cb.receipt_path('test-session'), {'state': 'failed', 'error': 'Push abgelehnt'})
+        self.assertEqual(cb.pending_receipts()[0]['error'], 'Push abgelehnt')
+        out = io.StringIO()
+        with patch.object(sys, 'argv', ['chat_backup.py', 'wait', 'test-session', '--timeout', '1']), \
+             contextlib.redirect_stdout(out), self.assertRaises(SystemExit):
+            cb.main()
+        self.assertEqual(json.loads(out.getvalue())['state'], 'failed')
+
     def test_short_answer_from_stdin_inherits_context_and_fetches_shallow(self):
         # #314: zweiter Schritt als eine kombinierte Eingabe über stdin, ohne context/coverage/topics;
         # nur ein flacher Abruf ohne Dateiinhalte, nur ein PR-Nachschlagen.

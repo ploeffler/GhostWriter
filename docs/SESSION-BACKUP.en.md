@@ -38,6 +38,21 @@ Verify the uploaded head before displaying the next question. No book-wide check
 CI waits or repeated status polling belong between answers. Saving never merges
 or changes manuscript content, structure or approvals.
 
+**In the background (#487).** With `answer_backup: hintergrund` in
+`assistant.yml`, the assistant adds `--background` to the same call. The helper
+starts the save as a separate process and returns `background_started` at once, so
+the evaluation and next question appear without waiting. The receipt lives outside
+the repository (`<tmp>/ghostwriter-sicherung/<session>.json`): `running`, then
+`saved` with `head` or `failed` with a reason. Before the next answer save, on
+“Save session” and at the end of the dialogue the assistant reads it with
+`python3 scripts/chat_backup.py wait <session>` (up to 180 s, exit code 2 on
+failure), reports a failure openly and saves again before continuing. A second
+background save of the same session does not start while one is running. The
+closing check shows running or failed background saves (`chat_backup.py pending`).
+Trade-off: faster, but if the chat stops exactly during the save (for example
+when credit runs out), the last answer may be missing; the default `vor_antwort`
+prevents that. Only in clients with a shell.
+
 Use `chat_backup.py answer-checkpoint` with the regular save arguments. The input
 has `context`, `coverage`, `messages` and `topics`, but contains only this step.
 Coverage describes this step's accessible content and gaps. The `--review` file
