@@ -235,6 +235,18 @@ class WorkflowTest(unittest.TestCase):
         self.assertNotIn('toJSON(secrets)', text)
         self.assertIn('scripts/limits.py . check', text)
 
+    def test_workflow_python_snippets_run(self):
+        # Die Einzeiler im Schritt „Buch und Arbeits-Branch“ wirklich ausführen (Fehler in YAWA, #462)
+        import re
+        import subprocess
+        text = (ROOT / '.github/workflows/research.yml').read_text(encoding='utf-8')
+        snippets = re.findall(r'python -c "([^"]+)" "\$', text)
+        self.assertEqual(len(snippets), 2)
+        out = [subprocess.run([sys.executable, '-c', s, arg], cwd=ROOT, capture_output=True, text=True)
+               for s, arg in zip(snippets, ['ghostwriter/buch/malta', 'buch/malta'])]
+        self.assertEqual([o.returncode for o in out], [0, 0], [o.stderr for o in out])
+        self.assertEqual([o.stdout.strip() for o in out], ['buch/malta', 'ghostwriter/buch/malta'])
+
 
 if __name__ == '__main__':
     unittest.main()

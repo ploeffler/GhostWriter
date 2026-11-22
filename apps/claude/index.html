@@ -325,11 +325,27 @@ function crumbs(){
 const msgBox = () => S.msg ? `<div class="note ${S.msg.kind}" role="status">${S.msg.html}</div>` : "";
 function busy(t){ $("app").innerHTML = `<div class="one"><p class="dim"><span class="spin"></span>${esc(t)}</p></div>`; }
 function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
-function widget(name, data, extra){ $("app").innerHTML = `<div class="one">${msgBox()}<div id="gw"></div>${extra || ""}</div>`; gwRender(name, data); crumbs(); window.scrollTo(0, 0); }
+function widget(name, data, extra){ $("app").innerHTML = `<div class="one">${msgBox()}<div id="gw"></div>${extra || ""}</div>`; gwRender(name, data); patchRun(); crumbs(); window.scrollTo(0, 0); }
+/* Abschnittssteuerung an die App anpassen (#462): „Sofort“ läuft hier in der App, nicht im Chat. Ist ein Dienst mit
+   Websuche eingestellt, recherchiert die Action „Recherche“: dieser Knopf ist dann aktiv, „Sofort“ (ohne Internet) aus. */
+function patchRun(){
+  const gw = $("gw"); if (!gw || !gw.querySelector(".gw-card[data-task]")) return;
+  gw.querySelectorAll('.gw-opt[data-mode="sofort"] span').forEach(sp => { const t = sp.lastChild; if (t && t.nodeType === 3) t.nodeValue = " · hier in der App"; });
+  webProvider().then(w => {
+    const card = gw.querySelector('.gw-card[data-task="Recherche"]'); if (!w || !card || !gw.isConnected) return;
+    const swap = (b, html, on) => { const n = b.cloneNode(false); n.innerHTML = html; n.dataset.available = on ? "true" : "false"; n.disabled = !on; b.replaceWith(n); return n; };
+    const sched = card.querySelector('.gw-opt[data-mode="zeitgesteuert"]'), now = card.querySelector('.gw-opt[data-mode="sofort"]');
+    if (sched){ const n = swap(sched, `<i class="ti ti-file-search" style="font-size:16px;color:var(--text-secondary)" aria-hidden="true"></i><span style="font-size:13px"><span style="font-weight:500">Mit Internet</span> · GitHub-Action (${esc(w.name)})</span>`, true);
+      n.title = "Recherche mit Websuche über " + w.name + " in der Action „Recherche“";
+      n.addEventListener("click", () => runStart({section_id:(S.sec && S.sec.id) || "", task:"research", mode:"web"})); }
+    if (now){ const n = swap(now, `<i class="ti ti-bolt" style="font-size:16px;color:var(--text-secondary)" aria-hidden="true"></i><span style="font-size:13px"><span style="font-weight:500">Sofort</span> · hier in der App</span><span class="gw-later">ohne Internet</span>`, false);
+      n.title = "Claude hat in der App keine Websuche: Recherche mit Internet über den Knopf darüber."; }
+  });
+}
 function desk(name, data, extra, key){
   if (S.chatKey !== key){ S.chat = []; S.chatKey = key; }
   $("app").innerHTML = `<div class="desk"><div>${msgBox()}<div id="gw"></div>${extra || ""}</div>${claudePanel()}</div>`;
-  gwRender(name, data); crumbs(); renderChat(); window.scrollTo(0, 0);
+  gwRender(name, data); patchRun(); crumbs(); renderChat(); window.scrollTo(0, 0);
 }
 async function show(view, arg){
   S.view = view;
@@ -851,12 +867,12 @@ async function reorder(chapterId, order){
 
 /* KI-Lauf „Sofort“ (Recherche, Ghostwriting) über Claude in der App */
 async function runStart(d){
-  if (d.mode !== "immediate"){ S.msg = {kind:"info", html:"„Zeitgesteuert“ ist noch nicht verfügbar. Nimm „Sofort“."}; return show("section", d.section_id); }
-  if (d.task === "research" && !d.offline){
+  if (d.task === "research" && (d.mode === "web" || (d.mode === "immediate" && !d.offline))){
     const w = await webProvider();
-    if (w){ S.msg = {kind:"info", html:`<b>Wie soll recherchiert werden?</b> Mit Internet über ${esc(w.name)}: Eine GitHub-Action sucht im Netz und legt die Recherche mit Quellen ins Änderungspaket (meist ein bis zwei Minuten, Kosten bei ${esc(w.name)} werden erfasst). Ohne Internet: Claude hier in der App, nur aus eigenem Wissen.<div style="margin-top:8px"><button class="btn pri" data-act="webres" data-s="${esc(d.section_id)}"><i class="ti ti-file-search"></i> Mit Internet über ${esc(w.name)}</button> <button class="btn" data-act="offres" data-s="${esc(d.section_id)}">Ohne Internet über Claude</button></div>`};
+    if (w){ S.msg = {kind:"info", html:`<b>Recherche mit Internet über ${esc(w.name)}?</b> Eine GitHub-Action sucht im Netz und legt die Recherche mit Quellen ins Änderungspaket. Das dauert meist ein bis zwei Minuten; die Kosten bei ${esc(w.name)} werden erfasst. Übernommen wird erst mit deiner Bestätigung.<div style="margin-top:8px"><button class="btn pri" data-act="webres" data-s="${esc(d.section_id)}"><i class="ti ti-file-search"></i> Recherche starten</button> <button class="btn" data-act="webcancel" data-s="${esc(d.section_id)}">Abbrechen</button></div>`};
       return show("section", d.section_id); }
   }
+  if (d.mode !== "immediate"){ S.msg = {kind:"info", html:"„Zeitgesteuert“ ist noch nicht verfügbar. Nimm „Sofort“."}; return show("section", d.section_id); }
   if (!S.sample){ S.msg = {kind:"warn", html:"Claude ist in dieser Ansicht nicht verfügbar."}; return show("section", d.section_id); }
   const x = allSecs().find(v => v.s.id === d.section_id), f = await getFile(x.s.path, S.readRef, true), h = front(f.text), ap = h.approvals || {};
   const waived = ((S.cfg.workflow || {}).require_section_writing_approval === false);
@@ -909,7 +925,17 @@ async function webResearch(id, confirmLow){
   const w = await webProvider(); if (!w) return runStart({section_id:id, task:"research", mode:"immediate", offline:true});
   busy("Rechercheauftrag wird gespeichert …");
   try {
-    const work = await prepareWork(); await loadBookData(work);
+    const work = await prepareWork();
+    // Der Auftrag startet die Action aus dem Arbeits-Branch: ein älteres Änderungspaket erst auf den Buchstand bringen.
+    if (!(await listDir(".github/workflows", work)).some(e => e.name === "research.yml")){
+      const pr = await openPR(S.book);
+      if (pr){ busy("Änderungspaket wird auf den Buchstand gebracht …");
+        await call("update_pull_request_branch", {owner:S.owner, repo:S.repo, pullNumber:pr.number});
+        for (let i = 0; i < 10 && !(await listDir(".github/workflows", work)).some(e => e.name === "research.yml"); i++) await new Promise(r => setTimeout(r, 1500)); }
+      if (!(await listDir(".github/workflows", work)).some(e => e.name === "research.yml"))
+        throw {message:"In diesem Buch fehlt die Action „Recherche“. Zuerst GhostWriter aktualisieren (Actions → GhostWriter aktualisieren) und das Änderungspaket übernehmen oder auf den Buchstand bringen."};
+    }
+    await loadBookData(work);
     const x = allSecs().find(v => v.s.id === id); if (!x) throw {message:"Abschnitt nicht gefunden."};
     const dir = `${x.c.path}/research/${x.s.id}`, list = await listDir(dir, work);
     const n = String(Math.max(0, ...list.map(e => (/^request-(\d+)\.yml$/.exec(e.name) || [])[1] || 0).map(Number)) + 1).padStart(3, "0");
@@ -1168,6 +1194,7 @@ document.addEventListener("click", async ev => {
   else if (d.act === "webres") webResearch(d.s);
   else if (d.act === "webreslow") webResearch(d.s, true);
   else if (d.act === "webcheck") webCheck(d.s);
+  else if (d.act === "webcancel"){ S.msg = null; show("section", d.s); }
   else if (d.act === "offres"){ S.msg = null; runStart({section_id:d.s, task:"research", mode:"immediate", offline:true}); }
   else if (d.act === "apply"){ const p = PROPOSAL.exec(S.chat[+d.i].content), el = $("gw-ms"); if (p && el){ el.value = p[1].trim(); el.dispatchEvent(new Event("input", {bubbles:true})); el.scrollIntoView({behavior:"smooth", block:"center"}); } }
 });
