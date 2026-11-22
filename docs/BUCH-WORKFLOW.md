@@ -9,7 +9,7 @@ Die Diagramme beschreiben den vorgesehenen GhostWriter-Ablauf. Wo eine Funktion 
 
 ## 1. Redaktioneller Kreislauf
 
-Ein Buch wird kapitelweise und innerhalb eines Kapitels abschnittsweise entwickelt. Recherche und Brainstorming dürfen mehrere Runden haben. Schreiben setzt eine Schreibfreigabe voraus; die endgültige Abschnitts- und Kapitel-Freigabe sind getrennte Entscheidungen.
+Ein Buch wird kapitelweise und innerhalb eines Kapitels abschnittsweise entwickelt. Recherche und Brainstorming dürfen mehrere Runden haben. Schreiben setzt voraus, dass du das Schreiben erlaubt hast; Abschnitt abschließen und Kapitel abschließen sind getrennte Entscheidungen.
 
 ```mermaid
 flowchart TD
@@ -23,7 +23,7 @@ flowchart TD
     G --> H{"Weitere Recherche- oder Brainstormingrunde?"}
     H -- Ja --> F
     H -- Nein --> I["Ergebnisse konsolidieren"]
-    I --> J{"Schreibfreigabe erteilt?"}
+    I --> J{"Schreiben erlaubt?"}
     J -- Nein --> I
     J -- Ja --> K["Manuskriptentwurf"]
     K --> L["Redaktion und Überarbeitung"]
@@ -54,15 +54,15 @@ flowchart TD
 | Konzeption | Projektprofil, Kapitel und Abschnitte mit Zielen | Keine Buchdateien vor Freigabe der Gesamtstruktur |
 | Recherche | Quellen, Fakten, Befunde und Unsicherheiten je Abschnitt | Keine automatische Übernahme in den Manuskripttext |
 | Brainstorming | Ideen, Perspektiven und offene Fragen | Keine Tatsachenfreigabe und keine automatische Textänderung |
-| Schreiben | Manuskriptentwurf nach ausdrücklicher Schreibfreigabe | Noch keine Abschnittsfreigabe |
-| Redaktion | Überarbeitete Fassung und dokumentierte offene Punkte | Keine stillschweigende Freigabe |
+| Schreiben | Manuskriptentwurf, nachdem du das Schreiben erlaubt hast | Abschnitt noch nicht abgeschlossen |
+| Redaktion | Überarbeitete Fassung und dokumentierte offene Punkte | Kein stillschweigender Abschluss |
 | Fact-Checking | Optionaler Prüfbericht; Befunde werden abgestimmt | Der Prüfbericht überschreibt den Text nicht selbst |
-| Abschnittsfreigabe | Freigabe des konkreten Textstands | Keine automatische Kapitelgesamtfreigabe |
-| Kapitelredaktion | Zusammengeführtes Kapitel, Übergänge und roter Faden geprüft | Keine automatische Kapitelgesamtfreigabe |
+| Abschnitt abschließen | Bestätigung des konkreten Textstands | Kapitel nicht automatisch abgeschlossen |
+| Kapitelredaktion | Zusammengeführtes Kapitel, Übergänge und roter Faden geprüft | Kapitel nicht automatisch abgeschlossen |
 | Kapitelgesamtfreigabe | Eigenständige Freigabe des vollständigen Kapitels | Keine Veröffentlichung einer Auflage |
 | Auflage | Bestätigter Snapshot als GitHub Release | Eine veröffentlichte Ausgabe wird nicht nachträglich verändert |
 
-**Wichtig:** Eine Idee, ein Rechercheergebnis, ein Chat-Entwurf, ein gespeicherter Arbeitsstand und ein freigegebener Buchtext sind unterschiedliche Dinge. Ein Status oder ein GitHub-Issue ersetzt niemals die persönliche Freigabe.
+**Wichtig:** Eine Idee, ein Rechercheergebnis, ein Chat-Entwurf, ein gespeicherter Arbeitsstand und ein abgeschlossener Buchtext sind unterschiedliche Dinge. Ein Status oder ein GitHub-Issue ersetzt niemals die persönliche Freigabe.
 
 ## 2. Vom ersten Aufruf bis zur Übernahme im eigenen Repository
 

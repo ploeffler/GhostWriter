@@ -9,7 +9,7 @@
 <g id="graph0" class="graph" transform="scale(1.52778 1.52778) rotate(0) translate(25.2 902.98)">
 <title>G</title>
 <polygon fill="#fafbfd" stroke="none" points="-25.2,25.2 -25.2,-902.98 920.51,-902.98 920.51,25.2 -25.2,25.2"/>
-<text xml:space="preserve" text-anchor="start" x="8" y="-850.08" font-family="DejaVu Sans" font-weight="bold" font-size="26.00" fill="#1e3048">Speichern, übernehmen und freigeben</text>
+<text xml:space="preserve" text-anchor="start" x="8" y="-850.08" font-family="DejaVu Sans" font-weight="bold" font-size="26.00" fill="#1e3048">Speichern, übernehmen und abschließen</text>
 <text xml:space="preserve" text-anchor="start" x="8" y="-836.43" font-family="DejaVu Sans" font-size="13.00" fill="#52647b">Zwei getrennte Wege · Ein Gesprächsentwurf ist noch nicht dauerhaft gesichert.</text>
 <text xml:space="preserve" text-anchor="start" x="8" y="-808.48" font-family="DejaVu Sans" font-size="11.00" fill="#3971ad">BLAU · Arbeit</text>
 <text xml:space="preserve" text-anchor="start" x="82.25" y="-808.48" font-family="DejaVu Sans" font-size="14.00"> &#160;&#160;</text>
@@ -29,7 +29,7 @@
 <title>b0</title>
 <path fill="#eaf2fc" stroke="#3971ad" stroke-width="1.3" d="M409.93,-692.74C409.93,-692.74 88,-692.74 88,-692.74 82,-692.74 76,-686.74 76,-680.74 76,-680.74 76,-614.7 76,-614.7 76,-608.7 82,-602.7 88,-602.7 88,-602.7 409.93,-602.7 409.93,-602.7 415.93,-602.7 421.93,-608.7 421.93,-614.7 421.93,-614.7 421.93,-680.74 421.93,-680.74 421.93,-686.74 415.93,-692.74 409.93,-692.74"/>
 <text xml:space="preserve" text-anchor="start" x="160.09" y="-667.02" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#20324a">BUCHÄNDERUNGEN</text>
-<text xml:space="preserve" text-anchor="start" x="91.84" y="-654.82" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Zielstand und erforderliche Schreibfreigaben prüfen.</text>
+<text xml:space="preserve" text-anchor="start" x="91.84" y="-654.82" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Zielstand und erforderliche Schreiberlaubnis prüfen.</text>
 <text xml:space="preserve" text-anchor="start" x="92.59" y="-642.82" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Änderungen einer Aufgabe gemeinsam vorbereiten.</text>
 <text xml:space="preserve" text-anchor="start" x="151.84" y="-615.77" font-family="DejaVu Sans" font-size="11.00" fill="#3971ad">vorbereitet, noch nicht gespeichert</text>
 </g>
@@ -102,7 +102,7 @@
 <g id="node6" class="node">
 <title>b4</title>
 <path fill="#fff2d8" stroke="#b37719" stroke-width="1.3" d="M443.93,-196.08C443.93,-196.08 50,-196.08 50,-196.08 44,-196.08 38,-190.08 38,-184.08 38,-184.08 38,-118.04 38,-118.04 38,-112.04 44,-106.04 50,-106.04 50,-106.04 443.93,-106.04 443.93,-106.04 449.93,-106.04 455.93,-112.04 455.93,-118.04 455.93,-118.04 455.93,-184.08 455.93,-184.08 455.93,-190.08 449.93,-196.08 443.93,-196.08"/>
-<text xml:space="preserve" text-anchor="start" x="86.09" y="-170.36" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#20324a">Inhaltliche Freigabe: eigener Schritt</text>
+<text xml:space="preserve" text-anchor="start" x="86.09" y="-170.36" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#20324a">Abschließen: eigener Schritt</text>
 <text xml:space="preserve" text-anchor="start" x="72.22" y="-158.16" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Abschnitt oder Kapitel in genau dieser Fassung bestätigen.</text>
 <text xml:space="preserve" text-anchor="start" x="53.84" y="-146.16" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Bei erfüllten Voraussetzungen auch im offenen Änderungspaket.</text>
 <text xml:space="preserve" text-anchor="start" x="178.34" y="-119.11" font-family="DejaVu Sans" font-size="11.00" fill="#b37719">ausdrücklich freigegeben</text>
@@ -120,7 +120,7 @@
 <path fill="#fcebe8" stroke="#b35245" stroke-width="1.3" d="M721.56,-75.04C721.56,-75.04 202.38,-75.04 202.38,-75.04 196.38,-75.04 190.38,-69.04 190.38,-63.04 190.38,-63.04 190.38,-12 190.38,-12 190.38,-6 196.38,0 202.38,0 202.38,0 721.56,0 721.56,0 727.56,0 733.56,-6 733.56,-12 733.56,-12 733.56,-63.04 733.56,-63.04 733.56,-69.04 727.56,-75.04 721.56,-75.04"/>
 <text xml:space="preserve" text-anchor="start" x="263.97" y="-49.32" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#20324a">Wenn Speichern oder Übernehmen scheitert</text>
 <text xml:space="preserve" text-anchor="start" x="238.84" y="-37.12" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Nicht gespeichert / weiterhin offen / blockiert: tatsächlichen Stand nennen.</text>
-<text xml:space="preserve" text-anchor="start" x="206.22" y="-25.12" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Konflikte klären, aktuelle Fassung neu prüfen; keine Freigaben oder Rechte umgehen.</text>
+<text xml:space="preserve" text-anchor="start" x="206.22" y="-25.12" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Konflikte klären, aktuelle Fassung neu prüfen; keinen Abschluss und keine Rechte umgehen.</text>
 <text xml:space="preserve" text-anchor="start" x="216.34" y="-13.12" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Erfolg erst nach bestätigtem Ergebnis melden. Bereits Gesichertes bleibt erhalten.</text>
 </g>
 <!-- b4&#45;&gt;error -->
@@ -160,7 +160,7 @@
 <path fill="#e4f4ed" stroke="#2d8061" stroke-width="1.3" d="M858.43,-329.62C858.43,-329.62 497.5,-329.62 497.5,-329.62 491.5,-329.62 485.5,-323.62 485.5,-317.62 485.5,-317.62 485.5,-251.58 485.5,-251.58 485.5,-245.58 491.5,-239.58 497.5,-239.58 497.5,-239.58 858.43,-239.58 858.43,-239.58 864.43,-239.58 870.43,-245.58 870.43,-251.58 870.43,-251.58 870.43,-317.62 870.43,-317.62 870.43,-323.62 864.43,-329.62 858.43,-329.62"/>
 <text xml:space="preserve" text-anchor="start" x="513.72" y="-303.9" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#20324a">Sicherung im Zielstand übernommen</text>
 <text xml:space="preserve" text-anchor="start" x="529.84" y="-291.7" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Gesprächsarbeit ist im vorgesehenen Zielbereich.</text>
-<text xml:space="preserve" text-anchor="start" x="501.34" y="-279.7" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Kein Manuskript und keine inhaltliche Freigabe ändern sich.</text>
+<text xml:space="preserve" text-anchor="start" x="501.34" y="-279.7" font-family="DejaVu Sans" font-size="12.00" fill="#20324a">Kein Manuskript und kein Abschluss ändern sich.</text>
 <text xml:space="preserve" text-anchor="start" x="602.22" y="-252.65" font-family="DejaVu Sans" font-size="11.00" fill="#2d8061">gesichert und übernommen</text>
 </g>
 <!-- s2&#45;&gt;s3 -->

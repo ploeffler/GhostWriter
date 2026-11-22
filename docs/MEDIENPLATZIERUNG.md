@@ -47,7 +47,7 @@ Position und Breite bestimmen gemeinsam den Textumfluss. Fehlende Druckauflösun
 
 Vor Abschluss der Umsetzung sind alle sechs Positionen, Größenänderungen, Seitenwechsel und Textumfluss in PDF, DOCX und EPUB zu prüfen. Nicht unterstützte Einstellungen müssen sichtbar gemeldet werden. Ein erfolgreiches Speichern allein ist kein Nachweis einer richtigen Platzierung.
 
-[Buchablauf](BUCHABLAUF.md) · [Erstellungskreislauf](ERSTELLUNGSKREISLAUF.md) · [Speichern und Freigeben](SPEICHERN.md)
+[Buchablauf](BUCHABLAUF.md) · [Erstellungskreislauf](ERSTELLUNGSKREISLAUF.md) · [Speichern und Abschließen](SPEICHERN.md)
 
 ---
 

@@ -8,7 +8,7 @@ Die drei grafischen Übersichten haben eigene Seiten:
 
 - [Buchablauf](BUCHABLAUF.md): von **Neues Buch** über den wiederkehrenden Kapitelkreis zur fertigen Auflage.
 - [Erstellungskreislauf](ERSTELLUNGSKREISLAUF.md): einen Abschnitt mit Recherche, Brainstorming, neuen Eingaben und Überarbeitungen entwickeln.
-- [Speichern, Übernehmen und Freigeben](SPEICHERN.md): Buchänderungen und Gesprächssicherung, ihre Zustände und getrennten Bestätigungen.
+- [Speichern, Übernehmen und Abschließen](SPEICHERN.md): Buchänderungen und Gesprächssicherung, ihre Zustände und getrennten Bestätigungen.
 
 **Für textorientierte Bücher, nicht für Bildbände oder Fotobücher:** Eine Szene entspricht einem Abschnitt; pro Abschnitt höchstens ein Medium. Die geplanten Positionen, Textumfluss und Größenwahl erklärt [Medien im Abschnitt](MEDIENPLATZIERUNG.md).
 

@@ -1,4 +1,4 @@
-# Speichern, Übernehmen und Freigeben
+# Speichern, Übernehmen und Abschließen
 
 Deutsch · [English](SAVING.en.md)
 
@@ -6,13 +6,13 @@ Deutsch · [English](SAVING.en.md)
 
 Ein Ergebnis im Chat ist noch nicht dauerhaft im Repository gesichert. Beim Speichern gibt es zwei Wege: Buchänderungen ändern den Arbeitsstand des Buchs; eine Gesprächssicherung bewahrt das Gespräch und seine Ergebnisse getrennt vom Manuskript. Beide Wege unterscheiden **gespeichert**, **übernommen** und **inhaltlich freigegeben**.
 
-![Speicherablauf mit getrennten Wegen für Buchänderungen und Gesprächssicherungen, ihren Zuständen und der eigenständigen inhaltlichen Freigabe](bilder/ablaeufe/speichern-de.png)
+![Speicherablauf mit getrennten Wegen für Buchänderungen und Gesprächssicherungen, ihren Zuständen und dem eigenständigen Abschließen](bilder/ablaeufe/speichern-de.png)
 
 [Grafik als skalierbares SVG öffnen](bilder/ablaeufe/speichern-de.svg)
 
 ## Buchänderungen speichern und übernehmen
 
-Der Assistent prüft den aktuellen Buchstand und die erforderlichen Freigaben, sammelt alle zusammengehörigen Änderungen einer Aufgabe und prüft sie gemeinsam. Erst danach werden sie als ein Änderungsschritt im gemeinsamen Änderungspaket gespeichert. Unveränderte Inhalte erzeugen keinen neuen Änderungsschritt.
+Der Assistent prüft den aktuellen Buchstand und ob das Schreiben erlaubt ist, sammelt alle zusammengehörigen Änderungen einer Aufgabe und prüft sie gemeinsam. Erst danach werden sie als ein Änderungsschritt im gemeinsamen Änderungspaket gespeichert. Unveränderte Inhalte erzeugen keinen neuen Änderungsschritt.
 
 Nach bestätigter Übertragung lautet der Stand **gespeichert, noch nicht übernommen**. Du kannst diesen Arbeitsstand bereits ansehen und weiterbearbeiten; die Ansichten lesen aus dem offenen Änderungspaket. Im übernommenen Buchstand stehen die Änderungen erst nach **Änderungen übernehmen**. Dabei bestätigst du die gezeigte aktuelle Fassung. Kommt inzwischen etwas dazu, muss die geänderte Fassung erneut gezeigt werden.
 

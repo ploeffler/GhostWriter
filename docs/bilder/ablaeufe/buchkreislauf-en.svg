@@ -33,18 +33,18 @@
 <rect x="525.0" y="800.0" width="850" height="200" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
 <text x="950" y="840.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Creation cycle for each section</text>
 <text x="950" y="879.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">See the separate circular diagram.</text>
-<text x="950" y="910.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Repeat until all sections in this chapter are approved.</text>
+<text x="950" y="910.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Repeat until all sections in this chapter are finalized.</text>
 <text x="950" y="979.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">Chapter: in_progress</text>
 <rect x="966.0" y="1400.0" width="660" height="200" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
 <text x="1296" y="1440.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Assemble and review the chapter</text>
-<text x="1296" y="1479.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">All sections approved → assemble</text>
-<text x="1296" y="1510.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Review → ready for chapter approval</text>
+<text x="1296" y="1479.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">All sections finalized → assemble</text>
+<text x="1296" y="1510.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Review → ready to finalize the chapter</text>
 <text x="1296" y="1554.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">ready_for_assembly → assembly</text>
 <text x="1296" y="1583.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">review → ready_for_approval</text>
 <rect x="274.0" y="1400.0" width="660" height="200" rx="22" fill="#FFF2D8" stroke="#B37719" stroke-width="2.5"/>
-<text x="604" y="1440.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Explicitly approve the chapter</text>
+<text x="604" y="1440.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Explicitly finalize the chapter</text>
 <text x="604" y="1479.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">You confirm the assembled version.</text>
-<text x="604" y="1579.0" text-anchor="middle" font-size="21" fill="#B37719" font-weight="400">Chapter: approved</text>
+<text x="604" y="1579.0" text-anchor="middle" font-size="21" fill="#B37719" font-weight="400">Chapter: finalized · approved</text>
 <path d="M 1550 1400 Q 1730 1090 1385 925" fill="none" stroke="#7865A5" stroke-width="4" stroke-dasharray="10 8" marker-end="url(#purple)"/>
 <text x="1680" y="1110" text-anchor="middle" font-size="21" fill="#7865A5" font-weight="400">if changes</text>
 <text x="1680" y="1139" text-anchor="middle" font-size="21" fill="#7865A5" font-weight="400">are needed</text>
@@ -53,7 +53,7 @@
 <path d="M 950 2370 L 950 2410" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
 <rect x="270.0" y="1710.0" width="1360" height="200" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
 <text x="950" y="1750.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Request a new edition and check requirements</text>
-<text x="950" y="1789.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">At least one approved chapter; all included sections approved.</text>
+<text x="950" y="1789.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">At least one finalized chapter; all included sections finalized.</text>
 <text x="950" y="1820.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">No unresolved markers; merge pending book changes first.</text>
 <text x="950" y="1889.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">If blocked, return to the affected work</text>
 <rect x="270.0" y="1940.0" width="1360" height="200" rx="22" fill="#FFF2D8" stroke="#B37719" stroke-width="2.5"/>
@@ -73,5 +73,5 @@
 <rect x="85.0" y="2650.0" width="1730" height="180" rx="22" fill="#F0EDF9" stroke="#7865A5" stroke-width="2.5"/>
 <text x="950" y="2690.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Other paths</text>
 <text x="950" y="2729.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Optional proof copy: a marked PDF of the merged version, not an edition.</text>
-<text x="950" y="2760.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Corrections / next edition: explicitly revoke affected approvals and resume chapter work.</text>
+<text x="950" y="2760.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Corrections / next edition: explicitly reopen affected chapters and resume chapter work.</text>
 </g></svg>

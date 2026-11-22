@@ -6,7 +6,7 @@ Deutsch · [English](CREATION-CYCLE.en.md)
 
 Ein Abschnitt entsteht im Austausch. Neue Ideen, Vorgaben, Material und Rückmeldungen können jederzeit weitere Recherche, neues Brainstorming oder eine Überarbeitung auslösen. Du kehrst zur passenden Stelle zurück, statt das Buch von vorne zu beginnen. Die ausdrückliche Abschnittsfreigabe ist der Ausstieg aus diesem Kreis.
 
-![Runder Erstellungskreislauf mit Benutzereingaben im Mittelpunkt, Rückwegen zu Recherche, Brainstorming und Überarbeitung sowie einem Ausstieg zur Abschnittsfreigabe](bilder/ablaeufe/erstellungskreislauf-de.png)
+![Runder Erstellungskreislauf mit Benutzereingaben im Mittelpunkt, Rückwegen zu Recherche, Brainstorming und Überarbeitung sowie einem Ausstieg zum Abschließen des Abschnitts](bilder/ablaeufe/erstellungskreislauf-de.png)
 
 [Grafik als skalierbares SVG öffnen](bilder/ablaeufe/erstellungskreislauf-de.svg)
 
