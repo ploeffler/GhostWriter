@@ -1,4 +1,4 @@
-# Saving, merging and approving
+# Saving, merging and finalizing
 
 [Deutsch](SPEICHERN.md) · English
 
@@ -6,7 +6,7 @@
 
 A result in the chat is not yet durably saved to the repository. Two paths are available: book changes update the book's working version; a conversation backup preserves the discussion and its results separately from the manuscript. Both paths distinguish **saved**, **merged** and **content approved**.
 
-![Saving workflow with separate paths for book changes and conversation backups, their states and independent content approval](bilder/ablaeufe/speichern-en.png)
+![Saving workflow with separate paths for book changes and conversation backups, their states and separate finalizing](bilder/ablaeufe/speichern-en.png)
 
 [Open the scalable SVG diagram](bilder/ablaeufe/speichern-en.svg)
 

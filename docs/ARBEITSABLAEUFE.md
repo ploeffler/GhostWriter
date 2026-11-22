@@ -14,7 +14,7 @@ Der redaktionelle Buchkreislauf und der technische Weg vom Chat bis zur Übernah
   Nach `changes.auto_merge` handeln. Ein neuer Stand vor dem Schreiben erfordert
   erneuten Abgleich der betroffenen Dateien; vor Übernahme den bestätigten Head
   erneut prüfen. Nie einen älteren Stand ungeprüft über den Buchstand legen.
-- Aktuelle Freigaben, Speicherung, Übernahme und formelle Freigaben getrennt
+- Schreiberlaubnis, Speicherung, Übernahme und Abschließen getrennt
   benennen. „Alles freigeben“ ist bei mehreren möglichen Arten keine eindeutige
   Auswahl. Fehler, offene Fragen und verbleibende Freigaben sichtbar lassen.
 - Eine Bestätigung darf mehrere ausdrücklich benannte und überprüfbare Aktionen
@@ -23,18 +23,18 @@ Der redaktionelle Buchkreislauf und der technische Weg vom Chat bis zur Übernah
 
 ## Abschnitt erstellen und speichern
 
-1. Abschnittsstand, Schreibfreigabe, Buchprofil und vorhandene Unterlagen lesen.
+1. Abschnittsstand, Schreiberlaubnis, Buchprofil und vorhandene Unterlagen lesen.
    `python scripts/workflow_support.py <projekt> material <kapitel>` zeigt
    Kapiteldateien und mögliche Texttreffer; Treffer sind nur Hinweise und können
    unvollständig sein. Ergänzungen und offene Fragen im Gespräch sammeln.
-2. Einen Entwurf im Chat zeigen. Die Schreibfreigabe nicht durch bloßes Ansehen
-   oder Speichern unterstellen. Bei noch fehlender Freigabe kann eine einzige
-   Bestätigung beide Aktionen ausdrücklich nennen: „Schreibfreigabe für Abschnitt
-   X erteilen und diesen Entwurf speichern“. Nur nach dieser Bestätigung Freigabe
+2. Einen Entwurf im Chat zeigen. Die Schreiberlaubnis nicht durch bloßes Ansehen
+   oder Speichern unterstellen. Ist das Schreiben noch nicht erlaubt, kann eine einzige
+   Bestätigung beide Aktionen ausdrücklich nennen: „Schreiben für Abschnitt
+   X erlauben und diesen Entwurf speichern“. Nur nach dieser Bestätigung Erlaubnis
    und Entwurf gemeinsam und mit bestätigt-gelesenem Stand dokumentieren.
 3. Die vollständige Abschnittsprüfung gemäß QUALITAETSSICHERUNG.md ausführen;
-   Probleme und ungesicherte Angaben nennen. Endgültige Abschnittsfreigabe bleibt
-   eine eigene Handlung. Bei Ablehnung oder Abbruch weder Freigabe erfinden noch
+   Probleme und ungesicherte Angaben nennen. Abschnitt abschließen bleibt
+   eine eigene Handlung. Bei Ablehnung oder Abbruch weder Abschluss erfinden noch
    Manuskript speichern.
 
 ## Kapitel prüfen, planen und überarbeiten
@@ -49,8 +49,8 @@ Der redaktionelle Buchkreislauf und der technische Weg vom Chat bis zur Übernah
 3. Die Auswahl des Autors einholen. Einen Arbeitsplan im Buchprojekt ablegen:
    geprüfter Stand, Fundstellen, Vorschlag, Status `offen`, `bestaetigt`,
    `umgesetzt` oder `zurueckgestellt`, offene Fragen und Ergebnis. Die Zustände
-   beschreiben nur den Plan und sind keine Abschnittsfreigaben.
-4. Bestätigte Änderungen mit bestehender Schreibfreigabe ausführen, betroffene
+   beschreiben nur den Plan und schließen keinen Abschnitt ab.
+4. Bestätigte Änderungen mit bestehender Schreiberlaubnis ausführen, betroffene
    Abschnitte und bei kapitelweiten Änderungen das gesamte Kapitel erneut lesen.
    Ergebnis, Änderungen und ungelöste Punkte dokumentieren. Die Übergabe des
    Arbeitsstands und eine endgültige Freigabe sind unterschiedliche Entscheidungen.
@@ -84,22 +84,22 @@ Für Änderungen an der Kapitelgliederung gibt es `scripts/sections.py` (#293):
 `archiv/`), `move` verschiebt ihn in ein anderes Kapitel. Das Skript zieht
 `ghostwriter.yml`, Nummern und Überschriften, die Abschnittslisten der
 Kapitel-READMEs, Laufdateien, Kosten und Markdown-Verweise nach. Abgeschlossene
-Abschnitte bleiben gesperrt, bis die Freigabe zurückgenommen ist; ein Manuskript
+Abschnitte bleiben gesperrt, bis sie wieder geöffnet sind; ein Manuskript
 wird nur nach ausdrücklicher Wahl angehängt, archiviert oder entfernt. Entfernte
 IDs stehen in `structure.retired`, damit das Freigabe- und Prüfprotokoll
 unverändert gültig bleibt. Übrige Verweise wie „Abschnitt 7.3“ im Fließtext meldet
 das Skript zur Prüfung. Vor dem Ausführen zeigt der Assistent, was sich ändert,
 und wartet auf die Bestätigung.
 
-## Übernahme und formelle Freigabe
+## Übernahme und Abschließen
 
 Zum Abschluss die tatsächlichen Dateien und Entscheidungen in Alltagssprache
 zusammenfassen: gespeichert, noch offen oder bereits übernommen. Die Bestätigung
-„Buchänderungen übernehmen“ übernimmt nur den gezeigten Stand. Abschnitts- und
-Kapitelfreigaben erhalten eigene, eindeutig bezeichnete Bestätigungen samt
-Prüfung ihrer Voraussetzungen und Freigabeprotokoll. Bei einem anderen
+„Buchänderungen übernehmen“ übernimmt nur den gezeigten Stand. Abschnitt abschließen und
+Kapitel abschließen erhalten eigene, eindeutig bezeichnete Bestätigungen samt
+Prüfung ihrer Voraussetzungen und Protokoll (`approvals`). Bei einem anderen
 zwischenzeitlichen Stand erneut vergleichen; bei Konflikt nicht automatisch
-übernehmen. Dieser Merge-Schritt erteilt keine Abschnitts- oder Kapitelfreigabe.
+übernehmen. Dieser Merge-Schritt schließt keinen Abschnitt und kein Kapitel ab.
 
 ---
 

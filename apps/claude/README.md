@@ -38,7 +38,7 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   (Änderungspaket älter als das letzte Update), bringt die App das Änderungspaket vorher auf den Buchstand
   (`update_pull_request_branch`).
 - Claude-Leiste in Projektübersicht, Kapitel und Abschnitt. Claude kann Knöpfe anbieten, die nur eine Ansicht
-  oder ein Formular öffnen (Liste `SAFE_ACTIONS` in `index.html`). Speichern und Freigeben bleiben eigene Schritte.
+  oder ein Formular öffnen (Liste `SAFE_ACTIONS` in `index.html`). Speichern und Abschließen bleiben eigene Schritte.
   Will der Benutzer im Chat etwas ändern, sagt Claude nicht nur „kann ich nicht“, sondern bietet den Knopf zum
   passenden Formular an, in dem er speichert.
 

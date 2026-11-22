@@ -39,7 +39,7 @@
 <rect x="1142.024430426413" y="1510.6297641365722" width="480" height="150" rx="22" fill="#FFF2D8" stroke="#B37719" stroke-width="2.5"/>
 <text x="1382.024430426413" y="1549.6297641365722" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Authorise writing</text>
 <text x="1382.024430426413" y="1584.6297641365722" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Your explicit writing permission</text>
-<text x="1382.024430426413" y="1640.6297641365722" text-anchor="middle" font-size="18" fill="#B37719" font-weight="400">Writing permission ≠ final approval</text>
+<text x="1382.024430426413" y="1640.6297641365722" text-anchor="middle" font-size="18" fill="#B37719" font-weight="400">Allow writing ≠ finalize</text>
 <rect x="577.9755695735873" y="1510.6297641365725" width="480" height="150" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
 <text x="817.9755695735873" y="1549.6297641365725" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Write the section</text>
 <text x="817.9755695735873" y="1584.6297641365725" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Draft from the agreed foundations</text>
@@ -50,7 +50,7 @@
 <text x="466.29685708181455" y="1199.6386070716042" text-anchor="middle" font-size="18" fill="#3971AD" font-weight="400">revision</text>
 <rect x="351.8095363957806" y="519.7316287918234" width="480" height="150" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
 <text x="591.8095363957806" y="558.7316287918234" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Assess the version together</text>
-<text x="591.8095363957806" y="593.7316287918234" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Requested changes or approval decision</text>
+<text x="591.8095363957806" y="593.7316287918234" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Requested changes or finalize</text>
 <text x="591.8095363957806" y="649.7316287918234" text-anchor="middle" font-size="18" fill="#3971AD" font-weight="400">ready_for_approval</text>
 <circle cx="1100" cy="1000" r="225" fill="#F0EDF9" stroke="#7865A5" stroke-width="3"/>
 <text x="1100" y="906" text-anchor="middle" font-size="34" fill="#594785" font-weight="700">Your input</text>
@@ -61,9 +61,9 @@
 <text x="1100" y="1105" text-anchor="middle" font-size="22" fill="#594785" font-weight="400">clarify and continue.</text>
 <path d="M 450 540 Q 390 360 300 344" fill="none" stroke="#3971AD" stroke-width="4" stroke-dasharray="none" marker-end="url(#blue)"/>
 <rect x="50.0" y="195.0" width="500" height="150" rx="22" fill="#E4F4ED" stroke="#2D8061" stroke-width="2.5"/>
-<text x="300" y="234.0" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Explicitly approve the section</text>
+<text x="300" y="234.0" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Explicitly finalize the section</text>
 <text x="300" y="269.0" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">You confirm this exact version.</text>
-<text x="300" y="325.0" text-anchor="middle" font-size="18" fill="#2D8061" font-weight="400">approved</text>
+<text x="300" y="325.0" text-anchor="middle" font-size="18" fill="#2D8061" font-weight="400">finalized · approved</text>
 <text x="270" y="440" text-anchor="middle" font-size="20" fill="#2D8061" font-weight="400">deliberate exit</text>
 <text x="700" y="440" text-anchor="middle" font-size="20" fill="#3971AD" font-weight="400">clarify / research again</text>
 <path d="M 300 1220 Q 150 1490 340 1760" fill="none" stroke="#7865A5" stroke-width="4" stroke-dasharray="9 7" marker-end="url(#purple)"/>
@@ -74,7 +74,7 @@
 <text x="360" y="1873.5" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">No automatic text changes.</text>
 <text x="360" y="1907.5" text-anchor="middle" font-size="18" fill="#7865A5" font-weight="400">fact_check</text>
 <rect x="940.0" y="1772.5" width="1120" height="155" rx="22" fill="#F0EDF9" stroke="#7865A5" stroke-width="2.5"/>
-<text x="1500" y="1811.5" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Revoke approval before editing again</text>
+<text x="1500" y="1811.5" text-anchor="middle" font-size="25" fill="#20324A" font-weight="700">Reopen before editing again</text>
 <text x="1500" y="1846.5" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Requires explicit confirmation, then new writing permission.</text>
 <text x="1500" y="1873.5" text-anchor="middle" font-size="20" fill="#20324A" font-weight="400">Saving and merging are explained in the separate diagram.</text>
 <text x="1100" y="2010" text-anchor="middle" font-size="22" fill="#52647B" font-weight="400">Feedback paths show repeated work; new research does not automatically reset an advanced section state.</text>

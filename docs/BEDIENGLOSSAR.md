@@ -58,7 +58,7 @@ Seit #292 heißt das Bestätigen fertiger Texte **abschließen**, das Rückgäng
 
 ## Speichern und Übernehmen
 
-Diese Begriffe beschreiben den Speicherstand. Sie sind keine Zustände von Abschnitten oder Kapiteln. Siehe [Speichern, Übernehmen und Freigeben](SPEICHERN.md#die-zustände-auseinanderhalten).
+Diese Begriffe beschreiben den Speicherstand. Sie sind keine Zustände von Abschnitten oder Kapiteln. Siehe [Speichern, Übernehmen und Abschließen](SPEICHERN.md#die-zustände-auseinanderhalten).
 
 - <a id="arbeitsstand"></a>**Arbeitsstand:** Der aktuelle Stand mit allen gespeicherten, auch noch nicht übernommenen Änderungen. Die Ansichten lesen ihn aus dem offenen Änderungspaket.
 - <a id="buchstand"></a>**Buchstand:** Der übernommene Stand des Buchs. Aus ihm entstehen Probedruck und Auflage.

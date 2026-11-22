@@ -6,7 +6,7 @@
 
 A section develops through discussion. New ideas, requirements, material and feedback can trigger further research, brainstorming or revision at any time. Return to the relevant step rather than restarting the book. Explicitly finalizing the section is the exit from this circle.
 
-![Circular creation workflow with user input at its centre, feedback paths to research, brainstorming and revision, and an exit to section approval](bilder/ablaeufe/erstellungskreislauf-en.png)
+![Circular creation workflow with user input at its centre, feedback paths to research, brainstorming and revision, and an exit to finalizing the section](bilder/ablaeufe/erstellungskreislauf-en.png)
 
 [Open the scalable SVG diagram](bilder/ablaeufe/erstellungskreislauf-en.svg)
 
