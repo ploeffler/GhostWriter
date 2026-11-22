@@ -5,6 +5,9 @@ Aufruf:
   python scripts/jobs.py <buch> list [--json]
   python scripts/jobs.py <buch> enqueue --type research --section <id> [--question Q] [--provider P]
                                         [--model M] [--confirm-low-budget] [--requested-by NAME]
+                                        [--priority] [--after <auftrag>]
+  python scripts/jobs.py <buch> prioritize --request <auftrag>      (vorziehen, #478)
+  python scripts/jobs.py <buch> cancel --request <auftrag>          (nur wartende Aufträge)
   python scripts/jobs.py <buch> process [--defaults datei] [--limit 5] [--push-to <arbeits-branch>]
   python scripts/jobs.py <ordner> remote [--start] [--paused] [--dry-run]   (Kontrolllauf, #481)
   python scripts/jobs.py <ordner> report [--json] [--language en]           (Wiedereinstieg, #484)
@@ -19,8 +22,10 @@ Gemeinsame Felder: `type`, `requested_at`, `requested_by`, `provider`, `model`,
 `confirm_low_budget`; Zustand: `error` und `failed_at` (fehlgeschlagen, läuft nicht erneut),
 `waiting: budget` (wartet auf Bestätigung, weil das KI-Budget unter der Schwelle ist).
 
-Reihenfolge: Buchreihenfolge (Kapitel, Abschnitt; Vor- und Nachspann danach), dann
-`requested_at`, dann Dateipfad. Je Auftrag: Budget prüfen (darunter `waiting: budget`, außer
+Reihenfolge (#478), in dieser Rangfolge: Vorrang (`priority: true`, „vorziehen“), Abhängigkeit
+(`after: <Auftrag>`: der Auftrag wartet, bis der genannte erledigt oder fehlgeschlagen ist;
+Ringe werden ignoriert und gemeldet), Buchreihenfolge (Kapitel, Abschnitt; Vor- und Nachspann
+danach), `requested_at`, Dateipfad. Die KI sortiert nicht um. Je Auftrag: Budget prüfen (darunter `waiting: budget`, außer
 `confirm_low_budget`), ausführen, Ergebnis committen und pushen (`--push-to`). Ein Fehler
 stoppt die Warteschlange nicht. `--limit` begrenzt die Aufträge je Lauf; `remaining` nennt,
 wie viele danach noch offen sind (die Action startet sich dann selbst neu).
@@ -104,8 +109,49 @@ def book_order(config):
     return order
 
 
+def pending(job):
+    """Auftrag ist noch nicht erledigt und nicht gescheitert (wartet oder wartet auf Bestätigung)."""
+    return job['state'] in ('open', 'waiting_budget')
+
+
+def resolve_after(out, base):
+    """`after` auflösen (#478): Ziel je Auftrag, Ringe und fehlende Ziele.
+    Ein Ring wird ignoriert und gemeldet (`problem`). Ein fehlendes Ziel ist meist ein erledigter Auftrag (die
+    Datei verschwindet beim Erledigen); es blockiert nicht und wird nur als `note` vermerkt."""
+    by_rel = {}
+    for j in out:
+        j['rel'] = str(j['path'].relative_to(base))
+        by_rel[j['rel']] = j
+    for j in out:
+        j['after_job'] = None
+        after = str(j['data'].get('after') or '').strip()
+        if not after:
+            continue
+        rel = after if after in by_rel else str(Path(j['rel']).parent / (after if after.endswith('.yml') else after + '.yml'))
+        target = by_rel.get(rel)
+        if target is None or target is j:
+            j['note'] = f'Ziel von „after“ nicht mehr vorhanden: {after}'
+        else:
+            j['after_job'] = target
+    for j in out:   # Ringe: wer über `after` wieder bei sich ankommt
+        seen, k = set(), j
+        while k is not None and id(k) not in seen:
+            seen.add(id(k))
+            k = k['after_job']
+        if k is j:
+            members = [m for m in out if id(m) in seen]
+            for m in members:
+                m['problem'] = 'Ring bei „after“ ignoriert'
+            for m in members:
+                m['after_job'] = None
+    for j in out:
+        t = j['after_job']
+        j['blocked_by'] = t['rel'] if t is not None and pending(t) else None
+
+
 def jobs(base, config=None):
-    """Alle Aufträge mit Pfad, Daten und Zustand, in Abarbeitungsreihenfolge."""
+    """Alle Aufträge mit Pfad, Daten und Zustand, in Abarbeitungsreihenfolge (#478): Vorrang, dann Buchreihenfolge,
+    dann Auftragszeit; ein Auftrag mit `after` steht stets hinter seinem Ziel."""
     base = Path(base)
     config = config if config is not None else (read(base / 'ghostwriter.yml') or {})
     order = book_order(config)
@@ -113,16 +159,60 @@ def jobs(base, config=None):
     for path in files(base):
         data = read(path)
         if data is None:
-            out.append({'path': path, 'data': {}, 'state': 'failed', 'rank': (9,), 'error': 'Auftrag nicht lesbar'})
+            out.append({'path': path, 'data': {}, 'state': 'failed', 'rank': (1, 9), 'error': 'Auftrag nicht lesbar'})
             continue
         sid = str(data.get('section_id') or (path.parent.name if 'research' in path.parts else ''))
-        rank = order.get(sid, (8, 0, 0)) + (str(data.get('requested_at') or ''), str(path.relative_to(base)))
+        rank = (0 if data.get('priority') is True else 1,) + order.get(sid, (8, 0, 0)) \
+            + (str(data.get('requested_at') or ''), str(path.relative_to(base)))
         out.append({'path': path, 'data': data, 'state': state(data), 'rank': rank, 'section_id': sid, 'type': kind(data)})
-    return sorted(out, key=lambda j: j['rank'])
+    out.sort(key=lambda j: j['rank'])
+    resolve_after(out, base)
+    ordered, seen = [], set()
+
+    def emit(j):
+        if id(j) in seen:
+            return
+        seen.add(id(j))
+        if j.get('after_job') is not None:
+            emit(j['after_job'])
+        ordered.append(j)
+    for j in out:
+        emit(j)
+    return ordered
 
 
 def queue(base, config=None, types=None):
-    return [j for j in jobs(base, config) if j['state'] == 'open' and (not types or j['type'] in types)]
+    """Aufträge, die jetzt ausgeführt werden dürfen: offen und nicht von einem noch offenen Auftrag abhängig."""
+    return [j for j in jobs(base, config) if j['state'] == 'open' and not j.get('blocked_by')
+            and (not types or j['type'] in types)]
+
+
+def find(base, request):
+    """Auftrag nach Pfad (relativ zum Buch) oder Dateiname; ValueError, wenn nicht eindeutig gefunden."""
+    request = str(request).strip().replace('\\', '/')
+    hits = [j for j in jobs(base) if j['rel'] == request or j['path'].name == request or j['path'].stem == request]
+    if len(hits) != 1:
+        raise ValueError(f'Auftrag nicht eindeutig gefunden: {request}' if hits else f'Auftrag nicht gefunden: {request}')
+    return hits[0]
+
+
+def prioritize(base, request):
+    """Vorziehen: `priority: true` setzen. Nur wartende Aufträge; Pfad relativ zum Buch."""
+    job = find(base, request)
+    if not pending(job):
+        raise ValueError('Vorziehen geht nur bei wartenden Aufträgen.')
+    job['data']['priority'] = True
+    write(job['path'], job['data'])
+    return job['path']
+
+
+def cancel(base, request):
+    """Abbrechen: den Auftrag entfernen. Nur wartende Aufträge; ein bereits laufender lässt sich so nicht stoppen."""
+    job = find(base, request)
+    if not pending(job):
+        raise ValueError('Abbrechen geht nur bei wartenden Aufträgen.')
+    job['path'].unlink()
+    return job['path']
 
 
 def section_path(base, config, section_id):
@@ -131,7 +221,7 @@ def section_path(base, config, section_id):
 
 
 def enqueue(base, type_='research', section=None, question=None, provider=None, model=None,
-            confirm_low_budget=False, requested_by=None, now=None, fields=None):
+            confirm_low_budget=False, requested_by=None, now=None, fields=None, priority=False, after=None):
     """Auftrag anlegen; einziger Weg, eine Arbeit in die Warteschlange zu stellen. Gibt den Pfad zurück.
     Recherche am Abschnitt; andere Arten unter jobs/ mit ihren Feldern (`fields`) unter dem Namen der Art."""
     if type_ not in TYPES:
@@ -146,6 +236,10 @@ def enqueue(base, type_='research', section=None, question=None, provider=None, 
             data['model'] = model
         if confirm_low_budget:
             data['confirm_low_budget'] = True
+        if priority:
+            data['priority'] = True
+        if after:
+            data['after'] = after
         data[type_] = {k: v for k, v in (fields or {}).items() if k in FIELDS[type_] and v not in (None, '')}
         path = folder / f'request-{n:03d}.yml'
         write(path, data)
@@ -163,6 +257,10 @@ def enqueue(base, type_='research', section=None, question=None, provider=None, 
             data[key] = value
     if confirm_low_budget:
         data['confirm_low_budget'] = True
+    if priority:
+        data['priority'] = True
+    if after:
+        data['after'] = after
     path = folder / f'request-{n:03d}.yml'
     write(path, data)
     return path
@@ -301,7 +399,11 @@ def process(base, defaults=None, limit=LIMIT, push_to=None, commit=True, now=Non
     base = Path(base)
     config = read(base / 'ghostwriter.yml') or {}
     results = []
-    for job in queue(base, config, types)[:limit]:
+    for _ in range(limit):
+        ready = queue(base, config, types)   # jedes Mal neu: ein erledigter Auftrag gibt abhängige frei (#478)
+        if not ready:
+            break
+        job = ready[0]
         rel = str(job['path'].relative_to(base))
         stamp = (now or now_utc()).isoformat()
         free = (job['type'], str((job['data'].get(job['type']) or {}).get('step') or '')) in FREE
@@ -507,14 +609,16 @@ def listing(base):
         d = j['data']
         out.append({'request': str(j['path'].relative_to(base)), 'type': j.get('type', 'research'), 'state': j['state'],
                     'section_id': j.get('section_id', ''), 'requested_at': d.get('requested_at'),
-                    'question': d.get('question'), 'error': d.get('error') or j.get('error')})
+                    'question': d.get('question'), 'error': d.get('error') or j.get('error'),
+                    'priority': d.get('priority') is True, 'after': d.get('after') or '',
+                    'blocked_by': j.get('blocked_by') or '', 'note': j.get('problem') or j.get('note') or ''})
     return out
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('base')
-    ap.add_argument('cmd', choices=['list', 'enqueue', 'process', 'remote', 'report'])
+    ap.add_argument('cmd', choices=['list', 'enqueue', 'prioritize', 'cancel', 'process', 'remote', 'report'])
     ap.add_argument('--language', default='de')
     ap.add_argument('--start', action='store_true', help='remote: Abarbeitung je Buch starten')
     ap.add_argument('--paused', action='store_true', help='remote: Automatik pausiert, nur melden')
@@ -524,6 +628,9 @@ def main(argv=None):
     ap.add_argument('--field', action='append', default=[], metavar='NAME=WERT',
                     help='enqueue: Feld der Art (z. B. folder=…, kind=characters,style); true/false werden zu Wahrheitswerten')
     ap.add_argument('--section')
+    ap.add_argument('--request', help='prioritize/cancel: Auftrag (Pfad im Buch oder Dateiname)')
+    ap.add_argument('--priority', action='store_true', help='enqueue: vorziehen')
+    ap.add_argument('--after', help='enqueue: erst nach diesem Auftrag (Pfad im Buch)')
     ap.add_argument('--question')
     ap.add_argument('--provider')
     ap.add_argument('--model')
@@ -543,7 +650,9 @@ def main(argv=None):
                 print(json.dumps(data, ensure_ascii=False, indent=1))
             else:
                 names = {'open': 'wartet', 'waiting_budget': 'wartet auf Bestätigung (Budget)', 'failed': 'fehlgeschlagen'}
-                print('\n'.join(f'- {names[x["state"]]}: {x["request"]}' + (f' – {x["error"]}' if x['error'] else '')
+                print('\n'.join(f'- {names[x["state"]]}: {x["request"]}' + (' (vorgezogen)' if x['priority'] else '')
+                                + (f' – wartet auf {x["blocked_by"]}' if x['blocked_by'] else '')
+                                + (f' – {x["error"]}' if x['error'] else '') + (f' [{x["note"]}]' if x['note'] else '')
                                 for x in data) or '- Keine Aufträge.')
             return 0
         if a.cmd == 'report':
@@ -561,13 +670,22 @@ def main(argv=None):
                 with open(summary_path, 'a', encoding='utf-8') as f:
                     f.write('\n' + text + '\n')
             return 0
+        if a.cmd in ('prioritize', 'cancel'):
+            if not a.request:
+                raise ValueError('--request angeben.')
+            path = (prioritize if a.cmd == 'prioritize' else cancel)(base, a.request)
+            if a.push_to:
+                commit_push(base, f'Warteschlange: {path.relative_to(base)} ' + ('vorgezogen' if a.cmd == 'prioritize' else 'abgebrochen'),
+                            a.push_to)
+            print(path.relative_to(base))
+            return 0
         if a.cmd == 'enqueue':
             fields = {}
             for item in a.field:
                 key, _, value = item.partition('=')
                 fields[key.strip()] = {'true': True, 'false': False}.get(value.strip().lower(), value) if value.strip().lower() in ('true', 'false') else value
             path = enqueue(base, a.type, a.section, a.question, a.provider, a.model, a.confirm_low_budget, a.requested_by,
-                           fields=fields)
+                           fields=fields, priority=a.priority, after=a.after)
             if a.push_to:   # Auftrag sofort sichern: geht ein Lauf verloren, bleibt er in der Warteschlange
                 commit_push(base, f'Warteschlange: Auftrag {path.relative_to(base)}', a.push_to)
             print(path.relative_to(base))
