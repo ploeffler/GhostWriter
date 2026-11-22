@@ -34,8 +34,9 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   „Recherche“, die mit dem Secret des Dienstes sucht und Laufdatei und Kosteneintrag ins Änderungspaket legt.
   „Nachsehen“ zeigt Stand, Fehler oder Ergebnis (Quellen, Suchanfragen, Kosten). Ohne solchen Dienst bleibt
   „Sofort“ die Recherche ohne Internet über Claude.
-  Fehlt die Action im Arbeits-Branch (Änderungspaket älter als das Update), bringt die App das Änderungspaket vorher
-  auf den Buchstand (`update_pull_request_branch`).
+  Der Push startet die Action in der Fassung des Arbeits-Branchs. Weicht `research.yml` dort vom Buch-Branch ab
+  (Änderungspaket älter als das letzte Update), bringt die App das Änderungspaket vorher auf den Buchstand
+  (`update_pull_request_branch`).
 - Claude-Leiste in Projektübersicht, Kapitel und Abschnitt. Claude kann Knöpfe anbieten, die nur eine Ansicht
   oder ein Formular öffnen (Liste `SAFE_ACTIONS` in `index.html`). Speichern und Freigeben bleiben eigene Schritte.
   Will der Benutzer im Chat etwas ändern, sagt Claude nicht nur „kann ich nicht“, sondern bietet den Knopf zum
