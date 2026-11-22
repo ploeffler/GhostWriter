@@ -33,7 +33,7 @@ permissions:
   contents: write
   issues: write
   pull-requests: read
-  actions: read
+  actions: write   # Kontrolllauf: Abarbeitung der Hintergrund-Warteschlange starten (#481)
 
 concurrency:
   group: ghostwriter-update
@@ -105,6 +105,23 @@ jobs:
           if [ -n "$INPUT_BRANCH" ]; then args+=(--branch "$INPUT_BRANCH"); fi
           if [ "$INPUT_DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           python scripts/update_from_upstream.py "${args[@]}"
+
+      - name: Hintergrund-Warteschlange prüfen
+        # #481: liegengebliebene Aufträge auf den Arbeits-Branches finden und je Buch die Abarbeitung
+        # starten (workflow_dispatch, ohne KI-Aufruf); bei pausierter Automatik nur melden.
+        if: always() && hashFiles('scripts/jobs.py') != ''
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAUSED: ${{ steps.limits.outputs.paused }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          git fetch -q --prune origin '+refs/heads/*:refs/remotes/origin/*' || true
+          args=(--start)
+          if [ "$PAUSED" = "true" ]; then args+=(--paused); fi
+          if [ "$INPUT_DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          python scripts/jobs.py . remote "${args[@]}"
 
       - name: Tägliche GitHub-Übersicht ergänzen
         if: always()

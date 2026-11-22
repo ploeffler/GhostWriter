@@ -6,6 +6,7 @@ Aufruf:
   python scripts/jobs.py <buch> enqueue --type research --section <id> [--question Q] [--provider P]
                                         [--model M] [--confirm-low-budget] [--requested-by NAME]
   python scripts/jobs.py <buch> process [--defaults datei] [--limit 5] [--push-to <arbeits-branch>]
+  python scripts/jobs.py <ordner> remote [--start] [--paused] [--dry-run]   (Kontrolllauf, #481)
 
 Auftrag (Schema schemas/job.schema.json): eine Datei `request-NNN.yml`.
 - Recherche (`type: research`, Vorgabe, wenn `type` fehlt): am Abschnitt unter
@@ -248,6 +249,59 @@ def summary(results, remaining=0):
     return '\n'.join(lines)
 
 
+JOB_PATTERNS = ('chapters/*/research/*/request-*.yml', 'matter/research/*/request-*.yml', 'jobs/request-*.yml')
+
+
+def remote_pending(base='.', ref_prefix='refs/remotes/origin/'):
+    """Offene Aufträge auf den Arbeits-Branches, ohne Checkout (#481): {buch: Zahl}. Gezählt wird, was
+    die Abarbeitung ausführen würde: ohne `error` und nicht „wartet auf Bestätigung“ ohne Bestätigung."""
+    import fnmatch
+    import library
+    prefix = library.settings(library.load_manifest())['work_prefix']
+    refs = git(base, 'for-each-ref', '--format=%(refname)', ref_prefix + prefix).stdout.split()
+    out = {}
+    for ref in refs:
+        work = ref[len(ref_prefix):]
+        book = work[len(prefix):]
+        names = git(base, 'ls-tree', '-r', '--name-only', ref, '--', 'chapters', 'matter', 'jobs', check=False).stdout.splitlines()
+        count = 0
+        for name in names:
+            if not (any(fnmatch.fnmatch(name, pat) for pat in JOB_PATTERNS) and REQUEST_RE.match(Path(name).name)):
+                continue
+            try:
+                data = yaml.safe_load(git(base, 'show', f'{ref}:{name}').stdout) or {}
+            except (RuntimeError, yaml.YAMLError):
+                continue
+            if isinstance(data, dict) and state(data) == 'open':
+                count += 1
+        if count:
+            out[book] = count
+    return out
+
+
+def start_pending(pending, paused=False, dry_run=False, base='.', run=None):
+    """Je Buch mit offenen Aufträgen die Abarbeitung starten (workflow_dispatch auf dem Buch-Branch, ohne
+    section). Pausierte Automatik oder Probelauf: nichts starten, nur melden. Gibt Berichtszeilen zurück."""
+    run = run or (lambda args: subprocess.run(args, capture_output=True, text=True))
+    lines = []
+    total = sum(pending.values())
+    if not pending:
+        return ['Hintergrund-Warteschlange: keine liegengebliebenen Aufträge.']
+    if paused:
+        return [f'Hintergrund-Warteschlange: {total} Aufträge warten; Automatik pausiert, nichts gestartet.']
+    for book, count in sorted(pending.items()):
+        if git(base, 'rev-parse', '-q', '--verify', f'refs/remotes/origin/{book}', check=False).returncode:
+            lines.append(f'- {book}: {count} Aufträge, aber kein Buch-Branch; nicht gestartet')
+            continue
+        if dry_run:
+            lines.append(f'- {book}: {count} Aufträge (Probelauf: würde starten)')
+            continue
+        r = run(['gh', 'workflow', 'run', 'research.yml', '--ref', book])
+        lines.append(f'- {book}: {count} Aufträge, Abarbeitung ' + ('gestartet' if r.returncode == 0 else
+                     f'nicht gestartet ({(r.stderr or r.stdout).strip()[:120]})'))
+    return [f'Hintergrund-Warteschlange: {total} liegengebliebene Aufträge'] + lines
+
+
 def listing(base):
     out = []
     for j in jobs(base):
@@ -261,7 +315,10 @@ def listing(base):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('base')
-    ap.add_argument('cmd', choices=['list', 'enqueue', 'process'])
+    ap.add_argument('cmd', choices=['list', 'enqueue', 'process', 'remote'])
+    ap.add_argument('--start', action='store_true', help='remote: Abarbeitung je Buch starten')
+    ap.add_argument('--paused', action='store_true', help='remote: Automatik pausiert, nur melden')
+    ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--type', default='research', choices=TYPES)
     ap.add_argument('--section')
     ap.add_argument('--question')
@@ -285,6 +342,16 @@ def main(argv=None):
                 names = {'open': 'wartet', 'waiting_budget': 'wartet auf Bestätigung (Budget)', 'failed': 'fehlgeschlagen'}
                 print('\n'.join(f'- {names[x["state"]]}: {x["request"]}' + (f' – {x["error"]}' if x['error'] else '')
                                 for x in data) or '- Keine Aufträge.')
+            return 0
+        if a.cmd == 'remote':
+            pending = remote_pending(base)
+            lines = start_pending(pending, a.paused, a.dry_run or not a.start, base)
+            text = '\n'.join(lines)
+            print(text)
+            summary_path = os.environ.get('GITHUB_STEP_SUMMARY')
+            if summary_path:
+                with open(summary_path, 'a', encoding='utf-8') as f:
+                    f.write('\n' + text + '\n')
             return 0
         if a.cmd == 'enqueue':
             path = enqueue(base, a.type, a.section, a.question, a.provider, a.model, a.confirm_low_budget, a.requested_by)
