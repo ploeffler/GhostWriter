@@ -189,6 +189,44 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
   t1 = await checkNow();
   ok(/Fertig:.*run-099.*7 Quellen/.test(t1) && /Fehlgeschlagen/.test(t1), "Nachsehen: fertiger Auftrag mit Laufdatei, übrige Zustände bleiben sichtbar");
 
+  // Figuren: die Bibliothek hat (noch) keine, deshalb nachgebildet über den echten ghostwriter.yml
+  {
+    const realGy = Buffer.from(gh(`repos/${REPO}/contents/ghostwriter.yml?ref=${encodeURIComponent(BOOK)}`).content, "base64").toString();
+    const withChars = realGy.replace(/^characters:.*\n(?:(?:[ -].*|)\n)*/m, "").replace(/^structure:/m,
+      `characters:\n- id: char-anna\n  name: Anna\n  path: characters/char-anna.md\n- id: char-bruno\n  name: Bruno\n  path: characters/char-bruno.md\nstructure:`);
+    const secOne = w.__S().struct[0].sections[0];
+    fake["ghostwriter.yml"] = withChars;
+    fake["characters/char-anna.md"] = '---\nid: char-anna\nname: Anna\nrole: main\nshort: Erzählerin\ntraits:\n- ruhig\nrelations:\n- to: char-bruno\n  kind: Bruder\n---\n\n# Anna\n\n## Beschreibung\n\nLangtext\n\n## Notizen\n\nNotiz\n';
+    fake["characters/char-bruno.md"] = '---\nid: char-bruno\nname: Bruno\nrole: supporting\n---\n\n# Bruno\n\n## Beschreibung\n\n<Wer ist die Figur?>\n\n## Notizen\n';
+    await send("x\n\n`gw:library.book.open branch=" + BOOK + "`");
+    ok(await until(() => d.querySelector("#gw [data-id^='ch-']"), 600) && !!d.getElementById("gw-chars"), "Projektübersicht: Knopf „Figuren (2)“");
+    await send("x\n\n`gw:view.characters`");
+    ok(d.querySelectorAll("#gw .gw-ch[data-id]").length === 2 && /Hauptfigur/.test(d.getElementById("gw-figuren").textContent) && /Erzählerin/.test(d.getElementById("gw-figuren").textContent), "Figurenliste mit Rolle und Satz");
+    await send("x\n\n`gw:view.character character_id=char-anna`");
+    ok(d.getElementById("f-name").value === "Anna" && d.getElementById("f-short").value === "Erzählerin" && /Langtext/.test(d.getElementById("f-desc").value) && d.querySelectorAll(".gw-rel").length === 1, "Figurenformular mit Feldern und Beziehung");
+    n = pushes.length;
+    d.getElementById("f-short").value = "Neuer Satz";
+    d.getElementById("gw-save").click(); await sleep(300); await idle();
+    const pf = pushes.length > n && lastPush("figur-bearbeiten");
+    const af = pf && pf.files.find(f => f.path === "characters/char-anna.md");
+    ok(pf && paths(pf).join() === "characters/char-anna.md" && /short: Neuer Satz/.test(af.content) && /^# Anna$/m.test(af.content) && /## Beschreibung\n\nLangtext\n/.test(af.content) && /kind: Bruder/.test(af.content),
+       "Figur speichern: nur die Figurendatei, Beschreibung und Beziehung bleiben");
+    n = pushes.length;
+    await send(gwa("character.update", {character_id: "char-anna", name: "Anna Neu", role: "main"}));
+    const pr2 = pushes.length > n && lastPush("figur-umbenannt");
+    const gy2 = pr2 && pr2.files.find(f => f.path === "ghostwriter.yml");
+    ok(pr2 && gy2 && /- id: char-anna\n  name: "Anna Neu"\n  path: characters\/char-anna\.md/.test(gy2.content) && /id: char-bruno/.test(gy2.content) && gy2.content.includes(withChars.slice(withChars.indexOf("structure:"))),
+       "Figur umbenennen: Name auch in ghostwriter.yml, Gliederung unverändert");
+    n = pushes.length;
+    await send(gwa("character.create", {name: "Ben Müller", role: "supporting"}));
+    const pn = pushes.length > n && lastPush("figur-anlegen");
+    const gy3 = pn && pn.files.find(f => f.path === "ghostwriter.yml"), nf = pn && pn.files.find(f => f.path === "characters/char-ben-mueller.md");
+    ok(pn && gy3 && nf && /id: char-ben-mueller/.test(gy3.content) && /^role: supporting$/m.test(nf.content) && /^# Ben Müller$/m.test(nf.content), "Figur anlegen: neue Datei und Eintrag in ghostwriter.yml");
+    n = pushes.length;
+    await send(gwa("character.create", {name: "bruno", role: "main"}));
+    ok(pushes.length === n && /gibt es schon/.test(note()), "Figur anlegen: doppelter Name wird abgelehnt");
+  }
+
   console.log(failed ? `\n${failed} Prüfung(en) fehlgeschlagen` : "\nAlles in Ordnung", "– Commits zum Nachsehen in", OUT);
   process.exit(failed ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

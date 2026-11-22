@@ -261,6 +261,7 @@ async function projectData(){
   if (S.checks.length){ d.CHECKS_RECENT_TEXT = recentText(); d.CHECKS_LEGEND = LEGEND_LATEST; }
   if (S.pr){ const n = S.pr.commits || 1; Object.assign(d, {PENDING_COUNT:n, PENDING_TEXT:plural(n, "Änderung", "Änderungen"), PENDING_PR:S.pr.number}); }
   if ((S.lib.books || []).length >= 2) d.LIBRARY_COUNT = S.lib.books.length;
+  if (charItems().length) d.CHARACTER_COUNT = charItems().length;
   return d;
 }
 async function chapterData(ci){
@@ -354,6 +355,7 @@ async function show(view, arg){
     if (view === "library"){ S.book = null; S.chap = null; S.sec = null; crumbs(); return widget("buecherregal", libraryData()); }
     if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, checksCard(), "project"); }
     if (view === "chapter"){ S.chap = arg; S.sec = null; crumbs(); busy("Kapitel wird geladen …"); const d = await chapterData(arg); return desk("kapitelansicht", d, "", "chapter:" + (chapters()[arg] || {}).id); }
+    if (view === "characters"){ S.chap = null; S.sec = null; crumbs(); busy("Figuren werden geladen …"); return widget("figuren", await charListData()); }
     if (view === "data"){ S.book = null; S.chap = null; S.sec = null; crumbs(); busy("Daten werden gesammelt …"); const d = await dataData(); return widget("daten", d); }
     if (view === "section"){
       busy("Abschnitt wird geladen …");
@@ -488,6 +490,10 @@ async function act({action, data, text}){
         return form("reihenfolge", Object.assign(base(), {REORDER_KIND:"section", REORDER_HEADING:`Abschnittsreihenfolge in Kapitel ${ci + 1} ändern`, CHAPTER_ID:c.id, CHAPTER_NUMBER:ci + 1, ITEMS:c.sections.map((s, si) => ({ITEM_ID:s.id, ITEM_NUMBER:`${ci + 1}.${si + 1}`, ITEM_TITLE:s.title}))})); }
       case "chapter.reorder": return reorder(null, data.order);
       case "section.reorder": return reorder(data.chapter_id, data.order);
+      case "view.characters": S.msg = null; S.from = null; return show("characters");
+      case "view.character": S.from = {view:"characters"}; S.msg = null; return form("figur-bearbeiten", await charEditData(data.character_id));
+      case "character.create": return characterCreate(data);
+      case "character.update": return characterUpdate(data);
       case "run.start": return runStart(data);
       default: return unsupported(text, action, data);
     }
@@ -865,6 +871,100 @@ async function reorder(chapterId, order){
   S.from = null; chapterId ? show("chapter", chIndex(chapterId)) : show("project");
 }
 
+/* Figuren (#53): characters/<id>.md, Liste in ghostwriter.yml → characters (wie scripts/characters.py) */
+const ROLE_DE = {main:"Hauptfigur", supporting:"Nebenfigur", minor:"Randfigur"};
+const CHAR_FIELDS = ["id", "name", "role", "short", "age", "appearance", "traits", "voice", "visual", "portrait", "relations"];
+const charItems = () => (S.cfg.characters || []).filter(c => c && c.id);
+const tagSlug = t => String(t).replace(/[äÄ]/g, "ae").replace(/[öÖ]/g, "oe").replace(/[üÜ]/g, "ue").replace(/ß/g, "ss").normalize("NFKD").replace(/[^\x00-\x7f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+function charParts(text){
+  const m = /^---\n([\s\S]*?)\n---\n/.exec(text), body = m ? text.slice(m[0].length) : text;
+  const sec = n => { const mm = new RegExp("^## " + n + "\\n([\\s\\S]*?)(?=^## |(?![\\s\\S]))", "m").exec(body); const v = mm ? mm[1].trim() : ""; return v.startsWith("<") ? "" : v; };
+  return {head:front(text), desc:sec("Beschreibung"), notes:sec("Notizen")};
+}
+async function charFile(it, ref){ return (await getFile(it.path, ref || S.readRef).catch(() => ({text:""}))).text; }
+function charUsage(){
+  const out = {};
+  chapters().forEach((c, ci) => (c.sections || []).forEach((s, si) => { const f = cached(s.path); if (!f) return; (front(f.text).characters || []).forEach(id => (out[id] = out[id] || []).push(`${ci + 1}.${si + 1}`)); }));
+  return out;
+}
+async function charListData(){
+  await loadSecFiles(allSecs(), "Figuren werden geladen");
+  const used = charUsage(), items = charItems();
+  const heads = await pool(items, 8, async it => charParts(await charFile(it)).head);
+  const rows = items.map((it, i) => { const h = heads[i] || {}; return {C_PORTRAIT:"", C_ID:it.id, C_NAME:it.name, C_ROLE:ROLE_DE[h.role] || "", C_SHORT:h.short || "", C_USED:(used[it.id] || []).join(", ") || "–", C_SOURCE:"", C_SOURCE_TEXT:""}; });
+  return Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), SERIES_TITLE:"", CHARACTERS:rows});
+}
+async function charEditData(id){
+  await loadSecFiles(allSecs());
+  const it = charItems().find(c => c.id === id); if (!it) throw {message:"Figur nicht gefunden."};
+  const {head, desc, notes} = charParts(await charFile(it)), names = new Map(charItems().map(c => [c.id, c.name]));
+  return Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), CHARACTER_ID:it.id, CHARACTER_NAME:it.name, CHARACTER_ROLE:head.role || "main", CHARACTER_SHORT:head.short || "",
+    CHARACTER_AGE:head.age == null ? "" : String(head.age), CHARACTER_APPEARANCE:head.appearance || "", CHARACTER_TRAITS:(head.traits || []).join(", "), CHARACTER_VOICE:head.voice || "",
+    CHARACTER_VISUAL:head.visual || "", CHARACTER_DESCRIPTION:desc, CHARACTER_NOTES:notes, CHARACTER_USED:(charUsage()[it.id] || []).join(", ") || "noch nirgends",
+    CHARACTER_PORTRAIT:"", CHARACTER_PORTRAIT_ID:"", CHARACTER_SOURCE:"", CHARACTER_SOURCE_TEXT:"", SERIES_ID:"", SERIES_TITLE:"",
+    RELATIONS:(head.relations || []).map(r => ({R_TO:r.to, R_NAME:names.get(r.to) || r.to, R_KIND:r.kind})), OTHERS:charItems().filter(c => c.id !== it.id).map(c => ({O_ID:c.id, O_NAME:c.name}))});
+}
+function charApply(head, desc, notes, d){
+  head = Object.assign({}, head);
+  for (const k of CHAR_FIELDS.slice(1)){
+    if (!(k in d)) continue;
+    let v = d[k]; if (typeof v === "string") v = v.trim();
+    if (k === "traits" && typeof v === "string") v = v.split(",").map(t => t.trim()).filter(Boolean);
+    if (v === "" || v == null || (Array.isArray(v) && !v.length)) delete head[k]; else head[k] = v;
+  }
+  if (!head.name) throw {message:"Der Name darf nicht leer sein."};
+  if (typeof d.description === "string") desc = d.description.trim();
+  if (typeof d.notes === "string") notes = d.notes.trim();
+  const ordered = {}; CHAR_FIELDS.forEach(k => { const v = head[k]; if (k in head && v !== "" && v != null && !(Array.isArray(v) && !v.length)) ordered[k] = v; });
+  const text = "---\n" + window.jsyaml.dump(ordered, {lineWidth:-1}) + "---\n\n" + `# ${ordered.name}\n\n## Beschreibung\n\n` + (desc ? desc + "\n\n" : "") + "## Notizen\n" + (notes ? "\n" + notes + "\n" : "");
+  return {ordered, text};
+}
+function charListWrite(gy, items){
+  // Block `characters:` in ghostwriter.yml ersetzen bzw. vor `structure:` einfügen; der Rest bleibt Zeichen für Zeichen
+  const block = items.length ? "characters:\n" + items.map(i => `- id: ${i.id}\n  name: ${yq(i.name)}\n  path: ${i.path}\n`).join("") : "";
+  const m = /^characters:.*\n(?:(?:[ -].*|)\n)*/m.exec(gy);
+  let out;
+  if (m) out = gy.slice(0, m.index) + block + gy.slice(m.index + m[0].length);
+  else { const st = /^structure:/m.exec(gy); if (!st) throw {message:"ghostwriter.yml: structure nicht gefunden."}; out = gy.slice(0, st.index) + block + gy.slice(st.index); }
+  const back = (window.jsyaml.load(out) || {}).characters || [];
+  if (back.length !== items.length || back.some((b, i) => b.id !== items[i].id || b.name !== items[i].name)) throw {message:"ghostwriter.yml ließ sich nicht sicher ändern; bitte im Chat mit GhostWriter anlegen."};
+  return out;
+}
+async function characterCreate(d){
+  busy("Figur wird angelegt …");
+  try {
+    const name = String(d.name || "").trim(); if (!name) throw {message:"Der Name fehlt."};
+    const work = await prepareWork(); await loadBookData(work);
+    const items = charItems();
+    if (items.some(i => String(i.name).toLowerCase() === name.toLowerCase())) throw {message:`Die Figur „${name}“ gibt es schon.`};
+    let cid = "char-" + (tagSlug(name) || "figur"), n = 2; const used = new Set(items.map(i => i.id));
+    const base0 = cid; while (used.has(cid)){ cid = `${base0}-${n++}`; }
+    const role = ["main", "supporting", "minor"].includes(d.role) ? d.role : "main", path = `characters/${cid}.md`;
+    const file = `---\nid: ${cid}\nname: ${yq(name)}\nrole: ${role}\nshort: ""\n---\n\n# ${name}\n\n## Beschreibung\n\n<Wer ist die Figur, was will sie, was fürchtet sie? Nur Arbeitsgrundlage, kommt nicht ins Buch.>\n\n## Notizen\n`;
+    const gy = (await getFile("ghostwriter.yml", work, true)).text;
+    const files = {"ghostwriter.yml":charListWrite(gy, [...items.map(i => ({id:i.id, name:i.name, path:i.path})), {id:cid, name, path}]), [path]:file}, orig = {"ghostwriter.yml":gy, [path]:null};
+    const r = await commit(changed(files, orig), `Figur „${name}“ angelegt`, {action:"character.create"});
+    S.msg = savedMsg(`Figur „${name}“ angelegt.`, r);
+  } catch (e) { S.msg = failMsg(e); }
+  S.from = null; show("characters");
+}
+async function characterUpdate(d){
+  busy("Wird gespeichert …");
+  try {
+    const work = await prepareWork(); await loadBookData(work);
+    const it = charItems().find(c => c.id === d.character_id); if (!it) throw {message:"Figur nicht gefunden."};
+    const cur = await charFile(it, work), {head, desc, notes} = charParts(cur), {ordered, text} = charApply(head, desc, notes, d);
+    const files = {[it.path]:text}, orig = {[it.path]:cur};
+    if (ordered.name !== it.name){
+      const gy = (await getFile("ghostwriter.yml", work, true)).text; orig["ghostwriter.yml"] = gy;
+      files["ghostwriter.yml"] = charListWrite(gy, charItems().map(i => ({id:i.id, name:i.id === it.id ? ordered.name : i.name, path:i.path})));
+    }
+    const r = await commit(changed(files, orig), `Figur „${ordered.name}“ bearbeitet`, {action:"character.update"});
+    S.msg = savedMsg("Figur gespeichert.", r);
+  } catch (e) { S.msg = failMsg(e); }
+  S.from = null; show("characters");
+}
+
 /* KI-Lauf „Sofort“ (Recherche, Ghostwriting) über Claude in der App */
 async function runStart(d){
   if (d.task === "research" && (d.mode === "web" || (d.mode === "immediate" && !d.offline))){
@@ -1149,7 +1249,7 @@ function renderChat(){
   box.scrollTop = box.scrollHeight;
 }
 const ACTION_RE = /<<<AKTION\s*([\s\S]*?)\s*AKTION>>>/g;
-const SAFE_ACTIONS = ["view.project", "view.chapter", "view.section", "view.data", "project.edit", "chapter.create.open", "chapter.edit.open", "section.create.open", "chapter.reorder.open", "section.reorder.open", "approval.open", "changes.merge.open", "run.start"];
+const SAFE_ACTIONS = ["view.project", "view.chapter", "view.section", "view.data", "project.edit", "chapter.create.open", "chapter.edit.open", "section.create.open", "chapter.reorder.open", "section.reorder.open", "approval.open", "changes.merge.open", "run.start", "view.characters", "view.character"];
 function safeAction(json){
   // nur Ansichten und Formulare öffnen; alles, was schreibt, bestätigt der Benutzer danach im Formular
   let a; try { a = JSON.parse(json); } catch (e) { return null; }
@@ -1161,7 +1261,7 @@ function safeAction(json){
 }
 const ACTION_HELP = `Du kannst dem Benutzer Knöpfe anbieten, die eine Ansicht oder ein Formular öffnen. Schreib dafür je Knopf eine eigene Zeile:
 <<<AKTION {"action":"…","label":"kurzer Knopftext", …Daten} AKTION>>>
-Erlaubt: view.project; view.chapter {chapter_id}; view.section {section_id}; project.edit; chapter.create.open; chapter.edit.open {chapter_id}; section.create.open {chapter_id}; chapter.reorder.open; section.reorder.open {chapter_id}; approval.open {kind:"writing"|"section", section_id, revoke?} bzw. {kind:"chapter", chapter_id, revoke?}; changes.merge.open; run.start {section_id, task:"research"|"writing"}. IDs nur aus buch_struktur. Knöpfe öffnen nur – gespeichert, freigegeben oder übernommen wird erst nach Bestätigung durch den Benutzer. Höchstens drei Knöpfe.
+Erlaubt: view.project; view.characters; view.character {character_id}; view.chapter {chapter_id}; view.section {section_id}; project.edit; chapter.create.open; chapter.edit.open {chapter_id}; section.create.open {chapter_id}; chapter.reorder.open; section.reorder.open {chapter_id}; approval.open {kind:"writing"|"section", section_id, revoke?} bzw. {kind:"chapter", chapter_id, revoke?}; changes.merge.open; run.start {section_id, task:"research"|"writing"}. IDs nur aus buch_struktur. Knöpfe öffnen nur – gespeichert, freigegeben oder übernommen wird erst nach Bestätigung durch den Benutzer. Höchstens drei Knöpfe.
 Will der Benutzer etwas ändern, anlegen, verschieben, freigeben, abschließen, recherchieren oder schreiben lassen, antworte nie nur, dass du das nicht kannst. Sag in einem Satz, dass er es über den Knopf öffnet und dort mit Speichern bestätigt, und biete den passenden Knopf an (für Manuskripttext: run.start mit task "writing" oder den Abschnitt mit view.section öffnen). Gibt es für den Wunsch keinen Knopf, sag das kurz und nenne die Ansicht, in der es am ehesten geht.`;
 function context(){
   const p = S.cfg.project || {}, sc = scopeOf();
