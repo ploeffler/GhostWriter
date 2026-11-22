@@ -4012,7 +4012,10 @@ def main():
     args = ap.parse_args()
     ui = yaml.safe_load(UI_CONFIG.read_text(encoding='utf-8'))
     UI['repo'], UI['ref'] = ui['repo'], args.ui_ref or ui['commit']
-    base, config = load(args.project)
+    if args.view == 'settings-overview' and not (Path(args.project) / 'ghostwriter.yml').is_file():
+        base, config = Path(args.project), {}   # Standard-Branch einer Bibliothek: nur Profil, Serie, Sammelband
+    else:
+        base, config = load(args.project)
     resolve_repo(base, args)
     try:
         from .i18n import resolve_language
@@ -4030,9 +4033,15 @@ def main():
     UI['language'] = language
     UI['timezone'] = args.timezone
     requested_text = args.text
-    if args.view == 'settings-overview':   # „Alle Einstellungen“ (#299): Markdown, auch im Widget-Modus (noch kein eigenes Widget)
+    if args.view == 'settings-overview':   # „Alle Einstellungen“ (#299)
         import settings_overview
-        sys.stdout.write(settings_overview.markdown(config, profile, args.where, (config.get('project') or {}).get('title')))
+        if not profile and (base / 'assistant.yml').is_file():
+            profile = yaml.safe_load((base / 'assistant.yml').read_text(encoding='utf-8')) or {}
+        if args.text:
+            sys.stdout.write(settings_overview.markdown(base, config, profile, args.where, language))
+        else:
+            values, blocks = settings_overview.widget_values(base, config, profile, args.where, language)
+            sys.stdout.write(fill('einstellungen.html', values, blocks))
         return
     if language == 'en':
         if args.view not in (render_view_en.CLI_VIEWS | view_i18n.DIRECT_VIEWS) and (not args.ui_ref or args.text):
