@@ -28,7 +28,7 @@ Der tägliche Update-Lauf ergänzt die Actions-Zusammenfassung und veröffentlic
 
 ## Bibliothek: mehrere Bücher in einem Repository
 
-In einer Bibliothek (#36–#39) liegt auf dem Standard-Branch nur das Programm, jedes Buch auf einem eigenen Branch `buch/<slug>`. Die Action aktualisiert zuerst den Standard-Branch und danach jedes Buch einzeln; die Zusammenfassung zeigt eine Zeile je Buch. Welche Branches Bücher sind, entscheidet die Erkennungsregel in `scripts/library.py`: der Standard-Branch nur, wenn er Kapitel hat (Einzelbuch), jeder `buch/*`-Branch, sonst Branches mit Kapiteln. Arbeits-Branches (`ghostwriter/…`) und andere Branches werden nicht angefasst; offene Änderungen bekommen das Update mit dem nächsten „Buchänderungen übernehmen“. Ein Fehler in einem Buch hält die anderen nicht auf; für das betroffene Buch öffnet die Action ein Issue.
+In einer Bibliothek (#36–#39) liegt auf dem Standard-Branch nur das Programm, jedes Buch auf einem eigenen Branch `buch/<slug>`. Die Action aktualisiert zuerst den Standard-Branch und danach jedes Buch einzeln; die Zusammenfassung zeigt eine Zeile je Buch. Welche Branches Bücher sind, entscheidet die Erkennungsregel in `scripts/library.py`: der Standard-Branch nur, wenn er Kapitel hat (Einzelbuch), jeder `buch/*`-Branch, sonst Branches mit Kapiteln. Arbeits-Branches (`ghostwriter/…`) und andere Branches werden nicht selbst aktualisiert. Hat ein Buch ein **offenes Änderungspaket** (Arbeits-Branch `ghostwriter/<buch>` mit offenem Pull Request zum Buch), bekommt es direkt nach dem Buch dessen neuen Stand; Workflows und Prüfungen laufen dort dann mit dem neuen Programmstand (#470). Bei einem Konflikt bleibt das Änderungspaket unverändert, die Zusammenfassung nennt die Dateien (⚠️); nur eine Übersichtsdatei im Konflikt wird neu erzeugt. Geänderte Workflow-Dateien brauchen dafür `GHOSTWRITER_UPDATE_TOKEN`, sonst bleibt der Hinweis, im Pull Request „Update branch“ zu wählen. Arbeits-Branches ohne offenen Pull Request bleiben, wie sie sind; der Probelauf zeigt nur an. Ein Fehler in einem Buch hält die anderen nicht auf; für das betroffene Buch öffnet die Action ein Issue.
 
 ## Von v0.5 auf v0.6
 
@@ -121,7 +121,7 @@ Gut zu wissen:
 
 `BUCHSTATUS.md` gehört zu den verwalteten GhostWriter-Dateien. Sobald die Änderung im Hauptrepository nach `main` übernommen ist, verteilt die tägliche Update-Action sie wie andere Programm- und Dokumentationsdateien auf bestehende Buch-Repositorys und deren Buch-Branches. Voraussetzung ist, dass die Update-Action im jeweiligen Repository eingerichtet und aktiviert ist; ein manueller Lauf ist jederzeit möglich (*Actions → GhostWriter aktualisieren → Run workflow*). Neue Repositorys aus der Vorlage enthalten die Datei bereits beim Anlegen.
 
-Die Datei wird beim Update aus dem Hauptrepository übernommen. Individuelle Buchinhalte und persönliche Branch-Zuordnungen gehören nicht hinein: Der Assistent prüft die Branch-Liste bei jedem Wiedereinstieg live. Das Update legt keine Branches an, verschiebt keine Manuskripte und merged keine Buch- oder Arbeits-Branches.
+Die Datei wird beim Update aus dem Hauptrepository übernommen. Individuelle Buchinhalte und persönliche Branch-Zuordnungen gehören nicht hinein: Der Assistent prüft die Branch-Liste bei jedem Wiedereinstieg live. Das Update legt keine Branches an, verschiebt keine Manuskripte und merged keine Buch-Branches; offene Änderungspakete bekommen nur den Stand ihres Buchs (siehe oben).
 
 ## Ein- und ausschalten
 
