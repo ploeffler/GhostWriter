@@ -188,6 +188,15 @@ betroffenen Kapitel eine Nachprüfung ein (Schlusskorrektur und Qualität, mit
 `--notes`) und fragt eigens nach dem neuen Abschluss. Gespeichert und übernommen
 wird wie bei anderen Buchänderungen.
 
+Entscheidungen tragen nur `ja`, `nein` oder `geändert` (Wortlaut in `neu`); „so
+belassen“ ist `nein`. Was der Autor dazu sagt, gehört in `begruendung`. Ändert
+dieselbe Entscheidung weitere Stellen, stehen sie als `weitere_ersetzungen`
+(je `alt`, `neu`, optional `datei`) im Eintrag; `apply` setzt nur die erste Stelle
+um, die weiteren übernimmt der Assistent von Hand. Was wo umgesetzt wurde (etwa
+eine Änderung in `story/chronologie.md`), steht in `notiz`; `umgesetzt` bleibt
+`true`/`false`. Weitere eigene Angaben im Eintrag sind erlaubt und bleiben
+erhalten; geprüft werden nur die festen Felder.
+
 Im Chat zeigt `render_view.py notes-review` den Dialog als Widget (Vorlage `hinweisdurchsicht`, ab UI 0.58.0) mit „Übernehmen“, „Nicht ändern“ und „Anders formulieren“ je Eintrag und „Umsetzen prüfen“; die Textfassung ist `--text`.
 
 ## Rundumprüfung eines Kapitels (#447)

@@ -122,6 +122,25 @@ class HinweiseTest(unittest.TestCase):
         self.assertTrue(any('ID doppelt: b-001' in e for e in errs), errs)
         self.assertTrue(any('sec-gibtsnicht unbekannt' in e for e in errs), errs)
 
+    def test_schema_author_reason_further_places_and_note(self):
+        """YAWA #357: Begründung, weitere Stellen und Umsetzungsvermerk sind erlaubt; „so belassen“ nicht."""
+        import json
+        from jsonschema import Draft202012Validator
+        schema = json.loads((ROOT / 'schemas/notes-review.schema.json').read_text(encoding='utf-8'))
+        _, data = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        entry = (data['autorenentscheidung'] or data['ohne_autor'])[0]
+        entry.update(entscheidung='geändert', begruendung='bewusst so', notiz='story/chronologie.md angepasst',
+                     weitere_ersetzungen=[{'alt': 'a', 'neu': 'b', 'datei': 'x.md'}])
+        self.assertEqual(list(Draft202012Validator(schema).iter_errors(data)), [])
+        entry['eigene_angabe'] = 'bleibt erhalten'   # weitere Angaben erlaubt
+        self.assertEqual(list(Draft202012Validator(schema).iter_errors(data)), [])
+        for bad in ({'entscheidung': 'so belassen'}, {'umgesetzt': 'in der Chronologie'},
+                    {'weitere_ersetzungen': [{'alt': 'a'}]}):
+            with self.subTest(bad=bad):
+                broken = {**entry, **bad}
+                group = 'autorenentscheidung' if data['autorenentscheidung'] else 'ohne_autor'
+                self.assertTrue(list(Draft202012Validator(schema).iter_errors({**data, group: [broken]})))
+
     def test_plan_apply_and_write_back(self):
         path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
         hinweise.decide(path, 'e-001', 'ja')
