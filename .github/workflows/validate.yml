@@ -216,9 +216,10 @@ jobs:
             echo "Keine Tests: derselbe Stand wurde schon im Pull Request vollständig geprüft (#485)."
           elif [ "$MODE" = "subset" ]; then
             echo "Nur die betroffenen Tests: $TESTS"
-            PYTHONPATH=tests python -m unittest $TESTS
+            python scripts/run_tests.py $TESTS
           else
-            python -m unittest discover -s tests -p "test_*.py"
+            # parallel je Modul, am Ende die langsamsten Module (#485)
+            python scripts/run_tests.py
           fi
 
       - name: Doku passt zum Programm
