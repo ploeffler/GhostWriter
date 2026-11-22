@@ -255,14 +255,14 @@ class WorkflowTest(unittest.TestCase):
         text = (ROOT / '.github/workflows/research.yml').read_text(encoding='utf-8')
         data = yaml.safe_load(text)
         on = data.get('on', data.get(True))
-        self.assertEqual(on['push']['paths'], ['chapters/*/research/*/request-*.yml'])
+        self.assertEqual(on['push']['paths'], ['chapters/*/research/*/request-*.yml', 'matter/research/*/request-*.yml',
+                                               'jobs/request-*.yml'])
         self.assertEqual(on['push']['branches'], ['ghostwriter/**'])
-        self.assertIn('secrets[steps.provider.outputs.secret]', text)
+        self.assertIn('secrets[steps.provider.outputs.secret_google]', text)
         self.assertNotIn('toJSON(secrets)', text)
-        self.assertIn('scripts/limits.py . check', text)
+        self.assertIn('scripts/jobs.py . process', text)   # Budget je Auftrag in jobs.py (#480)
         # Skripte vom Buch-Branch, nicht vom veralteten Arbeits-Branch
-        self.assertIn('git restore --source="origin/$book" --worktree -- scripts providers.yml', text)
-        self.assertIn('git restore --source=HEAD --staged --worktree -- scripts providers.yml', text)
+        self.assertIn('git restore --source="origin/$BOOK" --worktree -- scripts providers.yml', text)
 
     def test_workflow_python_snippets_run(self):
         # Die Einzeiler im Schritt „Buch und Arbeits-Branch“ wirklich ausführen (Fehler in YAWA, #462)
@@ -270,11 +270,19 @@ class WorkflowTest(unittest.TestCase):
         import subprocess
         text = (ROOT / '.github/workflows/research.yml').read_text(encoding='utf-8')
         snippets = re.findall(r'python -c "([^"]+)" "\$', text)
-        self.assertEqual(len(snippets), 2)
-        out = [subprocess.run([sys.executable, '-c', s, arg], cwd=ROOT, capture_output=True, text=True)
-               for s, arg in zip(snippets, ['ghostwriter/buch/malta', 'buch/malta'])]
-        self.assertEqual([o.returncode for o in out], [0, 0], [o.stderr for o in out])
-        self.assertEqual([o.stdout.strip() for o in out], ['buch/malta', 'ghostwriter/buch/malta'])
+        self.assertEqual(len(snippets), 1)
+        o = subprocess.run([sys.executable, '-c', snippets[0], 'buch/malta'], cwd=ROOT, capture_output=True, text=True)
+        self.assertEqual((o.returncode, o.stdout.strip()), (0, 'ghostwriter/buch/malta'), o.stderr)
+        # Buchname für die Concurrency-Gruppe (#480): der Shell-Schritt wirklich ausgeführt
+        data = yaml.safe_load(text)
+        script = data['jobs']['book']['steps'][1]['run']
+        for ref, expected in (('ghostwriter/buch/malta', 'buch/malta'), ('buch/malta', 'buch/malta')):
+            with tempfile.TemporaryDirectory() as d:
+                out = Path(d) / 'out'
+                (Path(d) / 'ghostwriter-manifest.yml').write_text((ROOT / 'ghostwriter-manifest.yml').read_text())
+                r = subprocess.run(['bash', '-c', script], cwd=d, capture_output=True, text=True,
+                                   env=dict(os.environ, GITHUB_REF_NAME=ref, GITHUB_OUTPUT=str(out)))
+                self.assertEqual((r.returncode, out.read_text().strip()), (0, f'book={expected}'), r.stderr)
 
 
 if __name__ == '__main__':

@@ -28,7 +28,8 @@ Ergebnis je Lauf:
   `price_output_per_mtok`, optional `price_per_1k_searches`), sonst `unavailable`.
 - Abschnitt `planned` → `research`.
 
-`process` bearbeitet Aufträge `<kapitel>/research/<abschnitt>/request-NNN.yml` (aus der
+`process` ist der frühere Weg ohne Reihenfolge und ohne Speichern je Auftrag; die Action
+nutzt seit #480 die Hintergrund-Warteschlange `scripts/jobs.py`. `process` bearbeitet Aufträge `<kapitel>/research/<abschnitt>/request-NNN.yml` (aus der
 Claude-Web-App): Erfolg löscht den Auftrag (und ältere fehlgeschlagene Aufträge desselben
 Abschnitts), ein Fehler bleibt mit `error` und `failed_at` im Auftrag stehen. Den Commit
 macht die Action „Recherche“. Übernommen wird nur nach Bestätigung.
@@ -378,10 +379,19 @@ def write_cost(base, ch, sec, entry):
     return path
 
 
+def api_key(provider):
+    """Schlüssel für den Anbieter: GHOSTWRITER_RESEARCH_KEY_<ANBIETER> (je Auftrag kann der Anbieter
+    wechseln, #480); nur wenn die Action keine Schlüssel je Anbieter setzt, der allgemeine."""
+    specific = {k: v for k, v in os.environ.items() if k.startswith(KEY_ENV + '_')}
+    if specific:
+        return specific.get(f'{KEY_ENV}_{provider.upper()}', '')
+    return os.environ.get(KEY_ENV, '')
+
+
 def run(base, section_id, question=None, provider=None, model=None, defaults=None, now=None, request=None):
     base = Path(base)
     cfg = resolve(base, defaults, provider, model)
-    key = os.environ.get(KEY_ENV, '')
+    key = api_key(cfg['provider'])
     if not key:
         raise ResearchError(f'Kein Schlüssel: Secret {cfg["secret"]} im Repository hinterlegen '
                             '(docs/DIENSTE-NUTZEN.md, „API-Schlüssel als GitHub-Secret“).')
@@ -453,7 +463,8 @@ def process(base, defaults=None, budget_low=False, now=None):
             if budget_low and not data.get('confirm_low_budget'):
                 raise ResearchError('Weniger als 10 % des KI-Budgets übrig. Den Auftrag mit „trotzdem starten“ '
                                     'erneut stellen oder das Budget anpassen.')
-            head = run(base, sid, data.get('question'), None, data.get('model'), defaults, now, request=path.stem)
+            head = run(base, sid, data.get('question'), data.get('provider'), data.get('model'), defaults, now,
+                       request=path.stem)
             path.unlink()
             for old in path.parent.glob('request-*.yml'):
                 if REQUEST_RE.match(old.name) and read_yaml(old).get('error'):
@@ -490,9 +501,24 @@ def main(argv=None):
     ap.add_argument('--defaults', help='ghostwriter.yml des Standard-Branchs (Einstellungen der Bibliothek)')
     ap.add_argument('--budget-low', action='store_true', help='limits.py meldet: weniger als 10 % Budget übrig')
     ap.add_argument('--confirm-low-budget', action='store_true')
+    ap.add_argument('--each', action='store_true',
+                    help='provider: Secret-Namen je Anbieter (secret_<id>) für die Action, je Auftrag kann der Anbieter wechseln')
     a = ap.parse_args(argv)
     defaults = a.defaults if a.defaults and Path(a.defaults).is_file() else None
     try:
+        if a.cmd == 'provider' and a.each:
+            lines = []
+            for pid in PROVIDERS:
+                try:
+                    lines.append(f'secret_{pid}={resolve(a.base, defaults, pid)["secret"]}')
+                except ResearchError:
+                    continue
+            print('\n'.join(lines) or 'Kein Anbieter mit API eingestellt.')
+            out = os.environ.get('GITHUB_OUTPUT')
+            if out and lines:
+                with open(out, 'a', encoding='utf-8') as f:
+                    f.write('\n'.join(lines) + '\n')
+            return 0
         if a.cmd == 'provider':
             c = resolve(a.base, defaults, a.provider, a.model)
             print(json.dumps({k: c[k] for k in ('provider', 'model', 'secret', 'name', 'from')}, ensure_ascii=False))
