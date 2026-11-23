@@ -176,6 +176,52 @@ class RunTest(unittest.TestCase):
         self.assertEqual((head['id'], h2['id']), ('run-001', 'run-002'))
         self.assertIn('Wie hieß das Schiff?', post.call_args[0][1]['contents'][0]['parts'][0]['text'])
 
+    def test_prior_knowledge_in_prompt(self):   # #478: Vorwissen weitergeben
+        tmp, base = book()
+        self.addCleanup(tmp.cleanup)
+        folder = base / 'chapters' / 'ch-01-anfang' / 'research' / 'sec-01-01-start'
+        folder.mkdir(parents=True)
+        other = base / 'chapters' / 'ch-01-anfang' / 'research' / 'sec-01-02-hafen'
+        other.mkdir(parents=True)
+
+        def run_file(path, n, results, contra='Keine.', open_q='-', date='2026-11-20'):
+            (path / f'run-{n:03d}.md').write_text(
+                f'---\nid: run-{n:03d}\ndate: "{date}"\n---\n\n# Lauf\n\n## Fragestellung und Suchumfang\n\nF\n\n'
+                f'## Rechercheergebnisse\n\n{results}\n\n## Quellen\n\n- https://nicht-ins-vorwissen.example\n\n'
+                f'## Widersprüche und Unsicherheiten\n\n{contra}\n\n## Offene Fragen\n\n{open_q}\n', encoding='utf-8')
+        run_file(folder, 1, 'Das Schiff hieß Valetta.', contra='Zwei Quellen nennen verschiedene Daten.', open_q='Wann lief es aus?')
+        run_file(folder, 2, 'Der Hafen hatte drei Becken.', date='2026-11-21')
+        run_file(other, 1, 'Anderer Abschnitt: Die Werft lag in Marsa.')
+        config = research.load_config(base)
+        ch, sec = config['structure']['chapters'][0], config['structure']['chapters'][0]['sections'][0]
+        prior = research.prior_knowledge(base, ch, sec)
+        self.assertIn('Das Schiff hieß Valetta.', prior)
+        self.assertIn('Widersprüche: Zwei Quellen nennen verschiedene Daten.', prior)
+        self.assertIn('Offene Fragen: Wann lief es aus?', prior)
+        self.assertIn('[anderer Abschnitt] run-001', prior)
+        self.assertNotIn('nicht-ins-vorwissen', prior)            # keine Quellenliste
+        self.assertNotIn('Keine.', prior)                          # leere Abschnitte entfallen
+        self.assertLess(prior.index('anderer Abschnitt'), prior.index('Das Schiff'))   # andere Abschnitte zuerst, älter vor neuer
+        self.assertLess(prior.index('Das Schiff'), prior.index('drei Becken'))
+        text = (base / 'chapters/ch-01-anfang/sections/sec-01-01-start.md').read_text(encoding='utf-8')
+        _, user = research.prompts(config, ch, sec, text, '1.1', None, prior)
+        self.assertIn('Vorwissen aus früheren Recherchen', user)
+        self.assertIn('nicht wiederholen', user)
+        with mock.patch.object(research, 'post_json', return_value=GEMINI) as post, \
+                mock.patch.dict(os.environ, {research.KEY_ENV: 'k'}):
+            research.run(base, 'sec-01-01-start', now=NOW)
+        sent = post.call_args[0][1]['contents'][0]['parts'][0]['text']
+        self.assertIn('Der Hafen hatte drei Becken.', sent)          # auch im echten Lauf
+        # Obergrenze: viele lange Läufe passen nicht alle hinein, die neuesten zuerst
+        for n in range(3, 12):
+            run_file(folder, n, 'X' * 1700 + f' lauf{n}', date='2026-11-22')
+        long_prior = research.prior_knowledge(base, ch, sec)
+        self.assertLessEqual(len(long_prior), research.MAX_PRIOR + 200)
+        self.assertIn('lauf11', long_prior)
+        self.assertNotIn('lauf4', long_prior)
+        _, user_empty = research.prompts(config, ch, sec, text, '1.1', None, '')
+        self.assertNotIn('Vorwissen', user_empty)
+
     def test_no_key_and_closed_section(self):
         tmp, base = book()
         with tmp, mock.patch.dict(os.environ, {research.KEY_ENV: ''}):

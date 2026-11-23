@@ -55,6 +55,9 @@ RUN_RE = re.compile(r'^run-(\d{3,})\.md$')
 TIMEOUT = 300
 MAX_SEARCHES = 5
 MAX_MANUSCRIPT = 6000
+MAX_PRIOR = 6000        # Vorwissen aus früheren Recherchen je Auftrag (#478), wie das Manuskript
+PRIOR_PER_RUN = 1800
+PRIOR_CHAPTER = 1500    # davon höchstens für andere Abschnitte desselben Kapitels
 
 # Anbieter mit eingebauter Websuche über die API (Teil 1). Weitere folgen in Teil 2 von #462.
 PROVIDERS = {
@@ -168,7 +171,54 @@ def next_number(folder, pattern):
 
 # ---------- Anfrage ----------
 
-def prompts(config, ch, sec, text, number, question=None):
+def _run_summary(path):
+    """Kurzfassung eines Rechercheeintrags: Ergebnisse, Widersprüche, offene Fragen (ohne Quellenliste), gekürzt."""
+    try:
+        head, body = split_front(path.read_text(encoding='utf-8'))
+    except OSError:
+        return ''
+    parts = []
+    for heading, label in (('Rechercheergebnisse', ''), ('Widersprüche und Unsicherheiten', 'Widersprüche: '),
+                           ('Offene Fragen', 'Offene Fragen: ')):
+        t = re.sub(r'\s+', ' ', block(body, heading)).strip()
+        if t and t not in ('-', '–', 'Keine.', 'Keine'):
+            parts.append(label + t)
+    if not parts:
+        return ''
+    text = ' '.join(parts)
+    text = text[:PRIOR_PER_RUN].rstrip() + (' …' if len(text) > PRIOR_PER_RUN else '')
+    return f'{path.stem} ({head.get("date", "")}): {text}'
+
+
+def prior_knowledge(base, ch, sec, limit=MAX_PRIOR):
+    """Vorwissen (#478): bereits erledigte Recherchen desselben Abschnitts, dazu gekürzt die anderen Abschnitte des Kapitels
+    (höchstens PRIOR_CHAPTER Zeichen, nur was vom Platz übrig bleibt). Je Gruppe die neuesten zuerst, zusammen höchstens
+    `limit` Zeichen; ausgegeben werden ältere zuerst. Gibt Text oder '' zurück."""
+    chapter = Path(base) / ch['path'] / 'research'
+    own = chapter / sec['id']
+
+    def lines(paths):
+        return [(p, line) for p in paths if (line := _run_summary(p))]
+
+    def take(items, cap):
+        chosen, used = [], 0
+        for path, line in items:   # neueste zuerst; zu lange überspringen, ältere kürzere dürfen noch passen
+            if used + len(line) <= cap:
+                chosen.append((path, line))
+                used += len(line)
+        return chosen, used
+
+    own_runs = sorted((p for p in own.glob('run-*.md') if RUN_RE.match(p.name)), reverse=True) if own.is_dir() else []
+    other_runs = sorted((p for d in chapter.glob('*') if d.is_dir() and d.name != sec['id'] for p in d.glob('run-*.md')
+                         if RUN_RE.match(p.name)), key=lambda p: (p.stem, str(p)), reverse=True) if chapter.is_dir() else []
+    mine, used = take(lines(own_runs), limit)
+    others, _ = take(lines(other_runs), min(PRIOR_CHAPTER, limit - used))
+    out = ['[anderer Abschnitt] ' + line for _, line in sorted(others, key=lambda c: (c[0].stem, str(c[0])))]
+    out += [line for _, line in sorted(mine, key=lambda c: c[0].stem)]
+    return '\n'.join(out)
+
+
+def prompts(config, ch, sec, text, number, question=None, prior=''):
     p = config.get('project') or {}
     en = str(p.get('language') or 'de').lower().startswith('en')
     _, body = split_front(text)
@@ -190,6 +240,11 @@ def prompts(config, ch, sec, text, number, question=None):
         'Fragestellung: Recherchiere die Fakten, Hintergründe und Zusammenhänge, die dieser Abschnitt braucht.\n'
     if ms and ms not in ('Offen.', '–'):
         user += f'\nBisheriges Manuskript (Auszug, nur zur Orientierung):\n{ms}\n'
+    if prior:   # #478: schon Recherchiertes nicht wiederholen
+        user += ('\nVorwissen aus früheren Recherchen (bereits erledigt). Bekanntes nicht wiederholen, Widersprüche dazu '
+                 'ausdrücklich nennen, offene Fragen daraus aufgreifen:\n' + prior + '\n') if not en else \
+                ('\nPrior knowledge from earlier research (already done). Do not repeat what is known, name any contradictions '
+                 'explicitly, take up the open questions from it:\n' + prior + '\n')
     return system, user
 
 
@@ -401,7 +456,7 @@ def run(base, section_id, question=None, provider=None, model=None, defaults=Non
     head, _ = split_front(text)
     if (head.get('approvals') or {}).get('section'):
         raise ResearchError(f'Abschnitt {number} ist abgeschlossen. Zum Recherchieren zuerst wieder öffnen.')
-    system, user = prompts(config, ch, sec, text, number, question)
+    system, user = prompts(config, ch, sec, text, number, question, prior_knowledge(base, ch, sec))
     res = CALLS[cfg['provider']](key, cfg['model'], system, user)
     res['sources'] = resolve_sources(res['sources'])
     body = strip_sources(res['text'])
