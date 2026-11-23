@@ -16,6 +16,8 @@ The assistant checks the current book version and required permissions, collects
 
 Changed startup instructions and skills also require a fresh check before writing. The local `workflow_support.py … guard` helper treats changes and deletions to `START.md`, `CLAUDE.md`, `AGENTS.md`, files under `docs/start/` and files under `.claude/skills/`, including personal skills, as context changes. It only checks the supplied Git versions; current remote data and an atomic check when subsequently saving are still required.
 
+The local `standabgleich.py` snapshot also records a fingerprint of `scripts/`, `schemas/`, `integrations/`, `templates/`, `assets/`, `.github/workflows/`, `workflow.yml`, `providers.yml` and `ghostwriter-manifest.yml` in the checked program version. Changes there require a refresh even when the version number and recorded upstream commit remain unchanged. Older snapshots without this fingerprint remain readable but require a fresh snapshot before writing. This does not compare uncommitted local edits or refresh remote references automatically.
+
 After confirmed upload, the state is **saved, not yet merged**. You can view and continue working on that version; views read from the open change package. Changes reach the merged book version only after **Apply changes**. You confirm the current version shown to you. If it changes meanwhile, the revised package must be shown again.
 
 If you deliberately enabled **immediate application** (`changes.auto_merge: true`), ordinary book changes are merged automatically after saving. Content approvals remain separate explicit decisions. An edition always has its own change package and requires explicit merge confirmation.

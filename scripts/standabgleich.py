@@ -7,7 +7,7 @@ nach einem Programmupdate kann dieser Stand veraltet sein. Das Skript hält den 
 
 - Buch: Buch-Branch und Commit (neuere Fassung, Branch verschwunden oder umgeschrieben)
 - Arbeit: Arbeitsbranch und Commit (neuere Fassung, übernommen, auseinandergelaufen)
-- Programm: Programmversion und eingespielter Upstream-Commit (`.ghostwriter/update.yml`)
+- Programm: Programmversion, eingespielter Upstream-Commit und Fingerabdruck der Programmdateien
 - Anweisungen: START.md, CLAUDE.md, AGENTS.md, allgemeine Skills, docs/start/ (geladene Fassung veraltet)
 - Profil: assistant.yml (persönlicher Skill veraltet)
 - Abgeleitet: Übersichtsdatei (ghostwriter-index.json) und, im Zusammenfassungsmodus, Buch- und
@@ -44,6 +44,8 @@ from handover import git, repo_name, resolve, show  # noqa: E402
 
 FORMAT = 1
 INSTRUCTIONS = ('START.md', 'CLAUDE.md', 'AGENTS.md', '.claude/skills', 'docs/start', 'ghostwriter-skills.yml')
+PROGRAM_FILES = ('scripts', 'schemas', 'integrations', 'templates', 'assets', '.github/workflows', 'workflow.yml',
+                 'providers.yml', 'ghostwriter-manifest.yml')
 UPDATE_STATE = '.ghostwriter/update.yml'
 NOT_CHECKED = ['Inhalte dieses Chats und nicht gesendete Eingaben', 'Zwischenspeicher oder Suchindex einer Verbindung',
                'Stand anderer Apps, solange dort nichts gespeichert ist']
@@ -83,7 +85,8 @@ def collect(base, book, work=None, program_ref=None, repo=None):
     return {'format': FORMAT, 'repo': repo or repo_name(base),
             'book': {'branch': book, 'head': book_head},
             'work': {'branch': work, 'head': work_head} if work else None,
-            'program': {'ref': program_ref, 'version': prog['version'], 'upstream_commit': prog['upstream_commit']},
+            'program': {'ref': program_ref, 'version': prog['version'],
+                        'upstream_commit': prog['upstream_commit'], 'content': prog['content']},
             'instructions': prog['instructions'], 'profile': prog['profile'],
             'data': {'book': config.get('data_version', 0), 'supported': prog['supported']}}
 
@@ -137,10 +140,12 @@ def compare(base, old):
         out.append(('Programm', 'konflikt', f'Programmstand {old["program"]["ref"]} nicht gefunden'))
         return out
     prog_old = old['program']
-    if (now['version'], now['upstream_commit']) == (prog_old['version'], prog_old['upstream_commit']):
+    if (now['version'], now['upstream_commit'], now['content']) == (
+            prog_old['version'], prog_old['upstream_commit'], prog_old.get('content')):
         out.append(('Programm', 'ok', f'GhostWriter {now["version"] or "?"}'))
     else:
-        out.append(('Programm', 'neuer', f'Programm aktualisiert: {prog_old["version"] or "?"} → {now["version"] or "?"}'))
+        out.append(('Programm', 'neuer', 'Programmstand geändert oder bisheriger Dateifingerabdruck fehlt; '
+                    f'vor dem Schreiben neu lesen (GhostWriter {now["version"] or "?"})'))
     out.append(('Anweisungen', 'ok', 'geladene Anweisungen aktuell') if now['instructions'] == old['instructions'] else
                ('Anweisungen', 'neuer', 'START.md, CLAUDE.md oder Skills geändert; vor der nächsten Aufgabe neu laden'))
     if now['profile'] == old['profile']:
@@ -173,6 +178,7 @@ def collect_program(base, ref):
     update = yaml.safe_load(show(base, prog, UPDATE_STATE) or '') or {}
     supported = yaml.safe_load(show(base, prog, 'schemas/data-version.yml') or '') or {}
     return {'version': manifest.get('version'), 'upstream_commit': update.get('commit'),
+            'content': tree_hash(base, prog, PROGRAM_FILES),
             'instructions': tree_hash(base, prog, INSTRUCTIONS), 'profile': blob_hash(base, prog, 'assistant.yml'),
             'supported': supported.get('data_version')}
 
