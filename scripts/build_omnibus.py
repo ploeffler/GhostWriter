@@ -147,6 +147,16 @@ def main(argv):
         errors.append('Der Sammelband ist nicht freigegeben (status: approved, START.md „Serien“)')
     if a.edition is None and not a.check:
         a.edition = int(om.get('current_edition') or 0) or 1
+    if errors and not a.check:
+        for error in errors:
+            print('✗ ' + error)
+        return 1
+    import approval_authority
+    try:
+        approval_authority.verify(repo, a.edition or int(om.get('current_edition') or 0), purpose='omnibus:' + a.series_id)
+    except approval_authority.AuthorityError:
+        print('✗ Persönlicher Sammelbandnachweis fehlt oder ist ungültig.')
+        return 1
     tmp = Path(tempfile.mkdtemp(prefix='gw-omnibus-'))
     trees, vols = [], []
     try:
@@ -229,6 +239,11 @@ def main(argv):
         results = build_edition.render(first_base, config, ts, meta, common, imprint, body, body, '', out, tag, formats,
                                        date=a.date, series_line=f'{ser["title"]} · Sammelband', ser=config['_series'],
                                        extra_tex=extra, top_level='part', badge=badge)
+        try:
+            approval_authority.verify(repo, a.edition, purpose='omnibus:' + a.series_id)
+        except approval_authority.AuthorityError:
+            print('✗ Sammelband oder Freigaberecht während des Baus geändert.')
+            return 1
         (out / 'edition.yml').write_text(yaml.safe_dump({
             'edition': a.edition, 'name': release, 'tag': tag, 'date': a.date, 'series': ser['id'],
             'volumes': [{'volume': n, 'branch': br, 'tag': t} for n, br, t, _ in picked],

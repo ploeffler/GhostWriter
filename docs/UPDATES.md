@@ -230,6 +230,13 @@ Remote-Stand prüfen. **Nur anzeigen** sendet keine Löschmutation.
 Die bisherigen Prüfungen auf übernommene Inhalte bleiben erforderlich; eine
 passende Commit-ID allein ist keine Übernahmefreigabe.
 
+## Update mit persönlicher Freigabeprüfung
+
+Ein Update, das `scripts/approval_authority.py` und die Action `approval.yml` enthält, erhält vorhandene Manuskripte und Freigabeeinträge. Alte Namen werden nicht automatisch zu verifizierten Identitäten. Vor der nächsten veröffentlichbaren Ausgabe ist deshalb ein neuer [persönlicher Inhaltsnachweis](SPEICHERN.md#persönliches-freigaberecht-und-inhaltsnachweis) für den aktuellen Buchstand und die Auflage erforderlich. Entwürfe, Probedrucke und Vorabfassungen bleiben möglich; veröffentlichte Auflagen werden nicht verändert.
+
+Bei Open WebUI GitHub-Werkzeug 1.8.0 einspielen und persönliche Benutzer-Valves für Schreibzugänge einrichten; der gemeinsame Werkzeug-Token dient nur noch zum Lesen. Den gemeinsamen Token nicht als persönlichen Zugang übernehmen. Bisher geteilte schreibberechtigte Tokens widerrufen oder durch getrennte persönliche Zugänge ersetzen; der gemeinsame Token braucht nur Leserechte. Keine Tokens im Buch speichern. Die Claude-Web-App muss den Prüfablauf in Claude übernehmen. Automatisierte Jobs können Nachweise vorbereiten und prüfen, aber keine neuen persönlichen Freigaben erteilen. Praktische Clientabnahme und echte Organisationsrechte bleiben gesondert zu prüfen.
+
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

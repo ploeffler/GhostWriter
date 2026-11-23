@@ -1,4 +1,6 @@
 """Tests für die Ausgabeoptionen (#68, Teil 1): Vorgaben wie bisher, Satzoptionen, Impressum, Formate."""
+from tests.authority_helpers import fake_github
+
 import shutil
 import subprocess
 import sys
@@ -195,6 +197,7 @@ class TitlePageAndProofMarkTest(Base):
 class OutputTypesettingTest(Base):
     def build(self, *extra):
         out = Path(self.base.parent) / ('out' + '-'.join(extra))
+        fake_github(self, self.base, edition=1)
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--edition', '1',
                             '--out', str(out), *extra], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)

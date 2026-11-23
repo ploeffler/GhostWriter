@@ -886,6 +886,14 @@ def main(argv):
         return 1
 
     if not args.proof:
+        import approval_authority
+        try:
+            approval_authority.verify(base, args.edition, config)
+        except approval_authority.AuthorityError:
+            print('✗ Persönlicher Inhaltsnachweis fehlt oder ist ungültig; keine Auflage gebaut.')
+            return 1
+
+    if not args.proof:
         for note in matter_notes(matter):
             print(f'ⓘ {note}')
 
@@ -964,6 +972,13 @@ def main(argv):
                      args.proof, proof_note, args.date, series_line, ser,
                      footer_label=label if args.proof else 'Probedruck', commit=args.commit,
                      front_cover=front_cover, badge=ai_disclosure.badge(config) if disc_lines else None)
+
+    if not args.proof:
+        try:
+            approval_authority.verify(base, args.edition)
+        except approval_authority.AuthorityError:
+            print('✗ Inhalt oder Freigaberecht während des Baus geändert; Ausgabe nicht veröffentlicht.')
+            return 1
 
     (out / 'edition.yml').write_text(yaml.safe_dump({
         'edition': args.edition, **({'preview': args.preview} if args.preview else {}),

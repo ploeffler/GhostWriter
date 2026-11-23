@@ -121,11 +121,15 @@ def load_all(base, src=None):
 
 
 def branch_of(base):
-    """Ausgecheckter Branch (in Actions GITHUB_HEAD_REF bzw. GITHUB_REF_NAME), sonst None."""
+    """Buchbranch des aktuellen Stands; Arbeits-Branches werden demselben Buch zugeordnet."""
     b = (_git(base, 'rev-parse', '--abbrev-ref', 'HEAD') or '').strip()
-    if b and b != 'HEAD':
-        return b
-    return os.environ.get('GITHUB_HEAD_REF') or os.environ.get('GITHUB_REF_NAME') or None
+    if not b or b == 'HEAD':
+        b = os.environ.get('GITHUB_HEAD_REF') or os.environ.get('GITHUB_REF_NAME') or None
+    # Der gemeinsame Arbeitsstand gehört zum selben Band wie der Buchbranch.
+    # Das gilt auch für die effektiven Seriendaten im persönlichen Nachweis.
+    if b and b.startswith('ghostwriter/'):
+        b = b[len('ghostwriter/'):]
+    return b
 
 
 def characters(base, sid, src=None):
@@ -462,6 +466,9 @@ def omnibus_approve(base, sid, revoke=False):
     om = omnibus(base, s['id'])
     if not om:
         raise SystemExit('Es gibt noch keinen Sammelband dieser Serie')
+    if not revoke:
+        import approval_authority
+        approval_authority.require_actor(base)
     om['status'] = 'draft' if revoke else 'approved'
     return omnibus_save(base, s['id'], om)
 
@@ -472,6 +479,8 @@ def omnibus_publish(base, sid):
     om = omnibus(base, s['id'])
     if not om or om.get('status') != 'approved':
         raise SystemExit('Der Sammelband ist nicht freigegeben')
+    import approval_authority
+    approval_authority.require_actor(base)
     om['current_edition'] = int(om.get('current_edition') or 0) + 1
     return omnibus_save(base, s['id'], om)
 
@@ -776,4 +785,8 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    from approval_authority import AuthorityError
+    try:
+        sys.exit(main(sys.argv))
+    except AuthorityError:
+        raise SystemExit('Freigabe gesperrt: persönliches Konto oder Freigaberecht nicht verifiziert.') from None

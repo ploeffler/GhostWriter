@@ -1,4 +1,6 @@
 """Manuskript-Import ohne KI (#124): umwandeln, Gliederung erkennen, ändern, anlegen, Aufbewahrung."""
+from tests.authority_helpers import fake_github
+
 import datetime
 import json
 import os
@@ -146,6 +148,7 @@ class ImportTest(unittest.TestCase):
 
     def test_writing_approval(self):
         import_book.convert(self.book, self.tmp / 'Strolchi.docx')
+        fake_github(self, self.book, seal=False)
         import_book.apply(self.book, writing_approval=True, by='ploeffler', commit='abc1234')
         self.assertEqual(validate_project.check_project(self.book), [])
         entries = yaml.safe_load((self.book / 'approvals.yml').read_text(encoding='utf-8'))['entries']

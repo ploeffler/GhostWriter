@@ -614,16 +614,26 @@ def main(argv):
     if len(argv) < 2:
         print(__doc__)
         return 2
+    verify_authority = '--verify-authority' in argv[1:]
+    project_dirs = [a for a in argv[1:] if a != '--verify-authority']
+    if not project_dirs:
+        return 2
     failed = False
-    for project_dir in argv[1:]:
+    for project_dir in project_dirs:
         errors = check_project(project_dir)
+        if verify_authority and not errors:
+            import approval_authority
+            try:
+                approval_authority.verify(project_dir)
+            except approval_authority.AuthorityError:
+                errors.append('Persönlicher Inhaltsnachweis fehlt oder ist ungültig')
         if errors:
             failed = True
             print(f'✗ {project_dir}: {len(errors)} Fehler')
             for e in errors:
                 print(f'  - {e}')
         else:
-            print(f'✓ {project_dir}')
+            print(f'✓ {project_dir}' + (' (persönlicher Inhaltsnachweis geprüft)' if verify_authority else ' (Strukturprüfung; Freigabeperson nicht geprüft)'))
         for w in manuscript_warnings(project_dir):
             print(f'  ⚠ {w}')
     return 1 if failed else 0

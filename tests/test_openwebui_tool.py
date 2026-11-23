@@ -31,6 +31,12 @@ class OpenWebUIToolTests(unittest.TestCase):
         # Open-WebUI-Einstieg hat eigene Tests.
         self.tool.valves.START_VARIANT = "standard"
         self.head = "a" * 40
+        async def already_authenticated(repo, operation, user):
+            return await self.tool._run(operation)
+        self.write_layer = patch.object(self.tool, '_write_run', side_effect=already_authenticated)
+        self.write_layer.start()
+        self.addCleanup(self.write_layer.stop)
+
 
     def run_tool(self, coroutine):
         return json.loads(asyncio.run(coroutine))

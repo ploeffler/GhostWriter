@@ -1,4 +1,6 @@
 """Tests für scripts/assemble.py (#14) mit dem ADHS-Projekt aus tests/fixtures/adhs."""
+from tests.authority_helpers import fake_github
+
 import hashlib
 import re
 import shutil
@@ -125,6 +127,7 @@ class AssembleTests(unittest.TestCase):
 
     def test_book_has_metadata_and_cli_check(self):
         self.approve(1)
+        fake_github(self, self.base, edition=3)
         out = Path(self.temp.name) / 'book.md'
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/assemble.py'), str(self.base), 'book', '--edition', '3',
                             '-o', str(out)], capture_output=True, text=True)
@@ -132,7 +135,7 @@ class AssembleTests(unittest.TestCase):
         head = yaml.safe_load(out.read_text(encoding='utf-8').split('---')[1])
         self.assertEqual(head['edition'], 3)
         self.assertEqual(head['typesetting']['page_size'], 'a5')
-        r = subprocess.run([sys.executable, str(ROOT / 'scripts/assemble.py'), str(self.base), 'check'],
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/assemble.py'), str(self.base), 'check', '--edition', '3'],
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout)
 

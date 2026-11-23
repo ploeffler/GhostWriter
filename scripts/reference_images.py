@@ -94,6 +94,9 @@ def set_status(base, image_id, status):
     if not hit:
         raise SystemExit(f"Referenzbild {image_id} nicht gefunden")
     meta, _, meta_path = hit
+    if status == 'approved':
+        import approval_authority
+        approval_authority.require_actor(base)
     meta["status"] = status
     meta_path.write_text(yaml.safe_dump(meta, allow_unicode=True, sort_keys=False, width=10**6),
                          encoding="utf-8")

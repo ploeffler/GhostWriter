@@ -30,7 +30,7 @@ GhostWriter und ghostwriter-ui dürfen geändert und in isolierten Testbranches 
 - Branch-Namen und -Verwaltung intern halten. Benutzer sehen verständlich gespeichert/übernommen/freigegeben/fehlgeschlagen. Änderungen an tatsächlichen Anzeigen brauchen die unten festgelegte Vier-Client-Prüfung.
 - Eigentümer/Bearbeiter/Leser anhand vorhandener GitHub-Rechte begrenzen; zusätzliche Freigabeberechtigung ausdrücklich zuordnen. Keine fehlende serverseitige Durchsetzung durch eine behauptete zentrale Rollenverwaltung ersetzen. Grenzen des jeweiligen Clients offenlegen.
 
-**Aktueller Bestand:** Sicheres Entfernen unveränderter übernommener Arbeitsstände wird durch `scripts/delete_checked_branch.py` und `tests/test_checked_cleanup.py` geprüft. Dies bestätigt keine vollständige Rollenprüfung: Das Freigabeprotokoll authentifiziert die Person im Feld `by` nicht; die konkrete Grenze steht in [den Grundsätzen](GRUNDSAETZE.md#zusammenarbeit-und-freigaberecht).
+**Aktueller Bestand:** Sicheres Entfernen unveränderter übernommener Arbeitsstände wird durch `scripts/delete_checked_branch.py` und `tests/test_checked_cleanup.py` geprüft. Dies bestätigt keine vollständige Rollenprüfung: Das Feld `by` allein authentifiziert keine Person. Persönliche Kontoprüfung und Inhaltsnachweise an den Schreib-/Ausgabewegen sind ergänzt; die praktische Client- und Organisationsabnahme bleibt offen. Details stehen in [den Grundsätzen](GRUNDSAETZE.md#zusammenarbeit-und-freigaberecht).
 
 **Fertig:** Lebenszyklus- und Konflikttests; Rollen-/Freigabeprüfung für die tatsächlich unterstützten Schreibwege; übereinstimmende Dokumentation. Ungeklärte technische Durchsetzbarkeit gemäß D32 melden, keine neue Verwaltungs-API einführen.
 

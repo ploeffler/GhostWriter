@@ -25,7 +25,7 @@ Die sechs Ablaufgrafiken und ihre deutschen/englischen Seiten sind bereits durch
 
 Implementierung und automatische Tests ersetzen keine praktische Gesamtabnahme. Die [Arbeitsaufträge](AUFTRAEGE-v1.0.md) bleiben der Kriterienkatalog; historische offene Checkboxen beweisen für sich weder fehlenden Code noch eine bestandene Prüfung.
 
-- **Freigaberechte:** Name und Manuskript-Fingerabdruck werden protokolliert beziehungsweise geprüft; eine durchgängige technische Prüfung der Person und ihres Freigaberechts fehlt. Siehe [Zusammenarbeit und Freigaberecht](GRUNDSAETZE.md#zusammenarbeit-und-freigaberecht).
+- **Freigaberechte:** Name und Manuskript-Fingerabdruck werden protokolliert beziehungsweise geprüft; persönliche Kontoprüfung und Inhaltsnachweise an den offiziellen Schreib-/Ausgabewegen sind ergänzt; die praktische Client- und Organisationsabnahme bleibt offen. Siehe [Zusammenarbeit und Freigaberecht](GRUNDSAETZE.md#zusammenarbeit-und-freigaberecht).
 - **Standabgleich und Sicherung:** Werkzeuge für Standvergleich, Übergabe, Antwort- und Abschnittsabschlusssicherung sind vorhanden. Aktuelle Mehrclient- und Wiederherstellungsnachweise bleiben erforderlich.
 - **Import:** Originale bleiben bis zum ausdrücklichen Löschauftrag erhalten; alte Fristen lösen keine automatische Entfernung aus. Die entsprechende frühere Abweichung in A06 ist behoben.
 - **Warteschlange:** Der Nachtrag vom 22. November in D08 nimmt sie ausdrücklich in v1.0 auf. Reihenfolge, Vorziehen, Abbrechen und Budget-/Wiederanlaufverhalten gehören in die Abnahme; kostenpflichtige Anbieter-Live-Tests sind weiterhin keine Voraussetzung.

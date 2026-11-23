@@ -78,6 +78,13 @@ and no automatic retry. Read the actual remote state before another request.
 **Nur anzeigen** (preview only) sends no deletion mutation. Existing checks that
 content has been accepted still apply; a matching commit does not grant approval.
 
+## Updating to personal approval verification
+
+An update containing `scripts/approval_authority.py` and the `approval.yml` action preserves existing manuscripts and approval entries. Old names do not automatically become verified identities. Before the next publishable output, a new [personal content evidence record](SAVING.en.md#personal-approval-authority-and-content-evidence) is therefore required for the current book state and edition. Drafts, proofs and previews remain available; published editions are unchanged.
+
+For Open WebUI, install GitHub tool 1.8.0 and configure personal UserValves for writing; the shared tool token becomes read-only. Do not reuse the shared token as a personal login. Revoke previously shared write credentials or replace them with separate personal access; the shared credential only needs read permissions. Do not store tokens in book files. The Claude web app must adopt the verification workflow in Claude. Automated jobs may prepare and check evidence but cannot grant new personal approvals. Practical client acceptance and real organisation permissions remain separate checks.
+
+
 ---
 
 <p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

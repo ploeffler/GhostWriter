@@ -1,0 +1,55 @@
+name: Persönlichen Inhaltsnachweis vorbereiten oder prüfen
+
+# Berechnet nur den Reviewtext. Erteilt keine Freigabe und ändert keine Buchdaten.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Vorbereitung oder Prüfung eines bereits gespeicherten Nachweises
+        type: choice
+        options: [prepare, check]
+        default: prepare
+        required: true
+      edition:
+        description: 'Auflagennummer für den zu bestätigenden Buchstand'
+        required: true
+      omnibus:
+        description: 'Nur bei Sammelbänden: Serienkennung (ser-...)'
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pyyaml jsonschema
+      - name: Reviewtext ohne Freigabe erzeugen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTION: ${{ inputs.action }}
+          EDITION: ${{ inputs.edition }}
+          OMNIBUS: ${{ inputs.omnibus }}
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          case "$ACTION" in prepare|check) ;; *) echo "Ungültige Aktion"; exit 1 ;; esac
+          [[ "$EDITION" =~ ^[1-9][0-9]*$ ]] || { echo 'Ungültige Auflagennummer'; exit 1; }
+          args=(--edition "$EDITION")
+          if [ -n "$OMNIBUS" ]; then
+            [[ "$OMNIBUS" =~ ^ser-[a-z0-9-]+$ ]] || { echo 'Ungültige Serienkennung'; exit 1; }
+            args+=(--omnibus "$OMNIBUS")
+          fi
+          python scripts/approval_authority.py . "$ACTION" "${args[@]}" > "$RUNNER_TEMP/ghostwriter-approval.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: persoenlicher-inhaltsnachweis
+          path: ${{ runner.temp }}/ghostwriter-approval.json

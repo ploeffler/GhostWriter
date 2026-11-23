@@ -599,6 +599,9 @@ def approval_entries(base, ids, by='chat', commit=None):
 
 def apply(base, writing_approval=False, by='chat', commit=None):
     base = Path(base)
+    if writing_approval:
+        import approval_authority
+        by = approval_authority.require_actor(base, by)
     import library
     import matter as matter_mod
     p = load_proposal(base)
@@ -792,4 +795,8 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    from approval_authority import AuthorityError
+    try:
+        sys.exit(main(sys.argv))
+    except AuthorityError:
+        raise SystemExit('Freigabe gesperrt: persönliches Konto oder Freigaberecht nicht verifiziert.') from None

@@ -78,32 +78,18 @@ GhostWriter was developed with assistance from Claude (Anthropic); this acknowle
 
 ## Collaboration and approval authority
 
-Content approval belongs to the owner or explicitly designated approvers.
-Editing, saving, accepting changes and approving content are different powers.
-**Personal GitHub accounts** are the confirmed approach for collaboration; shared
-write credentials must not be presented as evidence of individual authority.
+Content approval belongs to the owner or explicitly delegated approvers. Editing, saving, merging and approving are different powers. Personal GitHub accounts are required; shared credentials do not establish individual identity.
 
-**Current verification status:** The approval ledger records a name in `by` but
-does not authenticate it. Validation and book assembly check manuscript hashes
-and approval state, not the identity behind the entry. A chat confirmation or
-successful commit alone therefore does not establish content-approval authority.
-End-to-end role acceptance remains open. The general writing path and current
-Open WebUI tool must not be described as an implemented identity/role boundary.
+`by` remains a ledger label. The previously reproduced limitation—replacing a name without changing the assembly result—is guarded at official writing and output boundaries:
 
-Implementation must verify the requester's personal account, reliably establish
-ownership or explicit delegation and protect actual writing and publication
-paths. A GitHub credential with full write access can also change files outside
-GhostWriter; chat instructions alone do not restrict those external operations.
-No accounts, credentials or repository permissions are created automatically.
+- Local rule relaxation, import writing approval, reference approval and omnibus approval verify the authenticated personal account and ownership or explicit delegation before changing files.
+- Open WebUI writes only with personal user credentials. Approval and rule changes additionally verify authority; new ledger entries must use that account's login. Existing entries cannot be rewritten. Merging a change package checks approval changes again.
+- Editions, omnibuses and publishable book/chapter assembly require a current personal GitHub review containing the exact content hash, book context, edition and purpose. Both the review and any owner delegation are verified through GitHub; reviews edited after submission or by another account, pending or dismissed reviews and bots do not qualify.
+- Normal project validation remains structural and explicitly states that no person was verified. `--verify-authority` additionally requires personal content evidence. Output tools require it regardless of that validator argument.
 
-**Technically inspected paths (23 November 2026, program version 0.9.0):**
+[Instructions and evidence limits](SAVING.en.md#personal-approval-authority-and-content-evidence): Proofs and draft work remain available. Existing books are not rewritten or retrospectively approved. Before the next publishable output an authorised person explicitly confirms today's state; old `by` values do not become verified historical identities.
 
-- `schemas/approvals.schema.json` requires a nonempty string for `by`, but no verified GitHub identity.
-- `scripts/validate_project.py` checks target IDs, latest approval states and manuscript hashes. `scripts/assemble.py` uses those records for output. Neither checks a person's content-approval authority.
-- `scripts/rules.py` accepts `--by` as a ledger label; it is not proof of identity.
-- `integrations/openwebui/ghostwriter_github.py` checks the expected branch head when saving and uses configured GitHub credentials. Its `get_repo` read operation can return GitHub permissions; the general writing path does not thereby authenticate an approver or their content-approval delegation.
-
-In a temporary test copy, only `by` in existing test approvals was replaced with an arbitrary different name: the schema accepted it, and book assembly reported no problems before or after the change. This reproduces the limitation; it does not pass role acceptance. A solution must bind caller identity, a trusted assignment of approval authority and evidence for the approved content. Another freely editable list of names alone would not close this gap.
+Automated checks do not replace practical acceptance in ChatGPT, Codex, Claude and Open WebUI or with real organisation permissions. The Claude web app must adopt the new personal verification and evidence workflow. Direct changes to program files or publication outside GhostWriter remain governed by actual GitHub permissions; local checks are not an additional server-side access boundary. No accounts, keys or repository permissions are created automatically.
 
 ---
 
