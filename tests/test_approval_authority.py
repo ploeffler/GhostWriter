@@ -54,6 +54,46 @@ class AuthorityTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.authority.authorize({**OWNER, 'id': 999})
 
+    def test_organization_requires_active_owner_membership_for_exact_person(self):
+        repository = copy.deepcopy(REPOSITORY)
+        repository['owner'] = {'id': 10, 'login': 'writers', 'type': 'Organization'}
+        membership_path = '/orgs/writers/memberships/ploeffler'
+        for membership, permitted in (
+                ({'state': 'active', 'role': 'admin', 'user': OWNER}, True),
+                ({'state': 'active', 'role': 'member', 'user': OWNER}, False),
+                ({'state': 'pending', 'role': 'admin', 'user': OWNER}, False),
+                ({'state': 'active', 'role': 'admin', 'user': {**OWNER, 'id': 999}}, False),
+                ({}, False)):
+            with self.subTest(membership=membership):
+                def api(path):
+                    return membership if path == membership_path else repository
+                authority = aa.ReviewAuthority(api, 'ploeffler/test-book')
+                if permitted:
+                    self.assertEqual(authority.authorize(OWNER), OWNER['login'])
+                else:
+                    with self.assertRaises(ValueError):
+                        authority.authorize(OWNER)
+
+    def test_unreadable_organization_membership_cannot_grant_owner_rights(self):
+        repository = {**REPOSITORY, 'owner': {'id': 10, 'login': 'writers', 'type': 'Organization'}}
+        def api(path):
+            if path.startswith('/orgs/'):
+                raise aa.AuthorityError('Mitgliedschaft nicht lesbar')
+            return repository
+        authority = aa.ReviewAuthority(api, 'ploeffler/test-book')
+        with self.assertRaises(aa.AuthorityError):
+            authority.authorize(OWNER)
+
+    def test_partial_graphql_error_cannot_confirm_even_matching_review(self):
+        def api(path, data=None):
+            result = self.api(path, data)
+            if path == '/graphql':
+                result['errors'] = [{'message': 'Teilantwort nicht verlässlich'}]
+            return result
+        authority = aa.ReviewAuthority(api, 'ploeffler/test-book')
+        with self.assertRaises(ValueError):
+            authority.confirmation(self.receipt, self.payload)
+
     def test_reject_bot_pending_dismissed_and_foreign_review(self):
         for change in ({'state': 'PENDING'}, {'state': 'DISMISSED'}, {'state': 'CHANGES_REQUESTED'},
                        {'user': {**OWNER, 'type': 'Bot'}}, {'submitted_at': None},
