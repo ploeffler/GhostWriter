@@ -18,6 +18,8 @@ Changed startup instructions and skills also require a fresh check before writin
 
 The local `standabgleich.py` snapshot also records a fingerprint of `scripts/`, `schemas/`, `integrations/`, `templates/`, `assets/`, `.github/workflows/`, `workflow.yml`, `providers.yml` and `ghostwriter-manifest.yml` in the checked program version. Changes there require a refresh even when the version number and recorded upstream commit remain unchanged. Older snapshots without this fingerprint remain readable but require a fresh snapshot before writing. This does not compare uncommitted local edits or refresh remote references automatically.
 
+When no working branch was selected in a snapshot, the comparison also observes the expected branch name from the manifest. A newly appearing or changed candidate with a different head from the book requires checking its assignment and open pull request before writing. The candidate is not automatically used as the reading version. An already recorded unselected candidate or a branch identical to the book does not trigger this warning; branches for other books remain unrelated.
+
 After confirmed upload, the state is **saved, not yet merged**. You can view and continue working on that version; views read from the open change package. Changes reach the merged book version only after **Apply changes**. You confirm the current version shown to you. If it changes meanwhile, the revised package must be shown again.
 
 If you deliberately enabled **immediate application** (`changes.auto_merge: true`), ordinary book changes are merged automatically after saving. Content approvals remain separate explicit decisions. An edition always has its own change package and requires explicit merge confirmation.
