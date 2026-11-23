@@ -353,8 +353,9 @@ async function show(view, arg){
   try {
     if (view === "connect"){ crumbs(); return connectView(); }
     if (view === "library"){ S.book = null; S.chap = null; S.sec = null; crumbs(); return widget("buecherregal", libraryData()); }
-    if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, checksCard() + await reviewCard(), "project"); }
+    if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, checksCard() + queueCard() + await reviewCard(), "project"); }
     if (view === "chapter"){ S.chap = arg; S.sec = null; crumbs(); busy("Kapitel wird geladen …"); const d = await chapterData(arg); return desk("kapitelansicht", d, "", "chapter:" + (chapters()[arg] || {}).id); }
+    if (view === "queue"){ crumbs(); busy("Warteschlange wird gelesen …"); return widget("warteschlange", await queueData()); }
     if (view === "review"){ crumbs(); busy("Hinweisdurchsicht wird geladen …"); return widget("hinweisdurchsicht", await reviewData(arg)); }
     if (view === "characters"){ S.chap = null; S.sec = null; crumbs(); busy("Figuren werden geladen …"); return widget("figuren", await charListData()); }
     if (view === "data"){ S.book = null; S.chap = null; S.sec = null; crumbs(); busy("Daten werden gesammelt …"); const d = await dataData(); return widget("daten", d); }
@@ -494,6 +495,9 @@ async function act({action, data, text}){
       case "view.characters": S.msg = null; S.from = null; return show("characters");
       case "view.character": S.from = {view:"characters"}; S.msg = null; return form("figur-bearbeiten", await charEditData(data.character_id));
       case "view.notes_review": { S.msg = null; const fs = await reviewFiles(); const f = data.file || (fs.length ? "editorial/" + fs[fs.length - 1] : ""); if (!f){ S.msg = {kind:"info", html:"Es gibt noch keine Hinweisdurchsicht in diesem Buch."}; return show("project"); } return show("review", f); }
+      case "view.queue": S.msg = null; return show("queue");
+      case "queue.prioritize": return queueChange("prioritize", data);
+      case "queue.cancel": return queueChange("cancel", data);
       case "notes_review.decide": return reviewDecide(data);
       case "notes_review.plan": return reviewPlan(data);
       case "notes_review.apply": return reviewApply(data);
@@ -1225,6 +1229,99 @@ async function characterSuggestApply(d){
   S.from = null; show("characters");
 }
 
+/* Hintergrund-Warteschlange (#478): Aufträge request-NNN.yml (Ordner research je Abschnitt, matter/research, jobs) wie scripts/jobs.py und
+   queue_view.py. „Abbrechen“ löscht nichts (die App kann keine Dateien löschen): Der Auftrag wird als abgebrochen markiert und läuft nicht mehr. */
+const JOB_TYPES = {research:"Recherche", analysis:"Analyse", colorize:"Colorieren", import:"Import"};
+async function queueFiles(){
+  const ref = S.readRef, out = [], dirs = [];
+  for (const c of chapters()){ for (const e of await listDir(`${c.path}/research`, ref)) if (e.type === "dir") dirs.push(`${c.path}/research/${e.name}`); }
+  for (const e of await listDir("matter/research", ref)) if (e.type === "dir") dirs.push(`matter/research/${e.name}`);
+  dirs.push("jobs");
+  const lists = await pool(dirs, 6, async d => ({d, list:await listDir(d, ref)}));
+  for (const l of lists.filter(Boolean)) for (const e of l.list) if (/^request-\d+\.yml$/.test(e.name)) out.push(`${l.d}/${e.name}`);
+  return {files:out, dirs};
+}
+function jobOrder(){
+  const m = new Map(); chapters().forEach((c, ci) => (c.sections || []).forEach((s, si) => m.set(s.id, `1|${String(ci).padStart(4, "0")}|${String(si).padStart(4, "0")}`)));
+  return id => m.get(id) || "8|0000|0000";
+}
+async function queueJobs(){
+  const {files, dirs} = await queueFiles(), order = jobOrder();
+  const jobs = (await pool(files, 8, async path => {
+    let data = {}; try { data = window.jsyaml.load((await getFile(path, S.readRef, true)).text) || {}; } catch (e) { return {path, data:{}, state:"failed", type:"research", sid:"", error:"Auftrag nicht lesbar", key:"1|9"}; }
+    const sid = String(data.section_id || (/research\/([^/]+)\/request-/.exec(path) || [])[1] || "");
+    return {path, data, state:jobState(data), type:data.type || "research", sid, key:(data.priority === true ? "0" : "1") + "|" + order(sid) + "|" + String(data.requested_at || "") + "|" + path};
+  })).filter(Boolean).sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+  // after: Ziel auflösen, Ringe ignorieren (wie jobs.resolve_after); ein erledigtes (verschwundenes) Ziel blockiert nicht
+  const byRel = new Map(jobs.map(j => [j.path, j])), pending = j => j.state === "open" || j.state === "waiting_budget";
+  for (const j of jobs){
+    j.after = null; const a = String(j.data.after || "").trim(); if (!a) continue;
+    const t = byRel.get(a) || byRel.get(j.path.replace(/[^/]+$/, "") + (a.endsWith(".yml") ? a : a + ".yml"));
+    if (!t || t === j) j.note = "Ziel von „after“ nicht mehr vorhanden: " + a; else j.after = t;
+  }
+  for (const j of jobs){ const seen = new Set(); let k = j; while (k && !seen.has(k)){ seen.add(k); k = k.after; } if (k === j){ [...seen].forEach(m => { m.note = "Ring bei „after“ ignoriert"; }); [...seen].forEach(m => { m.after = null; }); } }
+  jobs.forEach(j => { j.blockedBy = j.after && pending(j.after) ? j.after.path : ""; });
+  const ordered = [], seen = new Set(), emit = j => { if (seen.has(j)) return; seen.add(j); if (j.after) emit(j.after); ordered.push(j); };
+  jobs.forEach(emit);
+  return {jobs:ordered, dirs};
+}
+function secLabel(sid){ const x = allSecs().find(v => v.s.id === sid); return x ? `${chapters().indexOf(x.c) + 1}.${x.c.sections.indexOf(x.s) + 1} ${x.s.title}` : sid; }
+function jobTitle(j){
+  const kind = JOB_TYPES[j.type] || j.type, extra = j.data[j.type] && typeof j.data[j.type] === "object" ? j.data[j.type] : {};
+  const where = j.type === "research" ? secLabel(j.sid) : String(extra.kind || extra.folder || extra.step || "");
+  return where ? `${kind} · ${where}` : kind;
+}
+function jobDetail(j){ if (j.type === "research") return String(j.data.question || ""); const x = j.data[j.type] || {}; return Object.entries(x).filter(([k, v]) => ["kind", "scope", "folder", "file", "step"].includes(k) && v).map(([k, v]) => `${k}: ${v}`).join(", "); }
+const utcText = iso => { const m = /(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(String(iso || "")); return m ? `${m[3]}.${m[2]}.${m[1]}, ${m[4]}:${m[5]} UTC` : ""; };
+async function queueDone(dirs){
+  // fertige, noch nicht übernommene Recherchen: Laufdatei mit `request:` im Kopf, die der Buch-Branch noch nicht hat
+  if (!S.pr || S.readRef === S.book.branch) return [];
+  const out = [];
+  for (const d of dirs.filter(x => x !== "jobs")){
+    const [mine, theirs] = await Promise.all([listDir(d, S.readRef), listDir(d, S.book.branch)]), have = new Set(theirs.map(e => e.name));
+    for (const e of mine.filter(e => /^run-\d+\.md$/.test(e.name) && !have.has(e.name))){
+      try { const t = (await getFile(`${d}/${e.name}`, S.readRef, true)).text; if (/^request:\s*request-\d+/m.test(t.slice(0, 700))) out.push({d, name:e.name}); } catch (err) {}
+    }
+  }
+  return out;
+}
+async function queueData(){
+  const {jobs, dirs} = await queueJobs(), done = await queueDone(dirs);
+  const row = j => ({J_TITLE:jobTitle(j), J_DETAIL:j.state === "failed" ? String(j.data.error || j.error || "Auftrag nicht lesbar") : jobDetail(j), J_WHEN_TEXT:"", J_PRIORITY_TEXT:"", J_BLOCKED_TEXT:"", J_NOTE:j.note || "", J_PRIO_DISABLED:"", J_ARGS:JSON.stringify({request:j.path})});
+  const pending = [], failed = [];
+  for (const j of jobs){
+    const r = row(j);
+    if (j.state === "failed"){ r.J_WHEN_TEXT = j.data.failed_at ? "fehlgeschlagen " + utcText(j.data.failed_at) : ""; failed.push(r); continue; }
+    r.J_STATE_TEXT = j.state === "waiting_budget" ? "wartet auf Bestätigung (KI-Budget knapp)" : j.blockedBy ? "wartet auf einen anderen Auftrag" : "wartet";
+    if (j.blockedBy) r.J_BLOCKED_TEXT = "Erst nach " + j.blockedBy;
+    r.J_WHEN_TEXT = j.data.requested_at ? "eingereicht " + utcText(j.data.requested_at) : "";
+    if (j.data.priority === true){ r.J_PRIORITY_TEXT = "vorgezogen"; r.J_PRIO_DISABLED = "disabled"; }
+    pending.push(r);
+  }
+  const doneRows = done.map(x => ({J_TITLE:"Recherche · " + secLabel((/research\/([^/]+)$/.exec(x.d) || [])[1] || ""), J_DETAIL:"Ergebnis liegt im Änderungspaket"}));
+  const total = pending.length + failed.length + doneRows.length;
+  const d = Object.assign(base(), {QUEUE_BOOK:shortTitle(), QUEUE_COUNT_TEXT:total ? plural(total, "Auftrag", "Aufträge") : "keine Aufträge", QUEUE_EMPTY:total ? "" : "1", PENDING:pending, FAILED:failed, DONE:doneRows});
+  return d;
+}
+async function queueChange(kind, d){
+  busy(kind === "prioritize" ? "Auftrag wird vorgezogen …" : "Auftrag wird abgebrochen …");
+  try {
+    const path = String(d.request || ""); if (!/^(chapters\/[^/]+\/research\/[^/]+|matter\/research\/[^/]+|jobs)\/request-\d+\.yml$/.test(path)) throw {message:"Ungültige Angabe."};
+    const work = await prepareWork(); await loadBookData(work);
+    const t = (await getFile(path, work, true).catch(() => { throw {message:"Der Auftrag ist nicht mehr da (vielleicht schon erledigt)."}; })).text, data = window.jsyaml.load(t) || {};
+    if (jobState(data) === "failed") throw {message:"Dieser Auftrag läuft nicht mehr; vorziehen oder abbrechen geht nur bei wartenden Aufträgen."};
+    let out = t.replace(/\n*$/, "\n");
+    if (kind === "prioritize") out = /^priority:.*$/m.test(out) ? out.replace(/^priority:.*$/m, "priority: true") : out + "priority: true\n";
+    else out = out.replace(/^waiting:.*\n/m, "") + `error: Vom Benutzer in der App abgebrochen\nfailed_at: '${new Date().toISOString().replace(/\.\d+Z$/, "+00:00")}'\n`;
+    const back = window.jsyaml.load(out) || {};
+    if (kind === "prioritize" ? back.priority !== true : !back.error || JSON.stringify(Object.assign({}, back, {error:0, failed_at:0, waiting:0})) !== JSON.stringify(Object.assign({}, data, {error:0, failed_at:0, waiting:0}))) throw {message:"Die Auftragsdatei ließ sich nicht sicher ändern."};
+    const r = await commit([{path, content:out}], kind === "prioritize" ? `Warteschlange: ${path} vorgezogen` : `Warteschlange: ${path} abgebrochen`, {action:"queue." + kind});
+    S.msg = savedMsg(kind === "prioritize" ? "Auftrag vorgezogen." : "Auftrag abgebrochen.", r);
+    if (kind === "cancel") S.msg.html += ` <span class="dim">Die App kann keine Dateien löschen: Der Auftrag steht jetzt als fehlgeschlagen und läuft nicht mehr. Ein schon laufender Auftrag lässt sich so nicht stoppen.</span>`;
+  } catch (e) { S.msg = failMsg(e); }
+  show("queue");
+}
+
 /* Hinweisdurchsicht (#367): editorial/durchsicht-*.yml – Eintrag für Eintrag entscheiden, jede Antwort als kleiner Nachtrag */
 const REVIEW_DECISIONS = ["ja", "nein", "geändert"], CH_STATUS = {planned:"geplant", in_progress:"in Arbeit", ready_for_assembly:"bereit zum Zusammenführen", assembly:"im Zusammenführen", review:"in Prüfung", ready_for_approval:"bereit zum Abschluss", approved:"abgeschlossen"};
 const reviewKey = n => { const m = /^durchsicht-(.+?)(?:-(\d+))?\.yml$/.exec(n); return m ? [m[1], +(m[2] || 1)] : [n.replace(/\.yml$/, ""), 0]; };   // wie hinweise.dialog_order
@@ -1252,6 +1349,7 @@ async function reviewData(file){
   if ((data.ausgelassen || []).length) d.SKIPPED = data.ausgelassen.map(x => ({SK_REF:x.befund, SK_REASON:x.grund}));
   return d;
 }
+const queueCard = () => `<div class="card" style="margin-top:16px"><b>Hintergrund-Warteschlange</b><p class="dim" style="margin:2px 0 8px">Aufträge, die im Hintergrund laufen (z. B. Recherche mit Internet): ansehen, vorziehen oder abbrechen.</p><button class="btn" data-act="queue">Warteschlange ansehen</button></div>`;
 async function reviewCard(){
   let files = []; try { files = await reviewFiles(); } catch (e) {}
   if (!files.length) return "";
@@ -1678,7 +1776,7 @@ function renderChat(){
   box.scrollTop = box.scrollHeight;
 }
 const ACTION_RE = /<<<AKTION\s*([\s\S]*?)\s*AKTION>>>/g;
-const SAFE_ACTIONS = ["view.project", "view.chapter", "view.section", "view.data", "project.edit", "chapter.create.open", "chapter.edit.open", "section.create.open", "chapter.reorder.open", "section.reorder.open", "approval.open", "changes.merge.open", "run.start", "view.characters", "view.character", "character.suggest", "view.notes_review"];
+const SAFE_ACTIONS = ["view.project", "view.chapter", "view.section", "view.data", "project.edit", "chapter.create.open", "chapter.edit.open", "section.create.open", "chapter.reorder.open", "section.reorder.open", "approval.open", "changes.merge.open", "run.start", "view.characters", "view.character", "character.suggest", "view.notes_review", "view.queue"];
 function safeAction(json){
   // nur Ansichten und Formulare öffnen; alles, was schreibt, bestätigt der Benutzer danach im Formular
   let a; try { a = JSON.parse(json); } catch (e) { return null; }
@@ -1690,7 +1788,7 @@ function safeAction(json){
 }
 const ACTION_HELP = `Du kannst dem Benutzer Knöpfe anbieten, die eine Ansicht oder ein Formular öffnen. Schreib dafür je Knopf eine eigene Zeile:
 <<<AKTION {"action":"…","label":"kurzer Knopftext", …Daten} AKTION>>>
-Erlaubt: view.project; view.notes_review; view.characters; view.character {character_id}; character.suggest {scope: book | Kapitelnummer | N.M}; view.chapter {chapter_id}; view.section {section_id}; project.edit; chapter.create.open; chapter.edit.open {chapter_id}; section.create.open {chapter_id}; chapter.reorder.open; section.reorder.open {chapter_id}; approval.open {kind:"writing"|"section", section_id, revoke?} bzw. {kind:"chapter", chapter_id, revoke?}; changes.merge.open; run.start {section_id, task:"research"|"writing"}. IDs nur aus buch_struktur. Knöpfe öffnen nur – gespeichert, freigegeben oder übernommen wird erst nach Bestätigung durch den Benutzer. Höchstens drei Knöpfe.
+Erlaubt: view.project; view.notes_review; view.queue; view.characters; view.character {character_id}; character.suggest {scope: book | Kapitelnummer | N.M}; view.chapter {chapter_id}; view.section {section_id}; project.edit; chapter.create.open; chapter.edit.open {chapter_id}; section.create.open {chapter_id}; chapter.reorder.open; section.reorder.open {chapter_id}; approval.open {kind:"writing"|"section", section_id, revoke?} bzw. {kind:"chapter", chapter_id, revoke?}; changes.merge.open; run.start {section_id, task:"research"|"writing"}. IDs nur aus buch_struktur. Knöpfe öffnen nur – gespeichert, freigegeben oder übernommen wird erst nach Bestätigung durch den Benutzer. Höchstens drei Knöpfe.
 Will der Benutzer etwas ändern, anlegen, verschieben, freigeben, abschließen, recherchieren oder schreiben lassen, antworte nie nur, dass du das nicht kannst. Sag in einem Satz, dass er es über den Knopf öffnet und dort mit Speichern bestätigt, und biete den passenden Knopf an (für Manuskripttext: run.start mit task "writing" oder den Abschnitt mit view.section öffnen). Gibt es für den Wunsch keinen Knopf, sag das kurz und nenne die Ansicht, in der es am ehesten geht.`;
 function context(){
   const p = S.cfg.project || {}, sc = scopeOf();
@@ -1760,6 +1858,7 @@ document.addEventListener("click", async ev => {
   else if (d.go === "back") show(S.report.from, S.report.arg);
   else if (d.report){ const from = S.view, arg = from === "section" ? S.sec.id : S.chap; busy("Bericht wird geladen …"); try { S.report = {path:d.report, text:(await getFile(d.report, S.readRef)).text, from, arg}; show("report"); } catch (e) { S.msg = {kind:"err", html:"Bericht nicht gefunden: " + esc(d.report)}; show(from, arg); } }
   else if (d.act === "review"){ S.msg = null; show("review", d.f); }
+  else if (d.act === "queue"){ S.msg = null; show("queue"); }
   else if (d.act === "reviewapply") reviewApply({file:d.f});
   else if (d.act === "allchecks"){ S.showAll = !S.showAll; show("project"); }
   else if (d.act === "copy"){ try { await navigator.clipboard.writeText($("cpy").textContent); t.textContent = "Kopiert"; } catch (e) { t.textContent = "Kopieren nicht möglich – Text markieren"; } }

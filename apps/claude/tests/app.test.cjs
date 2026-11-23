@@ -309,6 +309,42 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
     delete fake["series/ser-test/series.yml"]; delete fake["series/ser-test/characters/char-opi.md"]; w.__S().series = null; w.__S().seriesFor = null;
   }
 
+  // Hintergrund-Warteschlange: Aufträge nachgebildet
+  {
+    await send("x\n\n`gw:library.book.open branch=" + BOOK + "`");
+    await until(() => d.querySelector("#gw [data-id^='ch-']"), 600);
+    ok(!!d.querySelector("[data-act=queue]"), "Projektübersicht: Karte „Hintergrund-Warteschlange“");
+    const flat = w.__S().struct.flatMap(c => c.sections.map(s => ({c, s}))), s0 = flat[0].s, s1 = flat[1].s;
+    const d0 = `${flat[0].c.path}/research/${s0.id}`, d1 = `${flat[1].c.path}/research/${s1.id}`;
+    Object.keys(fake).filter(k => /\/request-\d+\.yml$/.test(k)).forEach(k => delete fake[k]);   // Reste früherer Tests
+    const A = `${d1}/request-001.yml`, B = `${d0}/request-002.yml`, C = `${d0}/request-003.yml`, D = `${d1}/request-004.yml`;
+    fake[A] = `type: research\nsection_id: ${s1.id}\nrequested_at: '2026-11-22T20:00:00+00:00'\nrequested_by: web-app\nquestion: Was war 1957?\n`;
+    fake[B] = `type: research\nsection_id: ${s0.id}\nrequested_at: '2026-11-22T20:05:00+00:00'\nwaiting: budget\n`;
+    fake[C] = `type: research\nsection_id: ${s0.id}\nrequested_at: '2026-11-22T20:06:00+00:00'\nerror: Anbieter antwortet nicht\nfailed_at: '2026-11-22T20:10:00+00:00'\n`;
+    fake[D] = `type: research\nsection_id: ${s1.id}\nrequested_at: '2026-11-22T20:07:00+00:00'\nafter: ${A}\n`;
+    await send("x\n\n`gw:view.queue`");
+    ok(await until(() => d.querySelector("#gw .gw-q"), 120) && d.querySelectorAll("#gw .gw-q .it").length >= 4, "Warteschlange: wartende und fehlgeschlagene Aufträge");
+    const qt = d.querySelector("#gw .gw-q").textContent;
+    ok(/wartet auf Bestätigung/.test(qt) && /Erst nach /.test(qt) && /Anbieter antwortet nicht/.test(qt) && /Was war 1957\?/.test(qt), "Warteschlange: Zustände, Abhängigkeit, Grund und Frage");
+    const argsOf = () => [...d.querySelectorAll('#gw .gw-q [data-gw-send="queue.prioritize"]')].map(b => JSON.parse(b.getAttribute("data-gw-args")).request);
+    const ord = argsOf(), iA = ord.indexOf(A), iB = ord.indexOf(B), iD = ord.indexOf(D);
+    ok(iB >= 0 && iA >= 0 && iD >= 0 && iB < iA && iA < iD, "Warteschlange: Reihenfolge nach der Buchreihenfolge, abhängiger Auftrag hinter seinem Ziel");
+    n = pushes.length;
+    [...d.querySelectorAll('#gw .gw-q [data-gw-send="queue.prioritize"]')].find(b => JSON.parse(b.getAttribute("data-gw-args")).request === B).click(); await sleep(500); await idle(); await until(() => pushes.length > n, 40);
+    const pq = pushes.length > n && lastPush("warteschlange-vorziehen");
+    ok(pq && pq.files.length === 1 && pq.files[0].path === B && /^priority: true$/m.test(pq.files[0].content) && /waiting: budget/.test(pq.files[0].content) && /vorgezogen/.test(pq.message), "Vorziehen: nur die Auftragsdatei, priority: true");
+    n = pushes.length;
+    await send(gwa("queue.cancel", {request: A}));
+    const pc = pushes.length > n && lastPush("warteschlange-abbrechen");
+    ok(pc && pc.files.length === 1 && pc.files[0].path === A && /^error: Vom Benutzer in der App abgebrochen$/m.test(pc.files[0].content) && /^failed_at: /m.test(pc.files[0].content) && /question: Was war 1957\?/.test(pc.files[0].content) && /kann keine Dateien löschen/.test(note()), "Abbrechen: Auftrag als abgebrochen markiert, nichts gelöscht");
+    n = pushes.length;
+    await send(gwa("queue.prioritize", {request: C}));
+    ok(pushes.length === n && /nur bei wartenden/.test(note()), "Vorziehen bei fehlgeschlagenem Auftrag wird abgelehnt");
+    await send(gwa("queue.cancel", {request: "../geheim.yml"}));
+    ok(pushes.length === n && /Ungültige Angabe/.test(note()), "Abbrechen: ungültiger Pfad wird abgelehnt");
+    [A, B, C, D].forEach(k => delete fake[k]);
+  }
+
   // Hinweisdurchsicht: nur wenn das Buch eine hat (z. B. GW_BOOK=buch/krimi-sinabelkirchen)
   {
     let rev = []; try { rev = gh(`repos/${REPO}/contents/editorial?ref=${encodeURIComponent(BOOK)}`).filter(f => /^durchsicht-.+\.yml$/.test(f.name)).map(f => f.name); } catch (e) {}
