@@ -1,5 +1,7 @@
 # Testplan v0.5
 
+> **Historischer Fallkatalog:** Die Checkboxen wurden hier nicht neu abgenommen. Die Roadmap in `workflow.yml` führt v0.5 und v0.6 als abgenommen; offene alte Zellen sind kein Beweis fehlender Implementierung. Für den aktuellen Abschluss gelten die [Arbeitsaufträge bis v1.0](AUFTRAEGE-v1.0.md) und der [aktuelle Standabgleich](PLANUNGSSTAND-v1.0.md). Versionsangaben und damalige Bedienbeschreibungen in den Fällen sind historisch; vor Wiederverwendung mit dem aktuellen Programm abgleichen.
+
 Abnahme aller v0.5-Funktionen (`workflow.yml`, `product_roadmap.v0_5.scope`) mit
 zwei Testprojekten (#18):
 

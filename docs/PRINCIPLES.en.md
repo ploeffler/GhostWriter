@@ -96,6 +96,15 @@ paths. A GitHub credential with full write access can also change files outside
 GhostWriter; chat instructions alone do not restrict those external operations.
 No accounts, credentials or repository permissions are created automatically.
 
+**Technically inspected paths (23 November 2026, program version 0.9.0):**
+
+- `schemas/approvals.schema.json` requires a nonempty string for `by`, but no verified GitHub identity.
+- `scripts/validate_project.py` checks target IDs, latest approval states and manuscript hashes. `scripts/assemble.py` uses those records for output. Neither checks a person's content-approval authority.
+- `scripts/rules.py` accepts `--by` as a ledger label; it is not proof of identity.
+- `integrations/openwebui/ghostwriter_github.py` checks the expected branch head when saving and uses configured GitHub credentials. Its `get_repo` read operation can return GitHub permissions; the general writing path does not thereby authenticate an approver or their content-approval delegation.
+
+In a temporary test copy, only `by` in existing test approvals was replaced with an arbitrary different name: the schema accepted it, and book assembly reported no problems before or after the change. This reproduces the limitation; it does not pass role acceptance. A solution must bind caller identity, a trusted assignment of approval authority and evidence for the approved content. Another freely editable list of names alone would not close this gap.
+
 ---
 
 <p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
