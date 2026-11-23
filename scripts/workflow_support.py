@@ -101,7 +101,9 @@ def compare_book_work(base, book, work):
 
 
 CONTEXT_PATHS = {'ghostwriter.yml', 'workflow.yml', 'assistant.yml',
-                 'ghostwriter-manifest.yml', '.ghostwriter/update.yml'}
+                 'ghostwriter-manifest.yml', '.ghostwriter/update.yml',
+                 'START.md', 'CLAUDE.md', 'AGENTS.md'}
+CONTEXT_DIRS = ('docs/start', '.claude/skills')
 
 
 def assess_write(base, expected_ref, current_ref, paths):
@@ -130,7 +132,8 @@ def assess_write(base, expected_ref, current_ref, paths):
     changed = {path for path in before.keys() | now.keys() if before.get(path) != now.get(path)}
     affected = sorted(path for path in changed if any(
         path == wanted or path.startswith(wanted + '/') or wanted.startswith(path + '/') for wanted in paths))
-    context = sorted(changed & CONTEXT_PATHS)
+    context = sorted(path for path in changed if path in CONTEXT_PATHS or any(
+        path == folder or path.startswith(folder + '/') for folder in CONTEXT_DIRS))
     return {**result, 'state': 'refresh_required' if affected or context else 'unrelated_changes',
             'safe_to_prepare': not affected and not context,
             'affected_files': affected, 'context_changes': context}

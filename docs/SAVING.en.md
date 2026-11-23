@@ -14,6 +14,8 @@ A result in the chat is not yet durably saved to the repository. Two paths are a
 
 The assistant checks the current book version and required permissions, collects all related changes for one task and validates them together. Only then are they saved as one commit in the shared change package. Unchanged content does not create another commit.
 
+Changed startup instructions and skills also require a fresh check before writing. The local `workflow_support.py … guard` helper treats changes and deletions to `START.md`, `CLAUDE.md`, `AGENTS.md`, files under `docs/start/` and files under `.claude/skills/`, including personal skills, as context changes. It only checks the supplied Git versions; current remote data and an atomic check when subsequently saving are still required.
+
 After confirmed upload, the state is **saved, not yet merged**. You can view and continue working on that version; views read from the open change package. Changes reach the merged book version only after **Apply changes**. You confirm the current version shown to you. If it changes meanwhile, the revised package must be shown again.
 
 If you deliberately enabled **immediate application** (`changes.auto_merge: true`), ordinary book changes are merged automatically after saving. Content approvals remain separate explicit decisions. An edition always has its own change package and requires explicit merge confirmation.
