@@ -756,6 +756,10 @@ class Tools:
         token = valves.get("GITHUB_TOKEN", "") if isinstance(valves, dict) else getattr(valves, "GITHUB_TOKEN", "")
         if not isinstance(token, str) or not token.strip():
             return json.dumps({"ok": False, "error": "Schreiben gesperrt: persönlichen GitHub-Token in den Benutzereinstellungen hinterlegen."}, ensure_ascii=False)
+        token = token.strip()
+        shared = self.valves.GITHUB_TOKEN.strip()
+        if shared and hmac.compare_digest(token.encode('utf-8'), shared.encode('utf-8')):
+            return json.dumps({"ok": False, "error": "Schreiben gesperrt: gemeinsamer Werkzeug-Token ist kein persönlicher Schreibzugang."}, ensure_ascii=False)
         token_context = _WRITE_TOKEN.set(token)
         user_context = _WRITE_USER.set(None)
         try:

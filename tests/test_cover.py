@@ -279,6 +279,8 @@ class FrontCoverBuildTest(CoverProjectTest):
     def build(self, *args):
         out = self.base.parent / 'out'
         shutil.rmtree(out, ignore_errors=True)
+        if '--edition' in args:
+            fake_github(self, self.base, edition=int(args[args.index('--edition') + 1]))
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--out', str(out),
                             *args], capture_output=True, text=True)
         files = {}

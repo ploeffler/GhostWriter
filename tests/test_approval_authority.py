@@ -274,6 +274,13 @@ class OpenWebUIAuthorityTest(unittest.TestCase):
             result=self.run_tool(self.tool.create_branch('ploeffler/test-book','ghostwriter/main','main'))
         self.assertFalse(result['ok']);http.assert_not_called()
 
+    def test_known_shared_credential_cannot_be_resubmitted_as_personal_identity(self):
+        for value in (self.tool.valves.GITHUB_TOKEN, ' '+self.tool.valves.GITHUB_TOKEN+' '):
+            with self.subTest(value=value),patch.object(self.tool,'_http') as http:
+                result=self.run_tool(self.tool.create_branch('ploeffler/test-book','ghostwriter/main','main',
+                    __user__={'valves':{'GITHUB_TOKEN':value}}))
+            self.assertFalse(result['ok']);http.assert_not_called()
+
     def test_personal_token_used_and_redacted_without_mutating_shared_config(self):
         class Response:
             status_code=200;headers={};content=b'{}'

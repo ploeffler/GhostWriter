@@ -311,6 +311,8 @@ class ImageTest(unittest.TestCase):
 
     def pdf_pages(self, args):
         out = self.tmp / 'out'
+        if '--edition' in args:
+            fake_github(self, self.base, edition=int(args[args.index('--edition') + 1]))
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--out', str(out),
                             '--formats', 'pdf'] + args, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
