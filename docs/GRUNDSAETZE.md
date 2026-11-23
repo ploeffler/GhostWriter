@@ -108,6 +108,15 @@ voll schreibberechtigter GitHub-Zugang kann Dateien auch außerhalb von GhostWri
 ändern; reine Chat-Anweisungen schaffen dort keine zusätzliche Zugriffsschranke.
 Es werden keine eigenen Konten, Schlüssel oder Berechtigungen automatisch angelegt.
 
+**Technisch geprüfte Wege (23.11.2026, Programmstand 0.9.0):**
+
+- `schemas/approvals.schema.json` verlangt für `by` eine nichtleere Zeichenfolge, aber keine verifizierte GitHub-Identität.
+- `scripts/validate_project.py` prüft Zielkennungen, letzte Freigabezustände und Manuskript-Fingerabdrücke. `scripts/assemble.py` verwendet diese Freigabedaten für die Ausgabe. Beide prüfen keine persönliche Freigabeberechtigung.
+- `scripts/rules.py` nimmt `--by` als Protokollangabe entgegen; sie ist kein Identitätsnachweis.
+- `integrations/openwebui/ghostwriter_github.py` prüft beim Speichern den erwarteten Branchstand und verwendet die eingerichteten GitHub-Zugangsdaten. Die Lesefunktion `get_repo` kann GitHub-Berechtigungsangaben liefern; der allgemeine Schreibweg authentifiziert damit weder eine Freigabeperson noch eine fachliche Bevollmächtigung.
+
+Mit einer temporären Testkopie wurde ausschließlich `by` in bestehenden Testfreigaben durch einen beliebigen anderen Namen ersetzt: Das Schema akzeptierte ihn, und die Buchzusammenstellung meldete vorher und nachher keine Probleme. Dies reproduziert die Grenze; es ist keine erfolgreiche Rollenabnahme. Für eine Lösung müssen Aufruferidentität, vertrauenswürdige Zuordnung des Freigaberechts und Nachweis für den freigegebenen Inhalt zusammenpassen. Eine weitere frei editierbare Namensliste allein würde diese Grenze nicht schließen.
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

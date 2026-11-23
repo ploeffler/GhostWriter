@@ -1,6 +1,6 @@
 # Ausführbare Arbeitsaufträge bis v1.0
 
-Grundlage: [bestätigte Beschlüsse D01–D32](ENTSCHEIDUNGEN-v1.0.md), 08.11.2026. Diese Datei plant Umsetzung und Abnahme; sie erklärt keine Funktion allein durch ihre Aufnahme für fertig.
+Grundlage: [bestätigte Beschlüsse D01–D32 und datierte Ergänzungen](ENTSCHEIDUNGEN-v1.0.md), ursprünglich 08.11.2026. Bestandsabgleich am 23.11.2026 gegen Programmversion 0.9.0 (Quellcommit `3c528ff`). Diese Datei plant Umsetzung und Abnahme; sie erklärt keine Funktion allein durch ihre Aufnahme für fertig.
 
 ## Reihenfolge und Befugnisse
 
@@ -30,6 +30,8 @@ GhostWriter und ghostwriter-ui dürfen geändert und in isolierten Testbranches 
 - Branch-Namen und -Verwaltung intern halten. Benutzer sehen verständlich gespeichert/übernommen/freigegeben/fehlgeschlagen. Änderungen an tatsächlichen Anzeigen brauchen die unten festgelegte Vier-Client-Prüfung.
 - Eigentümer/Bearbeiter/Leser anhand vorhandener GitHub-Rechte begrenzen; zusätzliche Freigabeberechtigung ausdrücklich zuordnen. Keine fehlende serverseitige Durchsetzung durch eine behauptete zentrale Rollenverwaltung ersetzen. Grenzen des jeweiligen Clients offenlegen.
 
+**Aktueller Bestand:** Sicheres Entfernen unveränderter übernommener Arbeitsstände wird durch `scripts/delete_checked_branch.py` und `tests/test_checked_cleanup.py` geprüft. Dies bestätigt keine vollständige Rollenprüfung: Das Freigabeprotokoll authentifiziert die Person im Feld `by` nicht; die konkrete Grenze steht in [den Grundsätzen](GRUNDSAETZE.md#zusammenarbeit-und-freigaberecht).
+
 **Fertig:** Lebenszyklus- und Konflikttests; Rollen-/Freigabeprüfung für die tatsächlich unterstützten Schreibwege; übereinstimmende Dokumentation. Ungeklärte technische Durchsetzbarkeit gemäß D32 melden, keine neue Verwaltungs-API einführen.
 
 ## A03 – Standabgleich und beschlossene Sicherung
@@ -40,6 +42,8 @@ GhostWriter und ghostwriter-ui dürfen geändert und in isolierten Testbranches 
 - Nicht kollidierende Änderungen auf aktueller Basis fortsetzen; Konflikte sichtbar klären und Eingaben erhalten. Unterbrochene Vorgänge vor Wiederholung auf tatsächliches Ergebnis prüfen.
 - Manuelle Sicherungsbefehle und vorhandenen Abschnittsabschluss-Checkpoint testen. Umfang und Lücken nennen, erst bestätigten Push als gesichert melden. Getrennte Sitzungspakete und Freigaben erhalten.
 - Keine zusätzliche Hintergrund-/Eingabeentwurfssicherung bis v1.0 versprechen. Inhalte behalten bis ausdrücklicher Löschauftrag; keine automatische Git-Historienumschreibung.
+
+**Aktueller Bestand:** `scripts/standabgleich.py`, `scripts/handover.py` und `scripts/chat_backup.py` sind vorhanden. Die [Sitzungssicherung](SESSION-SICHERUNG.md) beschreibt inzwischen zusätzlich die Sicherung jeder ausgewerteten Abschnittsantwort und deren quittierte Übertragung, auch über einen Hintergrundprozess. Dieser neuere Bestand ist bei der Abnahme zusätzlich zu berücksichtigen. Zeitgesteuerte Überwachung und Sicherung ungesendeter Eingaben werden dadurch nicht zugesagt; praktische Clientnachweise bleiben offen.
 
 **Fertig:** Zwei-Client-Fälle, veraltetes Formular, unterbrochene Speicherung und Wiederherstellung mit Testdaten nachweisen. Nicht verfügbare Clients oder Ereignissignale als offene Pflichtfälle ausweisen.
 
@@ -53,7 +57,7 @@ GhostWriter und ghostwriter-ui dürfen geändert und in isolierten Testbranches 
 - Herkunft, Bildunterschrift, Alternativtext und Freigabestatus speichern. Figuren/Orte/Szenen/Abschnitte zuordnen. Upload aktiviert keine Referenz; Freigabe und Auswahl je Auftrag explizit.
 - Keine automatische Anbieterübergabe oder Behauptung tatsächlicher externer Verwendung. Referenz ist keine automatische Buchabbildung.
 
-**Aktualisierter Prüfstand vom 08.11.2026:** Originalschutz und ausdrücklich bestätigte Verkleinerung wurden lokal geprüft. Die frühere Aussage zur automatischen Verkleinerung ist überholt. Andere Medienlücken bleiben offen; siehe [Testbericht](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/tests/evidence/2026-11-08-bilder/TESTBERICHT.md). Eine vollständige Vier-Client-Abnahme liegt damit nicht vor.
+**Aktualisierter Prüfstand vom 08.11.2026:** Originalschutz und ausdrücklich bestätigte Verkleinerung wurden lokal geprüft. Die frühere Aussage zur automatischen Verkleinerung ist überholt. Dieser historische Stand ist durch implementierte Medienkorrekturen ergänzt; den aktuellen Funktionsstand und verbleibende Formatprüfungen beschreibt die [Medienplatzierung](MEDIENPLATZIERUNG.md). Historische Befunde siehe [Testbericht](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/tests/evidence/2026-11-08-bilder/TESTBERICHT.md). Eine vollständige Vier-Client-Abnahme liegt damit nicht vor.
 
 **Fertig:** Grenzen, abgebrochene Bestätigung, unveränderte Originalbytes, getrennte Ableitung, Zuordnungen, Freigabe/Rücknahme und Bildausgabe testen; UI-Anteile in allen vier Clients abnehmen.
 
@@ -77,7 +81,7 @@ GhostWriter und ghostwriter-ui dürfen geändert und in isolierten Testbranches 
 - Keine echte API-Abnahme verlangen; vorhandener optionaler Anbietercode bleibt außerhalb v1.0 erhalten. Ganze Bücher nicht im Chat ausgeben; bei Kapazitätsgrenzen Aufgaben nachvollziehbar in Einheiten teilen statt unbeaufsichtigte Ganzbuchanalyse zu versprechen.
 - Altversionen v0.5/v0.6 mit Fixtures testen; keine allgemeine Fremdbestandsmigration beauftragen.
 
-**Bekannte Abweichung vor Umsetzung:** `scripts/import_book.py` und Import-/Aufräumpfade enthalten Aufbewahrungsfristen und einen Entfernungspfad. Bestehende YAWA-Daten nicht ohne gesonderte Freigabe verändern.
+**Früherer Befund, inzwischen korrigiert:** Neue Importe verwenden `until_deleted`; alte Aufbewahrungsfristen bewirken keine automatische Löschung. `tests/test_import.py` prüft neue Importe, überholte Fristen und die erforderliche ausdrückliche Löschbestätigung. Die praktische Import-/Analyseabnahme und der Nachweis der geforderten Altstände bleiben offen. Bestehende YAWA-Daten nicht ohne gesonderte Freigabe verändern.
 
 **Fertig:** Import, korrupte Rückgabe, geänderte Basis, geprüfte Fundstellen, abgelehnte Vorschläge, wiederholter Auftrag und ausbleibende automatische Löschung getestet. Keine Schlüsselerfordernis im normalen v1.0-Weg.
 
@@ -105,7 +109,7 @@ GhostWriter und ghostwriter-ui dürfen geändert und in isolierten Testbranches 
 
 ## A09 – Ergänzte Medien-, Umschlag- und Dokumentationsaufträge
 
-- A04 um die [bestätigten Medienvorgaben](MEDIENPLATZIERUNG.md) und die offenen Befunde des [lokalen Bildtests](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/tests/evidence/2026-11-08-bilder/TESTBERICHT.md) ergänzen: Mengenbegrenzung, Grafikbeschriftung, Alternativtext, PDF-Zusammenhalt und Entwurfskennzeichnung. Sechs Positionen, Textumfluss und Breitenregler brauchen Umsetzung und getrennte Formatabnahme.
+- A04 um die [bestätigten Medienvorgaben](MEDIENPLATZIERUNG.md) und die offenen Befunde des [lokalen Bildtests](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/tests/evidence/2026-11-08-bilder/TESTBERICHT.md) ergänzen: Mengenbegrenzung, Grafikbeschriftung, Alternativtext, PDF-Zusammenhalt und Entwurfskennzeichnung. Sechs Positionen, Textumfluss und Breitensteuerung sind implementiert. Die getrennte praktische Formatabnahme in PDF, DOCX und EPUB bleibt offen; Speichern von Layoutdaten allein reicht nicht.
 - Hochgeladenen Coverentwurf für v1.0 nach dem [ergänzten Entscheidungsauftrag](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/ENTSCHEIDUNGSAUFTRAG-v1.0.md#nachtrag-für-v10-umschlag-aus-hochgeladener-gestaltungsvorlage) verarbeiten: Analyse, Vorschlag, Vorschau, ausdrückliche Übernahme. Original erhalten und Unsicherheiten nennen.
 - Das [Bedienglossar](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/UMSETZUNGSAUFTRAG-BEDIENGLOSSAR.md) als eigenen deutschen/englischen Dokumentationsblock umsetzen, vorhandene/geplante Funktionen klar unterscheiden.
 - Die [zentrale Dokumentationswebsite](https://github.com/ploeffler/GhostWriter/blob/7ea6d6d941757214b12ef7cdf5b1146890c22135/PLANUNGSNOTIZ-DOKUMENTATIONSWEBSITE.md) war v0.9.0 zugeordnet; ihre technische Umsetzung wurde am 9. November 2026 als lokal geprüfter gemeinsamer PR vorgezogen beauftragt. Quelldokumente und Sprachpaare unter docs/, sechs vorhandene Grafiken und öffentliche Beispielseiten nutzen. Manueller Veröffentlichungsweg standardmäßig ohne Dokumentationsaktivierung; Merge und Veröffentlichung nur nach gesonderter Freigabe. Pflege, Fachprüfung und Releasepflichten nach [Dokumentationspflege](DOKUMENTATION-PFLEGE.md).
@@ -117,12 +121,16 @@ GhostWriter und ghostwriter-ui dürfen geändert und in isolierten Testbranches 
 
 **Bezug:** bestätigter Skill-Beschluss vom 8. November 2026 im [Entscheidungsprotokoll](ENTSCHEIDUNGEN-v1.0.md#beschluss-vom-8-november-2026-skill-unterstützung).
 
-- Vorhandene GhostWriter-Skills und Einstiegspfade für Claude und Codex inventarisieren und mit START.md, Buchprofil, Schreibablauf und Qualitätsprüfung abgleichen.
+- Vorhandene GhostWriter-Skills und Einstiegspfade für Claude und Codex inventarisieren und mit START.md, Buchprofil, Schreibablauf und Qualitätsprüfung abgleichen. Aktueller Bestand: Einstieg, Lektorat und Buchgedächtnis unter `.claude/skills/`; AGENTS.md und CLAUDE.md beschreiben das Laden und Auswählen für alle Assistenten. Dies ist noch kein praktischer Clientnachweis.
 - Gemeinsame fachliche Quellen verwenden; widersprüchliche Parallelregeln beseitigen. Tatsächliche Ladewege und Werkzeuggrenzen je Client dokumentieren und prüfen.
 - Mit synthetischen Buchdaten Einstieg, Profilübernahme, Schreiben/Überarbeiten und Qualitätsprüfung prüfen; ausdrückliche Buchfreigaben bleiben erforderlich.
 - Eigenständige Buch-Skills ab v1.1 schrittweise ausbauen; einzelne Lieferumfänge gesondert festlegen. Entwicklungsskills nach lokalem Bedarf, ohne feste Produktversionszusage.
 
 **Fertig:** Konsistente bestehende Unterstützung und dokumentierte praktische Nachweise für Claude und Codex; fehlende Clientprüfungen ausdrücklich offenhalten. Planungsaufnahme allein ist keine Implementierung.
+
+## Ergänzung aus D08: Hintergrund-Warteschlange
+
+Der bestätigte Nachtrag vom 22.11.2026 gehört zur v1.0-Abnahme. Vorhandene Programmlogik umfasst mehrere Auftragsarten, Reihenfolge und Abhängigkeiten, Vorziehen, Abbrechen, Budgetprüfung und Wiederanlauf. `tests/test_jobs.py`, `tests/test_jobs_order.py` und `tests/test_queue_view.py` prüfen Teilbereiche. Praktische Clientansichten, Fehlerfälle und der vollständige Ablauf bleiben nachzuweisen. Ausschließlich Anbieterattrappen für die technische Abnahme; keine bezahlten Live-Tests als Voraussetzung.
 
 ## Verbindliche Testmatrix und noch offene Voraussetzungen
 
