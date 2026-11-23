@@ -64,8 +64,14 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
 - Hinweisdurchsicht (#367): Karte „Hinweisdurchsicht“ in der Projektübersicht, Ansicht mit einer Karte je Eintrag
   aus `editorial/durchsicht-*.yml`. „Übernehmen“, „Nicht ändern“ und eigene Fassung speichern jede Antwort sofort
   als kleinen Nachtrag (nur die Zeilen des Eintrags ändern sich, die Datei wird danach gegengeprüft; schnelle
-  Klicks laufen nacheinander). „Umsetzen prüfen“ zeigt ✅/⚠️/⛔, ändert aber nichts. **Noch nicht in der App:**
-  das Umsetzen ins Manuskript (`hinweise.py apply`); das geht weiter im Chat.
+  Klicks laufen nacheinander). „Umsetzen prüfen“ zeigt ✅/⚠️/⛔, ändert aber nichts; bei umsetzbaren Einträgen
+  bietet es den Knopf „… ins Manuskript umsetzen“ an. Das Umsetzen (wie `hinweise.py apply`) ersetzt in den Manuskripten
+  den alten Wortlaut durch den entschiedenen, markiert die Einträge als `umgesetzt` und schreibt den Befundstatus zurück
+  (umgesetzt → `erledigt`, nein → `entschieden`), alles in einem Commit auf den Arbeits-Branch. Umgesetzt werden nur
+  ✅-Einträge; abgeschlossene Kapitel und Abschnitte werden nie angefasst. Ändert eine frühere Umsetzung den Text eines
+  späteren Eintrags in demselben Abschnitt, wird dieser übersprungen und gemeldet (das Skript bricht dort ab). Danach zeigt
+  die App die betroffenen Stellen im Zusammenhang. **Noch nicht in der App:** Nachprüfung (Schlusskorrektur,
+  Qualitätsprüfung) und erneutes Abschließen der Kapitel; das geht weiter im Chat.
 - Claude-Leiste in Projektübersicht, Kapitel und Abschnitt. Claude kann Knöpfe anbieten, die nur eine Ansicht
   oder ein Formular öffnen (Liste `SAFE_ACTIONS` in `index.html`). Speichern und Abschließen bleiben eigene Schritte.
   Will der Benutzer im Chat etwas ändern, sagt Claude nicht nur „kann ich nicht“, sondern bietet den Knopf zum
