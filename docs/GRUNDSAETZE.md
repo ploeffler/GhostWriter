@@ -85,6 +85,29 @@ GhostWriter wurde mit Unterstützung von Claude (Anthropic) entwickelt; dieser H
 - [Bilder und visuelle Referenzen](BILDER-UND-REFERENZBILDER.md): Upload, Freigabe und gezielte Verwendung im Erstellungspfad
 - [Produktclip](https://github.com/ploeffler/GhostWriter/blob/main/media/produktclip/README.md)
 
+## Zusammenarbeit und Freigaberecht
+
+Der Eigentümer und ausdrücklich benannte Freigabeberechtigte entscheiden über
+inhaltliche Freigaben. Bearbeiten, Speichern, Übernehmen und Freigeben sind
+unterschiedliche Befugnisse. Für die Zusammenarbeit sind **persönliche
+GitHub-Konten** bestätigt; gemeinsame schreibberechtigte Zugangsdaten dürfen
+nicht als Nachweis für die Rechte einzelner Personen verwendet werden.
+
+**Aktueller Prüfstand:** Das Freigabeprotokoll hält einen Namen im Feld `by` fest,
+authentifiziert ihn aber nicht. Validator und Buchzusammenstellung prüfen
+Manuskript-Fingerabdruck und Freigabezustand, nicht die Person hinter dem Eintrag.
+Eine Bestätigung im Chat oder ein erfolgreicher Commit beweist allein deshalb
+noch kein fachliches Freigaberecht. Die durchgängige technische Rollenabnahme ist
+offen. Der allgemeine Schreibweg und das bisherige Open-WebUI-Werkzeug dürfen
+nicht als bereits durchgesetzte Personenverwaltung ausgegeben werden.
+
+Für die Umsetzung müssen das persönliche Konto des Aufrufenden verifiziert,
+Eigentümer bzw. ausdrücklich benannte Freigabeberechtigte verlässlich zugeordnet
+und die tatsächlichen Schreib- und Veröffentlichungswege geschützt werden. Ein
+voll schreibberechtigter GitHub-Zugang kann Dateien auch außerhalb von GhostWriter
+ändern; reine Chat-Anweisungen schaffen dort keine zusätzliche Zugriffsschranke.
+Es werden keine eigenen Konten, Schlüssel oder Berechtigungen automatisch angelegt.
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
