@@ -214,6 +214,22 @@ Der Token gehört wie jeder Schlüssel nie in den Chat oder in eine Datei (siehe
 - Im Hauptrepository installiert `validate.yml` vor den Tests die Satzpakete (pandoc, XeLaTeX, poppler-utils – dieselben wie Probedruck, Auflage und Sammelband – sowie qpdf für die Vorderseite im PDF, #324). Die heruntergeladenen Pakete liegen in einem GitHub-Cache; installiert wird bei jedem Lauf. Ohne diese Pakete würden die PDF-, EPUB- und Import-Tests übersprungen statt geprüft.
 - Lokal testen: `GITHUB_REPOSITORY=owner/buch GHOSTWRITER_UPSTREAM_URL=<pfad-oder-url> python scripts/update_from_upstream.py --dry-run --status status.json`.
 
+## Sicheres Aufräumen nach der Übernahme
+
+Die Action **Branches aufräumen** löscht einen
+geprüften Arbeitsbranch nur, wenn sein Head auf dem Server noch dem bestätigten
+Stand entspricht. Ein inzwischen hinzugekommener Commit verhindert die Löschung.
+Bei Versionsbranches muss zusätzlich der gleichnamige Erhaltungstag unverändert
+vorhanden sein; Tagprüfung und Löschung bilden einen atomaren Vorgang.
+
+Technisch nutzt sie [GitHubs `updateRefs` mit `beforeOid`](https://docs.github.com/en/graphql/reference/git#updaterefs).
+Fehlen GraphQL-Zugriff oder Berechtigungen oder ist die Antwort unklar, wird die
+Löschung nicht als erfolgreich gemeldet. Es gibt keinen unbedingten Löschversuch
+als Ersatz und keine automatische Wiederholung. Vor einem neuen Auftrag den
+Remote-Stand prüfen. **Nur anzeigen** sendet keine Löschmutation.
+Die bisherigen Prüfungen auf übernommene Inhalte bleiben erforderlich; eine
+passende Commit-ID allein ist keine Übernahmefreigabe.
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
