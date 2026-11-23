@@ -52,8 +52,15 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   Konnektor, schneidet es quadratisch zu und verkleinert es (80 bzw. 192 Pixel); das Original bleibt unberührt
   und wird nie ins Buch geschrieben. Ohne freigegebenes Bild, bei zu großer Datei (über 12 MB) oder wenn der
   Konnektor das Bild nicht liefert, bleibt das Feld leer. Ein anderes Bild wählt man wie im Chat mit
-  `portrait: ref-img-…` im Figurenkopf. **Noch nicht in der App:** Figuren der Serie, Teile von Vor- und
-  Nachspann als Bereich.
+  `portrait: ref-img-…` im Figurenkopf.
+  Figuren der Serie (#116): Gehört das Buch zu einer Serie (`series/<ser-id>/series.yml` auf dem Standard-Branch), zeigt
+  die Liste auch deren Figuren mit Herkunft („aus der Serie“, „Kopie der Serie“, „nur in diesem Buch“). Eine Figur der
+  Serie speichern (`character.series.update`, gilt für alle Bände ohne Kopie, **direkt auf dem Standard-Branch**, kein
+  Änderungspaket), „Kopie nur für dieses Buch“, „An Serie angleichen“ und „In die Serie übernehmen“ gehen wie im Chat; beim
+  Vorschlag aus dem Text bietet die App „als Figur der Serie anlegen“. Den Namen des Standard-Branchs holt die App über die
+  Repository-Suche, sonst über den Branch mit dem Stand von `library.json`, zuletzt `main`. **Grenze:** Beim Angleichen und beim
+  Übernehmen in die Serie bleibt die Datei `characters/<id>.md` im Buch liegen, weil die App keine Dateien löschen kann (sie wird
+  nicht mehr benutzt). **Noch nicht in der App:** Teile von Vor- und Nachspann als Bereich, Vorschläge auf Ebene der Serie.
 - Hinweisdurchsicht (#367): Karte „Hinweisdurchsicht“ in der Projektübersicht, Ansicht mit einer Karte je Eintrag
   aus `editorial/durchsicht-*.yml`. „Übernehmen“, „Nicht ändern“ und eigene Fassung speichern jede Antwort sofort
   als kleinen Nachtrag (nur die Zeilen des Eintrags ändern sich, die Datei wird danach gegengeprüft; schnelle

@@ -498,6 +498,10 @@ async function act({action, data, text}){
       case "notes_review.plan": return reviewPlan(data);
       case "character.suggest": return characterSuggest(data);
       case "character.suggest.apply": return characterSuggestApply(data);
+      case "character.series.update": return characterSeries("update", data);
+      case "character.detach": return characterSeries("detach", data);
+      case "character.align": return characterSeries("align", data);
+      case "character.adopt": return characterSeries("adopt", data);
       case "character.create": return characterCreate(data);
       case "character.update": return characterUpdate(data);
       case "run.start": return runStart(data);
@@ -927,24 +931,74 @@ async function portraitData(ref, px){
   } catch (e) { url = ""; }   // ohne Bild bleibt das Feld leer
   S.portraits.set(key, url); return url;
 }
+/* Figuren der Serie (#116): series/<ser-id>/series.yml und series/<ser-id>/characters/char-*.md auf dem Standard-Branch;
+   gelesen ohne Branch-Angabe (= Standard-Branch), geschrieben direkt dorthin (kein Änderungspaket, wie im Chat) */
+const SOURCE_DE = {series:"aus der Serie", copy:"Kopie der Serie (gleich)", copy_diff:"Kopie, weicht von der Serie ab", own:"nur in diesem Buch"};
+async function listDefault(dir){
+  try { const r = await call("get_file_contents", {owner:S.owner, repo:S.repo, path:dir}); return Array.isArray(r.payload) ? r.payload : []; } catch (e) { return []; }
+}
+async function defaultBranch(){
+  if (S.defBranch && S.defBranch.repo === S.owner + "/" + S.repo) return S.defBranch.name;
+  let name = "";
+  try { const r = await call("search_repositories", {query:`repo:${S.owner}/${S.repo}`}), it = r.payload && (Array.isArray(r.payload) ? r.payload[0] : (r.payload.items || [])[0]); name = (it && it.default_branch) || ""; } catch (e) {}
+  if (!name){   // Rückfall: der Branch, dessen Spitze der Standard-Stand von library.json ist
+    try { const lj = await call("get_file_contents", {owner:S.owner, repo:S.repo, path:"library.json"}), sha = fileOf(lj).commit, br = await call("list_branches", {owner:S.owner, repo:S.repo, perPage:100}), hit = (Array.isArray(br.payload) ? br.payload : []).filter(b => b.commit && b.commit.sha === sha).map(b => b.name);
+      name = hit.includes("main") ? "main" : hit.includes("master") ? "master" : hit[0] || ""; } catch (e) {}
+  }
+  name = name || "main"; S.defBranch = {repo:S.owner + "/" + S.repo, name}; return name;
+}
+async function loadSeries(){
+  if (S.seriesFor === S.book.branch + "|" + S.readRef) return S.series;
+  let found = null;
+  for (const d of (await listDefault("series")).filter(e => e.type === "dir" || (e.type == null && !String(e.name).includes(".")))){
+    try { const sy = window.jsyaml.load((await getFile(`series/${d.name}/series.yml`, null, true)).text) || {};
+      if ((sy.volumes || []).includes(S.book.branch)){ found = Object.assign({}, sy, {id:sy.id || d.name}); break; } } catch (e) {}
+  }
+  if (found){
+    const files = (await listDefault(`series/${found.id}/characters`)).filter(e => /^char-.+\.md$/.test(e.name));
+    found.chars = (await pool(files, 8, async e => { const t = (await getFile(e.path || `series/${found.id}/characters/${e.name}`, null, true)).text, h = front(t); return {id:h.id || e.name.replace(/\.md$/, ""), name:h.name || e.name.replace(/\.md$/, ""), path:`series/${found.id}/characters/${e.name}`, text:t}; })).filter(Boolean);
+  }
+  S.series = found; S.seriesFor = S.book.branch + "|" + S.readRef; return found;
+}
+/* alle Figuren des Bandes: eigene und die der Serie; eine eigene mit gleicher ID ist die Kopie */
+async function allChars(){
+  const own = charItems().map(c => Object.assign({}, c)), ser = await loadSeries().catch(() => null);
+  if (!ser) return {items:own, ser:null};
+  const byId = new Map(own.map(c => [c.id, c]));
+  for (const sc of ser.chars){
+    const o = byId.get(sc.id);
+    if (o){ o._copy_of = ser.id; o._differs = (await charFile(o)).trim() !== sc.text.trim(); }
+    else own.push({id:sc.id, name:sc.name, path:sc.path, _series:ser.id, _text:sc.text});
+  }
+  return {items:own, ser};
+}
+const charSource = (it, ser) => !ser ? "" : it._series ? "series" : it._copy_of ? (it._differs ? "copy_diff" : "copy") : "own";
+async function commitDefault(files, message, action){
+  const branch = await defaultBranch(); files = files.filter(f => f && typeof f.content === "string"); if (!files.length) return;
+  await call("push_files", {owner:S.owner, repo:S.repo, branch, files, message:message + "\n\nGhostWriter für Claude" + (action ? `\nGhostWriter-Aktion: ${action}` : "")});
+  S.seriesFor = null;   // nächstes Lesen holt den neuen Stand
+}
+
 async function charListData(){
   await loadSecFiles(allSecs(), "Figuren werden geladen");
   const used = charUsage(), items = charItems();
   const heads = await pool(items, 8, async it => charParts(await charFile(it)).head);
-  const refs = await refImages().catch(() => []), pics = await pool(items.map((it, i) => portraitOf(it.id, heads[i] || {}, refs)), 3, ref => portraitData(ref, 80));
-  const rows = items.map((it, i) => { const h = heads[i] || {}; return {C_PORTRAIT:pics[i] || "", C_ID:it.id, C_NAME:it.name, C_ROLE:ROLE_DE[h.role] || "", C_SHORT:h.short || "", C_USED:(used[it.id] || []).join(", ") || "–", C_SOURCE:"", C_SOURCE_TEXT:""}; });
-  return Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), SERIES_TITLE:"", CHARACTERS:rows});
+  const {items:all, ser} = await allChars();
+  const headsAll = all.map(it => { const k = items.findIndex(x => x.id === it.id); return it._series ? charParts(it._text).head : (heads[k] || {}); });
+  const refs = await refImages().catch(() => []), pics = await pool(all.map((it, i) => portraitOf(it.id, headsAll[i], refs)), 3, ref => portraitData(ref, 80));
+  const rows = all.map((it, i) => { const h = headsAll[i] || {}, src = charSource(it, ser); return {C_PORTRAIT:pics[i] || "", C_ID:it.id, C_NAME:it.name, C_ROLE:ROLE_DE[h.role] || "", C_SHORT:h.short || "", C_USED:(used[it.id] || []).join(", ") || "–", C_SOURCE:src, C_SOURCE_TEXT:SOURCE_DE[src] || ""}; });
+  return Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), SERIES_TITLE:ser ? ser.title || "" : "", CHARACTERS:rows});
 }
 async function charEditData(id){
   await loadSecFiles(allSecs());
-  const it = charItems().find(c => c.id === id); if (!it) throw {message:"Figur nicht gefunden."};
-  const {head, desc, notes} = charParts(await charFile(it)), names = new Map(charItems().map(c => [c.id, c.name]));
-  const pref = portraitOf(it.id, head, await refImages().catch(() => [])), pic = await portraitData(pref, 192);
+  const {items:all, ser} = await allChars(), it = all.find(c => c.id === id); if (!it) throw {message:"Figur nicht gefunden."};
+  const {head, desc, notes} = charParts(it._series ? it._text : await charFile(it)), names = new Map(all.map(c => [c.id, c.name]));
+  const pref = portraitOf(it.id, head, await refImages().catch(() => [])), pic = await portraitData(pref, 192), src = charSource(it, ser);
   return Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), CHARACTER_ID:it.id, CHARACTER_NAME:it.name, CHARACTER_ROLE:head.role || "main", CHARACTER_SHORT:head.short || "",
     CHARACTER_AGE:head.age == null ? "" : String(head.age), CHARACTER_APPEARANCE:head.appearance || "", CHARACTER_TRAITS:(head.traits || []).join(", "), CHARACTER_VOICE:head.voice || "",
     CHARACTER_VISUAL:head.visual || "", CHARACTER_DESCRIPTION:desc, CHARACTER_NOTES:notes, CHARACTER_USED:(charUsage()[it.id] || []).join(", ") || "noch nirgends",
-    CHARACTER_PORTRAIT:pic, CHARACTER_PORTRAIT_ID:pic && pref ? pref.id : "", CHARACTER_SOURCE:"", CHARACTER_SOURCE_TEXT:"", SERIES_ID:"", SERIES_TITLE:"",
-    RELATIONS:(head.relations || []).map(r => ({R_TO:r.to, R_NAME:names.get(r.to) || r.to, R_KIND:r.kind})), OTHERS:charItems().filter(c => c.id !== it.id).map(c => ({O_ID:c.id, O_NAME:c.name}))});
+    CHARACTER_PORTRAIT:pic, CHARACTER_PORTRAIT_ID:pic && pref ? pref.id : "", CHARACTER_SOURCE:src, CHARACTER_SOURCE_TEXT:SOURCE_DE[src] || "", SERIES_ID:ser ? ser.id : "", SERIES_TITLE:ser ? ser.title || "" : "",
+    RELATIONS:(head.relations || []).map(r => ({R_TO:r.to, R_NAME:names.get(r.to) || r.to, R_KIND:r.kind})), OTHERS:all.filter(c => c.id !== it.id).map(c => ({O_ID:c.id, O_NAME:c.name}))});
 }
 function charApply(head, desc, notes, d){
   head = Object.assign({}, head);
@@ -977,9 +1031,9 @@ async function characterCreate(d){
   try {
     const name = String(d.name || "").trim(); if (!name) throw {message:"Der Name fehlt."};
     const work = await prepareWork(); await loadBookData(work);
-    const items = charItems();
-    if (items.some(i => String(i.name).toLowerCase() === name.toLowerCase())) throw {message:`Die Figur „${name}“ gibt es schon.`};
-    let cid = "char-" + (tagSlug(name) || "figur"), n = 2; const used = new Set(items.map(i => i.id));
+    const items = charItems(), known = (await allChars()).items;
+    if (known.some(i => String(i.name).toLowerCase() === name.toLowerCase())) throw {message:`Die Figur „${name}“ gibt es schon.`};
+    let cid = "char-" + (tagSlug(name) || "figur"), n = 2; const used = new Set(known.map(i => i.id));
     const base0 = cid; while (used.has(cid)){ cid = `${base0}-${n++}`; }
     const role = ["main", "supporting", "minor"].includes(d.role) ? d.role : "main", path = `characters/${cid}.md`;
     const file = `---\nid: ${cid}\nname: ${yq(name)}\nrole: ${role}\nshort: ""\n---\n\n# ${name}\n\n## Beschreibung\n\n<Wer ist die Figur, was will sie, was fürchtet sie? Nur Arbeitsgrundlage, kommt nicht ins Buch.>\n\n## Notizen\n`;
@@ -994,7 +1048,8 @@ async function characterUpdate(d){
   busy("Wird gespeichert …");
   try {
     const work = await prepareWork(); await loadBookData(work);
-    const it = charItems().find(c => c.id === d.character_id); if (!it) throw {message:"Figur nicht gefunden."};
+    const it = charItems().find(c => c.id === d.character_id);
+    if (!it){ const sc = ((await allChars()).items.find(c => c.id === d.character_id)); throw {message:sc && sc._series ? `„${sc.name}“ gehört zur Serie: dort bearbeiten (gilt für alle Bände) oder für dieses Buch eine Kopie anlegen.` : "Figur nicht gefunden."}; }
     const cur = await charFile(it, work), {head, desc, notes} = charParts(cur), {ordered, text} = charApply(head, desc, notes, d);
     const files = {[it.path]:text}, orig = {[it.path]:cur};
     if (ordered.name !== it.name){
@@ -1003,6 +1058,41 @@ async function characterUpdate(d){
     }
     const r = await commit(changed(files, orig), `Figur „${ordered.name}“ bearbeitet`, {action:"character.update"});
     S.msg = savedMsg("Figur gespeichert.", r);
+  } catch (e) { S.msg = failMsg(e); }
+  S.from = null; show("characters");
+}
+
+async function characterSeries(kind, d){
+  const labels = {update:"Figur der Serie wird gespeichert …", detach:"Kopie wird angelegt …", align:"Wird angeglichen …", adopt:"Figur wird in die Serie übernommen …"};
+  busy(labels[kind]);
+  try {
+    const work = await prepareWork(); await loadBookData(work); S.seriesFor = null;
+    const {items:all, ser} = await allChars(); if (!ser) throw {message:"Dieses Buch gehört zu keiner Serie."};
+    const it = all.find(c => c.id === d.character_id); if (!it) throw {message:"Figur nicht gefunden."};
+    const own = charItems().map(c => ({id:c.id, name:c.name, path:c.path}));
+    if (kind === "update"){
+      if (!it._series) throw {message:`„${it.name}“ gehört nicht zur Serie.`};
+      const sc = ser.chars.find(c => c.id === it.id), cur = (await getFile(sc.path, null, true)).text, {head, desc, notes} = charParts(cur), {ordered, text} = charApply(head, desc, notes, d);
+      await commitDefault([{path:sc.path, content:text}], `Figur „${ordered.name}“ der Serie gespeichert`, "character.series.update");
+      S.msg = {kind:"ok", html:`<b>Figur „${esc(ordered.name)}“ der Serie gespeichert.</b> Sie gilt in allen Bänden ohne eigene Kopie. Gespeichert wurde direkt auf dem Standard-Branch (kein Änderungspaket).`};
+    } else if (kind === "detach"){
+      if (!it._series) throw {message:`„${it.name}“ ist keine Figur der Serie${it._copy_of ? " (schon eine Kopie)" : ""}.`};
+      const path = `characters/${it.id}.md`, gy = (await getFile("ghostwriter.yml", work, true)).text;
+      const files = {[path]:it._text, "ghostwriter.yml":charListWrite(gy, [...own, {id:it.id, name:it.name, path}])}, orig = {[path]:null, "ghostwriter.yml":gy};
+      S.msg = savedMsg(`Kopie von „${it.name}“ nur für dieses Buch angelegt.`, await commit(changed(files, orig), `Figur „${it.name}“: Kopie für dieses Buch`, {action:"character.detach"}));
+    } else if (kind === "align"){
+      if (!it._copy_of) throw {message:`„${it.name}“ ist keine Kopie einer Figur der Serie.`};
+      const gy = (await getFile("ghostwriter.yml", work, true)).text, files = {"ghostwriter.yml":charListWrite(gy, own.filter(c => c.id !== it.id))}, orig = {"ghostwriter.yml":gy};
+      const r = await commit(changed(files, orig), `Figur „${it.name}“ an die Serie angeglichen`, {action:"character.align"});
+      S.msg = savedMsg(`„${it.name}“ gilt wieder so wie in der Serie.`, r); S.msg.html += ` <span class="dim">Die Datei <code>${esc(it.path)}</code> bleibt im Buch liegen, weil die App keine Dateien löschen kann; sie wird nicht mehr benutzt.</span>`;
+    } else {
+      if (it._series) throw {message:`„${it.name}“ gehört schon zur Serie.`};
+      const text = await charFile(it, work), dest = `series/${ser.id}/characters/${it.id}.md`;
+      await commitDefault([{path:dest, content:text}], `Figur „${it.name}“ gehört jetzt zur Serie`, "character.adopt");
+      const gy = (await getFile("ghostwriter.yml", work, true)).text, files = {"ghostwriter.yml":charListWrite(gy, own.filter(c => c.id !== it.id))}, orig = {"ghostwriter.yml":gy};
+      const r = await commit(changed(files, orig), `Figur „${it.name}“ in die Serie übernommen`, {action:"character.adopt"});
+      S.msg = savedMsg(`„${it.name}“ gehört jetzt zur Serie und gilt in allen Bänden.`, r); S.msg.html += ` <span class="dim">Die Datei <code>${esc(it.path)}</code> bleibt im Buch liegen, weil die App keine Dateien löschen kann; sie wird nicht mehr benutzt.</span>`;
+    }
   } catch (e) { S.msg = failMsg(e); }
   S.from = null; show("characters");
 }
@@ -1052,7 +1142,7 @@ async function characterSuggest(d){
     const chunks = []; let cur = [], len = 0;
     for (const b of blocks){ if (cur.length && len + b.text.length > SUGGEST_SIZE){ chunks.push(cur); cur = []; len = 0; } cur.push(b); len += b.text.length; }
     if (cur.length) chunks.push(cur);
-    const known = charItems().map(c => `- ${c.name} (${c.id})`).join("\n") || "keine";
+    const {items:allKnown, ser:serK} = await allChars(), known = allKnown.map(c => `- ${c.name} (${c.id}${c._series ? ", Serie" : ""})`).join("\n") || "keine";
     const found = [];
     for (let i = 0; i < chunks.length; i++){
       busy(`Figuren werden gesucht – Teil ${i + 1} von ${chunks.length} …`);
@@ -1065,14 +1155,14 @@ async function characterSuggest(d){
       mergeSuggest(found, items);
     }
     S.suggest = {scope:sc.scope, items:found};
-    const known2 = charItems(), rows = found.map((it, i) => {
+    const known2 = allKnown, rows = found.map((it, i) => {
       const hit = matchChar(it, known2), details = [it.age ? "Alter: " + it.age : "", it.appearance || "", (it.traits || []).join(", "), it.voice ? "spricht: " + it.voice : ""].filter(Boolean).join("; ");
       return {S_IDX:i, S_NAME:it.name, S_ALIASES:(it.aliases || []).join(", "), S_ROLE:["main", "supporting", "minor"].includes(it.role) ? it.role : "supporting", S_SHORT:it.short || "", S_DETAILS:details, S_SECTIONS:(it.sections || []).join(", "),
-        S_EVIDENCE:(it.evidence || []).slice(0, 3).map(e => `${e.where || ""}: „${e.quote}“`).join(" · "), S_STATE:hit ? "existing" : "new", S_EXISTING:hit ? hit.name : "", S_STATE_TEXT:hit ? "schon da: " + hit.name : "neu"};
+        S_EVIDENCE:(it.evidence || []).slice(0, 3).map(e => `${e.where || ""}: „${e.quote}“`).join(" · "), S_STATE:hit ? (hit._series ? "series" : "existing") : "new", S_EXISTING:hit ? hit.name : "", S_STATE_TEXT:hit ? (hit._series ? "Figur der Serie: " : "schon da: ") + hit.name : "neu"};
     });
     S.from = {view:"characters"}; S.msg = null;
-    return form("figuren-vorschlag", Object.assign(base(), {SCOPE:sc.scope, SCOPE_TEXT:scopeText(sc.scope), SUGGEST_COUNT_TEXT:plural(rows.length, "Vorschlag", "Vorschläge"), SERIES_ID:"", SERIES_TITLE:"", RUN_ID:"", RUN_TEXT:"", CONFLICTS_TEXT:"", SERIES_LEVEL:"",
-      SUGGESTIONS:rows, MERGE:charItems().map(c => ({M_ID:c.id, M_NAME:c.name}))}));
+    return form("figuren-vorschlag", Object.assign(base(), {SCOPE:sc.scope, SCOPE_TEXT:scopeText(sc.scope), SUGGEST_COUNT_TEXT:plural(rows.length, "Vorschlag", "Vorschläge"), SERIES_ID:serK ? serK.id : "", SERIES_TITLE:serK ? serK.title || "" : "", RUN_ID:"", RUN_TEXT:"", CONFLICTS_TEXT:"", SERIES_LEVEL:"",
+      SUGGESTIONS:rows, MERGE:allKnown.map(c => ({M_ID:c.id, M_NAME:c.name}))}));
   } catch (e) { S.msg = e.code ? {kind:"err", html:esc(e.code === "not_granted" ? "Claude ist für diese App nicht freigegeben." : e.code === "rate_limited" ? "Dein Claude-Kontingent ist gerade ausgeschöpft. Bitte später noch einmal versuchen." : errText(e))} : {kind:"err", html:esc(errText(e))}; show("characters"); }
 }
 function setSecChars(text, ids){
@@ -1085,33 +1175,38 @@ async function characterSuggestApply(d){
   busy("Figuren werden übernommen …");
   try {
     const sug = S.suggest; if (!sug || !Array.isArray(d.choices)) throw {message:"Der Vorschlag ist nicht mehr da. Bitte die Figuren nochmals vorschlagen lassen."};
-    const picked = d.choices.map(c => Object.assign({}, sug.items[c.index], {name:String(c.name || "").trim(), role:c.role, short:c.short, merge_into:c.merge_into})).filter(it => it.name);
+    const picked = d.choices.map(c => Object.assign({}, sug.items[c.index], {name:String(c.name || "").trim(), role:c.role, short:c.short, merge_into:c.merge_into, target:c.target})).filter(it => it.name);
     const work = await prepareWork(); await loadBookData(work);
     const gy = (await getFile("ghostwriter.yml", work, true)).text, list = charItems().map(c => ({id:c.id, name:c.name, path:c.path}));
+    S.seriesFor = null; const {items:known, ser} = await allChars(), seriesFiles = [], seriesCreated = [];
     const files = {}, orig = {"ghostwriter.yml":gy}, ids = {}, created = [], updated = [], texts = {};
     const text = async path => { if (!(path in texts)){ texts[path] = files[path] != null ? files[path] : (await getFile(path, work, true).catch(() => ({text:""}))).text; orig[path] = texts[path] || null; } return texts[path]; };
     const put = (path, t) => { files[path] = t; texts[path] = t; };
     for (const it of picked){
-      const hit = it.merge_into ? list.find(c => c.id === it.merge_into || norm(c.name) === norm(it.merge_into)) : matchChar(it, list);
+      const hit = it.merge_into ? known.find(c => c.id === it.merge_into || norm(c.name) === norm(it.merge_into)) : matchChar(it, known);
       if (hit){
         ids[it.name] = hit.id;
+        if (hit._series) continue;   // Figuren der Serie bleiben unverändert
         const {head, desc, notes} = charParts(await text(hit.path)), fill = {};
         SUGGEST_FIELDS.forEach(k => { if (it[k] && !head[k] && !(Array.isArray(it[k]) && !it[k].length)) fill[k] = it[k]; });
         if (Object.keys(fill).length){ put(hit.path, charApply(head, desc, notes, fill).text); updated.push(hit.name); }
         continue;
       }
-      let cid = "char-" + (tagSlug(it.name) || "figur"), n = 2; const b0 = cid; while (list.some(c => c.id === cid)) cid = `${b0}-${n++}`;
-      const role = ["main", "supporting", "minor"].includes(it.role) ? it.role : "supporting", path = `characters/${cid}.md`;
+      const toSeries = it.target === "series" && ser;
+      let cid = "char-" + (tagSlug(it.name) || "figur"), n = 2; const b0 = cid; while (known.some(c => c.id === cid) || list.some(c => c.id === cid)) cid = `${b0}-${n++}`;
+      const role = ["main", "supporting", "minor"].includes(it.role) ? it.role : "supporting", path = toSeries ? `series/${ser.id}/characters/${cid}.md` : `characters/${cid}.md`;
       const start = `---\nid: ${cid}\nname: ${yq(it.name)}\nrole: ${role}\nshort: ${yq(it.short || "")}\n---\n\n# ${it.name}\n\n## Beschreibung\n\n<Wer ist die Figur, was will sie, was fürchtet sie? Nur Arbeitsgrundlage, kommt nicht ins Buch.>\n\n## Notizen\n`;
       const {head, desc, notes} = charParts(start), fill = {}; SUGGEST_FIELDS.slice(2).forEach(k => { if (it[k] && !(Array.isArray(it[k]) && !it[k].length)) fill[k] = it[k]; });
-      put(path, Object.keys(fill).length ? charApply(head, desc, notes, fill).text : start); orig[path] = null;
-      list.push({id:cid, name:it.name, path}); ids[it.name] = cid; created.push(it.name);
+      const body = Object.keys(fill).length ? charApply(head, desc, notes, fill).text : start;
+      if (toSeries){ seriesFiles.push({path, content:body}); known.push({id:cid, name:it.name, path, _series:ser.id}); ids[it.name] = cid; seriesCreated.push(it.name); continue; }
+      put(path, body); orig[path] = null;
+      list.push({id:cid, name:it.name, path}); known.push({id:cid, name:it.name, path}); ids[it.name] = cid; created.push(it.name);
     }
     for (const it of picked){   // Beziehungen: nur neue Einträge
       const cid = ids[it.name], c = list.find(x => x.id === cid), rels = (it.relations || []).filter(r => r && r.to && r.kind);
       if (!c || !rels.length) continue;
       const {head, desc, notes} = charParts(await text(c.path)), have = new Set((head.relations || []).map(r => r.to + "|" + r.kind)), next = [...(head.relations || [])];
-      for (const r of rels){ const o = list.find(x => x.id === (ids[r.to] || r.to) || norm(x.name) === norm(r.to)); if (o && o.id !== cid && !have.has(o.id + "|" + r.kind)){ next.push({to:o.id, kind:r.kind}); have.add(o.id + "|" + r.kind); } }
+      for (const r of rels){ const o = known.find(x => x.id === (ids[r.to] || r.to) || norm(x.name) === norm(r.to)); if (o && o.id !== cid && !have.has(o.id + "|" + r.kind)){ next.push({to:o.id, kind:r.kind}); have.add(o.id + "|" + r.kind); } }
       if (next.length !== (head.relations || []).length) put(c.path, charApply(head, desc, notes, {relations:next}).text);
     }
     const bySec = {};   // Zuordnung zu Abschnitten: ergänzen, nichts entfernen
@@ -1122,8 +1217,9 @@ async function characterSuggestApply(d){
       if (merged.length !== have.length) put(sec.path, setSecChars(t, merged));
     }
     if (created.length) files["ghostwriter.yml"] = charListWrite(gy, list);
+    if (seriesFiles.length) await commitDefault(seriesFiles, `Figuren der Serie aus dem Text übernommen (${seriesFiles.length} neu)`, "character.suggest.apply");
     const r = await commit(changed(files, orig), `Figuren aus dem Text übernommen (${created.length} neu, ${updated.length} ergänzt)`, {action:"character.suggest.apply"});
-    S.suggest = null; S.msg = savedMsg(`Figuren übernommen: ${created.length} neu, ${updated.length} ergänzt.`, r);
+    S.suggest = null; S.msg = savedMsg(`Figuren übernommen: ${created.length} neu, ${updated.length} ergänzt${seriesCreated.length ? `, ${seriesCreated.length} als Figur der Serie` : ""}.`, r);
   } catch (e) { S.msg = failMsg(e); }
   S.from = null; show("characters");
 }
