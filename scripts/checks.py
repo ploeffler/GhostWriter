@@ -707,10 +707,16 @@ def history_text(items, language='de'):
     return lines
 
 
-def history_json(items):
+HISTORY_KEYS = ('CK_KIND', 'CK_LABEL', 'CK_WHEN', 'CK_DATE', 'CK_TAG', 'CK_MARK', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT',
+                'CK_ID', 'CK_NOTE')
+# Projektübersicht (#497): je Kapitel nur, was die Kurzliste zeigt (Art, Zeit, Marke, Stand, Kurztext als Tooltip); Notiz und
+# Bericht stehen in der Kapitelansicht. Höchstens die neuesten HISTORY_CAP Einträge; die Gesamtzahl nennt die Prüfdetails-Zeile.
+HISTORY_KEYS_SLIM = ('CK_LABEL', 'CK_WHEN', 'CK_DATE', 'CK_MARK', 'CK_TEXT', 'CK_RESULT', 'CK_STATE')
+HISTORY_CAP = 10
+
+
+def history_json(items, keep=HISTORY_KEYS):
     """Widget: frühere Prüfungen kompakt als JSON; das Widget gruppiert nach CK_LABEL und zeigt je Eintrag CK_WHEN."""
-    keep = ('CK_KIND', 'CK_LABEL', 'CK_WHEN', 'CK_DATE', 'CK_TAG', 'CK_MARK', 'CK_TEXT', 'CK_RESULT', 'CK_STATE', 'CK_REPORT',
-            'CK_ID', 'CK_NOTE')
     return json.dumps([{k: t.get(k, '') for k in keep} for t in items], ensure_ascii=False, separators=(',', ':'))
 
 

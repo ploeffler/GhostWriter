@@ -210,6 +210,28 @@ class ChecksTest(unittest.TestCase):
         data = render_view_en.prepare('kapitelansicht', chap.data, self.config, args())
         self.assertIn('Quality: failed', json.loads(data['CHECKS_HISTORY_JSON'])[0]['CK_TEXT'])
 
+    def test_project_history_is_slim_and_capped(self):   # #497
+        """Viele lange Prüfungen: das Widget der Projektübersicht bleibt klein, Details gibt es in der Kapitelansicht."""
+        long = 'Ein sehr langer Prüfhinweis mit vielen Wörtern. ' * 12
+        for i in range(25):
+            checks.record(self.base, self.config, 'quality_correction', [self.ch1['id']], 'passed_with_notes',
+                          date=f'2026-10-{i + 1:02d}', note=long, report=f'editorial/bericht-{i:02d}-' + 'x' * 80 + '.md')
+        wide = render_view.project_view(self.base, self.config, args(text=False, darstellung='erweitert'))
+        row = wide.data['CHAPTERS'][0]
+        hist = json.loads(row['CHAPTER_HISTORY_JSON'])
+        self.assertEqual(len(hist), checks.HISTORY_CAP)
+        self.assertEqual(row['CHAPTER_HISTORY_COUNT'], checks.HISTORY_CAP)
+        self.assertEqual(set(hist[0]), set(checks.HISTORY_KEYS_SLIM))
+        self.assertEqual(hist[0]['CK_DATE'], '2026-10-24')   # neueste zuerst (die neueste Prüfung ist nicht „früher“)
+        self.assertNotIn('Prüfhinweis', row['CHAPTER_HISTORY_JSON'])
+        self.assertIn('24 frühere Prüfungen (die neuesten 10 unten', row['CHAPTER_CHECK_DETAILS'])
+        self.assertLess(len(row['CHAPTER_HISTORY_JSON']), 4000)
+        chap = render_view.chapter_view(self.base, self.config, args(text=False), 1)   # die Kapitelansicht bleibt vollständig
+        self.assertIn('Prüfhinweis', chap.data['CHECKS_HISTORY_JSON'])
+        import render_view_en
+        en = render_view_en.prepare('projektuebersicht', wide.data, self.config, args(text=False, darstellung='erweitert'))
+        self.assertEqual(len(json.loads(en['CHAPTERS'][0]['CHAPTER_HISTORY_JSON'])), checks.HISTORY_CAP)
+
     def test_project_details_extended(self):   # #398
         import render_view_en
         checks.record(self.base, self.config, 'quality_correction', [self.ch1['id']], 'failed', date='2026-11-17')

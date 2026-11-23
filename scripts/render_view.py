@@ -1435,7 +1435,9 @@ def check_details(tags, history):
     parts = [f'{t["CK_LABEL"]}' + (f' ({t["CK_ID"]})' if t.get('CK_ID') else '') + (f': {t["CK_NOTE"]}' if t.get('CK_NOTE') else '')
              for t in tags]
     if history:
-        parts.append(f'{len(history)} frühere Prüfung' + ('' if len(history) == 1 else 'en'))
+        import checks
+        parts.append(f'{len(history)} frühere Prüfung' + ('' if len(history) == 1 else 'en')
+                     + (f' (die neuesten {checks.HISTORY_CAP} unten, alle in der Kapitelansicht)' if len(history) > checks.HISTORY_CAP else ''))
     failed = next((t for t in list(tags) + list(history) if t.get('CK_RESULT') == 'failed'), None)
     if failed:
         parts.append(f'zuletzt nicht bestanden: {failed["CK_LABEL"]} {failed.get("CK_WHEN") or failed.get("CK_DATE", "")}'.rstrip())
@@ -1479,9 +1481,10 @@ def project_view(base, config, args):
                 hist = ck.chapter_history(ch)
                 rows[-1].update({'CHAPTER_CHECKS_JSON': checks.as_json(tags, checks.JSON_KEYS_DETAIL),
                                  'CHAPTER_CHECK_DETAILS': check_details(tags, hist)})
-                if hist:
-                    rows[-1].update({'CHAPTER_HISTORY': hist, 'CHAPTER_HISTORY_COUNT': len(hist),
-                                     'CHAPTER_HISTORY_JSON': checks.history_json(hist)})
+                if hist:   # #497: schlanke Felder, höchstens die neuesten checks.HISTORY_CAP; Gesamtzahl steht in den Prüfdetails
+                    shown = hist[:checks.HISTORY_CAP]
+                    rows[-1].update({'CHAPTER_HISTORY': hist, 'CHAPTER_HISTORY_COUNT': len(shown),
+                                     'CHAPTER_HISTORY_JSON': checks.history_json(shown, checks.HISTORY_KEYS_SLIM)})
     longest = max([r['CHAPTER_WORDS'] for r in rows] or [0])
     for r in rows:   # Balken relativ zum längsten Kapitel (#362)
         r['CHAPTER_WORDS_PCT'] = round(100 * r['CHAPTER_WORDS'] / longest) if longest else 0
