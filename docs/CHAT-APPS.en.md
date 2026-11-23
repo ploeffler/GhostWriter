@@ -124,6 +124,8 @@ Automatic loading depends on the assistant having repository access and actually
 
 ## Choosing skills (#261)
 
+**Independent of the assistant:** the skills live in the repository under `.claude/skills/<name>/SKILL.md`. Claude Code loads them itself; ChatGPT, Codex and other assistants are told by `AGENTS.md` (Claude by `CLAUDE.md`) to read the headers of all `SKILL.md` files and load the matching skill in full before they start. Both files come from the main repository with the update; nothing needs setting up in the book.
+
 Claude picks a skill from the skill descriptions. Users normally do not see that choice, and similar descriptions make it ambiguous. GhostWriter therefore asks (`CLAUDE.md`, `AGENTS.md`, `ghostwriter` skill):
 
 - **Name the choice:** at the start of a task, Claude states in one sentence which skill it uses, or that none fits.
