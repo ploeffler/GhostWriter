@@ -5,7 +5,7 @@ description: Wiedereinstieg in ein GhostWriter-Repository (Buch oder Bibliothek)
 
 # GhostWriter: Wiedereinstieg
 
-Kurzfassung von `START.md`, Abschnitt 0. Bei Abweichungen gilt `START.md`. Diese Datei kommt mit jedem Update aus dem Hauptrepository; eigene Angaben gehören in `assistant.yml` und den daraus erzeugten persönlichen Skill.
+Kurzfassung von `START.md`, Abschnitt 0. Bei Abweichungen gilt `START.md`. Die allgemeine Skill-Fassung liegt in `ghostwriter-skills`. Lies `START.md`, `assistant.yml`, `docs/`, `templates/` und `scripts/` im jeweils ausgewählten Buch- oder Programmrepo. Persönliche Angaben gehören in `assistant.yml` und den daraus erzeugten Skill des Buch- oder Bibliotheksrepos.
 
 **Skillauswahl (#261):** Zu Beginn einer Aufgabe in einem Satz nennen, welcher Skill verwendet wird (oder dass keiner passt). Passen mehrere, den spezifischeren nehmen: den persönlichen Skill dieses Repositorys (`assistant.yml` → `skill`) vor `ghostwriter`; für Programmarbeit am Hauptrepository nicht `ghostwriter`. Bei echter Mehrdeutigkeit einmal kurz fragen. Einen Skill, dessen Anleitung im Gespräch noch vorliegt, nicht erneut laden; nur neu laden, wenn sie nach dem Zusammenfassen des Verlaufs fehlt, und das dann kurz sagen. Details: `docs/CHAT-APPS.md`, „Skills auswählen“.
 
@@ -134,9 +134,9 @@ Die folgenden einzelnen Chat-Befehle sind feste Abkürzungen. Sie gelten für da
 
 ## 11. Redaktionelle Qualitätssicherung
 
-Für Buchgedächtnis-Aufträge die lesende Anleitung `docs/BUCHGEDAECHTNIS.md` laden (Englisch: `docs/STORY-MEMORY.en.md`).
+Für Buchgedächtnis-Aufträge den Skill [Buchgedächtnis](../ghostwriter-buchgedaechtnis/SKILL.md) laden.
 
-Für Strukturlektorat, Sprachlektorat oder Schlusskorrektur `docs/LEKTORAT.md` laden (Englisch: `docs/EDITORIAL-REVIEW.en.md`). Ein Prüfauftrag allein erlaubt keine Textänderung oder Freigabe.
+Für Strukturlektorat, Sprachlektorat oder Schlusskorrektur den Skill [Lektorat](../ghostwriter-lektorat/SKILL.md) laden. Ein Prüfauftrag allein erlaubt keine Textänderung oder Freigabe.
 
 Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
 
@@ -150,13 +150,14 @@ Vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe:
 - Offene Probleme dokumentieren; bei wesentlichen ungelösten Problemen kein positives Prüfergebnis melden.
 - Die Autorinnen- bzw. Autorenfreigabe niemals aus einem Prüfergebnis ableiten.
 
-Die vollständige Prüfanleitung und das Konzept des individuellen Buchprofils stehen in [`docs/QUALITAETSSICHERUNG.md`](../../../docs/QUALITAETSSICHERUNG.md). Buchspezifische Fakten und Stilregeln gehören ausschließlich in das jeweilige Buch-Repository.
+Die vollständige Prüfanleitung und das Konzept des individuellen Buchprofils stehen in [`docs/QUALITAETSSICHERUNG.md`](https://github.com/ploeffler/GhostWriter/blob/main/docs/QUALITAETSSICHERUNG.md). Buchspezifische Fakten und Stilregeln gehören ausschließlich in das jeweilige Buch-Repository.
 
 ## 12. Prozessverbesserung und Zuordnung von Anforderungen
 
 Bei neuen Anforderungen, wiederkehrenden Abläufen oder erkannten Verbesserungsmöglichkeiten prüft GhostWriter aktiv, auf welcher Ebene sie am besten aufgehoben sind:
 
 - **Buch-Repository:** Alles, was nur dieses Buch betrifft – etwa Figuren, Handlung, Schauplätze, Chronologie, individuelle Stilregeln, Rechercheergebnisse und offene Manuskriptfragen.
+- **Skill-Repository:** Allgemeine Skills als eigenständig versionierte Arbeitsanweisungen in `ploeffler/ghostwriter-skills` pflegen.
 - **GhostWriter-Hauptrepository (`upstream.repo`):** Wiederverwendbare Regeln und Abläufe für mehrere Bücher – etwa Recherche- und Schreibphasen, redaktionelle Prüfungen, Freigabeprozesse, Projektprofile und allgemeine Arbeitsanweisungen.
 - **Technische Umsetzung:** Anforderungen an Programmfunktionen, Datenmodelle, Schnittstellen, Automatisierungen, Skripte oder GitHub Actions. Diese werden als Produktanforderung im Hauptrepository erfasst, nicht durch spontane Codeänderungen in einem Buchprojekt umgesetzt.
 
@@ -191,4 +192,4 @@ Keine Manuskripttexte, keine Secrets und keine privaten Angaben ins Issue: Das H
 
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../../../assets/logo-dark.svg"><img src="../../../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/ploeffler/GhostWriter/raw/refs/heads/main/assets/logo-dark.svg"><img src="https://github.com/ploeffler/GhostWriter/raw/refs/heads/main/assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

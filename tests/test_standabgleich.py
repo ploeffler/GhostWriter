@@ -132,6 +132,31 @@ class StandabgleichTest(unittest.TestCase):
         st = self.states(old)
         self.assertEqual((st['Profil'], st['Anweisungen']), ('neuer', 'ok'))
 
+    def test_personal_skill_add_change_and_removal_make_instructions_stale(self):
+        path = '.claude/skills/autor-auf-bibliothek/SKILL.md'
+        old = self.stand()
+        self.commit(path, 'Persönliche Schreibregeln')
+        self.assertEqual(self.states(old)['Anweisungen'], 'neuer')
+        old = self.stand()
+        self.commit(path, 'Geänderte persönliche Schreibregeln')
+        states = self.states(old)
+        self.assertEqual(states['Anweisungen'], 'neuer')
+        self.assertEqual(states['Profil'], 'ok')
+        old = self.stand()
+        git(self.base, 'rm', path)
+        git(self.base, 'commit', '-qm', 'Persönlichen Skill entfernt')
+        self.assertEqual(self.states(old)['Anweisungen'], 'neuer')
+
+    def test_note_outside_skill_directory_does_not_invalidate_instructions(self):
+        old = self.stand()
+        self.commit('.claude/skills-notes.md', 'Nur eine Notiz')
+        self.assertEqual(self.states(old)['Anweisungen'], 'ok')
+
+    def test_changed_skill_source_commit_invalidates_instructions(self):
+        old = self.stand()
+        self.commit('ghostwriter-skills.yml', 'commit: ' + 'a' * 40 + '\n')
+        self.assertEqual(self.states(old)['Anweisungen'], 'neuer')
+
     def test_incompatible_data_version_blocks_writing(self):
         old = self.stand()
         self.book_version(99)   # Buch in einer neueren App migriert, Programm hier älter

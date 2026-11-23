@@ -118,7 +118,7 @@ class StaleWriteTest(unittest.TestCase):
         self.assertFalse(result['safe_to_prepare'])
 
     def test_changed_or_deleted_instructions_require_refresh(self):
-        for path in ('START.md', 'CLAUDE.md', 'AGENTS.md',
+        for path in ('START.md', 'CLAUDE.md', 'AGENTS.md', 'ghostwriter-skills.yml',
                      'docs/start/freigaben.md',
                      '.claude/skills/ghostwriter/SKILL.md',
                      '.claude/skills/personal/SKILL.md'):

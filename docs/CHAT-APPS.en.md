@@ -124,7 +124,15 @@ Automatic loading depends on the assistant having repository access and actually
 
 ## Choosing skills (#261)
 
+The general skills are maintained in [ghostwriter-skills](https://github.com/ploeffler/ghostwriter-skills). GhostWriter ships copies pinned to the source commit and SHA-256 digests in `ghostwriter-skills.yml`; these remain available offline and are distributed through normal program updates. Maintain them in the source repository, not independently in the copies. Personal skills remain in the book repository. The optional book teaser is loaded explicitly from the skill repository; it is not installed automatically.
+
+For maintenance, clone the source repository, select a reviewed full commit ID and run `python scripts/sync_skills.py --source /path/to/ghostwriter-skills --commit FULL_COMMIT_ID`. Without arguments the helper checks the bundled copies offline. `check_docs.py` includes this check. The helper neither commits nor uploads changes; changes in the source repository do not update existing books by themselves.
+
+
+
 **Independent of the assistant:** the skills live in the repository under `.claude/skills/<name>/SKILL.md`. Claude Code loads them itself; ChatGPT, Codex and other assistants are told by `AGENTS.md` (Claude by `CLAUDE.md`) to read the headers of all `SKILL.md` files and load the matching skill in full before they start. Both files come from the main repository with the update; nothing needs setting up in the book.
+
+The local state comparison covers the entire `.claude/skills/` directory in the checked program version, including personal skills and their supporting files, as well as the `ghostwriter-skills.yml` source record. Adding, changing or removing one of these files marks instructions as stale. Reload the rules before the next task; this does not automatically refresh an already open chat.
 
 Claude picks a skill from the skill descriptions. Users normally do not see that choice, and similar descriptions make it ambiguous. GhostWriter therefore asks (`CLAUDE.md`, `AGENTS.md`, `ghostwriter` skill):
 

@@ -102,7 +102,7 @@ def compare_book_work(base, book, work):
 
 CONTEXT_PATHS = {'ghostwriter.yml', 'workflow.yml', 'assistant.yml',
                  'ghostwriter-manifest.yml', '.ghostwriter/update.yml',
-                 'START.md', 'CLAUDE.md', 'AGENTS.md'}
+                 'START.md', 'CLAUDE.md', 'AGENTS.md', 'ghostwriter-skills.yml'}
 CONTEXT_DIRS = ('docs/start', '.claude/skills')
 
 

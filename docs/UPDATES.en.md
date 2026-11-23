@@ -1,5 +1,7 @@
 # GhostWriter updates
 
+General skills originate from [ghostwriter-skills](https://github.com/ploeffler/ghostwriter-skills). Their bundled copies and `ghostwriter-skills.yml` are program files: a normal GhostWriter update distributes the reviewed pinned version, without fetching a moving skill branch at runtime. Personal skills remain protected. The optional book teaser is not installed automatically.
+
 The update workflow brings program changes from the main GhostWriter repository into your book repository. This page describes the existing workflow; the [German developer guide](UPDATES.md) has additional technical detail.
 
 ## What the update does

@@ -43,8 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from handover import git, repo_name, resolve, show  # noqa: E402
 
 FORMAT = 1
-INSTRUCTIONS = ('START.md', 'CLAUDE.md', 'AGENTS.md', '.claude/skills/ghostwriter', '.claude/skills/ghostwriter-lektorat',
-                '.claude/skills/ghostwriter-buchgedaechtnis', 'docs/start')
+INSTRUCTIONS = ('START.md', 'CLAUDE.md', 'AGENTS.md', '.claude/skills', 'docs/start', 'ghostwriter-skills.yml')
 UPDATE_STATE = '.ghostwriter/update.yml'
 NOT_CHECKED = ['Inhalte dieses Chats und nicht gesendete Eingaben', 'Zwischenspeicher oder Suchindex einer Verbindung',
                'Stand anderer Apps, solange dort nichts gespeichert ist']
