@@ -143,7 +143,15 @@ Es gelten `AGENTS.md` und `START.md` dieses Repositorys (kommen mit jedem Update
 
 ## Skills auswählen (#261)
 
+Die allgemeinen Skills werden in [ghostwriter-skills](https://github.com/ploeffler/ghostwriter-skills) gepflegt. GhostWriter liefert Kopien mit, deren Quellcommit und SHA-256-Prüfsummen in `ghostwriter-skills.yml` festgelegt sind. Sie bleiben offline verfügbar und werden mit normalen Programmupdates verteilt. Änderungen an diesen Skills gehören ins Quellrepository, nicht unabhängig in die Kopien. Persönliche Skills bleiben im Buchrepository. Der optionale Buchteaser wird ausdrücklich aus dem Skill-Repository geladen; er wird nicht automatisch installiert.
+
+Für die Pflege das Quellrepository klonen, eine geprüfte vollständige Commit-ID auswählen und `python scripts/sync_skills.py --source /pfad/zu/ghostwriter-skills --commit VOLLSTAENDIGE_COMMIT_ID` ausführen. Ohne Argumente prüft der Helfer die mitgelieferten Kopien offline. `check_docs.py` enthält diese Prüfung. Der Helfer committet und überträgt nichts; Änderungen im Quellrepository aktualisieren vorhandene Bücher nicht von selbst.
+
+
+
 **Unabhängig vom Assistenten:** Die Skills liegen im Repository unter `.claude/skills/<name>/SKILL.md`. Claude Code lädt sie selbst; ChatGPT, Codex und andere Assistenten werden über `AGENTS.md` (Claude über `CLAUDE.md`) angewiesen, die Kopfzeilen aller `SKILL.md` zu lesen und den passenden Skill vollständig zu laden, bevor sie beginnen. Beide Dateien kommen mit dem Update aus dem Hauptrepository; im Buch ist nichts einzurichten.
+
+Der lokale Standabgleich berücksichtigt den gesamten Ordner `.claude/skills/` im geprüften Programmstand einschließlich persönlicher Skills und ihrer Begleitdateien sowie die Quellenangabe `ghostwriter-skills.yml`. Wird eine dieser Dateien hinzugefügt, geändert oder entfernt, meldet er veraltete Anweisungen. Die Regeln müssen vor der nächsten Aufgabe neu geladen werden; ein bereits offener Chat wird dadurch nicht automatisch aktualisiert.
 
 Welcher Skill zu einer Aufgabe passt, entscheidet Claude anhand der Skill-Beschreibungen. Der Benutzer sieht das sonst nicht, und bei ähnlichen Beschreibungen ist die Wahl nicht eindeutig. Deshalb gilt für GhostWriter (`CLAUDE.md`, `AGENTS.md`, Skill `ghostwriter`):
 

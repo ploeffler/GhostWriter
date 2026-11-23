@@ -6,9 +6,9 @@ description: Lesender Fakten- und Kontinuitätsabgleich für ein vorhandenes Gho
 # GhostWriter-Buchgedächtnis
 
 Bestimme das ausgewählte Buch, den beauftragten Umfang und bei Änderungsfragen
-den verfügbaren Vergleichsstand. Lade die Anleitung in der Bediensprache:
-[Deutsch](../../../docs/BUCHGEDAECHTNIS.md) oder
-[English](../../../docs/STORY-MEMORY.en.md).
+den verfügbaren Vergleichsstand. Lade die Anleitung in der Bediensprache aus dem ausgewählten Buchrepo. Fehlt sie dort, nutze die Fassung im GhostWriter-Hauptrepo:
+[Deutsch](https://github.com/ploeffler/GhostWriter/blob/main/docs/BUCHGEDAECHTNIS.md) oder
+[English](https://github.com/ploeffler/GhostWriter/blob/main/docs/STORY-MEMORY.en.md).
 
 Lies aktuelle Texte und vorhandene Buchreferenzen. Belege beide Seiten eines
 möglichen Konflikts. Unterscheide Textbeobachtung, Vorläufiges, ausdrückliche
@@ -22,4 +22,4 @@ ein eigener konkreter Auftrag nach den bestehenden Buchregeln erforderlich.
 
 ---
 
-<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../../../assets/logo-dark.svg"><img src="../../../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
+<p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/ploeffler/GhostWriter/raw/refs/heads/main/assets/logo-dark.svg"><img src="https://github.com/ploeffler/GhostWriter/raw/refs/heads/main/assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

@@ -236,6 +236,11 @@ def main(argv):
     check_roadmap(args.milestones, problems)
     check_credit(problems)
     check_migration(problems)
+    from sync_skills import check as check_skills
+    try:
+        check_skills(ROOT)
+    except ValueError as error:
+        problems.append(str(error))
     from i18n import validate_catalogs
     problems.extend(validate_catalogs())
     from render_view_en import validate_resources

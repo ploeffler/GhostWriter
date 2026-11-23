@@ -1,5 +1,7 @@
 # GhostWriter-Updates
 
+Allgemeine Skills stammen aus [ghostwriter-skills](https://github.com/ploeffler/ghostwriter-skills). Ihre mitgelieferten Kopien und `ghostwriter-skills.yml` sind Programmdateien: Ein reguläres GhostWriter-Update verteilt die geprüfte festgelegte Fassung, ohne zur Laufzeit einen beweglichen Skill-Branch abzurufen. Persönliche Skills bleiben geschützt. Der optionale Buchteaser wird nicht automatisch installiert.
+
 Dein Buch-Repository bekommt neue GhostWriter-Versionen automatisch aus dem Hauptrepository. Du musst dafür nichts tun; diese Seite erklärt, was dabei passiert und was du einrichten kannst.
 
 ## Was passiert

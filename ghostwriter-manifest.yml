@@ -31,6 +31,7 @@ managed:
   - .claude/skills/ghostwriter-buchgedaechtnis/  # lesender Fakten-/Kontinuitätsabgleich
   - .claude/skills/ghostwriter-lektorat/  # gezielte redaktionelle Prüfarten
   - ghostwriter-manifest.yml
+  - ghostwriter-skills.yml     # festgelegte Quelle und Prüfsummen allgemeiner Skills
   - workflow.yml
   - providers.yml
   - .gitattributes
