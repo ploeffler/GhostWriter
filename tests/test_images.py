@@ -1,4 +1,6 @@
 """Tests für Illustrationen (#54): Bild-Auftrag, Ablegen, Prüfung, Satz („Strolchi und Opi“)."""
+from tests.authority_helpers import fake_github
+
 import hashlib
 import re
 import shutil
@@ -31,6 +33,7 @@ class ImageTest(unittest.TestCase):
         self.tmp = Path(tmp.name)
         self.base = self.tmp / 'buch'
         shutil.copytree(ROOT / 'tests/fixtures/adhs', self.base)
+        fake_github(self, self.base, seal=False)
         cfg = self.base / 'ghostwriter.yml'
         cfg.write_text(cfg.read_text(encoding='utf-8') + 'images:\n  style: Aquarell, weiche Farben\n', encoding='utf-8')
         characters.add(self.base, 'Strolchi', 'main')
@@ -288,6 +291,7 @@ class ImageTest(unittest.TestCase):
         approve_chapter_1(self.base)
         self.approve(meta)
         out = self.tmp / 'out'
+        fake_github(self, self.base, edition=1)
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--edition', '1',
                             '--out', str(out)], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)

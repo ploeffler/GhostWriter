@@ -1,4 +1,6 @@
 """Tests für die Stufen der Grundregeln (#300): Setzen, Lockern nur mit Bestätigung, Untergrenzen, Ansichten."""
+from tests.authority_helpers import fake_github
+
 import shutil
 import subprocess
 import sys
@@ -21,6 +23,7 @@ class RulesTest(unittest.TestCase):
         self.base = Path(tmp.name) / 'buch'
         shutil.copytree(ROOT / 'tests/fixtures/adhs', self.base)
         self.commit = 'a' * 40
+        fake_github(self, self.base, seal=False)
 
     def config(self):
         return yaml.safe_load((self.base / 'ghostwriter.yml').read_text(encoding='utf-8'))

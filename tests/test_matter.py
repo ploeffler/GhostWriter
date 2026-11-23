@@ -4,6 +4,8 @@ Ein Buch mit allen vier Teilen (Widmung, Prolog, Epilog, Danksagung) und eines o
 (tests/fixtures/adhs unverändert). Der Satz (PDF, DOCX, EPUB) läuft nur, wenn pandoc
 und xelatex installiert sind; in validate.yml fehlen sie, dort entfällt dieser Teil.
 """
+from tests.authority_helpers import fake_github
+
 import hashlib
 import json
 import re
@@ -171,6 +173,7 @@ class MatterTest(MatterBase):
         self.assertEqual(assemble.problems(assemble.book_parts(self.base, config), config, mparts), [])
         self.assertNotIn('# Epilog', assemble.book_body(assemble.book_parts(self.base, config), mparts))
         self.assertEqual(assemble.matter_notes(mparts), ['Epilog ist nicht abgeschlossen und fehlt in der Auflage.'])
+        fake_github(self, self.base)
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/assemble.py'), str(self.base), 'check'],
                              capture_output=True, text=True)
         self.assertEqual(out.returncode, 0, out.stdout)
@@ -337,6 +340,7 @@ class MatterTypesettingTest(MatterBase):
         ForewordGlossaryTest.add_seven(self)
         approve_chapter_1(self.base)
         out = Path(self.base.parent) / 'out'
+        fake_github(self, self.base, edition=1)
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--edition', '1',
                             '--out', str(out), '--date', '2026-11-03'], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
@@ -457,6 +461,7 @@ class GlossaryReferenceTest(MatterBase):
         cfg = self.base / 'ghostwriter.yml'
         cfg.write_text(cfg.read_text(encoding='utf-8') + 'typesetting:\n  glossary_marks: italic\n', encoding='utf-8')
         out = Path(self.base.parent) / 'out'
+        fake_github(self, self.base, edition=1)
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--edition', '1',
                             '--out', str(out), '--formats', 'pdf,pdf_print,epub'], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)

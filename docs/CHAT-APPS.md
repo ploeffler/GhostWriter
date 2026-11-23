@@ -159,6 +159,15 @@ Welcher Skill zu einer Aufgabe passt, entscheidet Claude anhand der Skill-Beschr
 - **ChatGPT** zeigt diese Widgets nicht. Dort gibt der Assistent die Textfassung aus `templates/ui/BEFUELLUNG.md` aus: Markdown mit Tabellen und Symbolen, Aktionen als Kürzel (`2`, `2.4`, `P`, `X` …), die der Benutzer per Antwort wählt. Echte Formulare in ChatGPT gingen nur über eine eigene App mit MCP-Server (Apps SDK), siehe Weg B.
 - **Open WebUI** zeigt keine Widgets. Die Pipe „GhostWriter Direkt“ erzeugt alle Ansichten selbst als Markdown und schaltet „Darstellung: einfach / übersichtlich / erweitert“, „Nur Text“ und den Antwortmodus ohne Modellaufruf um (ab Pipe 1.8 mit GitHub-Werkzeug 1.5, #282). Das Gesprächsmodell erhält ab Werkzeug 1.6 einen eigenen kurzen Einstieg `docs/start/einstieg-openwebui.md` statt der allgemeinen `START.md` (#204). Ab Pipe 1.10 gehen die Statusregeln nur bei Statusfragen an das Modell, ältere Ansichten der Pipe nur noch als je eine Zeile (#285). Einzelheiten: [Open-WebUI-Anleitung](../integrations/openwebui/README.md#darstellung-und-antwortmodus-direkt-pipe-18-werkzeug-15).
 
+## Persönliche Freigaben in den Clients
+
+Vor einer Freigabe muss das tatsächlich angemeldete persönliche GitHub-Konto samt Eigentümer- oder ausdrücklichem Freigaberecht nachgewiesen werden. Ein Anzeigename, `by`, Commit-Autor oder erfolgreicher Speichervorgang genügt dafür nicht. Lokale Arbeitsumgebungen verwenden `scripts/approval_authority.py BUCH actor`; ein automatisierter Actions-Job darf diese persönliche Entscheidung nicht stellvertretend erteilen.
+
+Ohne lokale Laufzeit die tatsächlich verfügbaren authentifizierten GitHub-Werkzeuge verwenden und deren Konto-/Berechtigungsgrenzen offen nennen. Ist diese Prüfung nicht möglich, die Freigabe zurückstellen. Der [persönliche Inhaltsnachweis](SPEICHERN.md#persönliches-freigaberecht-und-inhaltsnachweis) kann mit der lesenden manuellen GitHub-Action vorbereitet und geprüft werden. Entwürfe und Probedrucke bleiben möglich.
+
+Open WebUI benötigt GitHub-Werkzeug 1.8.0 mit persönlichen Benutzer-Valves für Schreibaktionen. Die Claude-Web-App muss den neuen Prüf- und Nachweisablauf in Claude übernehmen; eine ältere App darf einen gespeicherten technischen Status nicht als persönlich verifizierte Freigabe ausgeben. Die praktische Abnahme bleibt für jeden Client separat erforderlich.
+
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

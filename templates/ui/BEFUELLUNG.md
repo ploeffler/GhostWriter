@@ -931,6 +931,8 @@ Ohne ausdrücklich gewählten Darstellungsmodus gilt „übersichtlich“. Eine 
 Die Textansichten von Buch und Kapitel berechnen diese Übersicht aus den Abschnittsdateien. Das Bücherregal ergänzt seine vorhandenen Freigabezahlen um denselben Balken. Deutsch und Englisch verwenden dieselbe Berechnung. Ansichten erzeugen keine Änderungen an Buchdateien.
 
 
+**Persönliches Freigaberecht:** Vor der Ausführung einer bestätigten Freigabe das Konto mit `scripts/approval_authority.py BUCH actor` prüfen und den verifizierten Login im neuen Protokolleintrag verwenden. Fehlende Berechtigung sperrt die Ausführung, ohne Daten zu ändern. Eine Auswahl oder ein Feld `by` ersetzt diese Prüfung nicht. Für veröffentlichbare Ausgaben gilt zusätzlich der persönliche Inhaltsnachweis nach [Speichern und Abschließen](../../docs/SPEICHERN.md#persönliches-freigaberecht-und-inhaltsnachweis). Keine neue Widgetaktion wird dadurch eingeführt; die Claude-Web-App muss den Prüfablauf in Claude übernehmen.
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../../assets/logo-dark.svg"><img src="../../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

@@ -87,35 +87,18 @@ GhostWriter wurde mit Unterstützung von Claude (Anthropic) entwickelt; dieser H
 
 ## Zusammenarbeit und Freigaberecht
 
-Der Eigentümer und ausdrücklich benannte Freigabeberechtigte entscheiden über
-inhaltliche Freigaben. Bearbeiten, Speichern, Übernehmen und Freigeben sind
-unterschiedliche Befugnisse. Für die Zusammenarbeit sind **persönliche
-GitHub-Konten** bestätigt; gemeinsame schreibberechtigte Zugangsdaten dürfen
-nicht als Nachweis für die Rechte einzelner Personen verwendet werden.
+Der Eigentümer und ausdrücklich benannte Freigabeberechtigte entscheiden über inhaltliche Freigaben. Bearbeiten, Speichern, Übernehmen und Freigeben sind unterschiedliche Befugnisse. Persönliche GitHub-Konten sind erforderlich; gemeinsame Zugangsdaten belegen keine Identität einzelner Menschen.
 
-**Aktueller Prüfstand:** Das Freigabeprotokoll hält einen Namen im Feld `by` fest,
-authentifiziert ihn aber nicht. Validator und Buchzusammenstellung prüfen
-Manuskript-Fingerabdruck und Freigabezustand, nicht die Person hinter dem Eintrag.
-Eine Bestätigung im Chat oder ein erfolgreicher Commit beweist allein deshalb
-noch kein fachliches Freigaberecht. Die durchgängige technische Rollenabnahme ist
-offen. Der allgemeine Schreibweg und das bisherige Open-WebUI-Werkzeug dürfen
-nicht als bereits durchgesetzte Personenverwaltung ausgegeben werden.
+`by` bleibt eine Protokollangabe. Die zuvor reproduzierte Lücke – beliebigen Namen eintragen und damit die unveränderte Buchzusammenstellung bestehen – wird an den offiziellen Schreib- und Ausgabewegen abgesichert:
 
-Für die Umsetzung müssen das persönliche Konto des Aufrufenden verifiziert,
-Eigentümer bzw. ausdrücklich benannte Freigabeberechtigte verlässlich zugeordnet
-und die tatsächlichen Schreib- und Veröffentlichungswege geschützt werden. Ein
-voll schreibberechtigter GitHub-Zugang kann Dateien auch außerhalb von GhostWriter
-ändern; reine Chat-Anweisungen schaffen dort keine zusätzliche Zugriffsschranke.
-Es werden keine eigenen Konten, Schlüssel oder Berechtigungen automatisch angelegt.
+- Neue lokale Regel-Lockerungen, Import-Schreibfreigaben, Referenzfreigaben und Sammelbandfreigaben prüfen das angemeldete persönliche Konto und dessen Eigentümer- oder ausdrückliches Freigaberecht, bevor Dateien geändert werden.
+- Open WebUI verwendet für Schreibaktionen nur persönliche Benutzer-Zugangsdaten. Freigabeänderungen und Regel-Lockerungen werden zusätzlich gegen das verifizierte Konto geprüft; neue Protokolleinträge müssen dessen Login verwenden. Vorhandene Einträge dürfen nicht umgeschrieben werden. Beim Übernehmen eines Änderungspakets werden Freigabeänderungen erneut geprüft.
+- Auflagen, Sammelbände und veröffentlichbare Buch-/Kapitelzusammenstellungen brauchen einen aktuellen persönlichen GitHub-Review mit dem exakten Inhaltsfingerabdruck, der Buchzuordnung, Auflagennummer und dem Zweck. Der Review selbst und eine mögliche Eigentümer-Bevollmächtigung werden bei GitHub geprüft; nach Abgabe oder von einem anderen Konto bearbeitete, ausstehende oder zurückgenommene Reviews sowie Bots zählen nicht.
+- Die gewöhnliche Projektprüfung prüft weiterhin die Struktur und sagt ausdrücklich, dass dabei keine Person geprüft wurde. `--verify-authority` verlangt zusätzlich den persönlichen Inhaltsnachweis. Ausgabewerkzeuge verlangen ihn unabhängig von diesem Validatorargument.
 
-**Technisch geprüfte Wege (23.11.2026, Programmstand 0.9.0):**
+[Anleitung und Nachweisgrenzen](SPEICHERN.md#persönliches-freigaberecht-und-inhaltsnachweis): Probedruck und Entwurfsarbeit bleiben möglich. Bestehende Bücher werden nicht automatisch umgeschrieben oder nachträglich freigegeben. Vor der nächsten veröffentlichbaren Ausgabe bestätigt ein Berechtigter den heutigen Stand ausdrücklich neu; alte `by`-Angaben werden nicht rückwirkend zu verifizierten Identitäten.
 
-- `schemas/approvals.schema.json` verlangt für `by` eine nichtleere Zeichenfolge, aber keine verifizierte GitHub-Identität.
-- `scripts/validate_project.py` prüft Zielkennungen, letzte Freigabezustände und Manuskript-Fingerabdrücke. `scripts/assemble.py` verwendet diese Freigabedaten für die Ausgabe. Beide prüfen keine persönliche Freigabeberechtigung.
-- `scripts/rules.py` nimmt `--by` als Protokollangabe entgegen; sie ist kein Identitätsnachweis.
-- `integrations/openwebui/ghostwriter_github.py` prüft beim Speichern den erwarteten Branchstand und verwendet die eingerichteten GitHub-Zugangsdaten. Die Lesefunktion `get_repo` kann GitHub-Berechtigungsangaben liefern; der allgemeine Schreibweg authentifiziert damit weder eine Freigabeperson noch eine fachliche Bevollmächtigung.
-
-Mit einer temporären Testkopie wurde ausschließlich `by` in bestehenden Testfreigaben durch einen beliebigen anderen Namen ersetzt: Das Schema akzeptierte ihn, und die Buchzusammenstellung meldete vorher und nachher keine Probleme. Dies reproduziert die Grenze; es ist keine erfolgreiche Rollenabnahme. Für eine Lösung müssen Aufruferidentität, vertrauenswürdige Zuordnung des Freigaberechts und Nachweis für den freigegebenen Inhalt zusammenpassen. Eine weitere frei editierbare Namensliste allein würde diese Grenze nicht schließen.
+Automatisierte Prüfungen ersetzen keine praktische Abnahme in ChatGPT, Codex, Claude und Open WebUI oder mit realen Organisationsrechten. Die Claude-Web-App muss den neuen persönlichen Prüf- und Nachweisablauf übernehmen. Direkte Änderungen an Programmdateien oder Veröffentlichungen außerhalb von GhostWriter bleiben durch tatsächliche GitHub-Rechte begrenzt; die lokalen Prüfungen sind keine zusätzliche serverseitige Zugriffsschranke. Es werden keine Konten, Schlüssel oder Repository-Berechtigungen automatisch angelegt.
 
 ---
 

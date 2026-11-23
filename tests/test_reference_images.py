@@ -1,4 +1,6 @@
 """Tests für projektweite visuelle Referenzen."""
+from tests.authority_helpers import fake_github
+
 import shutil
 import sys
 import tempfile
@@ -9,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import reference_images  # noqa: E402
 import validate_project  # noqa: E402
-from test_cover import png  # noqa: E402
+from tests.test_cover import png  # noqa: E402
 
 
 class ReferenceImageTest(unittest.TestCase):
@@ -21,6 +23,8 @@ class ReferenceImageTest(unittest.TestCase):
         shutil.copytree(ROOT / "tests/fixtures/adhs", self.project)
         self.source = self.tmp / "portrait.png"
         png(self.source, 120, 80)
+
+        fake_github(self, self.project, seal=False)
 
     def add(self, **kwargs):
         values = dict(caption="Opi Referenz", description="Weißer Bart und grüner Hut",

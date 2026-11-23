@@ -1,4 +1,6 @@
 """Tests für die Broschüre zum Selbstdrucken (Format `booklet`): Seitenfolge, Bogen, Satz."""
+from tests.authority_helpers import fake_github
+
 import shutil
 import subprocess
 import sys
@@ -64,6 +66,7 @@ class BookletBuildTest(unittest.TestCase):
         path = self.base / 'ghostwriter.yml'
         path.write_text(path.read_text(encoding='utf-8') + 'print:\n  crop_marks: true\n', encoding='utf-8')
         out = Path(self.base.parent) / 'out'
+        fake_github(self, self.base, edition=1)
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--edition', '1',
                             '--out', str(out), '--formats', 'pdf,booklet'], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)

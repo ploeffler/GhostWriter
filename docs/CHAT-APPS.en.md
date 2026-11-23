@@ -140,6 +140,15 @@ Claude sessions that support inline widgets can use the pinned `ghostwriter-ui` 
 
 **Open WebUI** shows no widgets. The “GhostWriter Direkt” pipe renders every view itself as Markdown and switches `Display: simple / organized / extended`, `Text only` and the answer mode without a model call (pipe 1.8 with GitHub tool 1.5, #282). From tool 1.6 the conversation model receives its own short start file `docs/start/einstieg-openwebui.md` instead of the general `START.md` (#204). From pipe 1.10, status rules reach the model only for status questions, and older pipe views are sent as one line each (#285). Details (German): [Open WebUI guide](../integrations/openwebui/README.md#darstellung-und-antwortmodus-direkt-pipe-18-werkzeug-15).
 
+## Personal approval in each client
+
+Before approval, establish the actually authenticated personal GitHub account and ownership or explicit delegation. A display name, `by`, commit author or successful save is insufficient. Local environments use `scripts/approval_authority.py BOOK actor`; an automated Actions job cannot make this personal decision on the user's behalf.
+
+Without a local runtime, use only authenticated GitHub tools actually available in that session and state their account/permission limits. If authority cannot be checked, defer approval. The [personal content evidence](SAVING.en.md#personal-approval-authority-and-content-evidence) can be prepared and checked using the read-only manual GitHub Action. Drafts and proofs remain available.
+
+Open WebUI needs GitHub tool 1.8.0 with personal UserValves for writing. The Claude web app must adopt the new verification and evidence workflow in Claude; an older app must not describe a stored technical status as personally verified approval. Practical acceptance remains necessary for each client separately.
+
+
 ---
 
 <p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

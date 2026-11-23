@@ -722,6 +722,14 @@ def main(argv):
     base, config = load(args.project)
     edition = args.edition if args.edition is not None else (config['project'].get('current_edition') or 0)
 
+    if args.what in ('book', 'check', 'chapter'):
+        import approval_authority
+        try:
+            approval_authority.verify(base, edition, config)
+        except approval_authority.AuthorityError:
+            print('✗ Persönlicher Inhaltsnachweis fehlt oder ist ungültig; Probedruck/Lesefassung verwenden.', file=sys.stderr)
+            return 1
+
     if args.what == 'reading':
         if not args.key:
             ap.error('reading braucht eine Kapitelnummer (5) oder Abschnittsnummer (5.1)')

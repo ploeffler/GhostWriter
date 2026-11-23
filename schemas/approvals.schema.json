@@ -21,6 +21,43 @@
         "additionalProperties": false
       }
     },
+    "authority": {
+      "type": "object",
+      "required": [
+        "pull_request",
+        "review_id"
+      ],
+      "properties": {
+        "pull_request": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "review_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "delegation": {
+          "type": "object",
+          "required": [
+            "pull_request",
+            "review_id"
+          ],
+          "properties": {
+            "pull_request": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "review_id": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "description": "GitHub-Review als persönlicher Inhalts-/Auflagennachweis; ohne ihn keine veröffentlichbare Ausgabe. Historische by-Felder bleiben bloße Protokollangaben."
+    },
     "entries": {
       "type": "array",
       "items": {

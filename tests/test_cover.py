@@ -1,4 +1,6 @@
 """Tests für Umschlag und Druck (#68, Teil 2): Maße je Profil, EAN-13, Prüfung, Satz."""
+from tests.authority_helpers import fake_github
+
 import re
 import shutil
 import struct
@@ -148,6 +150,7 @@ class CoverProjectTest(unittest.TestCase):
                  'publication:\n  isbn_print: 978-3-16-148410-0\n')
         self.assertEqual(validate_project.check_project(self.base), [])
         out = Path(self.base.parent) / 'out'
+        fake_github(self, self.base, edition=1)
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--edition', '1',
                             '--out', str(out)], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
