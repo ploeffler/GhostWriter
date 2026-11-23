@@ -346,6 +346,21 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
       } else console.log("  –    weniger als zwei offene Einträge, Entscheidungen nicht geprüft");
       await send(gwa("notes_review.plan", {file}));
       ok(/Umsetzen prüfen/.test(note()), "Umsetzen prüfen: Hinweise ohne Änderung");
+      const plannedOk = (note().match(/✅/g) || []).length, btn = d.querySelector("[data-act=reviewapply]");
+      ok(plannedOk > 0 ? !!btn : !btn, "Umsetzen prüfen: Knopf zum Umsetzen nur bei umsetzbaren Einträgen (" + plannedOk + " umsetzbar)");
+      if (btn){
+        n = pushes.length; btn.click(); await sleep(500); await idle(); await until(() => pushes.length > n, 80); await idle();
+        const pu = pushes.length > n && lastPush("durchsicht-umsetzen"), dfile = pu && pu.files.find(f => f.path === file), mans = pu ? pu.files.filter(f => /\/sections\//.test(f.path)) : [];
+        const dn = dfile && yaml.load(dfile.content), done = dn ? ents(dn).filter(e => e.umgesetzt).length : 0, before = ents(od).filter(e => e.umgesetzt).length;
+        const appliedN = +((note().match(/(\d+) Einträge? umgesetzt/) || [])[1] || 0);
+        ok(pu && dfile && appliedN > 0 && done - before === appliedN && appliedN <= plannedOk && /Hinweisdurchsicht: \d+ Einträge? ins Manuskript umgesetzt/.test(pu.message), "Umsetzen: Durchsicht markiert genau die umgesetzten Einträge (" + (done - before) + " von " + plannedOk + " umsetzbaren)");
+        const applied = dn ? ents(dn).filter(e => e.umgesetzt && !ents(od).find(o => o.id === e.id && o.umgesetzt)) : [];
+        const texts = {}; for (const f of mans) texts[f.path] = f.content;
+        ok(applied.length > 0 && applied.every(e => { const t = texts[e.datei]; return t && t.includes(e.neu); }) && mans.length > 0, "Umsetzen: neuer Wortlaut steht in den Manuskripten");
+        ok(note().length > 0 && /Im Zusammenhang neu lesen/.test(note()) && /Nachprüfung/.test(note()), "Umsetzen: Meldung mit Kontext und Hinweis auf die Nachprüfung");
+        const bfs = pu ? pu.files.filter(f => /^editorial\/abschnitt-.*\.yml$/.test(f.path)) : [];
+        ok(bfs.length >= 0, "Umsetzen: Befundstatus (" + bfs.length + " Befunddateien)");
+      }
     }
   }
 

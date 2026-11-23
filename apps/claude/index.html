@@ -496,6 +496,7 @@ async function act({action, data, text}){
       case "view.notes_review": { S.msg = null; const fs = await reviewFiles(); const f = data.file || (fs.length ? "editorial/" + fs[fs.length - 1] : ""); if (!f){ S.msg = {kind:"info", html:"Es gibt noch keine Hinweisdurchsicht in diesem Buch."}; return show("project"); } return show("review", f); }
       case "notes_review.decide": return reviewDecide(data);
       case "notes_review.plan": return reviewPlan(data);
+      case "notes_review.apply": return reviewApply(data);
       case "character.suggest": return characterSuggest(data);
       case "character.suggest.apply": return characterSuggestApply(data);
       case "character.series.update": return characterSeries("update", data);
@@ -1231,14 +1232,16 @@ const reviewCmp = (a, b) => { const x = reviewKey(a), y = reviewKey(b); return x
 async function reviewFiles(){ return (await listDir("editorial", S.readRef)).filter(e => /^durchsicht-.+\.yml$/.test(e.name)).map(e => e.name).sort(reviewCmp); }
 const reviewEntries = data => [...(data.ohne_autor || []).map(e => ["ohne_autor", e]), ...(data.autorenentscheidung || []).map(e => ["autorenentscheidung", e])];
 const reviewState = e => e.umgesetzt ? "umgesetzt" : (e.entscheidung || "offen");
-async function reviewLoad(file, fresh){
-  const key = S.readRef + "|" + file, last = S.reviewText && S.reviewText[file];
-  const text = (!fresh && last != null) ? last : (await getFile(file, S.readRef, true)).text;
+async function reviewLoad(file){
+  // direkt nach einer eigenen Änderung gilt der eigene Stand (GitHub liefert sonst kurz noch den alten), danach der frische
+  const at = (S.reviewAt || {})[file], mine = S.reviewText && S.reviewText[file];
+  const text = (at && mine != null && Date.now() - at < 90000) ? mine : (await getFile(file, S.readRef, true)).text;
   return {text, data:window.jsyaml.load(text) || {}};
 }
+const setReview = (file, text) => { (S.reviewText = S.reviewText || {})[file] = text; (S.reviewAt = S.reviewAt || {})[file] = Date.now(); };
 const reviewWhere = e => e.chapter_id ? "Kapitel " + String(e.abschnitt).split(".")[0] : e.abschnitt;
 async function reviewData(file){
-  const {data} = await reviewLoad(file, true), all = reviewEntries(data), done = all.filter(([, e]) => (e.entscheidung || "offen") !== "offen").length;
+  const {data} = await reviewLoad(file), all = reviewEntries(data), done = all.filter(([, e]) => (e.entscheidung || "offen") !== "offen").length;
   const [y, m, dd] = String(data.erstellt || "").split("-");
   const row = (e, author) => Object.assign({E_ID:e.id, E_WHERE:e.abschnitt, E_CHAPTER_TEXT:reviewWhere(e) + (e.chapter_status ? " · " + (CH_STATUS[e.chapter_status] || e.chapter_status) : ""), E_KIND:e.art || "",
     E_REASON:(e.schweregrad === "blockierend" ? "⛔ blockierend: " : "") + (e.grund || ""), E_CONTEXT:e.kontext || "", E_OLD:e.alt || "", E_NEW:e.neu || "", E_DECISION:reviewState(e)},
@@ -1254,13 +1257,13 @@ async function reviewCard(){
   if (!files.length) return "";
   const rows = [];
   for (const f of files.slice(-3).reverse()){
-    try { const {data} = await reviewLoad("editorial/" + f, true), all = reviewEntries(data), done = all.filter(([, e]) => (e.entscheidung || "offen") !== "offen").length;
+    try { const {data} = await reviewLoad("editorial/" + f), all = reviewEntries(data), done = all.filter(([, e]) => (e.entscheidung || "offen") !== "offen").length;
       rows.push(`<li><div><b>${esc(f.replace(/^durchsicht-|\.yml$/g, ""))}</b> <span class="w">· ${done} von ${all.length} entschieden${all.length - done ? `, ${all.length - done} offen` : ""}</span></div><button class="btn" data-act="review" data-f="${esc("editorial/" + f)}">${all.length - done ? "Weitermachen" : "Ansehen"}</button></li>`); } catch (e) {}
   }
   return rows.length ? `<div class="card" style="margin-top:16px"><b>Hinweisdurchsicht</b><p class="dim" style="margin:2px 0 4px">Änderungsvorschläge aus der Prüfung, Eintrag für Eintrag entscheiden. Jede Antwort wird sofort als kleiner Nachtrag gespeichert; ins Manuskript kommt nichts von selbst.</p><ul class="chk">${rows.join("")}</ul></div>` : "";
 }
-function reviewSet(text, id, decision, neu){
-  // nur die Zeilen dieses Eintrags ändern (Rest der Datei bleibt Zeichen für Zeichen), dann gegenprüfen
+function entryPatch(text, id, pairs){
+  // nur die Zeilen dieses Eintrags (`- id: <id>`) ändern, der Rest der Datei bleibt Zeichen für Zeichen
   const L = text.split("\n"), i = L.findIndex(l => l === "- id: " + id); if (i < 0) throw {message:`Eintrag ${id} nicht gefunden.`};
   let j = i + 1; while (j < L.length && (L[j].startsWith("  ") || L[j] === "")) j++;
   const blk = L.slice(i, j), setKey = (key, val) => {
@@ -1268,8 +1271,12 @@ function reviewSet(text, id, decision, neu){
     const k = blk.findIndex(l => l.startsWith("  " + key + ":"));
     if (k >= 0){ let e = k + 1; while (e < blk.length && /^    /.test(blk[e])) e++; blk.splice(k, e - k, ...dumped); } else { let end = blk.length; while (end > 1 && blk[end - 1] === "") end--; blk.splice(end, 0, ...dumped); }
   };
-  setKey("entscheidung", decision); if (neu != null) setKey("neu", neu);
-  const out = [...L.slice(0, i), ...blk, ...L.slice(j)].join("\n");
+  Object.entries(pairs).forEach(([k, v]) => setKey(k, v));
+  return [...L.slice(0, i), ...blk, ...L.slice(j)].join("\n");
+}
+function reviewSet(text, id, decision, neu){
+  const pairs = {entscheidung:decision}; if (neu != null) pairs.neu = neu;
+  const out = entryPatch(text, id, pairs);
   const a = window.jsyaml.load(text), b = window.jsyaml.load(out), ea = reviewEntries(a), eb = reviewEntries(b);
   const same = ea.length === eb.length && ea.every(([g, e], k) => eb[k][0] === g && (e.id === id ? true : JSON.stringify(e) === JSON.stringify(eb[k][1])));
   const t = eb.find(([, e]) => e.id === id);
@@ -1288,37 +1295,101 @@ async function reviewDecide(d){
       if (!/^editorial\/durchsicht-[^/]+\.yml$/.test(file) || !REVIEW_DECISIONS.includes(decision)) throw {message:"Ungültige Angabe."};
       if (decision === "geändert" && !String(d.new || "").trim()) throw {message:"Bei „geändert“ gehört die eigene Fassung dazu."};
       const work = await prepareWork(); S.readRef = work;
-      const {text, data} = await reviewLoad(file, !(S.reviewText && S.reviewText[file] != null)), e = (reviewEntries(data).find(([, x]) => x.id === d.entry) || [])[1];
+      const {text, data} = await reviewLoad(file), e = (reviewEntries(data).find(([, x]) => x.id === d.entry) || [])[1];
       if (!e) throw {message:`Eintrag ${d.entry} nicht gefunden.`};
       if (e.umgesetzt) throw {message:`${d.entry} ist schon umgesetzt.`};
       const out = reviewSet(text, d.entry, decision, decision === "geändert" ? String(d.new).trim() : (typeof d.new === "string" ? d.new : null));
       const r = await commit([{path:file, content:out}], `Hinweisdurchsicht: ${d.entry} ${decision}`, {action:"notes_review.decide"});
-      (S.reviewText = S.reviewText || {})[file] = out;
+      setReview(file, out);
       const all = reviewEntries(window.jsyaml.load(out)), open = all.filter(([, x]) => (x.entscheidung || "offen") === "offen").length;
       flash(r.pr || r.nothing ? "ok" : "warn", `<b>${esc(d.entry)}: ${esc(decision)}</b> – gespeichert. ${open ? `Noch ${open} offen.` : "Alle Einträge entschieden. Umsetzen prüfen zeigt, was ins Manuskript kommen kann."}`);
     } catch (e) { flash("err", "<b>Nicht gespeichert.</b> " + esc(errText(e))); }
   });
   return S.reviewChain;
 }
+function reviewPlanItems(data, secs){
+  // wie hinweise.plan: [{mark, why, e, x}] für alle entschiedenen, noch nicht umgesetzten Einträge
+  const out = [];
+  for (const [, e] of reviewEntries(data)){
+    if (e.umgesetzt || !["ja", "geändert"].includes(e.entscheidung)) continue;
+    const x = secs.find(v => v.s.id === e.section_id), f = x && cached(x.s.path), ms = f ? msOf(f.text) : "", n = e.alt ? ms.split(e.alt).length - 1 : 0;
+    let mark, why;
+    if (e.section_id === "book"){ mark = "⚠️"; why = "buchweit: von Hand in den betroffenen Abschnitten umsetzen"; }
+    else if (!x){ mark = "⛔"; why = "Abschnitt gibt es nicht mehr"; }
+    else if (!e.alt || !e.neu){ mark = "⚠️"; why = "ohne alten Wortlaut oder Vorschlag: von Hand umsetzen"; }
+    else if (x.c.status === "approved"){ mark = "⛔"; why = `Kapitel ${String(e.abschnitt).split(".")[0]} ist abgeschlossen: erst wieder öffnen`; }
+    else if (front(f.text).status === "approved"){ mark = "⛔"; why = `Abschnitt ${e.abschnitt} ist abgeschlossen: erst wieder öffnen`; }
+    else if (n !== 1){ mark = "⛔"; why = `alter Wortlaut kommt ${n}-mal vor: Text hat sich geändert`; }
+    else { mark = "✅"; why = "umsetzbar"; }
+    out.push({mark, why, e, x});
+  }
+  return out;
+}
+const planLines = items => items.map(({mark, why, e}) => `<div>${mark} <code>${esc(e.id)}</code> · ${esc(e.abschnitt)} · ${esc(why)}</div>`).join("");
 async function reviewPlan(d){
   try {
     busy("Wird geprüft …");
-    const file = String(d.file || ""), {data} = await reviewLoad(file, true), secs = allSecs(), lines = [];
+    const file = String(d.file || ""), {data} = await reviewLoad(file), secs = allSecs();
     await loadSecFiles(secs, "Wird geprüft");
-    for (const [, e] of reviewEntries(data)){
-      if (e.umgesetzt || !["ja", "geändert"].includes(e.entscheidung)) continue;
-      let mark, why;
-      const x = secs.find(v => v.s.id === e.section_id), f = x && cached(x.s.path), ms = f ? msOf(f.text) : "";
-      if (e.section_id === "book"){ mark = "⚠️"; why = "buchweit: von Hand in den betroffenen Abschnitten umsetzen"; }
-      else if (!x){ mark = "⛔"; why = "Abschnitt gibt es nicht mehr"; }
-      else if (!e.alt || !e.neu){ mark = "⚠️"; why = "ohne alten Wortlaut oder Vorschlag: von Hand umsetzen"; }
-      else if (x.c.status === "approved"){ mark = "⛔"; why = `Kapitel ${String(e.abschnitt).split(".")[0]} ist abgeschlossen: erst wieder öffnen`; }
-      else if (front(f.text).status === "approved"){ mark = "⛔"; why = `Abschnitt ${e.abschnitt} ist abgeschlossen: erst wieder öffnen`; }
-      else if (ms.split(e.alt).length - 1 !== 1){ mark = "⛔"; why = `alter Wortlaut kommt ${ms.split(e.alt).length - 1}-mal vor: Text hat sich geändert`; }
-      else { mark = "✅"; why = "umsetzbar"; }
-      lines.push(`<div>${mark} <code>${esc(e.id)}</code> · ${esc(e.abschnitt)} · ${esc(why)}</div>`);
+    const items = reviewPlanItems(data, secs), ok = items.filter(i => i.mark === "✅").length;
+    S.msg = {kind:"info", html:`<b>Umsetzen prüfen</b> (ändert noch nichts)${items.length ? planLines(items) : "<div>Keine entschiedenen Einträge zum Umsetzen.</div>"}${ok ? `<div style="margin-top:8px"><button class="btn pri" data-act="reviewapply" data-f="${esc(file)}">${ok === 1 ? "Den umsetzbaren Eintrag" : `Die ${ok} umsetzbaren Einträge`} ins Manuskript umsetzen</button></div><div class="dim" style="margin-top:6px">Nur ✅-Einträge werden umgesetzt, in einem Commit auf dem Arbeits-Branch (Manuskripte, Durchsicht, Befundstatus). Ins Buch kommt es erst über „Änderungen übernehmen“.</div>` : ""}`};
+  } catch (e) { S.msg = failMsg(e); }
+  show("review", d.file);
+}
+const SENTENCE = /[^.!?…\n]+(?:[.!?…]+[»«“”"')\]]*|\n|$)/g;
+function contextOf(text, neu){
+  // betroffener Satz mit bis zu zwei Sätzen davor und danach (wie hinweise.context)
+  const start = text.indexOf(neu); if (start < 0 || text.indexOf(neu, start + 1) >= 0) return neu;
+  const end = start + neu.length, spans = [...text.matchAll(SENTENCE)].filter(m => m[0].trim()).map(m => [m.index, m.index + m[0].length]);
+  let first = spans.findIndex(([, b]) => b > start); if (first < 0) first = 0;
+  let last = spans.findIndex(([, b]) => b >= end); if (last < 0) last = spans.length - 1;
+  return text.slice(spans[Math.max(0, first - 2)][0], spans[Math.min(spans.length - 1, last + 2)][1]).replace(/\s+/g, " ").trim();
+}
+async function reviewApply(d){
+  busy("Wird umgesetzt …");
+  try {
+    const file = String(d.file || ""); if (!/^editorial\/durchsicht-[^/]+\.yml$/.test(file)) throw {message:"Ungültige Angabe."};
+    const work = await prepareWork(); await loadBookData(work); S.readRef = work;
+    const {text:dtext, data} = await reviewLoad(file), secs = allSecs();
+    await loadSecFiles(secs, "Wird geprüft");
+    const items = reviewPlanItems(data, secs), files = {}, orig = {[file]:dtext}, applied = [], skipped = [], ctx = [], notes = [];
+    const MARK = "\n## Manuskript\n";
+    for (const it of items){
+      if (it.mark !== "✅"){ skipped.push(it); continue; }
+      const e = it.e, path = e.datei || it.x.s.path;
+      if (!(path in files)){ const t = (await getFile(path, work, true)).text; files[path] = t; orig[path] = t; }
+      const t = files[path], k = t.indexOf(MARK);
+      if (k < 0){ skipped.push({mark:"⛔", why:"Manuskript nicht gefunden", e}); continue; }
+      const head = t.slice(0, k + MARK.length), body = t.slice(head.length), n = body.split(e.alt).length - 1;
+      if (n !== 1){ skipped.push({mark:"⛔", why:`alter Wortlaut kommt ${n}-mal vor (nach einer früheren Umsetzung)`, e}); continue; }
+      const nb = body.replace(e.alt, () => e.neu); files[path] = head + nb; applied.push(e); ctx.push([e, contextOf(nb, e.neu)]);
     }
-    S.msg = {kind:"info", html:`<b>Umsetzen prüfen</b> (ändert noch nichts)${lines.length ? lines.join("") : "<div>Keine entschiedenen Einträge zum Umsetzen.</div>"}<div class="dim" style="margin-top:6px">Umsetzen ins Manuskript geht in dieser App noch nicht; dafür den Chat mit GhostWriter nehmen.</div>`};
+    if (!applied.length){ S.msg = {kind:"info", html:`<b>Nichts umgesetzt.</b>${planLines(skipped) || "<div>Keine umsetzbaren Einträge.</div>"}`}; return show("review", file); }
+    // Durchsicht: umgesetzt: true
+    let nd = dtext; applied.forEach(e => { nd = entryPatch(nd, e.id, {umgesetzt:true}); });
+    const a0 = reviewEntries(window.jsyaml.load(dtext)), a1 = reviewEntries(window.jsyaml.load(nd)), done = new Set(applied.map(e => e.id));
+    if (a0.length !== a1.length || !a1.every(([, e], i) => done.has(e.id) ? e.umgesetzt === true : JSON.stringify(e) === JSON.stringify(a0[i][1]))) throw {message:"Die Durchsichtsdatei ließ sich nicht sicher ändern; bitte im Chat mit GhostWriter umsetzen."};
+    files[file] = nd;
+    // Befundstatus zurückschreiben: umgesetzt → erledigt, nein → entschieden (nur Befunde mit Status „offen“)
+    const targets = {};
+    for (const [, e] of a1){ const st = e.umgesetzt ? "erledigt" : e.entscheidung === "nein" ? "entschieden" : null; if (st && e.befund){ const [bf, fid] = String(e.befund).split("#"); (targets[bf] = targets[bf] || {})[fid] = st; } }
+    for (const [bf, ids] of Object.entries(targets)){
+      try {
+        const t = (await getFile(bf, work, true)).text, bd = window.jsyaml.load(t) || {}, hit = (bd.befunde || []).filter(b => b.id in ids && b.status === "offen");
+        if (!hit.length) continue;
+        let out = t; hit.forEach(b => { out = entryPatch(out, b.id, {status:ids[b.id]}); });
+        const nb = (window.jsyaml.load(out) || {}).befunde || [], hs = new Set(hit.map(b => b.id));
+        if (nb.length !== (bd.befunde || []).length || !nb.every((b, i) => hs.has(b.id) ? b.status === ids[b.id] : JSON.stringify(b) === JSON.stringify(bd.befunde[i]))){ notes.push(bf); continue; }
+        files[bf] = out; orig[bf] = t;
+      } catch (e) { /* Befunddatei fehlt oder ist anders aufgebaut: nichts zurückschreiben */ }
+    }
+    const r = await commit(changed(files, orig), `Hinweisdurchsicht: ${applied.length} ${applied.length === 1 ? "Eintrag" : "Einträge"} ins Manuskript umgesetzt`, {action:"notes_review.apply"});
+    setReview(file, nd);
+    S.msg = savedMsg(`${applied.length} ${applied.length === 1 ? "Eintrag" : "Einträge"} umgesetzt, ${skipped.length} nicht umgesetzt.`, r);
+    S.msg.html += `<div style="margin-top:6px"><b>Im Zusammenhang neu lesen:</b></div>${ctx.map(([e, c]) => `<div><code>${esc(e.id)}</code> · ${esc(e.abschnitt)}: ${esc(c)}</div>`).join("")}`
+      + (skipped.length ? `<div style="margin-top:6px"><b>Nicht umgesetzt:</b></div>${planLines(skipped)}` : "")
+      + (notes.length ? `<div class="dim" style="margin-top:6px">Befundstatus nicht zurückgeschrieben (Datei anders aufgebaut): ${esc(notes.join(", "))}</div>` : "")
+      + `<div class="dim" style="margin-top:6px">Nachprüfung (Schlusskorrektur, Qualitätsprüfung) und erneutes Abschließen der Kapitel sind eigene Schritte und gehen weiter im Chat.</div>`;
   } catch (e) { S.msg = failMsg(e); }
   show("review", d.file);
 }
@@ -1689,6 +1760,7 @@ document.addEventListener("click", async ev => {
   else if (d.go === "back") show(S.report.from, S.report.arg);
   else if (d.report){ const from = S.view, arg = from === "section" ? S.sec.id : S.chap; busy("Bericht wird geladen …"); try { S.report = {path:d.report, text:(await getFile(d.report, S.readRef)).text, from, arg}; show("report"); } catch (e) { S.msg = {kind:"err", html:"Bericht nicht gefunden: " + esc(d.report)}; show(from, arg); } }
   else if (d.act === "review"){ S.msg = null; show("review", d.f); }
+  else if (d.act === "reviewapply") reviewApply({file:d.f});
   else if (d.act === "allchecks"){ S.showAll = !S.showAll; show("project"); }
   else if (d.act === "copy"){ try { await navigator.clipboard.writeText($("cpy").textContent); t.textContent = "Kopiert"; } catch (e) { t.textContent = "Kopieren nicht möglich – Text markieren"; } }
   else if (d.q) chat((QUICK[scopeOf()] || {})[d.q] || d.q, d.q);
