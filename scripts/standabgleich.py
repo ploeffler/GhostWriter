@@ -41,6 +41,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from handover import git, repo_name, resolve, show  # noqa: E402
+from library import work_branch  # noqa: E402
 
 FORMAT = 1
 INSTRUCTIONS = ('START.md', 'CLAUDE.md', 'AGENTS.md', '.claude/skills', 'docs/start', 'ghostwriter-skills.yml')
@@ -68,6 +69,17 @@ def blob_hash(base, ref, path):
     return hashlib.sha256(text.encode('utf-8')).hexdigest() if text is not None else None
 
 
+def work_candidate(base, book, program_ref):
+    """Nur beobachteter Branch; ohne bestätigten offenen PR keine neue Lesebasis."""
+    for prefix in ('refs/remotes/origin/', 'refs/heads/', 'origin/'):
+        if book.startswith(prefix):
+            book = book[len(prefix):]
+            break
+    manifest = yaml.safe_load(show(base, program_ref, 'ghostwriter-manifest.yml') or '') or {}
+    branch = work_branch(book, manifest)
+    return {'branch': branch, 'head': resolve(base, branch)}
+
+
 def collect(base, book, work=None, program_ref=None, repo=None):
     """Gelesenen Stand festhalten. Programm, Anweisungen und Profil liegen in einer Bibliothek auf dem
     Standard-Branch, im Einzelbuch auf dem Buch-Branch selbst."""
@@ -85,6 +97,7 @@ def collect(base, book, work=None, program_ref=None, repo=None):
     return {'format': FORMAT, 'repo': repo or repo_name(base),
             'book': {'branch': book, 'head': book_head},
             'work': {'branch': work, 'head': work_head} if work else None,
+            'work_watch': work_candidate(base, book, program_ref) if not work else None,
             'program': {'ref': program_ref, 'version': prog['version'],
                         'upstream_commit': prog['upstream_commit'], 'content': prog['content']},
             'instructions': prog['instructions'], 'profile': prog['profile'],
@@ -135,6 +148,13 @@ def compare(base, old):
                                            'z. B. aus einer anderen App; erst neu lesen'))
         else:
             out.append(('Arbeit', 'konflikt', f'{work["branch"]} ist auseinandergelaufen; nicht schreiben, Unterschied zeigen'))
+    else:
+        candidate = work_candidate(base, book['branch'], old['program']['ref'])
+        watched = old.get('work_watch') or {}
+        if (candidate['head'] and candidate['head'] != head
+                and (candidate['branch'], candidate['head']) != (watched.get('branch'), watched.get('head'))):
+            out.append(('Arbeit', 'neuer', f'{candidate["branch"]} neu oder geändert; '
+                        'Zuordnung und offenen Pull Request prüfen, vor dem Schreiben neu lesen'))
     now = collect_program(base, old['program']['ref'])
     if now is None:
         out.append(('Programm', 'konflikt', f'Programmstand {old["program"]["ref"]} nicht gefunden'))

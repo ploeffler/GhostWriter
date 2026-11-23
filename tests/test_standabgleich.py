@@ -88,6 +88,45 @@ class StandabgleichTest(unittest.TestCase):
         self.assertEqual(self.states(old)['Arbeit'], 'neuer')
         self.assertEqual(self.states(old)['Buch'], 'ok')
 
+    def test_new_work_branch_after_snapshot_without_work_requires_inspection(self):
+        old = self.stand(work=None)
+        git(self.base, 'branch', 'ghostwriter/buch/adhs', 'buch/adhs')
+        self.commit('notiz.md', 'Neue Arbeit aus anderer App', branch='ghostwriter/buch/adhs')
+        config = git(self.base, 'show', 'buch/adhs:ghostwriter.yml').replace('data_version: 1', 'data_version: 99')
+        self.commit('ghostwriter.yml', config, branch='ghostwriter/buch/adhs')
+        states = self.states(old)
+        self.assertEqual(states['Arbeit'], 'neuer')
+        self.assertEqual(states['Buch'], 'ok')
+        self.assertEqual(states['Daten'], 'ok')  # Kandidat ist keine bestätigte Lesebasis.
+        text = dict((a, t) for a, _, t in sa.compare(self.base, old))['Arbeit']
+        self.assertIn('Pull Request', text)
+
+    def test_unchosen_existing_work_branch_is_only_reported_when_it_changes(self):
+        git(self.base, 'branch', 'ghostwriter/buch/adhs', 'buch/adhs')
+        self.commit('notiz.md', 'Bereits vorhandener Kandidat', branch='ghostwriter/buch/adhs')
+        old = self.stand(work=None)
+        self.assertNotIn('Arbeit', self.states(old))
+        self.commit('notiz.md', 'Neue Fassung des Kandidaten', branch='ghostwriter/buch/adhs')
+        self.assertEqual(self.states(old)['Arbeit'], 'neuer')
+
+    def test_new_branch_identical_to_book_does_not_require_inspection(self):
+        old = self.stand(work=None)
+        git(self.base, 'branch', 'ghostwriter/buch/adhs', 'buch/adhs')
+        self.assertNotIn('Arbeit', self.states(old))
+
+    def test_other_books_work_branch_is_not_selected(self):
+        old = self.stand(work=None)
+        git(self.base, 'branch', 'ghostwriter/buch/anderes-buch', 'buch/adhs')
+        self.commit('notiz.md', 'Anderes Buch', branch='ghostwriter/buch/anderes-buch')
+        self.assertNotIn('Arbeit', self.states(old))
+
+    def test_legacy_snapshot_without_work_watch_reports_new_candidate(self):
+        old = self.stand(work=None)
+        old.pop('work_watch', None)
+        git(self.base, 'branch', 'ghostwriter/buch/adhs', 'buch/adhs')
+        self.commit('notiz.md', 'Neue Arbeit', branch='ghostwriter/buch/adhs')
+        self.assertEqual(self.states(old)['Arbeit'], 'neuer')
+
     def test_work_merged_and_branch_removed(self):
         old = self.stand()
         git(self.base, 'switch', '-q', 'buch/adhs')
