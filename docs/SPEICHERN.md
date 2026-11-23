@@ -14,6 +14,8 @@ Ein Ergebnis im Chat ist noch nicht dauerhaft im Repository gesichert. Beim Spei
 
 Der Assistent prüft den aktuellen Buchstand und ob das Schreiben erlaubt ist, sammelt alle zusammengehörigen Änderungen einer Aufgabe und prüft sie gemeinsam. Erst danach werden sie als ein Änderungsschritt im gemeinsamen Änderungspaket gespeichert. Unveränderte Inhalte erzeugen keinen neuen Änderungsschritt.
 
+Auch geänderte Startanweisungen und Skills verlangen einen erneuten Abgleich vor dem Schreiben. Der lokale Helfer `workflow_support.py … guard` erkennt Änderungen und Löschungen an `START.md`, `CLAUDE.md`, `AGENTS.md`, unter `docs/start/` und unter `.claude/skills/` einschließlich persönlicher Skills als Kontextänderung. Er prüft nur die bereitgestellten Git-Stände; aktuelle Remote-Daten und eine atomare Prüfung beim anschließenden Speichern bleiben erforderlich.
+
 Nach bestätigter Übertragung lautet der Stand **gespeichert, noch nicht übernommen**. Du kannst diesen Arbeitsstand bereits ansehen und weiterbearbeiten; die Ansichten lesen aus dem offenen Änderungspaket. Im übernommenen Buchstand stehen die Änderungen erst nach **Änderungen übernehmen**. Dabei bestätigst du die gezeigte aktuelle Fassung. Kommt inzwischen etwas dazu, muss die geänderte Fassung erneut gezeigt werden.
 
 Wenn du für dein Buch **sofort übernehmen** (`changes.auto_merge: true`) bewusst aktiviert hast, werden gewöhnliche Buchänderungen nach dem Speichern automatisch übernommen. Inhaltliche Freigaben bleiben eigene ausdrückliche Entscheidungen. Eine Auflage hat immer ihr eigenes Änderungspaket und braucht eine ausdrückliche Übernahmebestätigung.
