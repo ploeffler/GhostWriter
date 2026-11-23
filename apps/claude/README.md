@@ -72,6 +72,13 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   späteren Eintrags in demselben Abschnitt, wird dieser übersprungen und gemeldet (das Skript bricht dort ab). Danach zeigt
   die App die betroffenen Stellen im Zusammenhang. **Noch nicht in der App:** Nachprüfung (Schlusskorrektur,
   Qualitätsprüfung) und erneutes Abschließen der Kapitel; das geht weiter im Chat.
+- Hintergrund-Warteschlange (#478): Karte „Hintergrund-Warteschlange“ in der Projektübersicht, Ansicht (Vorlage `warteschlange`)
+  mit wartenden, auf Bestätigung wartenden (Budget), von einem anderen Auftrag abhängigen, fehlgeschlagenen und fertigen,
+  noch nicht übernommenen Aufträgen. Die Reihenfolge ist dieselbe wie in `scripts/jobs.py` (Vorrang, `after`, Buchreihenfolge,
+  Auftragszeit; Ringe werden ignoriert). „Vorziehen“ setzt `priority: true`; „Abbrechen“ (mit Rückfrage) markiert den Auftrag
+  als abgebrochen (`error`, `failed_at`), denn die App kann keine Dateien löschen: er steht dann als fehlgeschlagen da und läuft
+  nicht mehr. Beides geht nur bei wartenden Aufträgen, jeweils ein Commit auf den Arbeits-Branch; ein schon laufender Auftrag
+  lässt sich so nicht stoppen. Gelesen werden die Aufträge des Lesestands (Arbeits-Branch, solange ein Änderungspaket offen ist).
 - Claude-Leiste in Projektübersicht, Kapitel und Abschnitt. Claude kann Knöpfe anbieten, die nur eine Ansicht
   oder ein Formular öffnen (Liste `SAFE_ACTIONS` in `index.html`). Speichern und Abschließen bleiben eigene Schritte.
   Will der Benutzer im Chat etwas ändern, sagt Claude nicht nur „kann ich nicht“, sondern bietet den Knopf zum
