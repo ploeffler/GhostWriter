@@ -76,6 +76,26 @@ GhostWriter was developed with assistance from Claude (Anthropic); this acknowle
 - [Updates](UPDATES.en.md) · [Daily report](DAILY-SUMMARY.en.md)
 - [Assistant instructions](../START.md) and [technical documentation index](GRUNDSAETZE.md#unterlagen) (German)
 
+## Collaboration and approval authority
+
+Content approval belongs to the owner or explicitly designated approvers.
+Editing, saving, accepting changes and approving content are different powers.
+**Personal GitHub accounts** are the confirmed approach for collaboration; shared
+write credentials must not be presented as evidence of individual authority.
+
+**Current verification status:** The approval ledger records a name in `by` but
+does not authenticate it. Validation and book assembly check manuscript hashes
+and approval state, not the identity behind the entry. A chat confirmation or
+successful commit alone therefore does not establish content-approval authority.
+End-to-end role acceptance remains open. The general writing path and current
+Open WebUI tool must not be described as an implemented identity/role boundary.
+
+Implementation must verify the requester's personal account, reliably establish
+ownership or explicit delegation and protect actual writing and publication
+paths. A GitHub credential with full write access can also change files outside
+GhostWriter; chat instructions alone do not restrict those external operations.
+No accounts, credentials or repository permissions are created automatically.
+
 ---
 
 <p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

@@ -13,11 +13,15 @@ andere im Chat bzw. auf GitHub; Ergebnisse als Kommentar in #41.
 
 Legende: ✅ bestanden · ⏳ offen · — nicht anwendbar
 
+Die Tabellen halten historische Praxisfälle fest; offene Felder belegen keine
+fehlende Implementierung. Den geprüften Stand und heutige Restfälle dokumentiert
+die [Bestandsabnahme vom 16. November 2026](../tests/evidence/2026-11-16-bestandsabnahme/BERICHT.md).
+
 ## 1. Update von v0.5 (#40, #64)
 
 | Prüfung | Fork | Wo |
 |---|---|---|
-| Nächtliches bzw. von Hand gestartetes Update bringt 0.6.x (aktuell 0.6.1); Buch unverändert | ⏳ | Actions → GhostWriter aktualisieren |
+| Nächtliches bzw. von Hand gestartetes Update bringt die im Manifest ausgewiesene Programmversion; Buch unverändert | ⏳ | Actions → GhostWriter aktualisieren |
 | Migration der Datenversion gemeldet (Commit-Nachricht, Hinweis im Chat) | ⏳ | Chat |
 | Link auf das Repository zeigt weiter direkt die Projektübersicht (Einzelbuch) | ⏳ | Chat |
 | Arbeits-Branch `ghostwriter/main` wird vom Update nicht angefasst | ⏳ | Actions-Zusammenfassung |
@@ -36,7 +40,7 @@ Legende: ✅ bestanden · ⏳ offen · — nicht anwendbar
 
 | Prüfung | Fork | Testbuch | Wo |
 |---|---|---|---|
-| Link auf das Repository zeigt das Bücherregal (bei einem Buch direkt dessen Übersicht) | ⏳ | ⏳ | Chat |
+| Link auf eine Bibliothek zeigt das Bücherregal, auch bei nur einem Buch | ⏳ | ⏳ | Chat |
 | „Neues Buch“: Vorschau des Branch-Namens, vergebener Kurztitel gesperrt | ⏳ | ⏳ | Chat |
 | Anlegen: Branch `buch/<slug>` mit genau einem Commit, Einstiegsdialog läuft dort | ⏳ | ⏳ | Chat, GitHub |
 | Auswahlkarten im Einstiegsdialog (Schritte 4, 5, 6, 12, 13), Textfassung `1b, 2a` | ⏳ | ⏳ | Chat (#81) |
