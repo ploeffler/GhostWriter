@@ -327,6 +327,10 @@ class ReportRuleTest(unittest.TestCase):
             for phrase in ('nie durch eine Websuche ersetzen', 'vollständigen Dateiinhalte mit Zielpfad',
                            'keine Programmdateien ändern', '„keine Codeänderungen“'):
                 self.assertIn(phrase, text, name)
+        for name in ('CLAUDE.md', 'AGENTS.md'):   # Skills für jeden Assistenten laden
+            text = (ROOT / name).read_text(encoding='utf-8')
+            for phrase in ('Skills aus dem Repository laden (für jeden Assistenten)', '`.claude/skills/<name>/SKILL.md`', 'liest dessen `SKILL.md` vollständig'):
+                self.assertIn(phrase, text, name)
         self.assertIn('eine eigene `CHATGPT.md` ist nicht nötig', (ROOT / 'AGENTS.md').read_text(encoding='utf-8'))
         source = (ROOT / 'START.md').read_text(encoding='utf-8')
         for lang, phrase in (('de', 'Programmfehler ungefragt als Issue im Hauptrepo melden'),

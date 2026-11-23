@@ -143,6 +143,8 @@ Es gelten `AGENTS.md` und `START.md` dieses Repositorys (kommen mit jedem Update
 
 ## Skills auswählen (#261)
 
+**Unabhängig vom Assistenten:** Die Skills liegen im Repository unter `.claude/skills/<name>/SKILL.md`. Claude Code lädt sie selbst; ChatGPT, Codex und andere Assistenten werden über `AGENTS.md` (Claude über `CLAUDE.md`) angewiesen, die Kopfzeilen aller `SKILL.md` zu lesen und den passenden Skill vollständig zu laden, bevor sie beginnen. Beide Dateien kommen mit dem Update aus dem Hauptrepository; im Buch ist nichts einzurichten.
+
 Welcher Skill zu einer Aufgabe passt, entscheidet Claude anhand der Skill-Beschreibungen. Der Benutzer sieht das sonst nicht, und bei ähnlichen Beschreibungen ist die Wahl nicht eindeutig. Deshalb gilt für GhostWriter (`CLAUDE.md`, `AGENTS.md`, Skill `ghostwriter`):
 
 - **Wahl nennen:** Zu Beginn einer Aufgabe nennt Claude in einem Satz, welchen Skill es verwendet, oder dass keiner passt.
