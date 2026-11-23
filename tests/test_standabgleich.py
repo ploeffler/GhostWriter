@@ -132,6 +132,39 @@ class StandabgleichTest(unittest.TestCase):
         st = self.states(old)
         self.assertEqual((st['Profil'], st['Anweisungen']), ('neuer', 'ok'))
 
+    def test_program_change_without_version_bump_requires_refresh(self):
+        old = self.stand()
+        self.commit('scripts/test_program.py', 'print("Neue Programmlogik")\n')
+        states = self.states(old)
+        self.assertEqual(states['Programm'], 'neuer')
+        self.assertEqual(states['Anweisungen'], 'ok')
+        old = self.stand()
+        self.commit('scripts/test_program.py', 'print("Geänderte Programmlogik")\n')
+        self.assertEqual(self.states(old)['Programm'], 'neuer')
+        old = self.stand()
+        git(self.base, 'rm', 'scripts/test_program.py')
+        git(self.base, 'commit', '-qm', 'Programmdatei entfernt')
+        self.assertEqual(self.states(old)['Programm'], 'neuer')
+
+    def test_legacy_snapshot_without_program_fingerprint_requires_refresh(self):
+        old = self.stand()
+        old['program'].pop('content', None)
+        self.assertEqual(self.states(old)['Programm'], 'neuer')
+
+    def test_runtime_resources_and_workflows_are_part_of_program_fingerprint(self):
+        for path in ('schemas/test.json', 'integrations/test.py', 'templates/test.md',
+                     'assets/test.svg', '.github/workflows/test.yml',
+                     'workflow.yml', 'providers.yml'):
+            with self.subTest(path=path):
+                old = self.stand()
+                self.commit(path, 'Geänderter Programmstand')
+                self.assertEqual(self.states(old)['Programm'], 'neuer')
+
+    def test_unrelated_program_branch_note_does_not_require_program_refresh(self):
+        old = self.stand()
+        self.commit('notiz.md', 'Nur eine Notiz')
+        self.assertEqual(self.states(old)['Programm'], 'ok')
+
     def test_personal_skill_add_change_and_removal_make_instructions_stale(self):
         path = '.claude/skills/autor-auf-bibliothek/SKILL.md'
         old = self.stand()
