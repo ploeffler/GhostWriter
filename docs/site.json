@@ -177,6 +177,28 @@
       }
     },
     {
+      "id": "client-capabilities",
+      "title": {
+        "de": "Was im Chat funktioniert",
+        "en": "What works in chat"
+      },
+      "source": {
+        "de": "CLIENT-FAEHIGKEITEN.md",
+        "en": "CLIENT-CAPABILITIES.en.md"
+      }
+    },
+    {
+      "id": "chat-widgets",
+      "title": {
+        "de": "Geplante Chat-Widgets",
+        "en": "Planned chat widgets"
+      },
+      "source": {
+        "de": "CHAT-WIDGETS.md",
+        "en": "CHAT-WIDGETS.en.md"
+      }
+    },
+    {
       "id": "connector",
       "title": {
         "de": "Verbindung einrichten",

@@ -1,5 +1,7 @@
 # Chat-Apps für GhostWriter v0.5
 
+**Aktuelle Einordnung (24.11.2026):** Die folgende Tabelle ist ein historischer Befund, keine pauschale Aussage über heutige Widget-Fähigkeiten. ChatGPT bietet einen dokumentierten MCP-Apps-UI-Weg; ein GhostWriter-Adapter dafür ist noch geplant. Codex-Varianten und die tatsächlich eingebundenen Werkzeuge getrennt prüfen. Siehe [Client-Fähigkeiten](CLIENT-FAEHIGKEITEN.md) und [geplante Chat-Widgets](CHAT-WIDGETS.md).
+
 Stand: 31.10.2026. Vorrangig unterstützt werden Claude und ChatGPT. Funktionen der Chat-Apps ändern sich laufend; vor dem Einsatz prüfen.
 
 ## Ergebnis

@@ -13,7 +13,8 @@ class WikiBuildTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp)/'wiki'
             wiki.build(output)
-            self.assertEqual(len(list(output.glob('*.md'))), 49)
+            expected_pages = sum(len(page['source']) for page in wiki.config(ROOT)['pages']) + 3
+            self.assertEqual(len(list(output.glob('*.md'))), expected_pages)
             guide = next(p for p in wiki.config(ROOT)['pages'] if p['id'] == 'guide')
             self.assertIn('[English](' + wiki.page_link(guide, 'en') + ')',
                           (output/(wiki.slug(guide, 'de')+'.md')).read_text())
