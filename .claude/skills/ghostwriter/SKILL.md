@@ -110,6 +110,14 @@ Die folgenden einzelnen Chat-Befehle sind feste Abkürzungen. Sie gelten für da
 - Ist kein passender offener Pull Request vorhanden, keinen neuen Pull Request erstellen und nichts direkt in einen Branch übertragen; stattdessen den fehlenden Pull Request melden.
 - Nach dem Merge Ergebnis und Ziel-Branch kurz bestätigen. Bei Merge-Konflikten oder nicht erfüllten Schutzregeln nicht erzwingen, sondern den Hinderungsgrund nennen.
 
+## 8a. Navigation
+
+`Start` · `Übersicht` · `Buchansicht <Buch>` · `Kapitel 3` · `Abschnitt 3.2` · `Hilfe`
+
+Die vollständige Befehlsliste steht in `START.md`, Abschnitt 0, „Befehle“.
+
+- **`Buchansicht <Buch>`:** Projektübersicht eines bestimmten Buchs, ohne Umweg über das Bücherregal. `<Buch>` ist Nummer, Kurztitel (`buch/<kurztitel>`) oder Titel. Das Buch ausschließlich aus `library.json` bzw. den Branches `buch/*` bestimmen (Kurztitel zuerst, dann Titel), nie über eine Suche in Repositories, Dateien oder Pull Requests. Passen mehrere oder keines, die Treffer aus `library.json` zur Auswahl zeigen. Ohne Angabe wie `Übersicht` (Einzelbuch) bzw. Bücherregal (Bibliothek).
+
 ## 9. Erste Ansicht
 
 - Bibliothek: `library.json` vom Standard-Branch lesen und `python scripts/render_view.py . library --library library.json --repo <owner>/<repo>`; bei genau einem Buch direkt dessen Projektübersicht.
