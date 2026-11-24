@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GhostWriter checkouts.yml (#572)",
+  "type": "object",
+  "required": ["checkouts"],
+  "properties": {
+    "checkouts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "bereich", "zeit"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^GW-[A-HJ-NP-Z2-9]{4}$", "description": "Checkout-Kennung, eindeutig im Buch"},
+          "status": {"enum": ["ausgecheckt", "beendet", "abgebrochen"]},
+          "bereich": {
+            "type": "object",
+            "properties": {
+              "chapters": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+              "book": {"const": true}
+            },
+            "oneOf": [{"required": ["chapters"]}, {"required": ["book"]}],
+            "additionalProperties": false
+          },
+          "gegenleser": {"type": "string", "description": "GitHub-Login oder Name"},
+          "ausgecheckt_von": {"type": "string"},
+          "zeit": {"type": ["string", "object"], "description": "ISO 8601"},
+          "frist": {"type": ["string", "object"], "description": "JJJJ-MM-TT; nie automatisches Entsperren"},
+          "commit": {"type": "string", "description": "voller SHA des Buch-Branchs beim Auschecken"},
+          "abschnitte": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Fingerabdruck des Manuskripts je Abschnitt"},
+          "dateien": {"type": "array", "items": {"type": "string"}},
+          "zurueckgeholt": {"type": "array", "items": {"type": "object", "required": ["chapters"],
+                            "properties": {"chapters": {"type": "array", "items": {"type": "string"}}, "zeit": {"type": ["string", "object"]}, "von": {"type": "string"}}}},
+          "beendet": {"type": "object", "properties": {"zeit": {"type": ["string", "object"]}, "von": {"type": "string"}, "grund": {"type": "string"}}}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
