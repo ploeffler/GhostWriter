@@ -90,8 +90,13 @@ Der Weg zu v0.5 ist in fünf Stufen geteilt. Jede endet mit einer Abnahme im Cha
 | v0.8 | Vorschlag, keine Zusage: Manuskript importieren, Gliederung übernehmen, Formatverluste erkennen; Figuren, Stil und Kontinuität prüfen ([Ausblick](AUSBLICK-v1.0.md)) |
 | v0.9 | Vorschlag, keine Zusage außer der Website: Deutsch/Englisch, Bedienglossar, ehrliche Kosten- und Limitangaben, zentrale Dokumentationswebsite mit Suche ([Ausblick](AUSBLICK-v1.0.md)) |
 | v1.0 | Vollständiger Buchworkflow in ChatGPT, Codex, Claude und Open WebUI; Standabgleich, beschlossene Sitzungssicherung, Bilder/Referenzen/Bildrecherche, Import und Chat-Analysen, Deutsch/Englisch, Datenseite und vorhandener Profiler. Keine eigene Web-App, kein eigener Verwaltungsdienst, keine KI-Anbieter-API-Anbindungen. Maßgeblich: [Beschlüsse D01–D32](ENTSCHEIDUNGEN-v1.0.md). |
-| v1.1 | Externe DOCX-Bearbeitung mit Checkout, Buchsperre und kontrollierter Rückführung (#209, D17) |
-| v1.5 | Vorwort, Nachwort, Glossar (#58); Übersetzung des Buchs mit Auflagen je Sprache (#75); eigene Ansicht für das Figurengespräch (#431) |
+| v1.1 | Planung, keine Zusage: Fehler und auslaufende KI-Modelle (#529, #554, #563); lange Befundlisten in Stufen abarbeiten (#570, #473); Prüfungen in der Buchansicht (#538); Abschnitte als „veraltet“ (#510) |
+| v1.2 | Planung: Mehrere Autoren Teil 1 – Bereich zum Gegenlesen auschecken (#572), Material einbringen (#574); Referenzbilder (#143); Glossar-Analyse (#490) |
+| v1.3 | Planung: Mehrere Autoren Teil 2 – Rückgabe einchecken (#573) und kontrollierte Rückführung (#209, D17); Skill `ghostwriter` entflechten (#569); Gesamtsicherung (#489) |
+| v1.4 | Planung: Warteschlange und KI-Dienste – Agenten-Aufgaben (#65), Recherche-Warteschlange Teil 2 (#478), Kosten und Budget (#66), Rundumprüfung im Hintergrund (#531), Recherche mit Internet Teil 2 (#462), Figurenanalyse (#123) |
+| v1.5 | Planung: Figurengespräch Stufe 2 und 3 (#430, #431), Figurenbild-Assistent (#540), Buchteaser-Skill (#532), weitere Clients (#525, #555), Übersetzung des Buchs mit Auflagen je Sprache (#75) |
+
+Stand der Planung: 24.11.2026, maßgeblich sind die Meilensteine im Hauptrepository.
 
 Jeder Schritt, der die Datenstruktur ändert, liefert eine Migration mit (#59); Doku und Programm prüft `scripts/check_docs.py` in `validate.yml`.
 
@@ -194,7 +199,7 @@ Der ausführbare Git-/PR-Helfer `scripts/chat_backup.py` prüft konkurrierende �
 
 ### Extern in Word oder LibreOffice weiterarbeiten (geplant)
 
-**Anforderung [#209](https://github.com/ploeffler/GhostWriter/issues/209), noch nicht umgesetzt; Versionszuordnung offen.** Ein Benutzer gibt eine DOCX-Arbeitskopie aus, arbeitet beispielsweise zwei Wochen außerhalb von GhostWriter und lädt die bearbeitete Datei im Chat hoch. Die Änderungen werden kontrolliert in dasselbe Buch zurückgeführt. Der bestehende Erstimport (#124) legt ein neues Buch an und ersetzt diesen Abgleich nicht.
+**Anforderung [#209](https://github.com/ploeffler/GhostWriter/issues/209), noch nicht umgesetzt; geplant für v1.3, Auschecken als Teil 1 in v1.2 ([#572](https://github.com/ploeffler/GhostWriter/issues/572)), Rückgabe als Teil 2 ([#573](https://github.com/ploeffler/GhostWriter/issues/573)).** Ein Benutzer gibt eine DOCX-Arbeitskopie aus, arbeitet beispielsweise zwei Wochen außerhalb von GhostWriter und lädt die bearbeitete Datei im Chat hoch. Die Änderungen werden kontrolliert in dasselbe Buch zurückgeführt. Der bestehende Erstimport (#124) legt ein neues Buch an und ersetzt diesen Abgleich nicht.
 
 - **Arbeitskopie:** Von Lesevorschau und veröffentlichter Auflage unterscheiden. Repository, Buch-/Lesebranch, Quellcommit, Exportkennung und tatsächlichen exportierten Ausgangstext zuordnen; beständige Kennungen für Kapitel und Abschnitte vorsehen und ihren Erhalt in den unterstützten Programmen prüfen. Unfertige Inhalte dürfen als erkennbarer Arbeitsstand enthalten sein.
 - **Checkout und Bearbeitungssperre:** Zur externen Bearbeitung das gesamte Buch ausdrücklich auschecken. Sperre mit Buch, Checkout-/Exportkennung, Benutzer, Zeitpunkt und Ausgangscommit dauerhaft clientübergreifend speichern und als „Extern in Bearbeitung / ausgecheckt“ anzeigen. Lesen bleibt möglich; sämtliche regulären GhostWriter-Schreibwege einschließlich anderer Chats, Automatik, Metadaten-, Struktur-, Freigabe-, Update- und Auflagenänderungen am betroffenen Buch müssen die Sperre beachten. Andere Bücher bleiben bearbeitbar. Laufende Schreiber beim Checkout koordiniert abschließen oder stoppen; Arbeitskopie erst nach bestätigter Sperre auf feststehender Basis als geschützt ausgeben. Reine Lesevorschau sperrt nicht; keine zweite unabhängige Arbeitskopie während der Sperre, erneuter Download derselben Exportfassung bleibt möglich.
