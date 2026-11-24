@@ -67,7 +67,8 @@ Book references and manuscript remain unchanged.
 
 The [three review types](EDITORIAL-REVIEW.en.md) initially provide findings in
 chat; they do not change the manuscript or grant approval. The full chapter
-check (“Full check of chapter 3”) combines them and fixes only what needs no author.
+check (“Full check of chapter 3”) combines them and applies what needs no author or has a
+clear proposal.
 
 ## Example prompts
 

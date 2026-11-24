@@ -21,9 +21,12 @@ explizit beauftragte Korrekturen bleiben innerhalb ihres erlaubten Umfangs mögl
 Eine bestandene Prüfung ersetzt keine Autorenfreigabe.
 **Rundumprüfung (#447):** „Rundumprüfung Kapitel N“ bzw. „Kapitel N komplett
 prüfen“ folgt dem gleichnamigen Abschnitt der Anleitung. Nur dieser Auftrag
-schließt das Beheben der `hinweise.py`-Einträge unter „Ohne Autor lösbar“ ein,
-sonst nichts. Abgeschlossene Abschnitte (`approvals.section: true`) werden nie
-geändert; keine Freigabe, kein Übernehmen ohne ausdrückliche Bestätigung.
+schließt das Umsetzen aller Einträge mit eindeutigem Vorschlag ein (#565):
+`hinweise.py accept` nimmt „Ohne Autor lösbar“ und Autorenentscheidungen mit
+`alt` → `neu` an, nie Blockierendes, Buchweites oder Einträge mit mehreren
+`varianten`; der Bericht nennt sie unter „Ohne Rückfrage umgesetzt“.
+Abgeschlossene Abschnitte (`approvals.section: true`) werden nie geändert;
+keine Freigabe, kein Übernehmen ohne ausdrückliche Bestätigung.
 Wird ein Bericht gespeichert, den Lauf mit `scripts/checks.py record` ins
 Prüfprotokoll `editorial/checks.yml` eintragen (#331); daraus entstehen die
 Prüf-Tags in den Ansichten. Dabei immer `--notes <n>` mitgeben: Zahl der offenen

@@ -40,7 +40,7 @@ The linked guides remain authoritative. Technical identifiers in `code font` are
 - <a id="revision"></a>**Revision** (Überarbeitung): The draft is improved with you and reviewed as a whole (`revision`). A reopened section returns here.
 - <a id="fact-check"></a>**Fact check** (Faktenprüfung): On request, a report with suggested corrections (`fact_check`). It does not change the text by itself.
 - <a id="review-result"></a>**Review result** (Prüfergebnis): Outcome of an editorial review: *passed*, *passed with notes* or *failed*. Even a pass finalizes nothing. See [quality assurance](QUALITY-ASSURANCE.en.md#review-result).
-- <a id="full-chapter-check"></a>**Full chapter check** (Rundumprüfung): Reviews one chapter in a single pass for structure, language, spelling, ground rules and story memory. Only what needs no author is fixed; everything else goes to the notes review. Nothing is merged. See [editorial review](EDITORIAL-REVIEW.en.md#full-chapter-check-447).
+- <a id="full-chapter-check"></a>**Full chapter check** (Rundumprüfung): Reviews one chapter in a single pass for structure, language, spelling, ground rules and story memory. What needs no author or has a clear proposal is applied (never anything blocking); everything else goes to the notes review. Nothing is merged. See [editorial review](EDITORIAL-REVIEW.en.md#full-chapter-check-447).
 
 ## States, finalizing and approvals
 
