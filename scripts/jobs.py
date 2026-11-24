@@ -206,6 +206,18 @@ def prioritize(base, request):
     return job['path']
 
 
+def retry(base, request):
+    """Erneut versuchen (#554): `error` und `failed_at` entfernen, der Auftrag ist wieder offen. Kein zweiter Auftrag.
+    Nur fehlgeschlagene Aufträge; Frage, Modell und Anbieter bleiben, wie sie sind."""
+    job = find(base, request)
+    if job['state'] != 'failed':
+        raise ValueError('Erneut versuchen geht nur bei fehlgeschlagenen Aufträgen.')
+    for key in ('error', 'failed_at'):
+        job['data'].pop(key, None)
+    write(job['path'], job['data'])
+    return job['path']
+
+
 def cancel(base, request):
     """Abbrechen: den Auftrag entfernen. Nur wartende Aufträge; ein bereits laufender lässt sich so nicht stoppen."""
     job = find(base, request)
@@ -618,7 +630,7 @@ def listing(base):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('base')
-    ap.add_argument('cmd', choices=['list', 'enqueue', 'prioritize', 'cancel', 'process', 'remote', 'report'])
+    ap.add_argument('cmd', choices=['list', 'enqueue', 'prioritize', 'retry', 'cancel', 'process', 'remote', 'report'])
     ap.add_argument('--language', default='de')
     ap.add_argument('--start', action='store_true', help='remote: Abarbeitung je Buch starten')
     ap.add_argument('--paused', action='store_true', help='remote: Automatik pausiert, nur melden')
@@ -628,7 +640,7 @@ def main(argv=None):
     ap.add_argument('--field', action='append', default=[], metavar='NAME=WERT',
                     help='enqueue: Feld der Art (z. B. folder=…, kind=characters,style); true/false werden zu Wahrheitswerten')
     ap.add_argument('--section')
-    ap.add_argument('--request', help='prioritize/cancel: Auftrag (Pfad im Buch oder Dateiname)')
+    ap.add_argument('--request', help='prioritize/retry/cancel: Auftrag (Pfad im Buch oder Dateiname)')
     ap.add_argument('--priority', action='store_true', help='enqueue: vorziehen')
     ap.add_argument('--after', help='enqueue: erst nach diesem Auftrag (Pfad im Buch)')
     ap.add_argument('--question')
@@ -670,13 +682,13 @@ def main(argv=None):
                 with open(summary_path, 'a', encoding='utf-8') as f:
                     f.write('\n' + text + '\n')
             return 0
-        if a.cmd in ('prioritize', 'cancel'):
+        if a.cmd in ('prioritize', 'cancel', 'retry'):
             if not a.request:
                 raise ValueError('--request angeben.')
-            path = (prioritize if a.cmd == 'prioritize' else cancel)(base, a.request)
+            path = {'prioritize': prioritize, 'cancel': cancel, 'retry': retry}[a.cmd](base, a.request)
             if a.push_to:
-                commit_push(base, f'Warteschlange: {path.relative_to(base)} ' + ('vorgezogen' if a.cmd == 'prioritize' else 'abgebrochen'),
-                            a.push_to)
+                commit_push(base, f'Warteschlange: {path.relative_to(base)} '
+                            + {'prioritize': 'vorgezogen', 'cancel': 'abgebrochen', 'retry': 'erneut versuchen'}[a.cmd], a.push_to)
             print(path.relative_to(base))
             return 0
         if a.cmd == 'enqueue':

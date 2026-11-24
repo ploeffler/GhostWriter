@@ -5,8 +5,9 @@
 # Vor dem Einsatz beim jeweiligen Anbieter prüfen und `checked_at` aktualisieren.
 #
 # Die IDs werden in ghostwriter.yml unter `ai_providers` verwendet.
-# Modellnamen werden bewusst NICHT hier gepflegt, sondern pro Rolle in
-# ghostwriter.yml (`model`), weil sie sich zu schnell ändern.
+# Modellnamen je Rolle stehen in ghostwriter.yml (`model`). Nur die Vorgaben, die
+# GhostWriter selbst benutzt, wenn dort nichts steht, stehen unten unter `model_defaults`
+# (#554): so genügt bei einer Abkündigung eine Änderung hier statt im Code.
 #
 # Felder:
 #   kind:          llm | search_api | scholarly_index | coding_agent | platform | aggregator | local
@@ -28,6 +29,19 @@
 
 version: "1.0"
 checked_at: "2026-10-31"
+
+# Vorgabemodelle je Anbieter und Aufgabe (#554). `checked_at` = Datum der letzten Prüfung beim Anbieter.
+# Ein Buch überschreibt sie in den Einstellungen (ai_providers.services.<id>.model). Aufgaben:
+# research (Recherche in der Action), image (Colorieren). Wer ein Modell hier ändert, setzt `checked_at` neu.
+# `python3 scripts/model_defaults.py check` vergleicht die Modelle mit den kostenlosen Listen der Anbieter.
+model_defaults:
+  anthropic:
+    research: {model: claude-sonnet-5-5, checked_at: "2026-10-31"}
+  openai:
+    research: {model: gpt-5, checked_at: "2026-10-31"}
+  google:
+    research: {model: gemini-3.8-flash, checked_at: "2026-11-22"}
+    image: {model: gemini-2.5-flash-image, checked_at: "2026-10-31"}
 
 # Sonderwert: der Assistent, mit dem gerade gechattet wird (egal welcher Anbieter).
 special:

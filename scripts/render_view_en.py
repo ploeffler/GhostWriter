@@ -202,6 +202,11 @@ def render(template, data, config, renderer, base):
             lines += ['> ' + analysis['A_TEXT'] + ' · `' + renderer.ANALYSIS_KEY.get(analysis['A_KIND'], 'AN') + '`', '']
         if data.get('CHECKS_RECENT_TEXT'):
             lines += ['🧪 **Latest checks:** ' + data['CHECKS_RECENT_TEXT'], '']
+            try:
+                from . import checks as checks_mod
+            except ImportError:
+                import checks as checks_mod
+            lines += checks_mod.todo(rows, 'en')   # #538
         for field in ('IMPORT_TEXT', 'PROJECT_DESCRIPTION_SHORT', 'PROJECT_DESCRIPTION'):
             if data.get(field):
                 lines += [data[field], '']

@@ -117,6 +117,8 @@ For the queue, the agent's ability to work with the repository matters: it reads
 
 Add providers to `providers.yml` with a unique `id` and the appropriate fields, and update the corresponding documentation tables. Update `checked_at` when checking a provider. Keep the German and English versions in sync.
 
+**Model defaults (#554):** The models GhostWriter itself uses when a book sets none (research in the workflow, colorizing) live in `providers.yml` under `model_defaults`, per provider and task with `model` and `checked_at` (date of the last check). When a model is retired, one change there is enough; a book can override it in its settings (“AI services”, model). `python3 scripts/model_defaults.py show` lists the defaults; `python3 scripts/model_defaults.py check` compares them and the configured models with the providers’ free model lists, only for providers whose key is present in the environment (a read-only call, never a live test, never an automatic switch to another model).
+
 ---
 
 <p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

@@ -502,6 +502,16 @@ def create_book(title, short='', author='', cwd=ROOT, namespace='refs/remotes/or
     return r
 
 
+def general_skills(cwd=ROOT):
+    """Namen der allgemeinen Skills: einzige Quelle sind die Schlüssel unter `skills:` in ghostwriter-skills.yml (#584)."""
+    lock = Path(cwd, 'ghostwriter-skills.yml')
+    if not lock.is_file():
+        lock = ROOT / 'ghostwriter-skills.yml'   # Prüfung eines fremden Ordners: die Liste dieses Programms gilt
+    data = yaml.safe_load(lock.read_text(encoding='utf-8')) if lock.is_file() else None
+    skills = (data or {}).get('skills') if isinstance(data, dict) else None
+    return set(skills) if isinstance(skills, dict) else set()
+
+
 def program_problems(cwd=ROOT, namespace='refs/remotes/origin', manifest=None):
     """Hauptrepository ohne Buchinhalte (#48): (fehler, warnungen).
     Buch-Branches und Auflagen-Tags sind seit dem Umzug des Testbuchs Fehler; warnungen bleibt für spätere Hinweise."""
@@ -518,9 +528,9 @@ def program_problems(cwd=ROOT, namespace='refs/remotes/origin', manifest=None):
     if Path(cwd, 'assistant.yml').is_file():
         errors.append('assistant.yml im Programm-Repository; das Assistenten-Profil gehört in das Buch-Repository (#136)')
     skills = Path(cwd, '.claude', 'skills')
+    general = general_skills(cwd)
     for d in sorted(skills.iterdir()) if skills.is_dir() else []:
-        if d.is_dir() and d.name not in {'ghostwriter', 'ghostwriter-lektorat', 'ghostwriter-buchgedaechtnis',
-                                                'ghostwriter-gegenlesen', 'ghostwriter-material'}:
+        if d.is_dir() and d.name not in general:
             errors.append(f'.claude/skills/{d.name}/ im Programm-Repository; persönliche Skills gehören in das Buch-Repository (#136)')
     eds = [p for p in Path(cwd, 'editions').glob('*.md')] if Path(cwd, 'editions').is_dir() else []
     if eds:

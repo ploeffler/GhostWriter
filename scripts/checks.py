@@ -748,6 +748,42 @@ def as_json(tag_list, keep=JSON_KEYS):
     return json.dumps([{k: t.get(k, '') for k in keep} for t in tag_list], ensure_ascii=False, separators=(',', ':'))
 
 
+TODO_MAX = 8   # höchstens so viele Kapitel in „Handlungsbedarf“, der Rest als Zahl (#538)
+TODO_TEXT = {
+    'de': {'head': 'Handlungsbedarf', 'chapter': 'Kapitel', 'failed': 'nicht bestanden', 'changed': 'Text seit der Prüfung geändert, neu prüfen',
+           'notes': 'offene Hinweise', 'note': 'offener Hinweis', 'more': 'weitere Kapitel'},
+    'en': {'head': 'Needs attention', 'chapter': 'Chapter', 'failed': 'failed', 'changed': 'text changed since the check, check again',
+           'notes': 'open notes', 'note': 'open note', 'more': 'more chapters'},
+}
+
+
+def todo(rows, language='de'):
+    """Kompakte Zeilen „Handlungsbedarf“ für die Projektübersicht (#538): je Kapitel nur, was jetzt zu tun ist
+    (nicht bestanden, seit der Prüfung geändert, offene Hinweise). Ohne Bedarf keine Zeile. Die Prüfhistorie bleibt
+    in den Prüfdetails bzw. der Kapitelansicht."""
+    t = TODO_TEXT['en' if language == 'en' else 'de']
+    items = []
+    for r in rows:
+        parts = []
+        for tag in r.get('CHAPTER_CHECKS') or []:
+            name = tag.get('CK_LABEL') or tag.get('CK_TAG', '')
+            if tag.get('CK_RESULT') == 'failed':
+                parts.append(f'{name} {t["failed"]}')
+            elif tag.get('CK_STATE') == 'changed':
+                parts.append(f'{name}: {t["changed"]}')
+        notes = r.get('CHAPTER_NOTES') or 0
+        if notes:
+            parts.append(f'{notes} ' + (t['note'] if notes == 1 else t['notes']))
+        if parts:
+            items.append(f'- {t["chapter"]} {r["CHAPTER_NUMBER"]}: ' + ' · '.join(parts))
+    if not items:
+        return []
+    shown = items[:TODO_MAX]
+    if len(items) > TODO_MAX:
+        shown.append(f'- … {len(items) - TODO_MAX} {t["more"]}')
+    return [f'**{t["head"]}:**'] + shown + ['']
+
+
 def short_text(tag_list):
     """Textfassung: „S✓ L✓· K✓*“ bzw. „–“."""
     return ' '.join(t['CK_TAG'] for t in tag_list) or '–'
