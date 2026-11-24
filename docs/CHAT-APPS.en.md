@@ -11,15 +11,25 @@ At the time of the assessment, the built-in GitHub connections in Claude and Cha
 | Capability | Claude built-in integration | Claude with a working environment | ChatGPT GitHub connector | ChatGPT Codex | Custom GitHub MCP connector |
 |---|---|---|---|---|---|
 | Read repository | Yes, branch files | Yes | Yes | Yes | Yes |
-| Commit and branch | No | Yes | No | Yes | Listed by the server; test in the chat |
-| Open a pull request | No | Yes | No | Yes | Test in the chat |
-| Merge a pull request | No | Yes | No | Not established | Test in the chat |
+| Commit and branch | No | Yes | Yes, through the connector (evidenced 24 Nov 2026, #579) | Yes | Listed by the server; test in the chat |
+| Open a pull request | No | Yes | Yes, through the connector (evidenced 24 Nov 2026, #579) | Yes | Test in the chat |
+| Merge a pull request | No | Yes | Not established | Not established | Test in the chat |
 | Create tags and releases | No | Rejected for the tested session type; branch deletion was also rejected | No | Not established | Not established |
 | Inline widgets that respond in chat | Yes | If offered by the session | No | No | Depends on the app |
 
 The original assessment refers to [Anthropic's GitHub integration help](https://support.claude.com/en/articles/10167454-use-the-github-integration), [OpenAI's GitHub connection help](https://help.openai.com/en/articles/11145903-connecting-github-to-chatgpt) and the official [GitHub MCP server](https://github.com/github/github-mcp-server). These are links for checking current information, not evidence that every capability is available in a particular session.
 
 **Field report of 22 November 2026 (#22, reported by the owner):** Work with repositories was done in both Claude and ChatGPT. Changing a file with a commit, creating a branch, opening a pull request and merging a pull request worked in both apps, and a GhostWriter form saved as a pull request in ChatGPT. A mixed path was used; which connection was used in each app (custom connector, Codex or Claude Code) is not recorded per column. The custom-connector column therefore stays without individual evidence until this is added per app and plan.
+
+**Addendum of 24 November 2026 (#579):** The report also holds for the ChatGPT chat: its GitHub connector offers branches, commits and pull requests, even without Git access, a `gh` login or `add_repo`. Evidence: a commit and the pull request "GhostWriter: offene Änderungen" in `chillyconcane/YAWA` created through the connector, with `validate` running. The write check therefore depends on the access (skill `ghostwriter`, section 2):
+
+| Access | Check | Proof of writing |
+|---|---|---|
+| Clone and Git login (Claude Code, Claude with `add_repo`, Codex) | `permissions.push` and a probe push with `--dry-run` | the probe push, then the first commit |
+| GitHub connector only (ChatGPT chat, Claude without a clone) | `permissions.push` through the connector; **no probe push** | the first real commit on `ghostwriter/<book-branch>` |
+| No write tool | nothing to check | output the full file contents with target paths in the chat (`START.md`, "Freigabe und Repository-Übertragung") |
+
+The assistant states in one sentence which case applies instead of stopping. If a client cannot open a pull request, the assistant asks the user to open it on GitHub.
 
 ## Ways to work with the repository
 

@@ -6,18 +6,28 @@ Welche Fähigkeiten (Text, Dateianzeige, Auswahlfragen, GhostWriter-Widgets, ins
 
 ## Ergebnis
 
-Die **eingebauten GitHub-Verbindungen** beider Apps können nur lesen. Für Weg A braucht GhostWriter aber Schreibzugriff: Commits auf einen Arbeits-Branch, Pull Request anlegen und mergen, Tag und Release anlegen.
+Die **eingebauten GitHub-Verbindungen** beider Apps können nur lesen (Stand der Bewertung; der Connector im ChatGPT-Chat schreibt laut Nachtrag vom 24.11.2026 inzwischen). Für Weg A braucht GhostWriter aber Schreibzugriff: Commits auf einen Arbeits-Branch, Pull Request anlegen und mergen, Tag und Release anlegen.
 
 | Fähigkeit | Claude: eingebaute GitHub-Integration | Claude mit Arbeitsumgebung (agentische Sitzung, Claude Code) | ChatGPT: GitHub-Connector | ChatGPT: Codex | Eigener Connector mit GitHubs MCP-Server (beide Apps) |
 |---|---|---|---|---|---|
 | Repository lesen | ja (Dateien eines Branches) | ja | ja | ja | ja |
-| Commit, Branch | nein | ja | nein | ja | laut Werkzeugliste vorgesehen, im Chat zu testen |
-| Pull Request anlegen | nein | ja | nein | ja | zu testen |
-| Pull Request mergen | nein | ja | nein | nicht belegt | zu testen |
+| Commit, Branch | nein | ja | ja, über den Connector (belegt 24.11.2026, #579) | ja | laut Werkzeugliste vorgesehen, im Chat zu testen |
+| Pull Request anlegen | nein | ja | ja, über den Connector (belegt 24.11.2026, #579) | ja | zu testen |
+| Pull Request mergen | nein | ja | nicht belegt | nicht belegt | zu testen |
 | Tag und Release anlegen | nein | nein: in der Sitzung vom 31.10.2026 von GitHub abgelehnt („not permitted for this session type“), ebenso Branches löschen | nein | nicht belegt | nicht belegt |
 | Chat-Vorlagen als Widget mit Rückmeldung in den Chat | ja (Inline-Widgets) | ja, wenn die Sitzung Widgets anbietet | nein, Textfassung nötig | nein | wie die jeweilige App |
 
 **Praxisbericht vom 22.11.2026 (#22, Angabe des Eigentümers):** In Claude und in ChatGPT wurde mit Repositories gearbeitet; Datei ändern mit Commit, Branch anlegen, Pull Request anlegen und Pull Request mergen funktionierten in beiden Apps, und ein GhostWriter-Formular speicherte in ChatGPT als Pull Request. Genutzt wurde ein gemischter Weg; welche Verbindung je App im Einzelnen im Einsatz war (eigener Connector, Codex oder Claude Code), ist nicht je Spalte festgehalten. Die Spalte „Eigener Connector“ bleibt deshalb ohne ausdrückliche Einzelbelege, bis das je App und je Tarif nachgetragen ist.
+
+**Nachtrag vom 24.11.2026 (#579):** Der Praxisbericht stimmt auch für den ChatGPT-Chat: Der GitHub-Connector bietet dort Branches, Commits und Pull Requests, auch ohne Git-Zugang, `gh`-Anmeldung und `add_repo`. Ein Beleg: Commit und Pull Request „GhostWriter: offene Änderungen“ in `chillyconcane/YAWA` über den Connector, `validate` lief mit. Die Schreibprüfung muss deshalb je Zugang erfolgen (Skill `ghostwriter`, Abschnitt 2):
+
+| Zugang | Prüfung | Nachweis des Schreibens |
+|---|---|---|
+| Klon und Git-Anmeldung (Claude Code, Claude mit `add_repo`, Codex) | `permissions.push` und Probe-Push mit `--dry-run` | Probe-Push, dann der erste Commit |
+| Nur GitHub-Connector (ChatGPT-Chat, Claude ohne Klon) | `permissions.push` über den Connector; **kein Probe-Push** | der erste echte Commit auf `ghostwriter/<buch-branch>` |
+| Kein Schreibwerkzeug | nichts zu prüfen | Dateien mit Zielpfad im Chat ausgeben (`START.md`, „Freigabe und Repository-Übertragung“) |
+
+Der Assistent nennt in einem Satz, welcher Fall vorliegt, statt abzubrechen. Kann ein Client keinen Pull Request anlegen, bittet der Assistent den Benutzer, ihn auf GitHub anzulegen.
 
 Belege:
 - Claude: Die GitHub-Integration synchronisiert nur Dateinamen und Inhalte eines Branches, ohne Commit-Historie und Pull Requests ([Anthropic-Hilfe: Use the GitHub integration](https://support.claude.com/en/articles/10167454-use-the-github-integration)).

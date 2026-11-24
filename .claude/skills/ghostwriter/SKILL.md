@@ -19,7 +19,9 @@ Kurzfassung von `START.md`, Abschnitt 0. Bei Abweichungen gilt `START.md`. Die a
 
 ## 2. Einrichten und Schreibzugriff prüfen (ohne etwas zu ändern)
 
-In einer Claude-Sitzung mit Repository-Werkzeugen:
+Der Zugang bestimmt die Prüfung (#579). Stelle zuerst fest, welcher Fall vorliegt, nenne ihn in einem Satz und brich nie ab, nur weil ein Werkzeug des anderen Falls fehlt.
+
+**Fall 1: Klon und Git-Anmeldung** (Claude Code, Claude mit `add_repo`, Codex)
 
 1. Repository einbinden: `add_repo` mit `owner`, `repo` und `access: push`. Ohne diesen Schritt liefern die GitHub-Werkzeuge bei privaten Repositorys 404.
 2. Flach klonen, großzügiges Timeout: `git clone --depth 1 https://github.com/<owner>/<repo> /home/claude/<repo>`, danach `register_repo_root`.
@@ -32,9 +34,17 @@ gh api repos/<owner>/<repo> --jq .permissions.push        # muss true sein
 git push --dry-run origin HEAD:refs/heads/zz-schreibtest  # muss „[new branch]“ melden, legt nichts an
 ```
 
-- Ergebnis in einem Satz nennen („✓ Schreibzugriff als <login> auf <owner>/<repo> geprüft.“).
-- Schlägt eine Prüfung fehl: in einem Satz sagen, welche (falscher Login, kein Push-Recht, Push abgelehnt), und nichts committen. Ohne Schreibzugriff gilt `START.md`, Abschnitt 7 (Dateien im Chat ausgeben).
-- Ohne Klon reicht die GitHub-Verbindung des Chats für die Prüfung von `permissions.push`.
+**Fall 2: nur GitHub-Connector** (ChatGPT-Chat, Claude ohne Klon): kein Klon, kein `gh`, kein `git push`. **Kein Probe-Push verlangen.**
+
+- Prüfung: `permissions.push` und den Login über den Connector lesen.
+- Schreiben über die Werkzeuge des Connectors (Branch anlegen, Dateien mit Commit schreiben, Pull Request anlegen) auf den Arbeits-Branch `ghostwriter/<buch-branch>`; fehlt er, vorher über den Connector vom Buch-Branch anlegen.
+- Nachweis des Schreibens ist der erste echte Commit. Schlägt er fehl: in einem Satz melden, dann Fall 3.
+- Kann der Connector keinen Pull Request anlegen, sag das und bitte den Benutzer, den Pull Request „GhostWriter: offene Änderungen“ auf GitHub anzulegen (Link auf den Arbeits-Branch nennen).
+
+**Fall 3: kein Schreibwerkzeug:** `START.md`, Abschnitt 7: vollständige Dateiinhalte mit Zielpfad im Chat ausgeben.
+
+- Ergebnis in einem Satz nennen („✓ Schreibzugriff als <login> auf <owner>/<repo> geprüft.“ bzw. „✓ Schreibzugriff über den GitHub-Connector als <login>.“).
+- Schlägt eine Prüfung fehl: in einem Satz sagen, welche (falscher Login, kein Push-Recht, Push abgelehnt), und nichts committen; weiter mit dem nächsten Fall.
 
 ## 3. Git-Benutzer setzen
 
