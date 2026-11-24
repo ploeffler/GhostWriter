@@ -148,6 +148,36 @@ class StandabgleichTest(unittest.TestCase):
         git(self.base, 'branch', '-qD', 'ghostwriter/arbeit')
         self.assertEqual(self.states(old)['Arbeit'], 'konflikt')   # verschwunden, nicht im Buch
 
+    def test_pruned_remote_work_is_not_hidden_by_remaining_local_branch(self):
+        remote = self.base.parent / 'remote.git'
+        subprocess.run(['git', 'clone', '--quiet', '--bare', str(self.base), str(remote)], check=True)
+        git(self.base, 'remote', 'add', 'origin', str(remote))
+        git(self.base, 'fetch', '-q', 'origin')
+        old = self.stand()
+        git(remote, 'branch', '-qD', 'ghostwriter/arbeit')
+        git(self.base, 'fetch', '-q', '--prune', 'origin')
+        self.assertTrue(git(self.base, 'rev-parse', 'refs/heads/ghostwriter/arbeit'))
+        self.assertEqual(self.states(old)['Arbeit'], 'konflikt')
+        self.assertIsNone(sa.resolve(self.base, 'ghostwriter/arbeit'))
+        self.assertEqual(sa.resolve(self.base, 'refs/heads/ghostwriter/arbeit'), old['work']['head'])
+
+    def test_pruned_merged_remote_work_reads_book_despite_remaining_local_branch(self):
+        remote = self.base.parent / 'remote.git'
+        subprocess.run(['git', 'clone', '--quiet', '--bare', str(self.base), str(remote)], check=True)
+        git(self.base, 'remote', 'add', 'origin', str(remote))
+        git(self.base, 'fetch', '-q', 'origin')
+        old = self.stand()
+        git(self.base, 'switch', '-q', 'buch/adhs')
+        git(self.base, 'merge', '-q', '--no-ff', '-m', 'Übernahme', 'ghostwriter/arbeit')
+        git(self.base, 'push', '-q', 'origin', 'buch/adhs')
+        git(self.base, 'switch', '-q', 'main')
+        git(remote, 'branch', '-qD', 'ghostwriter/arbeit')
+        git(self.base, 'fetch', '-q', '--prune', 'origin')
+        result = sa.compare(self.base, old)
+        self.assertEqual(dict((a, s) for a, s, _ in result)['Arbeit'], 'neuer')
+        self.assertIn('übernommen', dict((a, t) for a, _, t in result)['Arbeit'])
+        self.assertIsNone(sa.resolve(self.base, 'ghostwriter/arbeit'))
+
     def test_merged_work_still_present_reads_new_book_data(self):
         old = self.stand()
         git(self.base, 'switch', '-q', 'buch/adhs')

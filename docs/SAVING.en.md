@@ -22,6 +22,10 @@ When no working branch was selected in a snapshot, the comparison also observes 
 
 If the selected working version is fully contained in the book history, the comparison uses the current book version for data-version and index checks even while the working branch still exists. It reports the completed merge and requests a fresh reading from the book branch. Additional unmerged working commits remain selected; a reset or diverged working branch is not treated as a completed merge. This read-only check neither deletes branches nor grants content approval.
 
+With an `origin` remote configured, the local state comparison and handover resolve ordinary branch names only from `origin` tracking references. After `fetch --prune`, a remaining local branch must not conceal a deleted remote branch. Without `origin`, local branches remain usable. To deliberately inspect a local branch or tag, use its full `refs/heads/...` or `refs/tags/...` name. Missing tracking references require fetching and checking the remote fetch configuration; they do not prove deletion on the server by themselves.
+
+The handover helper also fetches with `--prune` when `--fetch` is requested. If a working branch has disappeared, it verifies that the saved working commit is contained in the book history: completed merges require a refresh; missing, unmerged or unverifiable work is a conflict and must not be overwritten.
+
 After confirmed upload, the state is **saved, not yet merged**. You can view and continue working on that version; views read from the open change package. Changes reach the merged book version only after **Apply changes**. You confirm the current version shown to you. If it changes meanwhile, the revised package must be shown again.
 
 If you deliberately enabled **immediate application** (`changes.auto_merge: true`), ordinary book changes are merged automatically after saving. Content approvals remain separate explicit decisions. An edition always has its own change package and requires explicit merge confirmation.
