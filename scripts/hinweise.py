@@ -12,6 +12,9 @@ Befunde stehen maschinenlesbar neben dem Bericht in `editorial/<bericht>.yml` (S
       Textfassung des Dialogs: kapitelweise alt und neu, darunter die Autorenentscheidungen
   python3 scripts/hinweise.py decide <buch> <eintrag> --decision ja|nein|geändert [--new TEXT] [--file …]
       schreibt nur `entscheidung` (und bei „geändert“ `neu`) in die Dialogdatei
+  python3 scripts/hinweise.py accept <buch> [--chapter …] [--file …]
+      Rundumprüfung (#565): alle offenen Einträge mit konkretem Vorschlag (alt → neu) annehmen, auch
+      Autorenentscheidungen; nie blockierende, buchweite oder solche mit mehreren Varianten
   python3 scripts/hinweise.py plan <buch> [--chapter …] [--file …]
       vor dem Umsetzen (Teil 2): je Eintrag ✅ umsetzbar, ⚠️ von Hand, ⛔ abgeschlossen (erst wieder öffnen)
   python3 scripts/hinweise.py apply <buch> [--chapter …] [--file …]
@@ -275,6 +278,32 @@ def decide(path, entry_id, decision, new=None):
             write_yaml(path, data)
             return e
     raise ValueError(f'Eintrag {entry_id} nicht gefunden')
+
+
+def proposal(e):
+    """Eintrag mit eindeutigem Vorschlag, den die Rundumprüfung ohne Rückfrage annehmen darf (#565): `alt` und `neu`
+    vorhanden und verschieden, nicht blockierend, nicht buchweit, keine Auswahl unter mehreren Varianten."""
+    return bool(e.get('alt') and e.get('neu') and e['neu'] != e['alt'] and e.get('section_id') != BOOK
+                and e.get('schweregrad') != 'blockierend' and not e.get('varianten'))
+
+
+def accept(path, chapters=None):
+    """Rundumprüfung (#565): offene, nicht umgesetzte Einträge mit Vorschlag auf `ja` setzen und mit
+    `angenommen: rundumpruefung` kennzeichnen. Abgeschlossenes hält danach `plan` zurück (⛔)."""
+    chapters = set(chapters or [])
+    data = read_yaml(path)
+    taken = []
+    for _, e in entries(data):
+        if e.get('umgesetzt') or e.get('entscheidung', 'offen') != 'offen' or not proposal(e):
+            continue
+        if chapters and e.get('chapter_id') not in chapters:
+            continue
+        e['entscheidung'] = 'ja'
+        e['angenommen'] = 'rundumpruefung'
+        taken.append(e)
+    if taken:
+        write_yaml(path, data)
+    return taken
 
 
 def show(data, only_open=False):
@@ -565,7 +594,8 @@ def main(argv=None):
     d.add_argument('--decision', required=True, choices=DECISIONS[1:])
     d.add_argument('--new')
     d.add_argument('--file')
-    for name, text in (('plan', 'vor dem Umsetzen zeigen, was geht'), ('apply', 'entschiedene Einträge umsetzen')):
+    for name, text in (('accept', 'Vorschläge annehmen (Rundumprüfung, #565)'), ('plan', 'vor dem Umsetzen zeigen, was geht'),
+                       ('apply', 'entschiedene Einträge umsetzen')):
         x = sub.add_parser(name, help=text)
         x.add_argument('project')
         x.add_argument('--chapter', action='append')
@@ -596,6 +626,11 @@ def main(argv=None):
             return 0
         if args.cmd == 'plan':
             print(plan_text(plan(base, config, read_yaml(path), args.chapter)), end='')
+            return 0
+        if args.cmd == 'accept':
+            taken = accept(path, args.chapter)
+            print(f'{len(taken)} Vorschläge angenommen' + ''.join(f'\n- {e["id"]} ({e["abschnitt"]}): {e["alt"]} → {e["neu"]}'
+                                                               for e in taken))
             return 0
         if args.cmd == 'apply':
             print(apply_text(apply(base, config, path, args.chapter)), end='')

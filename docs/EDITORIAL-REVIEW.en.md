@@ -196,15 +196,17 @@ In the chat, `render_view.py notes-review` shows the dialogue as a widget (templ
 
 The full chapter check reviews one chapter completely in a single pass:
 structure, language, proofreading, ground rules with AI patterns, and story
-memory. It fixes only what can be solved without the author, stores everything
+memory. It fixes what can be solved without the author or has a clear proposal (#565), stores everything
 else as a dialogue and provides the result as a change package. Nothing is
 merged. Repository, Git user and narrative voice come from `assistant.yml` and
 the book profile, models from `subagent_models`; there are no fixed names.
 
 **What the assignment permits:** Unlike the shared assignment, a full chapter
-check includes fixing the entries that `hinweise.py collect` puts under
-**without the author** (`ohne_autor`), and nothing else: no author decision, no
-change of structure, facts or tone, no approval and no merge. Finalized sections
+check includes applying every entry with a clear proposal (#565): those under
+**without the author** (`ohne_autor`) and also author decisions whose finding
+brings `alt` and `neu`. Blocking findings, entries with several `varianten`,
+book-wide findings and entries without a proposal stay with the author. No
+approval and no merge. Finalized sections
 (`approvals.section: true`) and finalized chapters are never changed; their
 findings stay in the dialogue (`plan` shows them as ⛔).
 
@@ -244,9 +246,12 @@ findings stay in the dialogue (`plan` shows them as ⛔).
    `structure`, `language`, `proofreading`, `story_memory`) and
    `python3 scripts/validate_project.py <book>`. One commit on the work branch;
    create or update the change package.
-6. **Fix what needs no author.** `hinweise.py collect <book> --chapter
-   <chapter-id>`, then only the entries under **without the author** with
-   `decide … --decision ja`, followed by `plan` and `apply`. Reread each changed
+6. **Apply proposals.** `hinweise.py collect <book> --chapter
+   <chapter-id>`, then `hinweise.py accept <book> --chapter <chapter-id>`: it
+   accepts every open entry with a clear proposal and marks it with
+   `angenommen: rundumpruefung`, followed by `plan` and `apply`. The report lists
+   these places under “Applied without asking” (old → new) so the author can
+   undo them. Reread each changed
    sentence with two sentences before and after (echoes, tense, rhythm) and
    record the follow-up check as `proofreading` and `quality_correction`.
 7. **Prepare dialogues, do not show them.** The remaining entries stay in the

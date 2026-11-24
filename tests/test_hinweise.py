@@ -303,6 +303,44 @@ class HinweiseTest(unittest.TestCase):
                                       'quality_correction'])
         self.assertFalse(validate_project.check_project(self.base))
 
+    def test_accept_proposals_full_chapter_check(self):   # #565: Vorschläge auch bei Autorenentscheidungen annehmen
+        text = checks.manuscript(self.base, self.config, self.s11['id'])
+        other = [w for w in text.split() if text.count(w) == 1 and w.isalpha() and len(w) > 6 and w != self.unique][0]
+        f = self.base / 'editorial/sprache-kap-01.yml'
+        data = yaml.safe_load(f.read_text(encoding='utf-8'))
+        data['befunde'] += [
+            {'id': 'b-006', 'abschnitt': self.s11['id'], 'art': 'ton', 'befund': 'zu flapsig',
+             'alt': other, 'neu': other + 'z', 'status': 'offen'},
+            {'id': 'b-007', 'abschnitt': self.s11['id'], 'art': 'ton', 'befund': 'zwei Wege', 'alt': other,
+             'neu': other + 'v', 'varianten': ['A', 'B'], 'status': 'offen'},
+            {'id': 'b-008', 'abschnitt': self.s11['id'], 'art': 'fakt', 'schweregrad': 'blockierend',
+             'befund': 'Alter unklar', 'alt': other, 'neu': other + 'w', 'status': 'offen'},
+            {'id': 'b-009', 'abschnitt': 'book', 'art': 'buchweit', 'befund': 'überall', 'alt': 'x', 'neu': 'y',
+             'status': 'offen'}]
+        f.write_text(yaml.safe_dump(data, allow_unicode=True), encoding='utf-8')
+        path, out = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        ref = lambda e: e['befund'].split('#')[1]
+        self.assertIn('b-006', [ref(e) for e in out['autorenentscheidung']])
+        taken = hinweise.accept(path, [self.ch1['id']])
+        self.assertEqual(sorted(ref(e) for e in taken), ['b-001', 'b-006'])
+        saved = {ref(e): e for _, e in hinweise.entries(hinweise.read_yaml(path))}
+        self.assertEqual((saved['b-006']['entscheidung'], saved['b-006']['angenommen']), ('ja', 'rundumpruefung'))
+        for b in ('b-002', 'b-005', 'b-007', 'b-008'):
+            self.assertEqual(saved[b]['entscheidung'], 'offen', b)
+        self.assertEqual(hinweise.accept(path), [])   # schon entschieden: nichts doppelt
+        res = hinweise.apply(self.base, self.config, path, [self.ch1['id']])
+        self.assertEqual(sorted(ref(e) for e in res['applied']), ['b-001', 'b-006'])
+        self.assertIn(other + 'z', checks.manuscript(self.base, self.config, self.s11['id']))
+        self.assertFalse(validate_project.check_project(self.base))
+
+    def test_accept_keeps_approved_sections(self):   # #565: Abgeschlossenes bleibt unverändert
+        path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        self.assertTrue(hinweise.accept(path))
+        f = self.base / self.s11['path']
+        f.write_text(f.read_text(encoding='utf-8').replace('status: ' + render_status(f), 'status: approved', 1), encoding='utf-8')
+        signs = {e['id']: sign for sign, e, _ in hinweise.plan(self.base, self.config, hinweise.read_yaml(path))}
+        self.assertEqual(signs, {'e-001': '⛔'})
+
     def test_widget_and_view(self):
         path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
         hinweise.decide(path, 'e-002', 'nein')
@@ -325,6 +363,7 @@ class HinweiseTest(unittest.TestCase):
         self.assertEqual(hinweise.main(['collect', str(self.base), '--date', '2026-11-20']), 0)
         self.assertEqual(hinweise.main(['decide', str(self.base), 'e-001', '--decision', 'ja']), 0)
         self.assertEqual(hinweise.main(['show', str(self.base), '--open']), 0)
+        self.assertEqual(hinweise.main(['accept', str(self.base)]), 0)
         self.assertEqual(hinweise.main(['plan', str(self.base)]), 0)
         self.assertEqual(hinweise.main(['apply', str(self.base)]), 0)
 
@@ -342,7 +381,7 @@ class DocumentedCallsTest(unittest.TestCase):
         calls = _re.findall(r'hinweise\.py (\S+) (\S+)', text)
         self.assertTrue(calls)
         for cmd, project in calls:
-            self.assertIn(cmd, ('collect', 'show', 'decide', 'plan', 'apply'), (cmd, project))
+            self.assertIn(cmd, ('collect', 'show', 'decide', 'accept', 'plan', 'apply'), (cmd, project))
 
     def test_both_orders_parse(self):
         import subprocess

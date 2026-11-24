@@ -67,7 +67,8 @@ Vergleichsstand. Keine automatische Änderung von Buchunterlagen oder Manuskript
 
 Die [drei Prüfarten](LEKTORAT.md) liefern zunächst Befunde im Chat; sie ändern
 kein Manuskript und erteilen keine Freigabe. Die Rundumprüfung („Rundumprüfung
-Kapitel 3“) bündelt sie und behebt dabei nur, was ohne Autor lösbar ist.
+Kapitel 3“) bündelt sie und setzt dabei um, was ohne Autor lösbar ist oder einen
+eindeutigen Vorschlag hat.
 
 ## Beispielprompts zum Weiterarbeiten
 

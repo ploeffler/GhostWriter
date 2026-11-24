@@ -208,15 +208,17 @@ Im Chat zeigt `render_view.py notes-review` den Dialog als Widget (Vorlage `hinw
 
 Die Rundumprüfung prüft ein Kapitel in einem Durchgang vollständig: Struktur,
 Sprache, Schlusskorrektur, Grundregeln mit KI-Mustern und Buchgedächtnis. Sie
-behebt nur, was ohne Autor lösbar ist, legt alles andere als Dialog ab und stellt
+behebt, was ohne Autor lösbar ist oder einen eindeutigen Vorschlag hat (#565), legt alles andere als Dialog ab und stellt
 das Ergebnis als Änderungspaket bereit. Übernommen wird nichts. Repository,
 Git-Benutzer und Erzählstimme kommen aus `assistant.yml` und dem Buchprofil,
 die Modelle aus `subagent_models`; feste Namen gibt es nicht.
 
 **Was der Auftrag erlaubt:** Abweichend vom gemeinsamen Arbeitsauftrag schließt
-eine Rundumprüfung das Beheben der Einträge ein, die `hinweise.py collect` unter
-**Ohne Autor lösbar** einordnet, und sonst nichts: keine Autorenentscheidung,
-keine Struktur-, Fakten- oder Tonänderung, keine Freigabe und kein Übernehmen.
+eine Rundumprüfung das Umsetzen aller Einträge mit eindeutigem Vorschlag ein
+(#565): die unter **Ohne Autor lösbar** und auch Autorenentscheidungen, zu denen
+ein Befund `alt` und `neu` mitbringt. Ausgenommen bleiben blockierende Befunde,
+Einträge mit mehreren `varianten`, buchweite Befunde und Einträge ohne
+Vorschlag; sie entscheidet der Autor. Keine Freigabe und kein Übernehmen.
 Abgeschlossene Abschnitte (`approvals.section: true`) und abgeschlossene Kapitel
 werden nie geändert; ihre Befunde bleiben im Dialog (`plan` zeigt sie als ⛔).
 
@@ -256,9 +258,12 @@ werden nie geändert; ihre Befunde bleiben im Dialog (`plan` zeigt sie als ⛔).
    `structure`, `language`, `proofreading`, `story_memory`) und
    `python3 scripts/validate_project.py <buch>`. Ein Commit auf dem Arbeits-Branch;
    das Änderungspaket anlegen oder aktualisieren.
-6. **Ohne Autor Behebbares beheben.** `hinweise.py collect <buch> --chapter
-   <kapitel-id>`, dann nur die Einträge unter **Ohne Autor lösbar** mit
-   `decide … --decision ja`, danach `plan` und `apply`. Jeden geänderten Satz mit
+6. **Vorschläge umsetzen.** `hinweise.py collect <buch> --chapter
+   <kapitel-id>`, dann `hinweise.py accept <buch> --chapter <kapitel-id>`: Das
+   nimmt alle offenen Einträge mit eindeutigem Vorschlag an und vermerkt sie mit
+   `angenommen: rundumpruefung`, danach `plan` und `apply`. Im Bericht stehen
+   diese Stellen unter „Ohne Rückfrage umgesetzt“ (alt → neu), damit der Autor
+   sie zurücknehmen kann. Jeden geänderten Satz mit
    zwei Sätzen davor und danach neu lesen (Echos, Zeitform, Rhythmus) und die
    Nachprüfung als `proofreading` und `quality_correction` eintragen.
 7. **Dialoge vorbereiten, nicht ausgeben.** Die übrigen Einträge bleiben in der
