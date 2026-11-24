@@ -648,13 +648,16 @@ class ProgramRepoTest(unittest.TestCase):
             g = lambda *a: subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=d, check=True, capture_output=True)
             g('init', '-q', '-b', 'main')
             shutil.copyfile(STARTER_FILE, Path(d, 'ghostwriter.yml'))
+            shutil.copyfile(ROOT / 'ghostwriter-skills.yml', Path(d, 'ghostwriter-skills.yml'))
             g('add', '.')
             g('commit', '-qm', 'Programm')
             env, os.environ['GHOSTWRITER_DEFAULT_BRANCH'] = dict(os.environ), 'main'
             try:
                 self.assertEqual(library.program_problems(d, 'refs/heads', MANIFEST), ([], []))
-                for name in ('ghostwriter', 'ghostwriter-lektorat', 'ghostwriter-buchgedaechtnis',
-                             'ghostwriter-gegenlesen', 'ghostwriter-material'):
+                # #584: jeder Eintrag in ghostwriter-skills.yml gilt als allgemein, ein unbekannter als persönlich
+                general = library.general_skills(d)
+                self.assertIn('ghostwriter', general)
+                for name in sorted(general):
                     Path(d, '.claude', 'skills', name).mkdir(parents=True)
                 self.assertEqual(library.program_problems(d, 'refs/heads', MANIFEST), ([], []))
                 personal = Path(d, '.claude', 'skills', 'anna-auf-buch')
