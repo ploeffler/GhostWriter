@@ -37,12 +37,17 @@ def manifest_version(root=ROOT):
     return str(yaml.safe_load((root / 'ghostwriter-manifest.yml').read_text(encoding='utf-8'))['version'])
 
 
-def tag_name(version):
-    """Bisherige Tags heißen v0.7, v0.8, v0.9; nur ein Patch-Stand bekommt drei Stellen."""
+def tag_name(version, prerelease=''):
+    """Bisherige Tags heißen v0.7, v0.8, v0.9; nur ein Patch-Stand bekommt drei Stellen; Vorabversion -rc.N."""
     if not VERSION_RE.match(version):
         raise ValueError(f'Version „{version}“ hat nicht die Form X.Y.Z')
     major, minor, patch = version.split('.')
-    return f'v{major}.{minor}' if patch == '0' else f'v{version}'
+    base = f'v{major}.{minor}' if patch == '0' else f'v{version}'
+    if prerelease:
+        if not str(prerelease).isdigit() or int(prerelease) < 1:
+            raise ValueError(f'Pre-release-Nummer „{prerelease}“ muss eine Zahl ab 1 sein')
+        return f'{base}-rc.{int(prerelease)}'
+    return base
 
 
 def notes(version, root=ROOT, lang='de'):
@@ -56,9 +61,16 @@ def notes(version, root=ROOT, lang='de'):
     return None
 
 
-def check(version, confirm, root=ROOT):
+def check(version, confirm, root=ROOT, prerelease='', ref=''):
     """Liste der Gründe, warum nicht veröffentlicht werden darf (leer = darf)."""
     problems = []
+    if prerelease:
+        if not str(prerelease).isdigit() or int(prerelease) < 1:
+            problems.append(f'Pre-release-Nummer „{prerelease}“ muss eine Zahl ab 1 sein')
+        elif ref and ref != f'release/{version}':
+            problems.append(f'Pre-release nur vom Branch release/{version}, nicht von {ref}')
+    elif ref and ref != 'main':
+        problems.append(f'Endgültiges Release nur von main, nicht von {ref}')
     if not VERSION_RE.match(version or ''):
         problems.append(f'Version „{version}“ hat nicht die Form X.Y.Z')
     current = manifest_version(root)
@@ -241,7 +253,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest='cmd', required=True)
     c = sub.add_parser('check'); c.add_argument('--version', required=True); c.add_argument('--confirm', required=True)
-    t = sub.add_parser('tag'); t.add_argument('--version', required=True)
+    c.add_argument('--prerelease', default=''); c.add_argument('--ref', default='')
+    t = sub.add_parser('tag'); t.add_argument('--version', required=True); t.add_argument('--prerelease', default='')
     n = sub.add_parser('notes'); n.add_argument('--version', required=True)
     p = sub.add_parser('prepare'); p.add_argument('--version', required=True)
     sub.add_parser('languages')
@@ -267,13 +280,13 @@ def main(argv=None):
         (args.out.write_text(text, encoding='utf-8') if args.out else print(text))
         print('bereit' if ready else 'nicht bereit', file=sys.stderr); return 0
     if args.cmd == 'tag':
-        print(tag_name(args.version)); return 0
+        print(tag_name(args.version, args.prerelease)); return 0
     if args.cmd == 'notes':
         de, en = notes(args.version), notes(args.version, lang='en')
         if not de:
             print(f'Release Notes für {args.version} fehlen', file=sys.stderr); return 1
         print(de + ('\n\n---\n\n' + en if en else '')); return 0
-    problems = check(args.version, args.confirm) if args.cmd == 'check' else check_site(args.url, args.version)
+    problems = check(args.version, args.confirm, prerelease=args.prerelease, ref=args.ref) if args.cmd == 'check' else check_site(args.url, args.version)
     for problem in problems:
         print(f'- {problem}', file=sys.stderr)
     if problems:
