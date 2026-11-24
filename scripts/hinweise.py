@@ -174,6 +174,31 @@ def context(text, alt):
     return re.sub(r'\s+', ' ', text[a:b]).strip()
 
 
+def paragraph(text, number):
+    """Absatz Nr. `number` (1-basiert, durch Leerzeilen getrennt) als Zusammenhang für Einträge ohne alten Wortlaut (#473)."""
+    parts = [x.strip() for x in re.split(r'\n\s*\n', text or '') if x.strip()]
+    if isinstance(number, int) and 1 <= number <= len(parts):
+        return re.sub(r'\s+', ' ', parts[number - 1])
+    return ''
+
+
+def collect_themes(base):
+    """Themen der Befunddateien (#570): ([{id, titel}] in Reihenfolge, {Datei#befund: thema}). Die Reihenfolge der
+    zuletzt angelegten Datei mit `themen` gilt; Themen älterer Dateien folgen danach. Befunde anderer Berichte
+    werden als `<bericht>.yml#b-001` zugeordnet."""
+    order, titles, of = [], {}, {}
+    for path in reversed(findings_files(base)):
+        data = read_yaml(path)
+        for t in data.get('themen') or []:
+            if t['id'] not in titles:
+                titles[t['id']] = t['titel']
+                order.append(t['id'])
+            for ref in t.get('befunde') or []:
+                name, _, bid = str(ref).rpartition('#')
+                of.setdefault(f'{Path(name).name or path.name}#{bid}', t['id'])
+    return [{'id': i, 'titel': titles[i]} for i in order], of
+
+
 def collect(base, config, chapters=None, date=None, commit=None, mode=None):
     """Offene Befunde sammeln; Rückgabe (Pfad, Daten). Schreibt die Dialogdatei.
 
@@ -187,6 +212,7 @@ def collect(base, config, chapters=None, date=None, commit=None, mode=None):
     if unknown:
         raise ValueError(f'Unbekanntes Kapitel: {", ".join(sorted(unknown))}')
     auto, author, skipped, sources = [], [], [], []
+    themes, theme_of = collect_themes(base)
     for path in findings_files(base):
         data = read_yaml(path)
         rel = path.relative_to(base).as_posix()
@@ -220,8 +246,13 @@ def collect(base, config, chapters=None, date=None, commit=None, mode=None):
                     continue
                 entry.update({'kontext': context(text, found[0]), 'alt': alt})
             else:
-                entry.update({'kontext': '', 'alt': alt})
+                entry.update({'kontext': paragraph(text, f.get('absatz')) if sid != BOOK else '', 'alt': alt})   # #473
             entry['neu'] = f.get('neu') or ''
+            thema = f.get('thema') or theme_of.get(f'{Path(rel).name}#{f.get("id")}')
+            if thema in {t['id'] for t in themes}:
+                entry['thema'] = thema   # #570
+            if f.get('muster'):
+                entry['muster'] = f['muster']
             if f.get('schweregrad'):
                 entry['schweregrad'] = f['schweregrad']
             if f.get('varianten'):
@@ -247,6 +278,9 @@ def collect(base, config, chapters=None, date=None, commit=None, mode=None):
             'ohne_autor': auto, 'autorenentscheidung': author}
     if not data['fassung']:
         del data['fassung']
+    used = {e.get('thema') for e in auto + author}
+    if any(used):
+        data['themen'] = [t for t in themes if t['id'] in used]
     if skipped:
         data['ausgelassen'] = skipped
     out = editorial(base) / f'durchsicht-{date}.yml'
@@ -277,16 +311,24 @@ def entries(data):
            [('autorenentscheidung', e) for e in data.get('autorenentscheidung') or []]
 
 
-def decide(path, entry_id, decision, new=None):
+def decide(path, entry_id, decision, new=None, variant=None):
+    if variant is not None:   # #473: Variante N wählen = „geändert“ mit dem Wortlaut der Variante
+        decision = 'geändert'
     if decision not in DECISIONS:
         raise ValueError(f'Unbekannte Entscheidung: {decision}')
-    if decision == 'geändert' and not new:
+    if decision == 'geändert' and not new and variant is None:
         raise ValueError('Bei „geändert“ gehört die eigene Fassung dazu (--new)')
     data = read_yaml(path)
     for _, e in entries(data):
         if e.get('id') == entry_id:
             if e.get('umgesetzt'):
                 raise ValueError(f'{entry_id} ist schon umgesetzt')
+            if variant is not None:
+                options = e.get('varianten') or []
+                if not 1 <= variant <= len(options):
+                    raise ValueError(f'{entry_id} hat {len(options)} Varianten; Variante {variant} gibt es nicht')
+                new = options[variant - 1]
+                e['variante'] = variant
             e['entscheidung'] = decision
             if new is not None:
                 e['neu'] = new
@@ -384,12 +426,17 @@ def stages(data, size=ROUND_SIZE):
     every = [e for _, e in entries(data)]
     counts = {}
     for e in every:
-        if _severity(e) not in ('blockierend', 'gering'):
+        if _severity(e) not in ('blockierend', 'gering') and not (e.get('thema') in {t['id'] for t in data.get('themen') or []}):
             counts[group_key(e)] = counts.get(group_key(e), 0) + 1
     grouped = {k for k, n in counts.items() if n >= GROUP_MIN}
 
+    known = [t['id'] for t in data.get('themen') or []]
+
+    def themed(e):
+        return e.get('thema') in known and _severity(e) not in ('blockierend', 'gering')
+
     def middle(e):
-        return _severity(e) not in ('blockierend', 'gering')
+        return _severity(e) not in ('blockierend', 'gering') and not themed(e)
     opened = [e for e in every if _is_open(e)]
     groups = {}
     for e in opened:
@@ -399,7 +446,12 @@ def stages(data, size=ROUND_SIZE):
                      key=lambda e: RANK[_severity(e)])
     done = sum(1 for e in every if middle(e) and group_key(e) not in grouped and not _is_open(e))
     rounds = [singles[i:i + size] for i in range(0, len(singles), size)]
-    return {'blocking': [e for e in opened if _severity(e) == 'blockierend'], 'groups': groups, 'rounds': rounds,
+    titles = {t['id']: t['titel'] for t in data.get('themen') or []}
+    theme_rounds = [(tid, titles[tid], [e for e in opened if themed(e) and e['thema'] == tid]) for tid in known]
+    theme_total = sum(1 for tid in known if any(themed(e) and e['thema'] == tid for e in every))
+    open_themes = [r for r in theme_rounds if r[2]]
+    return {'blocking': [e for e in opened if _severity(e) == 'blockierend'], 'themes': open_themes,
+            'theme_no': theme_total - len(open_themes) + 1, 'theme_total': theme_total, 'groups': groups, 'rounds': rounds,
             'gering': [e for e in opened if _severity(e) == 'gering'], 'open': len(opened),
             'round_no': done // size + 1, 'round_total': math.ceil((done + len(singles)) / size) if singles else 0}
 
@@ -419,6 +471,9 @@ def current(data, size=ROUND_SIZE, gering=False, group=None):
         return 'gruppe', items, f'Gruppe einzeln ansehen · {len(items)} Einträge · {left}'
     if st['blocking']:
         return 'blockierend', st['blocking'], f'Stufe 1 · Blockierendes, einzeln · {len(st["blocking"])} offen · {left}'
+    if st['themes']:   # #570: ein Thema je Runde, in der Reihenfolge der Abhängigkeit
+        _, title, items = st['themes'][0]
+        return 'thema', items, f'Stufe 2 · Thema {st["theme_no"]} von {st["theme_total"]}: {title} · {len(items)} offen · {left}'
     if st['groups']:
         return 'gruppen', st['groups'], f'Stufe 2 · Gleiche Muster · {len(st["groups"])} Gruppen · {left}'
     if st['rounds']:
@@ -444,6 +499,60 @@ def _entry_lines(e):
     return lines + ['']
 
 
+# ---------- Einzeln vorlegen (#473) ----------
+
+def ordered(data):
+    """Alle Einträge in der Reihenfolge, in der sie einzeln vorgelegt werden: Blockierendes, Themen in ihrer Reihenfolge,
+    übrige nach Schweregrad, Geringes zuletzt."""
+    every = [e for _, e in entries(data)]
+    pos = {t['id']: i for i, t in enumerate(data.get('themen') or [])}
+
+    def key(e):
+        sev = _severity(e)
+        if sev == 'blockierend':
+            return (0, 0, 0)
+        if sev == 'gering':
+            return (3, 0, 0)
+        if e.get('thema') in pos:
+            return (1, pos[e['thema']], 0)
+        return (2, RANK[sev], 0)
+    return sorted(every, key=key)   # stabil: sonst Reihenfolge der Datei
+
+
+def single(data, entry_id=None):
+    """(Eintrag oder None, Nummer, Gesamtzahl, offen): der genannte Eintrag bzw. der nächste offene."""
+    seq = ordered(data)
+    opened = sum(1 for e in seq if _is_open(e))
+    if entry_id:
+        for n, e in enumerate(seq, start=1):
+            if e.get('id') == entry_id:
+                return e, n, len(seq), opened
+        raise ValueError(f'Eintrag {entry_id} nicht gefunden')
+    for n, e in enumerate(seq, start=1):
+        if _is_open(e):
+            return e, n, len(seq), opened
+    return None, len(seq), len(seq), 0
+
+
+def show_single(data, entry_id=None):
+    """Textfassung: eine Karte mit Fortschritt („8 von 21“), Zusammenhang und wählbaren Varianten (#473)."""
+    e, n, total, opened = single(data, entry_id)
+    lines = [f'### 🧹 Hinweisdurchsicht · {data.get("buch", "")}']
+    if e is None:
+        return '\n'.join(lines + ['Alle Einträge entschieden. Als Nächstes: Umsetzen prüfen (`hinweise.py plan`).', '']) + '\n'
+    lines += [f'Eintrag {n} von {total} · noch {opened} offen', '']
+    card = _entry_lines(e)
+    if e.get('kontext'):
+        card.insert(len(card) - 1 - len(e.get('varianten') or []), f'> Zusammenhang: {e["kontext"]}')
+    lines += card
+    if e.get('varianten'):
+        lines += ['Antwort: ' + ' · '.join(f'`{e["id"]} variante {k}`' for k in range(1, len(e['varianten']) + 1))
+                  + f' · `{e["id"]} nein` · `{e["id"]} geändert: <eigene Fassung>`']
+    else:
+        lines += [f'Antwort: `{e["id"]} ja` · `{e["id"]} nein` · `{e["id"]} geändert: <eigene Fassung>`']
+    return '\n'.join(lines) + '\n'
+
+
 def show_stufen(data, size=ROUND_SIZE, gering=False, group=None):
     """Textfassung der aktuellen Stufe (#570)."""
     name, items, head = current(data, size, gering, group)
@@ -460,6 +569,8 @@ def show_stufen(data, size=ROUND_SIZE, gering=False, group=None):
         lines += ['Antwort je Gruppe: `<gruppe> ja` (alle wie vorgeschlagen) · `<gruppe> nein` (alle lassen) · '
                   '`<gruppe> einzeln` (die Einträge einzeln ansehen)']
         return '\n'.join(lines) + '\n'
+    if name == 'thema':
+        lines += ['Diese Einträge hängen zusammen und werden gemeinsam entschieden.', '']
     for e in items:
         lines += _entry_lines(e)
     if name == 'gering-zu':
@@ -674,7 +785,7 @@ STATUS_TEXT = {'planned': 'geplant', 'in_progress': 'in Arbeit', 'ready_for_asse
                'approved': 'abgeschlossen'}
 
 
-def widget_values(base, path, stufen=None, size=ROUND_SIZE, gering=False, group=None):
+def widget_values(base, path, stufen=None, size=ROUND_SIZE, gering=False, group=None, entry=None):
     """Werte für die Vorlage hinweisdurchsicht (#367): (values, blocks). Mit `stufen` (Voreinstellung: ab STAGE_MIN
     offenen Einträgen) zeigt das Widget nur die aktuelle Stufe (#570); Gruppen erscheinen als eine Zeile mit der
     ID `gruppe:<schlüssel>`, deren Antwort `ja` bzw. `nein` die ganze Gruppe entscheidet."""
@@ -704,6 +815,13 @@ def widget_values(base, path, stufen=None, size=ROUND_SIZE, gering=False, group=
               'REVIEW_COUNT_TEXT': f'{len(all_entries)} Einträge · {done} entschieden · {len(all_entries) - done} offen'}
     blocks = {}
     shown = None
+    name = ''
+    if entry:   # #473: genau eine Karte; entry = Eintrags-ID oder „next“
+        e, n, total, opened = single(data, None if entry == 'next' else entry)
+        values['REVIEW_COUNT_TEXT'] = (f'Eintrag {n} von {total} · noch {opened} offen' if e else
+                                       'Alle Einträge entschieden · als Nächstes: Umsetzen prüfen')
+        shown = {e['id']} if e else set()
+        stufen = False
     if stufen:
         name, items, head = current(data, size, gering, group)
         values['REVIEW_COUNT_TEXT'] = head
@@ -777,6 +895,8 @@ def main(argv=None):
     s.add_argument('--size', type=int, default=ROUND_SIZE, help='Einträge je Runde')
     s.add_argument('--gering', action='store_true', help='geringe Einträge aufklappen')
     s.add_argument('--group', help='Gruppe einzeln ansehen')
+    s.add_argument('--entry', help='nur diesen Eintrag als Karte zeigen (#473)')
+    s.add_argument('--next', action='store_true', help='nächsten offenen Eintrag als Karte zeigen (#473)')
     d = sub.add_parser('decide', help='Entscheidung zu einem Eintrag speichern')
     d.add_argument('project')
     d.add_argument('entry', nargs='?')
@@ -784,6 +904,7 @@ def main(argv=None):
     d.add_argument('--gering', action='store_true', help='alle geringen offenen Einträge lassen (#570)')
     d.add_argument('--decision', choices=DECISIONS[1:])
     d.add_argument('--new')
+    d.add_argument('--variant', type=int, help='Variante N wählen (#473)')
     d.add_argument('--file')
     for name, text in (('accept', 'Vorschläge annehmen (Rundumprüfung, #565)'), ('plan', 'vor dem Umsetzen zeigen, was geht'),
                        ('apply', 'entschiedene Einträge umsetzen')):
@@ -814,7 +935,9 @@ def main(argv=None):
             return 1
         if args.cmd == 'show':
             data = read_yaml(path)
-            if args.stufen or args.group or (staged(data) and not args.alle and not args.open):
+            if args.entry or args.next:
+                print(show_single(data, args.entry), end='')
+            elif args.stufen or args.group or (staged(data) and not args.alle and not args.open):
                 print(show_stufen(data, args.size, args.gering, args.group), end='')
             else:
                 print(show(data, args.open), end='')
@@ -843,9 +966,9 @@ def main(argv=None):
             changed, skipped = decide_group(path, group, args.decision)
             print(f'{len(changed)} Einträge: {args.decision}' + (f'; {len(skipped)} ohne Vorschlag bleiben offen' if skipped else ''))
             return 0
-        if not args.entry or not args.decision:
-            raise ValueError('Eintrag und --decision angeben (oder --group / --gering)')
-        e = decide(path, args.entry, args.decision, args.new)
+        if not args.entry or not (args.decision or args.variant):
+            raise ValueError('Eintrag und --decision (oder --variant) angeben (oder --group / --gering)')
+        e = decide(path, args.entry, args.decision, args.new, args.variant)
         print(f'{e["id"]}: {e["entscheidung"]}')
         return 0
     except ValueError as exc:
