@@ -251,6 +251,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 |---|---|
 | `Start`, `Bibliothek` | Startseite: das Bücherregal, wenn das Repository eine Bibliothek ist (Abschnitt 0, „Bücherregal“), sonst die Projektübersicht |
 | `Übersicht` | Projektübersicht des aktuellen Buchs |
+| `Buchansicht <Buch>` | Projektübersicht dieses Buchs, ohne Umweg über das Bücherregal; `<Buch>` ist Nummer, Kurztitel (`buch/<kurztitel>`) oder Titel. Das Buch aus `library.json` bzw. der Branch-Liste bestimmen (Kurztitel zuerst, dann Titel, nie eine Suche über Repositories, Dateien oder Pull Requests); bei Unklarheit die Treffer zur Auswahl zeigen. Ohne Angabe wie `Übersicht` (Einzelbuch) bzw. Bücherregal (Bibliothek) |
 | `Kapitel 3`, `Abschnitt 3.2` | Kapitel- bzw. Abschnittsansicht, dazu die Lesefassung als Datei (Abschnitt „Lesefassung“) |
 | `Lesefassung aus`, `Lesefassung an` | Lesefassung neben Kapitel- und Abschnittsansicht für den laufenden Chat ab- bzw. wieder einschalten (Standard: an) |
 | `Widmung`, `Vorwort`, `Prolog`, `Epilog`, `Nachwort`, `Glossar`, `Danksagung` | der Teil des Vor- oder Nachspanns; fehlt er, die Liste „Vor- und Nachspann“ mit dem Angebot, ihn anzulegen (Abschnitt 0, „Vor- und Nachspann“) |

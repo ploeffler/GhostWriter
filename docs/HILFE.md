@@ -10,6 +10,7 @@ Schicke **Hilfe** im Chat. Du erhältst eine kurze Befehlsübersicht und die Kü
 |---|---|
 | `Start` oder `Bibliothek` | Bücher anzeigen |
 | `Übersicht` | Aktuelles Buch anzeigen |
+| `Buchansicht <Buch>` | Übersicht eines bestimmten Buchs, gefunden über Nummer, Kurztitel oder Titel |
 | `Kapitel 2` oder `Abschnitt 2.3` | Gewünschte Stelle öffnen |
 | `Neues Buch: Mein Titel` | Formular für ein neues Buch öffnen |
 | `Neues Kapitel` | Formular für ein neues Kapitel öffnen |
