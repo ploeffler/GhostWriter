@@ -134,9 +134,16 @@ def compare(base, old):
         out.append(('Buch', 'konflikt', f'{book["branch"]} wurde umgeschrieben oder der gelesene Commit '
                                         f'{book["head"][:7]} ist unbekannt'))
     work = old.get('work')
+    current = head
     if work:
         whead = resolve(base, work['branch'])
-        if whead == work['head']:
+        current = whead or head
+        if (whead and head and known(base, work['head'])
+                and is_ancestor(base, work['head'], whead) and is_ancestor(base, whead, head)):
+            current = head
+            out.append(('Arbeit', 'neuer', f'{work["branch"]} ist ins Buch übernommen; '
+                        'ab jetzt vom Buch-Branch lesen (Arbeitsbranch existiert noch)'))
+        elif whead == work['head']:
             out.append(('Arbeit', 'ok', f'{work["branch"]} unverändert ({whead[:7]})'))
         elif not whead:
             if head and known(base, work['head']) and is_ancestor(base, work['head'], head):
@@ -172,7 +179,6 @@ def compare(base, old):
         out.append(('Profil', 'ok', 'assistant.yml unverändert' if now['profile'] else 'kein assistant.yml'))
     else:
         out.append(('Profil', 'neuer', 'assistant.yml geändert; persönlichen Skill neu lesen'))
-    current = (resolve(base, work['branch']) if work else None) or head
     config = (yaml.safe_load(show(base, current, 'ghostwriter.yml') or '') or {}) if current else {}
     have, can = config.get('data_version', 0) if current else old['data']['book'], now['supported']
     if can is not None and have > can:
