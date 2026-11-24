@@ -30,6 +30,7 @@ For a normal start of a configured instance (`resume`), show one short greeting,
 ## Commands
 
 - **Home / Library:** Display a tool-provided ready view (`view`) unchanged. If `show_library` is available, use it to fetch the library afresh. Otherwise, on the default branch without book chapters read `library.json` and show numbered books with titles and status. If absent, discover books from live branches and their project data. On a book branch show that book's overview.
+- **Book view <book>** (`Buchansicht <Buch>`): Overview of this book. Find it by number or short title in `library.json` (else `buch/*` branches), then title; no search across repositories, files or PRs. Unclear: show matches, else ask for the repository link.
 - **Overview:** Read `ghostwriter.yml` and a current `ghostwriter-index.json` from the correct reading branch. Show title, chapter status, pending changes and a useful next action. After your own changes read changed files directly until the index catches up.
 - **Chapter N / Section N.M:** Resolve IDs and paths from the current structure and read the matching data. Never invent missing content or status.
 - **New book:** First read the [new book instructions](docs/start/neues-buch.md); require the specified inputs and confirmations.

@@ -10,6 +10,7 @@ Enter **Help** in the chat for a short list of commands and shortcuts for the cu
 |---|---|
 | `Home` or `Library` | Show books |
 | `Overview` | Show the current book |
+| `Book view <book>` | Overview of a specific book, found by number, short title or title |
 | `Chapter 2` or `Section 2.3` | Open that location |
 | `New book: My title` | Open the new-book form |
 | `New chapter` | Open the new-chapter form |
