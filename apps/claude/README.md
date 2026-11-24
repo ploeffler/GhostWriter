@@ -79,6 +79,15 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   als abgebrochen (`error`, `failed_at`), denn die App kann keine Dateien löschen: er steht dann als fehlgeschlagen da und läuft
   nicht mehr. Beides geht nur bei wartenden Aufträgen, jeweils ein Commit auf den Arbeits-Branch; ein schon laufender Auftrag
   lässt sich so nicht stoppen. Gelesen werden die Aufträge des Lesestands (Arbeits-Branch, solange ein Änderungspaket offen ist).
+- Skills des Buchs (#524, #535): Beim Öffnen eines Buchs liest die App die `SKILL.md` unter `.claude/skills` (Lesestand, sonst
+  Standard-Branch) und den persönlichen Skill aus `assistant.yml`. Die Claude-Leiste nennt die Skills und warnt, wenn die
+  allgemeinen Skills von `ghostwriter-skills.yml` (Prüfsummen) abweichen oder der persönliche Skill fehlt. Claude bekommt sie
+  als verbindliche Anleitung mit: der persönliche Skill ganz, vom Skill `ghostwriter` nur die Regeln, die in der App gelten
+  (Skillauswahl, Auswahlfragen, verständliche Ausgaben, Qualitätssicherung), `ghostwriter-lektorat` bei Prüfaufträgen und
+  `ghostwriter-buchgedaechtnis` bei Kontinuitätsfragen (Auswahl nach der Anfrage). Ausgelassen sind die Teile für Chats mit
+  Shell (Repository einbinden, Git-Benutzer, Darstellungsmodus, Kurzbefehle, erste Ansicht, Fehlermeldungen ans Hauptrepository);
+  das macht die App selbst. Claude nennt zu Beginn einer Aufgabe, welchen Skill er verwendet. Die Anleitung bleibt unter etwa
+  20 000 Zeichen.
 - Claude-Leiste in Projektübersicht, Kapitel und Abschnitt. Claude kann Knöpfe anbieten, die nur eine Ansicht
   oder ein Formular öffnen (Liste `SAFE_ACTIONS` in `index.html`). Speichern und Abschließen bleiben eigene Schritte.
   Will der Benutzer im Chat etwas ändern, sagt Claude nicht nur „kann ich nicht“, sondern bietet den Knopf zum
