@@ -1588,6 +1588,8 @@ def project_view(base, config, args):
             lines += [f'> 🔄 **GhostWriter-Update:** {values["UPDATE_TEXT"]} · `U` einspielen', '']
         if values.get('CHECKS_RECENT_TEXT'):
             lines += [f'🧪 **Letzte Prüfungen:** {values["CHECKS_RECENT_TEXT"]}', '']
+            import checks
+            lines += checks.todo(rows)   # #538
         if values['PROJECT_DESCRIPTION_SHORT']:
             lines += [f'> {values["PROJECT_DESCRIPTION_SHORT"]}', '']
         if values['PROJECT_DESCRIPTION']:
