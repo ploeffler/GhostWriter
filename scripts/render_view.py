@@ -4049,6 +4049,7 @@ def main():
     ap.add_argument('--repo', help='owner/name des Buch-Repositorys; ohne Angabe aus GITHUB_REPOSITORY bzw. git remote origin (#134)')
     ap.add_argument('--branch', default='main')
     ap.add_argument('--status', help='bei timeline: nur Einträge mit diesem Belegstand (documented, reported, uncertain, invented; mehrere mit Komma)')
+    ap.add_argument('--alle', dest='all_entries', action='store_true', help='bei notes-review: ganze Liste statt Stufen (#570)')
     ap.add_argument('--columns', action='store_true', help='bei timeline: Zeitleiste in Spalten als Tabelle (#450, immer Text)')
     ap.add_argument('--revoke', action='store_true', help='bei approval-*: Freigabe zurücknehmen statt erteilen')
     ap.add_argument('--upstream', help='JSON-Datei mit dem Update-Stand (behind, upstream, version, installed) für die Projektübersicht')
@@ -4137,9 +4138,11 @@ def main():
         if not path or not path.is_file():
             raise SystemExit('Keine Durchsichtsdatei gefunden (zuerst scripts/hinweise.py collect).')
         if args.text:
-            out = hinweise.show(hinweise.read_yaml(path))
+            data = hinweise.read_yaml(path)
+            out = hinweise.show(data) if getattr(args, 'all_entries', False) or not hinweise.staged(data) \
+                else hinweise.show_stufen(data)
         else:
-            values, blocks = hinweise.widget_values(base, path)
+            values, blocks = hinweise.widget_values(base, path, False if getattr(args, 'all_entries', False) else None)
             out = fill('hinweisdurchsicht.html', values, blocks)
     elif args.view == 'queue':   # Hintergrund-Warteschlange (#478): Vorlage warteschlange bzw. Textfassung
         import queue_view

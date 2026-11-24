@@ -164,6 +164,26 @@ Each answer is stored with
 uploaded without asking as a small addition to the open change package
 ([Saving](SAVING.en.md#reviewing-notes)), so a later session can continue.
 
+**Long lists in stages (#570).** From 12 open entries on, `show` (and the
+widget) no longer displays everything at once but only the current stage:
+
+1. **Blocking items first, one by one,** with question and variants.
+2. **Same patterns bundled:** from three entries of the same kind and finding
+   (digits and quotation marks do not count, a `muster` field takes
+   precedence) one decision per group: “all as proposed”
+   (`hinweise.py decide <book> --group gruppe:<key> --decision ja`, only
+   entries with a proposal, the others stay open), “leave all”
+   (`--decision nein`) or “look at them one by one”
+   (`hinweise.py show <book> --group gruppe:<key>`).
+3. **The rest in rounds of at most five,** by severity, with progress
+   (“round 2 of 6 · 23 still open”; `--size` changes the round size). You can
+   stop at any time; the next session continues there.
+4. **“gering” (minor) collapsed,** shown as a number only. `show --gering`
+   expands them, `hinweise.py decide <book> --gering` leaves all of them
+   (`nein`, no change to the manuscript).
+
+`show --alle` shows the whole list. The Claude web app keeps showing the whole list for now.
+
 Decisions are applied at the end of a chapter or on request. First,
 `hinweise.py plan <book> [--chapter …]` marks each decided entry ✅ applicable,
 ⚠️ manual (no old wording or proposal, or the wording is in a different section
