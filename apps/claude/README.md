@@ -68,7 +68,7 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   bietet es den Knopf „… ins Manuskript umsetzen“ an. Das Umsetzen (wie `hinweise.py apply`) ersetzt in den Manuskripten
   den alten Wortlaut durch den entschiedenen, markiert die Einträge als `umgesetzt` und schreibt den Befundstatus zurück
   (umgesetzt → `erledigt`, nein → `entschieden`), alles in einem Commit auf den Arbeits-Branch. Umgesetzt werden nur
-  ✅-Einträge; abgeschlossene Kapitel und Abschnitte werden nie angefasst. Ändert eine frühere Umsetzung den Text eines
+  ✅-Einträge; abgeschlossene Kapitel und Abschnitte werden nie angefasst. Auslassungspunkte am Rand des alten Wortlauts werden wie in `hinweise.py` weggelassen, ein Wortlaut in einem anderen Abschnitt wird als ⚠️ mit der Stelle gemeldet (#522). Ändert eine frühere Umsetzung den Text eines
   späteren Eintrags in demselben Abschnitt, wird dieser übersprungen und gemeldet (das Skript bricht dort ab). Danach zeigt
   die App die betroffenen Stellen im Zusammenhang. **Noch nicht in der App:** Nachprüfung (Schlusskorrektur,
   Qualitätsprüfung) und erneutes Abschließen der Kapitel; das geht weiter im Chat.

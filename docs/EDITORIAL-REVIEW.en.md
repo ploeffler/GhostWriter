@@ -166,8 +166,13 @@ uploaded without asking as a small addition to the open change package
 
 Decisions are applied at the end of a chapter or on request. First,
 `hinweise.py plan <book> [--chapter …]` marks each decided entry ✅ applicable,
-⚠️ manual (no old wording or proposal) or ⛔ (section or chapter finalized,
-wording no longer unique). The assistant never reopens anything by itself:
+⚠️ manual (no old wording or proposal, or the wording is in a different section
+than the finding names, the message says which) or ⛔ (section or chapter finalized,
+wording not found or not unique). Ellipses and spaces that the old wording carries
+at its edges from the finding are left out before comparing and replacing (for `neu`
+only the same edges, #522); if the wording really stands with the dots in the text it
+stays unchanged. The script does not claim that the text has changed; it does not
+check that. The assistant never reopens anything by itself:
 reopening is a separate, explicitly confirmed approval (`START.md`).
 `hinweise.py apply <book> [--chapter …]` applies only the ✅ entries, marks them
 `umgesetzt: true` and writes the status back (`erledigt` when applied,

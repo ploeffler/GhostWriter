@@ -28,7 +28,7 @@ const html = fs.readFileSync(path.join(APP, "index.html"), "utf8")
   .replace(/<script src="https:\/\/cdnjs[^"]*js-yaml[^"]*"><\/script>/, () => "<script>" + fs.readFileSync(path.join(path.dirname(require.resolve("js-yaml")), "dist", "js-yaml.min.js"), "utf8") + "</script>")
   .replace('<script src="vendor/gw-lite.js"></script>', () => "<script>" + fs.readFileSync(path.join(APP, "vendor/gw-lite.js"), "utf8") + "</script>")
   // nur im Test: Zustand von außen erreichbar
-  .replace("window.sendPrompt = text =>", "window.__S = () => S; window.__rc = () => renderChat(); window.sendPrompt = text =>");
+  .replace("window.sendPrompt = text =>", "window.__wording = wording; window.__S = () => S; window.__rc = () => renderChat(); window.sendPrompt = text =>");
 
 const pushes = [], cache = {}, updates = [];
 let staleWork = false;
@@ -343,6 +343,15 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
     await send(gwa("queue.cancel", {request: "../geheim.yml"}));
     ok(pushes.length === n && /Ungültige Angabe/.test(note()), "Abbrechen: ungültiger Pfad wird abgelehnt");
     [A, B, C, D].forEach(k => delete fake[k]);
+  }
+
+  // Wortlaut mit Auslassungspunkten (#522): dieselben Fälle wie tests/test_hinweise.py
+  {
+    const wd = w.__wording, t = "Er ging los. Florian hatte die Schuhe herausgenommen, leise. Dann kam sie.";
+    const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    ok(eq(wd(t, "… Florian hatte die Schuhe herausgenommen …", "… Florian nahm die Schuhe heraus …"), ["Florian hatte die Schuhe herausgenommen", "Florian nahm die Schuhe heraus"]), "Wortlaut: einfassende Auslassungspunkte werden bei alt und neu abgeschnitten");
+    ok(eq(wd("Er sagte: Und dann… ging er.", "Und dann…", "Und danach…"), ["Und dann…", "Und danach…"]), "Wortlaut: steht er mit Punkten im Text, bleibt er unverändert");
+    ok(wd(t, "gibt es nicht", "x") === null && wd("abc", "…", "x") === null && wd("a a", "a", "b") === null, "Wortlaut: nicht gefunden, nur Punkte, mehrfach ergeben kein Ergebnis");
   }
 
   // Hinweisdurchsicht: nur wenn das Buch eine hat (z. B. GW_BOOK=buch/krimi-sinabelkirchen)

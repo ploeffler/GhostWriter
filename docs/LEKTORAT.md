@@ -176,8 +176,13 @@ spätere Sitzung mit „Durchsicht fortsetzen“ an derselben Stelle fort.
 
 Umgesetzt wird erst am Ende eines Kapitels oder auf Auftrag. Vorher zeigt
 `hinweise.py plan <buch> [--chapter …]` je entschiedenem Eintrag ✅ umsetzbar,
-⚠️ von Hand (ohne alten Wortlaut oder Vorschlag) oder ⛔ (Abschnitt oder Kapitel
-abgeschlossen, Wortlaut nicht mehr eindeutig). Abgeschlossenes öffnet der
+⚠️ von Hand (ohne alten Wortlaut oder Vorschlag, oder der Wortlaut steht in einem
+anderen Abschnitt als im Befund genannt, die Meldung nennt ihn) oder ⛔ (Abschnitt
+oder Kapitel abgeschlossen, Wortlaut nicht gefunden bzw. mehrfach). Auslassungspunkte
+und Leerzeichen, die der alte Wortlaut aus dem Befund am Rand mitbringt, werden vor
+dem Vergleich und beim Ersetzen weggelassen (bei `neu` nur dieselben Ränder, #522);
+steht der Wortlaut mit den Punkten im Text, bleibt er unverändert. „Text hat sich
+geändert“ behauptet das Skript nicht, es prüft das nicht. Abgeschlossenes öffnet der
 Assistent nicht selbst: Wieder öffnen ist eine eigene, ausdrücklich bestätigte
 Freigabe (`START.md`, „Freigaben“). `hinweise.py apply <buch> [--chapter …]` setzt
 nur die ✅-Einträge im Manuskript um, markiert sie mit `umgesetzt: true` und
