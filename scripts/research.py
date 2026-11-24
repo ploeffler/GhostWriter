@@ -47,6 +47,8 @@ from pathlib import Path
 
 import yaml
 
+import model_defaults
+
 ROOT = Path(__file__).resolve().parent.parent
 KEY_ENV = 'GHOSTWRITER_RESEARCH_KEY'
 SECRET_RE = re.compile(r'^[A-Z][A-Z0-9_]*_API_KEY$')
@@ -65,6 +67,9 @@ PROVIDERS = {
     'openai': {'model': 'gpt-5', 'label': 'OpenAI'},
     'google': {'model': 'gemini-3.8-flash', 'label': 'Google Gemini'},
 }
+# #554: Die Vorgaben stehen in providers.yml (`model_defaults`); die Werte oben sind nur der Rückfall.
+for _pid, _p in PROVIDERS.items():
+    _p['model'] = model_defaults.default_model(_pid, 'research', _p['model'])
 
 HEADINGS = ['Fragestellung und Suchumfang', 'Rechercheergebnisse', 'Quellen', 'Widersprüche und Unsicherheiten',
             'Offene Fragen', 'Relevanz für den Abschnitt']
@@ -248,7 +253,7 @@ def prompts(config, ch, sec, text, number, question=None, prior=''):
     return system, user
 
 
-def post_json(url, body, headers):
+def post_json(url, body, headers, provider='', model=''):
     req = urllib.request.Request(url, method='POST', data=json.dumps(body).encode('utf-8'),
                                  headers=dict(headers, **{'content-type': 'application/json'}))
     try:
@@ -256,7 +261,8 @@ def post_json(url, body, headers):
             return json.loads(r.read().decode('utf-8'))
     except urllib.error.HTTPError as e:
         detail = e.read().decode('utf-8', 'replace')[:300]
-        raise ResearchError(f'Der Anbieter antwortet mit HTTP {e.code}: {detail}') from None
+        raise ResearchError(model_defaults.classify_http_error(
+            e.code, detail, (PROVIDERS.get(provider) or {}).get('label') or provider or 'Der Anbieter', model)) from None
     except (urllib.error.URLError, TimeoutError) as e:
         raise ResearchError(f'Der Anbieter ist nicht erreichbar: {getattr(e, "reason", e)}') from None
 
@@ -274,7 +280,7 @@ def call_anthropic(key, model, system, user):
     data = post_json('https://api.anthropic.com/v1/messages', {
         'model': model, 'max_tokens': 8000, 'system': system, 'messages': [{'role': 'user', 'content': user}],
         'tools': [{'type': 'web_search_20250305', 'name': 'web_search', 'max_uses': MAX_SEARCHES}]},
-        {'x-api-key': key, 'anthropic-version': '2023-06-01'})
+        {'x-api-key': key, 'anthropic-version': '2023-06-01'}, 'anthropic', model)
     text, cited, found = [], [], []
     for b in data.get('content') or []:
         if b.get('type') == 'text':
@@ -291,7 +297,7 @@ def call_anthropic(key, model, system, user):
 def call_openai(key, model, system, user):
     data = post_json('https://api.openai.com/v1/responses', {
         'model': model, 'instructions': system, 'input': user, 'tools': [{'type': 'web_search'}]},
-        {'authorization': f'Bearer {key}'})
+        {'authorization': f'Bearer {key}'}, 'openai', model)
     text, cited, searches = [], [], 0
     for item in data.get('output') or []:
         if item.get('type') == 'web_search_call':
@@ -310,7 +316,7 @@ def call_openai(key, model, system, user):
 def call_google(key, model, system, user):
     data = post_json(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent', {
         'systemInstruction': {'parts': [{'text': system}]}, 'contents': [{'role': 'user', 'parts': [{'text': user}]}],
-        'tools': [{'google_search': {}}]}, {'x-goog-api-key': key})
+        'tools': [{'google_search': {}}]}, {'x-goog-api-key': key}, 'google', model)
     cand = (data.get('candidates') or [{}])[0]
     text = ''.join(p.get('text') or '' for p in (cand.get('content') or {}).get('parts') or [])
     gm = cand.get('groundingMetadata') or {}

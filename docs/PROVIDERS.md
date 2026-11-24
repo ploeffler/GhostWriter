@@ -115,6 +115,8 @@ Nur bei der Queue ist entscheidend, welcher Anbieter technisch mit dem Repositor
 
 Neue Anbieter werden in `providers.yml` ergänzt (eindeutige `id`, Felder wie oben) und hier in die passende Tabelle eingetragen. Beim Prüfen `checked_at` aktualisieren.
 
+**Modellvorgaben (#554):** Die Modelle, die GhostWriter selbst benutzt, wenn im Buch keines eingestellt ist (Recherche in der Action, Colorieren), stehen in `providers.yml` unter `model_defaults`, je Anbieter und Aufgabe mit `model` und `checked_at` (Datum der letzten Prüfung). Läuft ein Modell aus, genügt eine Änderung dort; ein Buch kann es in den Einstellungen („KI-Dienste“, Modell) überschreiben. `python3 scripts/model_defaults.py show` zeigt die Vorgaben, `python3 scripts/model_defaults.py check` vergleicht sie und die eingestellten Modelle mit den kostenlosen Modelllisten der Anbieter, aber nur für Anbieter, deren Schlüssel in der Umgebung steht (lesender Aufruf, nie ein Live-Test, nie eine automatische Umschaltung auf ein anderes Modell).
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

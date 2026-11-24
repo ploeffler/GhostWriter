@@ -58,12 +58,14 @@ from pathlib import Path
 
 import yaml
 
+import model_defaults
+
 SOURCE = 'aufbereitet.jpg'
 SOURCE_FRONT = 'aufbereitet-1.jpg'   # Bild mit Rückseite: Vorderseite (aufbereitet-2.jpg = Rückseite)
 TARGET = 'coloriert.jpg'
 META = 'bild.yml'
 ALLOWED_ART = ('foto', 'foto-vom-foto')
-DEFAULT_MODEL = 'gemini-2.5-flash-image'
+DEFAULT_MODEL = model_defaults.default_model('google', 'image', 'gemini-2.5-flash-image')   # #554: providers.yml
 SECRET = 'GEMINI_API_KEY'
 API = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
 PROMPT = ('Colorize this black-and-white photograph with natural, historically plausible colors. '
@@ -334,7 +336,8 @@ def gemini_proposal(img, model, key, timeout=180, hint=None):
             data = json.loads(r.read())
     except urllib.error.HTTPError as e:
         detail = e.read().decode('utf-8', 'replace')[:400]
-        raise SystemExit(f'Gemini meldet HTTP {e.code}: {detail}')
+        raise SystemExit(model_defaults.classify_http_error(e.code, detail, 'Google Gemini', model)
+                         if model_defaults.is_unavailable(e.code, detail) else f'Gemini meldet HTTP {e.code}: {detail}')
     for cand in data.get('candidates') or []:
         for part in ((cand.get('content') or {}).get('parts') or []):
             blob = part.get('inlineData') or part.get('inline_data')
