@@ -24,7 +24,7 @@ TEXT = {
         'research': 'Recherche', 'analysis': 'Analyse', 'colorize': 'Colorieren', 'import': 'Import',
         'open': 'wartet', 'budget': 'wartet auf Bestätigung (KI-Budget knapp)', 'blocked': 'wartet auf einen anderen Auftrag',
         'blocked_by': 'Erst nach {name}', 'priority': 'vorgezogen', 'queued': 'eingereicht {when}',
-        'failed_at': 'fehlgeschlagen {when}', 'done': 'Ergebnis liegt im Änderungspaket', 'empty': 'Keine Aufträge in der Warteschlange.',
+        'failed_at': 'fehlgeschlagen {when}', 'retry': 'Erneut versuchen: `python3 scripts/jobs.py . retry --request {path}`', 'done': 'Ergebnis liegt im Änderungspaket', 'empty': 'Keine Aufträge in der Warteschlange.',
         'waiting_h': 'Wartet', 'failed_h': 'Fehlgeschlagen', 'done_h': 'Fertig, noch nicht übernommen',
         'hint': 'Zum Vorziehen oder Abbrechen den Pfad nennen; ein schon laufender Auftrag lässt sich nicht stoppen.',
         'unreadable': 'Auftrag nicht lesbar',
@@ -34,7 +34,7 @@ TEXT = {
         'research': 'Research', 'analysis': 'Analysis', 'colorize': 'Colorize', 'import': 'Import',
         'open': 'waiting', 'budget': 'waiting for confirmation (AI budget low)', 'blocked': 'waiting for another job',
         'blocked_by': 'Only after {name}', 'priority': 'moved up', 'queued': 'queued {when}',
-        'failed_at': 'failed {when}', 'done': 'result is in the pending changes', 'empty': 'No jobs in the queue.',
+        'failed_at': 'failed {when}', 'retry': 'Retry: `python3 scripts/jobs.py . retry --request {path}`', 'done': 'result is in the pending changes', 'empty': 'No jobs in the queue.',
         'waiting_h': 'Waiting', 'failed_h': 'Failed', 'done_h': 'Finished, not yet applied',
         'hint': 'To move up or cancel, name the path; a job that is already running cannot be stopped.',
         'unreadable': 'Job not readable',
@@ -174,7 +174,7 @@ def text_view(base, config, language='de'):
         lines.append(f'**{t(language, "failed_h")}**')
         for r in failed:
             lines.append(f'- {ICON["failed"]} {r["J_TITLE"]} – {r["J_DETAIL"]}' + (f' ({r["J_WHEN_TEXT"]})' if r['J_WHEN_TEXT'] else '')
-                         + f'\n  `{r["J_PATH"]}`')
+                         + f'\n  `{r["J_PATH"]}`\n  ' + t(language, 'retry', path=r['J_PATH']))
         lines.append('')
     if done:
         lines.append(f'**{t(language, "done_h")}**')
