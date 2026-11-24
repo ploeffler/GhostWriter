@@ -40,7 +40,7 @@ The book structure is created only after you explicitly approve the outline. The
 
 ## 6. Work on the book
 
-The project overview lists chapters, status and costs. Open a chapter to see its sections; open a section to work on it.
+The project overview lists chapters, status and costs (AI API calls only; “≈” means estimated; `python3 scripts/costs.py . summary` breaks them down into actual, estimated, manual and unknown, and `costs.py . add` records an invoice amount). Open a chapter to see its sections; open a section to work on it.
 
 Work follows a [creation cycle](CREATION-CYCLE.en.md): introduce new ideas, requirements and material at any time, returning to research, brainstorming or revision as needed. Once its sections are finalized, assemble, review and finalize the chapter. Repeat this [chapter circle](BOOK-LIFECYCLE.en.md) for further chapters.
 
