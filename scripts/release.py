@@ -193,6 +193,7 @@ def render_report(version, langs, steps, issues, milestone):
         lines.append(f'| {lang} | {info["status"]} | {"; ".join(info["gaps"]) or "–"} |')
     lines += ['', f'### Offene Issues im Meilenstein {milestone or "–"}', '']
     lines += [f'- #{i["number"]} {i["title"]}{" (bug)" if i in bugs else ""}' for i in issues] or ['- keine']
+    lines += ['', 'Tests: volle Suite über `validate` am Release-PR; vor dem Veröffentlichen muss sie grün sein.']
     lines += ['', 'Release Notes in `docs/UPDATES.md` und `docs/UPDATES.en.md` sind ein Entwurf: überarbeiten, '
               'Markierung entfernen. Veröffentlichen erst nach dem Satz „Release '
               f'{version} freigeben und veröffentlichen“ (Ablauf „Release veröffentlichen“).']

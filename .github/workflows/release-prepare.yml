@@ -3,7 +3,9 @@ name: Release vorbereiten
 # #488 Phase 1: ohne Freigabe, beliebig oft. Legt den Branch release/<version>
 # mit Version und Release-Notes-Entwurf an, prüft Doku, Sprachen, Tests und
 # offene Fehler im Meilenstein und meldet „bereit zum Scharfschalten“ oder
-# „nicht bereit“. Veröffentlicht nichts.
+# „nicht bereit“. Veröffentlicht nichts. Die Tests laufen nicht hier, sondern über
+# `validate` am Release-PR: Den PR legt die Sitzung an (ein PR von GITHUB_TOKEN löst
+# `validate` nicht aus). Der Bericht liegt als Artefakt „release-report-<version>“ vor.
 on:
   workflow_dispatch:
     inputs:
@@ -15,6 +17,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: read
+  actions: read
 
 concurrency:
   group: release-prepare
@@ -58,10 +61,10 @@ jobs:
         id: docs
         continue-on-error: true
         run: python scripts/check_docs.py
-      - name: Prüfbericht mit voller Testsuite
+      - name: Prüfbericht (ohne Tests; die laufen über validate am Release-PR)
         id: verify
         continue-on-error: true
-        run: python scripts/verify.py --abnahme 'nicht durchgeführt' --out "$RUNNER_TEMP/verify.md"
+        run: python scripts/verify.py --skip tests --abnahme 'nicht durchgeführt' --out "$RUNNER_TEMP/verify.md"
       - name: Offene Issues im Meilenstein
         id: milestone
         run: |
@@ -75,7 +78,7 @@ jobs:
           fi
       - name: Gesamturteil
         run: |
-          STEPS=$(printf '{"Doku (check_docs)": %s, "Prüfbericht (verify.py, volle Tests)": %s}' \
+          STEPS=$(printf '{"Doku (check_docs)": %s, "Prüfbericht (verify.py ohne Tests)": %s}' \
             "${{ steps.docs.outcome == 'success' }}" "${{ steps.verify.outcome == 'success' }}")
           python scripts/release.py report --version "$VERSION" --steps "$STEPS" \
             --issues "$RUNNER_TEMP/issues.json" --milestone "${{ steps.milestone.outputs.title }}" --out "$RUNNER_TEMP/report.md"
@@ -85,14 +88,17 @@ jobs:
             printf '\n</details>\n' >> "$RUNNER_TEMP/report.md"
           fi
           cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
-      - name: Release-PR anlegen und Bericht anhängen
+      - name: Bericht als Artefakt ablegen
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-report-${{ inputs.version }}
+          path: ${{ runner.temp }}/report.md
+      - name: Bericht an einen offenen Release-PR hängen
         run: |
           BRANCH="${{ steps.branch.outputs.branch }}"
           PR=$(gh api "repos/$GITHUB_REPOSITORY/pulls?head=${GITHUB_REPOSITORY%%/*}:$BRANCH&state=open" --jq '.[0].number // empty')
-          if [ -z "$PR" ]; then
-            printf 'Release %s vorbereiten (#488). Notes-Entwurf überarbeiten; Bericht folgt als Kommentar.\n\nBezug: #488\n' "$VERSION" > "$RUNNER_TEMP/body.md"
-            PR=$(gh api "repos/$GITHUB_REPOSITORY/pulls" -f base=main -f head="$BRANCH" \
-              -f title="Release $VERSION" -F body=@"$RUNNER_TEMP/body.md" --jq .number) || {
-              echo "::warning::PR konnte nicht angelegt werden (Einstellung „Allow GitHub Actions to create pull requests“?). Bericht steht in der Zusammenfassung."; exit 0; }
+          if [ -n "$PR" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@"$RUNNER_TEMP/report.md" --jq .html_url
+          else
+            echo "Noch kein Release-PR: die Sitzung legt ihn mit dem Bericht an (Artefakt release-report-$VERSION)." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
-          gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@"$RUNNER_TEMP/report.md" --jq .html_url
