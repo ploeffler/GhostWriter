@@ -88,14 +88,9 @@ def _order(pts):
     return [pts[s.argmin()], pts[d.argmax()], pts[s.argmax()], pts[d.argmin()]]   # oben links, oben rechts, unten rechts, unten links
 
 
-def prepare(folder):
-    """`bearbeitet.jpg` aus dem Original; die Schritte stehen in `bearbeitung`. Original bleibt unverändert."""
+def enhance(img):
+    """Bild aufbereiten (OpenCV): (Ergebnis, Schritte). Gemeinsam für `prepare` und die Rückgabe (scripts/checkin.py)."""
     cv2, np = _imports()
-    folder = Path(folder)
-    meta = read(folder)
-    img = cv2.imread(str(folder / meta['original']), cv2.IMREAD_COLOR)
-    if img is None:
-        raise ValueError('Original lässt sich nicht als Bild lesen (PDF zuerst in Bilder wandeln)')
     steps = []
     gray_src = float(np.abs(img[..., 0].astype(int) - img[..., 2].astype(int)).mean()) < 6   # Schwarz-Weiß bleibt Schwarz-Weiß
     h, w = img.shape[:2]
@@ -135,6 +130,18 @@ def prepare(folder):
     if gray_src:
         out = cv2.cvtColor(cv2.cvtColor(out, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)
         steps.append('Schwarz-Weiß beibehalten')
+    return out, steps
+
+
+def prepare(folder):
+    """`bearbeitet.jpg` aus dem Original; die Schritte stehen in `bearbeitung`. Original bleibt unverändert."""
+    cv2, _ = _imports()
+    folder = Path(folder)
+    meta = read(folder)
+    img = cv2.imread(str(folder / meta['original']), cv2.IMREAD_COLOR)
+    if img is None:
+        raise ValueError('Original lässt sich nicht als Bild lesen (PDF zuerst in Bilder wandeln)')
+    out, steps = enhance(img)
     cv2.imwrite(str(folder / 'bearbeitet.jpg'), out, [cv2.IMWRITE_JPEG_QUALITY, 92])
     meta['bearbeitet'] = 'bearbeitet.jpg'
     meta['bearbeitung'] = steps

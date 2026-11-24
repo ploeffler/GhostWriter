@@ -1,0 +1,484 @@
+#!/usr/bin/env python3
+"""Rückgabe zu einem Checkout einchecken (#573, Teil 2 zu #209).
+
+  python3 scripts/checkin.py <buch> <datei>… [--checkout GW-XXXX] [--date JJJJ-MM-TT] [--repo owner/name]
+
+Nimmt die Arbeitskopie des Gegenlesers zurück: DOCX (auch mit Kommentaren und Änderungsnachverfolgung), PDF (auch mit
+PDF-Kommentaren) oder Scan/Handyfoto ausgedruckter Seiten. Die Kennung kommt aus der Dokumenteigenschaft
+`ghostwriter_checkout` (DOCX) bzw. dem QR-Code (PDF, Bilder). Dann:
+
+1. Original unverändert ablegen: `checkouts/<id>/rueckgabe-<datum>[-n]/original.<endung>` (mehrere Rückgaben je Checkout).
+2. Scans aufbereiten (`seite-NN.jpg`, wie `material.py`), jede Seite über ihren QR-Code einem Kapitel zuordnen;
+   ohne Code `unbekannt`, nie raten.
+3. DOCX: Text je Abschnitt über die Textmarken `gw_<abschnitt>` mit dem Ausgangsstand (Commit des Checkouts) und dem
+   heutigen Stand vergleichen (Dreifachvergleich). Geänderte Stellen werden **Befunde** in
+   `editorial/rueckgabe-<id>-<datum>.yml` (Schema `findings`): eindeutig mit `alt`/`neu`; hat sich die Stelle seither
+   geändert, mit `frage` und allen Fassungen, nie blind. Kommentare werden Befunde mit `frage`. Änderungsnachverfolgung
+   wird nie still angenommen: Sie ist Teil des Vergleichs und wird als Befund zur Entscheidung vorgelegt.
+4. `rueckgabe.yml` im Ablageordner: erkannte Seiten und Zuordnung, Zahl der Anmerkungen, `unbekannt`, offene Fragen.
+   Handschrift abschreiben und Korrekturzeichen deuten macht der Assistent nach START.md (nie raten) und trägt die
+   Befunde in die Befunddatei ein; ab dort gilt die Kette `hinweise.py collect` → Stufen (#570) → `plan`/`apply`.
+
+Der Checkout wird nie automatisch beendet. Nichts wird übernommen oder freigegeben; Manuskriptseiten gehen nie an
+externe Texterkennungsdienste.
+"""
+import argparse
+import datetime
+import difflib
+import json
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import zipfile
+from pathlib import Path
+
+import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import checkout as co  # noqa: E402
+
+W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+IMAGES = ('.jpg', '.jpeg', '.png', '.tif', '.tiff', '.bmp', '.webp')
+PAYLOAD = re.compile(r'^GW1\|([^|]+)\|([^|]*)\|(GW-[A-HJ-NP-Z2-9]{4})(?:\|([^|]+))?$')
+SENTENCE = re.compile(r'[^.!?…\n]+(?:[.!?…]+[»«“”"\')\]]*|\n|$)')
+SMART = str.maketrans({'„': '"', '“': '"', '”': '"', '»': '"', '«': '"', '‚': "'", '‘': "'", '’': "'", '–': '-', '—': '-', '…': '...'})
+
+
+def q(tag):
+    return f'{{{W}}}{tag}'
+
+
+# ---------- Erkennen ----------
+
+def parse_payload(text):
+    m = PAYLOAD.match((text or '').strip())
+    return {'repo': m.group(1), 'branch': m.group(2), 'id': m.group(3), 'chapter': m.group(4)} if m else None
+
+
+def decode_qr(img):
+    """QR-Code in einem Bild (OpenCV-Array) lesen: ganzes Bild, dann Fußzeile links, dann vergrößert. Gibt Nutzdaten oder None."""
+    import cv2
+    det = cv2.QRCodeDetector()
+    h, w = img.shape[:2]
+    tries = [img, img[int(h * 0.82):, :int(w * 0.45)], img[int(h * 0.7):, :], img[:int(h * 0.45), :]]
+    for part in tries:
+        for factor in (1.0, 2.0):
+            view = cv2.resize(part, None, fx=factor, fy=factor, interpolation=cv2.INTER_CUBIC) if factor != 1.0 else part
+            try:
+                value = det.detectAndDecode(view)[0]
+            except cv2.error:
+                continue
+            if parse_payload(value):
+                return value
+    return None
+
+
+def kind_of(path):
+    s = Path(path).suffix.lower()
+    if s == '.docx':
+        return 'docx'
+    if s == '.pdf':
+        return 'pdf'
+    if s in IMAGES:
+        return 'scan'
+    raise ValueError(f'Dateityp {s or "?"} wird nicht eingecheckt (DOCX, PDF oder Bild)')
+
+
+def docx_properties(path):
+    with zipfile.ZipFile(path) as z:
+        if 'docProps/custom.xml' not in z.namelist():
+            return {}
+        from lxml import etree
+        root = etree.fromstring(z.read('docProps/custom.xml'))
+    return {e.get('name'): ''.join(e.itertext()) for e in root}
+
+
+# ---------- Text ----------
+
+def norm(text):
+    t = re.sub(r'\[([^\]]*)\]\{[^}]*\}', r'\1', text or '')
+    t = re.sub(r'!?\[([^\]]*)\]\([^)]*\)', r'\1', t)
+    t = t.replace('\\', '').translate(SMART)
+    t = re.sub(r'[*_`]+', '', t)
+    return re.sub(r'\s+', ' ', t).strip()
+
+
+def has_markup(text):
+    return bool(re.search(r'[*_`\[\]{}\\]', text))
+
+
+def paragraphs(text):
+    return [p.strip() for p in re.split(r'\n\s*\n', text or '') if p.strip()]
+
+
+def manuscript_of(text):
+    return text.split('\n## Manuskript\n', 1)[1].strip() if '\n## Manuskript\n' in text else ''
+
+
+def baseline(base, commit, rel):
+    r = subprocess.run(['git', '-C', str(base), 'show', f'{commit}:{rel}'], capture_output=True, text=True)
+    return manuscript_of(r.stdout) if r.returncode == 0 else None
+
+
+def read_docx(path):
+    """{Abschnitts-ID: [Absatz, …]}, Kommentare [(Abschnitt, Autor, Text, Ankertext)], Zähler der Änderungsnachverfolgung."""
+    from docx import Document
+    props = docx_properties(path)
+    mapping = json.loads(props.get('ghostwriter_sections') or '{}')
+    doc = Document(str(path))
+    comments = {}
+    for rel in doc.part.rels.values():
+        if rel.reltype.endswith('/comments'):
+            from lxml import etree
+            root = etree.fromstring(rel.target_part.blob)
+            for c in root.iter(q('comment')):
+                comments[c.get(q('id'))] = (c.get(q('author')) or '', ' '.join(''.join(t.itertext()) for t in c.iter(q('p'))).strip())
+    out, found, current = {}, [], None
+    body = doc.element.body
+    for p in body.iter(q('p')):
+        names = [b.get(q('name')) for b in p.iter(q('bookmarkStart'))]
+        style = p.find(f'{q("pPr")}/{q("pStyle")}')
+        style_val = (style.get(q('val')) if style is not None else '') or ''
+        text = ''.join(t.text or '' for t in p.iter(q('t'))).strip()
+        sec = next((mapping[n] for n in names if n in mapping), None)
+        if sec:                                     # Abschnittsüberschrift mit Textmarke
+            current = sec
+            out.setdefault(current, [])
+            continue
+        level = re.match(r'(?i)(?:heading|berschrift)(\d)$', style_val)
+        if style_val.lower() in ('title', 'subtitle') or (level and int(level.group(1)) <= 2):
+            current = None                          # Kapitelüberschrift, Untertitel, „Quellen“ u. Ä.: gehört zu keinem Abschnitt
+            continue
+        for cs in p.iter(q('commentRangeStart')):
+            cid = cs.get(q('id'))
+            if cid in comments and current:
+                found.append((current, comments[cid][0], comments[cid][1], text[:120]))
+        if current and text:
+            out[current].append(text)
+    ins = len(list(body.iter(q('ins'))))
+    dele = len(list(body.iter(q('del'))))
+    return out, found, {'eingefuegt': ins, 'geloescht': dele}, props
+
+
+STATUS_NOTE = re.compile(r'^Stand: .*nicht abgeschlossen$')
+
+
+def plain_paragraphs(md):
+    """Absätze eines Manuskripttexts so, wie sie nach Pandoc in einer DOCX stehen: gleiche Pipeline wie beim Bau der Datei
+    zum Gegenlesen, damit Listen, Tabellen, Anführungszeichen und Markup auf beiden Seiten gleich aussehen."""
+    from docx import Document
+    with tempfile.TemporaryDirectory() as tmp:
+        src, out = Path(tmp) / 'a.md', Path(tmp) / 'a.docx'
+        src.write_text(md or '', encoding='utf-8')
+        r = subprocess.run(['pandoc', '--from', 'markdown+smart', '-o', str(out), str(src)], capture_output=True, text=True)
+        if r.returncode:
+            raise ValueError('pandoc: ' + r.stderr.strip()[:200])
+        return [''.join(t.text or '' for t in p.iter(q('t'))).strip()
+                for p in Document(str(out)).element.body.iter(q('p')) if ''.join(p.itertext()).strip()]
+
+
+def tokens(text):
+    return text.split()
+
+
+def sentence_pairs(a_par, g_par):
+    """Satzweise Gegenüberstellung eines Absatzes: [(alt_roh, neu)] nur geänderte Sätze mit gleicher Zahl auf beiden Seiten."""
+    sa = [m.group().strip() for m in SENTENCE.finditer(a_par) if m.group().strip()]
+    sg = [m.group().strip() for m in SENTENCE.finditer(g_par) if m.group().strip()]
+    sm = difflib.SequenceMatcher(None, [norm(s) for s in sa], [norm(s) for s in sg], autojunk=False)
+    pairs = []
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == 'equal':
+            continue
+        pairs.append((' '.join(sa[i1:i2]), ' '.join(sg[j1:j2])))
+    return pairs
+
+
+def minimal_change(alt_sentence, neu_sentence, unique_in):
+    """Kleinste eindeutige Stelle (alt, neu) zwischen zwei Sätzen: Wortvergleich, bei Bedarf mit Nachbarwörtern, bis `alt`
+    im Text `unique_in` genau einmal vorkommt. Gibt (alt, neu) oder None, wenn die Änderung nicht eindeutig fassbar ist."""
+    ta, tg = tokens(alt_sentence), tokens(neu_sentence)
+    sm = difflib.SequenceMatcher(None, [norm(t) for t in ta], [norm(t) for t in tg], autojunk=False)
+    ops = [o for o in sm.get_opcodes() if o[0] != 'equal']
+    if len(ops) != 1:
+        return None
+    _, i1, i2, j1, j2 = ops[0]
+    for pad in range(0, 5):
+        a1, a2 = max(0, i1 - pad), min(len(ta), i2 + pad)
+        g1, g2 = max(0, j1 - pad), min(len(tg), j2 + pad)
+        alt = ' '.join(ta[a1:a2])
+        neu = ' '.join(ta[a1:i1] + tg[j1:j2] + ta[i2:a2])    # Nachbarwörter in der Schreibweise des Manuskripts
+        if alt and unique_in.count(alt) == 1:
+            return alt, neu
+    return None
+
+
+def compare_section(sid, ours, theirs, today):
+    """Befunde (ohne ID und Quelle) für einen Abschnitt: Ausgangsstand `ours` (Manuskripttext), Fassung des Gegenlesers
+    `theirs` (Absätze aus der DOCX), heutiger Stand `today` (Text). Beide Seiten gehen durch dieselbe Pandoc-Pipeline."""
+    a_par = plain_paragraphs(ours)
+    theirs = [p for p in theirs if not STATUS_NOTE.match(p) and p != '(noch kein Text)']
+    sm = difflib.SequenceMatcher(None, [norm(p) for p in a_par], [norm(p) for p in theirs], autojunk=False)
+    out = []
+
+    def changed_since(alt):
+        return today is not None and alt and alt not in today
+
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == 'equal':
+            continue
+        if tag == 'replace' and (i2 - i1) == (j2 - j1):
+            for a, g in zip(a_par[i1:i2], theirs[j1:j2]):
+                for alt_s, neu_s in sentence_pairs(a, g):
+                    hit = minimal_change(alt_s, neu_s, ours) if alt_s and neu_s else None
+                    if hit and not changed_since(hit[0]):
+                        alt, neu = hit
+                        short = len(tokens(alt)) <= 6 and not re.search(r'\d', alt + neu)
+                        out.append({'art': 'sprache' if short else 'aufbau', 'alt': alt, 'neu': neu,
+                                    'befund': 'Änderung des Gegenlesers', 'frage': 'Änderung des Gegenlesers übernehmen?'})
+                    else:
+                        out.append({'art': 'kontinuitaet', 'befund': 'Änderung des Gegenlesers, Stelle nicht eindeutig oder seit dem Checkout geändert',
+                                    'frage': _three(alt_s, neu_s, today)})
+            continue
+        old, new = ' '.join(a_par[i1:i2]), ' '.join(theirs[j1:j2])
+        kind = 'Absatz gestrichen' if not new else 'Absatz eingefügt' if not old else 'Absätze geändert'
+        out.append({'art': 'aufbau', 'befund': f'{kind} (Gegenleser)', 'frage': _three(old, new, today)})
+    return out
+
+
+def _three(old, new, today):
+    cut = lambda s: (s[:300] + '…') if len(s) > 300 else s   # noqa: E731
+    text = f'Ausgangsstand: „{cut(old)}“ · Gegenleser: „{cut(new)}“'
+    if old and today is not None and old not in today:
+        text += ' · Die Stelle hat sich seit dem Checkout geändert; heutiger Stand prüfen.'
+    return text + ' Welche Fassung gilt?'
+
+
+# ---------- Ablage ----------
+
+def folder_for(base, cid, date):
+    root = Path(base) / 'checkouts' / cid
+    n, name = 1, f'rueckgabe-{date}'
+    while (root / name).exists():
+        n += 1
+        name = f'rueckgabe-{date}-{n}'
+    return root / name
+
+
+def write_findings(base, cid, date, folder, items):
+    base = Path(base)
+    ed = base / 'editorial'
+    ed.mkdir(exist_ok=True)
+    n, name = 1, f'rueckgabe-{cid}-{date}'
+    while (ed / f'{name}.yml').exists():
+        n += 1
+        name = f'rueckgabe-{cid}-{date}-{n}'
+    findings = []
+    for i, it in enumerate(items, start=1):
+        f = {'id': f'b-{i:03d}', 'abschnitt': it['abschnitt'], 'art': it['art'], 'befund': it['befund'], 'status': 'offen',
+             'schweregrad': 'mittel', 'quelle': it.get('quelle', ''), 'gegenleser': it.get('gegenleser', '')}
+        for key in ('alt', 'neu', 'frage'):
+            if it.get(key):
+                f[key] = it[key]
+        findings.append({k: v for k, v in f.items() if v != ''})
+    path = ed / f'{name}.yml'
+    path.write_text(yaml.safe_dump({'bericht': (folder / 'rueckgabe.yml').relative_to(base).as_posix(), 'befunde': findings},
+                                   allow_unicode=True, sort_keys=False), encoding='utf-8')
+    return path
+
+
+def checkin(base, config, files, checkout_id=None, date=None, repo=None):
+    """Rückgabe einchecken; gibt (Ablageordner, Bericht) zurück. Fehler: ValueError, es bleibt nichts liegen."""
+    import checks
+    date = date or datetime.date.today().isoformat()
+    files = [Path(f) for f in files]
+    if not files:
+        raise ValueError('Mindestens eine Datei angeben')
+    kinds = {kind_of(f) for f in files}
+    if len(kinds) > 1:
+        raise ValueError('Eine Rückgabe besteht aus Dateien einer Art (DOCX, PDF oder Bilder)')
+    kind = kinds.pop()
+    for f in files:
+        if not f.is_file():
+            raise ValueError(f'Datei nicht gefunden: {f}')
+
+    pages, found_ids = [], set()
+    props, docx_data = {}, None
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        if kind == 'docx':
+            docx_data = read_docx(files[0])
+            props = docx_data[3]
+            if props.get('ghostwriter_checkout'):
+                found_ids.add(props['ghostwriter_checkout'])
+        else:
+            import cv2
+            images = []
+            for f in files:
+                if kind == 'pdf':
+                    prefix = tmp / f'{f.stem}'
+                    subprocess.run(['pdftoppm', '-r', '300', '-png', str(f), str(prefix)], check=True, capture_output=True)
+                    images += sorted(tmp.glob(f'{f.stem}-*.png'))
+                else:
+                    images.append(f)
+            for k, img_path in enumerate(images, start=1):
+                img = cv2.imread(str(img_path), cv2.IMREAD_COLOR)
+                if img is None:
+                    pages.append({'seite': k, 'datei': img_path.name, 'zuordnung': 'unbekannt', 'grund': 'Bild nicht lesbar'})
+                    continue
+                payload = parse_payload(decode_qr(img) or '')
+                rec = {'seite': k, 'datei': img_path.name, 'zuordnung': 'qr' if payload else 'unbekannt'}
+                if payload:
+                    rec['kennung'], rec['kapitel'] = payload['id'], payload['chapter'] or ''
+                    found_ids.add(payload['id'])
+                    if repo and payload['repo'] not in ('unbekannt', repo):
+                        raise ValueError(f'Der Code gehört zu {payload["repo"]}, nicht zu {repo}; nichts abgelegt')
+                else:
+                    rec['grund'] = 'kein QR-Code erkannt'
+                pages.append(rec)
+                pages[-1]['_img'] = img_path
+
+        if checkout_id:
+            if found_ids and found_ids != {checkout_id}:
+                raise ValueError(f'Die Datei gehört zu {", ".join(sorted(found_ids))}, nicht zu {checkout_id}; nichts abgelegt')
+            found_ids = {checkout_id}
+        if not found_ids:
+            raise ValueError('Keine Kennung erkannt (weder Dokumenteigenschaft noch QR-Code); nichts abgelegt. '
+                             'Mit --checkout GW-XXXX kann die Kennung von Hand angegeben werden.')
+        if len(found_ids) > 1:
+            raise ValueError(f'Mehrere Kennungen in einer Rückgabe: {", ".join(sorted(found_ids))}; nichts abgelegt')
+        cid = found_ids.pop()
+        data = co.load(base)
+        entry = next((e for e in data['checkouts'] if e['id'] == cid), None)
+        if not entry:
+            raise ValueError(f'Checkout {cid} gibt es in diesem Buch nicht; nichts abgelegt')
+
+        folder = folder_for(base, cid, date)
+        folder.mkdir(parents=True)
+        report = {'kennung': cid, 'art': kind, 'datum': date, 'checkout_status': entry['status'],
+                  'spaet': entry['status'] != 'ausgecheckt', 'dateien': []}
+        for i, f in enumerate(files, start=1):
+            target = f'original{"" if len(files) == 1 else f"-{i}"}{f.suffix.lower()}'
+            shutil.copyfile(f, folder / target)
+            report['dateien'].append(target)
+
+        items, unknown, comments_n = [], [], 0
+        if kind == 'docx':
+            sections, comments, tracked, _ = docx_data
+            report['aenderungsnachverfolgung'] = tracked
+            known = {s for s in (entry.get('abschnitte') or {})}
+            for sid, theirs in sections.items():
+                if sid not in known:
+                    unknown.append({'abschnitt': sid, 'grund': 'nicht Teil des Checkouts'})
+                    continue
+                rel = next(s['path'] for c in config['structure']['chapters'] for s in c['sections'] if s['id'] == sid)
+                ours = baseline(base, entry.get('commit', ''), rel) if entry.get('commit') else None
+                if ours is None:
+                    unknown.append({'abschnitt': sid, 'grund': 'Ausgangsstand nicht lesbar (Commit fehlt)'})
+                    continue
+                today = checks.manuscript(base, config, sid) or ''
+                for it in compare_section(sid, ours, theirs, today):
+                    items.append({**it, 'abschnitt': sid, 'quelle': f'{report["dateien"][0]}#{sid}', 'gegenleser': entry.get('gegenleser', '')})
+            for sid, author, text, anchor in comments:
+                if sid in known:
+                    items.append({'abschnitt': sid, 'art': 'aufbau', 'befund': f'Kommentar von {author or "Gegenleser"}: {text}'[:400],
+                                  'frage': f'Kommentar zu „{anchor}“: {text}', 'quelle': f'{report["dateien"][0]}#{sid}',
+                                  'gegenleser': entry.get('gegenleser', '')})
+                    comments_n += 1
+            if tracked['eingefuegt'] or tracked['geloescht']:
+                report['hinweis'] = ('Änderungsnachverfolgung enthalten: nicht angenommen, jede Änderung steht als Befund '
+                                     'zur Entscheidung.')
+        else:
+            steps = []
+            if kind == 'scan':
+                import material
+                import cv2
+                for rec in pages:
+                    img = rec.get('_img')
+                    if img is None:
+                        continue
+                    out, steps = material.enhance(cv2.imread(str(img)))
+                    name = f'seite-{rec["seite"]:02d}.jpg'
+                    cv2.imwrite(str(folder / name), out, [cv2.IMWRITE_JPEG_QUALITY, 92])
+                    rec['aufbereitet'] = name
+            report['aufbereitung'] = steps
+            for rec in pages:
+                rec.pop('_img', None)
+            report['seiten'] = pages
+            report['anmerkungen'] = []          # vom Assistenten abgeschrieben: Seite, Nummer, Text, sicher
+            report['offene_fragen'] = [f'Seite {p["seite"]}: keine Zuordnung (kein QR-Code)' for p in pages if p['zuordnung'] == 'unbekannt']
+            if kind == 'pdf':
+                comments_n = _pdf_comments(files[0], pages, report)
+        report['unbekannt'] = unknown
+        report['befunde'] = len(items)
+        report['kommentare'] = comments_n
+        if items:
+            fpath = write_findings(base, cid, date, folder, items)
+            report['befunddatei'] = fpath.relative_to(base).as_posix()
+        (folder / 'rueckgabe.yml').write_text(yaml.safe_dump(report, allow_unicode=True, sort_keys=False), encoding='utf-8')
+        # Befunddatei verweist auf den Bericht; nach dem Schreiben des Berichts gültig
+        entry.setdefault('rueckgaben', []).append({'ordner': folder.relative_to(base).as_posix(), 'art': kind, 'datum': date,
+                                                   'befunde': len(items)})
+        co.save(base, data)
+        return folder, report
+
+
+def _pdf_comments(path, pages, report):
+    """PDF-Kommentare (Anmerkungen mit Text) auslesen: Seite und Text; der Abschnitt bleibt `unbekannt`, die Zuordnung zum
+    Kapitel kommt aus dem QR-Code der Seite. Gibt die Zahl zurück."""
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        return 0
+    n = 0
+    for k, page in enumerate(PdfReader(str(path)).pages, start=1):
+        for annot in page.get('/Annots') or []:
+            obj = annot.get_object()
+            text = str(obj.get('/Contents') or '').strip()
+            if text and obj.get('/Subtype') in ('/Text', '/Highlight', '/FreeText', '/Underline', '/StrikeOut', '/Caret'):
+                rec = next((p for p in pages if p['seite'] == k), {})
+                report['anmerkungen'].append({'seite': k, 'kapitel': rec.get('kapitel', ''), 'text': text, 'sicher': 'ja',
+                                              'quelle': 'PDF-Kommentar'})
+                n += 1
+    return n
+
+
+def summary(report):
+    lines = [f'{report["kennung"]}: {report["art"]}-Rückgabe eingecheckt ({report["datum"]})']
+    if report.get('spaet'):
+        lines.append(f'Der Checkout ist {report["checkout_status"]}: späte Rückgabe, Zwischenänderungen erscheinen als Frage.')
+    if report.get('seiten'):
+        ok = sum(1 for p in report['seiten'] if p['zuordnung'] == 'qr')
+        lines.append(f'{len(report["seiten"])} Seiten, {ok} über den QR-Code zugeordnet, {len(report["seiten"]) - ok} unbekannt')
+    lines.append(f'{report["befunde"]} Befunde, {report["kommentare"]} Kommentare/Anmerkungen')
+    if report.get('hinweis'):
+        lines.append(report['hinweis'])
+    if report.get('befunddatei'):
+        lines.append(f'Befunde: {report["befunddatei"]} (weiter mit hinweise.py collect)')
+    lines.append('Der Checkout bleibt bestehen; beenden nur ausdrücklich.')
+    return '\n'.join(lines) + '\n'
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('project')
+    ap.add_argument('files', nargs='+')
+    ap.add_argument('--checkout')
+    ap.add_argument('--date')
+    ap.add_argument('--repo')
+    args = ap.parse_args(argv)
+    from render_view import load
+    base, config = load(args.project)
+    try:
+        folder, report = checkin(base, config, args.files, args.checkout, args.date, args.repo)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    print(summary(report), end='')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
