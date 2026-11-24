@@ -18,11 +18,16 @@ Aufruf:
       Rolle, Rechte und Git-Benutzer für Commits dieser Person (aus dem Team-Eintrag, sonst assistant.yml)
   python3 scripts/team.py <buch> check
       Team-Liste prüfen (genau gelesen auch von validate_project.py)
+  python3 scripts/team.py <buch> gate --base <commit> --actor <login>
+      Prüfung in `validate` (Teil 2): Änderungen an approvals.yml oder editions/ nur durch Freigabeberechtigte,
+      Änderungen an `team` nur durch Eigentümer. Maßgeblich ist die Team-Liste des Ausgangsstands (<commit>),
+      damit sich niemand im selben Änderungspaket selbst befördert.
 
-Teil 1 legt Rollen und Git-Benutzer fest; der Assistent bietet danach nur erlaubte Aktionen an. Die Prüfung
-im Änderungspaket (Abschlüsse nur durch Freigabeberechtigte) folgt in Teil 2. Bis dahin ist die Rolle eine
-Regel für den Assistenten, keine technische Sperre: Wer Schreibrecht hat, kann auch selbst Dateien ändern.
+Grenzen: `validate` prüft den Urheber des Pull Requests bzw. den Pusher, nicht den, der mergt. Wer
+Schreibrecht hat, kann ohne Pull Request direkt pushen; dagegen hilft ein Ruleset mit Pflicht-Review auf
+den Buch-Branches. Auflagen und Sammelbände brauchen zusätzlich den persönlichen GitHub-Review (#169).
 """
+import subprocess
 import argparse
 import json
 import sys
@@ -92,6 +97,41 @@ def role(base, config, login, push=None):
             'not_offered': [] if approve else list(APPROVAL_ACTIONS) if write else ['alle Schreibaktionen']}
 
 
+GATED_FILES = ('approvals.yml',)
+GATED_PREFIXES = ('editions/',)
+
+
+def _show(base, ref, path):
+    out = subprocess.run(['git', 'show', f'{ref}:{path}'], cwd=base, capture_output=True, text=True)
+    return out.stdout if out.returncode == 0 else None
+
+
+def changed_files(base, ref):
+    out = subprocess.run(['git', 'diff', '--name-only', ref, 'HEAD'], cwd=base, capture_output=True, text=True, check=True)
+    return [line for line in out.stdout.splitlines() if line]
+
+
+def gate(base, ref, actor, head_config=None):
+    """Fehler, wenn `actor` laut Team des Ausgangsstands etwas ändert, das er nicht darf."""
+    raw = _show(base, ref, 'ghostwriter.yml')
+    old = (yaml.safe_load(raw) or {}) if raw else {}
+    if not team(old):
+        return []                     # ohne Team wie bisher: wer Schreibrecht hat, ist Eigentümer
+    info = role(base, old, actor)
+    files = changed_files(base, ref)
+    errs = []
+    gated = [f for f in files if f in GATED_FILES or f.startswith(GATED_PREFIXES)]
+    if gated and not info['approve']:
+        errs.append(f'{actor} ({info["role_text"]}) darf nicht abschließen oder Auflagen anlegen; '
+                    f'geändert: {", ".join(gated[:5])}')
+    if head_config is None:
+        cur = Path(base) / 'ghostwriter.yml'
+        head_config = (yaml.safe_load(cur.read_text(encoding='utf-8')) or {}) if cur.is_file() else {}
+    if team(head_config) != team(old) and info['role'] != 'owner':
+        errs.append(f'{actor} ({info["role_text"]}) darf die Team-Liste nicht ändern; nur Eigentümer')
+    return errs
+
+
 def summary(info):
     who = f'{info["login"]}: {info["role_text"]}'
     if info['source'] == 'ohne team':
@@ -115,10 +155,20 @@ def main(argv=None):
     r.add_argument('--push', choices=['true', 'false'], help='GitHub-Schreibrecht (permissions.push)')
     r.add_argument('--json', action='store_true')
     sub.add_parser('check')
+    g = sub.add_parser('gate')
+    g.add_argument('--base', required=True, help='Ausgangsstand (Commit des Ziel-Branchs)')
+    g.add_argument('--actor', required=True, help='GitHub-Login des PR-Urhebers bzw. Pushers')
     a = ap.parse_args(argv)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from render_view import load
     base, config = load(a.project)
+    if a.cmd == 'gate':
+        errs = gate(base, a.base, a.actor)
+        for e in errs:
+            print(f'::error::Rolle (#455): {e}')
+        if not errs:
+            print(f'✓ Rollen eingehalten ({a.actor})')
+        return 1 if errs else 0
     if a.cmd == 'check':
         errs = problems(config)
         ok = f'✓ Team: {len(team(config))} Einträge' if team(config) else '✓ kein Team eingetragen'
