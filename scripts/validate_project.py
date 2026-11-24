@@ -567,7 +567,7 @@ def check_project(project_dir):
                             if not record or record.get('action') != 'granted':
                                 errors.append(f'{section["path"]}: approved ohne letzte gültige Abschnittsfreigabe in approvals.yml')
                             elif record.get('note') != 'content_sha256=' + digest:
-                                errors.append(f'{section["path"]}: Manuskript-Fingerabdruck weicht von der letzten Freigabe in approvals.yml ab')
+                                errors.append(f'{section["path"]}: Manuskript-Fingerabdruck weicht von der letzten Freigabe in approvals.yml ab; Ausweg: `render_view.py . approval-section {config["structure"]["chapters"].index(chapter) + 1}.{chapter["sections"].index(section) + 1}` zeigt „Geänderten Text neu abschließen“ (#563)')
                         elif record and record.get('action') == 'granted':
                             errors.append(f'{section["path"]}: Abschnittsfreigabe in approvals.yml nicht zurückgenommen')
                 for _, item in matter_items(config):

@@ -2063,6 +2063,36 @@ def run_count(base, ch, sid, kind):
     return len(list(folder.glob('*.md'))) if folder.is_dir() else 0
 
 
+def approval_drift(base, kind, entity_id, path, manuscript):
+    """#563: Abgeschlossen, aber der Text weicht vom Fingerabdruck der letzten Freigabe ab -> (Eintrag, Zeilen), sonst None.
+    Die Zeilen vergleichen den Stand der letzten Freigabe (`commit` aus approvals.yml) mit dem aktuellen Text, soweit der Commit verfügbar ist."""
+    import difflib
+    import hashlib
+    from assemble import latest_approval
+    record = latest_approval(base, kind, entity_id)
+    if not record or record.get('action') != 'granted' or not str(record.get('note', '')).startswith('content_sha256='):
+        return None
+    if record['note'] == 'content_sha256=' + hashlib.sha256(manuscript.encode('utf-8')).hexdigest():
+        return None
+    old = None
+    commit = str(record.get('commit') or '')
+    if re.fullmatch(r'[0-9a-f]{7,40}', commit) and path:
+        r = subprocess.run(['git', '-C', str(base), 'show', f'{commit}:{path}'], capture_output=True, text=True)
+        if r.returncode == 0:
+            m = re.search(r'\n## Manuskript\n(.*)\Z', '\n' + r.stdout, re.S)
+            old = m.group(1).strip() if m else None
+    lines = []
+    if old is not None:
+        a, b = [x.strip() for x in old.split('\n\n') if x.strip()], [x.strip() for x in manuscript.split('\n\n') if x.strip()]
+        cut = lambda t: t if len(t) <= 110 else t[:107] + '…'
+        for x in difflib.unified_diff(a, b, lineterm='', n=0):
+            if x[:1] in '+-' and x[:3] not in ('+++', '---'):
+                lines.append(('− ' if x[0] == '-' else '+ ') + cut(x[1:]))
+        lines = lines[:8]
+        lines.insert(0, view_message('words_at_last_approval_now', p_a=f'{len(old.split())}', p_b=f'{len(manuscript.split())}'))
+    return record, lines
+
+
 def approval_view(base, config, args, kind):
     """Bestätigung einer Freigabe (writing, section, chapter); --revoke nimmt sie zurück."""
     chapters = config['structure']['chapters']
@@ -2173,7 +2203,13 @@ def approval_view(base, config, args, kind):
             effect = view_message('approval_is_withdrawn_moves_to_revision_and_is_excluded_from_the_next_edition_until_approved_again', p_a=f"{item['title']}")
         elif item:
             title, button = view_message('approve_2', p_a=f"{item['title']}"), view_message('finalize')
-            if ap['section']:
+            drift = approval_drift(base, 'matter', target_id, item['path'], ms) if ap['section'] else None
+            if drift:   # #563
+                title = view_message('finalize_the_changed_text_again')
+                add('warn', view_message('the_text_differs_from_the_last_approval'))
+                for line in drift[1]:
+                    add('warn', line)
+            elif ap['section']:
                 add('block', view_message('is_already_approved', p_a=f"{item['title']}"))
             if not ap['writing']:
                 add('block', view_message('writing_permission_is_missing'))
@@ -2198,7 +2234,13 @@ def approval_view(base, config, args, kind):
             effect = view_message('section_approval_is_withdrawn_the_section_moves_to_revision')
         else:
             title, button = view_message('approve_section'), view_message('finalize')
-            if ap['section']:
+            drift = approval_drift(base, 'section', target_id, sec['path'], ms) if ap['section'] else None
+            if drift:   # #563: Text nach dem Abschließen geändert -> neu abschließen statt Hindernis
+                title = view_message('finalize_the_changed_text_again')
+                add('warn', view_message('the_text_differs_from_the_last_approval'))
+                for line in drift[1]:
+                    add('warn', line)
+            elif ap['section']:
                 add('block', view_message('the_section_is_already_approved'))
             if not ap['writing']:
                 add('block', view_message('writing_permission_is_missing'))
@@ -2210,7 +2252,7 @@ def approval_view(base, config, args, kind):
             add('warn' if n else 'ok', view_message('open_marker_these_remain_in_the_approved_text', p_a=f'{n}', p_b=f"{view_plural(n, 'r', german_singular=True)}") if n else view_message('no_open_markers'))
             if head['fact_check'] == 'requested':
                 add('warn', view_message('a_fact_check_is_requested_has_it_been_completed'))
-            effect = view_message('the_section_becomes_approved_you_confirm_the_text_as_shown_in_the_section_form')
+            effect = view_message('the_section_stays_approved_with_the_changed_text_the_approval_is_logged_again') if drift else view_message('the_section_becomes_approved_you_confirm_the_text_as_shown_in_the_section_form')
     head_sha = UI.get('head', '')
     values = {'APPROVAL_KIND': kind, 'APPROVAL_REVOKE': 'true' if revoke else '', 'APPROVAL_TITLE': title,
               'APPROVAL_BUTTON': button, 'APPROVAL_EFFECT': effect, 'TARGET_ID': target_id, 'TARGET_LABEL': label,
