@@ -6,6 +6,20 @@
   "required": ["befunde"],
   "properties": {
     "bericht": {"type": "string", "description": "Pfad des Markdown-Berichts im Buch"},
+    "themen": {
+      "type": "array",
+      "description": "optional, geordnet: Entscheidungsthemen der Hinweisdurchsicht in der Reihenfolge der Abhängigkeit (#570)",
+      "items": {
+        "type": "object",
+        "required": ["id", "titel", "befunde"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+          "titel": {"type": "string", "minLength": 1},
+          "befunde": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "b-001 oder <bericht>.yml#b-001 (auch Befunde anderer Berichte)"}
+        },
+        "additionalProperties": false
+      }
+    },
     "befunde": {
       "type": "array",
       "items": {
@@ -22,6 +36,8 @@
           "alt": {"type": "string", "description": "genauer Wortlaut im Manuskript"},
           "neu": {"type": "string", "description": "Vorschlag"},
           "frage": {"type": "string", "description": "was der Autor entscheiden oder angeben muss"},
+          "thema": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "description": "ID eines Themas aus `themen` (#570)"},
+          "muster": {"type": "string", "description": "KI-Muster oder wiederkehrende Art des Befunds für die Gruppierung (#570), z. B. dreierreihe"},
           "varianten": {"type": "array", "items": {"type": "string", "minLength": 1}, "maxItems": 3, "description": "zwei bis drei Lösungsvorschläge zur Frage, vor allem bei blockierenden Befunden (#447)"},
           "status": {"enum": ["offen", "erledigt", "entschieden"]},
           "quelle": {"type": "string", "description": "Herkunft, z. B. checkouts/GW-7F3A/rueckgabe-2026-11-25/original.docx#<abschnitt> (#573)"},

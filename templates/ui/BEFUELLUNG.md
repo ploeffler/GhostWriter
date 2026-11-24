@@ -401,6 +401,8 @@ Hinweisdurchsicht (#367, ab UI 0.58.0; `render_view.py notes-review [<datei>]`, 
 
 Ab 12 offenen Einträgen zeigt das Widget nur die aktuelle Stufe (#570: Blockierendes, Gruppen, Runden zu fünf, „gering“ zugeklappt; `render_view.py notes-review --alle` zeigt alles). Eine Gruppe erscheint als eine Zeile mit der ID `gruppe:<schlüssel>`; `ja` nimmt alle Einträge mit Vorschlag an, `nein` lässt alle (`hinweise.py decide . --group <id> --decision ja|nein`), „einzeln ansehen“ öffnet sie (`hinweise.py show . --group <id>`). „gering lassen“: `hinweise.py decide . --gering`.
 
+**Einzelne Karte (#473):** `render_view.py notes-review --next` bzw. `--entry <id>` füllt dieselbe Vorlage mit genau einem Eintrag (`REVIEW_COUNT_TEXT` = „Eintrag 8 von 21 · noch 14 offen“); nach der Antwort ruft der Assistent im Einzelmodus ohne Rückfrage `--next` erneut auf. Autorenentscheidungen mit Varianten: `E_QUESTION` enthält weiter „Variante k: …“ in einer Zeile, die Antwort `variante N` speichert `hinweise.py decide . <id> --variant N`; eigene Knöpfe je Variante braucht eine Vorlagenänderung in ghostwriter-ui (offen). **Themen (#570):** Hat die Durchsicht `themen`, zeigt die Stufe „Thema i von n: <Titel>“ alle offenen Einträge des Themas gemeinsam.
+
 Jede Antwort sendet einzeln `notes_review.decide`; „Umsetzen prüfen“ sendet `notes_review.plan`. Das Widget ändert selbst nichts.
 
 ### `chronologie-vorschlag.html`
