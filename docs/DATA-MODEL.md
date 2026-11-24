@@ -237,6 +237,8 @@ approvals:
 
 Der Kopf jeder Abschnittsdatei folgt [`schemas/section.schema.json`](../schemas/section.schema.json). `fact_check` übernimmt die Werte aus `workflow.yml` (`entities.section.fact_check`).
 
+**Veraltet markieren (#510):** Ein optionales Feld `stale: {since: <Datum>, reason: <Text>, source: <Pfad>}` im Kopf kennzeichnet einen inhaltlich überholten Abschnitt, ohne ihn zu öffnen: Status, `approvals` und der Fingerabdruck der Freigabe bleiben unverändert, weil sich der Text nicht ändert. `python3 scripts/stale.py <buch> mark 1.2 --reason "…" [--source …]` setzt es, `clear` entfernt es, `list` zeigt alle. Kapitel- und Abschnittsansicht zeigen „⚠ veraltet“ (Text: mit Grund), die Bestätigung „Kapitel abschließen“ warnt, solange ein Abschnitt markiert ist. Beim erneuten Abschließen des Abschnitts entfernt der Assistent das Feld; ein bloßes Wiederöffnen lässt es stehen.
+
 Alles nach `## Manuskript` bis zum Dateiende ist Buchtext. Eine weitere Überschrift der Ebene 2 danach ist meist eine Arbeitsnotiz; `scripts/validate_project.py` meldet sie mit Datei und Zeile als Hinweis ⚠, ohne die Prüfung scheitern zu lassen (#435). Notizen gehören vor `## Manuskript` (etwa unter `## Notizen`) oder in eigene Dateien.
 
 ## Vor- und Nachspann

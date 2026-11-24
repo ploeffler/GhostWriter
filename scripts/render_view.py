@@ -1667,7 +1667,9 @@ def chapter_view(base, config, args, cnum):
         approved += head['status'] == 'approved'
         a, e = total(section_costs(base, ch, s))
         parts.append((a, e))
-        rows.append({'SECTION_ID': s['id'], 'SECTION_NUMBER': f'{cnum}.{si}', 'SECTION_TITLE': s['title'],
+        stale = head.get('stale')   # #510: überholt, Freigabe bleibt
+        rows.append({'SECTION_ID': s['id'], 'SECTION_NUMBER': f'{cnum}.{si}',
+                     'SECTION_TITLE': s['title'] + (f" ⚠ {view_message('stale_marker')}" if stale else ''),
                      'SECTION_STATUS': head['status'], 'SECTION_COST': money(a, e),
                      'MARKERS_ANEKDOTE': counts['anekdote'], 'MARKERS_QUELLE': counts['quelle'],
                      'MARKERS_MEDIZIN': counts['medizin'], 'MARKERS_RECHT': counts['recht'],
@@ -1823,6 +1825,9 @@ def section_view(base, config, args, cnum, snum):
                  f'| Ziel | {goal or "*offen*"} |', f'| Kurzbeschreibung | {summary or "*offen*"} |',
                  f'| Faktencheck | {view_labels('FC_TEXT').get(head["fact_check"], head["fact_check"])} |',
                  f'| Schreiben erlaubt | {yn(writing_ok(config, head["approvals"]))} |', f'| Abschnitt abgeschlossen | {yn(head["approvals"]["section"])} |']
+        if head.get('stale'):   # #510
+            lines.append(f"| ⚠ {view_message('stale_marker').capitalize()} | " + view_message(
+                'the_text_is_marked_stale_since', p_a=f"{head['stale']['since']}", p_b=f"{head['stale']['reason']}") + ' |')
         if chars:
             names = {c['id']: c['name'] for c in chars}
             lines.append(f'| Figuren | {", ".join(names.get(c, c) for c in in_section) or "–"} |')
@@ -2145,6 +2150,10 @@ def approval_view(base, config, args, kind):
                 add('block', view_message('of_sections_are_not_yet_approved', p_a=f'{open_}', p_b=f'{len(heads)}'))
             else:
                 add('ok', view_message('all_sections_are_approved', p_a=f'{len(heads)}'))
+            stale_list = [f'{cnum}.{i}' for i, h in enumerate(heads, start=1) if h.get('stale')]   # #510
+            if stale_list:
+                add('warn', view_message('section_s_are_marked_stale_the_chapter_approval_does_not_check_content',
+                                         p_a=f'{len(stale_list)}', p_b=', '.join(stale_list)))
             if ch['status'] not in ('ready_for_approval', 'approved'):
                 add('block', view_message('the_chapter_status_is_rather_than_ready_for_approval_assemble_and_review_it_first', p_a=f"{view_status(ch['status'])}"))
             effect = view_message('the_chapter_becomes_approved_you_confirm_the_assembled_chapter_in_this_version')
