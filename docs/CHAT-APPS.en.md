@@ -1,5 +1,7 @@
 # Chat apps for GhostWriter v0.5
 
+**Current interpretation (24 November 2026):** The table below is historical evidence, not a blanket statement about current widget capabilities. ChatGPT has a documented MCP Apps UI path; a GhostWriter adapter remains planned. Check Codex variants and actual tools separately. See [Client capabilities](CLIENT-CAPABILITIES.en.md) and [planned chat widgets](CHAT-WIDGETS.en.md).
+
 This is a translation of the historical assessment dated 31 October 2026. App capabilities and permissions can change; verify them in your own session before relying on them.
 
 ## Capabilities observed
