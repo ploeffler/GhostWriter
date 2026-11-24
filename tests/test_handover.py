@@ -47,6 +47,44 @@ class HandoverTest(unittest.TestCase):
     def state(self, **kw):
         return handover.collect(self.base, 'buch/adhs', 'ghostwriter/arbeit', 12, '1.2', repo='owner/buch', **kw)
 
+    def test_origin_references_and_explicit_local_refs_remain_distinct(self):
+        git(self.base, 'remote', 'add', 'origin', 'https://example.invalid/test.git')
+        local = git(self.base, 'rev-parse', 'ghostwriter/arbeit')
+        remote = git(self.base, 'rev-parse', 'buch/adhs')
+        git(self.base, 'update-ref', 'refs/remotes/origin/ghostwriter/arbeit', remote)
+        self.assertEqual(handover.resolve(self.base, 'ghostwriter/arbeit'), remote)
+        self.assertEqual(handover.resolve(self.base, 'origin/ghostwriter/arbeit'), remote)
+        self.assertEqual(handover.resolve(self.base, 'refs/heads/ghostwriter/arbeit'), local)
+        git(self.base, 'tag', 'lokaler-test', local)
+        self.assertEqual(handover.resolve(self.base, 'refs/tags/lokaler-test'), local)
+        self.assertEqual(handover.resolve(self.base, local), local)
+        git(self.base, 'update-ref', '-d', 'refs/remotes/origin/ghostwriter/arbeit')
+        self.assertIsNone(handover.resolve(self.base, 'ghostwriter/arbeit'))
+        self.assertIsNone(handover.resolve(self.base, 'origin/ghostwriter/arbeit'))
+
+    def test_cli_fetch_prunes_removed_work_branch(self):
+        remote = self.base.parent / 'remote.git'
+        subprocess.run(['git', 'clone', '--quiet', '--bare', str(self.base), str(remote)], check=True)
+        git(self.base, 'remote', 'add', 'origin', str(remote))
+        git(self.base, 'fetch', '-q', 'origin')
+        path = self.base.parent / 'handover.json'
+        path.write_text(json.dumps(self.state()))
+        git(remote, 'branch', '-qD', 'ghostwriter/arbeit')
+        result = subprocess.run([sys.executable, str(ROOT / 'scripts/handover.py'),
+                                 str(self.base), 'check', str(path), '--fetch', '--json'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIsNone(handover.resolve(self.base, 'ghostwriter/arbeit'))
+
+    def test_removed_merged_work_can_be_refreshed_from_book(self):
+        state = self.state()
+        git(self.base, 'merge', '-q', '--no-ff', '-m', 'Übernahme', 'ghostwriter/arbeit')
+        git(self.base, 'branch', '-qD', 'ghostwriter/arbeit')
+        result = handover.check(self.base, state)
+        self.assertEqual(result['state'], 'refresh')
+        self.assertEqual(result['exit'], 1)
+        self.assertTrue(any('übernommen' in reason for reason in result['reasons']))
+
     def test_collect_and_markdown(self):
         st = self.state()
         self.assertEqual(st['book']['branch'], 'buch/adhs')

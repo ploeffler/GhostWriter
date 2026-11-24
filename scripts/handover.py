@@ -78,8 +78,20 @@ def git(base, *args, check=True):
 
 
 def resolve(base, branch):
-    """Commit eines Branches: bevorzugt der Remote-Stand origin/<branch>, sonst der lokale Branch; None, wenn unbekannt."""
-    for ref in (f'refs/remotes/origin/{branch}', f'refs/heads/{branch}', branch):
+    """Bei eingerichtetem origin gelten Remote-Branches, ohne origin lokale.
+
+    Explizite refs/heads/... bleiben bewusst lokal lesbar. Nach fetch --prune
+    darf kein verbliebener lokaler Branch einen entfernten Remote-Stand ersetzen.
+    """
+    if branch.startswith('origin/'):
+        refs = (f'refs/remotes/{branch}',)
+    elif branch.startswith('refs/') or branch == 'HEAD' or re.fullmatch(r'[0-9a-f]{40,64}', branch):
+        refs = (branch,)
+    elif 'origin' in (git(base, 'remote', check=False) or '').splitlines():
+        refs = (f'refs/remotes/origin/{branch}',)
+    else:
+        refs = (f'refs/heads/{branch}', branch)
+    for ref in refs:
         out = git(base, 'rev-parse', '--verify', '--quiet', '--end-of-options', ref + '^{commit}', check=False)
         if out:
             return out.strip()
@@ -256,8 +268,14 @@ def check(base, saved):
     if work:
         wnow = resolve(base, work['branch'])
         if not wnow:
-            reasons.append(f'Arbeitsbranch {work["branch"]} gibt es nicht mehr (übernommen oder gelöscht?)')
-            level = max(level, 1)
+            contained = git(base, 'merge-base', '--is-ancestor', work['head'], now, check=False) is not None
+            if contained:
+                reasons.append(f'Arbeitsbranch {work["branch"]} ist ins Buch übernommen; vom Buch-Branch neu lesen')
+                level = max(level, 1)
+            else:
+                reasons.append(f'Arbeitsbranch {work["branch"]} fehlt und sein gespeicherter Stand ist nicht '
+                               'im Buch enthalten; nicht schreiben')
+                level = 2
         else:
             current = wnow
             if wnow != work['head']:
@@ -299,12 +317,12 @@ def main(argv):
     ap.add_argument('--section', help='Abschnitt als Nummer (3.2) oder ID')
     ap.add_argument('--mode', default='manuskript', choices=list(MODES))
     ap.add_argument('--repo', default='')
-    ap.add_argument('--fetch', action='store_true', help='vorher git fetch origin')
+    ap.add_argument('--fetch', action='store_true', help='vorher git fetch --prune origin')
     ap.add_argument('--json', action='store_true')
     a = ap.parse_args(argv[1:])
     try:
         if a.fetch:
-            git(a.project, 'fetch', '--quiet', 'origin')
+            git(a.project, 'fetch', '--quiet', '--prune', 'origin')
         if a.cmd == 'check':
             if not a.file:
                 ap.error('check braucht die Übergabe (Datei oder -)')
