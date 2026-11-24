@@ -31,11 +31,13 @@ Beleg aus einer Claude-Sitzung (24.11.2026): Über den GitHub-Connector von clau
 
 | Prüfung | Ergebnis |
 |---|---|
-| Buch mit `team`: Bearbeiter ohne `approve` schreibt und speichert, bekommt kein „abschließen“ angeboten | ⏳ |
-| Von Hand eingetragener Abschluss eines Bearbeiters lässt `validate` („Rollen im Buch prüfen“) scheitern | ⏳ |
-| Leser sieht Ansichten und Probedruck, keine Schreibaktionen | ⏳ |
-| Commits des Bearbeiters tragen seinen Namen | ⏳ |
-| Buch ohne `team` verhält sich unverändert (Schritt meldet nichts zu prüfen bzw. grün) | ⏳ |
+| Buch mit `team`: Bearbeiter ohne `approve` schreibt und speichert, bekommt kein „abschließen“ angeboten | ✅ (24.11., Claude) |
+| Von Hand eingetragener Abschluss eines Bearbeiters lässt `validate` („Rollen im Buch prüfen“) scheitern | ✅ (24.11., Claude) |
+| Leser sieht Ansichten und Probedruck, keine Schreibaktionen | ✅ (24.11., Claude) |
+| Commits des Bearbeiters tragen seinen Namen | ✅ (24.11., Claude) |
+| Buch ohne `team` verhält sich unverändert (Schritt meldet nichts zu prüfen bzw. grün) | ✅ (24.11., Claude) |
+
+Abschnitt 3 am 24.11.2026 mit Claude vom Autor als bestanden gemeldet (Angabe im Chat, ohne separaten Beleg; Beleg als Kommentar in #455 nachtragen).
 
 ## 4. Bilder, Referenzen, Bildrecherche (#143, #218, A04, A05)
 
