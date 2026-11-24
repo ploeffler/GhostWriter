@@ -72,11 +72,20 @@ This section is **neither a commitment nor a description of existing functions.*
 - Interactive library, book, chapter and section views for ChatGPT, Codex and other clients, fed by the same view and action data as today, with adapters according to the capability actually available.
 - For ChatGPT, an MCP apps UI route is to be evaluated and offered as an installable integration. Such an integration probably needs a hosted server. A dedicated hosting and management service is postponed until after v1.0 under [D06](ENTSCHEIDUNGEN-v1.0.md#d06--eigene-web-app-ohne-integrierten-modellaufruf) and D09; the hosting question is open (#525). No silent approval of a new backend.
 - Codex desktop, CLI and IDE are to be checked individually; support in ChatGPT is not transferred wholesale.
+
+### What the OpenAI documentation confirms (retrieved 24 November 2026)
+
+- A plugin consists of an **MCP server** with tools for ChatGPT and Codex and an optional web component rendered as an iframe in ChatGPT. ChatGPT implements the open MCP Apps UI standard for this.
+- The tools should stay useful without the component, "so ChatGPT and Codex can complete the workflow without UI". **For Codex, only that is confirmed; these pages do not say that Codex renders the UI.**
+- The server exposes `/mcp` over Streamable HTTP and must be **publicly reachable over HTTPS** for ChatGPT (tunnel in development, deployment otherwise). This is the hosting question (#525, D06, D09).
+- The UI's return channel uses `postMessage` with `ui/*`, including `tools/call` and `ui/message` (send a follow-up message). It corresponds to the `sendPrompt` path of today's GhostWriter views; theming, icons and CSP declarations (`connectDomains`, `resourceDomains`, `frameDomains`) would additionally be required.
+- The documentation says to **test for capabilities rather than branch on product names**. This also applies to the capability view above.
+- Still open: view data is produced today in an environment with a shell (`render_view.py`). An MCP server would have to build it from the repository itself, with per-user GitHub sign-in.
 - A capability view in the program with status available / not available / unchecked, prerequisite and last acceptance.
 
 ## Sources
 
-- Official OpenAI basics as cited in #555 (checked there on 24 November 2026, not retrieved again here): [app quickstart](https://developers.openai.com/plugins/build/app-quickstart) and [ChatGPT UI](https://developers.openai.com/plugins/build/chatgpt-ui). The quickstart separates MCP tools for ChatGPT and Codex from the optional UI in ChatGPT.
+- Official OpenAI basics as cited in #555 (retrieved and read directly on 24 November 2026): [app quickstart](https://developers.openai.com/plugins/build/app-quickstart) and [ChatGPT UI](https://developers.openai.com/plugins/build/chatgpt-ui). The quickstart separates MCP tools for ChatGPT and Codex from the optional UI in ChatGPT.
 - In the repository: [Chat apps](CHAT-APPS.en.md), [test plan v1.0](TESTPLAN-v1.0.md), `providers.yml` (`chat_widgets`), `templates/ui/BEFUELLUNG.md` (display mode), `AGENTS.md`.
 
 ---

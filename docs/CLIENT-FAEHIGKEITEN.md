@@ -72,11 +72,20 @@ Dieser Abschnitt ist **keine Zusage und keine Beschreibung vorhandener Funktione
 - Interaktive Bibliotheks-, Buch-, Kapitel- und Abschnittsansichten für ChatGPT, Codex und weitere Clients, gespeist aus denselben Ansichts- und Aktionsdaten wie heute, mit Adaptern je nach tatsächlich verfügbarer Fähigkeit.
 - Für ChatGPT ist ein MCP-Apps-UI-Weg zu evaluieren und als installierbare Integration anzubieten. Eine solche Integration braucht voraussichtlich einen gehosteten Server. Eigener Hosting- und Verwaltungsdienst ist nach [D06](ENTSCHEIDUNGEN-v1.0.md#d06--eigene-web-app-ohne-integrierten-modellaufruf) und D09 auf nach v1.0 verschoben; die Hostingfrage ist offen (#525). Keine stillschweigende Freigabe eines neuen Backends.
 - Codex Desktop, CLI und IDE sind einzeln zu prüfen; Unterstützung in ChatGPT wird nicht pauschal übertragen.
+
+### Was die OpenAI-Dokumentation belegt (abgerufen am 24.11.2026)
+
+- Ein Plugin besteht aus einem **MCP-Server** mit Werkzeugen für ChatGPT und Codex und einer optionalen Web-Komponente, die in ChatGPT als iframe erscheint. ChatGPT setzt dafür den offenen Standard MCP Apps UI um.
+- Die Werkzeuge sollen ohne Komponente nutzbar bleiben, „so ChatGPT and Codex can complete the workflow without UI“. **Für Codex ist in diesen Seiten nur das belegt; eine Darstellung der UI in Codex steht dort nicht.**
+- Der Server stellt `/mcp` über Streamable HTTP bereit und muss für ChatGPT **öffentlich per HTTPS** erreichbar sein (Tunnel in der Entwicklung, sonst Deployment). Das ist die Hostingfrage (#525, D06, D09).
+- Der Rückkanal der UI läuft über `postMessage` mit `ui/*`, darunter `tools/call` und `ui/message` (Folgenachricht senden). Er entspricht dem heutigen `sendPrompt`-Weg der GhostWriter-Ansichten; Theming, Icons und CSP-Angaben (`connectDomains`, `resourceDomains`, `frameDomains`) wären zusätzlich nötig.
+- Die Doku verlangt, **Fähigkeiten zu prüfen statt Produktnamen** abzufragen. Das gilt auch für die Fähigkeitenansicht oben.
+- Offen bleibt: Die Ansichtsdaten entstehen heute in einer Umgebung mit Shell (`render_view.py`). Ein MCP-Server müsste sie selbst aus dem Repository erzeugen, mit GitHub-Anmeldung je Benutzer.
 - Eine Fähigkeitenansicht im Programm mit Status verfügbar / nicht verfügbar / ungeprüft, Voraussetzung und letzter Abnahme.
 
 ## Quellen
 
-- Offizielle OpenAI-Grundlagen laut #555 (dort am 24.11.2026 geprüft, hier nicht erneut abgerufen): [App-Quickstart](https://developers.openai.com/plugins/build/app-quickstart) und [ChatGPT-UI](https://developers.openai.com/plugins/build/chatgpt-ui). Der Quickstart trennt MCP-Werkzeuge für ChatGPT und Codex von der optionalen UI in ChatGPT.
+- Offizielle OpenAI-Grundlagen laut #555 (am 24.11.2026 direkt abgerufen und gelesen): [App-Quickstart](https://developers.openai.com/plugins/build/app-quickstart) und [ChatGPT-UI](https://developers.openai.com/plugins/build/chatgpt-ui). Der Quickstart trennt MCP-Werkzeuge für ChatGPT und Codex von der optionalen UI in ChatGPT.
 - Im Repository: [Chat-Apps](CHAT-APPS.md), [Testplan v1.0](TESTPLAN-v1.0.md), `providers.yml` (`chat_widgets`), `templates/ui/BEFUELLUNG.md` (Darstellungsmodus), `AGENTS.md`.
 
 ---
