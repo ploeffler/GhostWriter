@@ -81,6 +81,16 @@ Der bisherige Ablauf **Beispielseiten veröffentlichen** (`pages.yml`, `document
 
 Der vorbereitete Zielpfad ist `/GhostWriter/documentation/de/` bzw. `/en/` im bereits verwendeten Pages-Auftritt. Die Freigabe dieses PR allein aktiviert ihn nicht. Bis zur gesonderten Freigabe keine Pages-Action starten und keine Hosting-Einstellung ändern. Eine Rückkehr zum bisherigen Beispielauftritt wäre ein erneut ausdrücklich freizugebender manueller Lauf mit `documentation: false`.
 
+## Planung, Umsetzungsvorlagen und allgemeine Skills
+
+**Meilensteine und Planung:** Jeder Meilenstein `vX.Y` im Hauptrepository steht auch in `workflow.yml` unter `product_roadmap.v0_5_steps`; `python3 scripts/check_docs.py --milestones <datei>` prüft das (die Meilensteine z. B. aus `gh api repos/ploeffler/GhostWriter/milestones?state=all`), `validate` ebenso. Die Tabelle der Schritte in [WORKFLOW-MODEL.md](WORKFLOW-MODEL.md) wird im selben Änderungspaket nachgezogen und als Planung gekennzeichnet. Verschiebt eine neue Aufteilung einen bestätigten Beschluss (z. B. D17 in [ENTSCHEIDUNGEN-v1.0.md](ENTSCHEIDUNGEN-v1.0.md)), bekommt der Beschluss eine datierte Änderung; der alte Wortlaut bleibt stehen.
+
+**Umsetzungsvorlage im Issue:** Wird eine Funktion im Chat geplant und anderswo umgesetzt (z. B. in einer Claude-Code- oder Codex-Sitzung), enthält das Issue alles, was die Umsetzung braucht, ohne den Chatverlauf: Ziel aus Sicht des Benutzers, Entscheidungen mit Datum (offene ausdrücklich als offen), Datenmodell mit Beispiel, Befehle bzw. Skriptaufrufe, betroffene Stellen (Skripte, `START.md`, `templates/ui/BEFUELLUNG.md`, Widgets, Web-App), Grenzen, Tests, Doku- und Glossarstellen, Abnahme als Checkliste, Abgrenzung („Nicht in diesem Issue“) und Bezüge. Große Vorhaben werden in Teile geschnitten, die je ein eigenes Issue bekommen.
+
+**Parallele Sitzungen:** Hat eine andere Sitzung mit der Umsetzung eines Issues begonnen (Branch oder PR mit der Nummer), wird der Issue-Text nicht mehr umgeschrieben; Ergänzungen kommen als Kommentar. Dateien, die diese Sitzung erkennbar braucht, nicht gleichzeitig ändern; vor einem eigenen Änderungspaket mit `gh api repos/ploeffler/GhostWriter/compare/main...<branch>` nachsehen, welche Dateien ihr Branch berührt.
+
+**Allgemeine Skills ändern:** Die allgemeinen Skills (`ghostwriter`, `ghostwriter-lektorat`, `ghostwriter-buchgedaechtnis` und künftige) werden in [ploeffler/ghostwriter-skills](https://github.com/ploeffler/ghostwriter-skills) geändert, nie in der Kopie unter `.claude/skills/`. Reihenfolge: PR im Skill-Repository (mit Merge-Commit mergen, damit der Quellcommit erhalten bleibt), dann im Hauptrepository `python3 scripts/sync_skills.py --source <klon> --commit <sha>`; das aktualisiert Kopie und Prüfsummen in `ghostwriter-skills.yml`. Ein neuer allgemeiner Skill kommt zusätzlich in `NAMES` (`scripts/sync_skills.py`), in `ghostwriter-manifest.yml` unter `managed` und in die README-Tabelle des Skill-Repositorys. Ein solcher Abgleich löst nur die Tests aus, die Skills lesen (#567).
+
 ## Wiki-Aufbau
 
 Das veröffentlichte Wiki wird aus denselben Quellen erzeugt. Titel, globale Fußzeile, Sprachwechsel und Prüfungen sind in [Wiki-Gestaltung](WIKI-GESTALTUNG.md) und [Wiki appearance](WIKI-APPEARANCE.en.md) beschrieben. Der Aufbau veröffentlicht nichts automatisch.
