@@ -57,6 +57,8 @@ These terms describe storage status; they are not additional section or chapter 
 
 **Allow writing** authorises drafting; **finalize section** confirms the exact section text and locks it; **finalize chapter** confirms the assembled chapter. **Reopen** undoes either. Saving, successful technical checks and merging do not grant any of them (technically they are approvals, #292). An eligible content approval can be recorded in an open change package; the diagram does not require merging first.
 
+**Text changed after finalizing (#563):** If a finalized section was changed by a commit without being reopened first, the check reports "Manuskript-Fingerabdruck weicht von der letzten Freigabe ab" (manuscript fingerprint differs from the last approval). The way out: the finalize view (`render_view.py . approval-section N.M`) shows **Finalize the changed text again** instead of "already finalized", with the changed paragraphs compared to the last approval. Confirming logs "revoked" and "granted" with the new fingerprint in one commit; status and writing permission stay. To discard the change instead, reopen the section as usual or restore the old text.
+
 ## Reviewing notes
 
 In the notes review (#367, [editorial review](EDITORIAL-REVIEW.en.md#reviewing-notes-notes-review-367)) each answer is saved without further confirmation as a small addition to the open change package, like a session addition. Only the dialogue file `editorial/durchsicht-<date>.yml` changes, not the manuscript. Applying (`hinweise.py apply`) is an ordinary book change with its own change step; finalized sections or chapters must be reopened explicitly first. Merging works as for other book changes; with “merge immediately” or “merge when green” only after the repository checks pass.

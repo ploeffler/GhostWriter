@@ -1085,5 +1085,9 @@
   "settings.minimum_only": "minimum only",
   "view.analysis_suggest.chat_run_from": "Chat analysis {p_a} from {p_b}",
   "view.character_suggest.chat_run_from": "Chat analysis {p_a} from {p_b}",
-  "view.analysis_suggest.chat_return_unregistered": "There is no run for this chat return yet. Run `python3 scripts/chat_analysis.py . register {path}` first, then open the reported file analysis/<kind>/run-NNN.json."
+  "view.analysis_suggest.chat_return_unregistered": "There is no run for this chat return yet. Run `python3 scripts/chat_analysis.py . register {path}` first, then open the reported file analysis/<kind>/run-NNN.json.",
+  "finalize_the_changed_text_again": "Finalize the changed text again",
+  "the_text_differs_from_the_last_approval": "The text differs from the state of the last approval (fingerprint in approvals.yml). Finalizing again confirms the changed text.",
+  "words_at_last_approval_now": "{p_a} words at the last approval, now {p_b}",
+  "the_section_stays_approved_with_the_changed_text_the_approval_is_logged_again": "The section stays finalized. The log gets \"revoked\" and \"granted\" with the new fingerprint in one commit; you confirm the text as it is now."
 }

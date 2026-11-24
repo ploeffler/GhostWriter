@@ -47,3 +47,39 @@ class ApprovalButtonTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ApprovalDriftTest(unittest.TestCase):
+    """#563: abgeschlossen, aber Text nach der Freigabe geändert -> neu abschließen statt Hindernis."""
+    setUp = ApprovalButtonTest.setUp
+    values = ApprovalButtonTest.values
+
+    def approve(self, text_in_log):
+        import hashlib
+        import yaml
+        sec = next((self.base / 'chapters').glob('01-*/sections/01-*.md'))
+        text = sec.read_text(encoding='utf-8')
+        text = re.sub(r'(?m)^status: .*$', 'status: approved', text, count=1)
+        text = re.sub(r'(?m)^(\s+section:) .*$', r'\1 true', text, count=1)
+        text = re.sub(r'(?m)^(\s+writing:) .*$', r'\1 true', text, count=1)
+        sec.write_text(text, encoding='utf-8')
+        ms = text.split('\n## Manuskript\n', 1)[1].strip()
+        digest = hashlib.sha256((text_in_log or ms).encode('utf-8')).hexdigest()
+        data = {'entries': [{'kind': 'section', 'id': re.search(r'(?m)^id: (\S+)', text).group(1), 'action': 'granted',
+                             'at': '2026-11-01T10:00:00+01:00', 'by': 'chat', 'commit': 'a' * 40, 'note': 'content_sha256=' + digest}]}
+        (self.base / 'approvals.yml').write_text(yaml.safe_dump(data, allow_unicode=True), encoding='utf-8')
+
+    def test_matching_fingerprint_stays_blocked(self):
+        self.approve(None)
+        v = self.values('approval-section', '1.1')
+        self.assertIn('bereits abgeschlossen', json.dumps(v, ensure_ascii=False))
+        self.assertNotEqual(v['APPROVAL_TITLE'], 'Geänderten Text neu abschließen')
+
+    def test_changed_text_offers_reapproval(self):
+        self.approve('ein ganz anderer früherer Text')
+        v = self.values('approval-section', '1.1')
+        self.assertEqual(v['APPROVAL_TITLE'], 'Geänderten Text neu abschließen')
+        blob = json.dumps(v, ensure_ascii=False)
+        self.assertNotIn('bereits abgeschlossen', blob)
+        self.assertNotIn('"block"', blob)
+        self.assertIn('weicht vom Stand der letzten Freigabe ab', blob)

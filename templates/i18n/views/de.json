@@ -1085,5 +1085,9 @@
   "settings.minimum_only": "nur Mindestangabe",
   "view.analysis_suggest.chat_run_from": "Chat-Analyse {p_a} vom {p_b}",
   "view.character_suggest.chat_run_from": "Chat-Analyse {p_a} vom {p_b}",
-  "view.analysis_suggest.chat_return_unregistered": "Zu dieser Chat-Rückgabe gibt es noch keinen Lauf. Erst `python3 scripts/chat_analysis.py . register {path}` ausführen, dann die angezeigte Datei analysis/<art>/run-NNN.json öffnen."
+  "view.analysis_suggest.chat_return_unregistered": "Zu dieser Chat-Rückgabe gibt es noch keinen Lauf. Erst `python3 scripts/chat_analysis.py . register {path}` ausführen, dann die angezeigte Datei analysis/<art>/run-NNN.json öffnen.",
+  "finalize_the_changed_text_again": "Geänderten Text neu abschließen",
+  "the_text_differs_from_the_last_approval": "Der Text weicht vom Stand der letzten Freigabe ab (Fingerabdruck in approvals.yml). Neu abschließen bestätigt den geänderten Text.",
+  "words_at_last_approval_now": "{p_a} Wörter bei der letzten Freigabe, jetzt {p_b}",
+  "the_section_stays_approved_with_the_changed_text_the_approval_is_logged_again": "Der Abschnitt bleibt abgeschlossen. Im Protokoll stehen „zurückgenommen“ und „erteilt“ mit dem neuen Fingerabdruck in einem Commit; du bestätigst den Text, wie er jetzt vorliegt."
 }
