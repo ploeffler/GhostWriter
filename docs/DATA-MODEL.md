@@ -349,6 +349,8 @@ Referenzbilder sind keine Illustrationen und werden nicht automatisch in Manuskr
 
 Der Status beginnt immer mit `stored`. Nur eine ausdrückliche Freigabe setzt `approved`; ein Rückzug setzt `withdrawn`, löscht aber weder Bild noch Historie. Nur `approved`-Bilder mit Rolle `visual_reference` dürfen für einen neuen Erstellungsauftrag ausgewählt werden. Die Auswahl erfolgt je Auftrag explizit über `scripts/reference_images.py select` bzw. `scripts/images.py prompt --references …`. Vergangene Aufträge behalten ihre Auswahl unabhängig von späteren Statusänderungen.
 
+**Bildkandidaten (#218).** `research/images/candidates.yml` (`scripts/image_research.py`): Liste `candidates` mit `id` (`cand-NNN`), `status` (`candidate` | `adopted` | `rejected`), `title`, `url` (Bild), `page` (Fundseite), `author`, `license`, `license_url`, `found_by` (`chat` | `user`), `found_at`, `links` (Zuordnungen wie bei Referenzbildern), `note`, `rights` (`clear` nur mit Urheber und Lizenz, sonst `unclear`), nach Übernahme `adopted_as` (`ref-img-…`) und `adopted_at`, nach Verwerfen `rejected_at` und `reason`. Ein Kandidat enthält nie eine Bilddatei; die Übernahme legt nach ausdrücklicher Bestätigung ein Referenzbild mit Status `stored` an.
+
 Die aktuelle CLI verwaltet die Dateien und erzwingt Freigabe und Auswahl. Die Übergabe der Bildbytes an den Bilddienst und ein authentifizierter API-Upload sind noch nicht implementiert; ein Dateipfad oder eine Textbeschreibung ist keine tatsächliche Bildreferenzübergabe.
 
 ## Figuren

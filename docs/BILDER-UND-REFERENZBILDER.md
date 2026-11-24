@@ -79,6 +79,15 @@ Wenn der verwendete Dienst keine Bildreferenzen unterstützt, muss GhostWriter d
 - Bei mehreren Referenzen muss der Benutzer sie einzeln auswählen können; GhostWriter darf widersprüchliche oder veraltete Referenzen nicht stillschweigend priorisieren.
 - Referenzbilder werden nicht automatisch in den Buchsatz oder eine veröffentlichte Ausgabe aufgenommen.
 
+## Bilder recherchieren (#218)
+
+Bilder sucht der Chat mit seinen vorhandenen Werkzeugen, oder du nennst selbst einen Link. GhostWriter bindet dafür keinen eigenen Such- oder KI-Dienst an. Jeder Fund wird zuerst ein **Kandidat** (`research/images/candidates.yml`, `scripts/image_research.py propose`) mit Titel, Bild-URL, Fundseite, Urheber, Lizenz und Zuordnung. Eine Bilddatei wird dabei nicht gespeichert.
+
+- **Rechte:** Ein Kandidat gilt als *geklärt*, wenn Urheber **und** Lizenz angegeben sind, sonst als *ungeklärt*. „Geklärt“ heißt nur, dass die Angaben vorliegen, nicht, dass sie rechtlich geprüft sind. GhostWriter erfindet keine Nutzungserlaubnis.
+- **Übernehmen:** Erst nach deiner ausdrücklichen Bestätigung (`adopt <cand-id> --file … --confirm`) wird der Kandidat ein **gespeichertes Bild** unter `reference-images/` (Status `stored`), mit Quelle, Urheber und Lizenz in den Metadaten. Ohne Bestätigung ändert sich nichts. Bei ungeklärten Rechten braucht es zusätzlich `--accept-unclear`, und die Herkunft bleibt `unknown`. Die Regeln für Größe und Originale (D13) gelten wie beim eigenen Upload.
+- **Buchabbildung:** Ein gespeichertes Bild ist weder freigegebene Referenz noch Buchabbildung. Beides bleibt eine eigene Freigabe über die Bildverwaltung.
+- **Verwerfen:** `reject <cand-id>` hält den Kandidaten mit Grund als verworfen fest.
+
 ## Fotos colorieren (#452)
 
 Schwarz-Weiß-Fotos aus Familienbesitz lassen sich einfärben, ohne dass ein Bildmodell Gesichter oder Formen verändert. Das Modell liefert nur einen Farbvorschlag. Übernommen wird davon allein die Farbe (Kanäle a/b im Lab-Farbraum); die Helligkeit kommt Pixel für Pixel aus dem aufbereiteten Bild. Ablauf und Sperren stehen in `START.md`, „Fotos colorieren (#452)“, die Dateien im [Datenmodell](DATA-MODEL.md#bildordner-und-colorieren-452).
