@@ -23,8 +23,11 @@ product_roadmap:
       - {version: "v0.8", goal: manuscript_import_and_continuity_review}         # Vorschlag nach docs/AUSBLICK-v1.0.md, keine Zusage
       - {version: "v0.9", goal: i18n_glossary_costs_and_documentation_website}  # Vorschlag; Website v0.9.0 bestätigt
       - {version: "v1.0", goal: complete_book_workflow_without_ai_provider_apis}                           # siehe v1_0
-      - {version: "v1.1", goal: external_docx_checkout_and_roundtrip}             # #209, D17
-      - {version: "v1.5", goal: foreword_afterword_glossary_and_book_translation}   # #58, #75
+      - {version: "v1.1", goal: fixes_models_and_staged_findings_review}         # Planung 24.11.: #529, #554, #563, #570, #473, #538, #510
+      - {version: "v1.2", goal: checkout_for_review_and_material_intake}         # Mehrere Autoren Teil 1: #572, #574, #143, #490
+      - {version: "v1.3", goal: checkin_and_docx_roundtrip}                      # Mehrere Autoren Teil 2: #573, #209 (D17), #569, #489
+      - {version: "v1.4", goal: background_queue_and_ai_services}               # #65, #478, #66, #531, #462, #123
+      - {version: "v1.5", goal: characters_clients_and_book_translation}        # #430, #431, #540, #532, #525, #555, #75
   v1_0:
     purpose: complete_book_workflow_without_ai_provider_apis
     scope: chat_and_manual_handoff_without_ai_provider_connections
