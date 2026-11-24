@@ -124,6 +124,8 @@ class ReleaseTest(unittest.TestCase):
         wf = yaml.load(text, Loader=yaml.BaseLoader)
         self.assertEqual(set(wf['on']), {'workflow_dispatch'})
         self.assertNotIn('pages', wf.get('permissions', {}))
+        self.assertIn('--skip tests', text)
+        self.assertNotIn('-f base=main', text)  # PR legt die Sitzung an, damit validate läuft
         for forbidden in ('gh release', 'deploy-pages', 'git tag'):
             self.assertNotIn(forbidden, text)
 
