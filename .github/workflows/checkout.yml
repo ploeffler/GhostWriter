@@ -1,0 +1,87 @@
+name: Auschecken zum Gegenlesen
+
+# Bereich zum Gegenlesen auschecken (#572): sperrt Kapitel (oder das ganze Buch) gegen reguläres Schreiben und
+# baut DOCX und PDF mit QR-Kennung (scripts/checkout.py start, scripts/checkout_files.py). Der Eintrag landet
+# als Commit in checkouts.yml auf dem Buch-Branch, die Dateien stehen 30 Tage als Artifact am Lauf.
+# Gestartet aus dem Chat (Aktion checkout.start) oder unter Actions → Auschecken zum Gegenlesen → Run workflow
+# (Use workflow from = Buch-Branch). Beendet wird nur ausdrücklich (scripts/checkout.py end), nie durch Zeit.
+
+on:
+  workflow_dispatch:
+    inputs:
+      chapters:
+        description: 'Kapitel, z. B. 3-5 oder 1,3; leer lassen bei „book“'
+        required: false
+        default: ''
+      book:
+        description: 'Das ganze Buch auschecken'
+        type: boolean
+        default: false
+      reader:
+        description: 'Gegenleser (GitHub-Login oder Name)'
+        required: true
+      until:
+        description: 'Frist (JJJJ-MM-TT), optional; nach Ablauf gibt es nur einen Hinweis'
+        required: false
+        default: ''
+
+permissions:
+  contents: write   # checkouts.yml auf den Buch-Branch
+
+concurrency:
+  group: checkout-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checkout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Abhängigkeiten
+        run: |
+          pip install pyyaml jsonschema segno python-docx
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends pandoc libreoffice-writer >/dev/null
+
+      - name: Auschecken und Dateien bauen
+        env:
+          CHAPTERS: ${{ inputs.chapters }}
+          BOOK: ${{ inputs.book }}
+          READER: ${{ inputs.reader }}
+          UNTIL: ${{ inputs.until }}
+          ACTOR: ${{ github.actor }}
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -o pipefail
+          args=(--reader "$READER" --by "$ACTOR" --out checkout-dateien --repo "$GITHUB_REPOSITORY" --branch "$GITHUB_REF_NAME")
+          if [ "$BOOK" = "true" ]; then args+=(--book); else args+=(--chapters "$CHAPTERS"); fi
+          [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
+          python scripts/checkout.py . start "${args[@]}" | tee checkout.log
+          python scripts/validate_project.py .
+          id=$(head -1 checkout.log | cut -d: -f1)
+          echo "CHECKOUT_ID=$id" >> "$GITHUB_ENV"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add checkouts.yml
+          git commit -qm "Bereich zum Gegenlesen ausgecheckt: $id
+
+          GhostWriter-Aktion: checkout.start"
+          git push -q origin "HEAD:$GITHUB_REF_NAME"
+          {
+            echo "## Ausgecheckt: $id"
+            echo
+            echo "Gegenleser: $READER. DOCX und PDF unten unter **Artifacts** (30 Tage). Die Sperre gilt, bis der Checkout ausdrücklich beendet wird."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gegenlesen-${{ env.CHECKOUT_ID }}
+          path: checkout-dateien/*
+          retention-days: 30
