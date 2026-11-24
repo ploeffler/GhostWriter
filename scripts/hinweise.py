@@ -12,6 +12,14 @@ Befunde stehen maschinenlesbar neben dem Bericht in `editorial/<bericht>.yml` (S
       Textfassung des Dialogs: kapitelweise alt und neu, darunter die Autorenentscheidungen
   python3 scripts/hinweise.py decide <buch> <eintrag> --decision ja|nein|geändert [--new TEXT] [--file …]
       schreibt nur `entscheidung` (und bei „geändert“ `neu`) in die Dialogdatei
+  python3 scripts/hinweise.py show <buch> --stufen [--round N] [--size 5] [--gering] [--group GRUPPE] | --alle
+      Abarbeitung in Stufen (#570): 1. Blockierendes einzeln, 2. gleiche Muster als eine Entscheidung
+      (ab drei Einträgen gleicher Art und gleichen Befunds), 3. der Rest in Runden zu höchstens fünf nach
+      Schweregrad mit Fortschritt, 4. „gering“ zugeklappt als Zahl. Ab 12 offenen Einträgen ist das die
+      Voreinstellung für `show`; `--alle` zeigt die ganze Liste
+  python3 scripts/hinweise.py decide <buch> --group GRUPPE --decision ja|nein | --gering
+      eine Gruppe wie vorgeschlagen annehmen (ja, nur Einträge mit Vorschlag) bzw. lassen (nein); --gering lässt
+      alle geringen offenen Einträge
   python3 scripts/hinweise.py accept <buch> [--chapter …] [--file …]
       Rundumprüfung (#565): alle offenen Einträge mit konkretem Vorschlag (alt → neu) annehmen, auch
       Autorenentscheidungen; nie blockierende, buchweite oder solche mit mehreren Varianten
@@ -29,6 +37,8 @@ Abschnitten, die nicht abgeschlossen sind: Wiederöffnen bleibt eine eigene, aus
 """
 import argparse
 import datetime
+import hashlib
+import math
 import re
 import sys
 from pathlib import Path
@@ -48,6 +58,11 @@ QUESTION = {'fakt': 'Welche Angabe ist richtig bzw. fehlt?',
             'kontinuitaet': 'Welche Fassung gilt, und wo muss angeglichen werden?', 'ton': 'Soll sich Ton oder Stimme hier ändern?',
             'aufbau': 'Soll der Aufbau so geändert werden?', 'buchweit': 'Soll das im ganzen Buch so gelten?'}
 SENTENCE = re.compile(r'[^.!?…\n]+(?:[.!?…]+[»«“”"\')\]]*|\n|$)')
+GROUP_MIN = 3        # ab so vielen Einträgen gleicher Art und gleichen Befunds eine Gruppenentscheidung (#570)
+ROUND_SIZE = 5       # höchstens so viele Einträge je Runde
+STAGE_MIN = 12       # ab so vielen offenen Einträgen zeigt `show` die Stufen von selbst
+RANK = {'blockierend': 0, 'wesentlich': 1, 'mittel': 2, 'gering': 3}
+GROUP_PREFIX = 'gruppe:'
 _LEAD = re.compile(r'^(?:\s|…|\.\.\.)+')
 _TRAIL = re.compile(r'(?:\s|…|\.\.\.)+$')
 
@@ -345,6 +360,149 @@ def show(data, only_open=False):
     return '\n'.join(lines) + '\n'
 
 
+# ---------- Abarbeitung in Stufen (#570) ----------
+
+def _is_open(e):
+    return e.get('entscheidung', 'offen') == 'offen' and not e.get('umgesetzt')
+
+
+def _severity(e):
+    return e.get('schweregrad') or 'mittel'
+
+
+def group_key(e):
+    """Gleiche Art und gleicher Befund (Zahlen und Anführungszeichen ignoriert, `muster` hat Vorrang) = ein Muster."""
+    norm = re.sub(r'[\d"„“»«\'‚‘’]+', '', (e.get('muster') or e.get('grund') or '')).lower()
+    norm = re.sub(r'\s+', ' ', norm).strip()
+    return f"{e.get('art', '')}-{hashlib.sha1(norm.encode('utf-8')).hexdigest()[:6]}"
+
+
+def stages(data, size=ROUND_SIZE):
+    """Offene Einträge in vier Stufen (#570): blockierend (einzeln), Gruppen, Runden zu `size`, gering (zugeklappt)."""
+    every = [e for _, e in entries(data)]
+    counts = {}
+    for e in every:
+        if _severity(e) not in ('blockierend', 'gering'):
+            counts[group_key(e)] = counts.get(group_key(e), 0) + 1
+    grouped = {k for k, n in counts.items() if n >= GROUP_MIN}
+
+    def middle(e):
+        return _severity(e) not in ('blockierend', 'gering')
+    opened = [e for e in every if _is_open(e)]
+    groups = {}
+    for e in opened:
+        if middle(e) and group_key(e) in grouped:
+            groups.setdefault(group_key(e), []).append(e)
+    singles = sorted((e for e in opened if middle(e) and group_key(e) not in grouped),
+                     key=lambda e: RANK[_severity(e)])
+    done = sum(1 for e in every if middle(e) and group_key(e) not in grouped and not _is_open(e))
+    rounds = [singles[i:i + size] for i in range(0, len(singles), size)]
+    return {'blocking': [e for e in opened if _severity(e) == 'blockierend'], 'groups': groups, 'rounds': rounds,
+            'gering': [e for e in opened if _severity(e) == 'gering'], 'open': len(opened),
+            'round_no': done // size + 1, 'round_total': math.ceil((done + len(singles)) / size) if singles else 0}
+
+
+def staged(data):
+    """Ob `show` und das Widget die Stufen von selbst verwenden (viele offene Einträge)."""
+    return sum(1 for _, e in entries(data) if _is_open(e)) >= STAGE_MIN
+
+
+def current(data, size=ROUND_SIZE, gering=False, group=None):
+    """Aktuelle Stufe: (name, Einträge, Kopfzeile). `group` öffnet eine Gruppe zum einzelnen Ansehen, `gering`
+    klappt die geringen Einträge auf."""
+    st = stages(data, size)
+    left = f'noch {st["open"]} offen'
+    if group:
+        items = st['groups'].get(group.removeprefix(GROUP_PREFIX)) or []
+        return 'gruppe', items, f'Gruppe einzeln ansehen · {len(items)} Einträge · {left}'
+    if st['blocking']:
+        return 'blockierend', st['blocking'], f'Stufe 1 · Blockierendes, einzeln · {len(st["blocking"])} offen · {left}'
+    if st['groups']:
+        return 'gruppen', st['groups'], f'Stufe 2 · Gleiche Muster · {len(st["groups"])} Gruppen · {left}'
+    if st['rounds']:
+        return 'runde', st['rounds'][0], f'Stufe 3 · Runde {st["round_no"]} von {st["round_total"]} · {left}'
+    if st['gering']:
+        if gering:
+            return 'gering', st['gering'], f'Stufe 4 · Geringes · {len(st["gering"])} offen'
+        return 'gering-zu', [], f'Stufe 4 · {len(st["gering"])} geringe Hinweise zugeklappt'
+    return 'fertig', [], 'Alle Einträge entschieden'
+
+
+def _entry_lines(e):
+    mark = '⛔ blockierend · ' if e.get('schweregrad') == 'blockierend' else ''
+    lines = [f'`{e["id"]}` · {mark}{e["abschnitt"]} · {e["art"]} · **{e.get("entscheidung", "offen")}** – {e.get("grund", "")}']
+    if e.get('frage'):
+        lines += [f'> Frage: {e["frage"]}']
+    if e.get('alt'):
+        lines += [f'> alt: {e["alt"]}']
+    if e.get('neu'):
+        lines += [f'> {"Vorschlag" if e.get("frage") else "neu"}: {e["neu"]}']
+    for k, v in enumerate(e.get('varianten') or [], start=1):
+        lines += [f'> Variante {k}: {v}']
+    return lines + ['']
+
+
+def show_stufen(data, size=ROUND_SIZE, gering=False, group=None):
+    """Textfassung der aktuellen Stufe (#570)."""
+    name, items, head = current(data, size, gering, group)
+    lines = [f'### 🧹 Hinweisdurchsicht · {data.get("buch", "")}', head, '']
+    if name == 'gruppen':
+        for key, es in items.items():
+            first = es[0]
+            lines += [f'**{GROUP_PREFIX}{key}** · {len(es)} × {first["art"]} – {first.get("grund", "")}']
+            if first.get('alt'):
+                lines += [f'> z. B. alt: {first["alt"]}']
+            if first.get('neu'):
+                lines += [f'> z. B. neu: {first["neu"]}']
+            lines += ['']
+        lines += ['Antwort je Gruppe: `<gruppe> ja` (alle wie vorgeschlagen) · `<gruppe> nein` (alle lassen) · '
+                  '`<gruppe> einzeln` (die Einträge einzeln ansehen)']
+        return '\n'.join(lines) + '\n'
+    for e in items:
+        lines += _entry_lines(e)
+    if name == 'gering-zu':
+        lines += ['Auf Wunsch aufklappen (`gering`) oder gesammelt lassen (`gering lassen`).']
+    elif name == 'fertig':
+        lines += ['*Keine offenen Einträge.*']
+    else:
+        lines += ['Antwort je Eintrag: `<id> ja` · `<id> nein` · `<id> geändert: <eigene Fassung>`', '',
+                  'Jederzeit aufhören; die nächste Durchsicht macht an dieser Stelle weiter.']
+    return '\n'.join(lines) + '\n'
+
+
+def decide_group(path, key, decision):
+    """Eine Gruppe entscheiden (#570): `ja` nimmt Einträge mit Vorschlag an, `nein` lässt alle. Gibt (geändert, übersprungen)."""
+    if decision not in ('ja', 'nein'):
+        raise ValueError('Für eine Gruppe gilt nur ja (wie vorgeschlagen) oder nein (alle lassen)')
+    key = key.removeprefix(GROUP_PREFIX)
+    data = read_yaml(path)
+    changed, skipped = [], []
+    for _, e in entries(data):
+        if not _is_open(e) or group_key(e) != key or _severity(e) in ('blockierend', 'gering'):
+            continue
+        if decision == 'ja' and not proposal(e):
+            skipped.append(e)
+            continue
+        e['entscheidung'] = decision
+        changed.append(e)
+    if not changed and not skipped:
+        raise ValueError(f'Gruppe {key} nicht gefunden oder schon entschieden')
+    if changed:
+        write_yaml(path, data)
+    return changed, skipped
+
+
+def decide_gering(path):
+    """Alle offenen geringen Einträge lassen (#570): `nein`, ohne Änderung am Manuskript."""
+    data = read_yaml(path)
+    changed = [e for _, e in entries(data) if _is_open(e) and _severity(e) == 'gering']
+    for e in changed:
+        e['entscheidung'] = 'nein'
+    if changed:
+        write_yaml(path, data)
+    return changed
+
+
 # ---------- Umsetzen (Teil 2) ----------
 
 def _section(base, config, sid):
@@ -506,10 +664,14 @@ STATUS_TEXT = {'planned': 'geplant', 'in_progress': 'in Arbeit', 'ready_for_asse
                'approved': 'abgeschlossen'}
 
 
-def widget_values(base, path):
-    """Werte für die Vorlage hinweisdurchsicht (#367): (values, blocks)."""
+def widget_values(base, path, stufen=None, size=ROUND_SIZE, gering=False, group=None):
+    """Werte für die Vorlage hinweisdurchsicht (#367): (values, blocks). Mit `stufen` (Voreinstellung: ab STAGE_MIN
+    offenen Einträgen) zeigt das Widget nur die aktuelle Stufe (#570); Gruppen erscheinen als eine Zeile mit der
+    ID `gruppe:<schlüssel>`, deren Antwort `ja` bzw. `nein` die ganze Gruppe entscheidet."""
     data = read_yaml(path)
     all_entries = entries(data)
+    if stufen is None:
+        stufen = staged(data) or bool(group)
     done = sum(e.get('entscheidung', 'offen') != 'offen' for _, e in all_entries)
     y, m, d = (str(data.get('erstellt', '')).split('-') + ['', '', ''])[:3]
 
@@ -531,8 +693,20 @@ def widget_values(base, path):
               'REVIEW_DATE_TEXT': f'Stand {d}.{m}.{y}' if d else '',
               'REVIEW_COUNT_TEXT': f'{len(all_entries)} Einträge · {done} entschieden · {len(all_entries) - done} offen'}
     blocks = {}
-    auto = [row(e, False) for e in data.get('ohne_autor') or []]
-    author = [row(e, True) for e in data.get('autorenentscheidung') or []]
+    shown = None
+    if stufen:
+        name, items, head = current(data, size, gering, group)
+        values['REVIEW_COUNT_TEXT'] = head
+        if name == 'gruppen':
+            items = [dict(es[0], id=GROUP_PREFIX + key, abschnitt=f'{len(es)} Stellen', chapter_id='', chapter_status='',
+                          frage=f'Alle {len(es)} Stellen: wie vorgeschlagen (ja) · alle lassen (nein) · '
+                                'einzeln ansehen (sag „' + GROUP_PREFIX + key + ' einzeln“)',
+                          varianten=[], schweregrad='') for key, es in items.items()]
+        shown = {e['id'] for e in items}
+    auto = [row(e, False) for e in data.get('ohne_autor') or [] if shown is None or e['id'] in shown]
+    author = [row(e, True) for e in data.get('autorenentscheidung') or [] if shown is None or e['id'] in shown]
+    if shown and name == 'gruppen':
+        author = [row(e, True) for e in items]
     skipped = [{'SK_REF': s['befund'], 'SK_REASON': s['grund']} for s in data.get('ausgelassen') or []]
     if auto:
         blocks['AUTO'] = auto
@@ -588,10 +762,17 @@ def main(argv=None):
     s.add_argument('project')
     s.add_argument('--file')
     s.add_argument('--open', action='store_true', help='nur offene Einträge')
+    s.add_argument('--stufen', action='store_true', help='Stufen erzwingen (#570)')
+    s.add_argument('--alle', action='store_true', help='ganze Liste, keine Stufen')
+    s.add_argument('--size', type=int, default=ROUND_SIZE, help='Einträge je Runde')
+    s.add_argument('--gering', action='store_true', help='geringe Einträge aufklappen')
+    s.add_argument('--group', help='Gruppe einzeln ansehen')
     d = sub.add_parser('decide', help='Entscheidung zu einem Eintrag speichern')
     d.add_argument('project')
-    d.add_argument('entry')
-    d.add_argument('--decision', required=True, choices=DECISIONS[1:])
+    d.add_argument('entry', nargs='?')
+    d.add_argument('--group', help='ganze Gruppe entscheiden (#570)')
+    d.add_argument('--gering', action='store_true', help='alle geringen offenen Einträge lassen (#570)')
+    d.add_argument('--decision', choices=DECISIONS[1:])
     d.add_argument('--new')
     d.add_argument('--file')
     for name, text in (('accept', 'Vorschläge annehmen (Rundumprüfung, #565)'), ('plan', 'vor dem Umsetzen zeigen, was geht'),
@@ -622,7 +803,11 @@ def main(argv=None):
             print('Keine Durchsichtsdatei gefunden (zuerst collect).', file=sys.stderr)
             return 1
         if args.cmd == 'show':
-            print(show(read_yaml(path), args.open), end='')
+            data = read_yaml(path)
+            if args.stufen or args.group or (staged(data) and not args.alle and not args.open):
+                print(show_stufen(data, args.size, args.gering, args.group), end='')
+            else:
+                print(show(data, args.open), end='')
             return 0
         if args.cmd == 'plan':
             print(plan_text(plan(base, config, read_yaml(path), args.chapter)), end='')
@@ -635,6 +820,19 @@ def main(argv=None):
         if args.cmd == 'apply':
             print(apply_text(apply(base, config, path, args.chapter)), end='')
             return 0
+        if args.gering:
+            changed = decide_gering(path)
+            print(f'{len(changed)} geringe Einträge gelassen')
+            return 0
+        group = args.group or (args.entry if (args.entry or '').startswith(GROUP_PREFIX) else None)
+        if group:
+            if not args.decision:
+                raise ValueError('--decision ja|nein fehlt')
+            changed, skipped = decide_group(path, group, args.decision)
+            print(f'{len(changed)} Einträge: {args.decision}' + (f'; {len(skipped)} ohne Vorschlag bleiben offen' if skipped else ''))
+            return 0
+        if not args.entry or not args.decision:
+            raise ValueError('Eintrag und --decision angeben (oder --group / --gering)')
         e = decide(path, args.entry, args.decision, args.new)
         print(f'{e["id"]}: {e["entscheidung"]}')
         return 0

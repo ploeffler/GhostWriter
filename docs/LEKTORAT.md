@@ -174,6 +174,27 @@ der Assistent lädt sie ohne Rückfrage als kleinen Nachtrag ins offene
 Änderungspaket ([Speichern](SPEICHERN.md#hinweise-durchsehen)). So setzt eine
 spätere Sitzung mit „Durchsicht fortsetzen“ an derselben Stelle fort.
 
+**Lange Listen in Stufen (#570).** Ab 12 offenen Einträgen zeigt `show` (und
+das Widget) nicht mehr alles auf einmal, sondern nur die aktuelle Stufe:
+
+1. **Blockierendes zuerst, einzeln,** mit Frage und Varianten.
+2. **Gleiche Muster gebündelt:** ab drei Einträgen gleicher Art und gleichen
+   Befunds (Zahlen und Anführungszeichen zählen nicht, ein Feld `muster`
+   hat Vorrang) eine Entscheidung je Gruppe: „alle wie vorgeschlagen“
+   (`hinweise.py decide <buch> --group gruppe:<schlüssel> --decision ja`,
+   nur Einträge mit Vorschlag, die anderen bleiben offen), „alle lassen“
+   (`--decision nein`) oder „einzeln ansehen“
+   (`hinweise.py show <buch> --group gruppe:<schlüssel>`).
+3. **Der Rest in Runden zu höchstens fünf,** nach Schweregrad, mit Fortschritt
+   („Runde 2 von 6 · noch 23 offen“; `--size` ändert die Rundengröße). Du
+   kannst jederzeit aufhören; die nächste Sitzung macht an der Stelle weiter.
+4. **„gering“ zugeklappt,** nur als Zahl. `show --gering` klappt auf,
+   `hinweise.py decide <buch> --gering` lässt alle geringen Einträge
+   (`nein`, ohne Änderung am Manuskript).
+
+`show --alle` zeigt die ganze Liste. Die Claude-Web-App zeigt vorerst weiter
+die ganze Liste.
+
 Umgesetzt wird erst am Ende eines Kapitels oder auf Auftrag. Vorher zeigt
 `hinweise.py plan <buch> [--chapter …]` je entschiedenem Eintrag ✅ umsetzbar,
 ⚠️ von Hand (ohne alten Wortlaut oder Vorschlag, oder der Wortlaut steht in einem
