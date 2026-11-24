@@ -236,6 +236,10 @@ def check_project(project_dir):
         import checkout
         errors += [f'{base}/{e}' for e in checkout.problems(base, config)]
 
+    if (base / 'quellen').is_dir():   # eingebrachtes Material (#574)
+        import material
+        errors += [f'{base}/{e}' for e in material.problems(base)]
+
     import jobs   # Aufträge der Hintergrund-Warteschlange (#480)
     for path in jobs.files(base):
         data = load_yaml(path, errors)

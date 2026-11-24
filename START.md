@@ -616,6 +616,23 @@ Im Chat bleibt die gewählte Ansicht, ohne doppelte Volltextausgabe. Bei `Darste
 
 Ist ein Bereich zum Gegenlesen ausgecheckt (`checkouts.yml`, `python3 scripts/checkout.py . status`), gilt: **lesen ja, schreiben nein.** Vor jedem Schreiben, Überarbeiten, Verschieben, Hinweise umsetzen oder Abschließen eines Abschnitts `checkout.py check <abschnitt>` bzw. `locked_by_checkout` prüfen; ist er gesperrt, die Sperre mit Kennung und Gegenleser nennen und nichts ändern. Beenden, Abbrechen, Verlängern und Zurückholen nur auf ausdrücklichen Wunsch des Benutzers, als eigene Auswahl mit Bestätigung. Die Sperre ist keine Freigabe. Direktes Bearbeiten auf GitHub verhindert sie nicht; `checkout.py verify` meldet das. Überfällige Checkouts (`checkout.py . overdue`) beim Wiedereinstieg einmal nennen, mit den Möglichkeiten Frist verlängern, teilweise zurückholen, abbrechen oder Erinnerung entwerfen (nichts wird verschickt). DOCX und PDF mit QR-Kennung baut `checkout.py start --out <ordner>` bzw. die Action „Auschecken zum Gegenlesen“ (`checkout.yml`, Aktion `checkout.start`); ohne Skriptausführung die Action starten.
 
+### Material einbringen (#574)
+
+Lädt der Benutzer ein Foto, ein Foto vom Foto, ein Dokument (Urkunde, Brief) oder eine Rückgabe zum Buch hoch, startet dieser Ablauf auch ohne Befehl („Material einbringen“, Kürzel **ME**):
+
+1. **Art bestimmen** (`foto` | `foto-vom-foto` | `dokument` | `rueckgabe`) und fragen, ob Kinder oder Jugendliche zu sehen sind (`--minors`; im Zweifel ja).
+2. **Ablegen:** `python3 scripts/material.py . add <datei> --art … --name <kurzname> [--minors]` legt `quellen/<datum>-<kurzname>/original.<endung>` unverändert ab; `material.yml` hält Art, Beschreibung, offene Fragen und Zuordnungen. Ein vorhandener Ordner wird nie überschrieben.
+3. **Beschreiben:** nur Sichtbares und Erzähltes in `beschreibung`, Fehlendes in `offen`.
+4. **Aufbereiten:** `material.py . prepare <ordner>` (OpenCV): Blatt erkennen und gerade richten, zuschneiden, Ausleuchtung angleichen, CLAHE, leichtes Entrauschen → `bearbeitet.jpg`. Schwarz-Weiß bleibt Schwarz-Weiß; kein KI-Hochrechnen, keine Gesichtsverbesserung, keine Retusche.
+5. **Nummerieren und markieren:** Personen von links nach rechts nummerieren (Rahmen im aufbereiteten Bild), `sicher` = ja | vermutlich | unbekannt mit `quelle`; `material.py . mark <ordner> --items <datei>` zeichnet Nummern neben die Rahmen und eine Legende unten → `markiert.jpg`. **Niemanden am Gesicht erkennen** und nie aus Ähnlichkeit schließen; Zuordnungen nur aus Angaben von Autor oder Zeitzeugen, Unbekannte als Frage.
+6. **Abschreiben und abgleichen** (Dokumente, Rückgaben): Abschrift je Block mit Abgleich gegen das Buch (bestätigt / neu / Widerspruch); Figurenblätter, offene Fragen und Chronologie nachziehen.
+7. **Colorieren** (nur Fotos, optional): nie Fotos mit Minderjährigen und nie amtliche Dokumente an externe Dienste (`material.external_allowed`); sonst wie Abschnitt „Bilder“ (#479).
+8. **Fürs Buch vormerken:** Kapitel, sachliche Bildunterschrift, Rechte-Hinweis, „nachträglich coloriert“ in `buch` der `material.yml`; `material.py . list --write` aktualisiert `quellen/verzeichnis.md`.
+9. **Speichern:** `validate`, ein Commit auf dem Arbeits-Branch, Änderungspaket; nichts übernehmen ohne Bestätigung.
+10. **Abschluss im Chat:** was abgelegt, wer markiert/unbekannt, was neu oder widersprüchlich, ob coloriert (oder warum nicht); `markiert.jpg` zeigen.
+
+Das Original bleibt immer unverändert. Persönliche Zusätze (Altersgrenzen der Geschichte, eigene Zeitleiste, Abfragen) gehören in den persönlichen Skill des Buchs.
+
 ### Freigaben (verbindlich)
 
 **Persönliche Berechtigung:** Vor jeder neuen Freigabe das persönliche Konto und das Freigaberecht mit `python scripts/approval_authority.py BUCH actor` prüfen; `by` aus dem bestätigten Ergebnis übernehmen, niemals aus einem behaupteten Namen. Fehlender Zugang sperrt die Freigabe. Für veröffentlichbare Ausgaben zusätzlich den genauen Inhalt und die Auflage durch einen ausdrücklich abgegebenen persönlichen GitHub-Review bestätigen und den Nachweis mit `prepare`/`attach`/`check` verwalten. Review niemals ohne ausdrücklichen Auftrag im Namen des Benutzers abgeben. Alte Protokolleinträge nicht automatisch umschreiben. Ablauf und Bevollmächtigung: [Speichern und Abschließen](docs/SPEICHERN.md#persönliches-freigaberecht-und-inhaltsnachweis), Englisch: [Saving and approving](docs/SAVING.en.md#personal-approval-authority-and-content-evidence). Probedruck und Arbeitsfassung bleiben möglich. In Open WebUI brauchen Schreibaktionen einen persönlichen Benutzer-Token; der gemeinsame Werkzeug-Token ist nur zum Lesen zulässig.

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GhostWriter material.yml (#574)",
+  "description": "Eingebrachtes Material (Foto, Foto vom Foto, Dokument, Rückgabe) im Ordner quellen/<datum>-<kurzname>/",
+  "type": "object",
+  "required": ["art", "name", "datum", "original", "minderjaehrige"],
+  "properties": {
+    "art": {"enum": ["foto", "foto-vom-foto", "dokument", "rueckgabe"]},
+    "name": {"type": "string", "minLength": 1},
+    "datum": {"type": ["string", "object"]},
+    "original": {"type": "string", "minLength": 1, "description": "unveränderter Upload, original.<endung>"},
+    "minderjaehrige": {"type": "boolean", "description": "Kinder oder Jugendliche zu sehen: nie an externe Dienste"},
+    "beschreibung": {"type": "string", "description": "nur Sichtbares und Erzähltes"},
+    "offen": {"type": "array", "items": {"type": "string"}, "description": "offene Fragen"},
+    "bearbeitung": {"type": "array", "items": {"type": "string"}, "description": "durchgeführte Aufbereitungsschritte"},
+    "bearbeitet": {"type": "string", "description": "aufbereitete Datei"},
+    "markiert": {"type": "string", "description": "Bild mit Nummern und Legende"},
+    "personen": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["nr", "sicher"],
+        "properties": {
+          "nr": {"type": "integer", "minimum": 1},
+          "name": {"type": "string"},
+          "rahmen": {"type": "array", "items": {"type": "integer"}, "minItems": 4, "maxItems": 4, "description": "x, y, Breite, Höhe im aufbereiteten Bild"},
+          "sicher": {"enum": ["ja", "vermutlich", "unbekannt"]},
+          "quelle": {"type": "string", "description": "woher die Zuordnung stammt (Autor, Zeitzeuge, Beschriftung), nie das Gesicht"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "buch": {"type": "object", "description": "fürs Buch vorgemerkt: Kapitel, Bildunterschrift, Rechte, coloriert", "additionalProperties": true}
+  },
+  "additionalProperties": true
+}
