@@ -232,6 +232,10 @@ def check_project(project_dir):
         import assistant
         errors += [f'{base}/{e}' for e in assistant.check(base)]
 
+    if (base / 'checkouts.yml').is_file():   # Bereiche zum Gegenlesen (#572)
+        import checkout
+        errors += [f'{base}/{e}' for e in checkout.problems(base, config)]
+
     import jobs   # Aufträge der Hintergrund-Warteschlange (#480)
     for path in jobs.files(base):
         data = load_yaml(path, errors)
@@ -583,6 +587,21 @@ def check_project(project_dir):
 MANUSCRIPT_MARK = '\n## Manuskript\n'
 
 
+def checkout_warnings(project_dir):
+    """Hinweis ohne Fehler (#572): ausgecheckte Abschnitte, die sich seit dem Checkout geändert haben (z. B. direkt auf GitHub)."""
+    base = Path(project_dir)
+    if not (base / 'checkouts.yml').is_file():
+        return []
+    try:
+        import checkout
+        from render_view import load
+        root, config = load(base)
+        return [f'{line} (Sperre umgangen? python3 scripts/checkout.py . verify)'
+                for line in checkout.verify_text(checkout.verify(root, config)).splitlines()]
+    except Exception:   # noqa: BLE001 - Hinweise dürfen die Prüfung nie stören
+        return []
+
+
 def manuscript_warnings(project_dir):
     """Hinweise ohne Fehler (#435): weitere `## `-Überschrift nach `## Manuskript` ist meist eine Arbeitsnotiz,
     die sonst mit ins Buch käme (Grundregel „Ohne Vorrede und Nachwort“). Datei und Zeile."""
@@ -638,6 +657,8 @@ def main(argv):
         else:
             print(f'✓ {project_dir}' + (' (persönlicher Inhaltsnachweis geprüft)' if verify_authority else ' (Strukturprüfung; Freigabeperson nicht geprüft)'))
         for w in manuscript_warnings(project_dir):
+            print(f'  ⚠ {w}')
+        for w in checkout_warnings(project_dir):
             print(f'  ⚠ {w}')
     return 1 if failed else 0
 

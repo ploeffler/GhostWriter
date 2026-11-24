@@ -212,6 +212,18 @@ and kept; only the fixed fields are checked.
 
 In the chat, `render_view.py notes-review` shows the dialogue as a widget (template `hinweisdurchsicht`, UI 0.58.0 and later) with “Accept”, “Do not change” and “Rephrase” per entry and “Check what can be applied”; `--text` gives the text version.
 
+## Proofreading by others: checking out an area (#572)
+
+Whoever is to proofread chapters (co-author, editor) gets an **area**: single chapters, a range of chapters or the whole book. The area is **checked out** and **locked**; the lock is not an approval and not finalizing, but its own state “checked out” (`ausgecheckt`).
+
+- `python3 scripts/checkout.py <book> start --chapters 3-5 --reader <name> [--until YYYY-MM-DD]` (or `--book`) adds an entry to `checkouts.yml` and prints the ID `GW-XXXX`. An area cannot be checked out twice.
+- Only what changes the checked-out chapters is locked: writing, revising, merging, moving and deleting sections, applying notes, and approvals. Reading, checking and reports stay possible; other chapters and book-wide details stay editable. The notes review shows such entries as ⛔ “checked out” and accepts nothing there.
+- `status` lists the checkouts, `check <section>` checks one section, `verify` reports checked-out sections that changed since the checkout.
+- **Ending** is always explicit: `end <id> --reason "…"` (or `--abort`; external changes not yet brought back may then be lost). `extend <id> --until …` (extend the deadline) and `release <id> --chapters 5` (take part back, the rest stays locked) are their own steps. The owner and whoever checked out may do this; the proofreader does not have to agree.
+- If the proofreader does not respond, nothing unlocks automatically. `overdue` names overdue checkouts with the number of days; then extend the deadline, take part back or abort.
+- **Limit:** Editing directly on GitHub does not prevent the lock. `verify` and the `validate` check report it: `validate` fails when a pull request changes a section that was checked out in the base state. To protect the lock against deliberate bypassing as well, set branch protection “only via green pull request” on the book branch (you set that yourself on GitHub).
+- **Not included yet (part 2):** the DOCX and PDF files with QR identifier. Until then there is the lock without files. Return (check-in, three-way comparison) follows with #573 and #209.
+
 ## Full chapter check (#447)
 
 The full chapter check reviews one chapter completely in a single pass:

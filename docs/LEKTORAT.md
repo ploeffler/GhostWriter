@@ -225,6 +225,18 @@ erhalten; geprüft werden nur die festen Felder.
 
 Im Chat zeigt `render_view.py notes-review` den Dialog als Widget (Vorlage `hinweisdurchsicht`, ab UI 0.58.0) mit „Übernehmen“, „Nicht ändern“ und „Anders formulieren“ je Eintrag und „Umsetzen prüfen“; die Textfassung ist `--text`.
 
+## Gegenlesen: Bereich auschecken (#572)
+
+Wer Kapitel gegenlesen soll (Co-Autor, Lektorin), bekommt einen **Bereich**: einzelne Kapitel, eine Kapitelfolge oder das ganze Buch. Dazu wird der Bereich **ausgecheckt** und **gesperrt**; die Sperre ist keine Freigabe und kein Abschließen, sondern ein eigener Zustand „ausgecheckt“.
+
+- `python3 scripts/checkout.py <buch> start --chapters 3-5 --reader <name> [--until JJJJ-MM-TT]` (oder `--book`) legt einen Eintrag in `checkouts.yml` an und gibt die Kennung `GW-XXXX` aus. Ein Bereich lässt sich nicht doppelt auschecken.
+- Gesperrt ist nur, was die ausgecheckten Kapitel verändert: Schreiben, Überarbeiten, Zusammenführen, Verschieben und Löschen von Abschnitten, Hinweise umsetzen und Freigaben. Lesen, Prüfen und Berichte bleiben möglich; andere Kapitel und buchweite Angaben bleiben bearbeitbar. Die Hinweisdurchsicht zeigt solche Einträge als ⛔ „ausgecheckt“ und nimmt dort nichts an.
+- `status` zeigt die Checkouts, `check <abschnitt>` prüft einen Abschnitt, `verify` meldet ausgecheckte Abschnitte, die sich seit dem Checkout geändert haben.
+- **Beenden** geht nur ausdrücklich: `end <id> --reason "…"` (oder `--abort`; nicht zurückgeführte externe Änderungen können dann verloren gehen). Auch `extend <id> --until …` (Frist verlängern) und `release <id> --chapters 5` (Teil zurückholen, der Rest bleibt gesperrt) sind eigene Schritte. Das dürfen der Eigentümer und wer ausgecheckt hat; der Gegenleser muss nicht zustimmen.
+- Meldet sich der Gegenleser nicht, entsperrt nichts automatisch. `overdue` nennt überfällige Checkouts mit der Zahl der Tage; dann Frist verlängern, teilweise zurückholen oder abbrechen.
+- **Grenze:** Direktes Bearbeiten auf GitHub verhindert die Sperre nicht. `verify` und die Prüfung `validate` melden es: `validate` schlägt fehl, wenn ein Pull Request einen Abschnitt ändert, der im Ausgangsstand ausgecheckt war. Wer die Sperre auch gegen absichtliche Umgehung sichern will, setzt auf dem Buch-Branch den Branch-Schutz „nur über grünen Pull Request“ (das stellst du selbst auf GitHub ein).
+- **Noch nicht enthalten (Teil 2):** die DOCX- und PDF-Dateien mit QR-Kennung. Bis dahin gibt es die Sperre ohne Dateien. Die Rückgabe (Einchecken, Dreifachvergleich) kommt mit #573 und #209.
+
 ## Rundumprüfung eines Kapitels (#447)
 
 Die Rundumprüfung prüft ein Kapitel in einem Durchgang vollständig: Struktur,

@@ -302,7 +302,7 @@ def proposal(e):
                 and e.get('schweregrad') != 'blockierend' and not e.get('varianten'))
 
 
-def accept(path, chapters=None):
+def accept(path, chapters=None, skip=()):
     """Rundumprüfung (#565): offene, nicht umgesetzte Einträge mit Vorschlag auf `ja` setzen und mit
     `angenommen: rundumpruefung` kennzeichnen. Abgeschlossenes hält danach `plan` zurück (⛔)."""
     chapters = set(chapters or [])
@@ -312,6 +312,8 @@ def accept(path, chapters=None):
         if e.get('umgesetzt') or e.get('entscheidung', 'offen') != 'offen' or not proposal(e):
             continue
         if chapters and e.get('chapter_id') not in chapters:
+            continue
+        if e.get('section_id') in skip:   # ausgecheckt (#572): nichts annehmen
             continue
         e['entscheidung'] = 'ja'
         e['angenommen'] = 'rundumpruefung'
@@ -512,6 +514,12 @@ def _section(base, config, sid):
     return number, ch, s, head
 
 
+def _checked_out(base, config, sid):
+    """Aktiver Checkout zum Gegenlesen, der den Abschnitt sperrt (#572), sonst None."""
+    import checkout
+    return checkout.locked_by_checkout(base, config, sid)
+
+
 def plan(base, config, data, chapters=None):
     """[(zeichen, eintrag, grund)] für alle entschiedenen, noch nicht umgesetzten Einträge."""
     import checks
@@ -538,6 +546,8 @@ def plan(base, config, data, chapters=None):
         elif head.get('status') == 'approved':
             out.append(('⛔', e, f'{"Abschnitt " if e.get("chapter_id") else ""}{e["abschnitt"]} ist abgeschlossen: '
                                  'erst wieder öffnen'))
+        elif _checked_out(base, config, e['section_id']):
+            out.append(('⛔', e, f'ausgecheckt: {_checked_out(base, config, e["section_id"])["id"]} (Checkout erst beenden)'))
         elif wording(text, e['alt'], e['neu']) is None:
             out.append(_not_found(base, config, e, text))
         else:
@@ -813,7 +823,9 @@ def main(argv=None):
             print(plan_text(plan(base, config, read_yaml(path), args.chapter)), end='')
             return 0
         if args.cmd == 'accept':
-            taken = accept(path, args.chapter)
+            import checkout
+            skip = {s for s in section_index(config) if checkout.locked_by_checkout(base, config, s)}
+            taken = accept(path, args.chapter, skip)
             print(f'{len(taken)} Vorschläge angenommen' + ''.join(f'\n- {e["id"]} ({e["abschnitt"]}): {e["alt"]} → {e["neu"]}'
                                                                for e in taken))
             return 0

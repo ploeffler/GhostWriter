@@ -119,6 +119,11 @@ def check_unlocked(base, *secs):
         if locked(head):
             raise SystemExit(f'Abschnitt „{sec["title"]}“ ist abgeschlossen; zuerst die Freigabe zurücknehmen '
                              '(START.md, „Freigaben“).')
+        import checkout   # Bereich zum Gegenlesen ausgecheckt (#572)
+        from render_view import load
+        entry = checkout.locked_by_checkout(base, load(base)[1], sec['id'])
+        if entry:
+            raise SystemExit(f'Abschnitt {checkout.lock_message(entry, section=sec["title"])}')
 
 
 # ---------- ghostwriter.yml textgenau ändern ----------
