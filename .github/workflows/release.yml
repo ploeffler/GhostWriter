@@ -56,7 +56,11 @@ jobs:
           python scripts/release.py notes --version "$VERSION" > "$RUNNER_TEMP/notes.md"
           if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
             if [ "$(git rev-list -n1 "$TAG")" != "$GITHUB_SHA" ]; then
-              echo "::error::Tag $TAG zeigt auf einen anderen Commit; nichts geändert."; exit 1
+              if [ "${{ inputs.dry_run }}" = "true" ]; then
+                echo "::warning::Tag $TAG zeigt auf einen anderen Commit; ein echter Lauf würde hier abbrechen."
+              else
+                echo "::error::Tag $TAG zeigt auf einen anderen Commit; nichts geändert."; exit 1
+              fi
             fi
             echo "Tag $TAG ist schon da (gleicher Commit)."
           fi
