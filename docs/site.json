@@ -177,6 +177,17 @@
       }
     },
     {
+      "id": "clients",
+      "title": {
+        "de": "Clients und Fähigkeiten",
+        "en": "Clients and capabilities"
+      },
+      "source": {
+        "de": "CLIENT-FAEHIGKEITEN.md",
+        "en": "CLIENT-CAPABILITIES.en.md"
+      }
+    },
+    {
       "id": "connector",
       "title": {
         "de": "Verbindung einrichten",
@@ -261,7 +272,8 @@
     "docs/INTEGRATION.md",
     "integrations/openwebui/README.md",
     "providers.yml",
-    "apps/claude/README.md"
+    "apps/claude/README.md",
+    "docs/TESTPLAN-v1.0.md"
   ],
   "excluded_links": [
     "ENTSCHEIDUNGSAUFTRAG-v1.0.md",

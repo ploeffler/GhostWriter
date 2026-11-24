@@ -2,6 +2,8 @@
 
 This is a translation of the historical assessment dated 31 October 2026. App capabilities and permissions can change; verify them in your own session before relying on them.
 
+Which capabilities (text, file display, choice questions, GhostWriter widgets, installed integrations) are available, unavailable or unchecked per client is on the page [Clients and capabilities](CLIENT-CAPABILITIES.en.md).
+
 ## Capabilities observed
 
 At the time of the assessment, the built-in GitHub connections in Claude and ChatGPT were read-only. GhostWriter's chat-based operating path needs write capabilities for working branches, pull requests and releases.
