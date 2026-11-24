@@ -505,6 +505,8 @@ def create_book(title, short='', author='', cwd=ROOT, namespace='refs/remotes/or
 def general_skills(cwd=ROOT):
     """Namen der allgemeinen Skills: einzige Quelle sind die Schlüssel unter `skills:` in ghostwriter-skills.yml (#584)."""
     lock = Path(cwd, 'ghostwriter-skills.yml')
+    if not lock.is_file():
+        lock = ROOT / 'ghostwriter-skills.yml'   # Prüfung eines fremden Ordners: die Liste dieses Programms gilt
     data = yaml.safe_load(lock.read_text(encoding='utf-8')) if lock.is_file() else None
     skills = (data or {}).get('skills') if isinstance(data, dict) else None
     return set(skills) if isinstance(skills, dict) else set()
