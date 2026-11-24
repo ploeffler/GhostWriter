@@ -28,6 +28,19 @@ class ReleaseTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             release.tag_name('1.0')
 
+    def test_prerelease_tag_and_branch_rules(self):
+        self.assertEqual(release.tag_name('1.0.0', '1'), 'v1.0-rc.1')
+        self.assertEqual(release.tag_name('1.0.1', 2), 'v1.0.1-rc.2')
+        for bad in ('0', 'a', '-1'):
+            with self.assertRaises(ValueError):
+                release.tag_name('1.0.0', bad)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_root(tmp)
+            self.assertEqual(release.check('1.0.0', '1.0.0', root, prerelease='1', ref='release/1.0.0'), [])
+            self.assertTrue(release.check('1.0.0', '1.0.0', root, prerelease='1', ref='main'))
+            self.assertTrue(release.check('1.0.0', '1.0.0', root, ref='release/1.0.0'))
+            self.assertEqual(release.check('1.0.0', '1.0.0', root, ref='main'), [])
+
     def test_check_passes_with_matching_confirmation(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(release.check('1.0.0', '1.0.0', make_root(tmp)), [])
@@ -61,12 +74,22 @@ class ReleaseTest(unittest.TestCase):
         inputs = wf['on']['workflow_dispatch']['inputs']
         self.assertEqual(inputs['dry_run']['default'], 'false')
         self.assertIn('confirm', inputs)
-        self.assertIn("github.ref == 'refs/heads/main'", wf['jobs']['release']['if'])
+        cond = wf['jobs']['release']['if']
+        self.assertIn("github.ref == 'refs/heads/main'", cond)
+        self.assertIn("startsWith(github.ref, 'refs/heads/release/')", cond)
+        self.assertIn('prerelease', inputs)
         steps = wf['jobs']['release']['steps']
         publishing = [s for s in steps if 'gh release create' in s.get('run', '') or s.get('id') == 'deployment']
         self.assertEqual(len(publishing), 2)
         for step in publishing:
             self.assertIn('!inputs.dry_run', step['if'])
+        website = [s for s in steps if s.get('id') == 'deployment' or s.get('uses', '').startswith(('actions/configure-pages', 'actions/upload-pages'))
+                   or s.get('name') in ('Öffentliche Website nachprüfen', 'Dokumentationswebsite bauen und prüfen')]
+        self.assertEqual(len(website), 5)
+        for step in website:
+            self.assertIn("inputs.prerelease == ''", step['if'])   # Vorabversion veröffentlicht keine Website
+        text = (ROOT / '.github/workflows/release.yml').read_text()
+        self.assertIn('--prerelease --title', text)
 
 
     def test_prepare_sets_version_and_inserts_draft_that_blocks_publishing(self):

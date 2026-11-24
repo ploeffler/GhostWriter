@@ -4,6 +4,9 @@ name: Release veröffentlichen
 # („Release <version> freigeben und veröffentlichen“). Legt Tag und
 # GitHub-Release an und veröffentlicht die Dokumentationswebsite.
 # Ein erneuter Start setzt fort: vorhandener Tag bzw. Release bleibt unverändert.
+# Pre-release (#488): mit `prerelease: N` vom Branch release/<version> starten
+# („Pre-release <version>-rc.N freigeben“). Tag v<X.Y>-rc.N, GitHub-Release als
+# Vorabversion, keine Website; main und damit die Bücher bleiben unverändert.
 on:
   workflow_dispatch:
     inputs:
@@ -13,6 +16,10 @@ on:
       confirm:
         description: 'Zur Bestätigung die Version noch einmal eingeben'
         required: true
+      prerelease:
+        description: 'Pre-release: Nummer N für <version>-rc.N (nur vom Branch release/<version>); leer = endgültiges Release'
+        required: false
+        default: ''
       dry_run:
         description: 'Trockenlauf: alles prüfen und bauen, nichts anlegen oder veröffentlichen'
         type: boolean
@@ -29,13 +36,17 @@ concurrency:
 
 jobs:
   release:
-    if: github.repository == 'ploeffler/GhostWriter' && github.ref == 'refs/heads/main'
+    if: >-
+      github.repository == 'ploeffler/GhostWriter' &&
+      ((inputs.prerelease == '' && github.ref == 'refs/heads/main') ||
+       (inputs.prerelease != '' && startsWith(github.ref, 'refs/heads/release/')))
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     env:
       VERSION: ${{ inputs.version }}
+      PRERELEASE: ${{ inputs.prerelease }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -47,11 +58,13 @@ jobs:
       - name: Werkzeuge installieren
         run: pip install -r scripts/docsite/requirements.txt
       - name: Freigabe prüfen (Version, Bestätigung, Release Notes)
-        run: python scripts/release.py check --version "$VERSION" --confirm "${{ inputs.confirm }}"
+        run: |
+          python scripts/release.py check --version "$VERSION" --confirm "${{ inputs.confirm }}" \
+            --prerelease "$PRERELEASE" --ref "$GITHUB_REF_NAME"
       - name: Tag und Release Notes vorbereiten
         id: prep
         run: |
-          TAG=$(python scripts/release.py tag --version "$VERSION")
+          TAG=$(python scripts/release.py tag --version "$VERSION" --prerelease "$PRERELEASE")
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           python scripts/release.py notes --version "$VERSION" > "$RUNNER_TEMP/notes.md"
           if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
@@ -65,6 +78,7 @@ jobs:
             echo "Tag $TAG ist schon da (gleicher Commit)."
           fi
       - name: Dokumentationswebsite bauen und prüfen
+        if: ${{ inputs.prerelease == '' }}
         run: python scripts/package_docs_site.py
       - name: Tag und GitHub-Release anlegen
         if: ${{ !inputs.dry_run }}
@@ -73,20 +87,24 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG ist schon da."
           else
-            gh release create "$TAG" --target "$GITHUB_SHA" --title "GhostWriter $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+            if [ -n "$PRERELEASE" ]; then
+              gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --title "GhostWriter $VERSION-rc.$PRERELEASE (Vorabversion)" --notes-file "$RUNNER_TEMP/notes.md"
+            else
+              gh release create "$TAG" --target "$GITHUB_SHA" --title "GhostWriter $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+            fi
           fi
       - uses: actions/configure-pages@v5
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && inputs.prerelease == '' }}
       - uses: actions/upload-pages-artifact@v3
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && inputs.prerelease == '' }}
         with:
           path: build/pages
       - name: GitHub Pages bereitstellen
         id: deployment
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && inputs.prerelease == '' }}
         uses: actions/deploy-pages@v4
       - name: Öffentliche Website nachprüfen
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && inputs.prerelease == '' }}
         run: |
           for i in 1 2 3 4 5 6; do
             python scripts/release.py site --version "$VERSION" && exit 0
@@ -99,6 +117,7 @@ jobs:
           {
             echo "## Release $VERSION"
             echo "- Trockenlauf: ${{ inputs.dry_run }}"
+            echo "- Pre-release: ${{ inputs.prerelease || 'nein' }}"
             echo "- Tag: ${{ steps.prep.outputs.tag }}"
             echo "- Website: ${{ steps.deployment.outputs.page_url || 'nicht veröffentlicht' }}"
           } >> "$GITHUB_STEP_SUMMARY"
