@@ -90,6 +90,7 @@ class ReleaseTest(unittest.TestCase):
             self.assertIn("inputs.prerelease == ''", step['if'])   # Vorabversion veröffentlicht keine Website
         text = (ROOT / '.github/workflows/release.yml').read_text()
         self.assertIn('--prerelease --title', text)
+        self.assertIn("inputs.prerelease == '' && 'github-pages' || ''", text)   # Umgebung nur für main
 
 
     def test_prepare_sets_version_and_inserts_draft_that_blocks_publishing(self):

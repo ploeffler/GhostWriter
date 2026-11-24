@@ -41,8 +41,9 @@ jobs:
       ((inputs.prerelease == '' && github.ref == 'refs/heads/main') ||
        (inputs.prerelease != '' && startsWith(github.ref, 'refs/heads/release/')))
     runs-on: ubuntu-latest
+    # Die Umgebung github-pages lässt nur main zu; eine Vorabversion braucht sie nicht.
     environment:
-      name: github-pages
+      name: ${{ inputs.prerelease == '' && 'github-pages' || '' }}
       url: ${{ steps.deployment.outputs.page_url }}
     env:
       VERSION: ${{ inputs.version }}
