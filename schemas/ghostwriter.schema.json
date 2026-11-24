@@ -525,6 +525,23 @@
       },
       "additionalProperties": false
     },
+    "team": {
+      "type": "array",
+      "description": "Team des Buchs (#455): Rolle je GitHub-Login. Fehlt = wie bisher (wer Schreibrecht hat, gilt als Eigentümer). Die GitHub-Rechte begrenzen den Zugriff; die Rolle erweitert sie nie (D03).",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["github", "role"],
+        "properties": {
+          "github": {"type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$", "description": "GitHub-Login"},
+          "role": {"enum": ["owner", "editor", "reader"], "description": "Eigentümer, Bearbeiter, Leser"},
+          "name": {"type": "string", "minLength": 1, "description": "Git-Benutzername für Commits dieser Person"},
+          "email": {"type": "string", "pattern": "^[^@\\s<>]+@[^@\\s<>]+\\.[^@\\s<>]+$", "description": "Git-Adresse für Commits, am besten <id>+<login>@users.noreply.github.com"},
+          "approve": {"type": "boolean", "description": "nur bei editor: darf abschließen und Auflagen auslösen (freigabeberechtigt); Eigentümer dürfen es immer"}
+        },
+        "additionalProperties": false
+      }
+    },
     "characters": {
       "type": "array",
       "description": "Figuren des Buchs (#53) in Reihenfolge; fehlt = keine",

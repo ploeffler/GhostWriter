@@ -119,11 +119,23 @@ class ReleaseTest(unittest.TestCase):
         langs['en'] = {'status': 'Lücken', 'gaps': ['y']}
         self.assertFalse(release.render_report('1.0.0', langs, {}, [], 'v1.0')[1])
 
+    def test_testplan_open_rows_are_reported(self):
+        path, open_rows = release.testplan('1.0.0')
+        self.assertEqual(path, 'docs/TESTPLAN-v1.0.md')
+        self.assertGreater(open_rows, 0)
+        text, ready = release.render_report('1.0.0', {'de': {'status': 'vollständig', 'gaps': []},
+                                                      'en': {'status': 'vollständig', 'gaps': []}}, {}, [], 'v1.0', (path, 3))
+        self.assertTrue(ready)
+        self.assertIn('3 Prüfungen offen', text)
+        self.assertEqual(release.testplan('9.9.0'), (None, 0))
+
     def test_prepare_workflow_is_manual_and_never_publishes(self):
         text = (ROOT / '.github/workflows/release-prepare.yml').read_text()
         wf = yaml.load(text, Loader=yaml.BaseLoader)
         self.assertEqual(set(wf['on']), {'workflow_dispatch'})
         self.assertNotIn('pages', wf.get('permissions', {}))
+        self.assertIn('--skip tests', text)
+        self.assertNotIn('-f base=main', text)  # PR legt die Sitzung an, damit validate läuft
         for forbidden in ('gh release', 'deploy-pages', 'git tag'):
             self.assertNotIn(forbidden, text)
 

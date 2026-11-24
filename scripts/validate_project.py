@@ -225,6 +225,9 @@ def check_project(project_dir):
     if (base / 'series').is_dir():   # Serien auf dem Standard-Branch einer Bibliothek (#116)
         import series
         errors += [f'{base}/{e}' for e in series.problems(base)]
+    if config.get('team'):   # Team und Rollen (#455)
+        import team
+        errors += [f'{config_path}: {e}' for e in team.problems(config)]
     if (base / 'assistant.yml').is_file():   # Assistenten-Profil und persönlicher Skill (#136)
         import assistant
         errors += [f'{base}/{e}' for e in assistant.check(base)]

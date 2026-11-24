@@ -40,7 +40,7 @@ The book structure is created only after you explicitly approve the outline. The
 
 ## 6. Work on the book
 
-The project overview lists chapters, status and costs. Open a chapter to see its sections; open a section to work on it.
+The project overview lists chapters, status and costs (AI API calls only; “≈” means estimated; `python3 scripts/costs.py . summary` breaks them down into actual, estimated, manual and unknown, and `costs.py . add` records an invoice amount). Open a chapter to see its sections; open a section to work on it.
 
 Work follows a [creation cycle](CREATION-CYCLE.en.md): introduce new ideas, requirements and material at any time, returning to research, brainstorming or revision as needed. Once its sections are finalized, assemble, review and finalize the chapter. Repeat this [chapter circle](BOOK-LIFECYCLE.en.md) for further chapters.
 
@@ -93,6 +93,7 @@ The assistant presents the release notes for approval and prepares a separate ed
 - **More books:** Create them from the bookshelf.
 - **Profile:** `Profil` stores the Git identity used for commits, default author and narrative voice. The generated personal skill can be loaded automatically by compatible assistants; see [chat apps](CHAT-APPS.en.md).
 - **Updates:** Program updates are separate from book content; see [updates](UPDATES.en.md).
+- **Working with others (#455):** Invite people as GitHub collaborators (repository → Settings → Collaborators; readers with “Read”, editors with “Write”). In `ghostwriter.yml` under `team`, set who is owner, editor or reader and which editor may finalize (`approve: true`); with `name` and `email` a person's commits appear under their own name instead of yours. The assistant tells everyone their role and only offers permitted actions. GitHub permissions remain the real limit: anyone with “Write” can also change files directly. To rule that out, add a rule with required review (Settings → Rules). The check on the change package rejects finalizing and editions by people without approval rights, and changes to the team list by anyone but an owner. The team list before the change counts, and the check looks at who opened the pull request or pushed.
 - **A v0.5 single book:** It can continue as a single book. To manage multiple books in one repository, the [updates guide](UPDATES.en.md#convert-an-existing-single-book-into-a-library) describes the optional conversion.
 
 ## Design graphic covers

@@ -40,7 +40,7 @@ Bis du die Gliederung ausdrücklich freigibst, werden keine weiteren Buchdateien
 
 ## 6. Am Buch arbeiten
 
-Die **Projektübersicht** zeigt alle Kapitel mit Status und Kosten; ein Klick öffnet die **Kapitelansicht** mit ihren Abschnitten, ein weiterer den **Abschnitt**.
+Die **Projektübersicht** zeigt alle Kapitel mit Status und Kosten (nur KI-API-Aufrufe; „≈“ heißt geschätzt; eine Aufstellung nach tatsächlich, geschätzt, manuell und unbekannt gibt `python3 scripts/costs.py . summary`, eine Rechnung trägst du mit `costs.py . add` ein); ein Klick öffnet die **Kapitelansicht** mit ihren Abschnitten, ein weiterer den **Abschnitt**.
 
 Die Arbeit ist ein [Erstellungskreislauf](ERSTELLUNGSKREISLAUF.md): Du kannst jederzeit neue Ideen, Vorgaben und Material einbringen. Je nach Inhalt geht es zurück zu Recherche, Brainstorming oder Überarbeitung. Sind die Abschnitte abgeschlossen, folgen Prüfung und Abschluss des ganzen Kapitels; für weitere Kapitel wiederholt sich dieser [Kapitelkreis](BUCHABLAUF.md).
 
@@ -101,6 +101,7 @@ Den gesamten redaktionellen Kreislauf und die Git-Wege – einschließlich der A
 - **Weitere Bücher:** jederzeit über **Neues Buch** im Bücherregal.
 - **Profil:** Mit dem Befehl `Profil` hältst du fest, mit welchem Git-Benutzer der Assistent committet, welcher Autorenname vorbelegt ist und wie deine Standard-Erzählstimme klingt. Daraus entsteht ein Skill, den Claude beim nächsten Öffnen des Repositorys von selbst lädt; im Repository ändert er nur `assistant.yml` und `.claude/skills/` ([Chat-Apps](CHAT-APPS.md#automatisch-geladene-hinweise-136)).
 - **Updates:** kommen automatisch, ändern nur Programmdateien und nie dein Buch ([Updates](UPDATES.md)).
+- **Mit anderen am Buch arbeiten (#455):** Lade weitere Personen in GitHub als Collaborators ein (Repository → Settings → Collaborators; Leser mit „Read“, Bearbeiter mit „Write“). Im Buch legst du in `ghostwriter.yml` unter `team` fest, wer Eigentümer, Bearbeiter oder Leser ist und welcher Bearbeiter abschließen darf (`approve: true`); mit `name` und `email` erscheinen die Commits einer Person unter ihrem Namen statt unter deinem. Der Assistent nennt jedem seine Rolle und bietet nur erlaubte Aktionen an. Die GitHub-Rechte bleiben die eigentliche Grenze: Wer „Write“ hat, kann Dateien auch selbst ändern. Wer das ausschließen will, richtet zusätzlich eine Regel mit Pflicht-Review ein (Settings → Rules). Die Prüfung im Änderungspaket lehnt Abschlüsse und Auflagen von Personen ohne Freigaberecht ab, ebenso Änderungen an der Team-Liste durch Nicht-Eigentümer. Maßgeblich ist die Team-Liste vor der Änderung, und geprüft wird, wer den Pull Request angelegt bzw. gepusht hat.
 - **Schon ein Buch aus v0.5?** Es läuft unverändert weiter. Wer mehrere Bücher möchte, wandelt das Repository einmal in eine Bibliothek um ([Updates → Von v0.5 auf v0.6](UPDATES.md#von-v05-auf-v06)).
 
 ## Grafische Cover gestalten

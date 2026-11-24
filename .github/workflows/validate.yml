@@ -126,6 +126,20 @@ jobs:
           done
           python scripts/validate_project.py $projects
 
+      - name: Rollen im Buch prüfen (#455)
+        # Nur in Büchern mit Team-Liste: Abschlüsse/Auflagen nur durch Freigabeberechtigte,
+        # Team-Änderungen nur durch Eigentümer; maßgeblich ist das Team des Ausgangsstands.
+        if: steps.kind.outputs.program != '1' && hashFiles('scripts/team.py') != ''
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          ACTOR: ${{ github.event.pull_request.user.login || github.actor }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "Kein Ausgangsstand (neuer Branch): nichts zu prüfen"; exit 0
+          fi
+          git fetch -q --depth=1 origin "$BASE" || { echo "::warning::Ausgangsstand $BASE nicht abrufbar; Rollenprüfung übersprungen"; exit 0; }
+          python scripts/team.py . gate --base "$BASE" --actor "$ACTOR"
+
       - name: Bibliothek prüfen (Kurztitel eindeutig)
         # Alle Branches holen; jedes Buch braucht einen eigenen Kurztitel (#36)
         env:

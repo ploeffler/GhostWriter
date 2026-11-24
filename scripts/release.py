@@ -172,7 +172,16 @@ def languages(root=ROOT):
     return report
 
 
-def render_report(version, langs, steps, issues, milestone):
+def testplan(version, root=ROOT):
+    """(Pfad, offene Zeilen) aus docs/TESTPLAN-v<X.Y>.md, falls vorhanden; offen = Zeile mit ⏳."""
+    path = root / 'docs' / f'TESTPLAN-{tag_name(version)}.md'
+    if not path.is_file():
+        return None, 0
+    rows = [l for l in path.read_text(encoding='utf-8').splitlines() if l.startswith('|') and '⏳' in l]
+    return path.relative_to(root).as_posix(), len(rows)
+
+
+def render_report(version, langs, steps, issues, milestone, plan=(None, 0)):
     """steps: {name: bool}, issues: [{'number','title','labels':[...]}] offen im Meilenstein."""
     blockers = []
     for lang in ('de', 'en'):
@@ -193,6 +202,10 @@ def render_report(version, langs, steps, issues, milestone):
         lines.append(f'| {lang} | {info["status"]} | {"; ".join(info["gaps"]) or "–"} |')
     lines += ['', f'### Offene Issues im Meilenstein {milestone or "–"}', '']
     lines += [f'- #{i["number"]} {i["title"]}{" (bug)" if i in bugs else ""}' for i in issues] or ['- keine']
+    if plan[0]:
+        lines += ['', '### Handabnahme', '', f'`{plan[0]}`: {plan[1]} Prüfungen offen (kein Hindernis für das Urteil; '
+                  'vor dem Veröffentlichen durchsehen).']
+    lines += ['', 'Tests: volle Suite über `validate` am Release-PR; vor dem Veröffentlichen muss sie grün sein.']
     lines += ['', 'Release Notes in `docs/UPDATES.md` und `docs/UPDATES.en.md` sind ein Entwurf: überarbeiten, '
               'Markierung entfernen. Veröffentlichen erst nach dem Satz „Release '
               f'{version} freigeben und veröffentlichen“ (Ablauf „Release veröffentlichen“).']
@@ -249,7 +262,8 @@ def main(argv=None):
         raw = json.loads(args.issues.read_text()) if args.issues and args.issues.is_file() else []
         issues = [{'number': i['number'], 'title': i['title'], 'labels': [l['name'] for l in i.get('labels', [])]}
                   for i in raw if 'pull_request' not in i]
-        text, ready = render_report(args.version, languages(), json.loads(args.steps), issues, args.milestone)
+        text, ready = render_report(args.version, languages(), json.loads(args.steps), issues, args.milestone,
+                                    testplan(args.version))
         (args.out.write_text(text, encoding='utf-8') if args.out else print(text))
         print('bereit' if ready else 'nicht bereit', file=sys.stderr); return 0
     if args.cmd == 'tag':

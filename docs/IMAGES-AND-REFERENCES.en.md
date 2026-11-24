@@ -77,6 +77,15 @@ If the service does not support image references, say so clearly. Do not claim t
 - The user must be able to select multiple references individually. GhostWriter must not silently prioritize conflicting or outdated references.
 - Reference images do not automatically enter typesetting or a published edition.
 
+## Researching images (#218)
+
+The chat searches with its existing tools, or you provide a link yourself; GhostWriter adds no search or AI service of its own. Each find first becomes a **candidate** (`research/images/candidates.yml`, `scripts/image_research.py propose`) with title, image URL, source page, author, licence and assignment. No image file is stored at this point.
+
+- **Rights:** A candidate counts as *clear* only with an author **and** a licence; otherwise it is *unclear*. “Clear” only means the details are present, not that they have been legally checked. GhostWriter never invents a permission to use.
+- **Adopting:** Only after your explicit confirmation (`adopt <cand-id> --file … --confirm`) does the candidate become a **stored image** under `reference-images/` (status `stored`), with source, author and licence in its metadata. Without confirmation nothing changes. Unclear rights additionally need `--accept-unclear`, and the origin stays `unknown`. Size and original rules (D13) apply as for your own upload.
+- **Book image:** A stored image is neither an approved reference nor a book image; both remain separate approvals in image management.
+- **Rejecting:** `reject <cand-id>` records the candidate as rejected with a reason.
+
 ## Colorizing photos (#452)
 
 Black-and-white family photos can be colorized without an image model changing faces or shapes. The model only supplies a color proposal. Only its color (channels a/b in Lab) is kept; lightness comes pixel by pixel from the prepared image. Procedure and locks: `START.md`, “Fotos colorieren (#452)”; files: [data model](DATA-MODEL.md#bildordner-und-colorieren-452).
