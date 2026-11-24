@@ -45,6 +45,23 @@ QUESTION = {'fakt': 'Welche Angabe ist richtig bzw. fehlt?',
             'kontinuitaet': 'Welche Fassung gilt, und wo muss angeglichen werden?', 'ton': 'Soll sich Ton oder Stimme hier ändern?',
             'aufbau': 'Soll der Aufbau so geändert werden?', 'buchweit': 'Soll das im ganzen Buch so gelten?'}
 SENTENCE = re.compile(r'[^.!?…\n]+(?:[.!?…]+[»«“”"\')\]]*|\n|$)')
+_LEAD = re.compile(r'^(?:\s|…|\.\.\.)+')
+_TRAIL = re.compile(r'(?:\s|…|\.\.\.)+$')
+
+
+def wording(text, alt, neu):
+    """(alt, neu), wie sie im Text zu ersetzen sind, oder None (#522). Erst unverändert (genau ein Treffer), sonst ohne
+    einfassende Auslassungspunkte und Leerzeichen, die aus dem Befund mitgekommen sind; bei `neu` fallen nur dieselben
+    Ränder weg, damit nichts zusätzlich verschwindet."""
+    if text.count(alt) == 1:
+        return alt, neu
+    lead, trail = _LEAD.match(alt), _TRAIL.search(alt)
+    a = alt[(lead.end() if lead else 0):(trail.start() if trail else len(alt))]
+    if not a or text.count(a) != 1:
+        return None
+    n = _LEAD.sub('', neu, count=1) if lead else neu
+    n = _TRAIL.sub('', n, count=1) if trail else n
+    return a, n
 
 
 def editorial(base):
@@ -177,11 +194,13 @@ def collect(base, config, chapters=None, date=None, commit=None, mode=None):
                 entry['absatz'] = f['absatz']
             entry.update({'art': f.get('art', ''), 'grund': f.get('befund', '')})
             if alt and sid != BOOK:
-                hits = text.count(alt)
-                if hits != 1:
-                    skipped.append({'befund': ref, 'grund': f'alter Wortlaut kommt {hits}-mal vor (erwartet: genau einmal)'})
+                found = wording(text, alt, f.get('neu') or '')
+                if found is None:
+                    hits = text.count(alt)
+                    skipped.append({'befund': ref, 'grund': (f'alter Wortlaut kommt {hits}-mal vor (erwartet: genau einmal)' if hits
+                                                             else 'alter Wortlaut nicht gefunden')})
                     continue
-                entry.update({'kontext': context(text, alt), 'alt': alt})
+                entry.update({'kontext': context(text, found[0]), 'alt': alt})
             else:
                 entry.update({'kontext': '', 'alt': alt})
             entry['neu'] = f.get('neu') or ''
@@ -332,11 +351,35 @@ def plan(base, config, data, chapters=None):
         elif head.get('status') == 'approved':
             out.append(('⛔', e, f'{"Abschnitt " if e.get("chapter_id") else ""}{e["abschnitt"]} ist abgeschlossen: '
                                  'erst wieder öffnen'))
-        elif text.count(e['alt']) != 1:
-            out.append(('⛔', e, f'alter Wortlaut kommt {text.count(e["alt"])}-mal vor: Text hat sich geändert'))
+        elif wording(text, e['alt'], e['neu']) is None:
+            out.append(_not_found(base, config, e, text))
         else:
             out.append(('✅', e, 'umsetzbar'))
     return out
+
+
+def _not_found(base, config, e, text):
+    """Grund, warum der Wortlaut im genannten Abschnitt nicht eindeutig steht (#522): mehrfach, woanders oder gar nicht.
+    Das Skript prüft nicht, ob sich der Text geändert hat, und behauptet es deshalb nicht."""
+    import checks
+    hits = text.count(e['alt'])
+    if hits > 1:
+        return ('⛔', e, f'alter Wortlaut kommt {hits}-mal in {e["abschnitt"]} vor: die Stelle von Hand wählen')
+    places = []
+    for sid, (number, _, entry) in section_index(config).items():
+        if sid in (BOOK, e['section_id']) or entry is None:
+            continue
+        try:
+            other = checks.manuscript(base, config, sid) or ''
+        except Exception:   # noqa: BLE001 – ein nicht lesbarer Abschnitt ist hier kein Treffer
+            continue
+        if wording(other, e['alt'], e['neu']) is not None:
+            places.append(number)
+    if len(places) == 1:
+        return ('⚠️', e, f'Wortlaut steht in {places[0]} statt {e["abschnitt"]}: Abschnitt im Befund prüfen, von Hand umsetzen')
+    if places:
+        return ('⚠️', e, f'Wortlaut steht in mehreren anderen Abschnitten ({", ".join(places)}): von Hand umsetzen')
+    return ('⛔', e, 'Wortlaut nicht gefunden: Text oder Befund prüfen')
 
 
 def plan_text(items):
@@ -353,9 +396,11 @@ def _replace_in_manuscript(path, alt, neu):
     text = Path(path).read_text(encoding='utf-8')
     marker = '\n## Manuskript\n'
     head, sep, body = text.partition(marker)
-    if not sep or body.count(alt) != 1:
+    found = wording(body, alt, neu) if sep else None
+    if found is None:
         raise ValueError(f'{path}: alter Wortlaut nicht genau einmal im Manuskript')
-    Path(path).write_text(head + sep + body.replace(alt, neu, 1), encoding='utf-8')
+    Path(path).write_text(head + sep + body.replace(found[0], found[1], 1), encoding='utf-8')
+    return found[1]
 
 
 def _write_back(base, data):
@@ -394,14 +439,14 @@ def apply(base, config, path, chapters=None):
         if mark != '✅':
             skipped.append((mark, e, why))
             continue
-        _replace_in_manuscript(base / e['datei'], e['alt'], e['neu'])
+        used = _replace_in_manuscript(base / e['datei'], e['alt'], e['neu'])
         e['umgesetzt'] = True
         applied.append(e)
         scope = e['chapter_id'] or e['section_id']   # Teil von Vor-/Nachspann: eigener Prüfbereich
         if scope not in touched:
             touched.append(scope)
         text = checks.manuscript(base, config, e['section_id']) or ''
-        ctx.append((e, context(text, e['neu']) if text.count(e['neu']) == 1 else e['neu']))
+        ctx.append((e, context(text, used) if used and text.count(used) == 1 else e['neu']))
     write_yaml(path, data)
     reports = _write_back(base, data)
     return {'applied': applied, 'skipped': skipped, 'reports': reports, 'chapters': touched, 'context': ctx}

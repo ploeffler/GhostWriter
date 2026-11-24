@@ -1405,19 +1405,38 @@ async function reviewDecide(d){
   });
   return S.reviewChain;
 }
+const W_LEAD = /^(?:\s|…|\.\.\.)+/, W_TRAIL = /(?:\s|…|\.\.\.)+$/;
+function wording(text, alt, neu){
+  // (alt, neu), wie sie im Text zu ersetzen sind, oder null (wie hinweise.wording, #522): erst unverändert, sonst ohne
+  // einfassende Auslassungspunkte und Leerzeichen aus dem Befund; bei neu fallen nur dieselben Ränder weg
+  if (text.split(alt).length - 1 === 1) return [alt, neu];
+  const lead = W_LEAD.exec(alt), trail = W_TRAIL.exec(alt), a = alt.slice(lead ? lead[0].length : 0, trail ? trail.index : alt.length);
+  if (!a || text.split(a).length - 1 !== 1) return null;
+  let n = neu; if (lead) n = n.replace(W_LEAD, ""); if (trail) n = n.replace(W_TRAIL, "");
+  return [a, n];
+}
+function wordingNotFound(e, ms, secs){
+  // Grund, warum der Wortlaut im genannten Abschnitt nicht eindeutig steht: mehrfach, woanders oder gar nicht (#522)
+  const hits = ms.split(e.alt).length - 1;
+  if (hits > 1) return ["⛔", `alter Wortlaut kommt ${hits}-mal in ${e.abschnitt} vor: die Stelle von Hand wählen`];
+  const places = secs.filter(v => v.s.id !== e.section_id).filter(v => { const f = cached(v.s.path); return f && wording(msOf(f.text), e.alt, e.neu) !== null; }).map(v => `${chapters().indexOf(v.c) + 1}.${v.c.sections.indexOf(v.s) + 1}`);
+  if (places.length === 1) return ["⚠️", `Wortlaut steht in ${places[0]} statt ${e.abschnitt}: Abschnitt im Befund prüfen, von Hand umsetzen`];
+  if (places.length) return ["⚠️", `Wortlaut steht in mehreren anderen Abschnitten (${places.join(", ")}): von Hand umsetzen`];
+  return ["⛔", "Wortlaut nicht gefunden: Text oder Befund prüfen"];
+}
 function reviewPlanItems(data, secs){
   // wie hinweise.plan: [{mark, why, e, x}] für alle entschiedenen, noch nicht umgesetzten Einträge
   const out = [];
   for (const [, e] of reviewEntries(data)){
     if (e.umgesetzt || !["ja", "geändert"].includes(e.entscheidung)) continue;
-    const x = secs.find(v => v.s.id === e.section_id), f = x && cached(x.s.path), ms = f ? msOf(f.text) : "", n = e.alt ? ms.split(e.alt).length - 1 : 0;
+    const x = secs.find(v => v.s.id === e.section_id), f = x && cached(x.s.path), ms = f ? msOf(f.text) : "";
     let mark, why;
     if (e.section_id === "book"){ mark = "⚠️"; why = "buchweit: von Hand in den betroffenen Abschnitten umsetzen"; }
     else if (!x){ mark = "⛔"; why = "Abschnitt gibt es nicht mehr"; }
     else if (!e.alt || !e.neu){ mark = "⚠️"; why = "ohne alten Wortlaut oder Vorschlag: von Hand umsetzen"; }
     else if (x.c.status === "approved"){ mark = "⛔"; why = `Kapitel ${String(e.abschnitt).split(".")[0]} ist abgeschlossen: erst wieder öffnen`; }
     else if (front(f.text).status === "approved"){ mark = "⛔"; why = `Abschnitt ${e.abschnitt} ist abgeschlossen: erst wieder öffnen`; }
-    else if (n !== 1){ mark = "⛔"; why = `alter Wortlaut kommt ${n}-mal vor: Text hat sich geändert`; }
+    else if (wording(ms, e.alt, e.neu) === null){ [mark, why] = wordingNotFound(e, ms, secs); }
     else { mark = "✅"; why = "umsetzbar"; }
     out.push({mark, why, e, x});
   }
@@ -1458,9 +1477,9 @@ async function reviewApply(d){
       if (!(path in files)){ const t = (await getFile(path, work, true)).text; files[path] = t; orig[path] = t; }
       const t = files[path], k = t.indexOf(MARK);
       if (k < 0){ skipped.push({mark:"⛔", why:"Manuskript nicht gefunden", e}); continue; }
-      const head = t.slice(0, k + MARK.length), body = t.slice(head.length), n = body.split(e.alt).length - 1;
-      if (n !== 1){ skipped.push({mark:"⛔", why:`alter Wortlaut kommt ${n}-mal vor (nach einer früheren Umsetzung)`, e}); continue; }
-      const nb = body.replace(e.alt, () => e.neu); files[path] = head + nb; applied.push(e); ctx.push([e, contextOf(nb, e.neu)]);
+      const head = t.slice(0, k + MARK.length), body = t.slice(head.length), w = wording(body, e.alt, e.neu);
+      if (w === null){ skipped.push({mark:"⛔", why:"Wortlaut nicht mehr eindeutig (nach einer früheren Umsetzung)", e}); continue; }
+      const nb = body.replace(w[0], () => w[1]); files[path] = head + nb; applied.push(e); ctx.push([e, contextOf(nb, w[1])]);
     }
     if (!applied.length){ S.msg = {kind:"info", html:`<b>Nichts umgesetzt.</b>${planLines(skipped) || "<div>Keine umsetzbaren Einträge.</div>"}`}; return show("review", file); }
     // Durchsicht: umgesetzt: true
