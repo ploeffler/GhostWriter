@@ -154,6 +154,8 @@ Beschluss D17 (bestätigt am 08.11.2026 durch „für version 1.1 vorsehen und �
 - Der geplante Umfang umfasst Bearbeitung in Word oder LibreOffice, Buchsperre/Checkout, Änderungsvergleich und ausdrücklich bestätigte Übernahme gemäß den bestehenden Anforderungen in #209.
 - Konkrete Programmversionen und die detaillierte Format-Abnahmematrix werden für die Umsetzung von v1.1 festgelegt; sie blockieren v1.0 nicht.
 
+Änderung vom 24.11.2026 (Versionsaufteilung bis v1.5, von Peter bestätigt): #209 ist in zwei Teile geschnitten und verschoben. Teil 1, das Auschecken eines Bereichs zum Gegenlesen mit DOCX und PDF samt QR-Kennung und Sperre ([#572](https://github.com/ploeffler/GhostWriter/issues/572)), kommt mit v1.2. Teil 2, Rückgabe einchecken und kontrolliert zurückführen ([#573](https://github.com/ploeffler/GhostWriter/issues/573), #209), kommt mit v1.3. Die übrigen Punkte von D17 gelten unverändert; „v1.1“ oben ist dadurch überholt.
+
 Ergänzung vom 08.11.2026, ausdrücklich durch „nehmen wir dazu“ bestätigt:
 - Die ausgegebene DOCX-Arbeitskopie erhält eigene Dokumenteigenschaften zur Rückzuordnung: Buchkennung, Export-/Checkout-Kennung, Ausgangscommit, Hash des Ausgangsmanuskripts und Version des Metadatenformats. Die genaue Feldstruktur wird bei der Umsetzung festgelegt.
 - Der Hash ist ein Fingerabdruck und enthält nicht den Ausgangstext. Die zugehörige Ausgangsfassung bleibt im Repository erhalten. Der Hash bezieht sich auf eine festgelegte Manuskriptfassung, nicht auf die sich beim Speichern verändernden Bytes der gesamten DOCX-Datei. Hashverfahren und Normalisierung nachvollziehbar definieren.
