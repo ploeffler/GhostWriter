@@ -1,0 +1,98 @@
+name: Release vorbereiten
+
+# #488 Phase 1: ohne Freigabe, beliebig oft. Legt den Branch release/<version>
+# mit Version und Release-Notes-Entwurf an, prüft Doku, Sprachen, Tests und
+# offene Fehler im Meilenstein und meldet „bereit zum Scharfschalten“ oder
+# „nicht bereit“. Veröffentlicht nichts.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Neue Version, z. B. 1.0.0'
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+concurrency:
+  group: release-prepare
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.repository == 'ploeffler/GhostWriter' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Werkzeuge installieren
+        run: pip install -r scripts/docsite/requirements.txt
+      - name: Release-Branch mit Version und Notes-Entwurf
+        id: branch
+        run: |
+          BRANCH="release/$VERSION"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+            git fetch -q origin "$BRANCH" && git switch -q "$BRANCH"
+            echo "Branch $BRANCH ist schon da; Entwurf wird nicht überschrieben."
+          else
+            git switch -q -c "$BRANCH"
+          fi
+          python scripts/release.py prepare --version "$VERSION"
+          if ! git diff --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -qam "Release $VERSION vorbereiten (#488)"
+          fi
+          git push -q -u origin "$BRANCH"
+      - name: Doku prüfen
+        id: docs
+        continue-on-error: true
+        run: python scripts/check_docs.py
+      - name: Prüfbericht mit voller Testsuite
+        id: verify
+        continue-on-error: true
+        run: python scripts/verify.py --abnahme 'nicht durchgeführt' --out "$RUNNER_TEMP/verify.md"
+      - name: Offene Issues im Meilenstein
+        id: milestone
+        run: |
+          MS=$(python scripts/release.py tag --version "$VERSION")
+          echo "title=$MS" >> "$GITHUB_OUTPUT"
+          NUM=$(gh api "repos/$GITHUB_REPOSITORY/milestones?state=all&per_page=100" --jq ".[] | select(.title==\"$MS\") | .number")
+          if [ -n "$NUM" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/issues?milestone=$NUM&state=open&per_page=100" > "$RUNNER_TEMP/issues.json"
+          else
+            echo '[]' > "$RUNNER_TEMP/issues.json"
+          fi
+      - name: Gesamturteil
+        run: |
+          STEPS=$(printf '{"Doku (check_docs)": %s, "Prüfbericht (verify.py, volle Tests)": %s}' \
+            "${{ steps.docs.outcome == 'success' }}" "${{ steps.verify.outcome == 'success' }}")
+          python scripts/release.py report --version "$VERSION" --steps "$STEPS" \
+            --issues "$RUNNER_TEMP/issues.json" --milestone "${{ steps.milestone.outputs.title }}" --out "$RUNNER_TEMP/report.md"
+          if [ -f "$RUNNER_TEMP/verify.md" ]; then
+            printf '\n<details><summary>Prüfbericht</summary>\n\n' >> "$RUNNER_TEMP/report.md"
+            cat "$RUNNER_TEMP/verify.md" >> "$RUNNER_TEMP/report.md"
+            printf '\n</details>\n' >> "$RUNNER_TEMP/report.md"
+          fi
+          cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Release-PR anlegen und Bericht anhängen
+        run: |
+          BRANCH="${{ steps.branch.outputs.branch }}"
+          PR=$(gh api "repos/$GITHUB_REPOSITORY/pulls?head=${GITHUB_REPOSITORY%%/*}:$BRANCH&state=open" --jq '.[0].number // empty')
+          if [ -z "$PR" ]; then
+            printf 'Release %s vorbereiten (#488). Notes-Entwurf überarbeiten; Bericht folgt als Kommentar.\n\nBezug: #488\n' "$VERSION" > "$RUNNER_TEMP/body.md"
+            PR=$(gh api "repos/$GITHUB_REPOSITORY/pulls" -f base=main -f head="$BRANCH" \
+              -f title="Release $VERSION" -F body=@"$RUNNER_TEMP/body.md" --jq .number) || {
+              echo "::warning::PR konnte nicht angelegt werden (Einstellung „Allow GitHub Actions to create pull requests“?). Bericht steht in der Zusammenfassung."; exit 0; }
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@"$RUNNER_TEMP/report.md" --jq .html_url

@@ -69,5 +69,64 @@ class ReleaseTest(unittest.TestCase):
             self.assertIn('!inputs.dry_run', step['if'])
 
 
+    def test_prepare_sets_version_and_inserts_draft_that_blocks_publishing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_root(tmp, version='0.9.0', de=False, en=False)
+            release.prepare('1.0.0', root, prs=[(541, 'Release veröffentlichen')])
+            self.assertIn('version: 1.0.0', (root / 'ghostwriter-manifest.yml').read_text())
+            de = (root / 'docs/UPDATES.md').read_text()
+            self.assertTrue(de.startswith('**1.0.0:** Release veröffentlichen (#541).'))
+            self.assertLess(de.index('**1.0.0:**'), de.index('**0.9.0:**'))
+            self.assertIn('**1.0.0** ', (root / 'docs/UPDATES.en.md').read_text())
+            self.assertTrue(any('Entwurf' in p for p in release.check('1.0.0', '1.0.0', root)))
+            release.prepare('1.0.0', root, prs=[(999, 'anders')])  # zweiter Lauf: Entwurf bleibt
+            self.assertNotIn('#999', (root / 'docs/UPDATES.md').read_text())
+
+    def test_languages_reports_gaps_for_partial_language(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for folder in release.CATALOGS:
+                (root / folder).mkdir(parents=True)
+                (root / folder / 'de.json').write_text(json.dumps({'a': 'Hallo {name}', 'b': 'x'}))
+                (root / folder / 'en.json').write_text(json.dumps({'a': 'Hi {name}', 'b': 'x'}))
+                (root / folder / 'fr.json').write_text(json.dumps({'a': 'Salut {nom}'}))
+            (root / 'docs').mkdir()
+            (root / 'docs/site.json').write_text(json.dumps({'pages': [{'id': 'index', 'source': {'de': 'a.md', 'en': 'b.md'}}]}))
+            report = release.languages(root)
+            self.assertEqual(report['en']['status'], 'vollständig')
+            self.assertEqual(report['fr']['status'], 'Lücken')
+            gaps = ' '.join(report['fr']['gaps'])
+            self.assertIn('Schlüssel fehlen', gaps)
+            self.assertIn('Platzhalter', gaps)
+            self.assertIn('Doku-Seiten ohne Fassung: index', gaps)
+
+    def test_repository_languages_de_en_complete(self):
+        report = release.languages()
+        self.assertEqual(report['de']['status'], 'vollständig')
+        self.assertIn('en', report)
+
+    def test_report_verdict(self):
+        langs = {'de': {'status': 'vollständig', 'gaps': []}, 'en': {'status': 'vollständig', 'gaps': []},
+                 'fr': {'status': 'Lücken', 'gaps': ['x']}}
+        text, ready = release.render_report('1.0.0', langs, {'Doku': True}, [{'number': 1, 'title': 'Wunsch', 'labels': []}], 'v1.0')
+        self.assertTrue(ready)
+        self.assertIn('bereit zum Scharfschalten', text)
+        text, ready = release.render_report('1.0.0', langs, {'Doku': False},
+                                            [{'number': 476, 'title': 'Fehler', 'labels': ['bug']}], 'v1.0')
+        self.assertFalse(ready)
+        self.assertIn('nicht bereit', text)
+        self.assertIn('#476', text)
+        langs['en'] = {'status': 'Lücken', 'gaps': ['y']}
+        self.assertFalse(release.render_report('1.0.0', langs, {}, [], 'v1.0')[1])
+
+    def test_prepare_workflow_is_manual_and_never_publishes(self):
+        text = (ROOT / '.github/workflows/release-prepare.yml').read_text()
+        wf = yaml.load(text, Loader=yaml.BaseLoader)
+        self.assertEqual(set(wf['on']), {'workflow_dispatch'})
+        self.assertNotIn('pages', wf.get('permissions', {}))
+        for forbidden in ('gh release', 'deploy-pages', 'git tag'):
+            self.assertNotIn(forbidden, text)
+
+
 if __name__ == '__main__':
     unittest.main()
