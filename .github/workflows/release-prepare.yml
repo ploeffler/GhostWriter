@@ -95,6 +95,7 @@ jobs:
           path: ${{ runner.temp }}/report.md
       - name: Bericht an einen offenen Release-PR hängen
         run: |
+          set -o pipefail
           BRANCH="${{ steps.branch.outputs.branch }}"
           PR=$(gh api "repos/$GITHUB_REPOSITORY/pulls?head=${GITHUB_REPOSITORY%%/*}:$BRANCH&state=open" --jq '.[0].number // empty')
           if [ -n "$PR" ]; then
