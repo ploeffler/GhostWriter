@@ -29,6 +29,10 @@ Schicke **Hilfe** im Chat. Du erhältst eine kurze Befehlsübersicht und die Kü
 | `Vorabfassung` | Stand dauerhaft als Vorab-Release festhalten (Tag und Pre-Release, nach Rückfrage); keine Auflage |
 | `Manuskript ausgeben` | PDF des Arbeitsstands zum Herunterladen; Geplantes in Stichworten |
 | `Auflage` | Formular für eine neue Auflage öffnen |
+| `Auschecken Kapitel 3–5` oder `Auschecken Buch` | Bereich zum Gegenlesen sperren und als DOCX und PDF mit QR-Kennung bereitstellen (Kürzel `AC`) |
+| `Einchecken` | Rückgabe des Gegenlesers (DOCX, PDF oder Foto der Ausdrucke) einordnen und als Befunde einbringen (Kürzel `EC`); der Checkout bleibt bestehen |
+| `Checkout beenden`, `Checkouts` | Sperre nach Bestätigung aufheben (Kürzel `CB`) bzw. alle Checkouts zeigen |
+| `Material einbringen` | Foto, Dokument oder Rückgabe zum Buch ablegen, aufbereiten und markieren (Kürzel `ME`); startet auch bei einem Upload |
 | `Nur Text` | Darstellung auf Text umstellen |
 | `Einfacher Modus` | Knappe, verständliche Antworten |
 | `Erweiterte Antworten an` | Technische Einzelheiten einschalten |

@@ -16,7 +16,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = 'ghostwriter-skills.yml'
 REPOSITORY = 'ploeffler/ghostwriter-skills'
-NAMES = ('ghostwriter', 'ghostwriter-buchgedaechtnis', 'ghostwriter-lektorat')
+NAMES = ('ghostwriter', 'ghostwriter-buchgedaechtnis', 'ghostwriter-gegenlesen', 'ghostwriter-lektorat',
+         'ghostwriter-material')
 
 
 def digest(data):
