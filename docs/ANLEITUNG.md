@@ -40,7 +40,7 @@ Bis du die Gliederung ausdrücklich freigibst, werden keine weiteren Buchdateien
 
 ## 6. Am Buch arbeiten
 
-Die **Projektübersicht** zeigt alle Kapitel mit Status und Kosten; ein Klick öffnet die **Kapitelansicht** mit ihren Abschnitten, ein weiterer den **Abschnitt**.
+Die **Projektübersicht** zeigt alle Kapitel mit Status und Kosten (nur KI-API-Aufrufe; „≈“ heißt geschätzt; eine Aufstellung nach tatsächlich, geschätzt, manuell und unbekannt gibt `python3 scripts/costs.py . summary`, eine Rechnung trägst du mit `costs.py . add` ein); ein Klick öffnet die **Kapitelansicht** mit ihren Abschnitten, ein weiterer den **Abschnitt**.
 
 Die Arbeit ist ein [Erstellungskreislauf](ERSTELLUNGSKREISLAUF.md): Du kannst jederzeit neue Ideen, Vorgaben und Material einbringen. Je nach Inhalt geht es zurück zu Recherche, Brainstorming oder Überarbeitung. Sind die Abschnitte abgeschlossen, folgen Prüfung und Abschluss des ganzen Kapitels; für weitere Kapitel wiederholt sich dieser [Kapitelkreis](BUCHABLAUF.md).
 
