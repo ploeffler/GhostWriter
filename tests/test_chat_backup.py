@@ -460,6 +460,89 @@ class BackupTest(unittest.TestCase):
         self.assertTrue(receipt['reply_ready'])
         self.assertEqual(receipt['head'], cb.resume(str(self.remote), 'test-session')['head'])
 
+    def test_background_answer_checkpoint_returns_at_once_and_writes_receipt(self):
+        """#487: --background kehrt sofort zurück; der Hintergrundlauf schreibt die Quittung, wait liest sie."""
+        receipts = self.root / 'quittungen'
+        review = self.answer_review()
+        raw = json.dumps({'payload': self.payload, 'review': review})
+        argv = ['chat_backup.py', 'answer-checkpoint', str(self.remote), 'test-session', '-', '--base', 'main',
+                '--expected-head', self.base, '--github-repo', 'test/repo', '--background']
+        started, output = [], io.StringIO()
+        env = patch.dict('os.environ', {'GHOSTWRITER_RECEIPT_DIR': str(receipts)})
+        env.start()
+        self.addCleanup(env.stop)
+        with patch.object(sys, 'argv', argv), patch.object(sys, 'stdin', io.StringIO(raw)), \
+             patch.object(cb.subprocess, 'Popen', side_effect=lambda cmd, **kw: started.append(cmd)), \
+             contextlib.redirect_stdout(output):
+            cb.main()
+        self.assertEqual(json.loads(output.getvalue())['status'], 'background_started')
+        self.assertEqual(cb.read_receipt(cb.receipt_path('test-session'))['state'], 'running')
+        self.assertEqual(cb.pending_receipts()[0]['state'], 'running')
+        with self.assertRaisesRegex(ValueError, 'läuft noch'):   # nie zwei Sicherungen derselben Session zugleich
+            cb.start_background(argv[1:], raw, cb.receipt_path('test-session'))
+        cmd = started[0]
+        self.assertNotIn('--background', cmd)
+        self.assertIn('--receipt', cmd)
+        data_file = Path(cmd[cmd.index('test-session') + 1])
+        self.assertEqual(data_file.read_text(encoding='utf-8'), raw)
+        # Hintergrundlauf nachstellen: derselbe Aufruf mit Datei und --receipt
+        with patch.object(sys, 'argv', ['chat_backup.py', *cmd[2:]]), \
+             patch.object(cb, 'open_pr', return_value='https://example.invalid/pr/1'), \
+             contextlib.redirect_stdout(io.StringIO()):
+            cb.main()
+        self.assertFalse(data_file.exists())   # Eingabe gelöscht
+        done = cb.wait_receipt(cb.receipt_path('test-session'), timeout=1)
+        self.assertEqual(done['state'], 'saved')
+        self.assertEqual(done['head'], cb.resume(str(self.remote), 'test-session')['head'])
+        self.assertEqual(cb.pending_receipts(), [])
+        cb.write_receipt(cb.receipt_path('test-session'), {'state': 'failed', 'error': 'Push abgelehnt'})
+        self.assertEqual(cb.pending_receipts()[0]['error'], 'Push abgelehnt')
+        out = io.StringIO()
+        with patch.object(sys, 'argv', ['chat_backup.py', 'wait', 'test-session', '--timeout', '1']), \
+             contextlib.redirect_stdout(out), self.assertRaises(SystemExit):
+            cb.main()
+        self.assertEqual(json.loads(out.getvalue())['state'], 'failed')
+
+    def test_short_answer_from_stdin_inherits_context_and_fetches_shallow(self):
+        # #314: zweiter Schritt als eine kombinierte Eingabe über stdin, ohne context/coverage/topics;
+        # nur ein flacher Abruf ohne Dateiinhalte, nur ein PR-Nachschlagen.
+        review = self.answer_review()
+        first = cb.answer_checkpoint(str(self.remote), 'main', 'test-session', self.payload, self.base, review)
+        short = {'payload': {'messages': [{'id': '4', 'role': 'assistant', 'content': 'Nächste Frage?'},
+                                          {'id': '5', 'role': 'user', 'content': 'Zweite Antwort'}]},
+                 'review': {**review, 'answer_message_id': '5',
+                            'items': [{'id': 'q2', 'question': 'Nächste Frage', 'status': 'answered', 'evidence': ['5']}]}}
+        output, calls, lookups = io.StringIO(), [], []
+        real_run = cb.run
+        def transport(*args, **kwargs):
+            calls.append(args)
+            return real_run(*args, **kwargs)
+        def prs(*args, **kwargs):
+            lookups.append(args)
+            return [{'state': 'OPEN', 'baseRefName': 'main', 'url': 'https://example.invalid/pr/1'}]
+        argv = ['chat_backup.py', 'answer-checkpoint', str(self.remote), 'test-session', '-', '--base', 'main',
+                '--expected-head', first['head'], '--github-repo', 'test/repo']
+        with patch.object(sys, 'argv', argv), patch.object(sys, 'stdin', io.StringIO(json.dumps(short))), \
+             patch.object(cb, 'run', side_effect=transport), patch.object(cb, 'session_prs', side_effect=prs), \
+             contextlib.redirect_stdout(output):
+            cb.main()
+        receipt = json.loads(output.getvalue())
+        self.assertTrue(receipt['reply_ready'])
+        self.assertEqual(receipt['pr'], 'https://example.invalid/pr/1')
+        self.assertEqual(len(lookups), 1)
+        clones = [c for c in calls if c[:2] == ('git', 'clone')]
+        self.assertEqual(len(clones), 1)
+        self.assertIn('--depth', clones[0])
+        self.assertIn('--filter=blob:none', clones[0])
+        restored = cb.resume(str(self.remote), 'test-session')
+        self.assertEqual([m['id'] for m in restored['topics']['conversation']['messages']], ['1', '2', '3', '4', '5'])
+
+    def test_short_answer_needs_context_on_first_step(self):
+        review = self.answer_review()
+        payload = {k: v for k, v in self.payload.items() if k != 'context'}
+        with self.assertRaisesRegex(ValueError, 'Erste Antwort'):
+            cb.answer_checkpoint(str(self.remote), 'main', 'test-session', payload, self.base, review)
+
     def test_small_answer_delta_preserves_history_and_full_save_compacts(self):
         first = self.save()
         payload = copy.deepcopy(self.payload)

@@ -38,13 +38,13 @@
 <rect x="966.0" y="1400.0" width="660" height="200" rx="22" fill="#EAF2FC" stroke="#3971AD" stroke-width="2.5"/>
 <text x="1296" y="1440.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Kapitel zusammenführen und prüfen</text>
 <text x="1296" y="1479.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Alle Abschnitte freigegeben → zusammenführen</text>
-<text x="1296" y="1510.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Durchsicht → bereit zur Kapitelfreigabe</text>
+<text x="1296" y="1510.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Durchsicht → bereit zum Abschluss</text>
 <text x="1296" y="1554.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">ready_for_assembly → assembly</text>
 <text x="1296" y="1583.0" text-anchor="middle" font-size="21" fill="#3971AD" font-weight="400">review → ready_for_approval</text>
 <rect x="274.0" y="1400.0" width="660" height="200" rx="22" fill="#FFF2D8" stroke="#B37719" stroke-width="2.5"/>
-<text x="604" y="1440.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Kapitel ausdrücklich freigeben</text>
+<text x="604" y="1440.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Kapitel ausdrücklich abschließen</text>
 <text x="604" y="1479.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Du bestätigst die zusammengeführte Fassung.</text>
-<text x="604" y="1579.0" text-anchor="middle" font-size="21" fill="#B37719" font-weight="400">Kapitel: freigegeben · approved</text>
+<text x="604" y="1579.0" text-anchor="middle" font-size="21" fill="#B37719" font-weight="400">Kapitel: abgeschlossen · approved</text>
 <path d="M 1550 1400 Q 1730 1090 1385 925" fill="none" stroke="#7865A5" stroke-width="4" stroke-dasharray="10 8" marker-end="url(#purple)"/>
 <text x="1680" y="1110" text-anchor="middle" font-size="21" fill="#7865A5" font-weight="400">bei nötigen</text>
 <text x="1680" y="1139" text-anchor="middle" font-size="21" fill="#7865A5" font-weight="400">Änderungen</text>
@@ -73,5 +73,5 @@
 <rect x="85.0" y="2650.0" width="1730" height="180" rx="22" fill="#F0EDF9" stroke="#7865A5" stroke-width="2.5"/>
 <text x="950" y="2690.0" text-anchor="middle" font-size="29" fill="#20324A" font-weight="700">Weitere Wege</text>
 <text x="950" y="2729.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Probedruck auf Wunsch: gekennzeichnetes PDF des übernommenen Stands, keine Auflage.</text>
-<text x="950" y="2760.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Korrekturen / nächste Auflage: betroffene Freigaben ausdrücklich zurücknehmen und wieder am Kapitel arbeiten.</text>
+<text x="950" y="2760.0" text-anchor="middle" font-size="23" fill="#20324A" font-weight="400">Korrekturen / nächste Auflage: betroffene Kapitel ausdrücklich wieder öffnen und wieder am Kapitel arbeiten.</text>
 </g></svg>

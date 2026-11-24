@@ -10,6 +10,9 @@ name: Manuskript importieren
 #            costs/project.yml; unter 10 % Budget nur mit confirm_low_budget
 #   apply    Kapitel, Abschnitte und Teile anlegen (Status revision; Schreibfreigabe
 #            nur mit writing_approval, festgehalten in approvals.yml)
+# Hintergrund-Warteschlange (#479): Jeder Start legt einen Auftrag `jobs/request-NNN.yml` (type: import)
+# auf dem Buch-Branch an (Job prep, nie verdrängt); Job process arbeitet die Schritte in Auftragsreihenfolge
+# ab, in einer Gruppe je Buch mit Recherche, Analyse und Colorieren. Schritt `queue` = nur abarbeiten.
 # Gestartet aus dem Chat (START.md, „Manuskript importieren“) auf dem Buch-Branch.
 # Originale bleiben bis zu einem ausdrücklichen Löschauftrag erhalten (D21).
 
@@ -19,7 +22,7 @@ on:
       step:
         description: 'Schritt'
         type: choice
-        options: [convert, edit, outline, apply]
+        options: [convert, edit, outline, apply, queue]
         default: convert
       file:
         description: 'bei convert: Pfad des Originals im Repository (import/original/…)'
@@ -48,22 +51,94 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
+  actions: write   # Selbstneustart
 
-concurrency:
-  group: import-${{ github.ref }}
-  cancel-in-progress: false
-
-# Pipes wie „… | tee“ melden Fehler nur mit pipefail (#445); shell: bash = bash -eo pipefail.
 defaults:
   run:
     shell: bash
 
+env:
+  LIMIT: '5'
+
 jobs:
-  import:
-    if: github.event_name == 'workflow_dispatch'
+  prep:
+    # Auftrag sofort ablegen (#479): dieser Job hat keine Concurrency-Gruppe und kann daher nicht
+    # durch einen späteren Start verdrängt werden. Liefert den Buchnamen für die Gruppe je Buch.
     runs-on: ubuntu-latest
+    outputs:
+      book: ${{ steps.book.outputs.book }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python-Abhängigkeiten
+        run: pip install pyyaml jsonschema
+
+      - name: Buch
+        id: book
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          prefix=$(sed -n 's/^[[:space:]]*work_prefix:[[:space:]]*["'"'"']\{0,1\}\([^"'"'"' ]*\).*/\1/p' ghostwriter-manifest.yml | head -n1)
+          prefix=${prefix:-ghostwriter/}
+          book=${GITHUB_REF_NAME#"$prefix"}
+          if [ "$book" = "$GHOSTWRITER_DEFAULT_BRANCH" ] && ! python scripts/library.py is "$book" --dir .; then
+            echo "::error::$book ist kein Buch. Den Lauf auf dem Buch-Branch starten."; exit 1
+          fi
+          echo "book=$book" >> "$GITHUB_OUTPUT"
+
+      - name: Auftrag anlegen
+        if: inputs.step != 'queue' && inputs.step != ''
+        env:
+          BOOK: ${{ steps.book.outputs.book }}
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          STEP: ${{ inputs.step }}
+          FILE: ${{ inputs.file }}
+          OPS: ${{ inputs.ops }}
+          WA: ${{ inputs.writing_approval }}
+          BY: ${{ inputs.by }}
+          PROFILE: ${{ inputs.prompt_profile }}
+          CONFIRM: ${{ inputs.confirm_low_budget }}
+        run: |
+          target="$BOOK"
+          git config user.name GhostWriter
+          git config user.email ghostwriter@users.noreply.github.com
+          if git ls-remote --exit-code --heads origin "$target" >/dev/null; then
+            git fetch -q origin "$target"; git switch -q -C target "origin/$target"
+          else
+            git fetch -q origin "$BOOK"; git switch -q -C target "origin/$BOOK"
+          fi
+          git fetch -q origin "$BOOK"
+          git restore --source="origin/$BOOK" --worktree -- scripts
+          args=(--type import --requested-by workflow_dispatch --push-to "$target")
+          if [ "$BOOK" = "$GHOSTWRITER_DEFAULT_BRANCH" ]; then
+            echo "::error::$BOOK ist kein Buch-Branch. Zuerst „Neues Buch“, dann den Import auf dessen Branch starten."; exit 1
+          fi
+          args+=(--field "step=$STEP" --field "writing_approval=$WA" --field "prompt_profile=$PROFILE")
+          if [ -n "$FILE" ]; then args+=(--field "file=$FILE"); fi
+          if [ -n "$OPS" ] && [ "$OPS" != "[]" ]; then args+=(--field "ops=$OPS"); fi
+          if [ -n "$BY" ]; then args+=(--field "by=$BY"); fi
+          if [ "$CONFIRM" = "true" ]; then args+=(--confirm-low-budget); fi
+          python scripts/jobs.py . enqueue "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  process:
+    needs: prep
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Ein Lauf je Buch über alle Arten der Hintergrund-Warteschlange (research, analysis, colorize, import)
+    concurrency:
+      group: jobs-${{ needs.prep.outputs.book }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -75,46 +150,48 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends pandoc poppler-utils >/dev/null
 
-      - name: Nur Buch-Branches
+      - name: Ziel-Branch
+        id: work
         env:
+          BOOK: ${{ needs.prep.outputs.book }}
           GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          if [ "$GITHUB_REF_NAME" = "${{ github.event.repository.default_branch }}" ] || ! python scripts/library.py is "$GITHUB_REF_NAME" --dir .; then
-            echo "::error::$GITHUB_REF_NAME ist kein Buch-Branch. Zuerst „Neues Buch“, dann den Import auf dessen Branch starten."; exit 1
+          if ! python scripts/library.py is "$BOOK" --dir .; then
+            echo "::error::$BOOK ist kein Buch. Den Lauf auf dem Buch-Branch starten."; exit 1
           fi
+          target="$BOOK"
+          if git ls-remote --exit-code --heads origin "$target" >/dev/null; then
+            git fetch -q origin "$target"; git switch -q -C target "origin/$target"
+          else
+            git fetch -q origin "$BOOK"; git switch -q -C target "origin/$BOOK"
+          fi
+          # Programm immer vom Buch-Branch (ein Arbeits-Branch kann älter sein)
+          git fetch -q origin "$BOOK"
+          git restore --source="origin/$BOOK" --worktree -- scripts
+          git config user.name GhostWriter
+          git config user.email ghostwriter@users.noreply.github.com
+          echo "book=$BOOK" >> "$GITHUB_OUTPUT"
+          echo "branch=$target" >> "$GITHUB_OUTPUT"
 
-      - name: Schritt ausführen
+      - name: Warteschlange abarbeiten (import)
+        id: jobs
         env:
-          STEP: ${{ inputs.step }}
-          FILE: ${{ inputs.file }}
-          OPS: ${{ inputs.ops }}
-          WA: ${{ inputs.writing_approval }}
-          BY: ${{ inputs.by }}
-          CONFIRM: ${{ inputs.confirm_low_budget }}
+          WORK: ${{ steps.work.outputs.branch }}
           GH_TOKEN: ${{ github.token }}
-          GHOSTWRITER_PROMPT_PROFILE: ${{ inputs.prompt_profile && '1' || '0' }}
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          case "$STEP" in
-            convert) python scripts/import_book.py . convert "$FILE" | tee -a "$GITHUB_STEP_SUMMARY"; msg="Manuskript umgewandelt: Vorschlag für die Gliederung" ;;
-            edit)    python scripts/import_book.py . edit "$OPS" | tee -a "$GITHUB_STEP_SUMMARY"; msg="Import: Gliederung geändert" ;;
-            outline) if [ -z "$ANTHROPIC_API_KEY$OPENAI_API_KEY" ]; then
-                       echo "::error::Kein KI-Schlüssel: Secret ANTHROPIC_API_KEY oder OPENAI_API_KEY hinterlegen (docs/DIENSTE-NUTZEN.md, „API-Schlüssel als GitHub-Secret“)."; exit 1
-                     fi
-                     python scripts/import_book.py . outline --plan | tee -a "$GITHUB_STEP_SUMMARY"
-                     if ! python scripts/limits.py . check && [ "$CONFIRM" != "true" ]; then
-                       echo "::error::Weniger als 10 % des KI-Budgets übrig. Mit confirm_low_budget trotzdem starten."; exit 1
-                     fi
-                     python scripts/import_book.py . outline | tee -a "$GITHUB_STEP_SUMMARY"; msg="Import: KI-Vorschlag für die Gliederung" ;;
-            apply)   args=(); if [ "$WA" = "true" ]; then args=(--writing-approval --by "${BY:-chat}" --commit "$GITHUB_SHA"); fi
-                     python scripts/import_book.py . apply "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
-                     python scripts/validate_project.py .; msg="Manuskript importiert" ;;
-          esac
-          git config user.name GhostWriter
-          git config user.email ghostwriter@users.noreply.github.com
-          git add -A
-          if git diff --cached --quiet; then echo "Nichts zu speichern"; exit 0; fi
-          git commit -q -m "$msg" -m "GhostWriter-Aktion: import.$STEP"
-          git pull -q --rebase origin "$GITHUB_REF_NAME"
-          git push -q origin "HEAD:$GITHUB_REF_NAME"
+          python scripts/jobs.py . process --types import --limit "$LIMIT" --push-to "$WORK" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Selbstneustart
+        # Pausierte Automatik (GHOSTWRITER_ACTIONS_PAUSED, #62): nicht selbst weiterlaufen; der Rest bleibt in der
+        # Warteschlange, bis von Hand oder vom täglichen Update-Lauf nach der Pause neu angestoßen wird.
+        if: steps.jobs.outputs.remaining != '' && steps.jobs.outputs.remaining != '0' && vars.GHOSTWRITER_ACTIONS_PAUSED != 'true'
+        env:
+          BOOK: ${{ steps.work.outputs.book }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Ohne Eingaben: der nächste Lauf arbeitet nur die Warteschlange ab (gleiche Gruppe, also danach).
+          gh workflow run import.yml --ref "$BOOK" -R "$GITHUB_REPOSITORY" -f step=queue
+          echo "Noch ${{ steps.jobs.outputs.remaining }} Aufträge offen: nächster Lauf gestartet." | tee -a "$GITHUB_STEP_SUMMARY"

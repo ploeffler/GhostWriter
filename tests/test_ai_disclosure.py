@@ -1,4 +1,6 @@
 """Tests für die KI-Angabe im Buch (#78): Vorschlag aus den Läufen, Speichern, Prüfung, Satz."""
+from tests.authority_helpers import fake_github
+
 import shutil
 import subprocess
 import sys
@@ -237,6 +239,7 @@ class AiDisclosureTypesettingTest(Base):
         approve_chapter_1(self.base)
         ai_disclosure.apply(self.base, mode='custom', placement='imprint', text='Recherche mit KI-Unterstützung.')
         out = Path(self.base.parent) / 'out'
+        fake_github(self, self.base, edition=1)
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.base), '--edition', '1',
                             '--out', str(out)], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)

@@ -66,6 +66,20 @@ class SessionEndTest(unittest.TestCase):
         self.assertTrue(data['open'])
         self.assertEqual(data['choices'], [])   # Freigaben nie Teil der Abschiedsauswahl
 
+    def test_background_backup_pending_keeps_goodbye_open(self):   # #487
+        import os
+        from unittest.mock import patch
+        sys.path.insert(0, str(ROOT / 'scripts'))
+        import chat_backup
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {'GHOSTWRITER_RECEIPT_DIR': d}):
+            chat_backup.write_receipt(Path(d) / 's-1.json', {'state': 'failed', 'error': 'Push abgelehnt'})
+            data = session_end.status(self.base, 'none')
+            self.assertTrue(data['open'])
+            self.assertIn('fehlgeschlagen (Session s-1)', session_end.text(data))
+            self.assertIn('Alles sichern und hochladen', data['choices'])
+            chat_backup.write_receipt(Path(d) / 's-1.json', {'state': 'saved', 'head': 'abc'})
+            self.assertEqual(session_end.status(self.base, 'none')['background'], [])
+
     def test_cli_json_read_only(self):
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/session_end.py'), str(self.base), 'status',
                               '--chat', 'new', '--json'], capture_output=True, text=True, check=True).stdout

@@ -20,6 +20,7 @@ Enter **Help** in the chat for a short list of commands and shortcuts for the cu
 | `Apply changes` | Open confirmation for collected book changes; only explicit confirmation merges the displayed package |
 | `Characters` or `Suggest characters` | Show characters or suggest them from the text |
 | `Talk to <Name>`, `End conversation` | Talk to a character in the chat; nothing is saved, new details go into the character profile only if you select them |
+| `Speak as <Name>` | The other way round: you or the person themselves speak as the character, the assistant answers from book knowledge, research or both; only what you select afterwards is saved |
 | `Timeline` (`Zeitleiste`) | Chronology from notes and research, with hints where dates do not fit together |
 | `Images 2.3` | Manage section images |
 | `Output` or `Cover` | Open output options |

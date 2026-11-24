@@ -36,5 +36,34 @@ class WorkflowTriggerTest(unittest.TestCase):
                 self.assertFalse(ignored(patterns, b), f'{name}: {b} wäre ausgeschlossen')
 
 
+class ValidateDoubleRunTest(unittest.TestCase):
+    """#485: kein zweiter Volllauf auf dem Standard-Branch für einen schon geprüften Baum."""
+
+    def setUp(self):
+        self.text = (ROOT / '.github' / 'workflows' / 'validate.yml').read_text(encoding='utf-8')
+        self.data = yaml.safe_load(self.text)
+
+    def steps(self):
+        return self.data['jobs']['validate']['steps']
+
+    def test_newest_push_cancels_older_run(self):
+        self.assertIs(self.data['concurrency']['cancel-in-progress'], True)
+
+    def test_full_pr_run_records_tree_as_last_step(self):
+        last = self.steps()[-1]
+        self.assertEqual(last.get('uses'), 'actions/upload-artifact@v4')
+        self.assertEqual(last['with']['name'], 'validate-full-${{ steps.scope.outputs.tree }}')
+        self.assertIn("github.event_name == 'pull_request'", last['if'])
+        self.assertIn("steps.scope.outputs.mode == 'full'", last['if'])
+
+    def test_default_branch_skips_tests_for_checked_tree(self):
+        scope = next(s for s in self.steps() if s.get('id') == 'scope')
+        self.assertIn('actions/artifacts?name=validate-full-$tree', scope['run'])
+        self.assertIn('mode=skip', scope['run'])
+        tests = next(s for s in self.steps() if s.get('name', '').startswith('Tests'))
+        self.assertIn('"$MODE" = "skip"', tests['run'])
+        self.assertEqual(self.data['permissions'].get('actions'), 'read')
+
+
 if __name__ == '__main__':
     unittest.main()

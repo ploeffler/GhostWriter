@@ -17,6 +17,8 @@ At the time of the assessment, the built-in GitHub connections in Claude and Cha
 
 The original assessment refers to [Anthropic's GitHub integration help](https://support.claude.com/en/articles/10167454-use-the-github-integration), [OpenAI's GitHub connection help](https://help.openai.com/en/articles/11145903-connecting-github-to-chatgpt) and the official [GitHub MCP server](https://github.com/github/github-mcp-server). These are links for checking current information, not evidence that every capability is available in a particular session.
 
+**Field report of 22 November 2026 (#22, reported by the owner):** Work with repositories was done in both Claude and ChatGPT. Changing a file with a commit, creating a branch, opening a pull request and merging a pull request worked in both apps, and a GhostWriter form saved as a pull request in ChatGPT. A mixed path was used; which connection was used in each app (custom connector, Codex or Claude Code) is not recorded per column. The custom-connector column therefore stays without individual evidence until this is added per app and plan.
+
 ## Ways to work with the repository
 
 1. **Claude with a working environment:** The tested session could create commits, branches and pull requests and merge them. Tags and releases were rejected in that session.
@@ -24,6 +26,12 @@ The original assessment refers to [Anthropic's GitHub integration help](https://
 3. **Manual fallback:** The assistant supplies changed files for the user to commit. This works without chat write access but does not provide the same pull-request workflow in the chat.
 
 The historical plan delegates creation of edition tags and releases and attachment of PDF, DOCX and EPUB files to a GitHub Action after the corresponding changes are merged.
+
+## Web app “GhostWriter für Claude” (experiment)
+
+Besides the chat there is an experimental web app that runs as an artifact in Claude: [GhostWriter für Claude](https://claude.ai/artifact/PQ3zcq4ofwwRcP7dMHMG9B). It shows the same widgets as the chat and carries out clicks directly. That covers saving a section, approvals, creating chapters and sections, reordering, project details, research and ghostwriting “now”, applying changes, the “Data” page and a Claude panel with suggestions. It reads and writes through each user's own GitHub connection, and Claude runs on that user's own account. There is no separate API, server or key.
+
+The same rules apply as in the chat. Everything goes to the working branch as one commit per action. Changes reach the book only through “apply changes” with confirmation, and every approval needs its own confirmation. Private repositories need the GitHub App “Claude Github MCP Connector” installed on the owner account. The app is not part of the v1.0 scope ([D06](ENTSCHEIDUNGEN-v1.0.md#d06--eigene-web-app-ohne-integrierten-modellaufruf)). Its files are not copied into libraries by the update. The app is currently German only. Setup, limits and maintenance: [apps/claude/README.md](https://github.com/ploeffler/GhostWriter/blob/main/apps/claude/README.md) (German).
 
 ## Reading copy next to the view (#289)
 
@@ -116,19 +124,38 @@ Automatic loading depends on the assistant having repository access and actually
 
 ## Choosing skills (#261)
 
+The general skills are maintained in [ghostwriter-skills](https://github.com/ploeffler/ghostwriter-skills). GhostWriter ships copies pinned to the source commit and SHA-256 digests in `ghostwriter-skills.yml`; these remain available offline and are distributed through normal program updates. Maintain them in the source repository, not independently in the copies. Personal skills remain in the book repository. The optional book teaser is loaded explicitly from the skill repository; it is not installed automatically.
+
+For maintenance, clone the source repository, select a reviewed full commit ID and run `python scripts/sync_skills.py --source /path/to/ghostwriter-skills --commit FULL_COMMIT_ID`. Without arguments the helper checks the bundled copies offline. `check_docs.py` includes this check. The helper neither commits nor uploads changes; changes in the source repository do not update existing books by themselves.
+
+
+
+**Independent of the assistant:** the skills live in the repository under `.claude/skills/<name>/SKILL.md`. Claude Code loads them itself; ChatGPT, Codex and other assistants are told by `AGENTS.md` (Claude by `CLAUDE.md`) to read the headers of all `SKILL.md` files and load the matching skill in full before they start. Both files come from the main repository with the update; nothing needs setting up in the book.
+
+The local state comparison covers the entire `.claude/skills/` directory in the checked program version, including personal skills and their supporting files, as well as the `ghostwriter-skills.yml` source record. Adding, changing or removing one of these files marks instructions as stale. Reload the rules before the next task; this does not automatically refresh an already open chat.
+
 Claude picks a skill from the skill descriptions. Users normally do not see that choice, and similar descriptions make it ambiguous. GhostWriter therefore asks (`CLAUDE.md`, `AGENTS.md`, `ghostwriter` skill):
 
 - **Name the choice:** at the start of a task, Claude states in one sentence which skill it uses, or that none fits.
 - **Specific before general:** the repository's personal skill (`assistant.yml` → `skill`) comes before the general `ghostwriter` skill. `ghostwriter` is meant for book and library repositories, not for program work on the main repository. Claude asks once only if the choice is genuinely ambiguous.
 - **Do not load twice:** each load puts the whole instructions into the conversation again, which costs context and makes summarising happen sooner. If the instructions are still in the conversation, Claude does not reload them; if they were lost when a long conversation was summarised, Claude reloads them and says so briefly.
 
-**Account skills:** skills stored in the Claude account rather than in the repository cannot be changed by GhostWriter. If two of them have nearly the same description, remove the redundant one in Claude's settings under “Skills”. A project instruction such as “Confirm the skill choice” is then no longer needed but does no harm.
+**Account skills:** skills stored in the Claude account rather than in the repository cannot be changed by GhostWriter. If two of them have nearly the same description, remove the redundant one in Claude's settings under “Skills”. A project instruction such as “Confirm the skill choice” is then no longer needed but does no harm. The personal skill does not belong in the account: it depends on user and repository and lives only in the repository (`.claude/skills/<skill>/SKILL.md`, generated from `assistant.yml`). An account copy goes stale with the next regeneration; Claude points this out once and the repository version applies. General procedures such as setup, write-access check and reporting issues are in the `ghostwriter` skill, not in the personal skill.
 
 ## Display
 
 Claude sessions that support inline widgets can use the pinned `ghostwriter-ui` script and data. Other sessions use text or their own supported native chat elements. Do not assume an app can display a widget merely because the template exists. The English chat mode currently uses text or native chat elements; all graphical templates also have English labels for explicitly selected previews.
 
-**Open WebUI** shows no widgets. The “GhostWriter Direkt” pipe renders every view itself as Markdown and switches `Display: simple / organized / extended`, `Text only` and the answer mode without a model call (pipe 1.8 with GitHub tool 1.5, #282). From tool 1.6 the conversation model receives its own short start file `docs/start/einstieg-openwebui.md` instead of the general `START.md` (#204). Details (German): [Open WebUI guide](../integrations/openwebui/README.md#darstellung-und-antwortmodus-direkt-pipe-18-werkzeug-15).
+**Open WebUI** shows no widgets. The “GhostWriter Direkt” pipe renders every view itself as Markdown and switches `Display: simple / organized / extended`, `Text only` and the answer mode without a model call (pipe 1.8 with GitHub tool 1.5, #282). From tool 1.6 the conversation model receives its own short start file `docs/start/einstieg-openwebui.md` instead of the general `START.md` (#204). From pipe 1.10, status rules reach the model only for status questions, and older pipe views are sent as one line each (#285). Details (German): [Open WebUI guide](../integrations/openwebui/README.md#darstellung-und-antwortmodus-direkt-pipe-18-werkzeug-15).
+
+## Personal approval in each client
+
+Before approval, establish the actually authenticated personal GitHub account and ownership or explicit delegation. A display name, `by`, commit author or successful save is insufficient. Local environments use `scripts/approval_authority.py BOOK actor`; an automated Actions job cannot make this personal decision on the user's behalf.
+
+Without a local runtime, use only authenticated GitHub tools actually available in that session and state their account/permission limits. If authority cannot be checked, defer approval. The [personal content evidence](SAVING.en.md#personal-approval-authority-and-content-evidence) can be prepared and checked using the read-only manual GitHub Action. Drafts and proofs remain available.
+
+Open WebUI needs GitHub tool 1.8.0 with personal UserValves for writing. The Claude web app must adopt the new verification and evidence workflow in Claude; an older app must not describe a stored technical status as personally verified approval. Practical acceptance remains necessary for each client separately.
+
 
 ---
 

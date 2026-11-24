@@ -36,9 +36,10 @@ class WorkflowPipefailTest(unittest.TestCase):
                                         f'{path.name}/{jname}/{step.get("name")}: „| tee“ ohne pipefail')
 
     def test_outline_checks_key_first(self):
-        text = (ROOT / '.github' / 'workflows' / 'import.yml').read_text(encoding='utf-8')
-        outline = text[text.index('outline) '):text.index('apply) ')]
-        self.assertLess(outline.index('Kein KI-Schlüssel'), outline.index('outline --plan'))
+        # Seit #479 im Abarbeiter der Warteschlange (scripts/jobs.py, run_import)
+        text = (ROOT / 'scripts' / 'jobs.py').read_text(encoding='utf-8')
+        outline = text[text.index("elif step == 'outline':"):text.index("elif step == 'apply':")]
+        self.assertLess(outline.index('Kein KI-Schlüssel'), outline.index("'outline', '--plan'"))
 
 
 if __name__ == '__main__':

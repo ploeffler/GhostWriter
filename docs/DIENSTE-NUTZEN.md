@@ -98,13 +98,26 @@ Recherchequellen liefern Treffer und Belege, schreiben aber keine Texte. Sie erg
 - **Kostenlose Kataloge wissenschaftlicher Literatur** (Semantic Scholar, OpenAlex): Hakst du sie an, nennt GhostWriter sie im Rechercheauftrag, und der Recherche-Dienst durchsucht sie über seine Websuche. Kein Konto nötig.
 - **Such-APIs mit Schlüssel** (Brave Search, Tavily, Exa, Parallel, Perplexity Sonar, SerpAPI): brauchen einen API-Schlüssel und lassen sich erst mit der eigenen Schnittstelle nutzen ([Weg 4](#weg-4-dienste-nur-mit-api-schlüssel)). Du kannst sie schon eintragen und den Schlüssel als [GitHub-Secret](#api-schlüssel-als-github-secret) hinterlegen, damit sie später verwendet werden.
 
+## Recherche mit Internet über die API (#462)
+
+Hast du für **Recherche** einen Dienst mit API-Schlüssel eingestellt, recherchiert die Action „Recherche“ (`.github/workflows/research.yml`) mit dessen Websuche im Internet. Möglich sind derzeit **Anthropic**, **OpenAI** und **Google Gemini**. Weitere Anbieter und Such-APIs für Dienste ohne eigene Websuche folgen mit Teil 2 von #462.
+
+- **Welcher Dienst:** der bei **Recherche** zugeteilte. Ist dort keiner gewählt, der erste angehakte Dienst mit Zugang **API-Schlüssel**, der recherchieren kann. Steht im Buch gar nichts, gelten in einer Bibliothek die Einstellungen des Standard-Branchs.
+- **Schlüssel:** das Secret, dessen Namen du unter **Einstellungen** eingetragen hast (z. B. `GEMINI_API_KEY`). Die Action liest nur dieses Secret. Erlaubt sind nur Namen, die auf `_API_KEY` enden.
+- **Starten:** in der [Claude-Web-App](https://github.com/ploeffler/GhostWriter/blob/main/apps/claude/README.md) beim Abschnitt „Recherche“ → **Mit Internet über …**, im Chat in der Abschnittsansicht mit **Recherche → Warteschlange · mit Internet über …** oder mit dem Wunsch „mit Internet recherchieren“, oder unter *Actions → Recherche → Run workflow* auf dem Buch-Branch mit der Abschnitts-ID.
+- **Hintergrund-Warteschlange (#476):** Jeder Start legt einen Auftrag an. Du kannst also mehrere Recherchen kurz hintereinander einreihen, auch für verschiedene Abschnitte, und später die Ergebnisse ansehen. Je Buch läuft immer nur ein Lauf; er arbeitet die Aufträge in Buchreihenfolge ab und speichert jedes Ergebnis sofort. Ein Fehler hält die übrigen nicht auf. Bleibt etwas liegen, holt es der tägliche Lauf „GhostWriter aktualisieren“ ab.
+- **Warteschlange ansehen und ordnen (#478):** Mit „Warteschlange ansehen“ siehst du wartende, auf Bestätigung wartende, fehlgeschlagene und fertige Aufträge. Wartende Aufträge kannst du **vorziehen** (laufen vor allen anderen) oder **abbrechen**; ein schon laufender Auftrag lässt sich nicht stoppen. Die Reihenfolge folgt festen Regeln, die KI sortiert nicht um: Vorrang, dann Abhängigkeit (ein Auftrag kann auf einen anderen warten), dann Buchreihenfolge, dann Zeit.
+- **Vorwissen (#478):** Jeder Auftrag bekommt die schon erledigten Recherchen desselben Abschnitts mit (Ergebnisse, Widersprüche, offene Fragen, ohne Quellenliste), gekürzt auch die anderen Abschnitte des Kapitels, höchstens etwa 6000 Zeichen, die neuesten zuerst. Der Anbieter soll Bekanntes nicht wiederholen, Widersprüche dazu ausdrücklich nennen und offene Fragen aufgreifen. Später gestellte Aufträge bauen so auf früheren auf, auch wenn sie in derselben Warteschlange hintereinander laufen.
+- **Ergebnis:** ein Rechercheeintrag mit Quellen und ein Kosteneintrag im Änderungspaket. Die Quellenliste stammt nur aus den Belegen der Websuche (Titel, Link, Abrufdatum), nicht aus dem Text des Modells. Gemini liefert befristete Weiterleitungslinks mit der Domain als Titel; die Action löst sie zur echten Adresse mit Seitentitel auf (gelingt das nicht, bleibt der Weiterleitungslink stehen). Übernommen wird erst mit deiner Bestätigung.
+- **Kosten:** Tokens und Suchanfragen werden bei jedem Lauf erfasst und zählen zum KI-Budget. Damit auch ein Betrag geschätzt wird, trägst du unter **Einstellungen** des Dienstes die Preise ein: je 1 Mio. Eingabe- und Ausgabe-Tokens und je 1000 Suchanfragen, in der Projektwährung. Ohne Preise steht der Betrag auf „unbekannt“. Sind weniger als 10 % des Budgets übrig, wartet ein Auftrag auf deine Bestätigung („Trotzdem starten“); das Budget wird vor jedem Auftrag geprüft.
+
 ## Bilder colorieren mit eigenem Gemini-Zugang
 
 Ist Google Gemini mit dem Secret `GEMINI_API_KEY` eingetragen, färbt die Action „Bild colorieren“ Schwarz-Weiß-Fotos ein und übernimmt davon nur die Farbe ([Fotos colorieren](BILDER-UND-REFERENZBILDER.md#fotos-colorieren-452)). Ein eigenes Bildmodell kannst du unter **Einstellungen** des Dienstes als **Modell** eintragen (ein Name mit `image`, z. B. `gemini-2.5-flash-image`); sonst gilt diese Vorgabe. Andere Bilddienste mit eigenem Secret laufen noch nicht über die Action.
 
 ## Agenten für die Aufgaben-Warteschlange
 
-Die Warteschlange sind Aufgaben als Issues in GitHub (z. B. „Quelle in Abschnitt 2.3 prüfen“). Ein Agent kann ein Issue übernehmen, die Dateien bearbeiten und einen Pull Request anlegen. Standard ist **manuell**: Du arbeitest die Aufgaben im Chat ab.
+Nicht zu verwechseln mit der Hintergrund-Warteschlange (Aufträge für Recherche und andere Hintergrundarbeiten, siehe oben). Die Aufgaben-Warteschlange sind Aufgaben als Issues in GitHub (z. B. „Quelle in Abschnitt 2.3 prüfen“). Ein Agent kann ein Issue übernehmen, die Dateien bearbeiten und einen Pull Request anlegen. Standard ist **manuell**: Du arbeitest die Aufgaben im Chat ab.
 
 Wenn du einen Agenten schon nutzt (zum Beispiel über ein GitHub-Copilot-Abo):
 

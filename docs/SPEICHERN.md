@@ -1,4 +1,4 @@
-# Speichern, Übernehmen und Freigeben
+# Speichern, Übernehmen und Abschließen
 
 Deutsch · [English](SAVING.en.md)
 
@@ -6,13 +6,25 @@ Deutsch · [English](SAVING.en.md)
 
 Ein Ergebnis im Chat ist noch nicht dauerhaft im Repository gesichert. Beim Speichern gibt es zwei Wege: Buchänderungen ändern den Arbeitsstand des Buchs; eine Gesprächssicherung bewahrt das Gespräch und seine Ergebnisse getrennt vom Manuskript. Beide Wege unterscheiden **gespeichert**, **übernommen** und **inhaltlich freigegeben**.
 
-![Speicherablauf mit getrennten Wegen für Buchänderungen und Gesprächssicherungen, ihren Zuständen und der eigenständigen inhaltlichen Freigabe](bilder/ablaeufe/speichern-de.png)
+![Speicherablauf mit getrennten Wegen für Buchänderungen und Gesprächssicherungen, ihren Zuständen und dem eigenständigen Abschließen](bilder/ablaeufe/speichern-de.png)
 
 [Grafik als skalierbares SVG öffnen](bilder/ablaeufe/speichern-de.svg)
 
 ## Buchänderungen speichern und übernehmen
 
-Der Assistent prüft den aktuellen Buchstand und die erforderlichen Freigaben, sammelt alle zusammengehörigen Änderungen einer Aufgabe und prüft sie gemeinsam. Erst danach werden sie als ein Änderungsschritt im gemeinsamen Änderungspaket gespeichert. Unveränderte Inhalte erzeugen keinen neuen Änderungsschritt.
+Der Assistent prüft den aktuellen Buchstand und ob das Schreiben erlaubt ist, sammelt alle zusammengehörigen Änderungen einer Aufgabe und prüft sie gemeinsam. Erst danach werden sie als ein Änderungsschritt im gemeinsamen Änderungspaket gespeichert. Unveränderte Inhalte erzeugen keinen neuen Änderungsschritt.
+
+Auch geänderte Startanweisungen und Skills verlangen einen erneuten Abgleich vor dem Schreiben. Der lokale Helfer `workflow_support.py … guard` erkennt Änderungen und Löschungen an `START.md`, `CLAUDE.md`, `AGENTS.md`, unter `docs/start/` und unter `.claude/skills/` einschließlich persönlicher Skills als Kontextänderung. Er prüft nur die bereitgestellten Git-Stände; aktuelle Remote-Daten und eine atomare Prüfung beim anschließenden Speichern bleiben erforderlich.
+
+Der lokale Snapshot von `standabgleich.py` enthält zusätzlich einen Fingerabdruck von `scripts/`, `schemas/`, `integrations/`, `templates/`, `assets/`, `.github/workflows/`, `workflow.yml`, `providers.yml` und `ghostwriter-manifest.yml` im geprüften Programmstand. Änderungen daran verlangen auch bei gleicher Versionsnummer und gleichem eingetragenem Upstream-Commit einen erneuten Abgleich. Ältere Snapshots ohne diesen Fingerabdruck bleiben lesbar, verlangen aber vor dem Schreiben einen neuen Snapshot. Ungespeicherte lokale Änderungen und die automatische Aktualisierung von Remote-Refs sind davon nicht erfasst.
+
+War im Snapshot kein Arbeitsbranch ausgewählt, beobachtet der Vergleich zusätzlich den laut Manifest erwarteten Branchnamen. Ein neu erschienener oder geänderter Kandidat mit anderem Head als das Buch verlangt vor dem Schreiben eine Prüfung der Zuordnung und des offenen Pull Requests. Er wird nicht automatisch zur Lesebasis. Ein bereits erfasster ungewählter Kandidat oder ein zum Buch identischer Branch löst diesen Hinweis nicht aus; Arbeitsbranches anderer Bücher bleiben unbeteiligt.
+
+Ist der ausgewählte Arbeitsstand vollständig in der Buchhistorie enthalten, prüft der Vergleich Datenversion und Index am aktuellen Buchstand, auch solange der Arbeitsbranch noch existiert. Er meldet die Übernahme und verlangt erneutes Lesen vom Buchbranch. Zusätzliche noch nicht übernommene Arbeitscommits bleiben ausgewählt; ein zurückgesetzter oder abweichender Arbeitsbranch gilt nicht als übernommener Stand. Die lesende Prüfung löscht keine Branches und erteilt keine inhaltliche Freigabe.
+
+Bei eingerichtetem Remote `origin` lösen lokaler Standabgleich und Übergabe gewöhnliche Branchnamen ausschließlich aus dessen Remote-Tracking-Refs auf. Nach `fetch --prune` darf ein verbliebener lokaler Branch einen gelöschten Remote-Branch nicht verdecken. Ohne `origin` bleiben lokale Branches verwendbar. Bewusst lokale Branches oder Tags mit vollständigem `refs/heads/...` bzw. `refs/tags/...` auswählen. Fehlende Tracking-Refs verlangen Fetch und Prüfung der Fetch-Konfiguration; allein beweisen sie noch keine Löschung auf dem Server.
+
+Auch der Übergabehelfer verwendet bei `--fetch` die Option `--prune`. Ist ein Arbeitsbranch verschwunden, prüft er, ob dessen gespeicherter Commit in der Buchhistorie enthalten ist: Übernommene Arbeit verlangt Neuladen; fehlende, nicht übernommene oder nicht nachweisbare Arbeit ist ein Konflikt und darf nicht überschrieben werden.
 
 Nach bestätigter Übertragung lautet der Stand **gespeichert, noch nicht übernommen**. Du kannst diesen Arbeitsstand bereits ansehen und weiterbearbeiten; die Ansichten lesen aus dem offenen Änderungspaket. Im übernommenen Buchstand stehen die Änderungen erst nach **Änderungen übernehmen**. Dabei bestätigst du die gezeigte aktuelle Fassung. Kommt inzwischen etwas dazu, muss die geänderte Fassung erneut gezeigt werden.
 
@@ -54,6 +66,27 @@ In der Hinweisdurchsicht (#367, [Lektorat](LEKTORAT.md#hinweise-durchsehen-hinwe
 Bei zwischenzeitlich geänderten betroffenen Dateien wird vor dem Schreiben neu abgeglichen. Konflikte, fehlende Rechte und unklare Entscheidungen dürfen nicht umgangen werden. Vor einem erneuten Übernahmeversuch wird geprüft, ob der erste Versuch trotz Verbindungsfehler bereits erfolgreich war.
 
 Eine Erfolgsmeldung setzt ein bestätigtes Ergebnis voraus. Ist die Übertragung erfolgreich, die Übernahme aber nicht, bleiben die Inhalte **gespeichert und offen**. Ist die Übertragung nicht bestätigt, darf der neue Stand nicht als dauerhaft gesichert bezeichnet werden. Vorhandene Sicherungen bleiben erhalten; der Assistent nennt den konkreten Blocker und den nächsten nötigen Schritt.
+
+## Persönliches Freigaberecht und Inhaltsnachweis
+
+Ein Name in `approvals.yml` ist kein Identitätsnachweis. Vor neuen Freigaben prüft `python scripts/approval_authority.py BUCH actor` das persönlich angemeldete GitHub-Konto. Eigentümer dürfen freigeben; bei Organisationen muss eine aktive Eigentümerrolle über GitHub nachweisbar sein. Bearbeiter mit bloßem Schreibrecht dürfen ohne gesonderte Bevollmächtigung nicht freigeben. Bei fehlendem Zugriff wird die Freigabe gesperrt. Automatisierte GitHub-Actions-Jobs dürfen auch mit einem hinterlegten Benutzer-Token keine neuen persönlichen Freigaben erteilen; vorhandene persönliche Nachweise dürfen sie für die Veröffentlichung prüfen.
+
+Für eine veröffentlichbare Ausgabe kommt ein persönlicher **Inhaltsnachweis** hinzu. Er bestätigt den konkreten Buchstand und die gewählte Auflage; Probedruck, Vorabfassung und Arbeits-/Lesefassungen bleiben ohne diesen Nachweis möglich. Auch die technischen Abschlusszustände, Grundregeln, Bilder, Quellen, Umschlag und tatsächlich verwendeten Seriendaten sind gebunden. Eine Änderung dieser Daten erfordert einen neuen Nachweis. Der Nachweis wird vor dem Bau, nach dem Bau und vor der Veröffentlichung geprüft; fehlender API-Zugang oder eine inzwischen zurückgenommene Berechtigung sperren die Veröffentlichung.
+
+1. Freigaben wie bisher ausdrücklich bestätigen und protokollieren; `by` bei neuen Einträgen aus dem verifizierten Konto übernehmen. Vorhandene historische Namen bleiben unverändert und werden dadurch nicht nachträglich authentifiziert.
+2. Den vorgesehenen Buchstand zuerst als Commit im Arbeitsbranch speichern, dann dort `python scripts/approval_authority.py BUCH prepare --edition 1` ausführen. Die Ausgabe enthält nur Repositorykennung, Buchbranch, Auflage, Zweck und einen Inhaltsfingerabdruck, keine Buchtexte.
+   Ohne lokale Laufzeit die manuelle GitHub-Action **Persönlichen Inhaltsnachweis vorbereiten oder prüfen** (`approval.yml`) auf genau diesem Arbeitsbranch starten, mit `action: prepare`, `edition` und optional `omnibus`. Das Artefakt `persoenlicher-inhaltsnachweis` enthält denselben JSON-Text. Die Action liest nur; sie erteilt keine Freigabe und schreibt keine Buchdateien.
+3. Der Eigentümer oder ausdrücklich Bevollmächtigte gibt **diesen vollständigen JSON-Text nach eigener Prüfung als GitHub-PR-Review** ab. Dafür ist ein eingereichter `COMMENT`-Review möglich, auch bei eigenen Änderungen; ein normales „LGTM“ genügt nicht. Nicht automatisch im Namen des Benutzers abgeben. Kein Entwurfsreview (`PENDING`), kein Bot und kein zurückgenommener oder nachträglich bearbeiteter Review. Statt einen Nachweis zu bearbeiten einen neuen Review abgeben.
+4. Den bereits abgegebenen Review mit `python scripts/approval_authority.py BUCH attach --edition 1 --pull-request 12 --review-id 34` prüfen und zuordnen. Der tatsächlich besprochene Review-Commit muss lokal vorhanden sein und dieselben Buchdaten enthalten; falls nötig zuerst den PR-Ausgangsstand abrufen. Erst eine erfolgreiche Prüfung ergänzt `authority` in `approvals.yml`; der Befehl erzeugt weder Commit noch Upload. Danach gelten die normalen Speicher-/Übernahmeregeln. Ohne lokale Laufzeit die Reviewkennungen mit den vorhandenen Dateiwerkzeugen zunächst als ungeprüften Nachweis speichern und dieselbe lesende Action auf genau diesem gespeicherten Branch mit `action: check` ausführen. Erst deren erfolgreicher Abschluss bestätigt den Nachweis; Speichern allein genügt nicht.
+5. `python scripts/approval_authority.py BUCH check --edition 1` kontrolliert den aktuellen Nachweis. `python scripts/validate_project.py BUCH --verify-authority` ergänzt die sonst rein strukturelle Projektprüfung um die persönliche Inhaltsprüfung. Auflagenbauer und veröffentlichbare Buch-/Kapitelzusammenstellung verlangen den Nachweis auch ohne dieses optionale Validatorargument.
+
+Für Sammelbände bei `prepare`, `attach` und `check` zusätzlich `--omnibus ser-kennung` verwenden. Der Nachweis ist an diesen Verwendungszweck gebunden und kann nicht als normale Buchfreigabe wiederverwendet werden. Die veröffentlichten Bandstände werden über die lokalen Auflagen-Tags mitgebunden; neue oder geänderte Tags erfordern einen neuen Nachweis. Der Sammelband-Prüflauf verlangt ebenfalls einen persönlichen Nachweis.
+
+**Zusätzliche Freigabeberechtigte:** `python scripts/approval_authority.py BUCH delegate --delegate-login NAME` erzeugt ausschließlich den Text einer Bevollmächtigung. Nur ein gültiger, persönlich zuordenbarer Eigentümer-Review mit genau diesem Text erteilt sie für diesen Buchbranch in diesem Repository; sie gilt nicht für ein anderes Buch. Ein Nachweis eines Bevollmächtigten erhält bei `attach` zusätzlich `--delegation-pull-request 12 --delegation-review-id 35`. Weiterdelegieren ist nicht erlaubt. Wird der Eigentümer-Review zurückgenommen oder sein Text geändert, verliert die Bevollmächtigung ihre Gültigkeit. Repository-Schreibrecht, `by`, Commit-Autor und frei editierte Namenslisten ersetzen diesen Nachweis nicht.
+
+**Vorhandene Bücher:** Alte Einträge werden nicht automatisch umgeschrieben. Vor der nächsten veröffentlichbaren Ausgabe muss ein Berechtigter den aktuellen Inhalt mit einem neuen Nachweis ausdrücklich bestätigen; dies bestätigt den heutigen Stand, nicht die historische Identität jedes alten Eintrags. Ohne Zugang kann weiter am Entwurf gearbeitet und ein Probedruck erzeugt werden. Organisationsrechte, tatsächliche Reviews und die Abläufe in den einzelnen Clients sind praktisch zusätzlich abzunehmen.
+
+GitHub bleibt der bestehende Speicher und Identitätsanbieter; es gibt keinen neuen GhostWriter-Verwaltungsdienst. Die Überprüfung nutzt ausschließlich die lesenden [Review-Endpunkte von GitHub](https://docs.github.com/en/rest/pulls/reviews), prüft zusätzlich Originalreview-Metadaten über eine lesende [GitHub-GraphQL-Abfrage](https://docs.github.com/en/graphql/reference/pulls) und gegebenenfalls die [Organisationsmitgliedschaft](https://docs.github.com/en/rest/orgs/members). Persönliche Konten sind erforderlich; geteilte Zugangsdaten lassen sich damit nicht einzelnen Menschen zuordnen. Wer Programmdateien oder GitHub-Veröffentlichungen außerhalb von GhostWriter direkt ändern darf, kann diese lokalen Prüfungen umgehen; daraus wird keine zusätzliche GitHub-Zugriffsschranke behauptet.
 
 ---
 

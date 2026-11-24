@@ -260,7 +260,8 @@
     "docs/CONTEXT.md",
     "docs/INTEGRATION.md",
     "integrations/openwebui/README.md",
-    "providers.yml"
+    "providers.yml",
+    "apps/claude/README.md"
   ],
   "excluded_links": [
     "ENTSCHEIDUNGSAUFTRAG-v1.0.md",

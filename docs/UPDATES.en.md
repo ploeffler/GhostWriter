@@ -1,5 +1,7 @@
 # GhostWriter updates
 
+General skills originate from [ghostwriter-skills](https://github.com/ploeffler/ghostwriter-skills). Their bundled copies and `ghostwriter-skills.yml` are program files: a normal GhostWriter update distributes the reviewed pinned version, without fetching a moving skill branch at runtime. Personal skills remain protected. The optional book teaser is not installed automatically.
+
 The update workflow brings program changes from the main GhostWriter repository into your book repository. This page describes the existing workflow; the [German developer guide](UPDATES.md) has additional technical detail.
 
 ## What the update does
@@ -10,7 +12,7 @@ Program files listed under `managed` in `ghostwriter-manifest.yml` are updated, 
 
 The update is validated before it is pushed. If validation fails, the branch is not updated and a failure issue is opened. The workflow retries certain server errors and retries once when the branch advances during the run. Its summary reports what happened for each branch. Books are not downgraded to an older program version.
 
-In a library, the workflow updates the default branch and then each eligible book branch. Working branches are not updated directly. A failure on one book does not stop the others. The project overview may offer **Update einspielen** (install update) when a newer upstream state is available.
+In a library, the workflow updates the default branch and then each eligible book branch. Working branches are not updated on their own. An open change package (work branch `ghostwriter/<book>` with an open pull request to the book) receives the new book state right after its book is updated, so workflows and checks there run with the new program version (#470). On a conflict the change package stays unchanged and the summary names the files; only a conflicting overview file is regenerated. Work branches without an open pull request are left alone; a dry run only reports. A failure on one book does not stop the others. At the end of every update run, also when started by hand, the workflow looks for leftover background-queue jobs on all work branches (for example after an interrupted research run or a job confirmed later) and starts processing per book ("Recherche" without a section), without any AI call (#481). If automation is paused, nothing starts (the queue does not restart itself either; leftover jobs wait until you nudge it by hand or the pause ends) and the summary reports how many jobs are waiting; a dry run only reports. Starting “GhostWriter aktualisieren” by hand therefore also nudges the queue. Since #479 this covers all four kinds (research, analysis, colorizing, import); “Run workflow” without inputs (analysis without `kind`, colorizing without `folder`, import with `step: queue`) adds no job and only processes the queue. GitHub disables schedules in public repositories after 60 days without activity; then start this run once by hand. The project overview may offer **Update einspielen** (install update) when a newer upstream state is available.
 
 ## Daily report and GitHub notifications
 
@@ -34,6 +36,8 @@ Use the GhostWriter update workflow rather than GitHub's **Sync fork** button: t
 A single-book repository can continue working after the v0.6 update. To hold multiple books, run **Actions → In Bibliothek umwandeln → Run workflow** on the default branch. Without confirmation it is a dry run. Enter `UMWANDELN` in the confirmation field only when ready to convert.
 
 The workflow checks for a book, pending changes and an available `buch/<short-title>` branch name. It creates the book branch at the existing commit, preserving history, then converts the default branch to the program and library starter. Tags and releases continue to point to their original commits.
+
+**0.9.0** adds “All settings” with value, origin and form, also for the library, series and omnibus (#299). The update now brings open change packages to the new state (#470). Section dialogue: answers are saved faster (#314), optionally in the background (`answer_backup: hintergrund`, #487). Web research through the configured provider with cost tracking (#462), research with sub-agents (#449), full chapter check (#447), timeline in columns (#450), “Speak as a character” (#464), photo colorization (#452). Open WebUI sends less to the model (#285). Images and workflow pages say “finalize” (#295); text output without HTML leftovers (#498); notes reviews accept own details. Pull request checks are much faster (#485). Arrives like every update; the data version stays 1.
 
 **0.8.0** adds the character conversation: talk to a character in the chat, and new details go into the character profile only if you select them (#432). Checks on a pull request now run only the affected tests (#439). Also a market comparison of the v1.0 scope (#429) and milestones v0.8 and v0.9 in the roadmap (#436). Manuscript import and the analyses planned for v0.8 were already part of 0.7.0; only the check of the import notices in all four chat environments is still open (#124). Arrives like every update; the data version stays 1.
 
@@ -60,6 +64,28 @@ When needed, create a token with the least permissions required for the relevant
 ## Changes to program files
 
 Local changes to managed program files can be overwritten by an update. Keep book-specific settings in the book configuration and book content in the book's own files. The manifest specifies which paths are managed by the program and which belong to the book.
+
+## Safe cleanup after accepting changes
+
+The **Branches aufräumen** action deletes a checked work
+branch only while its server-side head still matches the confirmed commit.
+A commit arriving in the meantime prevents deletion. For version branches, the
+matching preservation tag must also remain unchanged; its check and the branch
+deletion form one atomic operation.
+
+It uses [GitHub `updateRefs` with `beforeOid`](https://docs.github.com/en/graphql/reference/git#updaterefs).
+Missing GraphQL access, insufficient permissions or an uncertain response is not
+reported as a successful deletion. There is no unconditional deletion fallback
+and no automatic retry. Read the actual remote state before another request.
+**Nur anzeigen** (preview only) sends no deletion mutation. Existing checks that
+content has been accepted still apply; a matching commit does not grant approval.
+
+## Updating to personal approval verification
+
+An update containing `scripts/approval_authority.py` and the `approval.yml` action preserves existing manuscripts and approval entries. Old names do not automatically become verified identities. Before the next publishable output, a new [personal content evidence record](SAVING.en.md#personal-approval-authority-and-content-evidence) is therefore required for the current book state and edition. Drafts, proofs and previews remain available; published editions are unchanged.
+
+For Open WebUI, install GitHub tool 1.8.0 and configure personal UserValves for writing; the shared tool token becomes read-only. Do not reuse the shared token as a personal login. Revoke previously shared write credentials or replace them with separate personal access; the shared credential only needs read permissions. Do not store tokens in book files. The Claude web app must adopt the verification workflow in Claude. Automated jobs may prepare and check evidence but cannot grant new personal approvals. Practical client acceptance and real organisation permissions remain separate checks.
+
 
 ---
 

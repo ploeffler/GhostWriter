@@ -117,6 +117,43 @@ class StaleWriteTest(unittest.TestCase):
         self.assertEqual(result['context_changes'], ['ghostwriter.yml'])
         self.assertFalse(result['safe_to_prepare'])
 
+    def test_changed_or_deleted_instructions_require_refresh(self):
+        for path in ('START.md', 'CLAUDE.md', 'AGENTS.md', 'ghostwriter-skills.yml',
+                     'docs/start/freigaben.md',
+                     '.claude/skills/ghostwriter/SKILL.md',
+                     '.claude/skills/personal/SKILL.md'):
+            with self.subTest(path=path):
+                target = self.root / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                before = self.git('rev-parse', 'HEAD')
+                current = self.change(path, 'Neue Schreibregeln')
+                result = assess_write(self.root, before, current, ['text.md'])
+                self.assertEqual(result['state'], 'refresh_required')
+                self.assertEqual(result['context_changes'], [path])
+                self.assertFalse(result['safe_to_prepare'])
+                previous = current
+                current = self.change(path, 'Geänderte Schreibregeln')
+                result = assess_write(self.root, previous, current, ['text.md'])
+                self.assertEqual(result['context_changes'], [path])
+                self.assertFalse(result['safe_to_prepare'])
+                target.unlink()
+                self.git('add', '-A')
+                self.git('commit', '-qm', 'Anweisung entfernt')
+                result = assess_write(self.root, current, 'HEAD', ['text.md'])
+                self.assertEqual(result['context_changes'], [path])
+                self.assertFalse(result['safe_to_prepare'])
+
+    def test_similarly_named_notes_do_not_count_as_instructions(self):
+        for path in ('START.md.notes', 'docs/start-notes.md',
+                     '.claude/skills-notes.md'):
+            with self.subTest(path=path):
+                (self.root / path).parent.mkdir(parents=True, exist_ok=True)
+                before = self.git('rev-parse', 'HEAD')
+                current = self.change(path)
+                result = assess_write(self.root, before, current, ['text.md'])
+                self.assertEqual(result['state'], 'unrelated_changes')
+                self.assertTrue(result['safe_to_prepare'])
+
     def test_diverged_branch_must_not_be_used_as_current_basis(self):
         first = self.change('other.md')
         self.git('checkout', '-q', '--detach', self.base)

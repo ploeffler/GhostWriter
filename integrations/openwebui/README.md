@@ -5,13 +5,21 @@ Sie führt GitHub-API-Aufrufe aus, keine lokalen GhostWriter-Python-Skripte.
 Die benötigten Freigaben und redaktionellen Prüfungen aus START.md bleiben Aufgabe des Assistenten;
 das Werkzeug ist keine vollständige GhostWriter-API und erteilt selbst keine Buchfreigaben.
 
+### Persönliche Schreibzugänge ab GitHub-Werkzeug 1.8.0
+
+Der gemeinsame `GITHUB_TOKEN` in den Werkzeug-Valves wird nur noch zum Lesen verwendet. Jeder schreibende Benutzer hinterlegt seinen eigenen `GITHUB_TOKEN` in den **Benutzer-Valves** des Werkzeugs. Ohne persönlichen Token wird kein Schreibaufruf gestartet. Der bekannte gemeinsame Werkzeug-Token wird auch dann abgewiesen, wenn jemand ihn in die persönlichen Benutzer-Valves kopiert. Bisher gemeinsam verwendete schreibberechtigte Tokens bei der Umstellung widerrufen oder durch getrennte Zugänge ersetzen; der gemeinsame Token braucht nur Leserechte. Ein Bot-Konto wird abgewiesen. Normale Bearbeiter dürfen weiterhin Text ändern; Änderungen an Freigaben, Abschlusszuständen, Auflagen und Grundregeln benötigen darüber hinaus Eigentümerrecht oder einen ausdrücklichen Eigentümer-Review zur Bevollmächtigung. Neue Freigabeeinträge verwenden den verifizierten Login; alte Protokolleinträge dürfen nicht umgeschrieben werden. Die Prüfung erfolgt vor dem ersten schreibenden API-Aufruf und erneut vor dem Übernehmen betroffener Änderungspakete.
+
+Für veröffentlichbare Ausgaben ist zusätzlich ein [persönlicher Inhaltsnachweis](../../docs/SPEICHERN.md#persönliches-freigaberecht-und-inhaltsnachweis) nötig ([English](../../docs/SAVING.en.md#personal-approval-authority-and-content-evidence)). Die authentifizierte Identität wird ausschließlich aus GitHub ermittelt, nicht aus dem Open-WebUI-Anzeigenamen oder Modellargumenten. Geteilte persönliche Tokens sind kein Nachweis verschiedener Menschen. Praktische Abnahme der installierten Open-WebUI-Fassung bleibt erforderlich.
+
+Der markierte Reviewprüfblock wird aus `scripts/approval_authority.py` mit `python3 scripts/build_openwebui_authority.py` erzeugt; `--check` prüft die Übereinstimmung. Die installierbare Datei lädt keinen Programmcode zur Laufzeit nach. Der persönliche Zugang verwendet die [offiziellen UserValves und reservierten Benutzerargumente](https://docs.openwebui.com/features/extensibility/plugin/development/valves/).
+
 ## Direkte Ausgabe und Buchnavigation
 
 Ein erfolgreiches Werkzeugergebnis beweist noch keine korrekte Modellantwort: Kleine Modelle können trotz fertigem `view` eine erfundene `answer`-Funktion als Text ausgeben. Für **Start**, **Start neu laden**, **Bibliothek**, **Library**, **Home**, Buchnummern sowie **Übersicht**, **Kapitel N** und **Abschnitt N.M** übernimmt deshalb `ghostwriter_direct.py` die Ausgabe direkt als eigene Open-WebUI-Pipe. Das Basismodell wird für diese Befehle nicht aufgerufen. Die Pipe gibt den Willkommenssatz und die fertige Ansicht als normalen Antworttext zurück. Sie wertet kein vom Modell erzeugtes Funktions-JSON aus.
 
 ### Installation der Pipe (Open WebUI ab 0.13.0)
 
-1. Das vorhandene GitHub-Werkzeug auf Version **1.7.1** aktualisieren und seine bisherigen Valves beibehalten. Die Pipe benötigt für Buchnavigation mindestens Version **1.3**, für das Gespräch über das geöffnete Buch **1.4** und für Darstellungsbefehle **1.5**; ab **1.6** gibt es den eigenen Open-WebUI-Einstieg.
+1. Das vorhandene GitHub-Werkzeug auf Version **1.8.0** aktualisieren und seine bisherigen Valves beibehalten. Die Pipe benötigt für Buchnavigation mindestens Version **1.3**, für das Gespräch über das geöffnete Buch **1.4** und für Darstellungsbefehle **1.5**; ab **1.6** gibt es den eigenen Open-WebUI-Einstieg.
 2. Im Administrationsbereich unter **Funktionen / Functions** eine Funktion anlegen, den vollständigen Code aus `ghostwriter_direct.py` einfügen, speichern und aktivieren. Sie wird als Pipe erkannt und erscheint als Modell **GhostWriter Direkt**.
 3. Dein eigenes Workspace-Modell **GhostWriter** bearbeiten: als Basismodell die neue Pipe **GhostWriter Direkt** wählen und weiterhin genau das vorhandene GhostWriter-GitHub-Werkzeug zuordnen. Eingebaute Werkzeuge und Erinnerungen bleiben für diese Konfiguration ausgeschaltet; Native bleibt eingestellt. Das Ollama-Basismodell selbst wird nicht verändert.
 4. In den **Valves der Pipe** bleibt `BASE_MODEL` auf `llama3.2:3b`. Dort kein Pipe-Modell auswählen. `TOOL_ID` bleibt bei genau einer passenden Integration leer; nur bei mehreren Integrationen die ID des gewünschten Werkzeugs eintragen. `INTERFACE_LANGUAGE` passend zum GitHub-Werkzeug auf `de` oder `en` stellen. Die Pipe braucht keinen eigenen GitHub-Token: Sie verwendet ausschließlich die von Open WebUI bereitgestellten, bereits autorisierten Werkzeugfunktionen. `FIXED_TOOL_ID` bleibt auf `ghostwriter_github`, wenn das Werkzeug diese ID hat; dann lädt die Pipe es auch, wenn es im Chat ausgeschaltet ist (siehe „Werkzeug selbst nachladen“).
@@ -89,6 +97,21 @@ Der Report ist weiterhin vertraulich zu behandeln, da Prüfsummen bekannte
 Inhalte wiedererkennbar machen können. Die Chat-Anwendung kann die sichtbare
 Diagnoseantwort wie andere Nachrichten im Verlauf speichern.
 
+**Schlankere Anfragen (Direkt-Pipe 1.10, #285):** Die Statusregeln aus
+`workflow.yml` (etwa 1.200 Tokens) gehen nur noch an das Modell, wenn die
+Nachricht nach Status, Abschluss, Freigabe, Übergang oder Voraussetzung klingt,
+und dann nur für die gezeigte Einheit (Abschnitt oder Kapitel). Der gespeicherte
+Status der Auswahl bleibt immer dabei; Statusfragen beantwortet die Pipe weiter
+selbst aus den vollständigen Regeln. Alte Ansichten der Pipe (Bibliothek, Buch,
+Kapitel, Abschnitt) gehen nur noch als eine Zeile an das Modell, etwa
+`[GhostWriter-Ansicht: Kapitel 8 · Die Verhandlung]`. Die jüngste Ansicht bleibt
+vollständig, außer bei einer Abschnittsansicht, deren Text ohnehin im
+Kontextblock steht. Erkannt werden Ansichten an ihrer gespeicherten
+Navigationsquittung, nicht am Text; Modellantworten und der gespeicherte Chat
+bleiben unverändert. `Prompt-Profil` zeigt gekürzte Einträge mit der Herkunft
+„Ansicht gekürzt“. Die Ersparnis bitte vor und nach dem Update mit
+`Prompt-Profil` messen; sie hängt von der Verlaufslänge ab.
+
 Für die Untersuchung **normaler Modellaufrufe** kann zusätzlich die Pipe-Valve
 `PROMPT_PROFILE` eingeschaltet werden (Vorgabe `false`). Dann entsteht vor jeder
 Weiterleitung ein Metadatenreport im Open-WebUI-Serverprotokoll mit Präfix
@@ -157,7 +180,7 @@ Die Darstellungs- und Antwortmodusbefehle aus `START.md` führt die Pipe direkt 
 
 Fehlt die Übersichtsdatei oder passt sie nicht zur Kapitelstruktur, steht das in der Ansicht; Freigaben, Kosten und Marker werden dann nicht geschätzt. Die Übersichtsdatei wird von der Action „Übersichtsdatei aktualisieren“ erzeugt und kann direkt nach einem Push kurz hinterherhinken. Ansichten schreiben nichts und erteilen keine Freigaben.
 
-Für das Update **beide** Codeeinträge ersetzen: Direkt-Funktion ab 1.8.0 (aktuell 1.9.2) und GitHub-Werkzeug ab 1.5.0 (aktuell 1.7.1); die Valves bleiben. Mit Werkzeug 1.4 meldet die Pipe bei Darstellungsbefehlen, dass das Werkzeug aktualisiert werden muss; Navigation und Gespräch funktionieren weiter. Freie Gesprächsbeiträge erfahren über die Systemanweisung die aktuelle Darstellung und die verfügbaren Befehle, damit das Modell sie nicht mehr für nicht vorhanden erklärt; das bleibt eine Anweisung, keine Garantie für die Modellantwort.
+Für das Update **beide** Codeeinträge ersetzen: Direkt-Funktion ab 1.8.0 (aktuell 1.10.0) und GitHub-Werkzeug ab 1.5.0 (aktuell 1.8.0); die Valves bleiben. Mit Werkzeug 1.4 meldet die Pipe bei Darstellungsbefehlen, dass das Werkzeug aktualisiert werden muss; Navigation und Gespräch funktionieren weiter. Freie Gesprächsbeiträge erfahren über die Systemanweisung die aktuelle Darstellung und die verfügbaren Befehle, damit das Modell sie nicht mehr für nicht vorhanden erklärt; das bleibt eine Anweisung, keine Garantie für die Modellantwort.
 
 ### Auswahl und aktuelle Buchstände
 

@@ -84,6 +84,8 @@ Beschluss D08 (bestätigt am 08.11.2026 durch „ja“):
 - Historische Kosten-, Nutzungs- und Laufaufzeichnungen bleiben erhalten.
 - Keine Entfernung oder Migration des vorhandenen Codes allein aufgrund dieser Planungsentscheidung.
 
+Ergänzung vom 22.11.2026 (#476, #480): Die Hintergrund-Warteschlange gehört zu v1.0. Sie ist Programmlogik (Aufträge, Reihenfolge, Speichern je Auftrag, Budgetprüfung, Selbstneustart) und behebt verlorene Aufträge; sie setzt selbst keinen Anbieter-Schlüssel voraus. D08 gilt weiter: Tests der Warteschlange nur mit einer Attrappe des Anbieters, keine kostenpflichtigen Live-Tests als Voraussetzung der Abnahme.
+
 ## C. Verwaltungsdienst, Betrieb und Zugänge
 
 D09–D13 und D25–D27 müssen konkret beantwortet werden, wenn ein gehosteter Dienst zu D01 gehört. Wird er verschoben, bleibt die Umsetzung über bestehende Werkzeuge der gewählten Clients maßgeblich.

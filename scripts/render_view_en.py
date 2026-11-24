@@ -11,6 +11,13 @@ RESOURCE = Path(__file__).resolve().parents[1] / 'templates' / 'ui' / 'i18n'
 
 
 @lru_cache(maxsize=None)
+def small(text):
+    """Fine print in text output (#498): Markdown instead of <sub>, which chats show raw."""
+    import re
+    text = str(text).strip()
+    return f'_{text}_' if text and not re.search(r'[_*`]', text) else text
+
+
 def texts():
     return json.loads((RESOURCE / 'en.json').read_text(encoding='utf-8'))
 
@@ -58,7 +65,7 @@ def localize_checks(data):
             if row.get('CHAPTER_HISTORY'):   # #398
                 row['CHAPTER_HISTORY'] = [dict(checks.localize(t, 'en'), CK_ID=t.get('CK_ID', ''), CK_NOTE=t.get('CK_NOTE', ''))
                                           for t in row['CHAPTER_HISTORY']]
-                row['CHAPTER_HISTORY_JSON'] = checks.history_json(row['CHAPTER_HISTORY'])
+                row['CHAPTER_HISTORY_JSON'] = checks.history_json(row['CHAPTER_HISTORY'][:checks.HISTORY_CAP], checks.HISTORY_KEYS_SLIM)   # #497
     if data.get('CHECKS') and all(isinstance(t, dict) and 'CK_KIND' in t for t in data['CHECKS']):   # nicht die Prüfpunkte der Freigabe
         data['CHECKS'] = [checks.localize(t, 'en') for t in data['CHECKS']]
         data['CHECKS_JSON'] = checks.as_json(data['CHECKS'])
@@ -209,7 +216,7 @@ def render(template, data, config, renderer, base):
             lines += [f'| {r["CHAPTER_NUMBER"]} | {cell(r["CHAPTER_TITLE"])} | {r.get("CHAPTER_WORDS_TEXT", "–")} | {r.get("CHAPTER_APPROVED_TEXT") or "–"} | {r["CHAPTER_COST"]} | {renderer.STATUS_ICON.get(r["CHAPTER_STATUS"], "•")} {status(r["CHAPTER_STATUS"])} | `B{r["CHAPTER_NUMBER"]}` |' for r in rows]
             current = (config.get('workflow') or {}).get('current_chapter_id')
             if data.get('CHECKS_LEGEND'):
-                lines += [''] + check_lines(rows, 'CHAPTER_CHECKS', 'CHAPTER_NUMBER') + ['', '<sub>' + data['CHECKS_LEGEND'] + '</sub>']
+                lines += [''] + check_lines(rows, 'CHAPTER_CHECKS', 'CHAPTER_NUMBER') + ['', small(data['CHECKS_LEGEND'])]
             chips = [('**`' + str(r['CHAPTER_NUMBER']) + '`**' if r['CHAPTER_ID'] == current else '`' + str(r['CHAPTER_NUMBER']) + '`') for r in rows]
             lines += ['', '**' + native('open_chapters') + ':** ' + ' '.join(chips)]
         else:
@@ -232,7 +239,7 @@ def render(template, data, config, renderer, base):
         items += [('D', tr('ui.ai_services')), ('P', tr('ui.edit_project_details')), ('N', tr('ui.add_a_new_chapter')), ('R', native('chapter_order')), ('V', tr('ui.front_and_back_matter')), ('FI', native('figures', number=data.get('CHARACTER_COUNT', 0))), ('FV', tr('ui.suggest_characters_from_the_text_whole_book')), ('A', tr('ui.create_a_new_edition')), ('E', tr('ui.project_settings'))]
         lines += ['', '---', menu(items)]
         if data.get('CREDIT_TEXT'):
-            lines += ['', '<sub>' + data['CREDIT_TEXT'] + '</sub>']
+            lines += ['', small(data['CREDIT_TEXT'])]
     elif template == 'kapitelansicht':
         rows = data.get('SECTIONS', [])
         lines = [native('chapter_heading', number=data['CHAPTER_NUMBER'], title=data['CHAPTER_TITLE']), '']
@@ -251,7 +258,7 @@ def render(template, data, config, renderer, base):
             if data.get('CHECKS_LEGEND'):
                 if data.get('CHECKS'):
                     lines += ['', '🧪 **Checks (chapter):** ' + ' · '.join(f'`{t["CK_TAG"]}` {t["CK_TEXT"]}' for t in data['CHECKS'])]
-                lines += [''] + check_lines(rows, 'SECTION_CHECKS', 'SECTION_NUMBER') + ['', '<sub>' + data['CHECKS_LEGEND'] + '</sub>']
+                lines += [''] + check_lines(rows, 'SECTION_CHECKS', 'SECTION_NUMBER') + ['', small(data['CHECKS_LEGEND'])]
         else:
             lines += [native('no_sections')]
         number = str(data['CHAPTER_NUMBER'])
@@ -295,6 +302,8 @@ def render(template, data, config, renderer, base):
     elif template == 'buecherregal':
         rows = data.get('BOOKS', [])
         lines = ['### 📚 ' + tr('ui.library_2'), data['LIBRARY_NAME'] + ' · ' + data['BOOK_COUNT_TEXT'], '']
+        if data.get('JOBS_TEXT'):
+            lines += ['**' + data['JOBS_TEXT'] + '**', '']
         lines += renderer.session_lines(data.get('SESSIONS', []))
         if rows:
             lines += [native('library_table'), '|--:|---|---|---|---|--:|']
@@ -306,6 +315,7 @@ def render(template, data, config, renderer, base):
                     lines += ['| | **' + cell(label) + '** | | | | |']
                 title = (row['BOOK_VOLUME_TEXT'] + ': ' if row['BOOK_VOLUME_TEXT'] else '') + row['BOOK_TITLE']
                 pending = ' · ⏳ ' + row['BOOK_PENDING_TEXT'] if row['BOOK_PENDING_TEXT'] else ''
+                pending += ' · 📋 ' + row['BOOK_JOBS_TEXT'] if row.get('BOOK_JOBS_TEXT') else ''
                 lines += [f'| {i} | **{cell(title)}** ({cell(row["BOOK_TITLE_SHORT"])}){pending} | {row["BOOK_STATE_TEXT"]} | {renderer.progress_bar(row["BOOK_APPROVED_SECTION_COUNT"], row["BOOK_SECTION_COUNT"])} {row["BOOK_PROGRESS_TEXT"]} | {row["BOOK_EDITION_TEXT"]} | {row["BOOK_COST"]} |']
                 lines += [f'| {e["E_KEY"]} | ↳ {cell(e["E_TEXT"])}{" · " + cell(e["E_DETAIL"]) if e["E_DETAIL"] else ""} | | | | |'
                           for e in data.get('EDITIONS', []) if e['E_BOOK_BRANCH'] == row['BOOK_BRANCH']]

@@ -87,6 +87,13 @@ def attach_series(base, config):
             config['characters'].append(it)
 
 
+def small(text):
+    """Kleingedrucktes in Textfassungen (#498): Markdown statt <sub>, das Chats roh zeigen.
+    Kursiv, außer der Text enthält selbst Markdown-Zeichen; dann eine normale Zeile."""
+    text = str(text).strip()
+    return f'_{text}_' if text and not re.search(r'[_*`]', text) else text
+
+
 def manuscript_words(text):
     """Wörter im Manuskripttext ohne Fußnoten (#362): Fußnotendefinitionen, -verweise und Kommentare fallen weg."""
     text = re.sub(r'<!--.*?-->', ' ', text, flags=re.S)
@@ -1428,7 +1435,9 @@ def check_details(tags, history):
     parts = [f'{t["CK_LABEL"]}' + (f' ({t["CK_ID"]})' if t.get('CK_ID') else '') + (f': {t["CK_NOTE"]}' if t.get('CK_NOTE') else '')
              for t in tags]
     if history:
-        parts.append(f'{len(history)} frühere Prüfung' + ('' if len(history) == 1 else 'en'))
+        import checks
+        parts.append(f'{len(history)} frühere Prüfung' + ('' if len(history) == 1 else 'en')
+                     + (f' (die neuesten {checks.HISTORY_CAP} unten, alle in der Kapitelansicht)' if len(history) > checks.HISTORY_CAP else ''))
     failed = next((t for t in list(tags) + list(history) if t.get('CK_RESULT') == 'failed'), None)
     if failed:
         parts.append(f'zuletzt nicht bestanden: {failed["CK_LABEL"]} {failed.get("CK_WHEN") or failed.get("CK_DATE", "")}'.rstrip())
@@ -1472,9 +1481,10 @@ def project_view(base, config, args):
                 hist = ck.chapter_history(ch)
                 rows[-1].update({'CHAPTER_CHECKS_JSON': checks.as_json(tags, checks.JSON_KEYS_DETAIL),
                                  'CHAPTER_CHECK_DETAILS': check_details(tags, hist)})
-                if hist:
-                    rows[-1].update({'CHAPTER_HISTORY': hist, 'CHAPTER_HISTORY_COUNT': len(hist),
-                                     'CHAPTER_HISTORY_JSON': checks.history_json(hist)})
+                if hist:   # #497: schlanke Felder, höchstens die neuesten checks.HISTORY_CAP; Gesamtzahl steht in den Prüfdetails
+                    shown = hist[:checks.HISTORY_CAP]
+                    rows[-1].update({'CHAPTER_HISTORY': hist, 'CHAPTER_HISTORY_COUNT': len(shown),
+                                     'CHAPTER_HISTORY_JSON': checks.history_json(shown, checks.HISTORY_KEYS_SLIM)})
     longest = max([r['CHAPTER_WORDS'] for r in rows] or [0])
     for r in rows:   # Balken relativ zum längsten Kapitel (#362)
         r['CHAPTER_WORDS_PCT'] = round(100 * r['CHAPTER_WORDS'] / longest) if longest else 0
@@ -1594,7 +1604,7 @@ def project_view(base, config, args):
                     if r.get('CHAPTER_CHECK_DETAILS'):
                         lines.append(f'- Kapitel {r["CHAPTER_NUMBER"]}: {r["CHAPTER_CHECK_DETAILS"]}')
                         lines += ['  ' + x for x in checks.history_text(r.get('CHAPTER_HISTORY') or [])]
-            lines += ['', f'<sub>{values["CHECKS_LEGEND"]}</sub>']
+            lines += ['', small(f'{values["CHECKS_LEGEND"]}')]
         elif rows:
             # Letzte Spalte: Kürzel zum Bearbeiten des Kapitels (wie der Bearbeiten-Knopf der Kapitelansicht).
             lines += ['| # | Kapitel | Umfang | Fertig | Kosten | Status | |', '|--:|---|--:|--:|--:|---|:-:|']
@@ -1630,7 +1640,7 @@ def project_view(base, config, args):
                   ('A', 'Neue Auflage'), ('E', 'Einstellungen')]
         lines += [menu(items)]
         if values.get('CREDIT_TEXT'):
-            lines += ['', f'<sub>{values["CREDIT_TEXT"]}</sub>']
+            lines += ['', small(f'{values["CREDIT_TEXT"]}')]
         return '\n'.join(lines) + '\n'
     blocks = {'CHAPTERS': rows}
     if analyses:
@@ -1708,14 +1718,14 @@ def chapter_view(base, config, args, cnum):
         if rows and ck:   # mit Spalte „Prüfungen“ (#331)
             lines += ['| # | Abschnitt | Marker | Kosten | Status | Prüfungen |', '|--:|---|---|--:|---|---|']
             lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {marks(r)} | {r["SECTION_COST"]} | {display_status(r["SECTION_STATUS"])} | {r["SECTION_CHECKS_TEXT"]} |' for r in rows]
-            lines += ['', f'<sub>{values["CHECKS_LEGEND"]}</sub>']
+            lines += ['', small(f'{values["CHECKS_LEGEND"]}')]
             if counts_total:
-                lines += ['', f'<sub>{MARKER_LEGEND}</sub>']
+                lines += ['', small(f'{MARKER_LEGEND}')]
         elif rows:
             lines += ['| # | Abschnitt | Marker | Kosten | Status |', '|--:|---|---|--:|---|']
             lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {marks(r)} | {r["SECTION_COST"]} | {display_status(r["SECTION_STATUS"])} |' for r in rows]
             if counts_total:
-                lines += ['', f'<sub>{MARKER_LEGEND}</sub>']
+                lines += ['', small(f'{MARKER_LEGEND}')]
         else:
             lines += ['*Noch keine Abschnitte.*']
         lines += ['', '---']
@@ -1745,6 +1755,29 @@ def section_hints(base, sid):
     data = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
     return [{'H_KIND': h['kind'], 'H_KIND_TEXT': view_labels('LANGUAGE_DE').get(h['kind'], h['kind']), 'H_TEXT': h['text'], 'H_QUOTE': h.get('quote', '')}
             for h in data.get('hints') or [] if h.get('section') == sid]
+
+
+def research_queue_values(base):
+    """Option „Warteschlange“ der Recherche (#482): verfügbar, wenn ein Dienst mit API für die Recherche
+    eingestellt ist (Buch, sonst Standard-Branch der Bibliothek); Text mit dem Dienst."""
+    try:
+        import research
+        defaults = None
+        head = subprocess.run(['git', '-C', str(base), 'symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD'],
+                              capture_output=True, text=True).stdout.strip()
+        if head:
+            lib = subprocess.run(['git', '-C', str(base), 'show', f'{head}:ghostwriter.yml'], capture_output=True, text=True)
+            if lib.returncode == 0:
+                import tempfile
+                tmp = tempfile.NamedTemporaryFile('w', suffix='.yml', delete=False, encoding='utf-8')
+                tmp.write(lib.stdout)
+                tmp.close()
+                defaults = tmp.name
+        cfg = research.resolve(base, defaults)
+    except Exception:   # noqa: BLE001 – ohne Dienst mit API bleibt die Option aus
+        return {'RESEARCH_QUEUE_AVAILABLE': 'false', 'RESEARCH_QUEUE_TEXT': ''}
+    text = f'with internet via {cfg["name"]}' if UI.get('language') == 'en' else f'mit Internet über {cfg["name"]}'
+    return {'RESEARCH_QUEUE_AVAILABLE': 'true', 'RESEARCH_QUEUE_TEXT': text}
 
 
 def section_view(base, config, args, cnum, snum):
@@ -1777,6 +1810,7 @@ def section_view(base, config, args, cnum, snum):
               'APPROVAL_SECTION': str(head['approvals']['section']).lower(),
               'PREV_SECTION_ID': prev_id, 'PREV_SECTION_PROMPT': prev_text,
               'NEXT_SECTION_ID': next_id, 'NEXT_SECTION_PROMPT': next_text}
+    values.update(research_queue_values(base))
     chars = character_items(config)
     in_section = head.get('characters') or []
     if chars:   # Figuren (#53): Auswahl im Abschnittsformular
@@ -2632,7 +2666,7 @@ def project_settings_view(base, config, args):
                              view_message('settings.disclosure_row', p_a=ai_disc_text(config)),
                              view_message('settings.analysis_row'),
                              view_message('settings.output_row'),
-                             '', f'<sub>{upd_text} · Limits: {lim_sum}</sub>'] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', view_message('settings.form_hint')]) + '\n'
+                             '', small(f'{upd_text} · Limits: {lim_sum}')] + ([f'', f'> ⚠️ {upd_hint}'] if upd_hint else []) + ['', view_message('settings.form_hint')]) + '\n'
     def b(v):
         return 'true' if v else 'false'
     return fill('projekteinstellungen.html', {'FACT_CHECK_DEFAULT': fc, 'PAGE_SIZE': ts['page_size'], 'FONT': ts['font'],
@@ -2688,7 +2722,7 @@ def analysis_settings_view(base, config, args):
     return '\n'.join([view_message('view.analysis_settings.heading'), '', view_message('view.analysis_settings.intro'), '',
                       view_message('settings.fields_table'), '|---|---|---|']
                      + [f'| {k} | {esc(v)} | {h} |' for k, v, h in rows]
-                     + ['', f"<sub>🔑 {view_message('view.analysis_settings.keys_hint')}</sub>", '',
+                     + ['', small(f"🔑 {view_message('view.analysis_settings.keys_hint')}"), '',
                         view_message('view.analysis_settings.form_hint')]) + '\n'
 
 
@@ -2735,7 +2769,7 @@ def ai_disclosure_view(base, config, args):
         lines += ['> ' + l if l else '>' for l in (s['text'] or view_message('view.ai_disclosure.empty')).splitlines()] + ['']
     if proposal and proposal != s['text'] and s['mode'] in ad.SUGGESTED:
         lines += [view_message('view.ai_disclosure.suggestion_based_on_recorded_runs'), ''] + ['> ' + l if l else '>' for l in proposal.splitlines()] + ['']
-    lines += [f"<sub>⚖️ {view_message('disclosure.legal_hint')}</sub>", '', '---',
+    lines += [small(f"⚖️ {view_message('disclosure.legal_hint')}"), '', '---',
               view_message('view.ai_disclosure.reply_with_disclosure_placement_name_services_yes')
               + (view_message('view.ai_disclosure.ok_accepts_the_suggestion') if proposal and s['mode'] in ad.SUGGESTED else '')
               + view_message('view.ai_disclosure.x_cancels')]
@@ -2848,7 +2882,7 @@ def chapter_research_view(base, config, args):
             lines += ['', view_message('view.chapter_research.context'), '', view_message('view.chapter_research.chapter_weight'), '|---|---|---|'] + ctx
         tname = {'goal': view_message('view.chapter_research.research_the_chapter_goal'), 'sections': view_message('view.chapter_research.create_sections'), 'summary': view_message('view.chapter_research.create_a_summary')}
         lines += ['', view_message('view.chapter_research.task', p_a=tname.get(task, view_message('view.chapter_research.none_question_only'))),
-                  '', f'<sub>{values["RESEARCH_PROVIDER_TEXT"]} · {count}</sub>', '',
+                  '', small(f'{values["RESEARCH_PROVIDER_TEXT"]} · {count}'), '',
                   view_message('view.chapter_research.edit_with_one_goal_or_summary_per')]
         return '\n'.join(lines) + '\n'
     return fill('kapitelrecherche.html', values, {'SUGGESTED_SECTIONS': proposals})
@@ -2880,6 +2914,19 @@ def plural(n, one, many):
     return f'{n} {one if n == 1 else many}'
 
 
+def jobs_text(info, total=False):
+    """Hintergrund-Warteschlange (#484): „Warteschlange: 2 fertig · 1 wartet“ bzw. leer."""
+    if not info:
+        return ''
+    import jobs
+    lang = UI.get('language', 'de')
+    text = jobs.status_text(info, lang)
+    if not text:
+        return ''
+    label = ('Background queue' if total else 'Queue') if lang == 'en' else ('Hintergrund-Warteschlange' if total else 'Warteschlange')
+    return f'{label}: {text}'
+
+
 def book_row(b):
     ready = b['status'] == 'ready'
     st, sa = b.get('sections_total', 0), b.get('sections_approved', 0)
@@ -2899,7 +2946,8 @@ def book_row(b):
             'BOOK_EDITION_TEXT': f'Auflage {ed}' if ed else 'noch keine Auflage',
             'BOOK_COST': (b.get('cost') or {}).get('text') or money(0, False),
             'BOOK_PENDING_TEXT': f'{plural(b["pending"], "Änderung", "Änderungen")} offen' if b.get('pending') else '',
-            'BOOK_UPDATED_TEXT': f'{"zuletzt geändert" if ready else "angelegt"} am {de_date(b.get("updated_at"))}' if b.get('updated_at') else ''}
+            'BOOK_UPDATED_TEXT': f'{"zuletzt geändert" if ready else "angelegt"} am {de_date(b.get("updated_at"))}' if b.get('updated_at') else '',
+            'BOOK_JOBS_TEXT': jobs_text(b.get('jobs'))}
 
     if UI.get('language') == 'en':
         result.update({
@@ -3007,8 +3055,11 @@ def library_view(base, config, args):
     override = json.loads(Path(args.sessions).read_text(encoding='utf-8')) if getattr(args, 'sessions', None) else None
     sessions = session_rows(data, by_branch, override)
     count = plural(len(rows), 'Buch', 'Bücher') + (f' · {plural(len(ser), "Serie", "Serien")}' if ser else '')
+    totals = {k: sum((b.get('jobs') or {}).get(k, 0) for b in books) for k in ('done', 'failed', 'waiting', 'waiting_budget')}
+    jobs_total = jobs_text(totals, total=True)
     if args.text:
-        out = [f'### 📚 Bücherregal', f'{repo_label(args)} · {count}', ''] + session_lines(sessions)
+        out = [f'### 📚 Bücherregal', f'{repo_label(args)} · {count}', ''] + ([f'**{jobs_total}**', ''] if jobs_total else []) \
+            + session_lines(sessions)
         if rows:
             out += ['| # | Buch | Status | Fortschritt | Auflage | Kosten |', '|--:|---|---|---|---|--:|']
             group = None
@@ -3018,7 +3069,8 @@ def library_view(base, config, args):
                     label = f'📚 **Serie „{r["BOOK_SERIES_TITLE"]}“** (`{r["BOOK_SERIES_KEY"]}`)' if group else '**Einzelne Bücher**'
                     out.append(f'| | {label} | | | | |')
                 vol = f'{r["BOOK_VOLUME_TEXT"]}: ' if r['BOOK_VOLUME_TEXT'] else ''
-                out.append(f'| {i} | {vol}**{r["BOOK_TITLE"]}** ({r["BOOK_TITLE_SHORT"]}){" · ⏳ " + r["BOOK_PENDING_TEXT"] if r["BOOK_PENDING_TEXT"] else ""} | '
+                out.append(f'| {i} | {vol}**{r["BOOK_TITLE"]}** ({r["BOOK_TITLE_SHORT"]}){" · ⏳ " + r["BOOK_PENDING_TEXT"] if r["BOOK_PENDING_TEXT"] else ""}'
+                           f'{" · 📋 " + r["BOOK_JOBS_TEXT"] if r["BOOK_JOBS_TEXT"] else ""} | '
                            f'{"✅ eingerichtet" if r["BOOK_STATE"] == "ready" else "🚧 im Aufbau"} | {progress_bar(r["BOOK_APPROVED_SECTION_COUNT"], r["BOOK_SECTION_COUNT"])} {r["BOOK_PROGRESS_TEXT"]} | {r["BOOK_EDITION_TEXT"]} | {r["BOOK_COST"]} |')
                 out += [f'| {e["E_KEY"]} | ↳ {e["E_TEXT"]}{" · " + e["E_DETAIL"] if e["E_DETAIL"] else ""} | | | | |'
                         for e in editions if e['E_BOOK_BRANCH'] == r['BOOK_BRANCH']]
@@ -3045,6 +3097,7 @@ def library_view(base, config, args):
                                       'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
                                       'SESSION_COUNT_NUMBER': len(sessions),
                                       'SESSION_COUNT_TEXT': f'{view_message("library.session.heading")} ({len(sessions)})' if sessions else '',
+                                      'JOBS_TEXT': jobs_total,
                                       'UPDATED_TEXT': ''}, blocks)
 
 
@@ -3912,7 +3965,7 @@ def choice_view(base, config, args):
         out += ['', view_message('view.choice.reply_with_the_codes_e_g_enter', p_a=example)
                 + (view_message('view.choice.s_skips') if spec.get('skippable') else '')]
         if spec.get('note'):
-            out += ['', f'<sub>{spec["note"]}</sub>']
+            out += ['', small(f'{spec["note"]}')]
         return '\n'.join(out) + '\n'
     questions, options = [], []
     for i, q in enumerate(qs, 1):
@@ -3985,7 +4038,7 @@ def resolve_repo(base, args):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline', 'notes-review'] + list(FORMS))
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline', 'notes-review', 'settings-overview', 'queue'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--darstellung', choices=['einfach', 'uebersichtlich', 'erweitert'],
@@ -4012,7 +4065,10 @@ def main():
     args = ap.parse_args()
     ui = yaml.safe_load(UI_CONFIG.read_text(encoding='utf-8'))
     UI['repo'], UI['ref'] = ui['repo'], args.ui_ref or ui['commit']
-    base, config = load(args.project)
+    if args.view == 'settings-overview' and not (Path(args.project) / 'ghostwriter.yml').is_file():
+        base, config = Path(args.project), {}   # Standard-Branch einer Bibliothek: nur Profil, Serie, Sammelband
+    else:
+        base, config = load(args.project)
     resolve_repo(base, args)
     try:
         from .i18n import resolve_language
@@ -4030,6 +4086,16 @@ def main():
     UI['language'] = language
     UI['timezone'] = args.timezone
     requested_text = args.text
+    if args.view == 'settings-overview':   # „Alle Einstellungen“ (#299)
+        import settings_overview
+        if not profile and (base / 'assistant.yml').is_file():
+            profile = yaml.safe_load((base / 'assistant.yml').read_text(encoding='utf-8')) or {}
+        if args.text:
+            sys.stdout.write(settings_overview.markdown(base, config, profile, args.where, language))
+        else:
+            values, blocks = settings_overview.widget_values(base, config, profile, args.where, language)
+            sys.stdout.write(fill('einstellungen.html', values, blocks))
+        return
     if language == 'en':
         if args.view not in (render_view_en.CLI_VIEWS | view_i18n.DIRECT_VIEWS) and (not args.ui_ref or args.text):
             raise SystemExit('English native text output is not yet available for this view. Use --language de, or preview the translated UI templates with --ui-ref <checked-ui-commit> without --text.')
@@ -4075,6 +4141,13 @@ def main():
         else:
             values, blocks = hinweise.widget_values(base, path)
             out = fill('hinweisdurchsicht.html', values, blocks)
+    elif args.view == 'queue':   # Hintergrund-Warteschlange (#478): Vorlage warteschlange bzw. Textfassung
+        import queue_view
+        if args.text:
+            out = queue_view.text_view(base, config, language)
+        else:
+            values, blocks = queue_view.widget_values(base, config, language)
+            out = fill('warteschlange.html', values, blocks)
     elif args.view == 'chapter':
         out = chapter_view(base, config, args, chapter_number(config, args.where)[0])
     else:

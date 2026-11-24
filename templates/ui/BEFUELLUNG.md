@@ -136,7 +136,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `CHECKS_RECENT_TEXT`, `CHECKS_LEGEND`, Liste `CHECKS_RECENT` | Prüfprotokoll (#331, `editorial/checks.yml`, `scripts/checks.py`): „Letzte Prüfungen“, je Prüfart der neueste Eintrag (höchstens drei), etwa „Sprache ✓· 2026-11-17 · Korrektur ✓ 2026-11-16“; Legende der Kürzel. Ohne Prüfprotokoll weglassen |
 | im Block `CHAPTERS`: `CHAPTER_WORDS`, `CHAPTER_WORDS_TEXT`, `CHAPTER_WORDS_PCT`, `CHAPTER_APPROVED_TEXT`, `CHAPTER_NOTES`, `CHAPTER_NOTES_TEXT` | Kapitelkarte in drei Zeilen (#362, ab UI 0.57.0): Wörter im Manuskript ohne Fußnoten und Kommentare („1.336 Wörter“), Balkenbreite 0–100 relativ zum längsten Kapitel, abgeschlossene Abschnitte („3 von 9“). Offene Hinweise nur, wenn das Prüfprotokoll sie führt (`checks.py record … --notes N`): Summe aus dem neuesten Eintrag je Prüfart, der das Kapitel berührt; sonst weglassen statt schätzen. Die Textfassung zeigt sie als Spalten „Umfang“, „Fertig“ und „Hinweise“ |
 | im Block `CHAPTERS`: `CHAPTER_CHECKS_JSON` (Widget); `CHAPTER_CHECKS_TEXT` und Liste `CHAPTER_CHECKS` nur in der Textfassung (#360) | Prüf-Tags des Kapitels (#331); `CHAPTER_CHECKS_JSON` ist dieselbe Liste kompakt als JSON (`CK_TAG`, `CK_TEXT`, `CK_RESULT`, `CK_STATE`, `CK_REPORT`) für `data-gw-checks` im Widget (die Vorlagen kennen keine verschachtelten Blöcke). Kurzfassung wie „S✓ L✓· K✓*“ und je Prüfart ein Tag mit `CK_KIND`, `CK_LABEL` („Sprache“), `CK_SHORT` („L“), `CK_RESULT` (`passed` …), `CK_RESULT_TEXT`, `CK_MARK` (✓, ✓·, ✗, …), `CK_DATE`, `CK_REPORT` (Pfad des Berichts, für den Link), `CK_STATE` (`current`, `changed` = seit Prüfung geändert, `unknown`), `CK_STATE_TEXT`, `CK_PARTIAL` (`1`, wenn die Prüfung nur einen Teil des Kapitels abdeckt), `CK_TEXT` (für den Tooltip), `CK_TAG`, `CK_PILL` (Klartext für das Widget, „Qualität ✓·“; das Widget zeigt ihn als Tag wie die Marker „Quelle“, „Recht“, #340), `CK_WHEN` (Datum, mit Uhrzeit falls gespeichert). Ohne Prüfprotokoll weglassen. Die Textfassung zeigt sie als Spalte „Prüfungen“ |
-| im Block `CHAPTERS`, nur mit `--darstellung erweitert` (#398): `CHAPTER_CHECK_DETAILS`, `CHAPTER_HISTORY_JSON`, `CHAPTER_HISTORY_COUNT` | Prüfdetails je Kapitel: eine Zeile mit Art, Prüf-ID, Notiz (`note`), Zahl früherer Prüfungen und letzter nicht bestandener Prüfung; frühere Prüfungen als JSON wie `CHECKS_HISTORY_JSON` der Kapitelansicht. `CHAPTER_CHECKS_JSON` trägt dann zusätzlich `CK_ID` und `CK_NOTE` (Tooltip). Die Legende nennt „Frühere Prüfungen“ nur in dieser Stufe. Textfassung: Liste „Prüfdetails“ unter der Kapiteltabelle. Aufruf, wenn im Chat „Darstellung: erweitert“ gilt (oder `display: erweitert` in `assistant.yml`): `render_view.py <buch> project --darstellung erweitert` |
+| im Block `CHAPTERS`, nur mit `--darstellung erweitert` (#398): `CHAPTER_CHECK_DETAILS`, `CHAPTER_HISTORY_JSON`, `CHAPTER_HISTORY_COUNT` | Prüfdetails je Kapitel: eine Zeile mit Art, Prüf-ID, Notiz (`note`), Zahl früherer Prüfungen und letzter nicht bestandener Prüfung; frühere Prüfungen als JSON, in der Projektübersicht **schlank** (#497): nur `CK_LABEL`, `CK_WHEN`, `CK_DATE`, `CK_MARK`, `CK_TEXT`, `CK_RESULT`, `CK_STATE`, höchstens die neuesten 10 je Kapitel (`checks.HISTORY_CAP`; `CHAPTER_HISTORY_COUNT` ist die Zahl der gezeigten, die Gesamtzahl steht in `CHAPTER_CHECK_DETAILS`). Notiz, Prüf-ID und Bericht stehen vollständig nur in `CHECKS_HISTORY_JSON` der Kapitelansicht. `CHAPTER_CHECKS_JSON` trägt dann zusätzlich `CK_ID` und `CK_NOTE` (Tooltip). Die Legende nennt „Frühere Prüfungen“ nur in dieser Stufe. Textfassung: Liste „Prüfdetails“ unter der Kapiteltabelle. Aufruf, wenn im Chat „Darstellung: erweitert“ gilt (oder `display: erweitert` in `assistant.yml`): `render_view.py <buch> project --darstellung erweitert` |
 | `CHECKS_HISTORY_COUNT`, `CHECKS_HISTORY_JSON`, Block `CHECKS_HISTORY` | Kapitelansicht und Abschnittsformular (#340): frühere Prüfungen, also alle Einträge, die die Einheit berühren, außer dem neuesten je Prüfart; neueste zuerst. Felder wie bei den Tags plus `CK_ID`, `CK_NOTE`; JSON mit `CK_KIND`, `CK_LABEL`, `CK_WHEN`, `CK_DATE`, `CK_TAG`, `CK_MARK`, `CK_TEXT`, `CK_RESULT`, `CK_STATE`, `CK_REPORT`. Widget und Textfassung gruppieren nach Prüfart; je Eintrag nur Datum und Uhrzeit mit Ergebniszeichen. Ohne frühere Prüfungen weglassen. Ergebnis `unknown` (Kürzel `?`) bei nachgetragenen Berichten ohne Ergebniszeile |
 | `CHARACTER_COUNT` | Zahl der Figuren (`characters`, #53); ohne Figuren weglassen, dann entfällt der Knopf „Figuren“ |
 | Blöcke `MATTER_FRONT`, `MATTER_BACK`: `MATTER_ID`, `MATTER_TITLE`, `MATTER_STATUS`, `MATTER_MARKERS` | Vor- und Nachspann (#57, #58) aus `structure.front_matter` (über der Kapitelliste) bzw. `back_matter` (darunter) in Buchreihenfolge: ID (`mat-…`), Titel, Status, Zahl offener Marker; ein Klick schickt `view.matter`. Ein leerer Bereich fehlt |
@@ -170,10 +170,11 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | Block `HINTS`: `H_KIND_TEXT`, `H_TEXT`, `H_QUOTE` | sprachliche Hinweise zum Abschnitt aus `story/hints.yml` (#124): Art („Langer Satz“, „Wortwiederholung“, „Gleiche Satzanfänge“, „Füllwörter“, „KI-typisches Muster“, #305), Hinweis, Fundstelle; ohne Hinweise weglassen |
 | `PREV_SECTION_ID`, `PREV_SECTION_PROMPT`, `NEXT_SECTION_ID`, `NEXT_SECTION_PROMPT` | Nachbarabschnitte im selben Kapitel, Text „Abschnitt N.M „Titel“ bearbeiten“; am Rand leer |
 | `CHARACTERS_ENABLED`, Block `ALL_CHARACTERS`: `C_ID`, `C_NAME`, `C_ON` | nur wenn das Buch Figuren hat (#53): `1`; je Figur ID, Name und `1`, wenn sie in `characters` des Abschnittskopfs steht |
+| `RESEARCH_QUEUE_AVAILABLE`, `RESEARCH_QUEUE_TEXT` | Option „Warteschlange“ der Recherche (#482, ab UI 0.65.0): `true`, wenn für die Recherche ein Dienst mit API eingestellt ist (Buch, sonst Standard-Branch der Bibliothek; `research_queue_values()`), sonst `false`; Text „mit Internet über <Dienst>“, sonst leer. Der Klick sendet `run.start` mit `task: research`, `mode: scheduled` |
 
 ### `abschnittssteuerung.html`
 
-`SECTION_ID`, `SECTION_NUMBER`, `SECTION_TITLE` wie im Abschnittsformular.
+`SECTION_ID`, `SECTION_NUMBER`, `SECTION_TITLE` wie im Abschnittsformular, ebenso `RESEARCH_QUEUE_AVAILABLE` und `RESEARCH_QUEUE_TEXT`.
 
 ### `projektdaten-bearbeiten.html`
 
@@ -230,10 +231,12 @@ Startseite einer Bibliothek; Widget oder Text nach dem Darstellungsmodus. Erzeug
 | `BOOK_PROGRESS`, `BOOK_PROGRESS_TEXT` | Anteil `sections_approved`/`sections_total` in Prozent; „N von M Abschnitten abgeschlossen · K von L Kapiteln“, im Aufbau „Gliederung noch offen“ |
 | `BOOK_EDITION_TEXT`, `BOOK_COST` | `current_edition` („Auflage N“ bzw. „noch keine Auflage“), `cost.text` |
 | `BOOK_PENDING_TEXT` | `pending` > 0: „N Änderungen offen“ (Commits im Arbeits-Branch), sonst leer |
+| `BOOK_JOBS_TEXT` | Hintergrund-Warteschlange des Buchs (#484, ab UI 0.66.0) aus `books[].jobs` in `library.json` (`done`, `failed`, `waiting`, `waiting_budget`; `jobs.remote_status()`): „Warteschlange: N fertig · M fehlgeschlagen · K warten“; leer, wenn nichts |
 | `BOOK_UPDATED_TEXT` | „zuletzt geändert am TT.MM.JJJJ“ bzw. „angelegt am …“ aus `updated_at` |
 | `BOOK_SERIES`, `BOOK_SERIES_TITLE`, `BOOK_SERIES_KEY`, `BOOK_VOLUME_TEXT` | Serie des Buchs (#116) aus `library.json` (`series`) bzw. `series/` auf dem Standard-Branch: ID, Reihentitel, Kürzel `S1`, `S2` … (Reihenfolge der Serien) und „Band N“; ohne Serie leer. Bücher einer Serie stehen zuerst, je Serie in Bandreihenfolge, danach die übrigen |
 | Block `EMPTY_SERIES`: `S_ID`, `S_TITLE`, `S_KEY` | Serien, zu denen noch kein Buch gehört; sonst Block weglassen |
 | `SESSION_COUNT_NUMBER`, `SESSION_COUNT_TEXT` | Zahl der offenen Sitzungssicherungen und „Offene Sitzungssicherungen (N)“; ohne offene Sicherung leer (Rubrik entfällt) |
+| `JOBS_TEXT` | Summe aller Bücher, „Hintergrund-Warteschlange: N fertig · …“ (#484); leer = Rubrik entfällt |
 | Block `SESSIONS`: `SS_SESSION`, `SS_TITLE`, `SS_BOOK`, `SS_BOOK_BRANCH`, `SS_BRANCH`, `SS_TIME_TEXT`, `SS_DEVICE_TEXT`, `SS_OS_TEXT`, `SS_CLIENT_TEXT`, `SS_STATUS`, `SS_STATUS_TEXT`, `SS_PR` | je offener Sitzungssicherung aus `sessions` in `library.json` (bzw. `--sessions`, #237), neueste zuerst: Kennung, `context.project` (sonst Kennung), Titel des Zielbuchs, Zielbranch, Sicherungsbranch, `last_saved.at` in Ortszeit (`--timezone`), Gerät, System, Client mit Version (fehlend „unbekannt“), Status `open` „Änderungspaket“ (mit Link `SS_PR`) / `pr_pending` „gesichert, Änderungspaket ausstehend“ / `unknown` „Status nicht verfügbar“. Rubrik direkt unter dem Titel; ohne offene Sicherung Block weglassen |
 | `BOOK_KEY`, `BOOK_EDITION_COUNT` | Nummer des Buchs im Regal (Kürzel der Textfassung) und Zahl seiner Auflagen aus `editions` (#235) |
 | Block `EDITIONS`: `E_BOOK_BRANCH`, `E_BOOK_KEY`, `E_KEY`, `E_NUMBER`, `E_TEXT`, `E_DATE_TEXT`, `E_TAG`, `E_BRANCH`, `E_DETAIL` | je Auflage eines Buchs aus `library.json` (`editions`), in Regal- und dann numerischer Reihenfolge: Buch-Branch und Nummer des Buchs, Kürzel `<Buch>.<Auflage>`, „Auflage N“, Datum (Tag bzw. letzter Commit des Auflagen-Branchs), Tag, Auflagen-Branch (leer, wenn es keinen gibt), Kurzangabe für die Textfassung. Das Widget ordnet die Einträge über `E_BOOK_BRANCH` unter der Karte des Buchs an; die Textfassung zeigt sie als Zeilen „↳ Auflage N“ unter dem Buch. Ohne Auflagen Block weglassen |
@@ -371,6 +374,19 @@ Grafische Zeitleiste der Chronologie (#354, ab UI 0.56.0; `render_view.py timeli
 | Block `FINDINGS`: `F_KIND_TEXT`, `F_TEXT`, `F_ENTRIES` | Hinweise aus `chronology.findings()` ohne „ohne Datum“: Art, Satz, IDs |
 
 Zeitraum, Filter nach Belegstand und Auswahl eines Eintrags wirken nur in der Ansicht; gesendet wird nur `view.project`.
+
+### `einstellungen.html`
+
+Alle Einstellungen (#299, ab UI 0.64.0; `render_view.py <ordner> settings-overview [wo]`, Befehl „Alle Einstellungen“). Nur lesend. Gefüllt von `settings_overview.widget_values()`; die Textfassung (`--text`) ist `settings_overview.markdown()`, auch auf Englisch. `wo`: leer bzw. eine Gruppe (`typesetting`) für das Buch, `bibliothek`, `serie <ser-id>`, `sammelband <ser-id>`.
+
+| Platzhalter | Quelle |
+|---|---|
+| `SETTINGS_KIND` | `book`, `library`, `series` oder `omnibus` (Zurück-Knopf: Projektübersicht bzw. Bücherregal) |
+| `SETTINGS_TITLE` | „Alle Einstellungen“, dazu Seite und Titel |
+| `SETTINGS_INTRO` | Zahl der Einstellungen und der eigenen Werte |
+| Block `GROUPS`: `G_KEY`, `G_TITLE`, `G_ROWS` | je Gruppe; `G_ROWS` ist eine JSON-Liste mit `key`, `label` (Abschnittstitel bei „Abweichend vom Buch“), `value` (Anzeigetext), `origin` (`book`, `library`, `default`, `unset`, `own`, `series`, `omnibus`, `section`), `origin_text`, `differs` (weicht von der Vorgabe ab), `form_text` (Formular bzw. „nur in der Datei“) |
+
+Filter „Nur eigene Werte“ und Suche wirken nur in der Ansicht; gesendet wird nur `view.project` bzw. `view.library`.
 
 ### `hinweisdurchsicht.html`
 
@@ -628,6 +644,19 @@ Für Kapitel und Abschnitte.
 | `CHAPTER_ID`, `CHAPTER_NUMBER` | bei Abschnitten das Kapitel, sonst leer |
 | Block `ITEMS`: `ITEM_ID`, `ITEM_NUMBER`, `ITEM_TITLE` | Kapitel bzw. Abschnitte in der bisherigen Reihenfolge |
 
+### `warteschlange.html`
+
+Hintergrund-Warteschlange (#478, ab UI 0.67.0; `render_view.py queue`, `--text` als Textfassung, Deutsch und Englisch). Gefüllt von `queue_view.widget_values()`; die Textfassung ist `queue_view.text_view()`. Liest nur; die Reihenfolge folgt festen Regeln (`docs/DATA-MODEL.md`, „Hintergrund-Warteschlange“).
+
+| Platzhalter | Quelle |
+|---|---|
+| `QUEUE_BOOK`, `QUEUE_COUNT_TEXT`, `QUEUE_EMPTY` | `project.title_short` bzw. `title`, „N Aufträge“ bzw. „keine Aufträge“, `1` bei leerer Warteschlange |
+| Block `PENDING` (wartende Aufträge): `J_TITLE`, `J_DETAIL`, `J_STATE_TEXT`, `J_WHEN_TEXT`, `J_PRIORITY_TEXT`, `J_BLOCKED_TEXT`, `J_NOTE`, `J_PRIO_DISABLED`, `J_ARGS` | Art und Abschnitt („Recherche · 2.1 Titel“), Frage bzw. Angaben der Art, Zustand (wartet, wartet auf Bestätigung wegen Budget, wartet auf einen anderen Auftrag), „eingereicht …“, „vorgezogen“ (sonst leer), „Erst nach <Pfad>“ (sonst leer), Hinweis bei Ring in `after`, `disabled` bei schon vorgezogenen, JSON `{"request":"<Pfad im Buch>"}` |
+| Block `FAILED`: `J_TITLE`, `J_DETAIL`, `J_WHEN_TEXT` | Auftrag mit `error`, Grund, „fehlgeschlagen …“ |
+| Block `DONE`: `J_TITLE`, `J_DETAIL` | Rechercheläufe mit `request:` im Kopf, noch nicht im Buch-Branch (nur auf dem Arbeits-Branch erkennbar) |
+
+„Vorziehen“ sendet `queue.prioritize`, „Abbrechen“ (mit Rückfrage) `queue.cancel`, beide mit `request`.
+
 ### `analyse-einstellungen.html`
 
 Formular „Analyse-Einstellungen“ (`render_view.py analysis-settings`, #299, ab UI 0.47.0) für den Block `analysis`.
@@ -782,7 +811,7 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `project.output.open` | – | Formular „Ausgabeoptionen“ zeigen (Befehl `Ausgabe`, Knopf in Projektübersicht und Projekteinstellungen, #68) | Vorlage `ausgabeoptionen` (`render_view.py output`) | – |
 | `project.output.update` | `typesetting` (Felder wie in `docs/DATA-MODEL.md`, „Buchsatz“), `publication` (`publisher`, `isbn_print`, `isbn_ebook`, `rights`), `print`, `cover`, Texte der Rückseite (`blurb`, `author_bio`), `expected_head_sha` | Ausgabeoptionen speichern | in `ghostwriter.yml` schreiben (nur geänderte Felder), prüfen, danach das Formular | `PATCH …/settings` |
 | `project.providers.open` | – | Formular „KI-Dienste“ zeigen | Vorlage `ki-dienste` (`render_view.py providers-edit`) | – |
-| `project.providers.update` | `available`, `services` (je eigenem Dienst `access`, `model`, `github_connected`, `plan`, `monthly_cost`, `note`, bei `access: api` zusätzlich `api_key_secret`), `roles` (`default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`: Dienst-ID, `chat` oder leer), `queue_agent`, `search_tools`, `expected_head_sha` | KI-Dienste speichern | `ai_providers` in `ghostwriter.yml` schreiben: `available`, `services` (nur eigene Dienste; leere Felder weglassen), `provider` je Aufgabe, `research.search_tools`, `queue_processing.agent`; Modellnamen nicht ändern. Danach Projektübersicht | `PATCH …/settings` |
+| `project.providers.update` | `available`, `services` (je eigenem Dienst `access`, `model`, `github_connected`, `plan`, `monthly_cost`, `note`, bei `access: api` zusätzlich `api_key_secret`), `roles` (`default`, `research`, `brainstorming`, `writing`, `revision`, `fact_check`: Dienst-ID, `chat` oder leer), `queue_agent`, `search_tools`, `expected_head_sha` | KI-Dienste speichern | `ai_providers` in `ghostwriter.yml` schreiben: `available`, `services` (nur eigene Dienste; leere Felder weglassen; vorhandene Preisfelder `price_input_per_mtok`, `price_output_per_mtok`, `price_per_1k_searches` bleiben, solange das Formular sie nicht mitschickt, #462), `provider` je Aufgabe, `research.search_tools`, `queue_processing.agent`; Modellnamen nicht ändern. Danach Projektübersicht | `PATCH …/settings` |
 | `chapter.create.open` | – | Formular „Neues Kapitel anlegen“ zeigen | Vorlage `kapitel-anlegen` (`render_view.py chapter-create`) | – |
 | `chapter.create` | `title`, `summary`, `goal`, `position` (Index, 0 = am Anfang), `position_label`, `expected_head_sha` | Kapitel anlegen | Kapitel anlegen, danach Kapitelansicht des neuen Kapitels | `POST …/chapters` |
 | `chapter.edit.open` | `chapter_id` | Kapitel bearbeiten | Vorlage `kapitel-bearbeiten` (`render_view.py chapter-edit N`) | – |
@@ -799,9 +828,11 @@ Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen 
 | `section.reorder.open` | `chapter_id` | Abschnittsreihenfolge ändern | Vorlage `reihenfolge` (`render_view.py section-reorder N`) | – |
 | `section.reorder` | `chapter_id`, `order` (alle Abschnitts-IDs des Kapitels in neuer Reihenfolge), `expected_head_sha` | Abschnittsreihenfolge speichern | `sections` des Kapitels umsortieren; IDs und Dateinamen bleiben; danach Kapitelansicht | `POST …/chapters/{chapter_id}/sections/reorder` |
 | `section.update` | `section_id`, `goal`, `summary`, `fact_check`, `manuscript`, bei Büchern mit Figuren `characters` (Liste von IDs, #53), `expected_head_sha` (nie `approvals`) | Abschnitt speichern | Abschnittsdatei schreiben, danach Abschnittsformular | `PATCH …/sections/{section_id}`, `PUT …/sections/{section_id}/manuscript` |
-| `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; in v0.5 nur `immediate` | Lauf ausführen und Lauf-Datei, Ergebnis und Statuswechsel speichern (`START.md`, „KI-Lauf „Sofort““); ein Kosteneintrag nur für kostenpflichtige KI-API-Aufrufe über das Backend, nie für Chat-Arbeit | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
+| `run.start` | `section_id`, `task` (`research` \| `writing`), `mode` (`immediate` \| `scheduled`) | AI-Lauf starten; `scheduled` gibt es für `research` (#482): Auftrag in die Hintergrund-Warteschlange (`scripts/jobs.py enqueue`, `START.md`, „Recherche mit Internet in der Action“), sonst `immediate` | Lauf ausführen und Lauf-Datei, Ergebnis und Statuswechsel speichern (`START.md`, „KI-Lauf „Sofort““); ein Kosteneintrag nur für kostenpflichtige KI-API-Aufrufe über das Backend, nie für Chat-Arbeit | `POST …/sections/{section_id}/research-runs` bzw. Manuskript |
 | `view.timeline` | – | Zeitleiste zeigen (#354) | `render_view.py timeline` (Vorlage `zeitleiste`) | – |
 | `view.notes_review` | optional `file` | Hinweisdurchsicht zeigen (#367) | `render_view.py notes-review [<file>]` (Vorlage `hinweisdurchsicht`); ohne Dialogdatei zuerst `scripts/hinweise.py collect .` | – |
+| `queue.prioritize` | `request` (Pfad des Auftrags im Buch) | Auftrag vorziehen (#478) | `python scripts/jobs.py . prioritize --request <request> --push-to ghostwriter/<buch>` bzw. `priority: true` in die Auftragsdatei schreiben, ein Commit auf den Arbeits-Branch; nur wartende Aufträge. Danach `render_view.py queue` erneut | – |
+| `queue.cancel` | `request` | Auftrag abbrechen (#478) | `python scripts/jobs.py . cancel --request <request> --push-to ghostwriter/<buch>` bzw. Auftragsdatei löschen, ein Commit; nur wartende Aufträge, ein laufender lässt sich nicht stoppen. Danach `render_view.py queue` erneut | – |
 | `notes_review.decide` | `file`, `entry`, `decision` (`ja`, `nein`, `geändert`), bei `geändert` `new` | Antwort zu einem Eintrag speichern (#367) | `python scripts/hinweise.py decide . <entry> --decision <decision> [--new …] --file <file>`, ohne Rückfrage als kleiner Nachtrag ins offene Änderungspaket (`docs/SPEICHERN.md`, „Hinweise durchsehen“); danach die nächste offene Stelle bzw. das Widget erneut. Ändert kein Manuskript | – |
 | `notes_review.plan` | `file` | Umsetzen prüfen (#367) | `python scripts/hinweise.py plan . --file <file>` zeigen (✅/⚠️/⛔). Wieder öffnen nur über die gewohnte Freigabe; umsetzen (`hinweise.py apply .`) erst auf ausdrücklichen Auftrag als eigener Änderungsschritt | – |
 | `edition.create.open` | – | Formular „Neue Auflage erzeugen“ zeigen | Vorlage `auflage-erzeugen` (`render_view.py edition-create`) | – |
@@ -899,6 +930,8 @@ Ohne ausdrücklich gewählten Darstellungsmodus gilt „übersichtlich“. Eine 
 
 Die Textansichten von Buch und Kapitel berechnen diese Übersicht aus den Abschnittsdateien. Das Bücherregal ergänzt seine vorhandenen Freigabezahlen um denselben Balken. Deutsch und Englisch verwenden dieselbe Berechnung. Ansichten erzeugen keine Änderungen an Buchdateien.
 
+
+**Persönliches Freigaberecht:** Vor der Ausführung einer bestätigten Freigabe das Konto mit `scripts/approval_authority.py BUCH actor` prüfen und den verifizierten Login im neuen Protokolleintrag verwenden. Fehlende Berechtigung sperrt die Ausführung, ohne Daten zu ändern. Eine Auswahl oder ein Feld `by` ersetzt diese Prüfung nicht. Für veröffentlichbare Ausgaben gilt zusätzlich der persönliche Inhaltsnachweis nach [Speichern und Abschließen](../../docs/SPEICHERN.md#persönliches-freigaberecht-und-inhaltsnachweis). Keine neue Widgetaktion wird dadurch eingeführt; die Claude-Web-App muss den Prüfablauf in Claude übernehmen.
 
 ---
 

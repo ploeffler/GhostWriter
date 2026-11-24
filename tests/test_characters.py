@@ -1,4 +1,6 @@
 """Tests für Figuren (#53): „Strolchi und Opi“ mit Strolchi, Opi und Wolf – und ein Buch ohne Figuren."""
+from tests.authority_helpers import fake_github
+
 import json
 import re
 import shutil
@@ -158,6 +160,7 @@ class CharacterTest(unittest.TestCase):
         meta = reference_images.add(self.base, src, 'Opi Profil', links=[{'kind': 'person', 'id': 'char-opi'}])
         _, lst = self.widget('characters')
         self.assertEqual([c['C_PORTRAIT'] for c in lst['CHARACTERS']], ['', '', ''])   # noch nicht freigegeben
+        fake_github(self, self.base, seal=False)
         reference_images.set_status(self.base, meta['id'], 'approved')
         _, lst = self.widget('characters')
         pics = {c['C_ID']: c['C_PORTRAIT'] for c in lst['CHARACTERS']}

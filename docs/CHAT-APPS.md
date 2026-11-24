@@ -15,6 +15,8 @@ Die **eingebauten GitHub-Verbindungen** beider Apps können nur lesen. Für Weg 
 | Tag und Release anlegen | nein | nein: in der Sitzung vom 31.10.2026 von GitHub abgelehnt („not permitted for this session type“), ebenso Branches löschen | nein | nicht belegt | nicht belegt |
 | Chat-Vorlagen als Widget mit Rückmeldung in den Chat | ja (Inline-Widgets) | ja, wenn die Sitzung Widgets anbietet | nein, Textfassung nötig | nein | wie die jeweilige App |
 
+**Praxisbericht vom 22.11.2026 (#22, Angabe des Eigentümers):** In Claude und in ChatGPT wurde mit Repositories gearbeitet; Datei ändern mit Commit, Branch anlegen, Pull Request anlegen und Pull Request mergen funktionierten in beiden Apps, und ein GhostWriter-Formular speicherte in ChatGPT als Pull Request. Genutzt wurde ein gemischter Weg; welche Verbindung je App im Einzelnen im Einsatz war (eigener Connector, Codex oder Claude Code), ist nicht je Spalte festgehalten. Die Spalte „Eigener Connector“ bleibt deshalb ohne ausdrückliche Einzelbelege, bis das je App und je Tarif nachgetragen ist.
+
 Belege:
 - Claude: Die GitHub-Integration synchronisiert nur Dateinamen und Inhalte eines Branches, ohne Commit-Historie und Pull Requests ([Anthropic-Hilfe: Use the GitHub integration](https://support.claude.com/en/articles/10167454-use-the-github-integration)).
 - ChatGPT: Der GitHub-Connector in Chat und Deep Research ist zum Lesen gedacht; Codex kann Branches pushen und Pull Requests öffnen ([Übersicht vom 9.7.2026](https://www.usecarly.com/blog/chatgpt-github-integration/)). Die Hilfeseite von OpenAI ([Connecting GitHub to ChatGPT](https://help.openai.com/en/articles/11145903-connecting-github-to-chatgpt)) war beim Abruf nicht erreichbar.
@@ -29,6 +31,12 @@ Belege:
 Keiner der Wege legt verlässlich Tags und Releases an. Vorschlag: Eine Auflage wird ein Pull Request, der `project.current_edition` hochzählt und die Release Notes enthält; nach dem Merge legt eine GitHub Action Tag und Release an und hängt PDF, DOCX und EPUB an (Issues #16 und #17).
 
 Welcher Weg für v0.5 gilt, wird am Ende von v0.2 entschieden.
+
+## Web-App „GhostWriter für Claude“ (Versuch)
+
+Neben dem Chat gibt es einen Versuch mit einer Web-App, die als Artefakt in Claude läuft: [GhostWriter für Claude](https://claude.ai/artifact/PQ3zcq4ofwwRcP7dMHMG9B). Sie zeigt dieselben Widgets wie der Chat und führt Klicks direkt aus: Abschnitt speichern, Freigaben, Kapitel und Abschnitte anlegen, Reihenfolge, Projektdaten, Recherche und Ghostwriting „Sofort“, Änderungen übernehmen, die Seite „Daten“ und eine Claude-Leiste mit Vorschlägen. Gelesen und geschrieben wird über die GitHub-Verbindung des jeweiligen Benutzers. Claude läuft über dessen eigenes Konto. Es gibt keine eigene API, keinen Server und keine Schlüssel.
+
+Es gelten dieselben Regeln wie im Chat. Alles kommt auf den Arbeits-Branch, als ein Commit je Aktion. Ins Buch kommt es nur über „Änderungen übernehmen“ mit Bestätigung, und jede Freigabe braucht eine eigene Bestätigung. Für private Repositorys muss die GitHub-App „Claude Github MCP Connector“ auf dem Besitzerkonto installiert sein. Die App gehört nicht zum Lieferumfang von v1.0 ([D06](ENTSCHEIDUNGEN-v1.0.md#d06--eigene-web-app-ohne-integrierten-modellaufruf)). Ihre Dateien kommen mit dem Update nicht in die Bibliotheken. Einrichtung, Grenzen und Nachziehen: [apps/claude/README.md](https://github.com/ploeffler/GhostWriter/blob/main/apps/claude/README.md).
 
 ## Dateien im Chat übergeben (#260)
 
@@ -135,19 +143,38 @@ Es gelten `AGENTS.md` und `START.md` dieses Repositorys (kommen mit jedem Update
 
 ## Skills auswählen (#261)
 
+Die allgemeinen Skills werden in [ghostwriter-skills](https://github.com/ploeffler/ghostwriter-skills) gepflegt. GhostWriter liefert Kopien mit, deren Quellcommit und SHA-256-Prüfsummen in `ghostwriter-skills.yml` festgelegt sind. Sie bleiben offline verfügbar und werden mit normalen Programmupdates verteilt. Änderungen an diesen Skills gehören ins Quellrepository, nicht unabhängig in die Kopien. Persönliche Skills bleiben im Buchrepository. Der optionale Buchteaser wird ausdrücklich aus dem Skill-Repository geladen; er wird nicht automatisch installiert.
+
+Für die Pflege das Quellrepository klonen, eine geprüfte vollständige Commit-ID auswählen und `python scripts/sync_skills.py --source /pfad/zu/ghostwriter-skills --commit VOLLSTAENDIGE_COMMIT_ID` ausführen. Ohne Argumente prüft der Helfer die mitgelieferten Kopien offline. `check_docs.py` enthält diese Prüfung. Der Helfer committet und überträgt nichts; Änderungen im Quellrepository aktualisieren vorhandene Bücher nicht von selbst.
+
+
+
+**Unabhängig vom Assistenten:** Die Skills liegen im Repository unter `.claude/skills/<name>/SKILL.md`. Claude Code lädt sie selbst; ChatGPT, Codex und andere Assistenten werden über `AGENTS.md` (Claude über `CLAUDE.md`) angewiesen, die Kopfzeilen aller `SKILL.md` zu lesen und den passenden Skill vollständig zu laden, bevor sie beginnen. Beide Dateien kommen mit dem Update aus dem Hauptrepository; im Buch ist nichts einzurichten.
+
+Der lokale Standabgleich berücksichtigt den gesamten Ordner `.claude/skills/` im geprüften Programmstand einschließlich persönlicher Skills und ihrer Begleitdateien sowie die Quellenangabe `ghostwriter-skills.yml`. Wird eine dieser Dateien hinzugefügt, geändert oder entfernt, meldet er veraltete Anweisungen. Die Regeln müssen vor der nächsten Aufgabe neu geladen werden; ein bereits offener Chat wird dadurch nicht automatisch aktualisiert.
+
 Welcher Skill zu einer Aufgabe passt, entscheidet Claude anhand der Skill-Beschreibungen. Der Benutzer sieht das sonst nicht, und bei ähnlichen Beschreibungen ist die Wahl nicht eindeutig. Deshalb gilt für GhostWriter (`CLAUDE.md`, `AGENTS.md`, Skill `ghostwriter`):
 
 - **Wahl nennen:** Zu Beginn einer Aufgabe nennt Claude in einem Satz, welchen Skill es verwendet, oder dass keiner passt.
 - **Spezifischer vor allgemein:** Der persönliche Skill des Repositorys (`assistant.yml` → `skill`) geht vor dem allgemeinen Skill `ghostwriter`. `ghostwriter` ist für Buch- und Bibliotheks-Repositorys gedacht, nicht für Programmarbeit am Hauptrepository. Nur bei echter Mehrdeutigkeit fragt Claude einmal kurz nach.
 - **Nicht doppelt laden:** Jeder Ladevorgang setzt die ganze Anleitung erneut in den Verlauf. Das kostet Kontext, und der Verlauf wird früher zusammengefasst. Liegt die Anleitung im Gespräch noch vor, lädt Claude sie nicht erneut. Fehlt sie nach dem Zusammenfassen eines langen Verlaufs, lädt Claude sie neu und sagt das kurz.
 
-**Skills im Konto:** Skills, die im Claude-Konto liegen (nicht im Repository), kann GhostWriter nicht ändern. Haben zwei davon fast dieselbe Beschreibung (etwa ein älterer Skill für dieselbe Bibliothek neben dem erzeugten persönlichen Skill), den überzähligen in den Claude-Einstellungen unter „Skills“ entfernen. Eine Projektanweisung wie „Bestätige die Skillauswahl“ ist damit nicht mehr nötig, schadet aber nicht.
+**Skills im Konto:** Skills, die im Claude-Konto liegen (nicht im Repository), kann GhostWriter nicht ändern. Haben zwei davon fast dieselbe Beschreibung (etwa ein älterer Skill für dieselbe Bibliothek neben dem erzeugten persönlichen Skill), den überzähligen in den Claude-Einstellungen unter „Skills“ entfernen. Eine Projektanweisung wie „Bestätige die Skillauswahl“ ist damit nicht mehr nötig, schadet aber nicht. Der persönliche Skill gehört nicht ins Konto: Er hängt von Benutzer und Repository ab und lebt nur im Repository (`.claude/skills/<skill>/SKILL.md`, aus `assistant.yml` erzeugt). Eine Kopie im Konto veraltet beim nächsten Neuerzeugen; Claude weist einmal darauf hin, und es gilt die Fassung im Repository. Allgemeine Abläufe wie Einrichten, Schreibzugriff prüfen und Issues melden stehen im Skill `ghostwriter`, nicht im persönlichen Skill.
 
 ## Darstellung
 
 - **Claude** zeigt die Vorlagen als Inline-Widgets. Der Assistent gibt nur eine Ladezeile für `ghostwriter-ui` (fester Commit, über jsDelivr) und die Daten aus; das ist deutlich kürzer als die ganze Ansicht. Ein Klick schickt die festgelegte Nachricht in den Chat.
 - **ChatGPT** zeigt diese Widgets nicht. Dort gibt der Assistent die Textfassung aus `templates/ui/BEFUELLUNG.md` aus: Markdown mit Tabellen und Symbolen, Aktionen als Kürzel (`2`, `2.4`, `P`, `X` …), die der Benutzer per Antwort wählt. Echte Formulare in ChatGPT gingen nur über eine eigene App mit MCP-Server (Apps SDK), siehe Weg B.
-- **Open WebUI** zeigt keine Widgets. Die Pipe „GhostWriter Direkt“ erzeugt alle Ansichten selbst als Markdown und schaltet „Darstellung: einfach / übersichtlich / erweitert“, „Nur Text“ und den Antwortmodus ohne Modellaufruf um (ab Pipe 1.8 mit GitHub-Werkzeug 1.5, #282). Das Gesprächsmodell erhält ab Werkzeug 1.6 einen eigenen kurzen Einstieg `docs/start/einstieg-openwebui.md` statt der allgemeinen `START.md` (#204). Einzelheiten: [Open-WebUI-Anleitung](../integrations/openwebui/README.md#darstellung-und-antwortmodus-direkt-pipe-18-werkzeug-15).
+- **Open WebUI** zeigt keine Widgets. Die Pipe „GhostWriter Direkt“ erzeugt alle Ansichten selbst als Markdown und schaltet „Darstellung: einfach / übersichtlich / erweitert“, „Nur Text“ und den Antwortmodus ohne Modellaufruf um (ab Pipe 1.8 mit GitHub-Werkzeug 1.5, #282). Das Gesprächsmodell erhält ab Werkzeug 1.6 einen eigenen kurzen Einstieg `docs/start/einstieg-openwebui.md` statt der allgemeinen `START.md` (#204). Ab Pipe 1.10 gehen die Statusregeln nur bei Statusfragen an das Modell, ältere Ansichten der Pipe nur noch als je eine Zeile (#285). Einzelheiten: [Open-WebUI-Anleitung](../integrations/openwebui/README.md#darstellung-und-antwortmodus-direkt-pipe-18-werkzeug-15).
+
+## Persönliche Freigaben in den Clients
+
+Vor einer Freigabe muss das tatsächlich angemeldete persönliche GitHub-Konto samt Eigentümer- oder ausdrücklichem Freigaberecht nachgewiesen werden. Ein Anzeigename, `by`, Commit-Autor oder erfolgreicher Speichervorgang genügt dafür nicht. Lokale Arbeitsumgebungen verwenden `scripts/approval_authority.py BUCH actor`; ein automatisierter Actions-Job darf diese persönliche Entscheidung nicht stellvertretend erteilen.
+
+Ohne lokale Laufzeit die tatsächlich verfügbaren authentifizierten GitHub-Werkzeuge verwenden und deren Konto-/Berechtigungsgrenzen offen nennen. Ist diese Prüfung nicht möglich, die Freigabe zurückstellen. Der [persönliche Inhaltsnachweis](SPEICHERN.md#persönliches-freigaberecht-und-inhaltsnachweis) kann mit der lesenden manuellen GitHub-Action vorbereitet und geprüft werden. Entwürfe und Probedrucke bleiben möglich.
+
+Open WebUI benötigt GitHub-Werkzeug 1.8.0 mit persönlichen Benutzer-Valves für Schreibaktionen. Die Claude-Web-App muss den neuen Prüf- und Nachweisablauf in Claude übernehmen; eine ältere App darf einen gespeicherten technischen Status nicht als persönlich verifizierte Freigabe ausgeben. Die praktische Abnahme bleibt für jeden Client separat erforderlich.
+
 
 ---
 

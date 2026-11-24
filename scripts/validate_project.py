@@ -5,6 +5,7 @@ Aufruf: python scripts/validate_project.py <projektordner> [<projektordner> ...]
 
 Geprüft werden:
 - ghostwriter.yml gegen schemas/ghostwriter.schema.json
+- Aufträge der Hintergrund-Warteschlange (request-NNN.yml) gegen schemas/job.schema.json (#480)
 - jede Abschnittsdatei aus structure.chapters: Datei vorhanden, Kopf gegen
   schemas/section.schema.json, ID und Titel wie in ghostwriter.yml, Nummer
   passend zur Reihenfolge
@@ -82,6 +83,7 @@ TIMELINE = validator('timeline.schema.json')
 CHRONOLOGY = validator('chronology.schema.json')
 HINTS = validator('hints.schema.json')
 CHECKS = validator('checks.schema.json')
+JOB = validator('job.schema.json')
 FRONTMATTER = re.compile(r'\A---\n(.*?)\n---\n', re.S)
 
 
@@ -229,6 +231,12 @@ def check_project(project_dir):
     if (base / 'assistant.yml').is_file():   # Assistenten-Profil und persönlicher Skill (#136)
         import assistant
         errors += [f'{base}/{e}' for e in assistant.check(base)]
+
+    import jobs   # Aufträge der Hintergrund-Warteschlange (#480)
+    for path in jobs.files(base):
+        data = load_yaml(path, errors)
+        if data is not None:
+            errors += schema_errors(JOB, data, path)
 
     chapter_ids, section_ids = set(), set()
     for ci, chapter in enumerate(config['structure']['chapters'], start=1):
@@ -609,16 +617,26 @@ def main(argv):
     if len(argv) < 2:
         print(__doc__)
         return 2
+    verify_authority = '--verify-authority' in argv[1:]
+    project_dirs = [a for a in argv[1:] if a != '--verify-authority']
+    if not project_dirs:
+        return 2
     failed = False
-    for project_dir in argv[1:]:
+    for project_dir in project_dirs:
         errors = check_project(project_dir)
+        if verify_authority and not errors:
+            import approval_authority
+            try:
+                approval_authority.verify(project_dir)
+            except approval_authority.AuthorityError:
+                errors.append('Persönlicher Inhaltsnachweis fehlt oder ist ungültig')
         if errors:
             failed = True
             print(f'✗ {project_dir}: {len(errors)} Fehler')
             for e in errors:
                 print(f'  - {e}')
         else:
-            print(f'✓ {project_dir}')
+            print(f'✓ {project_dir}' + (' (persönlicher Inhaltsnachweis geprüft)' if verify_authority else ' (Strukturprüfung; Freigabeperson nicht geprüft)'))
         for w in manuscript_warnings(project_dir):
             print(f'  ⚠ {w}')
     return 1 if failed else 0

@@ -23,6 +23,14 @@ Liegt er dahinter, werden die Commits eingespielt:
 Danach liegt kein Branch mehr hinter dem Hauptrepository; GitHubs Hinweis
 „This branch is N commits behind …“ verschwindet.
 
+Offene Änderungspakete (#470): Hat ein Buch ein offenes Änderungspaket, also einen
+Arbeits-Branch ghostwriter/<buch> mit offenem Pull Request zum Buch, wird danach
+der ganze Buchstand in diesen Arbeits-Branch gemergt. So laufen dort Workflows und
+Prüfungen mit dem neuen Programmstand. Bei einem Konflikt bleibt das Änderungspaket
+unverändert, der Bericht nennt die Dateien; nur die Übersichtsdatei wird bei einem
+Konflikt neu erzeugt. Arbeits-Branches ohne offenen Pull Request bleiben, wie sie
+sind; der Probelauf zeigt nur an.
+
 Welche Branches: im Fork bzw. eigenen Repository zuerst der Standard-Branch
 (Programm einer Bibliothek bzw. das Einzelbuch), dann alle Bücher nach der
 Erkennungsregel aus scripts/library.py (#39); Arbeits-Branches (ghostwriter/*)
@@ -42,6 +50,7 @@ Umgebung:
                            Workflow-Schreibrecht; ohne ihn bleiben Änderungen an
                            .github/workflows/ aus und werden gemeldet
   GHOSTWRITER_UPSTREAM_URL nur für Tests: Git-URL des Hauptrepositorys
+  GHOSTWRITER_OPEN_PRS     nur für Tests: JSON {"ghostwriter/<buch>": <PR-Nummer>} statt GitHub-Abfrage
   GITHUB_STEP_SUMMARY      optional: Zusammenfassung für die Action
 """
 import argparse
@@ -426,6 +435,78 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
         shutil.rmtree(wt, ignore_errors=True)
 
 
+# ---------- Offene Änderungspakete (#470) ----------
+
+WORK_PREFIX = 'ghostwriter/'
+INDEX_FILE = 'ghostwriter-index.json'
+
+
+def open_change_package(work, base):
+    """Nummer des offenen Pull Requests work → base oder None."""
+    if 'GHOSTWRITER_OPEN_PRS' in os.environ:
+        return (json.loads(os.environ['GHOSTWRITER_OPEN_PRS'] or '{}') or {}).get(work)
+    from urllib.parse import quote
+    owner = os.environ.get('GITHUB_REPOSITORY', '').split('/')[0]
+    prs = api('GET', f'/pulls?state=open&base={quote(base)}&head={quote(owner + ":" + work)}') or []
+    return prs[0].get('number') if prs else None
+
+
+def follow_work_branch(branch, args, can_workflows, find_pr=open_change_package):
+    """Buchstand in das offene Änderungspaket ghostwriter/<branch> mergen. None, wenn es keins gibt
+    oder es schon aktuell ist; sonst ein Ergebnis wie update_branch (status updated|skipped|conflict|failed)."""
+    work = WORK_PREFIX + branch
+    if not git('rev-parse', '-q', '--verify', f'refs/remotes/origin/{work}', check=False):
+        return None
+    git('fetch', '-q', 'origin', f'+refs/heads/{branch}:refs/remotes/origin/{branch}',
+        f'+refs/heads/{work}:refs/remotes/origin/{work}')
+    base, head = f'origin/{branch}', f'origin/{work}'
+    behind = int(git('rev-list', '--count', f'{head}..{base}'))
+    if not behind:
+        return None
+    res = {'branch': work, 'upstream': branch, 'behind': behind, 'ahead': None}
+    pr = find_pr(work, branch)
+    if not pr:
+        return {**res, 'status': 'skipped', 'text': f'{commits(behind)} hinter {branch}; kein offener Pull Request, nicht angefasst'}
+    label = f'Änderungspaket #{pr}'
+    workflows = [f for f in git('diff', '--name-only', f'{head}...{base}', '--', WORKFLOWS).splitlines() if f]
+    if workflows and not can_workflows:
+        return {**res, 'status': 'skipped',
+                'text': f'{label}: {commits(behind)} hinter {branch}, aber Workflow-Dateien geändert; ohne '
+                        'GHOSTWRITER_UPDATE_TOKEN nicht nachgezogen (im Pull Request „Update branch“ wählen)'}
+    if args.dry_run:
+        return {**res, 'status': 'updated', 'text': f'(Probelauf) {label}: Buchstand ({commits(behind)}) würde eingespielt'}
+    wt = tempfile.mkdtemp(prefix='gw-work-')
+    try:
+        git('worktree', 'add', '-q', '--detach', wt, head)
+        msg = f'Buchstand von {branch} in das Änderungspaket übernommen (GhostWriter-Update)'
+        merged = subprocess.run(['git', *BOT, 'merge', '--no-ff', '--no-edit', '-m', msg, '-m', TRAILER, base],
+                                cwd=wt, text=True, capture_output=True)
+        if merged.returncode:
+            conflicts = [f for f in git('diff', '--name-only', '--diff-filter=U', cwd=wt).splitlines() if f]
+            if conflicts == [INDEX_FILE] and (Path(wt) / 'scripts/build_index.py').is_file():
+                # Die Übersichtsdatei ist abgeleitet: aus dem gemergten Stand neu erzeugen.
+                git('checkout', '--theirs', '--', INDEX_FILE, cwd=wt)
+                code, out = run(['scripts/build_index.py', '.'], wt)
+                if code:
+                    conflicts = [f'{INDEX_FILE} (neu erzeugen fehlgeschlagen)']
+                else:
+                    git('add', '-A', cwd=wt)
+                    git(*BOT, 'commit', '-q', '--no-edit', cwd=wt)
+                    conflicts = []
+            if conflicts:
+                subprocess.run(['git', 'merge', '--abort'], cwd=wt, capture_output=True)
+                return {**res, 'status': 'conflict',
+                        'text': f'{label}: Konflikt in ' + ', '.join(conflicts[:8]) + (' …' if len(conflicts) > 8 else '')
+                                + '; Änderungspaket unverändert. Im Pull Request „Update branch“ wählen oder von Hand zusammenführen.'}
+        code, err = push(f'HEAD:refs/heads/{work}', cwd=wt)
+        if code:
+            return {**res, 'status': 'failed', 'text': push_error(work, err)}
+        return {**res, 'status': 'updated', 'text': f'{label}: Buchstand ({commits(behind)}) eingespielt'}
+    finally:
+        subprocess.run(['git', 'worktree', 'remove', '--force', wt], capture_output=True)
+        shutil.rmtree(wt, ignore_errors=True)
+
+
 # ---------- Ablauf ----------
 
 def default_branch():
@@ -550,7 +631,7 @@ def main(argv):
 
     lines = ['## GhostWriter-Update', '', f'Hauptrepository: `{repo}`', '',
              '| Branch | hinter | Ergebnis |', '|---|--:|---|']
-    icon = {'updated': '✅', 'current': '✔️', 'skipped': '⏭️', 'failed': '❌'}
+    icon = {'updated': '✅', 'current': '✔️', 'skipped': '⏭️', 'failed': '❌', 'conflict': '⚠️'}
     results, failed = [], False
     for branch in branches(manifest, same_repo, ref, args.branch):
         up_rev, up_label = counterpart(branch)
@@ -573,6 +654,15 @@ def main(argv):
                 report_failure(branch, res['text'])
         elif res['status'] == 'updated' and not args.dry_run:
             report_success(branch, f'Behoben: {res["text"]}')
+        if res['status'] in ('updated', 'current') and not branch.startswith(WORK_PREFIX):
+            # Offenes Änderungspaket dieses Buchs mitziehen (#470); ein Fehler dort lässt das Buch-Update gelten.
+            try:
+                work = follow_work_branch(branch, args, bool(token))
+            except RuntimeError as e:
+                work = {'branch': WORK_PREFIX + branch, 'status': 'failed', 'text': str(e)}
+            if work:
+                results.append(work)
+                lines.append(f'| `{work["branch"]}` | {work.get("behind", "?")} | {icon[work["status"]]} {work["text"].splitlines()[0]} |')
     summary(lines)
     if args.status:
         Path(args.status).write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding='utf-8')

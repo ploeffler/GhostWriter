@@ -162,7 +162,7 @@ def openwebui_report(payload, origins=None):
               'top_p', 'top_k', 'num_ctx', 'max_tokens', 'seed', 'stop', 'response_format'}
     visible = {key: value for key, value in payload.items() if key in fields}
     result = report(request_plan(visible, 'openwebui-pipe'), visible)
-    allowed = {'openwebui.input.messages', 'read_start_md.content', 'pipe.current_context'}
+    allowed = {'openwebui.input.messages', 'read_start_md.content', 'pipe.current_context', 'pipe.view_shortened'}
     for row in result['components']:
         match = row['source'].removeprefix('$.messages[').removesuffix(']')
         label = origins[int(match)] if match.isdigit() and origins and int(match) < len(origins) else None

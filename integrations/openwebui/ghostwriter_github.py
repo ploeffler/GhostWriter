@@ -1,11 +1,13 @@
 """
 title: GhostWriter GitHub
 description: GitHub lesen und Aufgaben als gemeinsamen Commit speichern.
-version: 1.7.1
+version: 1.8.0
 requirements: requests,pydantic,pyyaml
 """
 import asyncio
 import base64
+import contextvars
+import datetime
 import hashlib
 import hmac
 import json
@@ -21,10 +23,156 @@ import yaml
 from pydantic import BaseModel, Field
 
 
+# BEGIN GENERATED REVIEW AUTHORITY
+# Erzeugt aus scripts/approval_authority.py; nicht von Hand ändern.
+class ReviewAuthority:
+    """Der API-Aufrufer liefert ausschließlich Antworten von api.github.com.
+
+    Identität kommt aus /user bzw. review.user, niemals aus by oder Git-Autoren.
+    Delegation ist ein ausdrücklicher, weiterhin gültiger Eigentümer-Review.
+    """
+    def __init__(self, api, repository):
+        if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository):
+            raise ValueError('GitHub-Repository fehlt oder ist ungültig')
+        self.api, self.repository = api, repository
+        self.root = '/repos/' + repository
+        self.info = api(self.root)
+        if (not isinstance(self.info, dict) or type(self.info.get('id')) is not int
+                or str(self.info.get('full_name', '')).casefold() != repository.casefold()):
+            raise ValueError('GitHub-Repository konnte nicht verifiziert werden')
+        self.repository = self.info['full_name']
+        self.root = '/repos/' + self.repository
+        self.cache = {}
+
+    @staticmethod
+    def person(user):
+        return (isinstance(user, dict) and user.get('type') == 'User'
+                and type(user.get('id')) is int and user['id'] > 0
+                and isinstance(user.get('login'), str)
+                and re.fullmatch(r'[A-Za-z0-9-]+', user['login']))
+
+    def owner(self, user):
+        owner = self.info.get('owner') or {}
+        if not self.person(user):
+            return False
+        if owner.get('type') == 'User':
+            return user['id'] == owner.get('id')
+        # Für Organisationen keine bloßen Schreib-/Maintainerrechte als Eigentum
+        # ausgeben. Ein aktiver Organisationsinhaber muss über GitHub belegbar sein.
+        if owner.get('type') == 'Organization':
+            key = ('owner', user['id'])
+            if key not in self.cache:
+                result = self.api('/orgs/' + owner['login'] + '/memberships/' + user['login'])
+                self.cache[key] = (result.get('state') == 'active' and result.get('role') == 'admin'
+                                   and (result.get('user') or {}).get('id') == user['id'])
+            return self.cache[key]
+        return False
+
+    def review(self, receipt):
+        if (not isinstance(receipt, dict)
+                or any(type(receipt.get(k)) is not int or receipt[k] <= 0
+                       for k in ('pull_request', 'review_id'))):
+            raise ValueError('GitHub-Reviewnachweis fehlt oder ist ungültig')
+        key = (receipt['pull_request'], receipt['review_id'])
+        if key not in self.cache:
+            path = self.root + '/pulls/' + str(key[0]) + '/reviews/' + str(key[1])
+            review = self.api(path)
+            if (not isinstance(review, dict) or review.get('id') != key[1]
+                    or review.get('state') not in ('APPROVED', 'COMMENTED')
+                    or not review.get('submitted_at') or not self.person(review.get('user'))
+                    or not re.fullmatch(r'[0-9a-f]{40}', str(review.get('commit_id', '')))
+                    or review.get('pull_request_url') != 'https://api.github.com' + self.root + '/pulls/' + str(key[0])):
+                raise ValueError('Review nicht abgegeben, zurückgenommen oder nicht persönlich zuordenbar')
+            # Reviewtexte sind veränderbar. Daher zusätzlich den unveränderten
+            # Originalreview verifizieren; ein unter fremdem Namen bearbeiteter
+            # Text darf keine Eigentümer-Bevollmächtigung erzeugen.
+            node_id = review.get('node_id')
+            if not isinstance(node_id, str) or not node_id:
+                raise ValueError('Originalreview nicht verifizierbar')
+            query = """query($id:ID!){node(id:$id){... on PullRequestReview{
+                id state body lastEditedAt editor{login ... on User{databaseId}} author{login ... on User{databaseId}}
+                commit{oid} pullRequest{number repository{databaseId nameWithOwner}}}}}"""
+            response = self.api('/graphql', {'query': query, 'variables': {'id': node_id}})
+            if not isinstance(response, dict) or not isinstance(response.get('data'), dict):
+                raise ValueError('Originalreview-Metadaten fehlen oder sind nicht lesbar')
+            node = response['data'].get('node')
+            if not isinstance(node, dict):
+                raise ValueError('Originalreview nicht vorhanden')
+            pull = node.get('pullRequest') if isinstance(node.get('pullRequest'), dict) else {}
+            repository = pull.get('repository') if isinstance(pull.get('repository'), dict) else {}
+            author = node.get('author') if isinstance(node.get('author'), dict) else {}
+            edited = node.get('lastEditedAt')
+            editor = node.get('editor')
+            unchanged = 'lastEditedAt' in node and 'editor' in node and edited is None and editor is None
+            if edited is not None and isinstance(editor, dict):
+                try:
+                    edit_time = datetime.datetime.fromisoformat(edited.replace('Z', '+00:00'))
+                    submit_time = datetime.datetime.fromisoformat(review['submitted_at'].replace('Z', '+00:00'))
+                    # Eigene Entwurfskorrekturen vor dem ersten Absenden sind
+                    # zulässig. Nachträgliche oder fremde Bearbeitungen nicht.
+                    unchanged = (edit_time.tzinfo is not None and submit_time.tzinfo is not None
+                                 and edit_time <= submit_time
+                                 and editor.get('databaseId') == review['user']['id']
+                                 and editor.get('login') == review['user']['login'])
+                except (ValueError, TypeError, AttributeError):
+                    unchanged = False
+            if (response.get('errors') or node.get('id') != node_id
+                    or not unchanged
+                    or node.get('body') != review.get('body') or node.get('state') != review['state']
+                    or author.get('databaseId') != review['user']['id']
+                    or author.get('login') != review['user']['login']
+                    or (node.get('commit') or {}).get('oid') != review['commit_id']
+                    or pull.get('number') != key[0]
+                    or repository.get('databaseId') != self.info['id']
+                    or str(repository.get('nameWithOwner', '')).casefold() != self.repository.casefold()):
+                raise ValueError('Review bearbeitet oder Herkunft nicht eindeutig verifiziert; neuen Review abgeben')
+            def unique(pairs):
+                value = dict(pairs)
+                if len(value) != len(pairs):
+                    raise ValueError('Mehrdeutiger Reviewtext')
+                return value
+            try:
+                body = json.loads(review.get('body') or '', object_pairs_hook=unique)
+            except (ValueError, TypeError):
+                raise ValueError('Review enthält keinen ausdrücklichen GhostWriter-Nachweis') from None
+            if not isinstance(body, dict):
+                raise ValueError('Review enthält keinen gültigen GhostWriter-Nachweis')
+            self.cache[key] = (review, body)
+        return self.cache[key]
+
+    def authorize(self, user, delegation=None, book_branch=None):
+        if not self.person(user):
+            raise ValueError('Persönliches GitHub-Konto erforderlich; Bot oder unbekanntes Konto gesperrt')
+        if self.owner(user):
+            return user['login']
+        if not isinstance(book_branch, str) or not book_branch:
+            raise ValueError('Buchzuordnung der Bevollmächtigung fehlt')
+        review, body = self.review(delegation)
+        expected = {'ghostwriter_delegation': 1, 'repository_id': self.info['id'],
+                    'delegate_id': user['id'], 'delegate_login': user['login'], 'book_branch': book_branch, 'permission': 'approve'}
+        if json.dumps(body, sort_keys=True) != json.dumps(expected, sort_keys=True) or not self.owner(review['user']):
+            raise ValueError('Keine ausdrückliche, gültige Freigabeberechtigung des Eigentümers')
+        return user['login']
+
+    def confirmation(self, receipt, payload):
+        review, body = self.review(receipt)
+        if json.dumps(body, sort_keys=True) != json.dumps(payload, sort_keys=True):
+            raise ValueError('Freigabenachweis passt nicht zu Buch, Inhalt oder Auflage')
+        login = self.authorize(review['user'], receipt.get('delegation'), payload['book_branch'])
+        return {'by': login, 'user_id': review['user']['id'], 'commit': review['commit_id'],
+                'pull_request': receipt['pull_request'], 'review_id': receipt['review_id']}
+# END GENERATED REVIEW AUTHORITY
+
+_WRITE_TOKEN = contextvars.ContextVar("ghostwriter_personal_write_token", default="")
+_WRITE_USER = contextvars.ContextVar("ghostwriter_personal_write_user", default=None)
+
 class Tools:
+    class UserValves(BaseModel):
+        GITHUB_TOKEN: str = Field(default="", description="Persönlicher GitHub-Token für Schreibvorgänge; gemeinsamer Werkzeug-Token erlaubt nur Lesen.")
+
     class Valves(BaseModel):
         GITHUB_TOKEN: str = Field(
-            default="", description="GitHub-Token; niemals als Tool-Argument übergeben.",
+            default="", description="Gemeinsamer Token nur zum Lesen; GitHub-Token; niemals als Tool-Argument übergeben.",
             json_schema_extra={"input": {"type": "password"}},
         )
         ALLOWED_REPOS: str = Field(default="", description="Erlaubte owner/repo, durch Komma getrennt. Leer sperrt alle Zugriffe.")
@@ -543,13 +691,18 @@ class Tools:
         return quote(path, safe="/")
 
     def _http(self, trace, method, path, params=None, data=None, expected=(200,)):
-        if not self.valves.GITHUB_TOKEN:
+        token = _WRITE_TOKEN.get() or self.valves.GITHUB_TOKEN
+        if not token:
             raise ValueError("GITHUB_TOKEN im Valve fehlt.")
+        if method != "GET":
+            encoded = json.dumps(data, ensure_ascii=False)
+            if any(secret and secret in encoded for secret in (self.valves.GITHUB_TOKEN, _WRITE_TOKEN.get())):
+                raise ValueError("Zugangsdaten dürfen nicht an GitHub-Inhalte übertragen werden.")
         start = time.monotonic()
         try:
             r = requests.request(
                 method, "https://api.github.com" + path,
-                headers={"Authorization": "Bearer " + self.valves.GITHUB_TOKEN,
+                headers={"Authorization": "Bearer " + token,
                          "Accept": "application/vnd.github+json"},
                 params=params, json=data, timeout=self.valves.TIMEOUT,
                 allow_redirects=False,
@@ -593,7 +746,91 @@ class Tools:
         output = json.dumps(payload, ensure_ascii=False)
         if self.valves.GITHUB_TOKEN:
             output = output.replace(self.valves.GITHUB_TOKEN, "[TOKEN ENTFERNT]")
+        if _WRITE_TOKEN.get():
+            output = output.replace(_WRITE_TOKEN.get(), "[TOKEN ENTFERNT]")
         return output
+
+    async def _write_run(self, repo, operation, user):
+        """Persönliches Token aus Open WebUI, niemals aus Modellargumenten."""
+        valves = (user or {}).get("valves")
+        token = valves.get("GITHUB_TOKEN", "") if isinstance(valves, dict) else getattr(valves, "GITHUB_TOKEN", "")
+        if not isinstance(token, str) or not token.strip():
+            return json.dumps({"ok": False, "error": "Schreiben gesperrt: persönlichen GitHub-Token in den Benutzereinstellungen hinterlegen."}, ensure_ascii=False)
+        token = token.strip()
+        shared = self.valves.GITHUB_TOKEN.strip()
+        if shared and hmac.compare_digest(token.encode('utf-8'), shared.encode('utf-8')):
+            return json.dumps({"ok": False, "error": "Schreiben gesperrt: gemeinsamer Werkzeug-Token ist kein persönlicher Schreibzugang."}, ensure_ascii=False)
+        token_context = _WRITE_TOKEN.set(token)
+        user_context = _WRITE_USER.set(None)
+        try:
+            def checked(trace):
+                self._repo(repo)
+                principal = self._http(trace, "GET", "/user")
+                if not ReviewAuthority.person(principal):
+                    raise ValueError("Schreiben gesperrt: persönliches GitHub-Konto nicht verifiziert.")
+                _WRITE_USER.set(principal)
+                return operation(trace)
+            return await self._run(checked)
+        finally:
+            _WRITE_USER.reset(user_context)
+            _WRITE_TOKEN.reset(token_context)
+
+    @staticmethod
+    def _privileged_state(path, text):
+        text = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+        if path == "approvals.yml":
+            return yaml.safe_load(text) or {}
+        if path == "ghostwriter.yml":
+            data = yaml.safe_load(text) or {}
+            return {"edition": (data.get("project") or {}).get("current_edition"),
+                    "rules": data.get("rules"), "policy": data.get("ai_settings"),
+                    "workflow": {k: v for k, v in (data.get("workflow") or {}).items() if k.startswith("require_")},
+                    "chapters": sorted(c.get("id", "") for c in (data.get("structure") or {}).get("chapters", []) if c.get("status") == "approved")}
+        if path.endswith(".md") and path.startswith(("chapters/", "matter/")):
+            match = re.match(r"\A---\n(.*?)\n---(?:\n|$)", text, re.S)
+            data = yaml.safe_load(match[1]) if match else {}
+            return {"approved": (data or {}).get("status") == "approved", "approvals": {k: bool(((data or {}).get("approvals") or {}).get(k)) for k in ("writing", "section")}}
+        if path.endswith((".yml", ".yaml")) and path.startswith(("images/", "reference-images/", "series/")):
+            data = yaml.safe_load(text) or {}
+            return {"approved": data.get("status") == "approved", "edition": data.get("current_edition")}
+        return None
+
+    def _guard_approval_changes(self, trace, repo, head, entries, branch=None):
+        # Nur relevante Dateien nachlesen, stets vom zuvor geprüften Commit.
+        candidates = [e for e in entries if e["path"] in ("approvals.yml", "ghostwriter.yml")
+                      or (e["path"].endswith((".md", ".yml", ".yaml")) and e["path"].startswith(("chapters/", "matter/", "images/", "reference-images/", "series/")))]
+        changed = False
+        for item in candidates:
+            old = self._read_utf8(trace, repo, item["path"], head, missing_ok=True)
+            before = old.get("content") if old else None
+            before_state = self._privileged_state(item["path"], before)
+            after_state = self._privileged_state(item["path"], item["content"])
+            if (item["path"].endswith(".md") and isinstance(before_state, dict)
+                    and before_state.get("approved") and after_state.get("approved")
+                    and before != item["content"]):
+                raise ValueError("Nicht gespeichert: abgeschlossenen Text zuerst wieder öffnen.")
+            if before_state != after_state:
+                changed = True
+        if changed:
+            data = self._read_utf8(trace, repo, "approvals.yml", head, missing_ok=True)
+            log = yaml.safe_load(data.get("content") or "") or {} if data else {}
+            delegation = (log.get("authority") or {}).get("delegation")
+            for item in entries:
+                if item["path"] == "approvals.yml":
+                    proposed = yaml.safe_load(item["content"] or "") or {}
+                    delegation = (proposed.get("authority") or {}).get("delegation") or delegation
+            checker = ReviewAuthority(lambda path, data=None: self._http(trace, "POST" if data is not None else "GET", path, data=data), repo)
+            login = checker.authorize(_WRITE_USER.get(), delegation, branch[len("ghostwriter/"):] if branch and branch.startswith("ghostwriter/") else branch)
+            for item in entries:
+                if item["path"] != "approvals.yml":
+                    continue
+                updated = yaml.safe_load(item["content"] or "") or {}
+                previous_entries = log.get("entries") or []
+                new_entries = updated.get("entries") or []
+                if new_entries[:len(previous_entries)] != previous_entries:
+                    raise ValueError("Freigabeprotokoll darf nur ergänzt, nicht umgeschrieben werden.")
+                if any(str(e.get("by", "")).casefold() != login.casefold() for e in new_entries[len(previous_entries):]):
+                    raise ValueError("Freigabename muss dem verifizierten persönlichen Konto entsprechen.")
 
     def _read_utf8(self, trace, repo, path, branch=None, max_bytes=None, missing_ok=False):
         d = self._http(trace, "GET", self._repo(repo)+"/contents/"+self._path(path),
@@ -754,13 +991,13 @@ class Tools:
         """Liest die aktuelle Head-SHA. Vor Änderungen als expected_head_sha merken."""
         return await self._run(lambda t: self._http(t, "GET", self._repo(repo)+"/git/ref/heads/"+quote(branch, safe="/")))
 
-    async def create_branch(self, repo: str, new_branch_name: str, source_branch: str) -> str:
+    async def create_branch(self, repo: str, new_branch_name: str, source_branch: str, __user__: Optional[dict] = None) -> str:
         """Legt einen Branch an. Buch-Branches nie mit dem Standard-Branch zusammenführen."""
         def op(t):
             root = self._repo(repo)
             sha = self._http(t, "GET", root+"/git/ref/heads/"+quote(source_branch, safe="/"))["object"]["sha"]
             return self._http(t, "POST", root+"/git/refs", data={"ref": "refs/heads/"+new_branch_name, "sha": sha}, expected=(201,))
-        return await self._run(op)
+        return await self._write_run(repo, op, __user__)
 
     async def compare_commits(self, repo: str, base_sha: str, head_sha: str) -> str:
         """Vergleicht Stände. Bei 300 Dateien ist die GitHub-Dateiliste möglicherweise unvollständig: neu lesen und nicht blind schreiben."""
@@ -771,7 +1008,7 @@ class Tools:
                     "files": [{k: f.get(k) for k in ("filename", "previous_filename", "status", "patch")} for f in files]}
         return await self._run(op)
 
-    async def commit_files(self, repo: str, branch: str, files_json: str, commit_message: str, expected_head_sha: str) -> str:
+    async def commit_files(self, repo: str, branch: str, files_json: str, commit_message: str, expected_head_sha: str, __user__: Optional[dict] = None) -> str:
         """Speichert alle Dateien einer Aufgabe in GENAU EINEM Commit. Keine Einzelschreibaufrufe. Nur nach erforderlicher Benutzerfreigabe verwenden. Bei neuer Head-SHA abbrechen und neu lesen.
         :param files_json: JSON-Liste: [{"path":"datei.md","content":"vollständiger UTF-8-Text"}]. content:null löscht eine Datei.
         :param branch: Normalerweise ghostwriter/<buch-branch>; neuer Buch-Branch nur beim ausdrücklich beauftragten Anlegen.
@@ -792,9 +1029,9 @@ class Tools:
                 text = item["content"]
                 if text is not None and (not isinstance(text, str) or len(text.encode("utf-8")) > self.valves.MAX_FILE_BYTES):
                     raise ValueError("Dateiinhalt ungültig oder zu groß.")
-                if isinstance(text, str) and self.valves.GITHUB_TOKEN in text:
+                if isinstance(text, str) and any(token and token in text for token in (self.valves.GITHUB_TOKEN, _WRITE_TOKEN.get())):
                     raise ValueError("Token darf nicht gespeichert werden.")
-            if self.valves.GITHUB_TOKEN and self.valves.GITHUB_TOKEN in commit_message:
+            if any(token and token in commit_message for token in (self.valves.GITHUB_TOKEN, _WRITE_TOKEN.get())):
                 raise ValueError("Token darf nicht in der Commit-Nachricht stehen.")
             if not re.fullmatch(r"[0-9a-fA-F]{40}", expected_head_sha) or not commit_message.strip():
                 raise ValueError("Vollständige expected_head_sha und Commit-Nachricht erforderlich.")
@@ -802,6 +1039,7 @@ class Tools:
             head = self._http(t, "GET", ref)["object"]["sha"]
             if head != expected_head_sha:
                 raise ValueError("Nicht gespeichert: Branch wurde inzwischen geändert. Neu lesen und abgleichen.")
+            self._guard_approval_changes(t, repo, head, entries, branch)
             commit = self._http(t, "GET", root+"/git/commits/"+head)
             tree = []
             for item in entries:
@@ -819,7 +1057,7 @@ class Tools:
                 raise ValueError("Nicht gespeichert: Branch inzwischen geändert; vorbereiteter Commit nicht veröffentlicht.")
             self._http(t, "PATCH", root+"/git/refs/heads/"+quote(branch, safe="/"), data={"sha": new_commit["sha"], "force": False})
             return {"changed": True, "sha": new_commit["sha"], "branch": branch, "message": "Gespeichert; PR/Übernahme separat prüfen."}
-        return await self._run(op)
+        return await self._write_run(repo, op, __user__)
 
     async def list_pull_requests(self, repo: str, state: str = "open") -> str:
         """Listet Pull Requests mit Head- und Ziel-Branch; passenden GhostWriter-PR exakt zuordnen."""
@@ -831,20 +1069,41 @@ class Tools:
         """Liest PR-Zustand, Head, Ziel und Merge-Status."""
         return await self._run(lambda t: self._http(t, "GET", self._repo(repo)+f"/pulls/{pull_number}"))
 
-    async def create_pull_request(self, repo: str, title: str, head_branch: str, base_branch: str, body: str = "") -> str:
+    async def create_pull_request(self, repo: str, title: str, head_branch: str, base_branch: str, body: str = "", __user__: Optional[dict] = None) -> str:
         """Erstellt PR. Für Buchänderungen Titel GhostWriter: offene Änderungen und Ziel Buch-Branch verwenden."""
-        return await self._run(lambda t: self._http(t, "POST", self._repo(repo)+"/pulls", data={"title": title, "head": head_branch, "base": base_branch, "body": body}, expected=(201,)))
+        return await self._write_run(repo, lambda t: self._http(t, "POST", self._repo(repo)+"/pulls", data={"title": title, "head": head_branch, "base": base_branch, "body": body}, expected=(201,)), __user__)
 
-    async def merge_pull_request(self, repo: str, pull_number: int, expected_head_sha: str) -> str:
+    async def merge_pull_request(self, repo: str, pull_number: int, expected_head_sha: str, __user__: Optional[dict] = None) -> str:
         """Übernimmt PR mit Merge-Commit, nur nach ausdrücklicher Übernahmebestätigung oder geprüftem changes.auto_merge:true. Auflagen benötigen eigene Bestätigung. Kein Freigabeersatz."""
         def op(t):
-            d = self._http(t, "PUT", self._repo(repo)+f"/pulls/{pull_number}/merge", data={"sha": expected_head_sha, "merge_method": "merge"})
+            root = self._repo(repo)
+            pr = self._http(t, "GET", root+f"/pulls/{pull_number}")
+            if pr["head"]["sha"] != expected_head_sha:
+                raise ValueError("Nicht übernommen: Änderungspaket inzwischen geändert.")
+            base_sha = pr["base"]["sha"]
+            compared = self._http(t, "GET", root+"/compare/"+base_sha+"..."+expected_head_sha)
+            files = compared.get("files")
+            if not isinstance(files, list) or len(files) >= 300:
+                raise ValueError("Nicht übernommen: Änderungsumfang nicht vollständig prüfbar.")
+            entries = []
+            for item in files:
+                path = item["filename"]
+                relevant = lambda p: p in ("approvals.yml", "ghostwriter.yml") or (p.endswith((".md", ".yml", ".yaml")) and p.startswith(("chapters/", "matter/", "images/", "reference-images/", "series/")))
+                if item.get("status") == "renamed" and relevant(item["previous_filename"]):
+                    entries.append({"path": item["previous_filename"], "content": None})
+                if relevant(path):
+                    content = None if item.get("status") == "removed" else self._read_utf8(t, repo, path, expected_head_sha)["content"]
+                    entries.append({"path": path, "content": content})
+            self._guard_approval_changes(t, repo, base_sha, entries, pr["base"]["ref"])
+            if self._http(t, "GET", root+"/git/ref/heads/"+quote(pr["base"]["ref"], safe="/"))["object"]["sha"] != base_sha:
+                raise ValueError("Nicht übernommen: Buchstand inzwischen geändert.")
+            d = self._http(t, "PUT", root+f"/pulls/{pull_number}/merge", data={"sha": expected_head_sha, "merge_method": "merge"})
             if not d.get("merged"):
                 raise ValueError("Pull Request wurde nicht übernommen.")
             return d
-        return await self._run(op)
+        return await self._write_run(repo, op, __user__)
 
-    async def delete_merged_work_branch(self, repo: str, pull_number: int, expected_head_sha: str) -> str:
+    async def delete_merged_work_branch(self, repo: str, pull_number: int, expected_head_sha: str, __user__: Optional[dict] = None) -> str:
         """Löscht ausschließlich den unveränderten ghostwriter/*-Branch eines bereits gemergten PR. Nie Buch-Branches löschen."""
         def op(t):
             root = self._repo(repo)
@@ -857,7 +1116,7 @@ class Tools:
                 raise ValueError("Arbeits-Branch hat neue Änderungen; nicht gelöscht.")
             self._http(t, "DELETE", root+"/git/refs/heads/"+quote(branch, safe="/"), expected=(204,))
             return {"deleted": branch}
-        return await self._run(op)
+        return await self._write_run(repo, op, __user__)
 
     async def list_commits(self, repo: str, branch: str, per_page: int = 5) -> str:
         """Liest die letzten 1–100 Commits mit SHA und Nachricht."""
@@ -870,13 +1129,13 @@ class Tools:
         """Listet Issues ohne Pull Requests. Programmfehler im upstream.repo suchen."""
         return await self._run(lambda t: [{"number": i["number"], "title": i["title"], "state": i["state"]} for i in self._pages(t, self._repo(repo)+"/issues", {"state": state}) if "pull_request" not in i])
 
-    async def create_pr_review(self, repo: str, pull_number: int, body: str, event: str = "COMMENT") -> str:
-        """Erstellt nur auf Benutzerauftrag ein GitHub-Review; keine redaktionelle Buchfreigabe."""
+    async def create_pr_review(self, repo: str, pull_number: int, body: str, event: str = "COMMENT", __user__: Optional[dict] = None) -> str:
+        """Nur auf ausdrücklichen Benutzerauftrag einen GitHub-Review abgeben. Normale Reviews ersetzen keine Buchfreigabe. Für persönliche Inhaltsnachweise den vollständigen vorbereiteten JSON-Text verwenden; Speicherung allein bestätigt den Nachweis nicht."""
         def op(t):
             if event not in ("COMMENT", "APPROVE", "REQUEST_CHANGES"):
                 raise ValueError("Ungültiges Review-Ereignis.")
             return self._http(t, "POST", self._repo(repo)+f"/pulls/{pull_number}/reviews", data={"body": body, "event": event}, expected=(200, 201))
-        return await self._run(op)
+        return await self._write_run(repo, op, __user__)
 
     async def list_workflow_runs(self, repo: str, branch: str) -> str:
         """Liest die letzten 30 GitHub-Actions-Läufe eines Buch- oder Arbeits-Branchs."""
@@ -885,18 +1144,23 @@ class Tools:
             return [{k: r.get(k) for k in ("id", "name", "status", "conclusion", "html_url", "head_sha")} for r in d["workflow_runs"]]
         return await self._run(op)
 
-    async def dispatch_workflow(self, repo: str, workflow_file: str, branch: str, inputs_json: str = "{}") -> str:
+    async def dispatch_workflow(self, repo: str, workflow_file: str, branch: str, inputs_json: str = "{}", __user__: Optional[dict] = None) -> str:
         """Startet einen Workflow nur auf ausdrücklichen Auftrag und mit aktiviertem Valve. Niemals die Umwandlung Einzelbuch→Bibliothek starten; dafür GitHub verwenden."""
         def op(t):
             if not self.valves.ALLOW_WORKFLOW_DISPATCH:
                 raise ValueError("Workflow-Start im Valve deaktiviert.")
-            if workflow_file not in ("proof.yml", "manuscript.yml", "index.yml", "library.yml"):
-                raise ValueError("Nur proof.yml, manuscript.yml, index.yml und library.yml sind hier freigegeben. Veröffentlichung/Umwandlung bitte in GitHub starten.")
+            if workflow_file not in ("proof.yml", "manuscript.yml", "index.yml", "library.yml", "approval.yml"):
+                raise ValueError("Nur proof.yml, manuscript.yml, index.yml, library.yml und approval.yml sind hier freigegeben. Veröffentlichung/Umwandlung bitte in GitHub starten.")
             inputs = json.loads(inputs_json)
             if not isinstance(inputs, dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in inputs.items()):
                 raise ValueError("inputs_json muss ein Objekt mit Zeichenketten sein.")
-            if workflow_file not in ("proof.yml", "manuscript.yml") and inputs:
+            if workflow_file not in ("proof.yml", "manuscript.yml", "approval.yml") and inputs:
                 raise ValueError("Dieser Workflow hat keine Eingabefelder.")
+            if workflow_file == "approval.yml":
+                if (set(inputs) - {"action", "edition", "omnibus"} or not re.fullmatch(r"[1-9][0-9]*", inputs.get("edition", ""))
+                        or inputs.get("action", "prepare") not in ("prepare", "check")
+                        or (inputs.get("omnibus") and not re.fullmatch(r"ser-[a-z0-9-]+", inputs["omnibus"]))):
+                    raise ValueError("Inhaltsnachweis: positive edition und optional omnibus (ser-...) erforderlich.")
             if workflow_file == "proof.yml" and (set(inputs)-{"formats"} or any(f.strip() not in {"pdf", "pdf_print", "booklet", "cover", "docx", "epub"} for f in inputs.get("formats", "pdf").split(","))):
                 raise ValueError("Ungültige Probedruck-Formate.")
             if workflow_file == "manuscript.yml":
@@ -910,4 +1174,4 @@ class Tools:
                     raise ValueError("Lesefassung (format md): chapter ist ein Kapitel (5) oder Abschnitt (5.1), nie das ganze Buch.")
             self._http(t, "POST", self._repo(repo)+"/actions/workflows/"+workflow_file+"/dispatches", data={"ref": branch, "inputs": inputs}, expected=(204,))
             return {"accepted": True, "message": "Start angefordert; Erfolg mit list_workflow_runs prüfen.", "workflow": workflow_file, "branch": branch}
-        return await self._run(op)
+        return await self._write_run(repo, op, __user__)

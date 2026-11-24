@@ -27,6 +27,11 @@
       "enum": ["einfach", "erweitert"],
       "description": "Antwortmodus als Standard (#330): einfach = Alltagssprache, erweitert = mit technischen Details; fehlt = einfach. „Erweiterte Antworten an/aus“ im Chat geht vor."
     },
+    "answer_backup": {
+      "type": "string",
+      "enum": ["vor_antwort", "hintergrund"],
+      "description": "Sicherung jeder Abschnittsantwort (#487): vor_antwort = erst sichern, dann nächste Frage (Vorgabe); hintergrund = im Hintergrund sichern, nächste Frage sofort, Quittung bei der nächsten Antwort prüfen. Nur in Clients mit Shell."
+    },
     "repo": {
       "type": "string",
       "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",

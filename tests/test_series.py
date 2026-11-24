@@ -1,4 +1,6 @@
 """Serien (#116, Stufe 1): anlegen, Bände, Regeln, library.json, Ansichten – Testserie „Strolchi und Opi“."""
+from tests.authority_helpers import fake_github
+
 import json
 import re
 import subprocess
@@ -179,6 +181,24 @@ class SharedBase(unittest.TestCase):
 
 
 class SharedTest(SharedBase):
+
+    def test_personal_evidence_survives_work_to_book_branch_for_series_volume(self):
+        import approval_authority
+        from render_view import load
+        _, config = load(self.d)
+        self.assertEqual(config['_series']['volume'], 1)
+        self.g('checkout', '-q', '-b', 'ghostwriter/buch/eins')
+        _, work = load(self.d)
+        self.assertEqual(work['_series'], config['_series'])
+        fake_github(self, self.d, edition=1)
+        self.assertEqual(approval_authority.verify(self.d, 1)['by'], 'ploeffler')
+        self.g('add', 'approvals.yml')
+        self.g('commit', '-qm', 'Persönlicher Nachweis')
+        current = self.g('rev-parse', 'HEAD').strip()
+        self.g('branch', '-f', 'buch/eins', current)
+        self.g('checkout', '-q', 'buch/eins')
+        self.assertEqual(approval_authority.verify(self.d, 1)['by'], 'ploeffler')
+
     """Stufe 2: gemeinsame Figuren und Begriffe, Kopie je Band, Kontinuität."""
 
     def test_series_character_in_book(self):
@@ -275,6 +295,7 @@ class EditionTest(SharedBase):
         from test_matter import set_part
         set_part(self.d, 'glossary')   # Freigabe mit Inhaltsprüfsumme im Protokoll (#174)
         out = Path(self.tmp.name, 'out')
+        fake_github(self, self.d, edition=1)
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/build_edition.py'), str(self.d), '--edition', '1',
                             '--out', str(out), '--formats', 'pdf,epub'], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
@@ -316,8 +337,12 @@ class OmnibusTest(SharedBase):
         self.assertEqual([v['branch'] for v in om['volumes']], ['buch/eins', 'buch/zwei'])   # Bandreihenfolge
         self.assertEqual(om['status'], 'draft')
         self.assertEqual(series.problems(self.main), [])
-        run = lambda *a: subprocess.run([sys.executable, str(ROOT / 'scripts/build_omnibus.py'), str(self.main),
-                                         'ser-strolchi-und-opi', *a], capture_output=True, text=True)
+        fake_github(self, self.main, seal=False)
+        def run(*a):
+            edition = int(a[a.index('--edition') + 1]) if '--edition' in a else int(series.omnibus(self.main, 'ser-strolchi-und-opi').get('current_edition') or 0)
+            fake_github(self, self.main, edition=edition, purpose='omnibus:ser-strolchi-und-opi')
+            return subprocess.run([sys.executable, str(ROOT / 'scripts/build_omnibus.py'), str(self.main),
+                                   'ser-strolchi-und-opi', *a], capture_output=True, text=True)
         r = run('--edition', '1', '--out', str(Path(self.tmp.name, 'o')))
         self.assertEqual(r.returncode, 1)
         self.assertIn('nicht freigegeben', r.stdout)

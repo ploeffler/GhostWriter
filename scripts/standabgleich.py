@@ -7,7 +7,7 @@ nach einem Programmupdate kann dieser Stand veraltet sein. Das Skript hält den 
 
 - Buch: Buch-Branch und Commit (neuere Fassung, Branch verschwunden oder umgeschrieben)
 - Arbeit: Arbeitsbranch und Commit (neuere Fassung, übernommen, auseinandergelaufen)
-- Programm: Programmversion und eingespielter Upstream-Commit (`.ghostwriter/update.yml`)
+- Programm: Programmversion, eingespielter Upstream-Commit und Fingerabdruck der Programmdateien
 - Anweisungen: START.md, CLAUDE.md, AGENTS.md, allgemeine Skills, docs/start/ (geladene Fassung veraltet)
 - Profil: assistant.yml (persönlicher Skill veraltet)
 - Abgeleitet: Übersichtsdatei (ghostwriter-index.json) und, im Zusammenfassungsmodus, Buch- und
@@ -41,10 +41,12 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from handover import git, repo_name, resolve, show  # noqa: E402
+from library import work_branch  # noqa: E402
 
 FORMAT = 1
-INSTRUCTIONS = ('START.md', 'CLAUDE.md', 'AGENTS.md', '.claude/skills/ghostwriter', '.claude/skills/ghostwriter-lektorat',
-                '.claude/skills/ghostwriter-buchgedaechtnis', 'docs/start')
+INSTRUCTIONS = ('START.md', 'CLAUDE.md', 'AGENTS.md', '.claude/skills', 'docs/start', 'ghostwriter-skills.yml')
+PROGRAM_FILES = ('scripts', 'schemas', 'integrations', 'templates', 'assets', '.github/workflows', 'workflow.yml',
+                 'providers.yml', 'ghostwriter-manifest.yml')
 UPDATE_STATE = '.ghostwriter/update.yml'
 NOT_CHECKED = ['Inhalte dieses Chats und nicht gesendete Eingaben', 'Zwischenspeicher oder Suchindex einer Verbindung',
                'Stand anderer Apps, solange dort nichts gespeichert ist']
@@ -67,6 +69,17 @@ def blob_hash(base, ref, path):
     return hashlib.sha256(text.encode('utf-8')).hexdigest() if text is not None else None
 
 
+def work_candidate(base, book, program_ref):
+    """Nur beobachteter Branch; ohne bestätigten offenen PR keine neue Lesebasis."""
+    for prefix in ('refs/remotes/origin/', 'refs/heads/', 'origin/'):
+        if book.startswith(prefix):
+            book = book[len(prefix):]
+            break
+    manifest = yaml.safe_load(show(base, program_ref, 'ghostwriter-manifest.yml') or '') or {}
+    branch = work_branch(book, manifest)
+    return {'branch': branch, 'head': resolve(base, branch)}
+
+
 def collect(base, book, work=None, program_ref=None, repo=None):
     """Gelesenen Stand festhalten. Programm, Anweisungen und Profil liegen in einer Bibliothek auf dem
     Standard-Branch, im Einzelbuch auf dem Buch-Branch selbst."""
@@ -84,7 +97,9 @@ def collect(base, book, work=None, program_ref=None, repo=None):
     return {'format': FORMAT, 'repo': repo or repo_name(base),
             'book': {'branch': book, 'head': book_head},
             'work': {'branch': work, 'head': work_head} if work else None,
-            'program': {'ref': program_ref, 'version': prog['version'], 'upstream_commit': prog['upstream_commit']},
+            'work_watch': work_candidate(base, book, program_ref) if not work else None,
+            'program': {'ref': program_ref, 'version': prog['version'],
+                        'upstream_commit': prog['upstream_commit'], 'content': prog['content']},
             'instructions': prog['instructions'], 'profile': prog['profile'],
             'data': {'book': config.get('data_version', 0), 'supported': prog['supported']}}
 
@@ -119,9 +134,16 @@ def compare(base, old):
         out.append(('Buch', 'konflikt', f'{book["branch"]} wurde umgeschrieben oder der gelesene Commit '
                                         f'{book["head"][:7]} ist unbekannt'))
     work = old.get('work')
+    current = head
     if work:
         whead = resolve(base, work['branch'])
-        if whead == work['head']:
+        current = whead or head
+        if (whead and head and known(base, work['head'])
+                and is_ancestor(base, work['head'], whead) and is_ancestor(base, whead, head)):
+            current = head
+            out.append(('Arbeit', 'neuer', f'{work["branch"]} ist ins Buch übernommen; '
+                        'ab jetzt vom Buch-Branch lesen (Arbeitsbranch existiert noch)'))
+        elif whead == work['head']:
             out.append(('Arbeit', 'ok', f'{work["branch"]} unverändert ({whead[:7]})'))
         elif not whead:
             if head and known(base, work['head']) and is_ancestor(base, work['head'], head):
@@ -133,22 +155,30 @@ def compare(base, old):
                                            'z. B. aus einer anderen App; erst neu lesen'))
         else:
             out.append(('Arbeit', 'konflikt', f'{work["branch"]} ist auseinandergelaufen; nicht schreiben, Unterschied zeigen'))
+    else:
+        candidate = work_candidate(base, book['branch'], old['program']['ref'])
+        watched = old.get('work_watch') or {}
+        if (candidate['head'] and candidate['head'] != head
+                and (candidate['branch'], candidate['head']) != (watched.get('branch'), watched.get('head'))):
+            out.append(('Arbeit', 'neuer', f'{candidate["branch"]} neu oder geändert; '
+                        'Zuordnung und offenen Pull Request prüfen, vor dem Schreiben neu lesen'))
     now = collect_program(base, old['program']['ref'])
     if now is None:
         out.append(('Programm', 'konflikt', f'Programmstand {old["program"]["ref"]} nicht gefunden'))
         return out
     prog_old = old['program']
-    if (now['version'], now['upstream_commit']) == (prog_old['version'], prog_old['upstream_commit']):
+    if (now['version'], now['upstream_commit'], now['content']) == (
+            prog_old['version'], prog_old['upstream_commit'], prog_old.get('content')):
         out.append(('Programm', 'ok', f'GhostWriter {now["version"] or "?"}'))
     else:
-        out.append(('Programm', 'neuer', f'Programm aktualisiert: {prog_old["version"] or "?"} → {now["version"] or "?"}'))
+        out.append(('Programm', 'neuer', 'Programmstand geändert oder bisheriger Dateifingerabdruck fehlt; '
+                    f'vor dem Schreiben neu lesen (GhostWriter {now["version"] or "?"})'))
     out.append(('Anweisungen', 'ok', 'geladene Anweisungen aktuell') if now['instructions'] == old['instructions'] else
                ('Anweisungen', 'neuer', 'START.md, CLAUDE.md oder Skills geändert; vor der nächsten Aufgabe neu laden'))
     if now['profile'] == old['profile']:
         out.append(('Profil', 'ok', 'assistant.yml unverändert' if now['profile'] else 'kein assistant.yml'))
     else:
         out.append(('Profil', 'neuer', 'assistant.yml geändert; persönlichen Skill neu lesen'))
-    current = (resolve(base, work['branch']) if work else None) or head
     config = (yaml.safe_load(show(base, current, 'ghostwriter.yml') or '') or {}) if current else {}
     have, can = config.get('data_version', 0) if current else old['data']['book'], now['supported']
     if can is not None and have > can:
@@ -174,6 +204,7 @@ def collect_program(base, ref):
     update = yaml.safe_load(show(base, prog, UPDATE_STATE) or '') or {}
     supported = yaml.safe_load(show(base, prog, 'schemas/data-version.yml') or '') or {}
     return {'version': manifest.get('version'), 'upstream_commit': update.get('commit'),
+            'content': tree_hash(base, prog, PROGRAM_FILES),
             'instructions': tree_hash(base, prog, INSTRUCTIONS), 'profile': blob_hash(base, prog, 'assistant.yml'),
             'supported': supported.get('data_version')}
 

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/job.schema.json",
+  "title": "Auftrag der Hintergrund-Warteschlange (request-NNN.yml, #476/#480)",
+  "description": "Recherche: <kapitel>/research/<abschnitt>/request-NNN.yml bzw. matter/research/<teil>/request-NNN.yml; Arten ohne Abschnitt: jobs/request-NNN.yml. Abgearbeitet von scripts/jobs.py (Action „Recherche“).",
+  "type": "object",
+  "properties": {
+    "type": {"enum": ["research", "analysis", "colorize", "import"], "description": "Art; fehlt = research. analysis, colorize, import folgen mit #479"},
+    "section_id": {"type": "string", "minLength": 1, "description": "Recherche: Abschnitt bzw. Teil von Vor-/Nachspann"},
+    "question": {"type": "string", "description": "Recherche: Fragestellung; fehlt = aus Ziel und Kurzbeschreibung"},
+    "requested_at": {"type": "string", "description": "Zeitpunkt des Einreihens (ISO 8601); Reihenfolge nach der Buchreihenfolge"},
+    "requested_by": {"type": "string", "description": "Herkunft, z. B. chat, web-app, workflow_dispatch oder ein Name"},
+    "provider": {"type": "string", "description": "Anbieter für diesen Auftrag; fehlt = Einstellung für die Art"},
+    "model": {"type": "string"},
+    "priority": {"type": "boolean", "description": "vorgezogen (#478): läuft vor allen anderen; die Buchreihenfolge gilt nur unter gleichem Rang"},
+    "after": {"type": "string", "description": "erst nach diesem Auftrag (Pfad im Buch oder Dateiname); wartet, bis er erledigt oder fehlgeschlagen ist. Ringe und fehlende Ziele werden ignoriert"},
+    "confirm_low_budget": {"type": "boolean", "description": "auch bei KI-Budget unter der Schwelle ausführen"},
+    "waiting": {"enum": ["budget"], "description": "wartet auf Bestätigung; mit confirm_low_budget: true läuft er wieder"},
+    "error": {"type": "string", "description": "fehlgeschlagen; läuft nicht erneut"},
+    "failed_at": {"type": "string"},
+    "analysis": {"type": "object", "description": "Felder der Art analysis (#479)"},
+    "colorize": {"type": "object", "description": "Felder der Art colorize (#479)"},
+    "import": {"type": "object", "description": "Felder der Art import (#479)"}
+  },
+  "allOf": [
+    {"if": {"properties": {"type": {"const": "research"}}}, "then": {"required": ["section_id"]}},
+    {"if": {"not": {"required": ["type"]}}, "then": {"required": ["section_id"]}}
+  ],
+  "additionalProperties": true
+}

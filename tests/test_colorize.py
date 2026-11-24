@@ -102,10 +102,49 @@ class LockTest(unittest.TestCase):
 
     def test_locks(self):
         self.check(None, 'bild.yml fehlt')
-        self.check('art: foto\nminderjaehrige: true\n', 'Kindern')
+        self.check('art: foto\nminderjaehrige: true\n', 'Ausnahme')
         self.check('art: foto\n', 'minderjaehrige: false')
         self.check('art: dokument\nminderjaehrige: false\n', 'Dokumente')
         self.check('minderjaehrige: false\n', 'Dokumente')
+
+    def test_minors_exception(self):
+        b = Book('art: foto\nminderjaehrige: true\nbearbeitung: []\n')
+        out = io.StringIO()
+        with mock.patch('sys.stdout', out):
+            colorize.main([str(b.base), 'quellen/bilder/x', '--check', '--minors-exception'])
+        self.assertIn('Ausnahme', out.getvalue())
+        for meta in ('art: foto\n', 'art: dokument\nminderjaehrige: true\n'):   # fehlende Angabe, Dokument
+            c = Book(meta)
+            with self.assertRaises(SystemExit):
+                colorize.main([str(c.base), 'quellen/bilder/x', '--check', '--minors-exception'])
+        with self.assertRaisesRegex(SystemExit, 'Einverständnis'):
+            colorize.colorize(b.base, 'quellen/bilder/x', minors_exception=True)
+        base = colorize.open_image(b.folder / 'aufbereitet.jpg')
+        colorize.colorize(b.base, 'quellen/bilder/x', proposal=b.proposal(tinted(base)), tool='Test',
+                          minors_exception=True)
+        meta = yaml.safe_load((b.folder / 'bild.yml').read_text(encoding='utf-8'))
+        self.assertTrue(meta['minderjaehrige'])                                     # Angabe bleibt
+        self.assertIn('Ausnahme: Minderjährige abgebildet', meta['bearbeitung'][-1])
+
+    def test_hint_only_with_gemini(self):
+        b = Book()
+        base = colorize.open_image(b.folder / 'aufbereitet.jpg')
+        with self.assertRaisesRegex(SystemExit, 'Farbhinweis'):
+            colorize.colorize(b.base, 'quellen/bilder/x', proposal=b.proposal(tinted(base)), hint='rot')
+        with self.assertRaisesRegex(SystemExit, 'zu lang'):
+            colorize.colorize(b.base, 'quellen/bilder/x', consent=True, key='k', hint='x' * 301)
+        self.assertEqual(colorize.prompt_for(None), colorize.PROMPT)
+        self.assertTrue(colorize.prompt_for('  Die Fahne\n ist rot-weiß-rot. ').endswith('Die Fahne ist rot-weiß-rot.'))
+
+    def test_front_side_source(self):
+        b = Book()
+        (b.folder / 'aufbereitet.jpg').rename(b.folder / 'aufbereitet-1.jpg')
+        base = colorize.open_image(b.folder / 'aufbereitet-1.jpg')
+        r = colorize.colorize(b.base, 'quellen/bilder/x', proposal=b.proposal(tinted(base)), tool='Test')
+        self.assertIn('L-Kanal aus aufbereitet-1.jpg', r['line'])
+        (b.folder / 'aufbereitet-1.jpg').unlink()
+        with self.assertRaisesRegex(SystemExit, 'aufbereitet-1.jpg'):
+            colorize.main([str(b.base), 'quellen/bilder/x', '--check'])
 
     def test_outside_book(self):
         b = Book()
@@ -163,12 +202,14 @@ class GeminiTest(unittest.TestCase):
                                                 encoding='utf-8')
         with mock.patch('urllib.request.urlopen', fake):
             r = colorize.colorize(b.base, 'quellen/bilder/x', consent=True, key='k',
-                                  now='2026-11-21T15:00:00+01:00')
+                                  now='2026-11-21T15:00:00+01:00', hint='Die Fahne ist rot-weiß-rot.')
         self.assertIn('/models/gemini-x-image:generateContent', seen['url'])
         self.assertEqual(seen['headers'].get('X-goog-api-key'), 'k')
         parts = seen['body']['contents'][0]['parts']
         self.assertEqual(parts[1]['inline_data']['mime_type'], 'image/jpeg')
+        self.assertTrue(parts[0]['text'].endswith(colorize.HINT_PREFIX + 'Die Fahne ist rot-weiß-rot.'))
         self.assertEqual(seen['body']['generationConfig']['responseModalities'], ['IMAGE'])
+        self.assertEqual(seen['body']['generationConfig']['imageConfig'], {'aspectRatio': '4:3'})
         self.assertEqual(r['model'], 'gemini-x-image')
         costs = yaml.safe_load((b.base / 'costs' / 'project.yml').read_text(encoding='utf-8'))
         entry = costs['entries'][0]
@@ -177,6 +218,20 @@ class GeminiTest(unittest.TestCase):
         self.assertEqual(entry['activity_id'], 'act-colorize-001')
         meta = yaml.safe_load((b.folder / 'bild.yml').read_text(encoding='utf-8'))
         self.assertIn('Google Gemini (gemini-x-image', meta['bearbeitung'][-1])
+        self.assertIn('Farbhinweis an das Modell: „Die Fahne ist rot-weiß-rot.“', meta['bearbeitung'][-1])
+
+    def test_padding_for_other_aspect(self):
+        img = gray(480, 260)                               # 1,85 : 1 wie ein Abzug mit Büttenrand
+        padded, name, box = colorize.pad_to_aspect(img)
+        self.assertEqual(name, '16:9')
+        self.assertEqual(padded.size, (480, 270))
+        self.assertEqual(box, (0, 5, 480, 260))
+        tinted_pad = tinted(padded, (1376, 774), red_box=False)   # Gemini liefert andere Größe, gleiches Format
+        back = colorize.crop_back(tinted_pad, padded.size, box)
+        self.assertEqual(back.size, img.size)
+        self.assertGreater(colorize.correlation(img.convert('RGB'), back), 0.9)
+        with self.assertRaisesRegex(SystemExit, 'Seitenverhältnis'):
+            colorize.crop_back(tinted(padded, (1408, 736)), padded.size, box)
 
     def test_no_image_and_model_default(self):
         b = Book()
@@ -205,14 +260,19 @@ class WorkflowTest(unittest.TestCase):
         data = yaml.safe_load((ROOT / '.github' / 'workflows' / 'colorize.yml').read_text(encoding='utf-8'))
         on = data.get('on', data.get(True))
         self.assertEqual(set(on), {'workflow_dispatch'})
-        self.assertEqual(set(on['workflow_dispatch']['inputs']), {'folder', 'consent', 'model', 'replace'})
-        self.assertEqual(data['permissions'], {'contents': 'write', 'pull-requests': 'write'})
+        self.assertEqual(set(on['workflow_dispatch']['inputs']),
+                         {'folder', 'consent', 'model', 'replace', 'hint', 'minors_exception'})
+        self.assertEqual(data['permissions'], {'contents': 'write', 'pull-requests': 'write', 'actions': 'write'})
         self.assertEqual(data['defaults']['run']['shell'], 'bash')
         text = (ROOT / '.github' / 'workflows' / 'colorize.yml').read_text(encoding='utf-8')
         self.assertIn('secrets.GEMINI_API_KEY', text)
-        self.assertIn('--check', text)
+        self.assertIn('--field "hint=$HINT"', text)                # Hinweis über env in den Auftrag (#479)
+        self.assertNotIn('${{ inputs.hint }}"', text)          # nur über env, nie direkt im Skript
         self.assertIn('GhostWriter: offene Änderungen', text)
-        self.assertIn('GhostWriter-Aktion: image.colorize', text)
+        # Ausführung seit #479 in der Hintergrund-Warteschlange (scripts/jobs.py)
+        jobs_src = (ROOT / 'scripts' / 'jobs.py').read_text(encoding='utf-8')
+        for needle in ("'--check'", "'--minors-exception'", "'--hint'", "'image.colorize'", 'consent'):
+            self.assertIn(needle, jobs_src)
 
 
 if __name__ == '__main__':

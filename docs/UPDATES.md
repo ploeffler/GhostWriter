@@ -1,5 +1,7 @@
 # GhostWriter-Updates
 
+Allgemeine Skills stammen aus [ghostwriter-skills](https://github.com/ploeffler/ghostwriter-skills). Ihre mitgelieferten Kopien und `ghostwriter-skills.yml` sind Programmdateien: Ein reguläres GhostWriter-Update verteilt die geprüfte festgelegte Fassung, ohne zur Laufzeit einen beweglichen Skill-Branch abzurufen. Persönliche Skills bleiben geschützt. Der optionale Buchteaser wird nicht automatisch installiert.
+
 Dein Buch-Repository bekommt neue GhostWriter-Versionen automatisch aus dem Hauptrepository. Du musst dafür nichts tun; diese Seite erklärt, was dabei passiert und was du einrichten kannst.
 
 ## Was passiert
@@ -28,7 +30,9 @@ Der tägliche Update-Lauf ergänzt die Actions-Zusammenfassung und veröffentlic
 
 ## Bibliothek: mehrere Bücher in einem Repository
 
-In einer Bibliothek (#36–#39) liegt auf dem Standard-Branch nur das Programm, jedes Buch auf einem eigenen Branch `buch/<slug>`. Die Action aktualisiert zuerst den Standard-Branch und danach jedes Buch einzeln; die Zusammenfassung zeigt eine Zeile je Buch. Welche Branches Bücher sind, entscheidet die Erkennungsregel in `scripts/library.py`: der Standard-Branch nur, wenn er Kapitel hat (Einzelbuch), jeder `buch/*`-Branch, sonst Branches mit Kapiteln. Arbeits-Branches (`ghostwriter/…`) und andere Branches werden nicht angefasst; offene Änderungen bekommen das Update mit dem nächsten „Buchänderungen übernehmen“. Ein Fehler in einem Buch hält die anderen nicht auf; für das betroffene Buch öffnet die Action ein Issue.
+In einer Bibliothek (#36–#39) liegt auf dem Standard-Branch nur das Programm, jedes Buch auf einem eigenen Branch `buch/<slug>`. Die Action aktualisiert zuerst den Standard-Branch und danach jedes Buch einzeln; die Zusammenfassung zeigt eine Zeile je Buch. Welche Branches Bücher sind, entscheidet die Erkennungsregel in `scripts/library.py`: der Standard-Branch nur, wenn er Kapitel hat (Einzelbuch), jeder `buch/*`-Branch, sonst Branches mit Kapiteln. Arbeits-Branches (`ghostwriter/…`) und andere Branches werden nicht selbst aktualisiert. Hat ein Buch ein **offenes Änderungspaket** (Arbeits-Branch `ghostwriter/<buch>` mit offenem Pull Request zum Buch), bekommt es direkt nach dem Buch dessen neuen Stand; Workflows und Prüfungen laufen dort dann mit dem neuen Programmstand (#470). Bei einem Konflikt bleibt das Änderungspaket unverändert, die Zusammenfassung nennt die Dateien (⚠️); nur eine Übersichtsdatei im Konflikt wird neu erzeugt. Geänderte Workflow-Dateien brauchen dafür `GHOSTWRITER_UPDATE_TOKEN`, sonst bleibt der Hinweis, im Pull Request „Update branch“ zu wählen. Arbeits-Branches ohne offenen Pull Request bleiben, wie sie sind; der Probelauf zeigt nur an. Ein Fehler in einem Buch hält die anderen nicht auf; für das betroffene Buch öffnet die Action ein Issue.
+
+**Hintergrund-Warteschlange prüfen (#481):** Am Ende jedes Update-Laufs, auch beim Start von Hand, sucht die Action auf allen Arbeits-Branches nach liegengebliebenen Aufträgen der Hintergrund-Warteschlange (etwa nach einem abgebrochenen Recherche-Lauf oder einem nachträglich bestätigten Auftrag) und startet je Buch die Abarbeitung („Recherche“ ohne Abschnitt). Das kostet keinen KI-Aufruf. Ist die Automatik pausiert, startet nichts; die Zusammenfassung nennt dann, wie viele Aufträge warten. Auch die Warteschlange startet sich dann nicht selbst neu; was übrig ist, bleibt liegen, bis du von Hand neu anstößt oder die Pause endet. Im Probelauf wird nur angezeigt. „GhostWriter aktualisieren“ von Hand ist damit auch der Weg, die Warteschlange anzustoßen. Seit #479 gilt das für alle vier Arten (Recherche, Analyse, Colorieren, Import); „Run workflow“ ohne Eingaben (Analyse ohne `kind`, Colorieren ohne `folder`, Import mit `step: queue`) legt keinen neuen Auftrag an, sondern arbeitet nur ab. Hinweis: GitHub schaltet Zeitpläne in öffentlichen Repositorys nach 60 Tagen ohne Aktivität ab; dann diesen Lauf einmal von Hand starten.
 
 ## Von v0.5 auf v0.6
 
@@ -45,6 +49,8 @@ Tags und Releases bleiben gültig; sie zeigen weiter auf ihre Commits. Neue Aufl
 **Rückweg:** Den Commit „In Bibliothek umgewandelt“ auf dem Standard-Branch rückgängig machen (auf GitHub: Commit öffnen → *Revert*, oder `git revert`), danach den Branch `buch/<kurztitel>` löschen, sofern dort seitdem nichts Neues geschrieben wurde; sonst diese Änderungen vorher auf den Standard-Branch übernehmen.
 
 Neue Pflichtfelder gibt es mit v0.6 nicht; die Datenversion bleibt 1 (`scripts/migrate_project.py`).
+
+**0.9.0:** Alle Einstellungen auf einen Blick mit Wert, Herkunft und Formular, auch für Bibliothek, Serie und Sammelband (#299). Das Update zieht offene Änderungspakete mit auf den neuen Stand (#470). Abschnittsdialog: Antworten schneller sichern (#314), wahlweise im Hintergrund (`answer_backup: hintergrund`, #487). Recherche mit Internet über den eingestellten Anbieter mit Kostenerfassung (#462), Recherche mit Hilfsagenten (#449), Rundumprüfung eines Kapitels (#447), Zeitleiste in Spalten (#450), „Als Figur sprechen“ (#464), Fotos colorieren (#452). Open WebUI schickt weniger an das Modell (#285). Bilder und Ablaufseiten sagen „abschließen“ (#295); Textfassungen ohne HTML-Reste (#498); Durchsichten nehmen eigene Angaben an. Die Prüfung im Pull Request ist deutlich schneller (#485). Kommt wie jedes Update; die Datenversion bleibt 1.
 
 **0.8.0:** Figurengespräch: im Chat mit einer Figur sprechen, Neues kommt nur auf Auswahl ins Figurenprofil (#432). Die Prüfung im Pull Request führt nur noch die betroffenen Tests aus (#439). Marktvergleich des v1.0-Umfangs (#429), Meilensteine v0.8 und v0.9 in der Roadmap (#436). Manuskriptimport und Analysen aus dem Ausblick für v0.8 waren schon in 0.7.0 enthalten; offen ist nur noch die Prüfung der Import-Hinweistexte in allen vier Chat-Umgebungen (#124). Kommt wie jedes Update; die Datenversion bleibt 1.
 
@@ -121,7 +127,7 @@ Gut zu wissen:
 
 `BUCHSTATUS.md` gehört zu den verwalteten GhostWriter-Dateien. Sobald die Änderung im Hauptrepository nach `main` übernommen ist, verteilt die tägliche Update-Action sie wie andere Programm- und Dokumentationsdateien auf bestehende Buch-Repositorys und deren Buch-Branches. Voraussetzung ist, dass die Update-Action im jeweiligen Repository eingerichtet und aktiviert ist; ein manueller Lauf ist jederzeit möglich (*Actions → GhostWriter aktualisieren → Run workflow*). Neue Repositorys aus der Vorlage enthalten die Datei bereits beim Anlegen.
 
-Die Datei wird beim Update aus dem Hauptrepository übernommen. Individuelle Buchinhalte und persönliche Branch-Zuordnungen gehören nicht hinein: Der Assistent prüft die Branch-Liste bei jedem Wiedereinstieg live. Das Update legt keine Branches an, verschiebt keine Manuskripte und merged keine Buch- oder Arbeits-Branches.
+Die Datei wird beim Update aus dem Hauptrepository übernommen. Individuelle Buchinhalte und persönliche Branch-Zuordnungen gehören nicht hinein: Der Assistent prüft die Branch-Liste bei jedem Wiedereinstieg live. Das Update legt keine Branches an, verschiebt keine Manuskripte und merged keine Buch-Branches; offene Änderungspakete bekommen nur den Stand ihres Buchs (siehe oben).
 
 ## Ein- und ausschalten
 
@@ -209,6 +215,29 @@ Der Token gehört wie jeder Schlüssel nie in den Chat oder in eine Datei (siehe
 - `tests/` gehört nicht zu `managed` und wird nicht verteilt. Tests und Testbücher (`tests/fixtures/`) prüft `validate.yml` deshalb nur im Hauptrepository; in Buch-Repositorys prüft sie nur das Buch selbst.
 - Im Hauptrepository installiert `validate.yml` vor den Tests die Satzpakete (pandoc, XeLaTeX, poppler-utils – dieselben wie Probedruck, Auflage und Sammelband – sowie qpdf für die Vorderseite im PDF, #324). Die heruntergeladenen Pakete liegen in einem GitHub-Cache; installiert wird bei jedem Lauf. Ohne diese Pakete würden die PDF-, EPUB- und Import-Tests übersprungen statt geprüft.
 - Lokal testen: `GITHUB_REPOSITORY=owner/buch GHOSTWRITER_UPSTREAM_URL=<pfad-oder-url> python scripts/update_from_upstream.py --dry-run --status status.json`.
+
+## Sicheres Aufräumen nach der Übernahme
+
+Die Action **Branches aufräumen** löscht einen
+geprüften Arbeitsbranch nur, wenn sein Head auf dem Server noch dem bestätigten
+Stand entspricht. Ein inzwischen hinzugekommener Commit verhindert die Löschung.
+Bei Versionsbranches muss zusätzlich der gleichnamige Erhaltungstag unverändert
+vorhanden sein; Tagprüfung und Löschung bilden einen atomaren Vorgang.
+
+Technisch nutzt sie [GitHubs `updateRefs` mit `beforeOid`](https://docs.github.com/en/graphql/reference/git#updaterefs).
+Fehlen GraphQL-Zugriff oder Berechtigungen oder ist die Antwort unklar, wird die
+Löschung nicht als erfolgreich gemeldet. Es gibt keinen unbedingten Löschversuch
+als Ersatz und keine automatische Wiederholung. Vor einem neuen Auftrag den
+Remote-Stand prüfen. **Nur anzeigen** sendet keine Löschmutation.
+Die bisherigen Prüfungen auf übernommene Inhalte bleiben erforderlich; eine
+passende Commit-ID allein ist keine Übernahmefreigabe.
+
+## Update mit persönlicher Freigabeprüfung
+
+Ein Update, das `scripts/approval_authority.py` und die Action `approval.yml` enthält, erhält vorhandene Manuskripte und Freigabeeinträge. Alte Namen werden nicht automatisch zu verifizierten Identitäten. Vor der nächsten veröffentlichbaren Ausgabe ist deshalb ein neuer [persönlicher Inhaltsnachweis](SPEICHERN.md#persönliches-freigaberecht-und-inhaltsnachweis) für den aktuellen Buchstand und die Auflage erforderlich. Entwürfe, Probedrucke und Vorabfassungen bleiben möglich; veröffentlichte Auflagen werden nicht verändert.
+
+Bei Open WebUI GitHub-Werkzeug 1.8.0 einspielen und persönliche Benutzer-Valves für Schreibzugänge einrichten; der gemeinsame Werkzeug-Token dient nur noch zum Lesen. Den gemeinsamen Token nicht als persönlichen Zugang übernehmen. Bisher geteilte schreibberechtigte Tokens widerrufen oder durch getrennte persönliche Zugänge ersetzen; der gemeinsame Token braucht nur Leserechte. Keine Tokens im Buch speichern. Die Claude-Web-App muss den Prüfablauf in Claude übernehmen. Automatisierte Jobs können Nachweise vorbereiten und prüfen, aber keine neuen persönlichen Freigaben erteilen. Praktische Clientabnahme und echte Organisationsrechte bleiben gesondert zu prüfen.
+
 
 ---
 

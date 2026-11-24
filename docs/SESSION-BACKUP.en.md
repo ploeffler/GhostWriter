@@ -38,6 +38,21 @@ Verify the uploaded head before displaying the next question. No book-wide check
 CI waits or repeated status polling belong between answers. Saving never merges
 or changes manuscript content, structure or approvals.
 
+**In the background (#487).** With `answer_backup: hintergrund` in
+`assistant.yml`, the assistant adds `--background` to the same call. The helper
+starts the save as a separate process and returns `background_started` at once, so
+the evaluation and next question appear without waiting. The receipt lives outside
+the repository (`<tmp>/ghostwriter-sicherung/<session>.json`): `running`, then
+`saved` with `head` or `failed` with a reason. Before the next answer save, on
+“Save session” and at the end of the dialogue the assistant reads it with
+`python3 scripts/chat_backup.py wait <session>` (up to 180 s, exit code 2 on
+failure), reports a failure openly and saves again before continuing. A second
+background save of the same session does not start while one is running. The
+closing check shows running or failed background saves (`chat_backup.py pending`).
+Trade-off: faster, but if the chat stops exactly during the save (for example
+when credit runs out), the last answer may be missing; the default `vor_antwort`
+prevents that. Only in clients with a shell.
+
 Use `chat_backup.py answer-checkpoint` with the regular save arguments. The input
 has `context`, `coverage`, `messages` and `topics`, but contains only this step.
 Coverage describes this step's accessible content and gaps. The `--review` file
@@ -45,6 +60,15 @@ contains the section review fields plus `answer_message_id`; include only this
 step's questions, results and open items, with evidence in the supplied messages.
 The last message must be the new user answer. Unpublished evaluation belongs in
 topics. Open items and incomplete discussions are allowed.
+
+**Fast path (#314): one call per answer.** Pass question, answer and review as one
+JSON object `{"payload": …, "review": …}` on standard input (`-` as input, no
+`--review`), without writing files first or re-reading the session between
+answers. Take `--expected-head` from the previous receipt's `head`. From the
+second step on, `context` (taken from the session), `coverage` (default: wording of
+question and answer, no known gaps) and `topics` may be omitted. The helper fetches
+only the session branch's single commit without file contents, checks out only this
+session's folder and looks up the PR once per answer. The two-file form remains valid.
 
 Each record lives in `conversations/<session-id>/answers/<sequence>.json`.
 Loading combines the snapshot and records in storage order. Its `answers` list

@@ -31,6 +31,12 @@ class OpenWebUIToolTests(unittest.TestCase):
         # Open-WebUI-Einstieg hat eigene Tests.
         self.tool.valves.START_VARIANT = "standard"
         self.head = "a" * 40
+        async def already_authenticated(repo, operation, user):
+            return await self.tool._run(operation)
+        self.write_layer = patch.object(self.tool, '_write_run', side_effect=already_authenticated)
+        self.write_layer.start()
+        self.addCleanup(self.write_layer.stop)
+
 
     def run_tool(self, coroutine):
         return json.loads(asyncio.run(coroutine))
@@ -601,7 +607,7 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertEqual(facts['book_branch'], 'buch/zweites')
         self.assertEqual(facts['chapters'][0]['number'], 1)
         self.assertEqual(facts['chapters'][0]['status'], 'in_progress')
-        self.assertIn('assembly', facts['status_rules']['chapter']['statuses'])
+        self.assertNotIn('status_rules', facts)   # keine Statusfrage: Regeln bleiben bei der Pipe (#285)
         self.assertNotIn('ghostwriter-nav:', context_message['content'])
         messages.append({'role': 'assistant', 'content': answer})
         messages.append({'role': 'user', 'content': 'Welche Statuswerte kann Kapitel 1 haben?'})

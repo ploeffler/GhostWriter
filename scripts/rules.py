@@ -198,6 +198,9 @@ def apply(base, group, level, confirmed=False, by='chat', commit=None):
     if p['needs_confirmation'] and not confirmed:
         raise SystemExit(f'✗ {p["title"]}: „{p["label"]}“ lockert {", ".join(p["relaxes"])} – nur nach ausdrücklicher '
                          'Bestätigung des Benutzers (--confirmed)')
+    if p['relaxes']:
+        import approval_authority
+        by = approval_authority.require_actor(base, by)
     cfg_path = base / 'ghostwriter.yml'
     text = cfg_path.read_text(encoding='utf-8')
     for (b, k), v in GROUPS[group][0][level].items():
@@ -280,4 +283,8 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    from approval_authority import AuthorityError
+    try:
+        sys.exit(main(sys.argv))
+    except AuthorityError:
+        raise SystemExit('Freigabe gesperrt: persönliches Konto oder Freigaberecht nicht verifiziert.') from None

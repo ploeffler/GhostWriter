@@ -88,6 +88,45 @@ class StandabgleichTest(unittest.TestCase):
         self.assertEqual(self.states(old)['Arbeit'], 'neuer')
         self.assertEqual(self.states(old)['Buch'], 'ok')
 
+    def test_new_work_branch_after_snapshot_without_work_requires_inspection(self):
+        old = self.stand(work=None)
+        git(self.base, 'branch', 'ghostwriter/buch/adhs', 'buch/adhs')
+        self.commit('notiz.md', 'Neue Arbeit aus anderer App', branch='ghostwriter/buch/adhs')
+        config = git(self.base, 'show', 'buch/adhs:ghostwriter.yml').replace('data_version: 1', 'data_version: 99')
+        self.commit('ghostwriter.yml', config, branch='ghostwriter/buch/adhs')
+        states = self.states(old)
+        self.assertEqual(states['Arbeit'], 'neuer')
+        self.assertEqual(states['Buch'], 'ok')
+        self.assertEqual(states['Daten'], 'ok')  # Kandidat ist keine bestätigte Lesebasis.
+        text = dict((a, t) for a, _, t in sa.compare(self.base, old))['Arbeit']
+        self.assertIn('Pull Request', text)
+
+    def test_unchosen_existing_work_branch_is_only_reported_when_it_changes(self):
+        git(self.base, 'branch', 'ghostwriter/buch/adhs', 'buch/adhs')
+        self.commit('notiz.md', 'Bereits vorhandener Kandidat', branch='ghostwriter/buch/adhs')
+        old = self.stand(work=None)
+        self.assertNotIn('Arbeit', self.states(old))
+        self.commit('notiz.md', 'Neue Fassung des Kandidaten', branch='ghostwriter/buch/adhs')
+        self.assertEqual(self.states(old)['Arbeit'], 'neuer')
+
+    def test_new_branch_identical_to_book_does_not_require_inspection(self):
+        old = self.stand(work=None)
+        git(self.base, 'branch', 'ghostwriter/buch/adhs', 'buch/adhs')
+        self.assertNotIn('Arbeit', self.states(old))
+
+    def test_other_books_work_branch_is_not_selected(self):
+        old = self.stand(work=None)
+        git(self.base, 'branch', 'ghostwriter/buch/anderes-buch', 'buch/adhs')
+        self.commit('notiz.md', 'Anderes Buch', branch='ghostwriter/buch/anderes-buch')
+        self.assertNotIn('Arbeit', self.states(old))
+
+    def test_legacy_snapshot_without_work_watch_reports_new_candidate(self):
+        old = self.stand(work=None)
+        old.pop('work_watch', None)
+        git(self.base, 'branch', 'ghostwriter/buch/adhs', 'buch/adhs')
+        self.commit('notiz.md', 'Neue Arbeit', branch='ghostwriter/buch/adhs')
+        self.assertEqual(self.states(old)['Arbeit'], 'neuer')
+
     def test_work_merged_and_branch_removed(self):
         old = self.stand()
         git(self.base, 'switch', '-q', 'buch/adhs')
@@ -108,6 +147,72 @@ class StandabgleichTest(unittest.TestCase):
         self.assertEqual(self.states(old)['Arbeit'], 'konflikt')
         git(self.base, 'branch', '-qD', 'ghostwriter/arbeit')
         self.assertEqual(self.states(old)['Arbeit'], 'konflikt')   # verschwunden, nicht im Buch
+
+    def test_pruned_remote_work_is_not_hidden_by_remaining_local_branch(self):
+        remote = self.base.parent / 'remote.git'
+        subprocess.run(['git', 'clone', '--quiet', '--bare', str(self.base), str(remote)], check=True)
+        git(self.base, 'remote', 'add', 'origin', str(remote))
+        git(self.base, 'fetch', '-q', 'origin')
+        old = self.stand()
+        git(remote, 'branch', '-qD', 'ghostwriter/arbeit')
+        git(self.base, 'fetch', '-q', '--prune', 'origin')
+        self.assertTrue(git(self.base, 'rev-parse', 'refs/heads/ghostwriter/arbeit'))
+        self.assertEqual(self.states(old)['Arbeit'], 'konflikt')
+        self.assertIsNone(sa.resolve(self.base, 'ghostwriter/arbeit'))
+        self.assertEqual(sa.resolve(self.base, 'refs/heads/ghostwriter/arbeit'), old['work']['head'])
+
+    def test_pruned_merged_remote_work_reads_book_despite_remaining_local_branch(self):
+        remote = self.base.parent / 'remote.git'
+        subprocess.run(['git', 'clone', '--quiet', '--bare', str(self.base), str(remote)], check=True)
+        git(self.base, 'remote', 'add', 'origin', str(remote))
+        git(self.base, 'fetch', '-q', 'origin')
+        old = self.stand()
+        git(self.base, 'switch', '-q', 'buch/adhs')
+        git(self.base, 'merge', '-q', '--no-ff', '-m', 'Übernahme', 'ghostwriter/arbeit')
+        git(self.base, 'push', '-q', 'origin', 'buch/adhs')
+        git(self.base, 'switch', '-q', 'main')
+        git(remote, 'branch', '-qD', 'ghostwriter/arbeit')
+        git(self.base, 'fetch', '-q', '--prune', 'origin')
+        result = sa.compare(self.base, old)
+        self.assertEqual(dict((a, s) for a, s, _ in result)['Arbeit'], 'neuer')
+        self.assertIn('übernommen', dict((a, t) for a, _, t in result)['Arbeit'])
+        self.assertIsNone(sa.resolve(self.base, 'ghostwriter/arbeit'))
+
+    def test_merged_work_still_present_reads_new_book_data(self):
+        old = self.stand()
+        git(self.base, 'switch', '-q', 'buch/adhs')
+        git(self.base, 'merge', '-q', '--no-ff', '-m', 'Übernahme', 'ghostwriter/arbeit')
+        git(self.base, 'switch', '-q', 'main')
+        config = git(self.base, 'show', 'buch/adhs:ghostwriter.yml').replace('data_version: 1', 'data_version: 99')
+        self.commit('ghostwriter.yml', config, branch='buch/adhs')
+        with mock.patch.object(sa, 'derived', return_value=None) as derived:
+            result = sa.compare(self.base, old)
+        states = {area: state for area, state, _ in result}
+        self.assertEqual(states['Arbeit'], 'neuer')
+        self.assertEqual(states['Daten'], 'konflikt')
+        derived.assert_called_once_with(self.base, sa.resolve(self.base, 'buch/adhs'))
+        self.assertIn('übernommen', dict((a, t) for a, _, t in result)['Arbeit'])
+
+    def test_new_work_after_merge_stays_selected(self):
+        old = self.stand()
+        git(self.base, 'switch', '-q', 'buch/adhs')
+        git(self.base, 'merge', '-q', '--no-ff', '-m', 'Übernahme', 'ghostwriter/arbeit')
+        git(self.base, 'switch', '-q', 'main')
+        self.commit('notiz.md', 'Weitere noch offene Arbeit', branch='ghostwriter/arbeit')
+        with mock.patch.object(sa, 'derived', return_value=None) as derived:
+            result = sa.compare(self.base, old)
+        derived.assert_called_once_with(self.base, sa.resolve(self.base, 'ghostwriter/arbeit'))
+        self.assertNotIn('übernommen', dict((a, t) for a, _, t in result)['Arbeit'])
+
+    def test_reset_work_is_not_mistaken_for_a_completed_merge(self):
+        old = self.stand()
+        git(self.base, 'switch', '-q', 'buch/adhs')
+        git(self.base, 'merge', '-q', '--no-ff', '-m', 'Übernahme', 'ghostwriter/arbeit')
+        git(self.base, 'switch', '-q', 'main')
+        git(self.base, 'branch', '-qf', 'ghostwriter/arbeit', old['book']['head'])
+        result = sa.compare(self.base, old)
+        self.assertEqual(dict((a, s) for a, s, _ in result)['Arbeit'], 'konflikt')
+        self.assertNotIn('übernommen', dict((a, t) for a, _, t in result)['Arbeit'])
 
     def test_book_branch_switched_or_rewritten(self):
         old = self.stand(work=None)
@@ -131,6 +236,64 @@ class StandabgleichTest(unittest.TestCase):
         self.commit('assistant.yml', 'format: 1\nwork_modes: auto\n')
         st = self.states(old)
         self.assertEqual((st['Profil'], st['Anweisungen']), ('neuer', 'ok'))
+
+    def test_program_change_without_version_bump_requires_refresh(self):
+        old = self.stand()
+        self.commit('scripts/test_program.py', 'print("Neue Programmlogik")\n')
+        states = self.states(old)
+        self.assertEqual(states['Programm'], 'neuer')
+        self.assertEqual(states['Anweisungen'], 'ok')
+        old = self.stand()
+        self.commit('scripts/test_program.py', 'print("Geänderte Programmlogik")\n')
+        self.assertEqual(self.states(old)['Programm'], 'neuer')
+        old = self.stand()
+        git(self.base, 'rm', 'scripts/test_program.py')
+        git(self.base, 'commit', '-qm', 'Programmdatei entfernt')
+        self.assertEqual(self.states(old)['Programm'], 'neuer')
+
+    def test_legacy_snapshot_without_program_fingerprint_requires_refresh(self):
+        old = self.stand()
+        old['program'].pop('content', None)
+        self.assertEqual(self.states(old)['Programm'], 'neuer')
+
+    def test_runtime_resources_and_workflows_are_part_of_program_fingerprint(self):
+        for path in ('schemas/test.json', 'integrations/test.py', 'templates/test.md',
+                     'assets/test.svg', '.github/workflows/test.yml',
+                     'workflow.yml', 'providers.yml'):
+            with self.subTest(path=path):
+                old = self.stand()
+                self.commit(path, 'Geänderter Programmstand')
+                self.assertEqual(self.states(old)['Programm'], 'neuer')
+
+    def test_unrelated_program_branch_note_does_not_require_program_refresh(self):
+        old = self.stand()
+        self.commit('notiz.md', 'Nur eine Notiz')
+        self.assertEqual(self.states(old)['Programm'], 'ok')
+
+    def test_personal_skill_add_change_and_removal_make_instructions_stale(self):
+        path = '.claude/skills/autor-auf-bibliothek/SKILL.md'
+        old = self.stand()
+        self.commit(path, 'Persönliche Schreibregeln')
+        self.assertEqual(self.states(old)['Anweisungen'], 'neuer')
+        old = self.stand()
+        self.commit(path, 'Geänderte persönliche Schreibregeln')
+        states = self.states(old)
+        self.assertEqual(states['Anweisungen'], 'neuer')
+        self.assertEqual(states['Profil'], 'ok')
+        old = self.stand()
+        git(self.base, 'rm', path)
+        git(self.base, 'commit', '-qm', 'Persönlichen Skill entfernt')
+        self.assertEqual(self.states(old)['Anweisungen'], 'neuer')
+
+    def test_note_outside_skill_directory_does_not_invalidate_instructions(self):
+        old = self.stand()
+        self.commit('.claude/skills-notes.md', 'Nur eine Notiz')
+        self.assertEqual(self.states(old)['Anweisungen'], 'ok')
+
+    def test_changed_skill_source_commit_invalidates_instructions(self):
+        old = self.stand()
+        self.commit('ghostwriter-skills.yml', 'commit: ' + 'a' * 40 + '\n')
+        self.assertEqual(self.states(old)['Anweisungen'], 'neuer')
 
     def test_incompatible_data_version_blocks_writing(self):
         old = self.stand()

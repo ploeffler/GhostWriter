@@ -59,6 +59,28 @@ class CheckDocsTest(unittest.TestCase):
                 check_docs.check_links(problems)
             self.assertEqual(problems, [], '\n'.join(problems))
 
+    def test_doc_links_work_in_library_without_apps(self):
+        """Ein Buch-Branch einer Bibliothek hat nur verwaltete Dateien und Buchdateien, z. B. kein `apps/` (#466).
+        Alle Doku-Links müssen dort trotzdem auflösen."""
+        manifest = yaml.safe_load((ROOT / 'ghostwriter-manifest.yml').read_text(encoding='utf-8'))
+        with tempfile.TemporaryDirectory() as tmp:
+            book = Path(tmp)
+            for entry in manifest['managed'] + manifest.get('book', []):
+                source, target = ROOT / entry, book / entry
+                if source.is_dir():
+                    copytree(source, target)
+                elif source.is_file():
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    copy2(source, target)
+            self.assertFalse((book / 'apps').exists())
+            docs = [rel for rel in check_docs.DOCS if (book / rel).is_file()]
+            self.assertIn('docs/CHAT-APPS.md', docs)
+            self.assertIn('docs/CHAT-APPS.en.md', docs)
+            problems = []
+            with patch.object(check_docs, 'ROOT', book), patch.object(check_docs, 'DOCS', docs):
+                check_docs.check_links(problems)
+            self.assertEqual(problems, [], '\n'.join(problems))
+
     def test_codex_credit_requires_its_own_line_in_both_languages(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

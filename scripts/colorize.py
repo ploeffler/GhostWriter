@@ -5,6 +5,8 @@ Aufruf:
   python scripts/colorize.py <buch> <bildordner> [--model M] [--consent] [--replace]
   python scripts/colorize.py <buch> <bildordner> --proposal <farbvorschlag> --tool "ImagineArt (seedream-v5-lite)" [--replace]
   python scripts/colorize.py <buch> <bildordner> --check
+  python scripts/colorize.py <buch> <bildordner> --consent --hint "Die Fahne ist rot-weiß-rot."
+  python scripts/colorize.py <buch> <bildordner> --consent --minors-exception
 
 Ein Bildordner (z. B. quellen/bilder/2026-11-21-ehepaar/) enthält `aufbereitet.jpg`
 (Schwarz-Weiß, gleichmäßig aufbereitet) und `bild.yml` mit der Beschreibung. Das
@@ -20,6 +22,16 @@ Sperren (vor jedem Aufruf, auch bei --check): `bild.yml` muss da sein,
 `foto-vom-foto` sein. Kinderbilder und Dokumente gehen nie an einen externen Dienst.
 Für den Aufruf bei Google ist `--consent` Pflicht (Abgebildete bzw. Familie sind
 einverstanden; das Bild geht an Google).
+
+Ausnahme für Bilder mit Kindern oder Jugendlichen (`--minors-exception`): nur
+wenn `minderjaehrige: true` ausdrücklich in `bild.yml` steht und zusammen mit
+`--consent` bzw. `--proposal`. Die Entscheidung trifft der Benutzer im Einzelfall;
+`bild.yml` bleibt unverändert, der Eintrag unter `bearbeitung` nennt die Ausnahme.
+Dokumente bleiben immer gesperrt.
+
+Farbhinweis (`--hint`, nur beim Aufruf bei Gemini): bekannte Farben, z. B. „Die
+Fahne ist rot-weiß-rot“, werden an die Anfrage angehängt und im Eintrag unter
+`bearbeitung` genannt. Die Farbe bleibt eine Annahme des Modells.
 
 Prüfungen nach dem Einfärben: gleiches Seitenverhältnis (±2 %), Bildaufbau
 gleich (Korrelation der Helligkeit ≥ 0,7) und mittlere L-Abweichung zwischen
@@ -47,6 +59,7 @@ from pathlib import Path
 import yaml
 
 SOURCE = 'aufbereitet.jpg'
+SOURCE_FRONT = 'aufbereitet-1.jpg'   # Bild mit Rückseite: Vorderseite (aufbereitet-2.jpg = Rückseite)
 TARGET = 'coloriert.jpg'
 META = 'bild.yml'
 ALLOWED_ART = ('foto', 'foto-vom-foto')
@@ -57,6 +70,13 @@ PROMPT = ('Colorize this black-and-white photograph with natural, historically p
           'Keep the image exactly as it is: same framing, same size and aspect ratio, same faces, '
           'shapes, edges, background and lighting. Do not add, remove, retouch, sharpen or restore anything. '
           'Only add color. Return only the image.')
+HINT_PREFIX = 'Known facts about the colors in this photo (use them): '
+MAX_HINT = 300
+# Seitenverhältnisse, die Gemini für Bilder einhält (imageConfig.aspectRatio). Das Foto wird
+# vor dem Senden mit neutralem Grau auf das nächstliegende ergänzt und danach wieder beschnitten.
+ASPECTS = {'1:1': 1.0, '2:3': 2 / 3, '3:2': 3 / 2, '3:4': 3 / 4, '4:3': 4 / 3, '4:5': 4 / 5, '5:4': 5 / 4,
+           '9:16': 9 / 16, '16:9': 16 / 9, '21:9': 21 / 9}
+PAD_GRAY = 128
 MAX_UPLOAD_PX = 1536
 MAX_ASPECT_DIFF = 0.02
 MIN_CORRELATION = 0.7
@@ -184,11 +204,22 @@ def load_meta(folder):
     return data
 
 
-def check_locks(meta):
-    """Sperren (#452): keine Kinderbilder, keine Dokumente an externe Dienste."""
-    if meta.get('minderjaehrige') is not False:
-        raise SystemExit('Gesperrt: In bild.yml steht nicht ausdrücklich „minderjaehrige: false“. Bilder mit Kindern '
-                         'oder Jugendlichen werden nicht coloriert.')
+def check_locks(meta, minors_exception=False):
+    """Sperren (#452): keine Kinderbilder, keine Dokumente an externe Dienste.
+
+    Ausnahme für Kinderbilder nur ausdrücklich (`minors_exception`) und nur, wenn
+    `minderjaehrige: true` in bild.yml steht; fehlt die Angabe, bleibt gesperrt.
+    """
+    minors = meta.get('minderjaehrige')
+    if minors is not False:
+        if minors is True and minors_exception:
+            pass
+        elif minors is True:
+            raise SystemExit('Gesperrt: In bild.yml steht „minderjaehrige: true“. Bilder mit Kindern oder Jugendlichen '
+                             'werden nur mit ausdrücklicher Ausnahme (minors_exception) coloriert.')
+        else:
+            raise SystemExit('Gesperrt: In bild.yml steht nicht ausdrücklich „minderjaehrige: false“. Bilder mit Kindern '
+                             'oder Jugendlichen werden nicht coloriert.')
     art = meta.get('art')
     if art not in ALLOWED_ART:
         raise SystemExit(f'Gesperrt: art „{art}“ – coloriert werden nur Fotos ({", ".join(ALLOWED_ART)}), '
@@ -253,15 +284,49 @@ def model_for(base, wanted=None):
     return model if 'image' in model else DEFAULT_MODEL
 
 
-def gemini_proposal(img, model, key, timeout=180):
+def prompt_for(hint=None):
+    hint = ' '.join((hint or '').split())
+    return f'{PROMPT} {HINT_PREFIX}{hint}' if hint else PROMPT
+
+
+def pad_to_aspect(img):
+    """Mit Grau auf das nächstliegende Gemini-Seitenverhältnis ergänzen (mittig).
+    → (ergänztes Bild, Name des Verhältnisses, Ausschnitt (x, y, Breite, Höhe) des Originals)"""
+    from PIL import Image
+    w, h = img.size
+
+    def padded(r):
+        return max(w, round(h * r)), max(h, round(w / r))
+
+    name = min(ASPECTS, key=lambda k: (padded(ASPECTS[k])[0] * padded(ASPECTS[k])[1], abs(ASPECTS[k] - w / h)))
+    pw, ph = padded(ASPECTS[name])
+    canvas = Image.new('RGB', (pw, ph), (PAD_GRAY,) * 3)
+    x, y = (pw - w) // 2, (ph - h) // 2
+    canvas.paste(img.convert('RGB'), (x, y))
+    return canvas, name, (x, y, w, h)
+
+
+def crop_back(result, padded_size, box):
+    """Antwort auf die ergänzte Größe bringen und den Ausschnitt des Originals herausschneiden."""
+    from PIL import Image
+    pw, ph = padded_size
+    if abs(result.width / result.height - pw / ph) / (pw / ph) > MAX_ASPECT_DIFF:
+        raise SystemExit(f'Farbvorschlag hat ein anderes Seitenverhältnis ({result.width}×{result.height} statt '
+                         f'{pw}×{ph} mit Rand); verworfen.')
+    x, y, w, h = box
+    return result.resize((pw, ph), Image.LANCZOS).crop((x, y, x + w, y + h))
+
+
+def gemini_proposal(img, model, key, timeout=180, hint=None):
     """Farbvorschlag von Gemini. → (Bild, usageMetadata)"""
     from PIL import Image
     small = img.copy()
     small.thumbnail((MAX_UPLOAD_PX, MAX_UPLOAD_PX))
-    body = {'contents': [{'parts': [{'text': PROMPT},
+    padded, aspect, box = pad_to_aspect(small)
+    body = {'contents': [{'parts': [{'text': prompt_for(hint)},
                                     {'inline_data': {'mime_type': 'image/jpeg',
-                                                     'data': base64.b64encode(jpeg_bytes(small, 92)).decode()}}]}],
-            'generationConfig': {'responseModalities': ['IMAGE']}}
+                                                     'data': base64.b64encode(jpeg_bytes(padded, 92)).decode()}}]}],
+            'generationConfig': {'responseModalities': ['IMAGE'], 'imageConfig': {'aspectRatio': aspect}}}
     req = urllib.request.Request(API.format(model=model), data=json.dumps(body).encode(), method='POST',
                                  headers={'Content-Type': 'application/json', 'x-goog-api-key': key})
     try:
@@ -276,7 +341,7 @@ def gemini_proposal(img, model, key, timeout=180):
             if blob and blob.get('data'):
                 out = Image.open(io.BytesIO(base64.b64decode(blob['data'])))
                 out.load()
-                return out.convert('RGB'), data.get('usageMetadata') or {}
+                return crop_back(out.convert('RGB'), padded.size, box), data.get('usageMetadata') or {}
     reason = ', '.join(filter(None, [c.get('finishReason') for c in data.get('candidates') or []]
                               + [str((data.get('promptFeedback') or {}).get('blockReason') or '')]))
     raise SystemExit(f'Gemini hat kein Bild geliefert ({reason or "ohne Grund"}).')
@@ -308,6 +373,14 @@ def cost_entry(base, model, usage, folder, when):
 
 # ---------- Ablauf ----------
 
+def source_in(folder):
+    """aufbereitet.jpg, bei Bildern mit Rückseite die Vorderseite aufbereitet-1.jpg. → Pfad oder None"""
+    for name in (SOURCE, SOURCE_FRONT):
+        if (Path(folder) / name).is_file():
+            return Path(folder) / name
+    return None
+
+
 def resolve_folder(base, folder):
     base = Path(base).resolve()
     path = (base / folder).resolve()
@@ -319,13 +392,19 @@ def resolve_folder(base, folder):
 
 
 def colorize(base, folder, *, proposal=None, tool=None, model=None, consent=False, replace=False, key=None, today=None,
-             now=None):
+             now=None, hint=None, minors_exception=False):
     folder = resolve_folder(base, folder)
     meta = load_meta(folder)
-    check_locks(meta)
-    src = folder / SOURCE
-    if not src.is_file():
-        raise SystemExit(f'{SOURCE} fehlt in {folder.name}: zuerst aufbereiten.')
+    check_locks(meta, minors_exception)
+    exception = meta.get('minderjaehrige') is True
+    hint = ' '.join((hint or '').split())
+    if len(hint) > MAX_HINT:
+        raise SystemExit(f'Farbhinweis zu lang (höchstens {MAX_HINT} Zeichen).')
+    if hint and proposal:
+        raise SystemExit('Ein Farbhinweis wirkt nur beim Aufruf bei Gemini, nicht mit --proposal.')
+    src = source_in(folder)
+    if src is None:
+        raise SystemExit(f'{SOURCE} (bzw. {SOURCE_FRONT}) fehlt in {folder.name}: zuerst aufbereiten.')
     target = folder / TARGET
     if target.exists() and not replace:
         raise SystemExit(f'{TARGET} gibt es schon; zum Ersetzen „replace“ setzen (die alte Fassung bleibt in der Historie).')
@@ -345,7 +424,7 @@ def colorize(base, folder, *, proposal=None, tool=None, model=None, consent=Fals
             raise SystemExit(f'Kein Schlüssel: Secret {SECRET} hinterlegen (docs/DIENSTE-NUTZEN.md, '
                              '„API-Schlüssel als GitHub-Secret“).')
         model = model_for(base, model)
-        prop_img, usage = gemini_proposal(base_img, model, key)
+        prop_img, usage = gemini_proposal(base_img, model, key, hint=hint)
         origin = f'Farbvorschlag Google Gemini ({model}, Bildbearbeitung über eigenen Zugang, GitHub Action)'
     result, info = transfer(base_img, prop_img)
     data = jpeg_bytes(result)
@@ -356,8 +435,14 @@ def colorize(base, folder, *, proposal=None, tool=None, model=None, consent=Fals
         raise SystemExit(f'Helligkeit weicht im Mittel um {dev:.2f}/255 ab (erlaubt unter {MAX_L_DEVIATION:g}); verworfen.')
     target.write_bytes(data)
     de = lambda x: f'{x:.2f}'.replace('.', ',')
-    line = (f'{TARGET}: {origin}, {today.strftime("%d.%m.%Y")}; nur Farbkanäle a/b übernommen, L-Kanal aus {SOURCE}; '
-            f'mittlere L-Abweichung {de(dev)}/255, Bildaufbau-Korrelation {de(info["correlation"])}. '
+    extra = ''
+    if hint:
+        extra += f'; Farbhinweis an das Modell: „{hint}“'
+    if exception:
+        extra += ('; Ausnahme: Minderjährige abgebildet, im Einzelfall ausdrücklich freigegeben '
+                  '(Einverständnis der Abgebildeten bzw. der Familie)')
+    line = (f'{TARGET}: {origin}, {today.strftime("%d.%m.%Y")}{extra}; nur Farbkanäle a/b übernommen, L-Kanal aus '
+            f'{src.name}; mittlere L-Abweichung {de(dev)}/255, Bildaufbau-Korrelation {de(info["correlation"])}. '
             'Farben sind Annahme, kein Beleg')
     add_processing(folder / META, line)
     cost = cost_entry(base, model, usage, folder, when) if usage is not None else None
@@ -376,16 +461,23 @@ def main(argv=None):
     ap.add_argument('--consent', action='store_true', help='Abgebildete bzw. Familie einverstanden; Bild geht an Google')
     ap.add_argument('--replace', action='store_true', help='vorhandenes coloriert.jpg ersetzen')
     ap.add_argument('--check', action='store_true', help='nur Sperren und Dateien prüfen, nichts senden')
+    ap.add_argument('--hint', help='bekannte Farben als Hinweis an Gemini, z. B. „Die Fahne ist rot-weiß-rot.“')
+    ap.add_argument('--minors-exception', action='store_true',
+                    help='Ausnahme: Bild mit Kindern (minderjaehrige: true) trotzdem colorieren; Entscheidung des Benutzers')
     ap.add_argument('--json', action='store_true')
     a = ap.parse_args(argv)
     if a.check:
         folder = resolve_folder(a.base, a.folder)
-        check_locks(load_meta(folder))
-        if not (folder / SOURCE).is_file():
-            raise SystemExit(f'{SOURCE} fehlt in {folder.name}: zuerst aufbereiten.')
-        print(f'✓ {folder.name}: darf coloriert werden ({SOURCE} vorhanden, keine Sperre)')
+        meta = load_meta(folder)
+        check_locks(meta, a.minors_exception)
+        src = source_in(folder)
+        if src is None:
+            raise SystemExit(f'{SOURCE} (bzw. {SOURCE_FRONT}) fehlt in {folder.name}: zuerst aufbereiten.')
+        note = ' – Ausnahme: Minderjährige abgebildet' if meta.get('minderjaehrige') is True else ''
+        print(f'✓ {folder.name}: darf coloriert werden ({src.name} vorhanden, keine Sperre){note}')
         return 0
-    r = colorize(a.base, a.folder, proposal=a.proposal, tool=a.tool, model=a.model, consent=a.consent, replace=a.replace)
+    r = colorize(a.base, a.folder, proposal=a.proposal, tool=a.tool, model=a.model, consent=a.consent, replace=a.replace,
+                 hint=a.hint, minors_exception=a.minors_exception)
     if a.json:
         print(json.dumps(r, ensure_ascii=False))
         return 0

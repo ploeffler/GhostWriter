@@ -7,6 +7,8 @@ name: Branches aufräumen
 # Arbeits-Branches des Chats (ghostwriter/…) und media/, test/, release/, codex/, claude/ (außer KEEP).
 # Ein Branch mit offenem Pull Request
 # oder eigenen, nicht übernommenen Commits bleibt immer. Mit „Nur anzeigen“ wird nichts gelöscht, nur aufgelistet.
+# Jede Löschung ist serverseitig an den geprüften Head gebunden. Ein inzwischen
+# geänderter Branch bleibt; bei Versionsbranches wird zugleich der Erhaltungstag geprüft.
 # Versions-Branches (v0.1, v0.2 …) werden zu Tags gleichen Namens (annotiert,
 # auf demselben Commit) und danach als Branch gelöscht; der Stand bleibt über
 # den Tag erreichbar. Gibt es den Tag schon auf einem anderen Commit, bleibt
@@ -42,6 +44,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           DRY: ${{ inputs.dry_run }}
         run: |
+          repository_id=$(gh api "repos/$GITHUB_REPOSITORY" --jq .node_id)
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           echo "## Versions-Branches zu Tags" >> "$GITHUB_STEP_SUMMARY"
@@ -56,8 +59,19 @@ jobs:
               git tag -a "$b" "$sha" -m "GhostWriter $b (Stand des früheren Branches $b)"
               git push -q origin "refs/tags/$b"
             fi
-            if [ "$DRY" != "true" ]; then git push -q origin --delete "refs/heads/$b"; fi
-            echo "- 🏷️ \`$b\` → Tag \`$b\` (${sha:0:7}), Branch gelöscht" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$DRY" != "true" ]; then
+              tag_oid=$(git rev-parse "refs/tags/$b")
+              if ! python3 scripts/delete_checked_branch.py --repository-id "$repository_id" \
+                --branch "$b" --expected-head "$sha" --preserve-tag "$b" --tag-oid "$tag_oid"; then
+                echo "- ⏸️ \`$b\` Löschung unbestätigt; Stand/Tag neu prüfen" >> "$GITHUB_STEP_SUMMARY"
+                continue
+              fi
+            fi
+            if [ "$DRY" = "true" ]; then
+              echo "- 🏷️ \`$b\` → Tag \`$b\` (${sha:0:7}), Branch würde gelöscht" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "- 🏷️ \`$b\` → Tag \`$b\` (${sha:0:7}), Branch gelöscht" >> "$GITHUB_STEP_SUMMARY"
+            fi
           done
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
@@ -71,7 +85,8 @@ jobs:
           KEEP: '^(test/test-book)$'   # bleiben immer, auch wenn sie dem Muster entsprechen
           BASE: ${{ github.event.repository.default_branch }}
         run: |
-          deleted=0; kept=0
+          repository_id=$(gh api "repos/$R" --jq .node_id)
+          deleted=0; kept=0; unconfirmed=0
           echo "## Branches aufräumen" >> "$GITHUB_STEP_SUMMARY"
           [ "$DRY" = "true" ] && echo "_Nur anzeigen – nichts gelöscht._" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -86,11 +101,26 @@ jobs:
               if [ "$open" = "0" ] && [ "$ahead" = "0" ]; then pr=x; why="vollständig in $BASE enthalten"; fi
             fi
             if [ -n "$pr" ]; then
-              if [ "$DRY" != "true" ]; then gh api -X DELETE "repos/$R/git/refs/heads/$b" >/dev/null; fi
-              echo "- 🗑️ \`$b\` ($why)" >> "$GITHUB_STEP_SUMMARY"; deleted=$((deleted+1))
+              if [ "$DRY" != "true" ]; then
+                if ! python3 scripts/delete_checked_branch.py --repository-id "$repository_id" \
+                  --branch "$b" --expected-head "$sha"; then
+                  echo "- ⏸️ \`$b\` Löschung unbestätigt; Stand neu prüfen" >> "$GITHUB_STEP_SUMMARY"
+                  unconfirmed=$((unconfirmed+1)); continue
+                fi
+              fi
+              if [ "$DRY" = "true" ]; then
+                echo "- 🗑️ \`$b\` würde gelöscht ($why)" >> "$GITHUB_STEP_SUMMARY"
+              else
+                echo "- 🗑️ \`$b\` gelöscht ($why)" >> "$GITHUB_STEP_SUMMARY"
+              fi
+              deleted=$((deleted+1))
             else
               echo "- ⏸️ \`$b\` bleibt (offener Pull Request oder eigene, nicht übernommene Commits)" >> "$GITHUB_STEP_SUMMARY"; kept=$((kept+1))
             fi
           done
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Gelöscht: $deleted · geblieben: $kept" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$DRY" = "true" ]; then
+            echo "Würden gelöscht: $deleted · behalten: $kept" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Gelöscht: $deleted · behalten: $kept · Löschung unbestätigt: $unconfirmed" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
