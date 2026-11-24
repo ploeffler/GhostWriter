@@ -59,6 +59,20 @@ class SelectTestsTest(unittest.TestCase):
         self.assertEqual(self.sel(['templates/zz/alt.md'])[0], 'full')
         self.assertEqual(self.sel(['.github/ISSUE_TEMPLATE/x.md'])[0], 'full')
 
+    def test_skill_sync_runs_skill_tests(self):
+        """#567: Abgleich der allgemeinen Skills läuft nicht mehr voll."""
+        skill = '.claude/skills/ghostwriter-lektorat/' + 'SKILL' + '.md'
+        lock = 'ghostwriter-' + 'skills.yml'
+        (self.tmp / 'test_skills.py').write_text(f"ROOT / '{lock}'\n", encoding='utf-8')
+        for i in range(5, 12):
+            (self.tmp / f'test_other{i}.py').write_text('pass\n', encoding='utf-8')
+        self.files = sorted(self.tmp.glob('test_*.py'))
+        self.assertEqual(self.sel([skill, lock]), ('subset', ['test_skills'], False))
+        self.assertEqual(self.sel(['.claude/settings.json'])[0], 'full')   # übriges .claude/ bleibt voll
+        mode, tests, _ = select_tests.select([skill, lock])
+        self.assertEqual(mode, 'subset')
+        self.assertTrue({'test_sync_skills', 'test_check_docs'} <= set(tests))
+
     def test_real_repository_start_change_is_small(self):
         mode, tests, _ = select_tests.select(['START.md'])
         self.assertEqual(mode, 'subset')

@@ -31,6 +31,11 @@ TESTS = ROOT / 'tests'
 FULL_FILES = {'workflow.yml', 'ghostwriter-manifest.yml', 'requirements.txt'}
 FULL_PREFIXES = ('.github/', 'schemas/', 'tests/data/', 'tests/fixtures/', 'testdata/',
                  'scripts/docsite/', '.claude/', 'starter/')
+# Allgemeine Skills und ihre Quellenangabe (#567): nur Text mit Prüfsumme, keine Programmlogik. Sie bekommen die Tests,
+# die Skills selbst lesen oder prüfen, und die Doku-Prüfung (Prüfsummen offline); sonst lief bei jedem Abgleich alles.
+SKILL_FILES = {'ghostwriter-skills.yml'}
+SKILL_PREFIX = '.claude/skills/'
+SKILL_REF = re.compile(r"""\.claude/skills|['"]\.claude['"]|SKILL\.md|ghostwriter-skills\.yml""")
 # Diese Dateien bekommen die Tests, die sie nennen (#485); nennt sie niemand, läuft alles.
 MAPPED_FILES = {'START.md', 'CLAUDE.md', 'AGENTS.md'}
 MAPPED_PREFIXES = ('templates/', '.github/workflows/')
@@ -94,6 +99,11 @@ def mentioned_by(path, files, scripts=None):
     return found
 
 
+def skill_tests(files):
+    """Tests, die Skills oder die Quellenangabe lesen, dazu die Doku-Prüfung (#567)."""
+    return {f.stem for f in files if SKILL_REF.search(f.read_text(encoding='utf-8'))} | {'test_check_docs'}
+
+
 def is_doc(path):
     return path.endswith(('.md', '.svg', '.png', '.jpg')) and '/' not in path.strip('/') \
         or path.startswith(('docs/', 'assets/'))
@@ -108,7 +118,9 @@ def select(changed, removed=(), files=None):
     chosen = set()
     for path in changed:
         name = Path(path).name
-        if path in MAPPED_FILES or (path.startswith(MAPPED_PREFIXES) and path.count('/') >= 1
+        if path in SKILL_FILES or (path.startswith(SKILL_PREFIX) and path.endswith('/SKILL.md')):
+            chosen |= skill_tests(files)
+        elif path in MAPPED_FILES or (path.startswith(MAPPED_PREFIXES) and path.count('/') >= 1
                                     and not (path.startswith('.github/') and path.count('/') != 2)):
             users = mentioned_by(path, files)
             if not users:
