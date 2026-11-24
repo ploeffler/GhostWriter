@@ -6,6 +6,9 @@ bis er ausdrücklich beendet wird. Die Sperre ist keine Freigabe und kein Abschl
 die ausgecheckten Kapitel verändert; andere Kapitel und buchweite Angaben bleiben bearbeitbar.
 
   python3 scripts/checkout.py <buch> start (--chapters 3-5 | --book) --reader <name> [--until JJJJ-MM-TT] [--by <login>]
+                                          [--out <ordner> [--repo owner/name] [--branch <name>] [--no-pdf]]
+      mit --out entstehen DOCX und PDF mit QR-Kennung (scripts/checkout_files.py); schlägt der Bau fehl, bleibt kein
+      Eintrag zurück
   python3 scripts/checkout.py <buch> status [--id GW-…]
   python3 scripts/checkout.py <buch> end <id> --reason "…" [--abort] [--by <login>]
   python3 scripts/checkout.py <buch> extend <id> --until JJJJ-MM-TT
@@ -19,7 +22,7 @@ die ausgecheckten Kapitel verändert; andere Kapitel und buchweite Angaben bleib
 Daten: `checkouts.yml` im Buch (Schema `schemas/checkouts.schema.json`). Beenden, Abbrechen, Verlängern und
 Zurückholen dürfen der Eigentümer (`team`; ohne `team` jeder mit Schreibrecht) und wer ausgecheckt hat; der
 Gegenleser muss nicht zustimmen. Nach Ablauf der Frist gibt es nur einen Hinweis, nie ein automatisches Entsperren.
-Die Datei- und QR-Erzeugung (DOCX und PDF) folgt in Teil 2; bis dahin trägt `dateien` nichts ein.
+Die Dateien (DOCX und PDF mit QR-Kennung, Teil 2) baut `start --out`; `dateien` nennt sie.
 Grenze: Direktes Bearbeiten auf GitHub verhindert die Sperre nicht; `verify` und die Prüfung `validate` melden es.
 """
 import argparse
@@ -188,7 +191,10 @@ def now():
 
 # ---------- Befehle ----------
 
-def start(base, config, reader, chapters=None, book=False, by='', until=None, commit=None, rng=None, when=None):
+def start(base, config, reader, chapters=None, book=False, by='', until=None, commit=None, rng=None, when=None,
+          build=None):
+    """`build(entry) -> [Dateiname, …]` baut die Dateien vor dem Speichern; ein Fehler dort (ValueError) bricht ab,
+    ohne dass ein Eintrag zurückbleibt."""
     if not reader:
         raise ValueError('Gegenleser angeben (--reader)')
     if bool(chapters) == bool(book):
@@ -211,7 +217,7 @@ def start(base, config, reader, chapters=None, book=False, by='', until=None, co
         entry['frist'] = str(until)
     entry['commit'] = commit if commit is not None else head_commit(base)
     entry['abschnitte'] = fingerprints(base, config, sorted(wanted))
-    entry['dateien'] = []   # DOCX und PDF mit QR-Code: Teil 2 (#572)
+    entry['dateien'] = list(build(entry)) if build else []
     data['checkouts'].append(entry)
     save(base, data)
     return entry
@@ -385,6 +391,10 @@ def main(argv=None):
     s.add_argument('--reader', required=True)
     s.add_argument('--until')
     s.add_argument('--by', default='')
+    s.add_argument('--out', help='Ordner für DOCX und PDF mit QR-Kennung')
+    s.add_argument('--repo', default='')
+    s.add_argument('--branch', default='')
+    s.add_argument('--no-pdf', action='store_true')
     st = sub.add_parser('status')
     st.add_argument('--id')
     e = sub.add_parser('end')
@@ -414,9 +424,18 @@ def main(argv=None):
     base, config = load_project(args.project)
     try:
         if args.cmd == 'start':
-            en = start(base, config, args.reader, args.chapters, args.book, args.by, args.until)
+            builder = None
+            if args.out:
+                import checkout_files
+                repo = args.repo or checkout_files.default_repo(base)
+                branch = args.branch or checkout_files.default_branch(base)
+                builder = lambda en: checkout_files.build(base, config, en, args.out, repo, branch,  # noqa: E731
+                                                          en.get('commit', ''), pdf=not args.no_pdf)
+            en = start(base, config, args.reader, args.chapters, args.book, args.by, args.until, build=builder)
             print(f'{en["id"]}: {scope_text(config, en)} an {en["gegenleser"]} ausgecheckt und gesperrt'
                   + (f' (Frist {en["frist"]})' if en.get('frist') else ''))
+            for f in en['dateien']:
+                print(f'✓ {Path(args.out) / f}')
         elif args.cmd == 'status':
             print(status_text(base, config, args.id), end='')
         elif args.cmd == 'end':
