@@ -162,6 +162,44 @@ class HinweiseTest(unittest.TestCase):
         self.assertEqual(hinweise.apply(self.base, self.config, path)['applied'], [])
         self.assertFalse(validate_project.check_project(self.base))
 
+    def test_wording_with_ellipsis_other_section_and_messages(self):   # #522
+        s12 = self.ch1['sections'][1]
+        text12 = checks.manuscript(self.base, self.config, s12['id'])
+        everything = ' '.join(checks.manuscript(self.base, self.config, sid) or '' for sid in
+                              [s['id'] for c in self.config['structure']['chapters'] for s in c['sections']])
+        words12 = [w for w in text12.split() if everything.count(w) == 1 and w.isalpha() and len(w) > 6]
+        other = words12[0]
+        path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        data = hinweise.read_yaml(path)
+        base_entry = dict(data['ohne_autor'][0])
+        mk = lambda i, alt, neu: dict(base_entry, id=f'e-9{i}', alt=alt, neu=neu, entscheidung='ja', befund=f'x#{i}')
+        data['ohne_autor'] = [
+            mk(1, '… ' + self.unique + ' …', '… ' + self.unique + 'x …'),    # Auslassungspunkte aus dem Befund
+            mk(2, other, other + 'y'),                                       # steht in 1.2, Befund nennt 1.1
+            mk(3, 'dieser Wortlaut kommt nirgends vor', 'egal'),               # gar nicht
+            mk(4, self.common.strip(), 'egal'),                               # mehrfach
+        ]
+        hinweise.write_yaml(path, data)
+        plan = {e['id']: (m, why) for m, e, why in hinweise.plan(self.base, self.config, hinweise.read_yaml(path))}
+        self.assertEqual(plan['e-91'][0], '✅')
+        self.assertEqual(plan['e-92'][0], '⚠️')
+        self.assertIn('steht in 1.2 statt 1.1', plan['e-92'][1])
+        self.assertEqual(plan['e-93'], ('⛔', 'Wortlaut nicht gefunden: Text oder Befund prüfen'))
+        self.assertEqual(plan['e-94'][0], '⛔')
+        self.assertIn('-mal in 1.1 vor', plan['e-94'][1])
+        for _, why in plan.values():
+            self.assertNotIn('Text hat sich geändert', why)               # das Skript prüft keine Änderung
+        res = hinweise.apply(self.base, self.config, path)
+        self.assertEqual([e['id'] for e in res['applied']], ['e-91'])
+        text = checks.manuscript(self.base, self.config, self.s11['id'])
+        self.assertIn(self.unique + 'x', text)
+        self.assertNotIn('…', text.split(self.unique + 'x')[1][:3])        # keine Punkte in den Text übernommen
+        self.assertIn(self.unique + 'x', res['context'][0][1])
+        # unverändert zuerst: steht der Wortlaut mit Punkten wirklich im Text, bleibt er wie er ist
+        self.assertEqual(hinweise.wording('Er sagte: Und dann… ging er.', 'Und dann…', 'Und danach…'), ('Und dann…', 'Und danach…'))
+        self.assertEqual(hinweise.wording('Er sagte: Und dann ging er.', '… Und dann …', '… Und danach …'), ('Und dann', 'Und danach'))
+        self.assertIsNone(hinweise.wording('abc', '…', 'x'))
+
     def test_matter_and_book_findings(self):   # #423
         import matter
         matter.add(self.base, 'afterword')
