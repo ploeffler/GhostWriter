@@ -2,6 +2,8 @@
 
 Stand: 31.10.2026. Vorrangig unterstützt werden Claude und ChatGPT. Funktionen der Chat-Apps ändern sich laufend; vor dem Einsatz prüfen.
 
+Welche Fähigkeiten (Text, Dateianzeige, Auswahlfragen, GhostWriter-Widgets, installierte Integrationen) je Client verfügbar, nicht verfügbar oder ungeprüft sind, steht auf der Seite [Clients und Fähigkeiten](CLIENT-FAEHIGKEITEN.md).
+
 ## Ergebnis
 
 Die **eingebauten GitHub-Verbindungen** beider Apps können nur lesen. Für Weg A braucht GhostWriter aber Schreibzugriff: Commits auf einen Arbeits-Branch, Pull Request anlegen und mergen, Tag und Release anlegen.

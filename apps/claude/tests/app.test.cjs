@@ -28,7 +28,7 @@ const html = fs.readFileSync(path.join(APP, "index.html"), "utf8")
   .replace(/<script src="https:\/\/cdnjs[^"]*js-yaml[^"]*"><\/script>/, () => "<script>" + fs.readFileSync(path.join(path.dirname(require.resolve("js-yaml")), "dist", "js-yaml.min.js"), "utf8") + "</script>")
   .replace('<script src="vendor/gw-lite.js"></script>', () => "<script>" + fs.readFileSync(path.join(APP, "vendor/gw-lite.js"), "utf8") + "</script>")
   // nur im Test: Zustand von außen erreichbar
-  .replace("window.sendPrompt = text =>", "window.__S = () => S; window.__rc = () => renderChat(); window.sendPrompt = text =>");
+  .replace("window.sendPrompt = text =>", "window.__wording = wording; window.__S = () => S; window.__rc = () => renderChat(); window.sendPrompt = text =>");
 
 const pushes = [], cache = {}, updates = [];
 let staleWork = false;
@@ -61,8 +61,9 @@ const mcp = {callTool: async (srv, tool, input) => {
   if (WRITES.includes(tool)){ if (tool === "push_files") pushes.push(input); return {content: []}; }
   throw {code: "tool_error", message: "im Test nicht nachgebildet: " + tool};
 }};
-let suggestPrompt = null;
+let suggestPrompt = null, lastHist = null;
 const sample = async (hist, o) => {
+  lastHist = hist;
   if (/schlägst Figuren vor/.test((hist[0] || {}).content || "")){   // Figuren aus dem Text: Antwort nachgestellt, Zitat aus dem echten Text
     suggestPrompt = hist[0].content;
     const body = suggestPrompt.split(/TEXT \(Teil[^\n]*\n\n/)[1] || "", mm = /### (\d+\.\d+) [^\n]*\n\n([^\n]{40,})/.exec(body), key = mm ? mm[1] : "1.1", quote = mm ? mm[2].slice(0, 30) : "";
@@ -113,6 +114,23 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
   d.querySelector(".claude .quick button").click(); await sleep(500);
   const btns = [...d.querySelectorAll(".msg.a [data-act=run]")].map(b => b.textContent.trim());
   ok(btns.length === 1 && /Übersicht/.test(btns[0]), "Chat-Knöpfe: nur Ansichten und Formulare (" + btns.join(", ") + ")");
+
+  // Skills des Buchs (#524, #535) als Anleitung für Claude in der App
+  {
+    ok(await until(() => w.__S().skills && w.__S().skills.list.length >= 3, 120), "Skills des Buchs gelesen");
+    ok(/Skills des Buchs: /.test((d.querySelector(".claude .ch-head p") || {}).textContent || ""), "Claude-Leiste nennt die Skills des Buchs");
+    const ask = async t => { await until(() => !w.__S().busy, 60); d.getElementById("askIn").value = t; d.getElementById("fAsk").dispatchEvent(new w.Event("submit", {bubbles: true, cancelable: true})); await sleep(700); await until(() => !w.__S().busy, 60); return (lastHist && lastHist[0].content) || ""; };
+    let c = await ask("Wie geht es hier weiter?");
+    ok(/ANLEITUNG AUS DEN SKILLS DES BUCHS/.test(c) && /PERSÖNLICHER SKILL „[^“]+“/.test(c) && /SKILL „ghostwriter“/.test(c) && /Skillauswahl/.test(c) && /für diese Anfrage: [^\n]*ghostwriter/.test(c), "Anleitung: persönlicher Skill und Regeln des Hauptskills");
+    const gblock = (/SKILL „ghostwriter“ \(nur die Regeln[\s\S]*?(?=\n\nSKILL „|$)/.exec(c) || [""])[0];
+    if (process.env.GW_DEBUG) console.log("GBLOCK:", gblock.length, (c.match(/add_repo|git clone|register_repo_root|gh api user/g) || []).length, gblock.slice(0, 200).replace(/\n/g, " "));
+    ok(gblock.length > 200 && !/add_repo|git clone|register_repo_root|gh api user|render_view/.test(gblock) && !/SKILL „ghostwriter-lektorat“ \(gilt/.test(c), "Anleitung: Hauptskill ohne Shell-Schritte, Lektorat nur bei passender Anfrage");
+    c = await ask("Prüf bitte die Sprache und den Stil dieses Kapitels.");
+    ok(/SKILL „ghostwriter-lektorat“ \(gilt für diese Anfrage\)/.test(c) && !/SKILL „ghostwriter-buchgedaechtnis“ \(gilt/.test(c), "Anleitung: Lektorat bei Prüfauftrag");
+    c = await ask("Passt die Chronologie und die Figur Anna zu Kapitel 2? Gibt es Widersprüche?");
+    ok(/SKILL „ghostwriter-buchgedaechtnis“ \(gilt für diese Anfrage\)/.test(c), "Anleitung: Buchgedächtnis bei Kontinuitätsfrage");
+    ok(c.length < 30000, "Anleitung: begrenzte Größe (" + c.length + " Zeichen)");
+  }
 
   // Projektdaten: nur das geänderte Feld
   await send("x\n\n`gw:project.edit`");
@@ -343,6 +361,15 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
     await send(gwa("queue.cancel", {request: "../geheim.yml"}));
     ok(pushes.length === n && /Ungültige Angabe/.test(note()), "Abbrechen: ungültiger Pfad wird abgelehnt");
     [A, B, C, D].forEach(k => delete fake[k]);
+  }
+
+  // Wortlaut mit Auslassungspunkten (#522): dieselben Fälle wie tests/test_hinweise.py
+  {
+    const wd = w.__wording, t = "Er ging los. Florian hatte die Schuhe herausgenommen, leise. Dann kam sie.";
+    const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    ok(eq(wd(t, "… Florian hatte die Schuhe herausgenommen …", "… Florian nahm die Schuhe heraus …"), ["Florian hatte die Schuhe herausgenommen", "Florian nahm die Schuhe heraus"]), "Wortlaut: einfassende Auslassungspunkte werden bei alt und neu abgeschnitten");
+    ok(eq(wd("Er sagte: Und dann… ging er.", "Und dann…", "Und danach…"), ["Und dann…", "Und danach…"]), "Wortlaut: steht er mit Punkten im Text, bleibt er unverändert");
+    ok(wd(t, "gibt es nicht", "x") === null && wd("abc", "…", "x") === null && wd("a a", "a", "b") === null, "Wortlaut: nicht gefunden, nur Punkte, mehrfach ergeben kein Ergebnis");
   }
 
   // Hinweisdurchsicht: nur wenn das Buch eine hat (z. B. GW_BOOK=buch/krimi-sinabelkirchen)

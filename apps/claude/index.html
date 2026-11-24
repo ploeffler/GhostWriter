@@ -446,6 +446,7 @@ async function openBook(branch){
     S.pr = await openPR(S.book).catch(() => null);
     if (S.pr) await prCommits(S.pr);
     await loadBookData(S.pr ? workOf(S.book) : S.book.branch);
+    S.skills = null; S.skillsFor = ""; loadSkills().then(() => { if (S.view === "project" || S.view === "chapter" || S.view === "section") { const h = document.querySelector(".claude .ch-head p"); if (h) h.innerHTML = skillLine(h.dataset.base || h.textContent); } }).catch(() => {});
     show("project");
   } catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; S.book = null; show("library"); }
 }
@@ -1405,19 +1406,38 @@ async function reviewDecide(d){
   });
   return S.reviewChain;
 }
+const W_LEAD = /^(?:\s|…|\.\.\.)+/, W_TRAIL = /(?:\s|…|\.\.\.)+$/;
+function wording(text, alt, neu){
+  // (alt, neu), wie sie im Text zu ersetzen sind, oder null (wie hinweise.wording, #522): erst unverändert, sonst ohne
+  // einfassende Auslassungspunkte und Leerzeichen aus dem Befund; bei neu fallen nur dieselben Ränder weg
+  if (text.split(alt).length - 1 === 1) return [alt, neu];
+  const lead = W_LEAD.exec(alt), trail = W_TRAIL.exec(alt), a = alt.slice(lead ? lead[0].length : 0, trail ? trail.index : alt.length);
+  if (!a || text.split(a).length - 1 !== 1) return null;
+  let n = neu; if (lead) n = n.replace(W_LEAD, ""); if (trail) n = n.replace(W_TRAIL, "");
+  return [a, n];
+}
+function wordingNotFound(e, ms, secs){
+  // Grund, warum der Wortlaut im genannten Abschnitt nicht eindeutig steht: mehrfach, woanders oder gar nicht (#522)
+  const hits = ms.split(e.alt).length - 1;
+  if (hits > 1) return ["⛔", `alter Wortlaut kommt ${hits}-mal in ${e.abschnitt} vor: die Stelle von Hand wählen`];
+  const places = secs.filter(v => v.s.id !== e.section_id).filter(v => { const f = cached(v.s.path); return f && wording(msOf(f.text), e.alt, e.neu) !== null; }).map(v => `${chapters().indexOf(v.c) + 1}.${v.c.sections.indexOf(v.s) + 1}`);
+  if (places.length === 1) return ["⚠️", `Wortlaut steht in ${places[0]} statt ${e.abschnitt}: Abschnitt im Befund prüfen, von Hand umsetzen`];
+  if (places.length) return ["⚠️", `Wortlaut steht in mehreren anderen Abschnitten (${places.join(", ")}): von Hand umsetzen`];
+  return ["⛔", "Wortlaut nicht gefunden: Text oder Befund prüfen"];
+}
 function reviewPlanItems(data, secs){
   // wie hinweise.plan: [{mark, why, e, x}] für alle entschiedenen, noch nicht umgesetzten Einträge
   const out = [];
   for (const [, e] of reviewEntries(data)){
     if (e.umgesetzt || !["ja", "geändert"].includes(e.entscheidung)) continue;
-    const x = secs.find(v => v.s.id === e.section_id), f = x && cached(x.s.path), ms = f ? msOf(f.text) : "", n = e.alt ? ms.split(e.alt).length - 1 : 0;
+    const x = secs.find(v => v.s.id === e.section_id), f = x && cached(x.s.path), ms = f ? msOf(f.text) : "";
     let mark, why;
     if (e.section_id === "book"){ mark = "⚠️"; why = "buchweit: von Hand in den betroffenen Abschnitten umsetzen"; }
     else if (!x){ mark = "⛔"; why = "Abschnitt gibt es nicht mehr"; }
     else if (!e.alt || !e.neu){ mark = "⚠️"; why = "ohne alten Wortlaut oder Vorschlag: von Hand umsetzen"; }
     else if (x.c.status === "approved"){ mark = "⛔"; why = `Kapitel ${String(e.abschnitt).split(".")[0]} ist abgeschlossen: erst wieder öffnen`; }
     else if (front(f.text).status === "approved"){ mark = "⛔"; why = `Abschnitt ${e.abschnitt} ist abgeschlossen: erst wieder öffnen`; }
-    else if (n !== 1){ mark = "⛔"; why = `alter Wortlaut kommt ${n}-mal vor: Text hat sich geändert`; }
+    else if (wording(ms, e.alt, e.neu) === null){ [mark, why] = wordingNotFound(e, ms, secs); }
     else { mark = "✅"; why = "umsetzbar"; }
     out.push({mark, why, e, x});
   }
@@ -1458,9 +1478,9 @@ async function reviewApply(d){
       if (!(path in files)){ const t = (await getFile(path, work, true)).text; files[path] = t; orig[path] = t; }
       const t = files[path], k = t.indexOf(MARK);
       if (k < 0){ skipped.push({mark:"⛔", why:"Manuskript nicht gefunden", e}); continue; }
-      const head = t.slice(0, k + MARK.length), body = t.slice(head.length), n = body.split(e.alt).length - 1;
-      if (n !== 1){ skipped.push({mark:"⛔", why:`alter Wortlaut kommt ${n}-mal vor (nach einer früheren Umsetzung)`, e}); continue; }
-      const nb = body.replace(e.alt, () => e.neu); files[path] = head + nb; applied.push(e); ctx.push([e, contextOf(nb, e.neu)]);
+      const head = t.slice(0, k + MARK.length), body = t.slice(head.length), w = wording(body, e.alt, e.neu);
+      if (w === null){ skipped.push({mark:"⛔", why:"Wortlaut nicht mehr eindeutig (nach einer früheren Umsetzung)", e}); continue; }
+      const nb = body.replace(w[0], () => w[1]); files[path] = head + nb; applied.push(e); ctx.push([e, contextOf(nb, w[1])]);
     }
     if (!applied.length){ S.msg = {kind:"info", html:`<b>Nichts umgesetzt.</b>${planLines(skipped) || "<div>Keine umsetzbaren Einträge.</div>"}`}; return show("review", file); }
     // Durchsicht: umgesetzt: true
@@ -1737,10 +1757,14 @@ const QUICK = {
     "Gliederung prüfen":"Sieh dir die Gliederung an: Passen Reihenfolge und Titel der Kapitel und Abschnitte zueinander? Gibt es Lücken oder Doppelungen? Nur Vorschläge."}
 };
 const scopeOf = () => String(S.chatKey || "project").split(":")[0];
+function skillLine(base){
+  const sk = S.skills, names = sk && sk.list.length ? sk.list.map(x => x.dir).join(", ") : "";
+  return esc(base) + (names ? `<br>Skills des Buchs: ${esc(names)}` : "") + (sk && sk.warn.length ? `<br><span style="color:var(--text-warning)">${esc(sk.warn.join(" · "))}</span>` : "");
+}
 function claudePanel(){
   const on = !!S.sample, sc = scopeOf();
   const what = {section:"Arbeitet mit dem geöffneten Abschnitt", chapter:`Arbeitet mit Kapitel ${(S.chap || 0) + 1}`, project:"Arbeitet mit dem ganzen Buch"}[sc];
-  return `<aside class="claude" aria-label="Claude"><div class="ch-head"><b>Claude</b><p>${on ? what + " · über dein Claude-Konto" : "Claude ist in dieser Ansicht nicht verfügbar."}</p></div>
+  return `<aside class="claude" aria-label="Claude"><div class="ch-head"><b>Claude</b><p data-base="${esc(on ? what + " · über dein Claude-Konto" : "Claude ist in dieser Ansicht nicht verfügbar.")}">${skillLine(on ? what + " · über dein Claude-Konto" : "Claude ist in dieser Ansicht nicht verfügbar.")}</p></div>
   <div class="msgs" id="msgs"></div>
   <div class="quick">${Object.keys(QUICK[sc]).map(q => `<button data-q="${esc(q)}" ${on ? "" : "disabled"}>${esc(q)}</button>`).join("")}</div>
   <form class="ask" id="fAsk"><textarea class="in" id="askIn" rows="1" placeholder="Frage an Claude …" ${on ? "" : "disabled"}></textarea><button class="btn pri" aria-label="Senden" ${on ? "" : "disabled"}><i class="ti ti-send"></i></button></form></aside>`;
@@ -1790,6 +1814,50 @@ const ACTION_HELP = `Du kannst dem Benutzer Knöpfe anbieten, die eine Ansicht o
 <<<AKTION {"action":"…","label":"kurzer Knopftext", …Daten} AKTION>>>
 Erlaubt: view.project; view.notes_review; view.queue; view.characters; view.character {character_id}; character.suggest {scope: book | Kapitelnummer | N.M}; view.chapter {chapter_id}; view.section {section_id}; project.edit; chapter.create.open; chapter.edit.open {chapter_id}; section.create.open {chapter_id}; chapter.reorder.open; section.reorder.open {chapter_id}; approval.open {kind:"writing"|"section", section_id, revoke?} bzw. {kind:"chapter", chapter_id, revoke?}; changes.merge.open; run.start {section_id, task:"research"|"writing"}. IDs nur aus buch_struktur. Knöpfe öffnen nur – gespeichert, freigegeben oder übernommen wird erst nach Bestätigung durch den Benutzer. Höchstens drei Knöpfe.
 Will der Benutzer etwas ändern, anlegen, verschieben, freigeben, abschließen, recherchieren oder schreiben lassen, antworte nie nur, dass du das nicht kannst. Sag in einem Satz, dass er es über den Knopf öffnet und dort mit Speichern bestätigt, und biete den passenden Knopf an (für Manuskripttext: run.start mit task "writing" oder den Abschnitt mit view.section öffnen). Gibt es für den Wunsch keinen Knopf, sag das kurz und nenne die Ansicht, in der es am ehesten geht.`;
+/* Skills des Buchs (#524, #535): die SKILL.md-Dateien unter .claude/skills als Anleitung für Claude in der App. Gelesen vom Lesestand, sonst vom
+   Standard-Branch; gegen ghostwriter-skills.yml abgeglichen. Die App ist kein Chat mit Shell: Schritte mit Skripten oder Git
+   führt sie über ihre Knöpfe aus, die Regeln (Skillauswahl, Auswahlfragen, verständliche Ausgaben, Qualitätssicherung, Grenzen) gelten. */
+const sha256hex = async t => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)))].map(x => x.toString(16).padStart(2, "0")).join("");
+function skillParse(text){
+  const m = /^---\n([\s\S]*?)\n---\n?/.exec(text), head = m ? (window.jsyaml.load(m[1]) || {}) : {}, body = m ? text.slice(m[0].length) : text;
+  const cut = body.search(/^---\s*\n<p align/m), clean = (cut >= 0 ? body.slice(0, cut) : body).trim();
+  const parts = clean.split(/^(?=## )/m), pre = parts[0], secs = parts.slice(1).map(x => ({n:(/^## (\d+)\./.exec(x) || [])[1] || "", text:x.trim()}));
+  return {name:head.name || "", description:head.description || "", pre, secs, body:clean};
+}
+async function loadSkills(){
+  const key = S.owner + "/" + S.repo + "|" + S.readRef; if (S.skillsFor === key) return S.skills;
+  const out = {list:[], warn:[], personal:""};
+  try {
+    let dirs = (await listDir(".claude/skills", S.readRef)).filter(e => e.type === "dir").map(e => e.name), ref = S.readRef;
+    if (!dirs.length){ dirs = (await listDefault(".claude/skills")).filter(e => e.type === "dir").map(e => e.name); ref = null; }
+    const got = await pool(dirs, 4, async n => { const text = (await getFile(`.claude/skills/${n}/SKILL.md`, ref, true)).text; return Object.assign(skillParse(text), {dir:n, text, sha:await sha256hex(text)}); });
+    out.list = got.filter(Boolean);
+    let source = null; try { source = window.jsyaml.load((await getFile("ghostwriter-skills.yml", ref, true)).text) || null; } catch (e) {}
+    if (source && source.skills){ const bad = out.list.filter(x => source.skills[x.dir] && source.skills[x.dir] !== x.sha).map(x => x.dir); if (bad.length) out.warn.push("Weichen von der Quelle ab: " + bad.join(", ")); }
+    let prof = null; try { prof = window.jsyaml.load((await getFile("assistant.yml", S.readRef, true).catch(() => getFile("assistant.yml", null, true))).text) || null; } catch (e) {}
+    out.personal = prof && prof.skill ? String(prof.skill) : "";
+    if (out.personal && !out.list.some(x => x.dir === out.personal)) out.warn.push("Persönlicher Skill fehlt: " + out.personal);
+  } catch (e) { /* ohne Skills arbeitet die App mit ihrer eigenen Anleitung */ }
+  S.skills = out; S.skillsFor = key; return out;
+}
+function skillGuide(){
+  const sk = S.skills; if (!sk || !sk.list.length) return "";
+  const q = String(S.skillQuery || ""), by = n => sk.list.find(x => x.dir === n), used = [], blocks = [];
+  const g = by("ghostwriter"), personal = sk.personal && by(sk.personal);
+  if (personal){ used.push(personal.dir); blocks.push(`PERSÖNLICHER SKILL „${personal.dir}“ (Autor, Erzählstimme, Vorgaben; geht dem allgemeinen Skill vor)\n${personal.body.slice(0, 6000)}`); }
+  if (g){
+    used.push("ghostwriter");
+    const pre = g.pre.split(/\n\n+/).filter(x => /^\*\*(Skillauswahl|Auswahlfragen)/.test(x.trim())).join("\n\n");
+    const rest = g.secs.filter(x => ["7", "11"].includes(x.n)).map(x => x.text).join("\n\n");
+    blocks.push(`SKILL „ghostwriter“ (nur die Regeln, die in der App gelten)\n${[pre, rest].filter(Boolean).join("\n\n").slice(0, 7000)}`);
+  }
+  const lek = by("ghostwriter-lektorat"), mem = by("ghostwriter-buchgedaechtnis");
+  if (lek && /prüf|lektorat|korrektur|rundum|stil|sprache|struktur|lesbar|überarbeit/i.test(q)){ used.push(lek.dir); blocks.push(`SKILL „${lek.dir}“ (gilt für diese Anfrage)\n${lek.body.slice(0, 4000)}`); }
+  if (mem && /kontinuit|widerspr|abgleich|figur|chronolog|fakt|gedächtnis|stimmt|passt zu/i.test(q)){ used.push(mem.dir); blocks.push(`SKILL „${mem.dir}“ (gilt für diese Anfrage)\n${mem.body.slice(0, 3000)}`); }
+  return `\nANLEITUNG AUS DEN SKILLS DES BUCHS (verbindlich, geht deinen allgemeinen Gewohnheiten vor)
+Du arbeitest in der GhostWriter-App, nicht in einem Chat mit Shell. Wo ein Skill Skripte, Git oder Dateien verlangt, tut die App das über ihre Knöpfe: du schlägst sie nur vor (siehe Knöpfe oben) und nennst keine Datei-, Skript- oder Werkzeugnamen. Die Regeln zu Skillauswahl, Auswahlfragen, verständlichen Ausgaben, Qualitätssicherung, Freigaben und Grenzen gelten unverändert. Nenne zu Beginn jeder Aufgabe in einem Satz, welchen Skill du verwendest (oder dass keiner passt): geladen sind ${sk.list.map(x => x.dir).join(", ")}; für diese Anfrage: ${used.join(", ") || "keiner"}.
+${blocks.join("\n\n")}\n`;
+}
 function context(){
   const p = S.cfg.project || {}, sc = scopeOf();
   if (sc !== "section"){
@@ -1799,6 +1867,7 @@ function context(){
 Regeln: Nenne keine Datei-, Feld- oder Werkzeugnamen (sag „Bearbeitungsstand“, „abschließen“, „Änderungspaket“). Behaupte nie, etwas gespeichert oder geändert zu haben. Erfinde keine Fakten über das Buch. Gib nie ein ganzes Kapitel oder Buch aus. Bearbeitungsstände: planned geplant, research Recherche, brainstorming Ideensammlung, ready_to_write bereit zum Schreiben, writing Schreiben, revision Überarbeitung, ready_for_approval bereit zum Abschluss, approved abgeschlossen, in_progress in Arbeit.
 Mit buch_struktur siehst du die Gliederung (mit IDs), mit abschnitt_lesen liest du einen Abschnitt, mit kapitel_lesen Ziel und Kurzbeschreibung eines Kapitels.
 ${ACTION_HELP}
+${skillGuide()}
 
 BUCHPROFIL
 ${prof}
@@ -1814,6 +1883,7 @@ Regeln: Nenne keine Datei-, Feld- oder Werkzeugnamen (sag „Bearbeitungsstand�
 Wenn du eine vollständige neue Fassung des Manuskripts dieses Abschnitts vorschlägst, setze NUR den Manuskripttext zwischen die Zeilen <<<MANUSKRIPT und MANUSKRIPT>>> (ohne Überschrift). Sonst keine solchen Marker.
 Mit abschnitt_lesen kannst du andere Abschnitte lesen, mit buch_struktur die Gliederung sehen.
 ${ACTION_HELP}
+${skillGuide()}
 
 BUCHPROFIL
 ${prof}
@@ -1840,7 +1910,7 @@ const TOOLS = [
 ];
 async function chat(q, label){
   if (!S.sample || S.busy || !q.trim()) return;
-  S.busy = true; S.chat.push({role:"user", content:q.trim(), label}); const a = {role:"assistant", content:"", run:S.pendingRun || null}; S.pendingRun = null; S.chat.push(a); renderChat();
+  S.busy = true; S.skillQuery = q; S.chat.push({role:"user", content:q.trim(), label}); const a = {role:"assistant", content:"", run:S.pendingRun || null}; S.pendingRun = null; S.chat.push(a); renderChat();
   const hist = S.chat.slice(0, -1).map((m, i) => ({role:m.role, content: i === 0 ? context() + "\n\nANFRAGE:\n" + m.content : m.content}));
   try { const r = await S.sample(hist, {tools:TOOLS, cache:false, onText:({text}) => { a.content = text; renderChat(); }}); a.content = r.text || a.content; }
   catch (e) { a.content = e.code === "not_granted" ? "Claude ist für diese App nicht freigegeben." : e.code === "rate_limited" ? "Dein Claude-Kontingent ist gerade ausgeschöpft. Bitte später noch einmal versuchen." : "Claude konnte nicht antworten: " + (e.message || e); }
