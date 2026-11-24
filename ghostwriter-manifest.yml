@@ -65,6 +65,7 @@ book:
   - import/                 # Manuskript-Import: Original, Umwandlung, Vorschlag (#124)
   - editorial/              # Prüfberichte und Prüfprotokoll checks.yml (#331)
   - checkouts.yml           # Bereiche zum Gegenlesen: ausgecheckt und gesperrt (#572)
+  - quellen/                # eingebrachtes Material: Originale, Aufbereitung, Markierungen (#574)
   - assistant.yml           # Assistenten-Profil (#136): Repo, Git-Benutzer, Autor, Stimme
   # Der persönliche Skill .claude/skills/<skill>/ (aus assistant.yml) steht absichtlich nicht
   # hier: Er gibt es nur im Buch, ein Update fasst ihn deshalb nie an; .claude/skills/ als
