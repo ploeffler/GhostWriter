@@ -40,6 +40,9 @@ Akzeptiere zusätzlich zu den deutschen Befehlen die folgenden englischen Entspr
 | `Speak as <Name>`, `Speak as <Name>: book`, `…: research`, `…: book + research` | `Als <Name> sprechen`, `Als <Name> sprechen: Buch`, `…: Recherche`, `…: Buch + Recherche` |
 | `Proof`, `Edition`, `Settings`, `AI services` | `Probedruck`, `Auflage`, `Einstellungen`, `KI-Dienste` |
 | `Export manuscript`, `Export manuscript chapter 3` | `Manuskript ausgeben`, `Manuskript ausgeben Kapitel 3` |
+| `Check out chapters 3–5`, `Check out book` | `Auschecken Kapitel 3–5`, `Auschecken Buch` |
+| `Check in`, `End checkout`, `Checkouts` | `Einchecken`, `Checkout beenden`, `Checkouts` |
+| `Add material` | `Material einbringen` |
 | `Update`, `Data`, `Profile`, `AI disclosure` | `Update`, `Daten`, `Profil`, `KI-Angabe` |
 | `Core rules` | `Grundregeln` |
 | `Project details` | `Projektdaten` |
@@ -266,6 +269,10 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kurzfo
 | `Vorabfassung` | Vorabfassung mit Tag und Pre-Release anlegen (wie `edition.preview`, unten „Vorabfassung“) |
 | `Manuskript ausgeben`, `Manuskript ausgeben Kapitel 3` | PDF des Arbeitsstands erzeugen und als Datei im Chat übergeben; Geplantes in Stichworten (wie `manuscript.export`, unten „Manuskript ausgeben“) |
 | `Auflage` | Formular „Neue Auflage erzeugen“ |
+| `Auschecken Kapitel 3–5`, `Auschecken Buch` (Kürzel `AC`) | Bereich zum Gegenlesen auschecken und sperren, DOCX und PDF mit QR-Kennung übergeben; Skill `ghostwriter-gegenlesen`, Abschnitt „Ausgecheckte Bereiche (#572)“ |
+| `Einchecken` (Kürzel `EC`) | Rückgabe (DOCX, PDF oder Foto der Ausdrucke) einchecken und als Befunde einbringen; beendet den Checkout nicht (#573) |
+| `Checkout beenden` (Kürzel `CB`), `Checkouts` | Checkout ausdrücklich beenden, nur als eigene Auswahl mit Bestätigung; `Checkouts` listet alle (`checkout.py . status`) |
+| `Material einbringen` (Kürzel `ME`) | Foto, Foto vom Foto, Dokument oder Rückgabe einbringen; startet auch bei einem Upload ohne Befehl; Skill `ghostwriter-material`, Abschnitt „Material einbringen (#574)“ |
 | `Zeitleiste` | Chronologie aus Unterlagen und Recherche mit Hinweisen, wo die Daten nicht zusammenpassen (Abschnitt „Chronologie“, #354) |
 | `Einstellungen`, `KI-Dienste` | das jeweilige Formular |
 | `Alle Einstellungen` | Übersicht aller Einstellungen mit Wert, Herkunft und Formular (`render_view.py . settings-overview [gruppe | bibliothek | serie <id> | sammelband <id>]`, nur lesend, Widget bzw. `--text`, #299) |

@@ -25,6 +25,10 @@ Enter **Help** in the chat for a short list of commands and shortcuts for the cu
 | `Timeline` (`Zeitleiste`) | Chronology from notes and research, with hints where dates do not fit together |
 | `Images 2.3` | Manage section images |
 | `Output` or `Cover` | Open output options |
+| `Check out chapters 3–5` or `Check out book` | Lock an area for proofreading and provide DOCX and PDF with a QR code (shortcut `AC`) |
+| `Check in` | Assign the proofreader's return (DOCX, PDF or photo of the printouts) and add it as findings (shortcut `EC`); the checkout stays |
+| `End checkout`, `Checkouts` | Lift the lock after confirmation (shortcut `CB`) or list all checkouts |
+| `Add material` | Store, prepare and mark a photo, document or return for the book (shortcut `ME`); also starts on an upload |
 | `Proof` | Build a preview; no published edition |
 | `Preview version` (`Vorabfassung`) | Keep the current state as a pre-release (tag and release, after confirmation); no edition |
 | `Export manuscript` | PDF of the working state to download; planned content as bullet points |

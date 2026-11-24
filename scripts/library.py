@@ -519,7 +519,8 @@ def program_problems(cwd=ROOT, namespace='refs/remotes/origin', manifest=None):
         errors.append('assistant.yml im Programm-Repository; das Assistenten-Profil gehört in das Buch-Repository (#136)')
     skills = Path(cwd, '.claude', 'skills')
     for d in sorted(skills.iterdir()) if skills.is_dir() else []:
-        if d.is_dir() and d.name not in {'ghostwriter', 'ghostwriter-lektorat', 'ghostwriter-buchgedaechtnis'}:
+        if d.is_dir() and d.name not in {'ghostwriter', 'ghostwriter-lektorat', 'ghostwriter-buchgedaechtnis',
+                                                'ghostwriter-gegenlesen', 'ghostwriter-material'}:
             errors.append(f'.claude/skills/{d.name}/ im Programm-Repository; persönliche Skills gehören in das Buch-Repository (#136)')
     eds = [p for p in Path(cwd, 'editions').glob('*.md')] if Path(cwd, 'editions').is_dir() else []
     if eds:

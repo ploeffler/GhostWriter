@@ -139,6 +139,7 @@ The local state comparison covers the entire `.claude/skills/` directory in the 
 Claude picks a skill from the skill descriptions. Users normally do not see that choice, and similar descriptions make it ambiguous. GhostWriter therefore asks (`CLAUDE.md`, `AGENTS.md`, `ghostwriter` skill):
 
 - **Name the choice:** at the start of a task, Claude states in one sentence which skill it uses, or that none fits.
+- **General skills and their job:** `ghostwriter` (entry and book work), `ghostwriter-lektorat` (review requests), `ghostwriter-buchgedaechtnis` (facts and continuity), `ghostwriter-gegenlesen` (check out for proofreading, check in the return, end checkout; shortcuts `AC`, `EC`, `CB`, #572/#573) and `ghostwriter-material` (add material, shortcut `ME`, also on an upload without a command, #574). A return as photo or scan belongs to `ghostwriter-gegenlesen`, which refers to `ghostwriter-material` for storing and preparing.
 - **Specific before general:** the repository's personal skill (`assistant.yml` → `skill`) comes before the general `ghostwriter` skill. `ghostwriter` is meant for book and library repositories, not for program work on the main repository. Claude asks once only if the choice is genuinely ambiguous.
 - **Do not load twice:** each load puts the whole instructions into the conversation again, which costs context and makes summarising happen sooner. If the instructions are still in the conversation, Claude does not reload them; if they were lost when a long conversation was summarised, Claude reloads them and says so briefly.
 
