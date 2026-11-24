@@ -148,6 +148,42 @@ class StandabgleichTest(unittest.TestCase):
         git(self.base, 'branch', '-qD', 'ghostwriter/arbeit')
         self.assertEqual(self.states(old)['Arbeit'], 'konflikt')   # verschwunden, nicht im Buch
 
+    def test_merged_work_still_present_reads_new_book_data(self):
+        old = self.stand()
+        git(self.base, 'switch', '-q', 'buch/adhs')
+        git(self.base, 'merge', '-q', '--no-ff', '-m', 'Übernahme', 'ghostwriter/arbeit')
+        git(self.base, 'switch', '-q', 'main')
+        config = git(self.base, 'show', 'buch/adhs:ghostwriter.yml').replace('data_version: 1', 'data_version: 99')
+        self.commit('ghostwriter.yml', config, branch='buch/adhs')
+        with mock.patch.object(sa, 'derived', return_value=None) as derived:
+            result = sa.compare(self.base, old)
+        states = {area: state for area, state, _ in result}
+        self.assertEqual(states['Arbeit'], 'neuer')
+        self.assertEqual(states['Daten'], 'konflikt')
+        derived.assert_called_once_with(self.base, sa.resolve(self.base, 'buch/adhs'))
+        self.assertIn('übernommen', dict((a, t) for a, _, t in result)['Arbeit'])
+
+    def test_new_work_after_merge_stays_selected(self):
+        old = self.stand()
+        git(self.base, 'switch', '-q', 'buch/adhs')
+        git(self.base, 'merge', '-q', '--no-ff', '-m', 'Übernahme', 'ghostwriter/arbeit')
+        git(self.base, 'switch', '-q', 'main')
+        self.commit('notiz.md', 'Weitere noch offene Arbeit', branch='ghostwriter/arbeit')
+        with mock.patch.object(sa, 'derived', return_value=None) as derived:
+            result = sa.compare(self.base, old)
+        derived.assert_called_once_with(self.base, sa.resolve(self.base, 'ghostwriter/arbeit'))
+        self.assertNotIn('übernommen', dict((a, t) for a, _, t in result)['Arbeit'])
+
+    def test_reset_work_is_not_mistaken_for_a_completed_merge(self):
+        old = self.stand()
+        git(self.base, 'switch', '-q', 'buch/adhs')
+        git(self.base, 'merge', '-q', '--no-ff', '-m', 'Übernahme', 'ghostwriter/arbeit')
+        git(self.base, 'switch', '-q', 'main')
+        git(self.base, 'branch', '-qf', 'ghostwriter/arbeit', old['book']['head'])
+        result = sa.compare(self.base, old)
+        self.assertEqual(dict((a, s) for a, s, _ in result)['Arbeit'], 'konflikt')
+        self.assertNotIn('übernommen', dict((a, t) for a, _, t in result)['Arbeit'])
+
     def test_book_branch_switched_or_rewritten(self):
         old = self.stand(work=None)
         git(self.base, 'branch', '-qf', 'buch/adhs', 'main')   # Buch-Branch zeigt woandershin
