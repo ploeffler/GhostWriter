@@ -171,6 +171,32 @@ def find_issue(title):
     return None
 
 
+def repair_hints(output):
+    """Reparaturweg für abgeschlossene Abschnitte und Teile, deren Text vom Fingerabdruck der Freigabe abweicht (#595, #563).
+    `output` ist die Ausgabe von validate_project.py; leer, wenn keine solche Meldung darin steht."""
+    rows, seen = [], set()
+    for line in output.splitlines():
+        if 'Manuskript-Fingerabdruck weicht' not in line:
+            continue
+        m = re.search(r'approval-section (\d+\.\d+)', line)
+        if m:
+            key, what = m.group(1), f'Abschnitt {m.group(1)}'
+        else:   # Vor-/Nachspann: Meldung nennt den Dateipfad
+            f = re.search(r'(matter/([^\s:]+?)\.md)', line)
+            if not f:
+                continue
+            key, what = f.group(2), f'Teil `{f.group(1)}`'
+        if key not in seen:
+            seen.add(key)
+            rows.append(f'- {what}: `python3 scripts/render_view.py . approval-section {key}` zeigt „Geänderten Text neu abschließen“')
+    if not rows:
+        return ''
+    return ('\n\n**Reparaturweg:** Der Text dieser abgeschlossenen Abschnitte wurde nach dem Abschließen geändert, ohne sie '
+            'wieder zu öffnen. Im Buch je Abschnitt die Bestätigung „Geänderten Text neu abschließen“ geben (ein Commit mit '
+            '„zurückgenommen“ und „erteilt“ und neuem Fingerabdruck, `docs/SPEICHERN.md`), danach das Update erneut starten:\n'
+            + '\n'.join(rows))
+
+
 def report_failure(branch, text):
     title = ISSUE_TITLE.format(branch=branch)
     issue = find_issue(title)
@@ -424,7 +450,7 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows, re
                     return {**res, 'status': 'failed',
                             'text': (f'{commits(behind)} hinter {up_label}; Prüfung mit GhostWriter {version} ({up_sha[:7]}) '
                                      'fehlgeschlagen, das Update wurde nicht eingespielt.\n\n```\n'
-                                     + '\n\n'.join(steps)[-6000:] + '\n```')}
+                                     + '\n\n'.join(steps)[-6000:] + '\n```' + repair_hints(out))}
             state_path = Path(wt) / STATE
             state_path.parent.mkdir(parents=True, exist_ok=True)
             state_path.write_text(yaml.safe_dump({

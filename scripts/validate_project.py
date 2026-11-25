@@ -580,7 +580,7 @@ def check_project(project_dir):
                         if not record or record.get('action') != 'granted':
                             errors.append(f'{item["path"]}: freigegebener Vor-/Nachspann ohne letzte Freigabe in approvals.yml')
                         elif record.get('note') != 'content_sha256=' + digest:
-                            errors.append(f'{item["path"]}: Manuskript-Fingerabdruck weicht von der letzten Freigabe ab')
+                            errors.append(f'{item["path"]}: Manuskript-Fingerabdruck weicht von der letzten Freigabe ab; Ausweg: `render_view.py . approval-section {item["id"][4:]}` zeigt „Geänderten Text neu abschließen“ (#595)')
                     elif record and record.get('action') == 'granted':
                         errors.append(f'{item["path"]}: Freigabe des Vor-/Nachspanns in approvals.yml nicht zurückgenommen')
                     elif record and record.get('action') == 'granted':
