@@ -93,6 +93,25 @@ class ReleaseTest(unittest.TestCase):
         self.assertIn("inputs.prerelease == '' && 'github-pages' || ''", text)   # Umgebung nur für main
 
 
+    def test_merged_prs_with_empty_body(self):
+        """Ein Merge-Commit ohne Rumpf darf den Entwurf nicht abbrechen (str.strip() entfernt das Trennzeichen \\x1f)."""
+        import subprocess
+        with tempfile.TemporaryDirectory() as d:
+            g = lambda *a: subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=d, check=True,
+                                          capture_output=True, text=True)
+            g('init', '-q', '-b', 'main')
+            g('commit', '-q', '--allow-empty', '-m', 'Start')
+            g('tag', 'v1.0')
+            g('switch', '-q', '-c', 'x')
+            g('commit', '-q', '--allow-empty', '-m', 'Arbeit')
+            g('switch', '-q', 'main')
+            g('merge', '-q', '--no-ff', '-m', 'Merge pull request #7 from o/x', 'x')   # ohne Rumpf
+            g('switch', '-q', '-c', 'y')
+            g('commit', '-q', '--allow-empty', '-m', 'Mehr')
+            g('switch', '-q', 'main')
+            g('merge', '-q', '--no-ff', '-m', 'Merge pull request #8 from o/y', '-m', 'Titel des PR', 'y')
+            self.assertEqual(release.merged_prs('v1.0', Path(d)), [(7, 'Merge pull request #7 from o/x'), (8, 'Titel des PR')])
+
     def test_prepare_sets_version_and_inserts_draft_that_blocks_publishing(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = make_root(tmp, version='0.9.0', de=False, en=False)
