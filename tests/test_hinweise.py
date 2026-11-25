@@ -280,6 +280,7 @@ class HinweiseTest(unittest.TestCase):
         _, blocks = hinweise.widget_values(self.base, path)
         self.assertTrue(blocks['AUTHOR'][0]['E_REASON'].startswith('⛔ blockierend: '))
         self.assertIn('Variante 1: Alter nennen', blocks['AUTHOR'][0]['E_QUESTION'])
+        self.assertEqual(json.loads(blocks['AUTHOR'][0]['E_VARIANTS_JSON']), ['Alter nennen', 'Szene streichen'])   # Knopf je Variante (#630)
         self.assertFalse(validate_project.check_project(self.base))
 
     def test_full_chapter_check_chain(self):   # #447: Speichern, Nachprüfung, nur „ohne Autor“ umsetzen

@@ -3671,16 +3671,24 @@ def chronology_suggest_view(base, config, args, data, run_text):
 
 
 def glossary_suggest_view(base, config, args, data, run_text):
-    """Glossar-Begriffe (#490): als Text in jeder Darstellung (kein eigenes Widget). Begriff, Erklärung nur aus dem Text,
+    """Glossar-Begriffe (#490, #630): Vorlage glossar-vorschlag bzw. Textfassung. Begriff, Erklärung nur aus dem Text,
     Abschnitte, Stand gegenüber dem Glossar. Übernommen wird einzeln; Vorgabe ist nichts angehakt."""
     import analyze
     known = analyze.glossary_known(base)
     scope = scope_text(str(data.get('scope') or 'book'), config)
-    rows = []
+    rows, cards = [], []
     for i, it in enumerate(data.get('items') or []):
-        state = view_message('view.glossary_suggest.already_exists') if analyze.norm(it['term']) in known else \
+        existing = analyze.norm(it['term']) in known
+        state = view_message('view.glossary_suggest.already_exists') if existing else \
             (view_message('view.glossary_suggest.new') if it.get('explanation') else view_message('view.glossary_suggest.no_explanation'))
         rows.append(f'| {i + 1} | **{it["term"]}** | {it.get("explanation") or "–"} | {", ".join(it.get("sections") or []) or "–"} | {state} |')
+        cards.append({'S_IDX': i, 'S_TERM': it['term'], 'S_EXPL': it.get('explanation') or '', 'S_SECTIONS': ', '.join(it.get('sections') or []),
+                      'S_EVIDENCE': ' · '.join(f'{e.get("where", "")}: „{e.get("quote", "")}“' for e in (it.get('evidence') or [])[:2]),
+                      'S_STATE': 'existing' if existing else 'new', 'S_STATE_TEXT': state})
+    if not args.text:   # Widget ab UI 0.70.0 (#630): nichts vorangehakt, jeder Begriff einzeln
+        return fill('glossar-vorschlag.html', {'RUN_ID': data.get('run', ''), 'RUN_TEXT': run_text, 'KIND': 'glossary', 'SCOPE_TEXT': scope,
+                                               'SUGGEST_COUNT_TEXT': plural(len(rows), view_message('view.glossary_suggest.term'), view_message('view.glossary_suggest.terms'))},
+                    {'SUGGESTIONS': cards})
     out = [view_message('view.glossary_suggest.title', p_a=scope),
            plural(len(rows), view_message('view.glossary_suggest.term'), view_message('view.glossary_suggest.terms')) + (f' · {run_text}' if run_text else ''), '']
     out += ([view_message('view.glossary_suggest.header'), '|--:|---|---|---|---|'] + rows) if rows else [view_message('view.glossary_suggest.none')]
@@ -4211,7 +4219,7 @@ def resolve_repo(base, args):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('project')
-    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline', 'notes-review', 'settings-overview', 'queue'] + list(FORMS))
+    ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline', 'notes-review', 'settings-overview', 'queue', 'checkin'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
     ap.add_argument('--darstellung', choices=['einfach', 'uebersichtlich', 'erweitert'],
@@ -4321,6 +4329,15 @@ def main():
             values, blocks = hinweise.widget_values(base, path, False if getattr(args, 'all_entries', False) else None,
                                                     entry=args.entry or ('next' if args.next_entry else None))
             out = fill('hinweisdurchsicht.html', values, blocks)
+    elif args.view == 'checkin':   # Rückgabe eingecheckt (#573, #209, #630): Vorlage rueckgabe bzw. Textfassung; where = Ablageordner
+        import checkin
+        if not args.where:
+            raise SystemExit('Ablageordner der Rückgabe angeben (checkouts/<kennung>/rueckgabe-<datum>)')
+        if args.text:
+            out = checkin.text_view(base, config, args.where, language)
+        else:
+            values, blocks = checkin.view_values(base, config, args.where, language)
+            out = fill('rueckgabe.html', values, blocks)
     elif args.view == 'queue':   # Hintergrund-Warteschlange (#478): Vorlage warteschlange bzw. Textfassung
         import queue_view
         if args.text:
