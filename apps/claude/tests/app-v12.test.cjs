@@ -33,6 +33,15 @@ for (let i = 8; i <= 13; i++) auto.push(ent(i, {art: "satzbau", grund: "Anderer 
 auto.push(ent(14, {schweregrad: "gering", art: "zeichensetzung", grund: "klein"}));
 files["editorial/durchsicht-test.yml"] = require("js-yaml").dump({buch: "Test", erstellt: "2026-11-20", ohne_autor: auto, autorenentscheidung: []}, {lineWidth: 100, noArrayIndent: true});
 
+// Vor-/Nachspann mit Veraltet-Marke, ein Autoreneintrag mit Varianten, eine Rückgabe
+files["ghostwriter.yml"] = files["ghostwriter.yml"].replace(/^structure:\n/m, "structure:\n  front_matter:\n    - id: mat-vorwort\n      kind: foreword\n      title: Vorwort\n      path: matter/vorwort.md\n");
+files["matter/vorwort.md"] = `---\nid: mat-vorwort\ntitle: Vorwort\nstatus: writing\nstale:\n  since: 2026-11-20\n  reason: Neue Angaben\n---\n\n# Vorwort\n\n## Manuskript\n\nEin Vorwort.\n`;
+files["editorial/durchsicht-var.yml"] = require("js-yaml").dump({buch: "Test", erstellt: "2026-11-20", ohne_autor: [], autorenentscheidung: [Object.assign(ent(1), {frage: "Welche Fassung?", varianten: ["Erste Wahl", "Zweite Wahl"], neu: ""})]}, {lineWidth: 100, noArrayIndent: true});
+const ckId = "GW-ABCD", rdir = `checkouts/${ckId}/rueckgabe-2026-11-25`;
+files["checkouts.yml"] = require("js-yaml").dump({checkouts: [{id: ckId, status: "ausgecheckt", rueckgaben: [{ordner: rdir, art: "docx", datum: "2026-11-25", befunde: 2}]}]});
+files[rdir + "/rueckgabe.yml"] = require("js-yaml").dump({kennung: ckId, art: "docx", datum: "2026-11-25", programm: "Google Docs", befunde: 2, kommentare: 1, vergleich: "keine Änderungsverfolgung und keine Kommentare gefunden, Vergleich über den Text",
+  aufbau: [{id: "a-001", art: "neu", titel: "Neuer Gedanke", kapitel: 1, hinter: sec1.id, absaetze: 2, status: "offen"}, {id: "a-002", art: "umbenannt", abschnitt: sec2.id, alt: "Alt", neu: "Neu", status: "offen"}], offene_fragen: ["Seite 2: keine Zuordnung"]});
+const asked = [];
 const pushes = [];
 const dirOf = p => { const under = Object.keys(files).filter(f => f.startsWith(p + "/")); const names = [...new Set(under.map(f => f.slice(p.length + 1).split("/")[0]))];
   return names.map(n => ({name: n, path: p + "/" + n, type: files[p + "/" + n] != null ? "file" : "dir", sha: "f"})); };
@@ -56,7 +65,7 @@ const html = fs.readFileSync(path.join(APP, "index.html"), "utf8")
   .replace('<script src="vendor/gw-lite.js"></script>', () => "<script>" + fs.readFileSync(path.join(APP, "vendor/gw-lite.js"), "utf8") + "</script>")
   .replace("window.sendPrompt = text =>", "window.__S = () => S; window.sendPrompt = text =>");
 const dom = new JSDOM(html, {runScripts: "dangerously", url: "https://app.example/", beforeParse(w){
-  w.claude = {use: async n => n === "mcp" ? mcp : null};
+  w.claude = {use: async n => n === "mcp" ? mcp : n === "sample" ? (async (hist, o) => { asked.push(hist[0].content); return {text: "Die zweite Variante passt besser."}; }) : null};
   w.crypto.subtle = crypto.webcrypto.subtle; w.TextEncoder = TextEncoder; w.scrollTo = () => {};
   w.addEventListener("error", e => { console.log("JS-Fehler:", e.message); failed++; });
 }});
@@ -125,6 +134,27 @@ const txt = () => (d.querySelector("#app") || {}).textContent || "";
   const dd = require("js-yaml").load(files["editorial/durchsicht-test.yml"]);
   ok(pushes.length === n + 1 && dd.ohne_autor.slice(1, 7).every(e => e.entscheidung === "ja"), "Gruppe: alle 6 Einträge in einem Commit angenommen");
   ok(!/Stufe/.test(txt()) && /Anderer Befund/.test(txt()), "Durchsicht: unter 12 offenen Einträgen wieder die ganze Liste");
+  // v1.3: Vor-/Nachspann-Marke, Varianten, Frage stellen, Rückgabe-Ansicht (#597, #630)
+  await send(gwa("view.project"));
+  ok(/Vorwort/.test(txt()) && /veraltet/.test(d.querySelector("#gw").textContent), "Projektübersicht zeigt das Vorwort mit der Marke „veraltet“");
+  ok(/Rückgaben vom Gegenlesen/.test(txt()), "Karte „Rückgaben vom Gegenlesen“");
+  await send(gwa("view.notes_review", {file: "editorial/durchsicht-var.yml"}));
+  ok(d.querySelectorAll("#gw [data-variant]").length === 2, "Durchsicht: ein Knopf je Variante");
+  n = pushes.length;
+  await send(gwa("notes_review.decide", {file: "editorial/durchsicht-var.yml", entry: "H01", decision: "geändert", variant: 2, new: "Zweite Wahl"}));
+  const dv = require("js-yaml").load(files["editorial/durchsicht-var.yml"]).autorenentscheidung[0];
+  ok(pushes.length === n + 1 && dv.entscheidung === "geändert" && dv.neu === "Zweite Wahl" && dv.variante === 2, "Variante 2 gewählt: geändert, Wortlaut und variante gespeichert");
+  n = pushes.length;
+  await send(gwa("notes_review.ask", {file: "editorial/durchsicht-var.yml", entry: "H01", question: "Welche passt besser?"}));
+  ok(asked.length === 1 && /FRAGE DES AUTORS/.test(asked[0]) && /Welche passt besser/.test(asked[0]), "Frage stellen geht an Claude mit dem Eintrag");
+  ok(pushes.length === n, "Frage stellen speichert nichts");
+  ok(/zweite Variante passt besser/.test(txt()), "Antwort wird gezeigt");
+  await send(gwa("view.checkin", {}));   // unbekannte Aktion: keine Wirkung
+  await send("x\n\n`gw:view.project`");
+  w.__S().view = "project";
+  d.querySelector('button[data-act="checkin"]').click(); await sleep(300); await idle(); await sleep(150);
+  ok(/Rückgabe eingecheckt/.test(txt()) && /Google Docs/.test(txt()) && /Vergleich über den Text/.test(txt()) && /neuer Abschnitt „Neuer Gedanke“/.test(txt()) && /umbenannt/.test(txt()), "Rückgabe-Ansicht mit Programm, Hinweis und Aufbau-Änderungen");
+  ok(/Checkout erst beenden|erst beenden/.test(txt()), "Hinweis: Checkout läuft noch");
   console.log(failed ? `\n${failed} Fehler` : "\nalles ok");
   process.exit(failed ? 1 : 0);
 })().catch(e => { console.log("Abbruch:", e && e.message || e); process.exit(1); });

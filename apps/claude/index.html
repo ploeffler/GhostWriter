@@ -265,7 +265,15 @@ async function projectData(){
   if (S.pr){ const n = S.pr.commits || 1; Object.assign(d, {PENDING_COUNT:n, PENDING_TEXT:plural(n, "Änderung", "Änderungen"), PENDING_PR:S.pr.number}); }
   if ((S.lib.books || []).length >= 2) d.LIBRARY_COUNT = S.lib.books.length;
   if (charItems().length) d.CHARACTER_COUNT = charItems().length;
-  const nStale = rows.reduce((n, r) => n + (r.CHAPTER_STALE_TEXT ? (parseInt(r.CHAPTER_STALE_TEXT, 10) || 1) : 0), 0);
+  for (const [key, area] of [["front_matter", "MATTER_FRONT"], ["back_matter", "MATTER_BACK"]]){   // Vor- und Nachspann mit Marke „veraltet“ (#510)
+    const items = (S.cfg.structure && S.cfg.structure[key]) || [], out = [];
+    for (const it of items){
+      const t = (await getFile(it.path, S.readRef).catch(() => ({text:""}))).text, h = front(t), ms = msOf(t), sm = staleMarks([[it.title, t]]);
+      out.push({MATTER_ID:it.id, MATTER_TITLE:it.title, MATTER_STATUS:h.status || "planned", MATTER_MARKERS:(ms.match(MARKER_RE) || []).length, MATTER_STALE_TEXT:sm[0], MATTER_STALE_HINT:sm[1].replace(/^[^:]+: /, "")});
+    }
+    if (out.length) d[area] = out;
+  }
+  const nStale = rows.reduce((n, r) => n + (r.CHAPTER_STALE_TEXT ? (parseInt(r.CHAPTER_STALE_TEXT, 10) || 1) : 0), 0) + [...(d.MATTER_FRONT || []), ...(d.MATTER_BACK || [])].filter(m => m.MATTER_STALE_TEXT).length;
   if (nStale) d.STALE_TEXT = `${nStale} veraltet`;
   return d;
 }
@@ -361,7 +369,8 @@ async function show(view, arg){
   try {
     if (view === "connect"){ crumbs(); return connectView(); }
     if (view === "library"){ S.book = null; S.chap = null; S.sec = null; crumbs(); return widget("buecherregal", libraryData()); }
-    if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, checksCard() + queueCard() + await reviewCard(), "project"); }
+    if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, checksCard() + queueCard() + await reviewCard() + await checkinCard(), "project"); }
+    if (view === "checkin"){ crumbs(); busy("Rückgabe wird gelesen …"); return widget("rueckgabe", await checkinData(arg)); }
     if (view === "chapter"){ S.chap = arg; S.sec = null; crumbs(); busy("Kapitel wird geladen …"); const d = await chapterData(arg); return desk("kapitelansicht", d, "", "chapter:" + (chapters()[arg] || {}).id); }
     if (view === "queue"){ crumbs(); busy("Warteschlange wird gelesen …"); return widget("warteschlange", await queueData()); }
     if (view === "review"){ crumbs(); busy("Hinweisdurchsicht wird geladen …"); const rd = await reviewData(arg), ri = S.reviewInfo || {}, bar = [];
@@ -515,6 +524,7 @@ async function act({action, data, text}){
       case "section.clear_stale": return staleChange("clear", data);
       case "stale.list": return staleList();
       case "notes_review.decide": return reviewDecide(data);
+      case "notes_review.ask": return reviewAsk(data);
       case "notes_review.plan": return reviewPlan(data);
       case "notes_review.apply": return reviewApply(data);
       case "character.suggest": return characterSuggest(data);
@@ -1471,7 +1481,7 @@ async function reviewData(file){
   const [y, m, dd] = String(data.erstellt || "").split("-");
   const row = (e, author) => Object.assign({E_ID:e.id, E_WHERE:e.abschnitt, E_CHAPTER_TEXT:reviewWhere(e) + (e.chapter_status ? " · " + (CH_STATUS[e.chapter_status] || e.chapter_status) : ""), E_KIND:e.art || "",
     E_REASON:(e.schweregrad === "blockierend" ? "⛔ blockierend: " : "") + (e.grund || ""), E_CONTEXT:e.kontext || "", E_OLD:e.alt || "", E_NEW:e.neu || (e.streichen ? "(entfällt)" : ""), E_DECISION:reviewState(e)},
-    author ? {E_PROPOSED:e.vorschlag_von === "assistent" ? "1" : "", E_QUESTION:(e.frage || "") + (e.varianten || []).map((v, k) => ` · Variante ${k + 1}: ${v}`).join("")} : {});
+    author ? {E_PROPOSED:e.vorschlag_von === "assistent" ? "1" : "", E_VARIANTS_JSON:(e.varianten || []).length ? JSON.stringify(e.varianten.map(String)) : "", E_QUESTION:(e.frage || "") + (e.varianten || []).map((v, k) => ` · Variante ${k + 1}: ${v}`).join("")} : {});
   const d = Object.assign(base(), {REVIEW_FILE:file, REVIEW_BOOK:data.buch || "", REVIEW_DATE_TEXT:dd ? `Stand ${dd}.${m}.${y}` : "", REVIEW_COUNT_TEXT:`${all.length} Einträge · ${done} entschieden · ${all.length - done} offen`});
   const openCount = all.filter(([, e]) => rOpen(e)).length; S.reviewInfo = {file, staged:false, name:"", gering:0};
   if (openCount >= R_STAGE_MIN && !S.reviewAll){   // #570: nur die aktuelle Stufe
@@ -1490,6 +1500,33 @@ async function reviewData(file){
   return d;
 }
 const queueCard = () => `<div class="card" style="margin-top:16px"><b>Hintergrund-Warteschlange</b><p class="dim" style="margin:2px 0 8px">Aufträge, die im Hintergrund laufen (z. B. Recherche mit Internet): ansehen, vorziehen oder abbrechen.</p><button class="btn" data-act="queue">Warteschlange ansehen</button></div>`;
+/* Rückgabe vom Gegenlesen (#573, #209): lesende Ansicht der Ablage `checkouts/<kennung>/rueckgabe-<datum>/rueckgabe.yml`. Einchecken
+   (Upload, Zuordnung, Vergleich) und das Übernehmen von Aufbau-Änderungen laufen im Chat mit GhostWriter (scripts/checkin.py): die App
+   kann keine Dateien binär hochladen und keine Programmskripte ausführen. */
+async function checkoutsData(){
+  const f = await getFile("checkouts.yml", S.readRef, true).catch(() => null); if (!f) return [];
+  try { return (window.jsyaml.load(f.text) || {}).checkouts || []; } catch (e) { return []; }
+}
+async function checkinCard(){
+  const cos = await checkoutsData(), rows = [];
+  for (const c of cos) for (const r of c.rueckgaben || []) rows.push(`<li><div><b>${esc(c.id)}</b> <span class="w">· ${esc(r.art)} vom ${esc(deDate(r.datum))} · ${r.befunde || 0} Befunde</span></div><button class="btn" data-act="checkin" data-f="${esc(r.ordner)}">Rückgabe ansehen</button></li>`);
+  return rows.length ? `<div class="card" style="margin-top:16px"><b>Rückgaben vom Gegenlesen</b><p class="dim" style="margin:2px 0 4px">Eingecheckte Rückgaben ansehen. Einchecken und Übernehmen von Aufbau-Änderungen geht im Chat mit GhostWriter.</p><ul style="margin:0;padding-left:18px">${rows.slice(-4).reverse().join("")}</ul></div>` : "";
+}
+async function checkinData(folder){
+  if (!/^checkouts\/GW-[A-Z0-9]{4}\/rueckgabe-[\d-]+$/.test(folder)) throw {message:"Ungültige Angabe."};
+  const report = window.jsyaml.load((await getFile(folder + "/rueckgabe.yml", S.readRef, true)).text) || {}, cos = await checkoutsData(), entry = cos.find(c => c.id === report.kennung) || {};
+  const ended = (entry.status || "ausgecheckt") !== "ausgecheckt", numbers = new Map(chapters().flatMap((c, ci) => (c.sections || []).map((s, si) => [s.id, `${ci + 1}.${si + 1}`])));
+  const kinds = {docx:"Word-Datei (DOCX)", pdf:"PDF", scan:"Scan oder Foto der Ausdrucke"};
+  const aufbauText = a => { const n = numbers.get(a.abschnitt) || ""; return a.art === "neu" ? `neuer Abschnitt „${a.titel}“ in Kapitel ${a.kapitel || "?"}${a.hinter ? " nach " + (numbers.get(a.hinter) || "?") : " am Anfang"} (${a.absaetze} Absätze)` : a.art === "geloescht" ? `Abschnitt ${n} „${a.titel}“ fehlt in der Rückgabe (gelöscht?)` : a.art === "verschoben" ? `Abschnitt ${n} „${a.titel}“ verschoben: in Kapitel ${a.kapitel} ${a.hinter ? "nach " + (numbers.get(a.hinter) || "?") : "an den Anfang"}` : `Abschnitt ${n} umbenannt: „${a.alt}“ → „${a.neu}“`; };
+  const aufbau = report.aufbau || [], notes = (report.nicht_uebernommen || []).map(x => "Nicht übernommen: " + x);
+  ["vergleich", "zuordnung_abschnitte", "hinweis"].forEach(k => { if (report[k]) notes.push(String(report[k])); });
+  let stats = `${report.befunde || 0} Befunde · ${report.kommentare || 0} Kommentare` + (aufbau.length ? ` · ${aufbau.length} Aufbau-Änderungen` : "");
+  return Object.assign(base(), {RET_ID:report.kennung || "", RET_KIND_TEXT:(kinds[report.art] || report.art) + (report.programm && report.programm !== "unbekannt" ? " · " + report.programm : ""), RET_DATE_TEXT:deDate(report.datum), RET_STATS_TEXT:stats,
+    RET_LATE_TEXT:report.spaet ? `Späte Rückgabe: Der Checkout ist ${report.checkout_status}; Zwischenänderungen erscheinen als Frage.` : "", RET_FOLDER:folder, RET_FINDINGS_FILE:"",   // Befunde durchsehen (hinweise.py collect) läuft im Chat
+    RET_END_ARGS:ended ? "" : JSON.stringify({id:report.kennung}), RET_CAN_APPLY:ended ? "1" : "", RET_APPLY_HINT:ended || !aufbau.length ? "" : "Der Checkout läuft noch: erst beenden, dann lassen sich Aufbau-Änderungen übernehmen.",
+    NOTES:notes.map(N_TEXT => ({N_TEXT})), PAGES:(report.seiten || []).map(p => ({P_TEXT:`Seite ${p.seite}: ` + (p.zuordnung === "qr" ? `Kapitel ${p.kapitel || "?"} (QR)` : "unbekannt")})),
+    QUESTIONS:(report.offene_fragen || []).map(Q_TEXT => ({Q_TEXT})), AUFBAU:aufbau.map(a => ({A_ID:a.id, A_TEXT:aufbauText(a), A_STATE:a.status || "offen"}))});
+}
 async function reviewCard(){
   let files = []; try { files = await reviewFiles(); } catch (e) {}
   if (!files.length) return "";
@@ -1512,8 +1549,8 @@ function entryPatch(text, id, pairs){
   Object.entries(pairs).forEach(([k, v]) => setKey(k, v));
   return [...L.slice(0, i), ...blk, ...L.slice(j)].join("\n");
 }
-function reviewSet(text, id, decision, neu){
-  const pairs = {entscheidung:decision}; if (neu != null) pairs.neu = neu;
+function reviewSet(text, id, decision, neu, variant){
+  const pairs = {entscheidung:decision}; if (neu != null) pairs.neu = neu; if (variant) pairs.variante = variant;
   const out = entryPatch(text, id, pairs);
   const a = window.jsyaml.load(text), b = window.jsyaml.load(out), ea = reviewEntries(a), eb = reviewEntries(b);
   const same = ea.length === eb.length && ea.every(([g, e], k) => eb[k][0] === g && (e.id === id ? true : JSON.stringify(e) === JSON.stringify(eb[k][1])));
@@ -1525,19 +1562,39 @@ function flash(kind, html){
   S.msg = {kind, html}; const old = document.querySelector("#app .note"), box = msgBox();
   if (old) old.outerHTML = box; else if ($("gw")) $("gw").insertAdjacentHTML("beforebegin", box);
 }
+async function reviewAsk(d){
+  // „Frage stellen“ (#609, #630): entscheidet nichts; Claude antwortet mit dem Eintrag als Zusammenhang, die Karte bleibt offen
+  try {
+    const file = String(d.file || ""); if (!/^editorial\/durchsicht-[^/]+\.yml$/.test(file)) throw {message:"Ungültige Angabe."};
+    const question = String(d.question || "").trim(); if (!question) throw {message:"Bitte eine Frage eingeben."};
+    if (!S.sample) throw {message:"Claude ist in dieser App nicht verfügbar. Stelle die Frage im Chat mit GhostWriter."};
+    const {data} = await reviewLoad(file), e = (reviewEntries(data).find(([, x]) => x.id === d.entry) || [])[1];
+    if (!e) throw {message:`Eintrag ${d.entry} nicht gefunden.`};
+    flash("info", `<span class="spin"></span> Claude antwortet …`);
+    const ctx = [`Hinweis ${e.id} (${e.abschnitt || ""}, ${e.art || ""}): ${e.grund || ""}`, e.alt ? `Alter Wortlaut: ${e.alt}` : "", e.neu ? `Vorschlag: ${e.neu}` : "", (e.varianten || []).length ? "Varianten: " + e.varianten.map((v, i) => `${i + 1}) ${v}`).join(" · ") : "", e.kontext ? `Umfeld: ${e.kontext}` : "", e.frage ? `Frage an den Autor: ${e.frage}` : ""].filter(Boolean).join("\n");
+    const r = await S.sample([{role:"user", content:`Du hilfst einem Autor bei einem Prüfhinweis zu seinem Buch. Antworte auf Deutsch, knapp, in Alltagssprache, ohne Datei- oder Werkzeugnamen. Entscheide nichts und behaupte nicht, etwas gespeichert zu haben.\n\n${ctx}\n\nFRAGE DES AUTORS:\n${question}`}], {cache:false});
+    flash("ok", `<b>Antwort zu ${esc(d.entry)}:</b><div style="margin-top:6px">${md(r.text || "")}</div><div class="dim" style="margin-top:6px">Es wurde nichts entschieden und nichts gespeichert.</div>`);
+  } catch (e) { flash("err", "<b>Keine Antwort.</b> " + esc(errText(e))); }
+}
 async function reviewDecide(d){
   // nacheinander abarbeiten, damit schnelle Klicks sich nicht überschreiben
   S.reviewChain = (S.reviewChain || Promise.resolve()).then(async () => {
     try {
       const file = String(d.file || ""), decision = d.decision;
       if (!/^editorial\/durchsicht-[^/]+\.yml$/.test(file) || !REVIEW_DECISIONS.includes(decision)) throw {message:"Ungültige Angabe."};
-      if (decision === "geändert" && !String(d.new || "").trim()) throw {message:"Bei „geändert“ gehört die eigene Fassung dazu."};
+      if (decision === "geändert" && d.variant == null && !String(d.new || "").trim()) throw {message:"Bei „geändert“ gehört die eigene Fassung dazu."};
       const work = await prepareWork(); S.readRef = work;
       const {text, data} = await reviewLoad(file), e = (reviewEntries(data).find(([, x]) => x.id === d.entry) || [])[1];
       if (String(d.entry).startsWith(R_PREFIX)) return reviewGroup(file, text, data, String(d.entry).slice(R_PREFIX.length), decision);
       if (!e) throw {message:`Eintrag ${d.entry} nicht gefunden.`};
       if (e.umgesetzt) throw {message:`${d.entry} ist schon umgesetzt.`};
-      const out = reviewSet(text, d.entry, decision, decision === "geändert" ? String(d.new).trim() : (typeof d.new === "string" ? d.new : null));
+      let variant = 0, wording = decision === "geändert" ? String(d.new || "").trim() : (typeof d.new === "string" ? d.new : null);
+      if (d.variant != null){   // #473: Variante N wählen = „geändert“ mit dem Wortlaut der Variante (wie hinweise.decide --variant)
+        variant = Number(d.variant); const opts = e.varianten || [];
+        if (!(variant >= 1 && variant <= opts.length)) throw {message:`${d.entry} hat ${opts.length} Varianten; Variante ${d.variant} gibt es nicht.`};
+        wording = String(opts[variant - 1]);
+      }
+      const out = reviewSet(text, d.entry, decision, wording, variant);
       const r = await commit([{path:file, content:out}], `Hinweisdurchsicht: ${d.entry} ${decision}`, {action:"notes_review.decide"});
       setReview(file, out);
       const all = reviewEntries(window.jsyaml.load(out)), open = all.filter(([, x]) => (x.entscheidung || "offen") === "offen").length;
@@ -2096,6 +2153,7 @@ document.addEventListener("click", async ev => {
   else if (d.report){ const from = S.view, arg = from === "section" ? S.sec.id : S.chap; busy("Bericht wird geladen …"); try { S.report = {path:d.report, text:(await getFile(d.report, S.readRef)).text, from, arg}; show("report"); } catch (e) { S.msg = {kind:"err", html:"Bericht nicht gefunden: " + esc(d.report)}; show(from, arg); } }
   else if (d.act === "review"){ S.msg = null; show("review", d.f); }
   else if (d.act === "queue"){ S.msg = null; show("queue"); }
+  else if (d.act === "checkin"){ S.msg = null; show("checkin", d.f); }
   else if (d.act === "reviewapply") reviewApply({file:d.f});
   else if (d.act === "gering"){ S.reviewChain = (S.reviewChain || Promise.resolve()).then(async () => { try { const work = await prepareWork(); S.readRef = work; const {text, data} = await reviewLoad(d.f); await reviewGroup(d.f, text, data, "", "nein", true); } catch (e) { flash("err", "<b>Nicht gespeichert.</b> " + esc(errText(e))); } }); }
   else if (d.act === "gering-show"){ S.reviewGering = true; show("review", d.f); }
