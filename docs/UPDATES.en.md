@@ -97,6 +97,8 @@ A commit arriving in the meantime prevents deletion. For version branches, the
 matching preservation tag must also remain unchanged; its check and the branch
 deletion form one atomic operation.
 
+**Cleanup in the daily update run (#664, from 1.4):** In forks and libraries the update run (`update.yml`) calls the same cleanup logic at the end, but only if the update ran without errors: no ❌ for any book, no dry run, no run for a single branch, automation not paused. In the main program repository (`upstream.repo`) cleanup stays a manual action. All safety rules of the action apply unchanged (only merged or fully contained branches, never with an open pull request, deletion bound to the checked head; version branches become tags). The result (“N branches cleaned up”, list) is in the summary of the “cleanup” job of the run, not in the daily report. To switch it off set the repository variable `GHOSTWRITER_AUTO_CLEANUP` to `false` (default: on).
+
 It uses [GitHub `updateRefs` with `beforeOid`](https://docs.github.com/en/graphql/reference/git#updaterefs).
 Missing GraphQL access, insufficient permissions or an uncertain response is not
 reported as a successful deletion. There is no unconditional deletion fallback
