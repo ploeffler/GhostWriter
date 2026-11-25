@@ -32,6 +32,7 @@ managed:
   - .claude/skills/ghostwriter-lektorat/  # gezielte redaktionelle Prüfarten
   - .claude/skills/ghostwriter-gegenlesen/  # Auschecken zum Gegenlesen, Einchecken (#572, #573)
   - .claude/skills/ghostwriter-material/  # Material einbringen (#574)
+  - .claude/skills/ghostwriter-anekdoten/  # Anekdoten erfassen und einbauen (#643)
   - ghostwriter-manifest.yml
   - ghostwriter-skills.yml     # festgelegte Quelle und Prüfsummen allgemeiner Skills
   - workflow.yml
