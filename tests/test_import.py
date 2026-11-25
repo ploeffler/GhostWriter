@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import import_book  # noqa: E402
 import validate_project  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 SOURCE = """---
 title: Strolchi und der Wald
@@ -87,7 +88,7 @@ class ImportTest(unittest.TestCase):
         # Vorschau
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.book), 'import-preview'],
                              capture_output=True, text=True, check=True).stdout
-        data = json.loads(re.search(r'GW\.render\("import-vorschau",(.*)\)</script>', out).group(1))
+        data = widget_json(re.search(r'GW\.render\("import-vorschau",(.*)\)</script>', out).group(1))
         self.assertEqual([r['R_LABEL'] for r in data['ROWS']], ['Kapitel 1', '1.1', 'Kapitel 2', '2.1', '2.2'])
         self.assertEqual(data['KEEP_TEXT'], 'bis zum ausdrücklichen Löschauftrag')   # '30' ist ohne Wirkung (D21)
         # anlegen, ohne Schreibfreigabe
@@ -229,7 +230,7 @@ class ImportTest(unittest.TestCase):
         # Ansicht
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.book), 'import-outline'],
                              capture_output=True, text=True, check=True).stdout
-        page = json.loads(re.search(r'GW\.render\("gliederung-vorschlag",(.*)\)</script>', out).group(1))
+        page = widget_json(re.search(r'GW\.render\("gliederung-vorschlag",(.*)\)</script>', out).group(1))
         self.assertEqual([r['O_TYPE'] for r in page['ROWS']], ['chapter', 'section', 'section', 'chapter', 'section', 'chapter', 'section'])
         prev = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.book), 'import-preview'],
                               capture_output=True, text=True, check=True).stdout

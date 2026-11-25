@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / 'tests/fixtures/adhs'
 sys.path.insert(0, str(ROOT / 'scripts'))
 import render_view  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 
 def run(*args):
@@ -22,7 +23,7 @@ def run(*args):
 
 
 def payload(out):
-    return json.loads(re.search(r'GW\.render\("auswahl",(.*)\)</script>', out).group(1))
+    return widget_json(re.search(r'GW\.render\("auswahl",(.*)\)</script>', out).group(1))
 
 
 class ChoiceTest(unittest.TestCase):

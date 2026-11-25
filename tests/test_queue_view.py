@@ -11,6 +11,7 @@ from test_jobs import Base, jobs, ROOT  # noqa: E402
 
 sys.path.insert(0, str(ROOT / 'scripts'))
 import queue_view  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 AT = '2026-11-22T20:00:00+00:00'
 
@@ -83,7 +84,7 @@ class QueueViewTest(Base):
         self.assertIn('Hintergrund-Warteschlange', text)
         widget = subprocess.run(base, capture_output=True, text=True, check=True).stdout
         self.assertIn('GW.render("warteschlange"', widget)
-        payload = json.loads(widget.split('GW.render("warteschlange",', 1)[1].rsplit(')</script>', 1)[0].replace('<\\/', '</'))
+        payload = widget_json(widget.split('GW.render("warteschlange",', 1)[1].rsplit(')</script>', 1)[0].replace('<\\/', '</'))
         self.assertEqual(len(payload['PENDING']), 3)
         self.assertEqual(payload['QUEUE_BOOK'], 'B')
         en = subprocess.run(base + ['--language', 'en'], capture_output=True, text=True, check=True).stdout

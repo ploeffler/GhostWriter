@@ -18,6 +18,7 @@ import build_index  # noqa: E402
 import characters  # noqa: E402
 import validate_project  # noqa: E402
 from render_view import load  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 
 class CharacterTest(unittest.TestCase):
@@ -39,7 +40,7 @@ class CharacterTest(unittest.TestCase):
 
     def widget(self, *args):
         m = re.search(r'GW\.render\("([^"]+)",(.*)\)</script>', self.run_view(*args))
-        return m.group(1), json.loads(m.group(2).replace('<\\/', '</'))
+        return m.group(1), widget_json(m.group(2).replace('<\\/', '</'))
 
     def test_without_characters_nothing_changes(self):
         _, config = load(self.base)
@@ -210,7 +211,7 @@ class SuggestTest(unittest.TestCase):
         f.write_text(json.dumps(self.suggestions()), encoding='utf-8')
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'character-suggest',
                               '--draft', str(f)], capture_output=True, text=True, check=True).stdout
-        data = json.loads(re.search(r'GW\.render\("figuren-vorschlag",(.*)\)</script>', out).group(1).replace('<\\/', '</'))
+        data = widget_json(re.search(r'GW\.render\("figuren-vorschlag",(.*)\)</script>', out).group(1).replace('<\\/', '</'))
         self.assertEqual([(s['S_NAME'], s['S_STATE']) for s in data['SUGGESTIONS']],
                          [('Strolchi', 'new'), ('Opa Karl', 'existing'), ('Frau Meier', 'new')])
         self.assertEqual(data['SCOPE_TEXT'], 'Kapitel 1')

@@ -17,6 +17,7 @@ import build_edition  # noqa: E402
 import validate_project  # noqa: E402
 from render_view import TYPESETTING_DEFAULT  # noqa: E402
 from test_matter import approve_chapter_1  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 OPTIONS = """typesetting:
   font: termes
@@ -284,7 +285,7 @@ class OutputWidgetTest(Base):
                              capture_output=True, text=True, check=True).stdout
         m = re.search(r'GW\.render\("([^"]+)",(.*)\)</script>', out)
         self.assertEqual(m.group(1), 'ausgabeoptionen')
-        data = json.loads(json.loads(m.group(2).replace('<\\/', '</'))['OUTPUT_JSON'])
+        data = json.loads(widget_json(m.group(2).replace('<\\/', '</'))['OUTPUT_JSON'])
         self.assertEqual(data['typesetting']['margins'], 'classic')
         self.assertEqual(data['typesetting']['toc_depth'], 1)          # Vorgaben ergänzt
         self.assertEqual(data['publication']['publisher'], 'Selbstverlag')

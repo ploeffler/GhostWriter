@@ -25,6 +25,7 @@ import build_index  # noqa: E402
 import matter  # noqa: E402
 import validate_project  # noqa: E402
 from render_view import MATTER, german_key, load  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 TEXTS = {'dedication': 'Für Anna,\n\ndie immer an mich geglaubt hat.',
          'prologue': 'Es war ein Dienstag, als alles begann.\n\n# Rückblick\n\nDamals wusste ich nichts.',
@@ -381,7 +382,7 @@ class MatterWidgetTest(MatterBase):
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), *args],
                              capture_output=True, text=True, check=True).stdout
         m = re.search(r'GW\.render\("([^"]+)",(.*)\)</script>', out)
-        return m.group(1), json.loads(m.group(2).replace('<\/', '</'))
+        return m.group(1), widget_json(m.group(2).replace('<\/', '</'))
 
     def test_overview_list_and_part(self):
         matter.add(self.base, 'glossary')

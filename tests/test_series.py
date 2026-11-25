@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 import library  # noqa: E402
 import series  # noqa: E402
 import validate_project  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 MANIFEST = yaml.safe_load((ROOT / 'ghostwriter-manifest.yml').read_text(encoding='utf-8'))
 STARTER_FILE = ROOT / 'templates/ghostwriter-starter.yml'
@@ -55,7 +56,7 @@ class SeriesTest(unittest.TestCase):
 
     def widget(self, *a, **kw):
         m = re.search(r'GW\.render\("([^"]+)",(.*)\)</script>', self.view(*a, **kw))
-        return m.group(1), json.loads(m.group(2).replace('<\\/', '</'))
+        return m.group(1), widget_json(m.group(2).replace('<\\/', '</'))
 
     def test_create_add_reorder_remove(self):
         s = series.create(self.d, 'Strolchi und Opi', kind='continuous', books=['buch/strolchi-1'])
@@ -176,7 +177,7 @@ class SharedBase(unittest.TestCase):
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.d), *a],
                              capture_output=True, text=True, check=True).stdout
         m = re.search(r'GW\.render\("([^"]+)",(.*)\)</script>', out)
-        return json.loads(m.group(2).replace('<\\/', '</'))
+        return widget_json(m.group(2).replace('<\\/', '</'))
 
 
 
@@ -242,7 +243,7 @@ class SharedTest(SharedBase):
         f = Path(self.tmp.name, 'v.json')
         f.write_text(json.dumps({'scope': 'ser-strolchi-und-opi', 'items': [
             {'name': 'Strolchi', 'age': '3'}, {'name': 'Wolf', 'role': 'minor', 'short': 'lebt im Wald'}]}), encoding='utf-8')
-        page = json.loads(re.search(r'GW\.render\("figuren-vorschlag",(.*)\)</script>', subprocess.run(
+        page = widget_json(re.search(r'GW\.render\("figuren-vorschlag",(.*)\)</script>', subprocess.run(
             [sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.main), 'character-suggest', '--draft', str(f)],
             capture_output=True, text=True, check=True).stdout).group(1))
         self.assertEqual((page['SERIES_LEVEL'], [s['S_STATE'] for s in page['SUGGESTIONS']]), ('1', ['series', 'new']))
@@ -356,7 +357,7 @@ class OmnibusTest(SharedBase):
         view = lambda *a: subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.main), *a],
                                          capture_output=True, text=True, check=True).stdout
         w = view('omnibus-edit', 'ser-strolchi-und-opi')
-        data = json.loads(re.search(r'GW\.render\("sammelband",(.*)\)</script>', w).group(1).replace('<\\/', '</'))
+        data = widget_json(re.search(r'GW\.render\("sammelband",(.*)\)</script>', w).group(1).replace('<\\/', '</'))
         self.assertEqual([(v['OV_BRANCH'], v['OV_ON'], v['OV_LAST']) for v in data['OVOLUMES']],
                          [('buch/eins', '1', 1), ('buch/zwei', '1', 1)])
         self.assertEqual((data['OMNIBUS_STATE'], data['OMNIBUS_TAG']), ('approved', 'strolchi-und-opi-sammelband-auflage-2'))

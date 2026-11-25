@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 import limits  # noqa: E402
 import validate_project  # noqa: E402
 from render_view import load  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 
 class LimitTest(unittest.TestCase):
@@ -137,7 +138,7 @@ class LimitTest(unittest.TestCase):
 
     def widget(self, *args):
         m = re.search(r'GW\.render\("([^"]+)",(.*)\)</script>', self.run_view(*args))
-        return json.loads(m.group(2).replace('<\\/', '</'))
+        return widget_json(m.group(2).replace('<\\/', '</'))
 
     def test_views(self):
         self.setup(9.5)

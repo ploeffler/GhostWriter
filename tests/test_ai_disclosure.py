@@ -19,6 +19,7 @@ import matter  # noqa: E402
 import validate_project  # noqa: E402
 from render_view import load  # noqa: E402
 from test_matter import approve_chapter_1, set_part  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 
 def write_run(base, rel, kind, provider, status='completed'):
@@ -226,7 +227,7 @@ class MinimumTest(Base):
         import re
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'ai-disclosure'],
                              capture_output=True, text=True, check=True).stdout
-        data = json.loads(re.search(r'GW\.render\("ki-angabe",(.*)\)</script>', out).group(1).replace('<\\/', '</'))
+        data = widget_json(re.search(r'GW\.render\("ki-angabe",(.*)\)</script>', out).group(1).replace('<\\/', '</'))
         self.assertEqual(data['AI_MODE'], 'functions')
         self.assertTrue(data['AI_MINIMUM'].startswith(self.SENTENCE))
         self.assertEqual(data['AI_FUNCTIONS'], 'Rechtschreibung, Grammatik, Zeichensetzung, Quellenrecherche')
@@ -272,7 +273,7 @@ class AiDisclosureWidgetTest(Base):
                              capture_output=True, text=True, check=True).stdout
         m = re.search(r'GW\.render\("([^"]+)",(.*)\)</script>', out)
         self.assertEqual(m.group(1), 'ki-angabe')
-        data = json.loads(m.group(2).replace('<\\/', '</'))
+        data = widget_json(m.group(2).replace('<\\/', '</'))
         self.assertEqual((data['AI_MODE'], data['AI_PLACEMENT'], data['AI_NAME_SERVICES']), ('short', 'foreword', 'true'))
         self.assertIn('Perplexity', data['AI_PROPOSAL_SHORT_NAMED'])
         self.assertNotIn('Perplexity', data['AI_PROPOSAL_SHORT'])

@@ -12,6 +12,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import library  # noqa: E402
+from tests.widget_helpers import widget_data  # noqa: E402
 
 MANIFEST = yaml.safe_load((ROOT / 'ghostwriter-manifest.yml').read_text(encoding='utf-8'))
 # Leere Starter-Konfiguration für Testrepositorys. Nicht ROOT/ghostwriter.yml: In einem
@@ -192,8 +193,9 @@ class ShelfTest(unittest.TestCase):
         self.assertIn('`1.1–1.10` Auflage öffnen', text)
         self.assertNotIn('adhs-auflage-3**', text)
         widget = self.view(self.d, 'library', '--library', str(self.lib))
-        self.assertIn('"E_KEY":"1.3"', widget)
-        self.assertIn('"BOOK_EDITION_COUNT":4', widget)
+        data = widget_data(widget)
+        self.assertIn('1.3', [e['E_KEY'] for e in data['EDITIONS']])
+        self.assertEqual(data['BOOKS'][0]['BOOK_EDITION_COUNT'], 4)
         en = self.view(self.d, 'library', '--library', str(self.lib), '--text', '--language', 'en')
         self.assertIn('↳ Edition 3 · ', en)
         self.assertIn('Open edition', en)
@@ -205,7 +207,7 @@ class ShelfTest(unittest.TestCase):
         self.assertIn('`1–2` Buch öffnen', text)
         widget = self.view(self.d, 'library', '--library', str(self.lib))
         self.assertIn('GW.render("buecherregal"', widget)
-        self.assertIn('"BOOK_PENDING_TEXT":"1 Änderung offen"', widget)
+        self.assertEqual(widget_data(widget)['BOOKS'][0]['BOOK_PENDING_TEXT'], '1 Änderung offen')
 
     def test_project_link_from_two_books(self):
         fx = str(ROOT / 'tests/fixtures/adhs')
@@ -289,8 +291,8 @@ class SessionShelfTest(unittest.TestCase):
         self.assertIn('10.11.2026, 17:51 · Rechner: unbekannt · iOS · ChatGPT · [Änderungspaket](https://github.com/o/r/pull/5)', lines[5])
         self.assertIn('Gespräch s-old** → buch/garten · unbekannt · Rechner: unbekannt · unbekannt · unbekannt', lines[6])
         widget = run()
-        self.assertIn('"SESSION_COUNT_NUMBER":3', widget)
-        self.assertIn('"SS_STATUS":"open"', widget)
+        self.assertEqual(widget_data(widget)['SESSION_COUNT_NUMBER'], 3)
+        self.assertIn('open', [s['SS_STATUS'] for s in widget_data(widget)['SESSIONS']])
         en = run('--text', '--language', 'en')
         self.assertIn('**Open session backups** (3)', en)
         self.assertIn('Status nicht verfügbar', subprocess.run(
@@ -396,7 +398,7 @@ class NewBookTest(unittest.TestCase):
         w = run()
         self.assertIn('GW.render("buch-anlegen"', w)
         self.assertIn('"AUTHOR":"Neu"', w)
-        self.assertIn('{"TAKEN_SLUG":"adhs","TAKEN_BRANCH":"buch/adhs"}', w)
+        self.assertIn({'TAKEN_SLUG': 'adhs', 'TAKEN_BRANCH': 'buch/adhs'}, [dict(r) for r in widget_data(w)['TAKEN']])
         t = run('--text', '--draft', json.dumps({'working_title': 'X', 'error': 'Name vergeben'}))
         self.assertIn('✗ Name vergeben', t)
         self.assertIn('`adhs` (buch/adhs)', t)
@@ -532,7 +534,7 @@ class DataPageTest(unittest.TestCase):
 
     def test_view_without_github(self):
         w = self.view()
-        self.assertIn('"GITHUB_KNOWN":""', w)
+        self.assertEqual(widget_data(w)['GITHUB_KNOWN'], '')
         self.assertNotIn('"LIMITS"', w)
         self.assertIn('Prüfung: unbekannt', self.view('--text'))
 
