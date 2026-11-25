@@ -39,9 +39,7 @@ model_defaults:
   anthropic:
     research: {model: claude-sonnet-5-5, checked_at: "2026-11-25"}   # öffentliche Abkündigungsseite: als Ersatz genannt, keine Abschaltung angekündigt
   openai:
-    # Abschaltung laut Anbieter am 2026-12-11 angekündigt; Ersatz in den Quellen widersprüchlich (gpt-5.5 bzw. gpt-5.6-sol),
-    # deshalb nicht umgestellt: Preis und Verhalten können abweichen (Entscheidung beim Eigentümer, #596).
-    research: {model: gpt-5, checked_at: "2026-11-25", retire_at: "2026-12-11", note: "Ersatz laut Anbieter prüfen (gpt-5.5 oder gpt-5.6-sol)"}
+    research: {model: gpt-6.1-terra, checked_at: "2026-11-26"}   # Entscheidung Peter 25.11.2026 (#638): Ersatz für gpt-5 (Abschaltung 2026-12-11), günstiger als die empfohlene Stufe gpt-6.1-sol
   google:
     research: {model: gemini-3.8-flash, checked_at: "2026-11-25"}   # öffentliche Abkündigungsseite: als Ersatz für 3.5 bis 3.7 genannt
     # Abschaltung frühestens 2027-03-15 (ältere Fassung der Seite nannte 2026-10-02); Ersatz laut Anbieter gemini-3.1-flash-lite-image.
