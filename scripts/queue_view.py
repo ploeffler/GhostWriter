@@ -122,6 +122,7 @@ def groups(base, config, language='de'):
         if j['state'] == 'failed':
             row['J_DETAIL'] = str(d.get('error') or j.get('error') or t(language, 'unreadable'))
             row['J_WHEN_TEXT'] = t(language, 'failed_at', when=when(d.get('failed_at'), language)).strip() if d.get('failed_at') else ''
+            row['J_ARGS'] = json.dumps({'request': row['J_PATH']}, ensure_ascii=False, separators=(',', ':'))   # Knopf „Erneut versuchen“ (#596)
             failed.append(row)
             continue
         if j['state'] == 'waiting_budget':

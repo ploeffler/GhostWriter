@@ -757,14 +757,14 @@ TODO_TEXT = {
 }
 
 
-def todo(rows, language='de', book_stale=()):
-    """Kompakte Zeilen „Handlungsbedarf“ für die Projektübersicht (#538): je Kapitel nur, was jetzt zu tun ist
-    (nicht bestanden, seit der Prüfung geändert, offene Hinweise). Ohne Bedarf keine Zeile. Die Prüfhistorie bleibt
-    in den Prüfdetails bzw. der Kapitelansicht."""
+def todo_items(rows, language='de', book_stale=()):
+    """Einträge des Handlungsbedarfs (#538, #593): [{'text', 'chapter_id', 'number', 'notes'}], zuerst buchweite Prüfungen
+    („Buch neu prüfen“), dann je Kapitel nur, was jetzt zu tun ist (nicht bestanden, seit der Prüfung geändert, offene Hinweise)."""
     t = TODO_TEXT['en' if language == 'en' else 'de']
     items = []
     for b in book_stale or ():   # #538: buchweite Prüfung, seither wurde ein Abschnitt geändert
-        items.append(f'- {t["book"]} ({b["label"][("en" if language == "en" else "de")]})')
+        items.append({'text': f'{t["book"]} ({b["label"][("en" if language == "en" else "de")]})', 'chapter_id': '',
+                      'number': 0, 'notes': 0})
     for r in rows:
         parts = []
         for tag in r.get('CHAPTER_CHECKS') or []:
@@ -777,13 +777,33 @@ def todo(rows, language='de', book_stale=()):
         if notes:
             parts.append(f'{notes} ' + (t['note'] if notes == 1 else t['notes']))
         if parts:
-            items.append(f'- {t["chapter"]} {r["CHAPTER_NUMBER"]}: ' + ' · '.join(parts))
+            items.append({'text': f'{t["chapter"]} {r["CHAPTER_NUMBER"]}: ' + ' · '.join(parts), 'chapter_id': r.get('CHAPTER_ID', ''),
+                          'number': r['CHAPTER_NUMBER'], 'notes': notes})
+    return items
+
+
+def todo(rows, language='de', book_stale=()):
+    """Kompakte Zeilen „Handlungsbedarf“ für die Textfassung der Projektübersicht (#538): ohne Bedarf keine Zeile. Die
+    Prüfhistorie bleibt in den Prüfdetails bzw. der Kapitelansicht."""
+    t = TODO_TEXT['en' if language == 'en' else 'de']
+    items = [f'- {i["text"]}' for i in todo_items(rows, language, book_stale)]
     if not items:
         return []
     shown = items[:TODO_MAX]
     if len(items) > TODO_MAX:
         shown.append(f'- … {len(items) - TODO_MAX} {t["more"]}')
     return [f'**{t["head"]}:**'] + shown + ['']
+
+
+def todo_widget(rows, language='de', book_stale=()):
+    """Block `TODO` der Vorlage projektuebersicht (#593): je Eintrag Klick zum Kapitel (view.chapter), bei offenen Hinweisen
+    zweiter Knopf „Hinweise durchsehen“ (view.notes_review); buchweite Einträge sind nicht klickbar."""
+    out = []
+    for i in todo_items(rows, language, book_stale)[:TODO_MAX]:
+        out.append({'TODO_TEXT': i['text'], 'TODO_ACTION': 'view.chapter' if i['chapter_id'] else '',
+                    'TODO_ARGS': json.dumps({'chapter_id': i['chapter_id']} if i['chapter_id'] else {}, ensure_ascii=False, separators=(',', ':')),
+                    'TODO_ACTION2': 'view.notes_review' if i['notes'] else '', 'TODO_ARGS2': '{}'})
+    return out
 
 
 def short_text(tag_list):

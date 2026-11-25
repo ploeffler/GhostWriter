@@ -202,6 +202,10 @@ def render(template, data, config, renderer, base):
             lines += ['> ' + analysis['A_TEXT'] + ' · `' + renderer.ANALYSIS_KEY.get(analysis['A_KIND'], 'AN') + '`', '']
         if data.get('CHECKS_RECENT_TEXT'):
             lines += ['🧪 **Latest checks:** ' + data['CHECKS_RECENT_TEXT'], '']
+        for co in data.get('CHECKOUTS') or []:   # #572
+            lines += ['🔒 ' + co['CO_TEXT'] + ' · `CB` end checkout', '']
+        if data.get('STALE_TEXT'):   # #592
+            lines += ['⚠️ ' + data['STALE_TEXT'] + ' · `python3 scripts/stale.py . list`', '']
         if data.get('CHECKS_LEGEND'):
             try:
                 from . import checks as checks_mod
@@ -219,7 +223,7 @@ def render(template, data, config, renderer, base):
                 lines += ['**' + tr(label) + ':** ' + ' · '.join(m['MATTER_TITLE'] + ' (' + status(m['MATTER_STATUS']) + ')' for m in data[area]), '']
         if rows:
             lines += [native('project_table'), '|--:|---|--:|--:|--:|---|:-:|']
-            lines += [f'| {r["CHAPTER_NUMBER"]} | {cell(r["CHAPTER_TITLE"])} | {r.get("CHAPTER_WORDS_TEXT", "–")} | {r.get("CHAPTER_APPROVED_TEXT") or "–"} | {r["CHAPTER_COST"]} | {renderer.STATUS_ICON.get(r["CHAPTER_STATUS"], "•")} {status(r["CHAPTER_STATUS"])} | `B{r["CHAPTER_NUMBER"]}` |' for r in rows]
+            lines += [f'| {r["CHAPTER_NUMBER"]} | {cell(r["CHAPTER_TITLE"])}{renderer.row_flags(r, "CHAPTER")} | {r.get("CHAPTER_WORDS_TEXT", "–")} | {r.get("CHAPTER_APPROVED_TEXT") or "–"} | {r["CHAPTER_COST"]} | {renderer.STATUS_ICON.get(r["CHAPTER_STATUS"], "•")} {status(r["CHAPTER_STATUS"])} | `B{r["CHAPTER_NUMBER"]}` |' for r in rows]
             current = (config.get('workflow') or {}).get('current_chapter_id')
             if data.get('CHECKS_LEGEND'):
                 lines += [''] + check_lines(rows, 'CHAPTER_CHECKS', 'CHAPTER_NUMBER') + ['', small(data['CHECKS_LEGEND'])]
@@ -259,7 +263,7 @@ def render(template, data, config, renderer, base):
             lines += [native('chapter_table'), '|--:|---|---|--:|---|']
             for row in rows:
                 marks = ' '.join(renderer.MARKER_ICON[k] + ' ' + str(row['MARKERS_' + k.upper()]) for k in renderer.MARKER_ICON if row['MARKERS_' + k.upper()]) or '–'
-                lines += [f'| {row["SECTION_NUMBER"]} | {cell(row["SECTION_TITLE"])} | {marks} | {row["SECTION_COST"]} | {renderer.STATUS_ICON.get(row["SECTION_STATUS"], "•")} {status(row["SECTION_STATUS"])} |']
+                lines += [f'| {row["SECTION_NUMBER"]} | {cell(row["SECTION_TITLE"])}{renderer.row_flags(row, "SECTION")} | {marks} | {row["SECTION_COST"]} | {renderer.STATUS_ICON.get(row["SECTION_STATUS"], "•")} {status(row["SECTION_STATUS"])} |']
             lines += ['', native('marker_legend')]
             if data.get('CHECKS_LEGEND'):
                 if data.get('CHECKS'):
@@ -322,6 +326,7 @@ def render(template, data, config, renderer, base):
                 title = (row['BOOK_VOLUME_TEXT'] + ': ' if row['BOOK_VOLUME_TEXT'] else '') + row['BOOK_TITLE']
                 pending = ' · ⏳ ' + row['BOOK_PENDING_TEXT'] if row['BOOK_PENDING_TEXT'] else ''
                 pending += ' · 📋 ' + row['BOOK_JOBS_TEXT'] if row.get('BOOK_JOBS_TEXT') else ''
+                pending += ' · 🔒 ' + row['BOOK_CHECKOUT_TEXT'] if row.get('BOOK_CHECKOUT_TEXT') else ''
                 lines += [f'| {i} | **{cell(title)}** ({cell(row["BOOK_TITLE_SHORT"])}){pending} | {row["BOOK_STATE_TEXT"]} | {renderer.progress_bar(row["BOOK_APPROVED_SECTION_COUNT"], row["BOOK_SECTION_COUNT"])} {row["BOOK_PROGRESS_TEXT"]} | {row["BOOK_EDITION_TEXT"]} | {row["BOOK_COST"]} |']
                 lines += [f'| {e["E_KEY"]} | ↳ {cell(e["E_TEXT"])}{" · " + cell(e["E_DETAIL"]) if e["E_DETAIL"] else ""} | | | | |'
                           for e in data.get('EDITIONS', []) if e['E_BOOK_BRANCH'] == row['BOOK_BRANCH']]

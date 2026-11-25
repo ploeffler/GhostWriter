@@ -277,6 +277,50 @@ def release(base, config, cid, chapters, by=''):
     return e
 
 
+def display(base, config, language='de', today=None, entries=None):
+    """Aktive Checkouts für die Anzeige (#572, #592-Schritt): [{'id', 'text', 'sections', 'chapters'}]. `text` nennt Bereich,
+    Gegenleser, Datum und Kennung, bei überfälliger Frist die Tage; `chapters` sind die betroffenen Kapitel-IDs."""
+    en = language == 'en'
+    out = []
+    day0 = datetime.date.fromisoformat(str(today)) if today else datetime.date.today()
+    entries = active(base) if entries is None else entries
+    late = {e['id']: (day0 - datetime.date.fromisoformat(str(e['frist']))).days for e in entries
+            if e.get('frist') and datetime.date.fromisoformat(str(e['frist'])) < day0}
+    for e in entries:
+        sections = set(scope_sections(config, e))
+        chapters = [c['id'] for c in config['structure']['chapters'] if sections & {s['id'] for s in c['sections']}]
+        scope = scope_text(config, e)
+        scope = scope.replace('Kapitel', 'Chapter' if scope.startswith('Kapitel ') and ',' not in scope and '–' not in scope else 'Chapters', 1) if en else scope
+        who = e.get('gegenleser')
+        since = str(e.get('zeit', ''))[:10]
+        day = f'{since[8:10]}.{since[5:7]}.' if len(since) >= 10 else ''
+        text = (f'{scope} checked out' + (f' to {who}' if who else '') + (f' since {day}' if day else '') + f' ({e["id"]})') if en else \
+            (f'{scope} ausgecheckt' + (f' an {who}' if who else '') + (f' seit {day}' if day else '') + f' ({e["id"]})')
+        if e['id'] in late:
+            text += f' · overdue for {late[e["id"]]} days' if en else f' · überfällig seit {late[e["id"]]} Tagen'
+        out.append({'id': e['id'], 'text': text, 'sections': sections, 'chapters': chapters})
+    return out
+
+
+def ref_checkouts(cwd, ref, language='de', today=None):
+    """Aktive Checkouts eines Buch-Branchs ohne Checkout (Bücherregal, #572): [{'id', 'text'}]; leer ohne checkouts.yml."""
+    import subprocess
+
+    def show(path):
+        r = subprocess.run(['git', '-C', str(cwd), 'show', f'{ref}:{path}'], capture_output=True, text=True)
+        return r.stdout if r.returncode == 0 else ''
+    raw = show(FILE)
+    if not raw:
+        return []
+    entries = [e for e in (yaml.safe_load(raw) or {}).get('checkouts') or [] if e.get('status') == 'ausgecheckt']
+    if not entries:
+        return []
+    config = yaml.safe_load(show('ghostwriter.yml')) or {}
+    if not (config.get('structure') or {}).get('chapters'):
+        return []
+    return [{'id': c['id'], 'text': c['text']} for c in display(cwd, config, language, today, entries)]
+
+
 def remaining_text(config, entry):
     if entry['status'] != 'ausgecheckt':
         return 'nichts'
