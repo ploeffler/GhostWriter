@@ -23,7 +23,7 @@ TEXT = {
         'title': 'Hintergrund-Warteschlange', 'none': 'keine Aufträge', 'one': '1 Auftrag', 'many': '{n} Aufträge',
         'research': 'Recherche', 'analysis': 'Analyse', 'colorize': 'Colorieren', 'import': 'Import',
         'open': 'wartet', 'budget': 'wartet auf Bestätigung (KI-Budget knapp)', 'blocked': 'wartet auf einen anderen Auftrag',
-        'blocked_by': 'Erst nach {name}', 'priority': 'vorgezogen', 'queued': 'eingereicht {when}',
+        'blocked_by': 'Erst nach {name}', 'locked_by': 'wartet: ausgecheckt ({id}), bis der Checkout beendet ist', 'priority': 'vorgezogen', 'queued': 'eingereicht {when}',
         'failed_at': 'fehlgeschlagen {when}', 'retry': 'Erneut versuchen: `python3 scripts/jobs.py . retry --request {path}`', 'done': 'Ergebnis liegt im Änderungspaket', 'empty': 'Keine Aufträge in der Warteschlange.',
         'waiting_h': 'Wartet', 'failed_h': 'Fehlgeschlagen', 'done_h': 'Fertig, noch nicht übernommen',
         'hint': 'Zum Vorziehen oder Abbrechen den Pfad nennen; ein schon laufender Auftrag lässt sich nicht stoppen.',
@@ -33,7 +33,7 @@ TEXT = {
         'title': 'Background queue', 'none': 'no jobs', 'one': '1 job', 'many': '{n} jobs',
         'research': 'Research', 'analysis': 'Analysis', 'colorize': 'Colorize', 'import': 'Import',
         'open': 'waiting', 'budget': 'waiting for confirmation (AI budget low)', 'blocked': 'waiting for another job',
-        'blocked_by': 'Only after {name}', 'priority': 'moved up', 'queued': 'queued {when}',
+        'blocked_by': 'Only after {name}', 'locked_by': 'waiting: checked out ({id}) until the checkout ends', 'priority': 'moved up', 'queued': 'queued {when}',
         'failed_at': 'failed {when}', 'retry': 'Retry: `python3 scripts/jobs.py . retry --request {path}`', 'done': 'result is in the pending changes', 'empty': 'No jobs in the queue.',
         'waiting_h': 'Waiting', 'failed_h': 'Failed', 'done_h': 'Finished, not yet applied',
         'hint': 'To move up or cancel, name the path; a job that is already running cannot be stopped.',
@@ -127,6 +127,9 @@ def groups(base, config, language='de'):
             continue
         if j['state'] == 'waiting_budget':
             row['J_STATE'], row['J_STATE_TEXT'] = 'waiting_budget', t(language, 'budget')
+        elif j.get('locked_by'):   # #572
+            row['J_STATE'], row['J_STATE_TEXT'] = 'blocked', t(language, 'blocked')
+            row['J_BLOCKED_TEXT'] = t(language, 'locked_by', id=j['locked_by'])
         elif j.get('blocked_by'):
             row['J_STATE'], row['J_STATE_TEXT'] = 'blocked', t(language, 'blocked')
             row['J_BLOCKED_TEXT'] = t(language, 'blocked_by', name=j['blocked_by'])

@@ -192,7 +192,7 @@ def now():
 # ---------- Befehle ----------
 
 def start(base, config, reader, chapters=None, book=False, by='', until=None, commit=None, rng=None, when=None,
-          build=None):
+          build=None, dry_run=False):
     """`build(entry) -> [Dateiname, …]` baut die Dateien vor dem Speichern; ein Fehler dort (ValueError) bricht ab,
     ohne dass ein Eintrag zurückbleibt."""
     if not reader:
@@ -218,6 +218,8 @@ def start(base, config, reader, chapters=None, book=False, by='', until=None, co
     entry['commit'] = commit if commit is not None else head_commit(base)
     entry['abschnitte'] = fingerprints(base, config, sorted(wanted))
     entry['dateien'] = list(build(entry)) if build else []
+    if dry_run:   # Probelauf (#572): Dateien gebaut, aber nichts gespeichert und nichts gesperrt
+        return entry
     data['checkouts'].append(entry)
     save(base, data)
     return entry
@@ -439,6 +441,7 @@ def main(argv=None):
     s.add_argument('--repo', default='')
     s.add_argument('--branch', default='')
     s.add_argument('--no-pdf', action='store_true')
+    s.add_argument('--dry-run', action='store_true', help='Probelauf: Dateien bauen, aber nichts speichern und nichts sperren')
     st = sub.add_parser('status')
     st.add_argument('--id')
     e = sub.add_parser('end')
@@ -475,8 +478,8 @@ def main(argv=None):
                 branch = args.branch or checkout_files.default_branch(base)
                 builder = lambda en: checkout_files.build(base, config, en, args.out, repo, branch,  # noqa: E731
                                                           en.get('commit', ''), pdf=not args.no_pdf)
-            en = start(base, config, args.reader, args.chapters, args.book, args.by, args.until, build=builder)
-            print(f'{en["id"]}: {scope_text(config, en)} an {en["gegenleser"]} ausgecheckt und gesperrt'
+            en = start(base, config, args.reader, args.chapters, args.book, args.by, args.until, build=builder, dry_run=args.dry_run)
+            print(f'{en["id"]}: {scope_text(config, en)} an {en["gegenleser"]} ' + ('im Probelauf gebaut, nicht gesperrt' if args.dry_run else 'ausgecheckt und gesperrt')
                   + (f' (Frist {en["frist"]})' if en.get('frist') else ''))
             for f in en['dateien']:
                 print(f'✓ {Path(args.out) / f}')

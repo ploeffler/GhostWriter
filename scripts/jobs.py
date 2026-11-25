@@ -149,6 +149,17 @@ def resolve_after(out, base):
         j['blocked_by'] = t['rel'] if t is not None and pending(t) else None
 
 
+def locked_by(base, config, section_id):
+    """Der aktive Checkout, der den Abschnitt sperrt (#572), sonst None. Ohne checkouts.yml oder ohne Abschnitt: None."""
+    if not section_id or not Path(base, 'checkouts.yml').is_file():
+        return None
+    try:
+        import checkout
+        return checkout.locked_by_checkout(Path(base), config, section_id)
+    except Exception:   # noqa: BLE001 – eine unlesbare Sperrdatei hält die Warteschlange nicht an
+        return None
+
+
 def jobs(base, config=None):
     """Alle Aufträge mit Pfad, Daten und Zustand, in Abarbeitungsreihenfolge (#478): Vorrang, dann Buchreihenfolge,
     dann Auftragszeit; ein Auftrag mit `after` steht stets hinter seinem Ziel."""
@@ -165,6 +176,9 @@ def jobs(base, config=None):
         rank = (0 if data.get('priority') is True else 1,) + order.get(sid, (8, 0, 0)) \
             + (str(data.get('requested_at') or ''), str(path.relative_to(base)))
         out.append({'path': path, 'data': data, 'state': state(data), 'rank': rank, 'section_id': sid, 'type': kind(data)})
+        lock = locked_by(base, config, sid)
+        if lock:   # #572: Abschnitt ist zum Gegenlesen ausgecheckt: der Auftrag wartet, bis der Checkout beendet ist
+            out[-1]['locked_by'] = lock['id']
     out.sort(key=lambda j: j['rank'])
     resolve_after(out, base)
     ordered, seen = [], set()
@@ -183,7 +197,7 @@ def jobs(base, config=None):
 
 def queue(base, config=None, types=None):
     """Aufträge, die jetzt ausgeführt werden dürfen: offen und nicht von einem noch offenen Auftrag abhängig."""
-    return [j for j in jobs(base, config) if j['state'] == 'open' and not j.get('blocked_by')
+    return [j for j in jobs(base, config) if j['state'] == 'open' and not j.get('blocked_by') and not j.get('locked_by')
             and (not types or j['type'] in types)]
 
 
@@ -631,7 +645,7 @@ def listing(base):
                     'section_id': j.get('section_id', ''), 'requested_at': d.get('requested_at'),
                     'question': d.get('question'), 'error': d.get('error') or j.get('error'),
                     'priority': d.get('priority') is True, 'after': d.get('after') or '',
-                    'blocked_by': j.get('blocked_by') or '', 'note': j.get('problem') or j.get('note') or ''})
+                    'blocked_by': j.get('blocked_by') or '', 'locked_by': j.get('locked_by') or '', 'note': j.get('problem') or j.get('note') or ''})
     return out
 
 
@@ -672,6 +686,7 @@ def main(argv=None):
                 names = {'open': 'wartet', 'waiting_budget': 'wartet auf Bestätigung (Budget)', 'failed': 'fehlgeschlagen'}
                 print('\n'.join(f'- {names[x["state"]]}: {x["request"]}' + (' (vorgezogen)' if x['priority'] else '')
                                 + (f' – wartet auf {x["blocked_by"]}' if x['blocked_by'] else '')
+                                + (f' – wartet: ausgecheckt ({x["locked_by"]})' if x.get('locked_by') else '')
                                 + (f' – {x["error"]}' if x['error'] else '') + (f' [{x["note"]}]' if x['note'] else '')
                                 for x in data) or '- Keine Aufträge.')
             return 0

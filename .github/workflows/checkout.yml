@@ -24,6 +24,10 @@ on:
         description: 'Frist (JJJJ-MM-TT), optional; nach Ablauf gibt es nur einen Hinweis'
         required: false
         default: ''
+      dry_run:
+        description: 'Probelauf: Dateien bauen und als Artifact bereitstellen, aber nichts sperren und nichts committen'
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # checkouts.yml auf den Buch-Branch
@@ -56,6 +60,7 @@ jobs:
           BOOK: ${{ inputs.book }}
           READER: ${{ inputs.reader }}
           UNTIL: ${{ inputs.until }}
+          DRY_RUN: ${{ inputs.dry_run }}
           ACTOR: ${{ github.actor }}
           GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
@@ -63,9 +68,15 @@ jobs:
           args=(--reader "$READER" --by "$ACTOR" --out checkout-dateien --repo "$GITHUB_REPOSITORY" --branch "$GITHUB_REF_NAME")
           if [ "$BOOK" = "true" ]; then args+=(--book); else args+=(--chapters "$CHAPTERS"); fi
           [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
+          [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
           python scripts/checkout.py . start "${args[@]}" | tee checkout.log
-          python scripts/validate_project.py .
           id=$(head -1 checkout.log | cut -d: -f1)
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "CHECKOUT_ID=probelauf-$id" >> "$GITHUB_ENV"
+            echo "## Probelauf: $id (nichts gesperrt, nichts committet)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python scripts/validate_project.py .
           echo "CHECKOUT_ID=$id" >> "$GITHUB_ENV"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
