@@ -30,18 +30,22 @@
 version: "1.0"
 checked_at: "2026-10-31"
 
-# Vorgabemodelle je Anbieter und Aufgabe (#554). `checked_at` = Datum der letzten Prüfung beim Anbieter.
+# Vorgabemodelle je Anbieter und Aufgabe (#554). `checked_at` = Datum der letzten Prüfung beim Anbieter (öffentliche Abkündigungsseiten,
+# #596). Optional: `retire_at` = vom Anbieter angekündigte Abschaltung (die Prüfung warnt 90 Tage vorher), `note` = Hinweis.
 # Ein Buch überschreibt sie in den Einstellungen (ai_providers.services.<id>.model). Aufgaben:
 # research (Recherche in der Action), image (Colorieren). Wer ein Modell hier ändert, setzt `checked_at` neu.
 # `python3 scripts/model_defaults.py check` vergleicht die Modelle mit den kostenlosen Listen der Anbieter.
 model_defaults:
   anthropic:
-    research: {model: claude-sonnet-5-5, checked_at: "2026-10-31"}
+    research: {model: claude-sonnet-5-5, checked_at: "2026-11-25"}   # öffentliche Abkündigungsseite: als Ersatz genannt, keine Abschaltung angekündigt
   openai:
-    research: {model: gpt-5, checked_at: "2026-10-31"}
+    # Abschaltung laut Anbieter am 2026-12-11 angekündigt; Ersatz in den Quellen widersprüchlich (gpt-5.5 bzw. gpt-5.6-sol),
+    # deshalb nicht umgestellt: Preis und Verhalten können abweichen (Entscheidung beim Eigentümer, #596).
+    research: {model: gpt-5, checked_at: "2026-11-25", retire_at: "2026-12-11", note: "Ersatz laut Anbieter prüfen (gpt-5.5 oder gpt-5.6-sol)"}
   google:
-    research: {model: gemini-3.8-flash, checked_at: "2026-11-22"}
-    image: {model: gemini-2.5-flash-image, checked_at: "2026-10-31"}
+    research: {model: gemini-3.8-flash, checked_at: "2026-11-25"}   # öffentliche Abkündigungsseite: als Ersatz für 3.5 bis 3.7 genannt
+    # Abschaltung frühestens 2027-03-15 (ältere Fassung der Seite nannte 2026-10-02); Ersatz laut Anbieter gemini-3.1-flash-lite-image.
+    image: {model: gemini-2.5-flash-image, checked_at: "2026-11-25", retire_at: "2027-03-15", note: "Ersatz laut Anbieter gemini-3.1-flash-lite-image; nicht umgestellt, ohne Schlüssel nicht getestet"}
 
 # Sonderwert: der Assistent, mit dem gerade gechattet wird (egal welcher Anbieter).
 special:
