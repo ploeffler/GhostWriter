@@ -61,7 +61,7 @@ Die folgenden Begriffe beschreiben den Speicherstand; sie sind keine zusätzlich
 
 ## Hinweise durchsehen
 
-In der Hinweisdurchsicht (#367, [Lektorat](LEKTORAT.md#hinweise-durchsehen-hinweisdurchsicht-367)) wird jede Antwort ohne weitere Rückfrage als kleiner Nachtrag im offenen Änderungspaket gespeichert, wie ein Session-Nachtrag. Dabei ändert sich nur die Dialogdatei `editorial/durchsicht-<datum>.yml`, nicht das Manuskript. Das Umsetzen (`hinweise.py apply`) ist eine gewöhnliche Buchänderung mit eigenem Änderungsschritt; abgeschlossene Abschnitte oder Kapitel müssen vorher ausdrücklich wieder geöffnet werden. Übernommen wird wie bei anderen Buchänderungen; mit „sofort übernehmen“ oder „übernehmen, wenn grün“ erst nach erfolgreichen Repository-Prüfungen.
+In der Hinweisdurchsicht (#367, [Lektorat](LEKTORAT.md#hinweise-durchsehen-hinweisdurchsicht-367)) wird jede Antwort ohne weitere Rückfrage in die Dialogdatei geschrieben; **committet** wird sie je abgeschlossenem Thema bzw. je Runde, mit dem Befehl „Zwischenstand speichern“ und beim Beenden der Durchsicht (auch „Später“): eine Runde ist eine Aufgabe, nicht jede Karte (#609). Bis dahin liegen die Antworten nur in der Arbeitskopie; bricht der Chat vorher ab, gehen sie verloren, deshalb meldet der Assistent die Zwischenstände. Dabei ändert sich nur die Dialogdatei `editorial/durchsicht-<datum>.yml`, nicht das Manuskript. Das Umsetzen (`hinweise.py apply`) ist eine gewöhnliche Buchänderung mit eigenem Änderungsschritt; abgeschlossene Abschnitte oder Kapitel müssen vorher ausdrücklich wieder geöffnet werden. Übernommen wird wie bei anderen Buchänderungen; mit „sofort übernehmen“ oder „übernehmen, wenn grün“ erst nach erfolgreichen Repository-Prüfungen.
 
 ## Wenn etwas fehlschlägt
 
