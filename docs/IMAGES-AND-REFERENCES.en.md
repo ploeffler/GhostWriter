@@ -88,7 +88,7 @@ The chat searches with its existing tools, or you provide a link yourself; Ghost
 
 ## Colorizing photos (#452)
 
-Black-and-white family photos can be colorized without an image model changing faces or shapes. The model only supplies a color proposal. Only its color (channels a/b in Lab) is kept; lightness comes pixel by pixel from the prepared image. Procedure and locks: `START.md`, “Fotos colorieren (#452)”; files: [data model](DATA-MODEL.md#bildordner-und-colorieren-452).
+Black-and-white family photos can be colorized without an image model changing faces or shapes. The model only supplies a color proposal. Only its color (channels a/b in Lab) is kept; lightness comes pixel by pixel from the prepared image. Procedure and locks: `START.md`, “Fotos colorieren (#452)”; files: [data model](DATA-MODEL.md#bildordner-und-colorieren-452). **Adding material (#574):** A material folder `quellen/<date>-<short name>/` can be colorized the same way (`python3 scripts/material.py . colorize <folder> …`): the source is `bearbeitet.jpg`, the description is in `material.yml`, the result is `coloriert.jpg`; minors and documents stay locked.
 
 - **With your own Google Gemini access:** workflow “Bild colorieren” (`.github/workflows/colorize.yml`) with the secret `GEMINI_API_KEY`. The chat never reads the key; the workflow sends the image to Google and puts the result into the change package. Every start adds a job to the background queue (#479): ten photos in the evening all get colorized, one after another.
 - **With another image service in the chat:** apply its proposal with `scripts/colorize.py --proposal`.

@@ -8,7 +8,7 @@ Aufruf:
   python scripts/colorize.py <buch> <bildordner> --consent --hint "Die Fahne ist rot-weiß-rot."
   python scripts/colorize.py <buch> <bildordner> --consent --minors-exception
 
-Ein Bildordner (z. B. quellen/bilder/2026-11-21-ehepaar/) enthält `aufbereitet.jpg`
+Ein Bildordner (z. B. quellen/bilder/2026-11-21-ehepaar/) oder ein Materialordner (`quellen/<datum>-<name>/` aus `material.py`, #574: `material.yml` und `bearbeitet.jpg`) enthält `aufbereitet.jpg`
 (Schwarz-Weiß, gleichmäßig aufbereitet) und `bild.yml` mit der Beschreibung. Das
 Skript holt einen Farbvorschlag beim eigenen Google-Gemini-Zugang (Secret
 GEMINI_API_KEY, nur in der Action „Bild colorieren“) oder nimmt einen vorhandenen
@@ -61,9 +61,11 @@ import yaml
 import model_defaults
 
 SOURCE = 'aufbereitet.jpg'
+SOURCE_BEARBEITET = 'bearbeitet.jpg'   # Ergebnis von material.py prepare (#574)
 SOURCE_FRONT = 'aufbereitet-1.jpg'   # Bild mit Rückseite: Vorderseite (aufbereitet-2.jpg = Rückseite)
 TARGET = 'coloriert.jpg'
 META = 'bild.yml'
+META_MATERIAL = 'material.yml'   # Material einbringen (#574): gleiche Felder `art`, `minderjaehrige`, `bearbeitung`
 ALLOWED_ART = ('foto', 'foto-vom-foto')
 DEFAULT_MODEL = model_defaults.default_model('google', 'image', 'gemini-2.5-flash-image')   # #554: providers.yml
 SECRET = 'GEMINI_API_KEY'
@@ -196,13 +198,19 @@ def l_deviation(a, b):
 
 # ---------- Beschreibung und Sperren ----------
 
+def meta_path(folder):
+    """Beschreibung des Ordners: `bild.yml` (Bildordner), sonst `material.yml` (Material einbringen, #574)."""
+    folder = Path(folder)
+    return folder / META_MATERIAL if not (folder / META).is_file() and (folder / META_MATERIAL).is_file() else folder / META
+
+
 def load_meta(folder):
-    path = Path(folder) / META
+    path = meta_path(folder)
     if not path.is_file():
-        raise SystemExit(f'{META} fehlt in {folder}: ohne Beschreibung (art, minderjaehrige) wird nicht coloriert.')
+        raise SystemExit(f'{META} fehlt in {folder} (auch kein {META_MATERIAL}): ohne Beschreibung (art, minderjaehrige) wird nicht coloriert.')
     data = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
     if not isinstance(data, dict):
-        raise SystemExit(f'{META} ist kein YAML-Objekt.')
+        raise SystemExit(f'{path.name} ist kein YAML-Objekt.')
     return data
 
 
@@ -378,7 +386,7 @@ def cost_entry(base, model, usage, folder, when):
 
 def source_in(folder):
     """aufbereitet.jpg, bei Bildern mit Rückseite die Vorderseite aufbereitet-1.jpg. → Pfad oder None"""
-    for name in (SOURCE, SOURCE_FRONT):
+    for name in (SOURCE, SOURCE_FRONT, SOURCE_BEARBEITET):
         if (Path(folder) / name).is_file():
             return Path(folder) / name
     return None
@@ -447,7 +455,7 @@ def colorize(base, folder, *, proposal=None, tool=None, model=None, consent=Fals
     line = (f'{TARGET}: {origin}, {today.strftime("%d.%m.%Y")}{extra}; nur Farbkanäle a/b übernommen, L-Kanal aus '
             f'{src.name}; mittlere L-Abweichung {de(dev)}/255, Bildaufbau-Korrelation {de(info["correlation"])}. '
             'Farben sind Annahme, kein Beleg')
-    add_processing(folder / META, line)
+    add_processing(meta_path(folder), line)
     cost = cost_entry(base, model, usage, folder, when) if usage is not None else None
     rel = folder.relative_to(Path(base).resolve()).as_posix()
     return {'folder': rel, 'target': f'{rel}/{TARGET}', 'deviation': round(dev, 3), 'correlation': info['correlation'],
