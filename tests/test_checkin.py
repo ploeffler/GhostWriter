@@ -1,4 +1,5 @@
 """Rückgabe einchecken (#573)."""
+import re
 import shutil
 import subprocess
 import sys
@@ -30,6 +31,9 @@ def git(base, *args):
     return subprocess.run(['git', '-C', str(base), *args], check=True, capture_output=True, text=True,
                           env={'GIT_AUTHOR_NAME': 't', 'GIT_AUTHOR_EMAIL': 't@t', 'GIT_COMMITTER_NAME': 't',
                                'GIT_COMMITTER_EMAIL': 't@t', 'PATH': '/usr/bin:/bin:/usr/local/bin'}).stdout.strip()
+
+
+BLANK_PNG = bytes.fromhex('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360f8ffff3f0005fe02fea7d6c3f00000000049454e44ae426082')
 
 
 class PureTest(unittest.TestCase):
@@ -141,6 +145,91 @@ class CheckinFlowTest(unittest.TestCase):
         self.assertNotIn('befunddatei', r1)
 
     @unittest.skipUnless(cv2 is not None and shutil.which('soffice') and shutil.which('pdftotext'), 'OpenCV, LibreOffice, pdftotext nötig')
+    # --- Programme (#209): Word, LibreOffice, Google Docs, Pages ---
+
+    def variant(self, program, change=None, comment=None):
+        """Rückgabe-DOCX so, wie das Programm sie typischerweise schreibt (Eigenschaften, Textmarken, Kommentare, Bilder)."""
+        src = self.edit(change[0], change[1], comment) if change else self.docx
+        out = self.tmp / f'{program}.docx'
+        if program == 'libreoffice':
+            conv = self.tmp / 'lo'
+            subprocess.run(['soffice', '--headless', '--convert-to', 'docx:MS Word 2007 XML', '--outdir', str(conv), str(src)],
+                           check=True, capture_output=True)
+            shutil.copyfile(conv / src.name, out)
+            return out
+        import zipfile
+        app = {'word': 'Microsoft Office Word', 'google': 'Google Docs', 'pages': 'Pages'}[program]
+        lose = {'word': (), 'google': ('props', 'marks'), 'pages': ('props', 'marks', 'comments', 'media')}[program]
+        with zipfile.ZipFile(src) as zin, zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as zout:
+            for item in zin.infolist():
+                data = zin.read(item.filename)
+                if item.filename == 'docProps/custom.xml' and 'props' in lose:
+                    continue
+                if item.filename == 'word/comments.xml' and 'comments' in lose:
+                    continue
+                if item.filename.startswith('word/media/') and 'media' in lose:
+                    data = BLANK_PNG       # Pages rendert Bilder neu: der QR-Code ist nicht mehr lesbar
+                if item.filename == 'docProps/app.xml':
+                    data = f'<Properties><Application>{app}</Application></Properties>'.encode()
+                if item.filename == 'word/document.xml':
+                    text = data.decode('utf-8')
+                    if 'marks' in lose:
+                        text = re.sub(r'<w:bookmark(?:Start|End)\b[^>]*/>', '', text)
+                    if 'comments' in lose:
+                        text = re.sub(r'<w:comment(?:RangeStart|RangeEnd|Reference)\b[^>]*/?>(?:</w:commentReference>)?', '', text)
+                        text = re.sub(r'<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr></w:r>', '', text)
+                    data = text.encode('utf-8')
+                if item.filename in ('_rels/.rels', '[Content_Types].xml') and 'props' in lose:
+                    data = re.sub(r'<(?:Relationship|Override) [^>]*custom\.xml[^>]*/>', '', data.decode('utf-8')).encode('utf-8')
+                if item.filename in ('word/_rels/document.xml.rels', '[Content_Types].xml') and ('comments' in lose or 'media' in lose):
+                    text = data.decode('utf-8')
+                    if 'comments' in lose:
+                        text = re.sub(r'<Relationship [^>]*comments[^>]*/>', '', text)
+                        text = re.sub(r'<Override [^>]*comments[^>]*/>', '', text)
+                    data = text.encode('utf-8')
+                zout.writestr(item, data)
+        return out
+
+    def check_program(self, program, expect_comment=True):
+        word = self.sample_word()
+        back = self.variant(program, (word, 'Ersatzwort'), comment='Bitte prüfen' if expect_comment else None)
+        folder, report = checkin.checkin(self.base, self.config, [back], date='2026-11-25')
+        findings = yaml.safe_load((self.base / report['befunddatei']).read_text(encoding='utf-8'))['befunde']
+        change = next(f for f in findings if f.get('alt'))
+        self.assertEqual((change['alt'], change['neu']), (word, 'Ersatzwort'), program)
+        return report, findings
+
+    def test_word_return_with_tracked_changes_is_not_accepted_silently(self):
+        report, _ = self.check_program('word')
+        self.assertEqual(report['programm'], 'Word')
+        self.assertEqual(report['kennung_aus'], 'eigenschaft')
+
+    @unittest.skipUnless(shutil.which('soffice'), 'LibreOffice nötig')
+    def test_libreoffice_roundtrip(self):
+        report, findings = self.check_program('libreoffice')
+        self.assertEqual(report['programm'], 'LibreOffice Writer')
+        self.assertTrue(any('Bitte prüfen' in f.get('frage', '') for f in findings))
+
+    def test_google_docs_without_properties_and_textmarks(self):
+        report, findings = self.check_program('google')
+        self.assertEqual(report['programm'], 'Google Docs')
+        self.assertEqual(report['kennung_aus'], 'titelblatt')
+        self.assertIn('Überschriften', report['zuordnung_abschnitte'])
+        self.assertTrue(any('Bitte prüfen' in f.get('frage', '') for f in findings))
+
+    def test_pages_loses_comments_and_images_comparison_over_text(self):
+        report, findings = self.check_program('pages', expect_comment=False)
+        self.assertEqual(report['programm'], 'Pages')
+        self.assertEqual(report['kennung_aus'], 'titelblatt')
+        self.assertIn('Vergleich über den Text', report['vergleich'])
+        self.assertIn('Pages', report['vergleich'])
+        self.assertEqual(report['kommentare'], 0)
+
+    def test_unchanged_pages_copy_has_no_findings(self):
+        back = self.variant('pages')
+        _, report = checkin.checkin(self.base, self.config, [back], date='2026-11-25')
+        self.assertEqual(report['befunde'], 0)
+
     def test_pdf_comment_is_assigned_to_section_and_note_makes_findings(self):
         from pypdf import PdfReader, PdfWriter
         try:
