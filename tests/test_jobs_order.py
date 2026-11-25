@@ -212,6 +212,7 @@ class StartConditionTest(Base):
         pending = jobs.remote_pending(self.base)
         self.assertEqual(sum(sum(w.values()) for w in pending.values()), 1)
 
+
 class SuggestTest(Base):
     """#478: Vorschlag beim Einreihen (Danach einreihen / Zusammenlegen / Unabhängig); ohne Klick ändert sich nichts."""
 
