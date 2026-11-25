@@ -381,7 +381,7 @@ class DocumentedCallsTest(unittest.TestCase):
         calls = _re.findall(r'hinweise\.py (\S+) (\S+)', text)
         self.assertTrue(calls)
         for cmd, project in calls:
-            self.assertIn(cmd, ('collect', 'show', 'decide', 'accept', 'plan', 'apply'), (cmd, project))
+            self.assertIn(cmd, ('collect', 'show', 'decide', 'accept', 'plan', 'apply', 'propose', 'ask', 'checkpoint'), (cmd, project))
 
     def test_both_orders_parse(self):
         import subprocess

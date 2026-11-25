@@ -341,13 +341,21 @@ def entries(data):
            [('autorenentscheidung', e) for e in data.get('autorenentscheidung') or []]
 
 
-def decide(path, entry_id, decision, new=None, variant=None):
+def looks_like_question(text):
+    """Ein Text mit Fragezeichen am Ende (Anführungszeichen und Leerraum ignoriert) ist eine Rückfrage, keine Fassung (#609)."""
+    return bool(re.search(r'\?[\s\"„“»«\'’)\]]*$', str(text or '')))
+
+
+def decide(path, entry_id, decision, new=None, variant=None, as_text=False):
     if variant is not None:   # #473: Variante N wählen = „geändert“ mit dem Wortlaut der Variante
         decision = 'geändert'
     if decision not in DECISIONS:
         raise ValueError(f'Unbekannte Entscheidung: {decision}')
     if decision == 'geändert' and not new and variant is None:
         raise ValueError('Bei „geändert“ gehört die eigene Fassung dazu (--new)')
+    if decision == 'geändert' and variant is None and looks_like_question(new) and not as_text:
+        raise ValueError('Das sieht wie eine Rückfrage aus, nicht wie eine Fassung: nichts gespeichert. Antworte darauf und zeige '
+                         'die Karte erneut (hinweise.py ask); soll der Text trotzdem als Fassung gelten, --as-text angeben.')
     data = read_yaml(path)
     for _, e in entries(data):
         if e.get('id') == entry_id:
@@ -365,6 +373,58 @@ def decide(path, entry_id, decision, new=None, variant=None):
             write_yaml(path, data)
             return e
     raise ValueError(f'Eintrag {entry_id} nicht gefunden')
+
+
+def propose(path, entry_id, new, variants=None):
+    """Vorschlag des Assistenten an einen offenen Eintrag schreiben (#609): `neu` (und `varianten`), gekennzeichnet mit
+    `vorschlag_von: assistent`. Die Karte zeigt ihn als „neu“ bzw. „Vorschlag“; „Übernehmen“ speichert genau diesen Text."""
+    new = (new or '').strip()
+    if not new:
+        raise ValueError('Der Vorschlag ist leer (--new)')
+    variants = [v.strip() for v in variants or [] if v and v.strip()]
+    if len(variants) > 3:
+        raise ValueError('Höchstens drei Varianten')
+    data = read_yaml(path)
+    for _, e in entries(data):
+        if e.get('id') == entry_id:
+            if e.get('umgesetzt') or e.get('entscheidung', 'offen') != 'offen':
+                raise ValueError(f'{entry_id} ist schon entschieden; ein Vorschlag geht nur bei offenen Einträgen')
+            if e.get('neu') and e.get('vorschlag_von') != 'assistent':
+                e['neu_befund'] = e['neu']   # Vorschlag aus der Befunddatei bleibt nachvollziehbar
+            e['neu'] = new
+            e['vorschlag_von'] = 'assistent'
+            if variants:
+                e['varianten'] = variants
+            write_yaml(path, data)
+            return e
+    raise ValueError(f'Eintrag {entry_id} nicht gefunden')
+
+
+def checkpoint(base, message=None, push_to=None):
+    """Zwischenstand der Durchsicht speichern (#609): ein Commit der geänderten Dialogdateien `editorial/durchsicht-*.yml`.
+    Gibt (Zahl entschiedener Einträge, Commit oder None) zurück; None, wenn nichts zu speichern ist."""
+    base = Path(base)
+
+    def git(*a, check=True):
+        return subprocess.run(['git', '-C', str(base), *a], capture_output=True, text=True, check=check)
+    files = [p.relative_to(base).as_posix() for p in dialog_files(base)]
+    if not files:
+        return 0, None
+    dirty = [line[3:] for line in git('status', '--porcelain', '--', *files).stdout.splitlines() if line.strip()]
+    data = read_yaml(base / files[-1])
+    every = entries(data)
+    done = sum(1 for _, e in every if e.get('entscheidung', 'offen') != 'offen')
+    if not dirty:
+        return done, None
+    git('add', '--', *files)
+    git('commit', '-q', '-m', message or f'Hinweisdurchsicht: Zwischenstand ({done} von {len(every)} entschieden)\n\n'
+        'GhostWriter-Aktion: notes_review.checkpoint')
+    sha = git('rev-parse', 'HEAD').stdout.strip()
+    if push_to:
+        out = git('push', 'origin', f'HEAD:refs/heads/{push_to}', check=False)
+        if out.returncode:
+            raise ValueError(f'Push nach {push_to} fehlgeschlagen: {out.stderr.strip()[:200]}')
+    return done, sha
 
 
 def proposal(e):
@@ -880,6 +940,7 @@ def widget_values(base, path, stufen=None, size=ROUND_SIZE, gering=False, group=
              'E_OLD': e.get('alt', ''), 'E_NEW': e.get('neu', ''),
              'E_DECISION': 'umgesetzt' if e.get('umgesetzt') else e.get('entscheidung', 'offen')}
         if author:
+            r['E_PROPOSED'] = '1' if e.get('vorschlag_von') == 'assistent' else ''   # #609
             r['E_QUESTION'] = e.get('frage', '') + ''.join(f' · Variante {k}: {v}' for k, v in
                                                           enumerate(e.get('varianten') or [], start=1))   # #447
         return r
@@ -972,6 +1033,26 @@ def main(argv=None):
     s.add_argument('--group', help='Gruppe einzeln ansehen')
     s.add_argument('--entry', help='nur diesen Eintrag als Karte zeigen (#473)')
     s.add_argument('--next', action='store_true', help='nächsten offenen Eintrag als Karte zeigen (#473)')
+    pr = sub.add_parser('propose', help='Vorschlag des Assistenten an einen Eintrag schreiben (#609)')
+    pr.add_argument('project')
+    pr.add_argument('entry')
+    pr.add_argument('--new', required=True)
+    pr.add_argument('--variant', action='append', default=[], help='Variante (bis zu drei, mehrfach angeben)')
+    pr.add_argument('--file')
+    pr.add_argument('--next-card', action='store_true', help='danach dieselbe Karte ausgeben')
+    pr.add_argument('--repo')
+    pr.add_argument('--text', action='store_true')
+    ak = sub.add_parser('ask', help='Rückfrage zu einem Eintrag: entscheidet nichts, zeigt dieselbe Karte erneut (#609)')
+    ak.add_argument('project')
+    ak.add_argument('entry')
+    ak.add_argument('--question')
+    ak.add_argument('--file')
+    ak.add_argument('--repo')
+    ak.add_argument('--text', action='store_true')
+    cp = sub.add_parser('checkpoint', help='Zwischenstand der Durchsicht als einen Commit speichern (#609)')
+    cp.add_argument('project')
+    cp.add_argument('--message')
+    cp.add_argument('--push-to', help='Arbeits-Branch, auf den der Commit hochgeladen wird')
     d = sub.add_parser('decide', help='Entscheidung zu einem Eintrag speichern')
     d.add_argument('project')
     d.add_argument('entry', nargs='?')
@@ -980,6 +1061,7 @@ def main(argv=None):
     d.add_argument('--decision', choices=DECISIONS[1:])
     d.add_argument('--new')
     d.add_argument('--variant', type=int, help='Variante N wählen (#473)')
+    d.add_argument('--as-text', action='store_true', help='„geändert“ mit einem Fragetext trotzdem als Fassung speichern (#609)')
     d.add_argument('--next-card', action='store_true', help='danach die nächste Karte ausgeben (#609)')
     d.add_argument('--repo', help='owner/repo für die Karte (mit --next-card)')
     d.add_argument('--text', action='store_true', help='mit --next-card: Textfassung statt Widget')
@@ -1005,6 +1087,10 @@ def main(argv=None):
             print(f'{path.relative_to(base).as_posix()}: {len(data["ohne_autor"])} ohne Autor lösbar, '
                   f'{len(data["autorenentscheidung"])} Autorenentscheidungen, {len(data.get("ausgelassen") or [])} nicht aufgenommen')
             return 0
+        if args.cmd == 'checkpoint':
+            done, sha = checkpoint(base, args.message, args.push_to)
+            print(f'Zwischenstand gespeichert ({done} entschieden), Commit {sha[:7]}' if sha else 'Nichts zu speichern.')
+            return 0
         path = Path(args.file) if args.file else latest(base)
         if path and not path.is_absolute() and not path.exists():
             path = base / path
@@ -1019,6 +1105,25 @@ def main(argv=None):
                 print(show_stufen(data, args.size, args.gering, args.group), end='')
             else:
                 print(show(data, args.open), end='')
+            return 0
+        if args.cmd in ('propose', 'ask'):
+            if args.cmd == 'propose':
+                e = propose(path, args.entry, args.new, args.variant)
+                print(f'{e["id"]}: Vorschlag gespeichert', file=sys.stderr if not args.text else sys.stdout)
+            else:
+                find = [e for _, e in entries(read_yaml(path)) if e.get('id') == args.entry]
+                if not find:
+                    raise ValueError(f'Eintrag {args.entry} nicht gefunden')
+                print(f'{args.entry}: Rückfrage notiert, nichts entschieden; beantworten, dann die Karte erneut zeigen.',
+                      file=sys.stderr if not args.text else sys.stdout)
+            if args.cmd == 'ask' or args.next_card:
+                cmd = [sys.executable, str(Path(__file__).resolve().parent / 'render_view.py'), str(base), 'notes-review', str(path),
+                       '--entry', args.entry] + (['--text'] if args.text else []) + (['--repo', args.repo] if args.repo else [])
+                card = subprocess.run(cmd, capture_output=True, text=True)
+                sys.stdout.write(card.stdout)
+                if card.returncode:
+                    print(card.stderr, file=sys.stderr)
+                    return 1
             return 0
         if args.cmd == 'plan':
             print(plan_text(plan(base, config, read_yaml(path), args.chapter)), end='')
@@ -1046,7 +1151,7 @@ def main(argv=None):
             return 0
         if not args.entry or not (args.decision or args.variant):
             raise ValueError('Eintrag und --decision (oder --variant) angeben (oder --group / --gering)')
-        e = decide(path, args.entry, args.decision, args.new, args.variant)
+        e = decide(path, args.entry, args.decision, args.new, args.variant, args.as_text)
         print(f'{e["id"]}: {e["entscheidung"]}', file=sys.stderr if args.next_card and not args.text else sys.stdout)
         if args.next_card:
             done = unit_done(read_yaml(path), e)

@@ -61,7 +61,7 @@ These terms describe storage status; they are not additional section or chapter 
 
 ## Reviewing notes
 
-In the notes review (#367, [editorial review](EDITORIAL-REVIEW.en.md#reviewing-notes-notes-review-367)) each answer is saved without further confirmation as a small addition to the open change package, like a session addition. Only the dialogue file `editorial/durchsicht-<date>.yml` changes, not the manuscript. Applying (`hinweise.py apply`) is an ordinary book change with its own change step; finalized sections or chapters must be reopened explicitly first. Merging works as for other book changes; with “merge immediately” or “merge when green” only after the repository checks pass.
+In the notes review (#367, [editorial review](EDITORIAL-REVIEW.en.md#reviewing-notes-notes-review-367)) each answer is written to the dialogue file without further confirmation; it is **committed** per completed theme or round, with the command “Zwischenstand speichern” (save interim state) and when the review ends (also “later”): a round is one task, not every card (#609). Until then the answers exist only in the working copy and are lost if the chat breaks off, so the assistant reports the interim states. Only the dialogue file `editorial/durchsicht-<date>.yml` changes, not the manuscript. Applying (`hinweise.py apply`) is an ordinary book change with its own change step; finalized sections or chapters must be reopened explicitly first. Merging works as for other book changes; with “merge immediately” or “merge when green” only after the repository checks pass.
 
 ## If an operation fails
 

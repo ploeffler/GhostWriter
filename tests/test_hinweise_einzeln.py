@@ -249,3 +249,79 @@ class ThemesTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ProposeAskCheckpointTest(unittest.TestCase):
+    """#609: Vorschlag des Assistenten auf der Karte, Rückfragen ohne Entscheidung, Zwischenstand je Thema."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.base = Path(tmp.name) / 'b'
+        shutil.copytree(ROOT / 'tests/fixtures/adhs', self.base)
+        (self.base / 'editorial').mkdir(exist_ok=True)
+        self.path = self.base / 'editorial' / 'durchsicht-2026-11-25.yml'
+        data = themed_data()
+        for _, e in hinweise.entries(data):
+            e['abschnitt'], e['section_id'], e['chapter_id'] = '1.1', 'sec-01-01-der-brief-der-sechs-monate', 'ch-01-endlich-eine-erklaerung'
+        self.path.write_text(yaml.safe_dump(data, allow_unicode=True), encoding='utf-8')
+
+    def cli(self, *args):
+        import subprocess
+        return subprocess.run([sys.executable, str(ROOT / 'scripts/hinweise.py'), str(self.base), *args], capture_output=True, text=True)
+
+    def test_propose_shows_on_the_card_and_accept_saves_exactly_it(self):
+        text = 'Die Überfahrt dauert etwa elf Stunden; Abfahrt am Morgen, Ankunft am Abend.'
+        r = self.cli('propose', 'e-002', '--new', text, '--variant', 'Variante eins', '--file', str(self.path))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        values, blocks = hinweise.widget_values(self.base, self.path, entry='e-002')
+        row = blocks['AUTHOR'][0]
+        self.assertEqual((row['E_NEW'], row['E_PROPOSED']), (text, '1'))
+        self.assertIn('Variante 1: Variante eins', row['E_QUESTION'])
+        e = hinweise.decide(self.path, 'e-002', 'ja')                 # „Übernehmen“ ändert `neu` nicht
+        self.assertEqual((e['entscheidung'], e['neu'], e['vorschlag_von']), ('ja', text, 'assistent'))
+        with self.assertRaisesRegex(ValueError, 'schon entschieden'):
+            hinweise.propose(self.path, 'e-002', 'Anders')
+        self.assertEqual(self.cli('propose', 'e-003', '--new', ' ', '--file', str(self.path)).returncode, 1)
+        # Eintrag ohne Vorschlag: kein Kennzeichen
+        self.assertEqual(hinweise.widget_values(self.base, self.path, entry='e-003')[1]['AUTHOR'][0]['E_PROPOSED'], '')
+
+    def test_question_is_not_saved_as_decision(self):
+        self.assertTrue(hinweise.looks_like_question('Wie lange segelt man von Trogir nach Triest?'))
+        self.assertTrue(hinweise.looks_like_question('„Schätze die Zeit?“ '))
+        self.assertFalse(hinweise.looks_like_question('Elf Stunden.'))
+        before = self.path.read_text(encoding='utf-8')
+        r = self.cli('decide', 'e-002', '--decision', 'geändert', '--new', 'Wie lange segelt man von Trogir nach Triest?',
+                     '--file', str(self.path))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn('Rückfrage', r.stderr)
+        self.assertEqual(self.path.read_text(encoding='utf-8'), before)   # nichts gespeichert
+        r = self.cli('ask', 'e-002', '--question', 'Wie lange segelt man von Trogir nach Triest?', '--text', '--file', str(self.path))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('nichts entschieden', r.stdout)
+        self.assertIn('`e-002`', r.stdout)                                # dieselbe Karte erneut
+        self.assertEqual(self.path.read_text(encoding='utf-8'), before)
+        r = self.cli('decide', 'e-002', '--decision', 'geändert', '--new', 'Warum nicht?', '--as-text', '--file', str(self.path))
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_checkpoint_commits_the_review_file_once(self):
+        import subprocess
+        g = lambda *a: subprocess.run(['git', '-C', str(self.base), '-c', 'user.name=t', '-c', 'user.email=t@t', *a],
+                                      capture_output=True, text=True, check=True).stdout.strip()
+        g('init', '-q', '-b', 'main')
+        g('add', '-A')
+        g('commit', '-qm', 'Start')
+        r = self.cli('checkpoint')
+        self.assertIn('Nichts zu speichern', r.stdout)
+        hinweise.decide(self.path, 'e-001', 'nein')
+        env_cmd = ['git', '-C', str(self.base), 'config']
+        subprocess.run(env_cmd + ['user.name', 't'], check=True)
+        subprocess.run(env_cmd + ['user.email', 't@t'], check=True)
+        r = self.cli('checkpoint')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('Zwischenstand gespeichert (1 entschieden)', r.stdout)
+        self.assertEqual(g('log', '--oneline').count('\n'), 1)             # Start + ein Zwischenstand
+        self.assertIn('Hinweisdurchsicht: Zwischenstand (1 von 5 entschieden)', g('log', '-1', '--format=%B'))
+        self.assertIn('GhostWriter-Aktion: notes_review.checkpoint', g('log', '-1', '--format=%B'))
+        self.assertEqual(g('show', '--stat', '--format=', 'HEAD').count('durchsicht-'), 1)
+        self.assertIn('Nichts zu speichern', self.cli('checkpoint').stdout)

@@ -22,7 +22,7 @@
         "kontext": {"type": "string"},
         "alt": {"type": "string"},
         "neu": {"type": "string"},
-        "frage": {"type": "string"}, "schweregrad": {"enum": ["gering", "mittel", "wesentlich", "blockierend"]}, "varianten": {"type": "array", "items": {"type": "string", "minLength": 1}, "maxItems": 3}, "variante": {"type": "integer", "minimum": 1, "description": "gewählte Variante (1-basiert), #473"}, "thema": {"type": "string"}, "muster": {"type": "string"},
+        "frage": {"type": "string"}, "schweregrad": {"enum": ["gering", "mittel", "wesentlich", "blockierend"]}, "varianten": {"type": "array", "items": {"type": "string", "minLength": 1}, "maxItems": 3}, "variante": {"type": "integer", "minimum": 1, "description": "gewählte Variante (1-basiert), #473"}, "vorschlag_von": {"enum": ["assistent"], "description": "`neu` (und `varianten`) stammen vom Assistenten (hinweise.py propose, #609)"}, "neu_befund": {"type": "string", "description": "ursprünglicher Vorschlag aus der Befunddatei, wenn der Assistent `neu` ersetzt hat"}, "thema": {"type": "string"}, "muster": {"type": "string"},
         "entscheidung": {"enum": ["offen", "ja", "nein", "geändert"]},
         "umgesetzt": {"type": "boolean", "description": "ins Manuskript übernommen (hinweise.py apply)"},
         "begruendung": {"type": "string", "description": "Begründung des Autors zu seiner Entscheidung, z. B. warum eine Stelle bleibt"},
