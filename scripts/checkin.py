@@ -2,6 +2,7 @@
 """Rückgabe zu einem Checkout einchecken (#573, Teil 2 zu #209).
 
   python3 scripts/checkin.py <buch> <datei>… [--checkout GW-XXXX] [--date JJJJ-MM-TT] [--repo owner/name]
+  python3 scripts/checkin.py <buch> note <ordner> --seite N --text "…" [--abschnitt 3.2] [--alt … --neu …] [--frage …] [--unleserlich]
 
 Nimmt die Arbeitskopie des Gegenlesers zurück: DOCX (auch mit Kommentaren und Änderungsnachverfolgung), PDF (auch mit
 PDF-Kommentaren) oder Scan/Handyfoto ausgedruckter Seiten. Die Kennung kommt aus der Dokumenteigenschaft
@@ -406,11 +407,22 @@ def checkin(base, config, files, checkout_id=None, date=None, repo=None):
             report['aufbereitung'] = steps
             for rec in pages:
                 rec.pop('_img', None)
+            for rec in pages:   # Hilfe fürs Abschreiben: welche Abschnitte hat das Kapitel dieser Seite (#573)
+                ch = next(((ci, c) for ci, c in enumerate(config['structure']['chapters'], start=1) if c['id'] == rec.get('kapitel')), None)
+                if ch:
+                    rec['abschnitte_im_kapitel'] = [f'{ch[0]}.{si} {sec["title"]}' for si, sec in enumerate(ch[1]['sections'], start=1)]
             report['seiten'] = pages
             report['anmerkungen'] = []          # vom Assistenten abgeschrieben: Seite, Nummer, Text, sicher
             report['offene_fragen'] = [f'Seite {p["seite"]}: keine Zuordnung (kein QR-Code)' for p in pages if p['zuordnung'] == 'unbekannt']
             if kind == 'pdf':
-                comments_n = _pdf_comments(files[0], pages, report)
+                comments_n = _pdf_comments(files[0], pages, report, config, set(entry.get('abschnitte') or {}))
+                for c in report.pop('pdf_kommentare', []):
+                    if c.get('abschnitt'):
+                        items.append({'abschnitt': c['abschnitt'], 'art': 'aufbau', 'befund': f'PDF-Kommentar: {c["text"]}'[:400],
+                                      'frage': f'Kommentar zu „{c.get("markiert", "")}“: {c["text"]}' if c.get('markiert') else f'Kommentar: {c["text"]}',
+                                      'quelle': f'{report["dateien"][0]}#Seite {c["seite"]}', 'gegenleser': entry.get('gegenleser', '')})
+                    else:
+                        report['offene_fragen'].append(f'PDF-Kommentar auf Seite {c["seite"]} ohne Abschnitt: {c["text"][:80]}')
         report['unbekannt'] = unknown
         report['befunde'] = len(items)
         report['kommentare'] = comments_n
@@ -425,24 +437,164 @@ def checkin(base, config, files, checkout_id=None, date=None, repo=None):
         return folder, report
 
 
-def _pdf_comments(path, pages, report):
-    """PDF-Kommentare (Anmerkungen mit Text) auslesen: Seite und Text; der Abschnitt bleibt `unbekannt`, die Zuordnung zum
-    Kapitel kommt aus dem QR-Code der Seite. Gibt die Zahl zurück."""
+HEADING = re.compile(r'^(\d+)\.(\d+)$')
+BBOX_PAGE = re.compile(r'<page width="([\d.]+)" height="([\d.]+)">(.*?)</page>', re.S)
+BBOX_WORD = re.compile(r'<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">(.*?)</word>', re.S)
+
+
+def pdf_words(path):
+    """Wörter je Seite mit Lage (Punkte, y von oben) aus `pdftotext -bbox`: [(Breite, Höhe, [(x0, y0, x1, y1, Text)])]."""
+    try:
+        out = subprocess.run(['pdftotext', '-bbox', str(path), '-'], check=True, capture_output=True, text=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    import html
+    pages = []
+    for m in BBOX_PAGE.finditer(out):
+        words = [(float(a), float(b), float(c), float(d), html.unescape(t)) for a, b, c, d, t in BBOX_WORD.findall(m.group(3))]
+        pages.append((float(m.group(1)), float(m.group(2)), words))
+    return pages
+
+
+def pdf_headings(pages, valid):
+    """Abschnittsüberschriften „N.M“ am Zeilenanfang: [(Seite, y, 'N.M')] in Lesereihenfolge; `valid` = bekannte Nummern."""
+    found = []
+    for k, (_, _, words) in enumerate(pages, start=1):
+        left = min((w[0] for w in words), default=0)
+        for x0, y0, _x1, _y1, text in words:
+            if HEADING.match(text) and text in valid and x0 <= left + 12:
+                found.append((k, y0, text))
+    return found
+
+
+def section_at(headings, page, top):
+    """Letzte Überschrift vor der Stelle (Seite, y von oben): die Nummer „N.M“ oder None."""
+    before = [h for h in headings if h[0] < page or (h[0] == page and h[1] <= top + 2)]
+    return before[-1][2] if before else None
+
+
+def _pdf_comments(path, pages, report, config=None, known=None):
+    """PDF-Kommentare (Anmerkungen mit Text) auslesen: Seite, Text, markierte Stelle und Abschnitt. Der Abschnitt ist die
+    letzte Überschrift „N.M“ vor der Stelle (nur Abschnitte des Checkouts, `known`); ohne Überschrift `unbekannt`.
+    Gibt die Zahl zurück; `report['pdf_kommentare']` hält sie für die Befunde."""
     try:
         from pypdf import PdfReader
     except ImportError:
         return 0
+    valid, ids = set(), {}
+    for ci, ch in enumerate((config or {}).get('structure', {}).get('chapters', []), start=1):
+        for si, sec in enumerate(ch['sections'], start=1):
+            valid.add(f'{ci}.{si}')
+            ids[f'{ci}.{si}'] = sec['id']
+    words = pdf_words(path) if valid else []
+    heads = pdf_headings(words, valid)
     n = 0
+    report.setdefault('pdf_kommentare', [])
     for k, page in enumerate(PdfReader(str(path)).pages, start=1):
         for annot in page.get('/Annots') or []:
             obj = annot.get_object()
             text = str(obj.get('/Contents') or '').strip()
-            if text and obj.get('/Subtype') in ('/Text', '/Highlight', '/FreeText', '/Underline', '/StrikeOut', '/Caret'):
-                rec = next((p for p in pages if p['seite'] == k), {})
-                report['anmerkungen'].append({'seite': k, 'kapitel': rec.get('kapitel', ''), 'text': text, 'sicher': 'ja',
-                                              'quelle': 'PDF-Kommentar'})
-                n += 1
+            if not (text and obj.get('/Subtype') in ('/Text', '/Highlight', '/FreeText', '/Underline', '/StrikeOut', '/Caret')):
+                continue
+            rec = next((p for p in pages if p['seite'] == k), {})
+            item = {'seite': k, 'kapitel': rec.get('kapitel', ''), 'text': text, 'sicher': 'ja', 'quelle': 'PDF-Kommentar'}
+            rect = [float(v) for v in obj.get('/Rect') or []]
+            if len(rect) == 4 and k <= len(words):
+                height = words[k - 1][1]
+                x0, x1, top, bottom = min(rect[0], rect[2]), max(rect[0], rect[2]), height - max(rect[1], rect[3]), height - min(rect[1], rect[3])
+                marked = ' '.join(w[4] for w in words[k - 1][2] if w[0] < x1 and w[2] > x0 and w[1] < bottom and w[3] > top)
+                if marked:
+                    item['markiert'] = marked[:200]
+                number = section_at(heads, k, top)
+                if number and ids.get(number) in (known or ids):
+                    item['abschnitt'], item['nummer'], item['zuordnung'] = ids[number], number, 'ueberschrift'
+            item.setdefault('zuordnung', 'unbekannt')
+            report['anmerkungen'].append(item)
+            report['pdf_kommentare'].append(item)
+            n += 1
     return n
+
+
+def note(base, config, folder, seite, text, abschnitt=None, alt=None, neu=None, frage=None, unleserlich=False, art='sprache'):
+    """Eine vom Assistenten abgeschriebene Anmerkung einer Scan-Seite eintragen (#573): in `rueckgabe.yml` und, wenn sie
+    einen Befund ergibt, in die Befunddatei. Nie raten: `unleserlich` oder ohne Abschnitt wird nur als offene Frage vermerkt.
+    Eindeutig = `alt` und `neu` (beide aus dem Text, `alt` muss im Abschnitt stehen); unklar = `frage`. → Anmerkung."""
+    base, folder = Path(base), Path(folder)
+    if not folder.is_absolute():
+        folder = base / folder
+    path = folder / 'rueckgabe.yml'
+    if not path.is_file():
+        raise ValueError(f'{folder}: keine rueckgabe.yml (Ordner einer Rückgabe angeben)')
+    report = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+    if report.get('art') != 'scan' and not any(p.get('seite') == seite for p in report.get('seiten') or []):
+        raise ValueError(f'Seite {seite} gibt es in dieser Rückgabe nicht')
+    page = next((p for p in report.get('seiten') or [] if p.get('seite') == seite), None)
+    if page is None:
+        raise ValueError(f'Seite {seite} gibt es in dieser Rückgabe nicht')
+    cid = report['kennung']
+    entry = next(e for e in co.load(base)['checkouts'] if e['id'] == cid)
+    sid, number = None, None
+    if abschnitt:
+        for ci, ch in enumerate(config['structure']['chapters'], start=1):
+            for si, sec in enumerate(ch['sections'], start=1):
+                if abschnitt in (f'{ci}.{si}', sec['id']):
+                    sid, number = sec['id'], f'{ci}.{si}'
+        if not sid:
+            raise ValueError(f'Abschnitt {abschnitt} gibt es nicht')
+        if sid not in (entry.get('abschnitte') or {}):
+            raise ValueError(f'Abschnitt {abschnitt} gehört nicht zu diesem Checkout')
+    nr = max((a.get('nr', 0) for a in report.get('anmerkungen') or []), default=0) + 1
+    item = {'nr': nr, 'seite': seite, 'text': text.strip(), 'sicher': 'nein' if unleserlich else 'ja', 'quelle': 'Scan, abgeschrieben'}
+    if number:
+        item['abschnitt'], item['nummer'] = sid, number
+    if unleserlich:
+        item['unleserlich'] = True
+    finding = None
+    if not unleserlich and sid:
+        if alt and neu:
+            today = __import__('checks').manuscript(base, config, sid) or ''
+            ours = baseline(base, entry.get('commit', ''), next(s['path'] for c in config['structure']['chapters'] for s in c['sections'] if s['id'] == sid)) or ''
+            if alt not in ours:
+                raise ValueError('„alt“ steht nicht wörtlich im Ausgangsstand des Abschnitts; als Frage eintragen (--frage)')
+            finding = {'art': art, 'alt': alt, 'neu': neu, 'befund': f'Randnotiz Seite {seite}, Nr. {nr}',
+                       'frage': ('Die Stelle hat sich seit dem Checkout geändert. ' if alt not in today else '') + 'Randnotiz übernehmen?'}
+        else:
+            finding = {'art': 'aufbau', 'befund': f'Randnotiz Seite {seite}, Nr. {nr}: {text.strip()}'[:400], 'frage': frage or text.strip()}
+    if finding:
+        finding.update({'abschnitt': sid, 'quelle': f'seite-{seite:02d}#{nr}', 'gegenleser': entry.get('gegenleser', '')})
+        date = report.get('datum') or datetime.date.today().isoformat()
+        if report.get('befunddatei'):
+            fpath = base / report['befunddatei']
+            data = yaml.safe_load(fpath.read_text(encoding='utf-8')) or {}
+        else:
+            fpath, data = None, {'bericht': path.relative_to(base).as_posix(), 'befunde': []}
+        fid = f'b-{len(data["befunde"]) + 1:03d}'
+        row = {'id': fid, 'abschnitt': sid, 'art': finding['art'], 'befund': finding['befund'], 'status': 'offen', 'schweregrad': 'mittel',
+               'quelle': finding['quelle'], 'gegenleser': finding['gegenleser']}
+        for key in ('alt', 'neu', 'frage'):
+            if finding.get(key):
+                row[key] = finding[key]
+        data['befunde'].append({k: v for k, v in row.items() if v != ''})
+        if fpath is None:
+            fpath = write_findings(base, cid, date, folder, [])
+        fpath.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding='utf-8')
+        report['befunddatei'] = fpath.relative_to(base).as_posix()
+        report['befunde'] = len(data['befunde'])
+        item['befund'] = fid
+    else:
+        why = 'unleserlich' if unleserlich else 'ohne Abschnitt'
+        report.setdefault('offene_fragen', []).append(f'Seite {seite}, Nr. {nr} ({why}): {text.strip()[:80]}')
+    report.setdefault('anmerkungen', []).append(item)
+    path.write_text(yaml.safe_dump(report, allow_unicode=True, sort_keys=False), encoding='utf-8')
+    for r in entry.get('rueckgaben') or []:
+        if r['ordner'] == folder.relative_to(base).as_posix():
+            r['befunde'] = report.get('befunde', 0)
+    data_all = co.load(base)
+    for e in data_all['checkouts']:
+        if e['id'] == cid:
+            e['rueckgaben'] = entry.get('rueckgaben')
+    co.save(base, data_all)
+    return item
 
 
 def summary(report):
@@ -462,6 +614,30 @@ def summary(report):
 
 
 def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if len(argv) > 1 and argv[1] == 'note':
+        np = argparse.ArgumentParser(prog='checkin.py <buch> note', description='Abgeschriebene Randnotiz eintragen (#573)')
+        np.add_argument('project')
+        np.add_argument('cmd')
+        np.add_argument('folder', help='Ordner der Rückgabe, z. B. checkouts/GW-7F3A/rueckgabe-2026-11-25')
+        np.add_argument('--seite', type=int, required=True)
+        np.add_argument('--text', required=True, help='abgeschriebener Wortlaut der Notiz')
+        np.add_argument('--abschnitt', help='Nummer (3.2) oder ID; ohne: nur offene Frage')
+        np.add_argument('--alt')
+        np.add_argument('--neu')
+        np.add_argument('--frage')
+        np.add_argument('--art', default='sprache')
+        np.add_argument('--unleserlich', action='store_true')
+        a = np.parse_args(argv)
+        from render_view import load
+        base, config = load(a.project)
+        try:
+            item = note(base, config, a.folder, a.seite, a.text, a.abschnitt, a.alt, a.neu, a.frage, a.unleserlich, a.art)
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return 1
+        print(f'Anmerkung {item["nr"]} auf Seite {item["seite"]} eingetragen' + (f' (Befund {item["befund"]})' if item.get('befund') else ' (offene Frage)'))
+        return 0
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('project')
     ap.add_argument('files', nargs='+')
