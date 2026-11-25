@@ -870,7 +870,7 @@
   "service.role_revision": "Revision",
   "service.role_fact_check": "Fact check",
   "service.hint_fact_check": "preferably a service independent of the writing service",
-  "service.role_queue_processing": "Task queue",
+  "service.role_queue_processing": "Agent for tasks",
   "service.hint_queue_processing": "agent handling GitHub issues; default: manual",
   "service.web_access": "via web search (free)",
   "service.github_access": "assigned in GitHub",

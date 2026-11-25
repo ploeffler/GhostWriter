@@ -44,7 +44,7 @@ FILE_ONLY = {
     'limits.actions_minutes_warn_below', 'limits.actions_minutes_pause_below',
     'limits.pause_below_percent', 'limits.warn_below_percent', 'cover.back_blurb_position',
     'style.perspective', 'style.tense', 'style.address', 'style.register', 'style.tone', 'style.features',
-    'style.avoid', 'style.sentence_length_avg', 'style.dialogue_share',
+    'style.avoid', 'style.sentence_length_avg', 'style.dialogue_share', 'analysis.auto_after_chapter',
 }
 
 # Bibliothek (assistant.yml): Formular bzw. Chatbefehl je Feld

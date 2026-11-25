@@ -244,6 +244,13 @@ def clean_settings(data):
         if isinstance(par, bool) or int(par) != float(par) or not 1 <= int(par) <= 16:
             raise ValueError('parallel: ganze Zahl von 1 bis 16')
         out['parallel'] = int(par)
+    auto = data.get('auto_after_chapter')
+    if auto not in (None, '', []):
+        auto = [a.strip() for a in auto.split(',')] if isinstance(auto, str) else list(auto)
+        bad = [a for a in auto if a not in KINDS]
+        if bad:
+            raise ValueError(f'auto_after_chapter: unbekannte Analyseart {", ".join(map(str, bad))} ({", ".join(KINDS)})')
+        out['auto_after_chapter'] = list(dict.fromkeys(auto))   # #123: nach einem Kapitelabschluss automatisch einreihen
     lt_in = data.get('languagetool') or {}
     lt = {}
     lang = str(lt_in.get('language') or '').strip()
@@ -265,9 +272,12 @@ def clean_settings(data):
 
 def settings_set(base, data):
     """Block `analysis` in ghostwriter.yml ersetzen (Rest der Datei unverändert). → neuer Block (leer = entfernt)"""
-    block = clean_settings(data)
     path = Path(base) / 'ghostwriter.yml'
     text = path.read_text(encoding='utf-8')
+    if isinstance(data, dict) and 'auto_after_chapter' not in data:   # das Formular kennt das Feld nicht: nicht stillschweigend löschen
+        keep = ((yaml.safe_load(text) or {}).get('analysis') or {}).get('auto_after_chapter')
+        data = dict(data, **({'auto_after_chapter': keep} if keep else {}))
+    block = clean_settings(data)
     new = yaml.safe_dump({'analysis': block}, allow_unicode=True, sort_keys=False, width=10**6) if block else ''
     m = re.search(r'(?ms)^analysis:.*?(?=^\S|\Z)', text)
     if m:
