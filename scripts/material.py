@@ -10,6 +10,9 @@
   python3 scripts/material.py <buch> mark <ordner> --items items.yml
       zeichnet Nummern neben die Rahmen und eine Legende unten → `markiert.jpg`; Zuordnungen kommen nur aus Angaben von
       Autor oder Zeitzeugen, nie aus dem Gesicht
+  python3 scripts/material.py <buch> colorize <ordner> [--consent | --proposal <datei> --tool <name>] [--hint …] [--replace] [--check]
+      colorisiert ein Foto über `colorize.py` (#452): nur Farbkanäle, Helligkeit bleibt; Quelle ist `bearbeitet.jpg`, Ergebnis
+      `coloriert.jpg`, der Eintrag steht unter `bearbeitung`. Gesperrt bleiben Minderjährige und Dokumente (`external_allowed`)
   python3 scripts/material.py <buch> list [--write]
       Verzeichnis des Materials (`--write`: `quellen/verzeichnis.md`)
 
@@ -188,11 +191,11 @@ def folders(base):
 
 
 def listing(base):
-    lines = ['# Material', '', '| Ordner | Art | Name | Minderjährige | Aufbereitet | Offene Fragen |', '|---|---|---|---|---|---|']
+    lines = ['# Material', '', '| Ordner | Art | Name | Minderjährige | Aufbereitet | Coloriert | Offene Fragen |', '|---|---|---|---|---|---|---|']
     for f in folders(base):
         m = read(f)
         lines.append(f'| {f.name} | {m.get("art", "")} | {m.get("name", "")} | {"ja" if m.get("minderjaehrige") else "nein"} | '
-                     f'{"ja" if m.get("bearbeitet") else "nein"} | {len(m.get("offen") or [])} |')
+                     f'{"ja" if m.get("bearbeitet") else "nein"} | {"ja" if (f / "coloriert.jpg").is_file() else "nein"} | {len(m.get("offen") or [])} |')
     return '\n'.join(lines) + '\n'
 
 
@@ -217,6 +220,30 @@ def problems(base):
     return out
 
 
+def colorize_folder(base, args):
+    """Foto aus dem Materialordner über colorize.py colorieren (#574). Die Programmgrenze `external_allowed` gilt zuerst."""
+    import colorize
+    folder = base / args.folder if not Path(args.folder).is_absolute() else Path(args.folder)
+    meta = read(folder)
+    allowed, why = external_allowed(meta)
+    if not allowed and not (args.minors_exception and meta.get('minderjaehrige') is True and meta.get('art') in ('foto', 'foto-vom-foto')):
+        print(f'Gesperrt: {why}.', file=sys.stderr)
+        return 1
+    argv = [str(base), str(args.folder)]
+    for flag, value in (('--proposal', args.proposal), ('--tool', args.tool), ('--hint', args.hint), ('--model', args.model)):
+        if value:
+            argv += [flag, value]
+    argv += [f for f, on in (('--consent', args.consent), ('--replace', args.replace), ('--check', args.check),
+                             ('--minors-exception', args.minors_exception)) if on]
+    try:
+        return colorize.main(argv)
+    except SystemExit as exc:   # colorize.py meldet Sperren und Prüffehler als Text
+        if exc.code and not isinstance(exc.code, int):
+            print(exc.code, file=sys.stderr)
+            return 1
+        return int(exc.code or 0)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('project')
@@ -232,6 +259,16 @@ def main(argv=None):
     m = sub.add_parser('mark')
     m.add_argument('folder')
     m.add_argument('--items', required=True)
+    co = sub.add_parser('colorize')
+    co.add_argument('folder')
+    co.add_argument('--consent', action='store_true')
+    co.add_argument('--proposal')
+    co.add_argument('--tool')
+    co.add_argument('--hint')
+    co.add_argument('--model')
+    co.add_argument('--replace', action='store_true')
+    co.add_argument('--check', action='store_true')
+    co.add_argument('--minors-exception', action='store_true')
     li = sub.add_parser('list')
     li.add_argument('--write', action='store_true')
     args = ap.parse_args(argv)
@@ -247,6 +284,8 @@ def main(argv=None):
             items = yaml.safe_load(Path(args.items).read_text(encoding='utf-8'))
             print(mark(base / args.folder if not Path(args.folder).is_absolute() else args.folder,
                        items['personen'] if isinstance(items, dict) else items))
+        elif args.cmd == 'colorize':
+            return colorize_folder(base, args)
         elif args.cmd == 'list':
             text = listing(base)
             if args.write:
