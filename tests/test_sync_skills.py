@@ -42,21 +42,24 @@ class SyncSkillsTest(unittest.TestCase):
         self.assertNotIn('.claude/skills/', manifest['managed'])
         for name in ss.NAMES:
             self.assertIn('.claude/skills/' + name + '/', manifest['managed'])
+        self.assertIn('.claude/skills/ghostwriter/', manifest['managed'])      # bleibt gelistet, damit das Update die alte Kopie entfernt (#569)
+        self.assertNotIn('ghostwriter', ss.NAMES)
 
     def test_fixed_commit_ignores_dirty_source_and_preserves_personal_skill(self):
         personal = self.target / '.claude/skills/personal/SKILL.md'
         personal.parent.mkdir(parents=True)
         personal.write_text('Persönliche Regeln')
-        (self.source / 'skills/ghostwriter/SKILL.md').write_text('Ungeprüfter Entwurf')
+        (self.source / 'skills/ghostwriter-lektorat/SKILL.md').write_text('Ungeprüfter Entwurf')
         result = ss.sync(self.source, self.commit, self.target)
         self.assertEqual(result['commit'], self.commit)
         self.assertEqual(personal.read_text(), 'Persönliche Regeln')
-        self.assertIn('Regeln', ss.target(self.target, 'ghostwriter').read_text())
+        self.assertIn('Regeln', ss.target(self.target, 'ghostwriter-lektorat').read_text())
+        self.assertFalse((self.target / '.claude/skills/ghostwriter').exists())   # entfällt (#569)
         self.assertFalse((self.target / '.claude/skills/buchteaser').exists())
 
     def test_drift_is_rejected(self):
         ss.sync(self.source, self.commit, self.target)
-        ss.target(self.target, 'ghostwriter').write_text('Abweichende Regeln')
+        ss.target(self.target, 'ghostwriter-lektorat').write_text('Abweichende Regeln')
         with self.assertRaises(ValueError):
             ss.check(self.target)
 

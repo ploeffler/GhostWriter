@@ -27,7 +27,7 @@ managed:
   - README.en.md
   - CLAUDE.md                 # Einstieg für Claude (#136)
   - AGENTS.md                 # Einstieg für andere Assistenten (#136)
-  - .claude/skills/ghostwriter/   # allgemeiner Einstieg; persönliche Skills daneben gehören dem Buch
+  - .claude/skills/ghostwriter/   # entfällt (#569): das Update entfernt die alte Kopie, der Ablauf steht in START.md; der Name bleibt für den Skill im Konto reserviert
   - .claude/skills/ghostwriter-buchgedaechtnis/  # lesender Fakten-/Kontinuitätsabgleich
   - .claude/skills/ghostwriter-lektorat/  # gezielte redaktionelle Prüfarten
   - .claude/skills/ghostwriter-gegenlesen/  # Auschecken zum Gegenlesen, Einchecken (#572, #573)

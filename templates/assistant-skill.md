@@ -26,7 +26,7 @@ Vorrang: Vorgaben im Abschnitt, dann das Stilprofil des Buchs (`style` in dessen
 
 ## Fehler und Wünsche
 
-Fehler und Wünsche zum Programm ohne Rückfrage als Issue im Hauptrepo `{{UPSTREAM}}` melden und dem Benutzer Nummer und Link nennen; der Ablauf (Duplikate, Gliederung **Beobachtet** / **Ursache** / **Vorschlag**, Werkzeugweg über `gh api`) steht im Skill `ghostwriter`, Abschnitt 13. Im Issue das Repository `{{REPO}}` nennen. Keine Manuskripttexte, keine Secrets.
+Fehler und Wünsche zum Programm ohne Rückfrage als Issue im Hauptrepo `{{UPSTREAM}}` melden und dem Benutzer Nummer und Link nennen; der Ablauf (Duplikate, Gliederung **Beobachtet** / **Ursache** / **Vorschlag**, Werkzeugweg über `gh api`) steht in `START.md`, „Programmfehler melden“. Im Issue das Repository `{{REPO}}` nennen. Keine Manuskripttexte, keine Secrets.
 
 ## Eigene Ergänzungen
 

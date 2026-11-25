@@ -99,7 +99,7 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
 - Skills des Buchs (#524, #535): Beim Öffnen eines Buchs liest die App die `SKILL.md` unter `.claude/skills` (Lesestand, sonst
   Standard-Branch) und den persönlichen Skill aus `assistant.yml`. Die Claude-Leiste nennt die Skills und warnt, wenn die
   allgemeinen Skills von `ghostwriter-skills.yml` (Prüfsummen) abweichen oder der persönliche Skill fehlt. Claude bekommt sie
-  als verbindliche Anleitung mit: der persönliche Skill ganz, vom Skill `ghostwriter` nur die Regeln, die in der App gelten
+  als verbindliche Anleitung mit: der persönliche Skill ganz, von den Regeln aus `START.md` nur die, die in der App gelten (der Skill `ghostwriter` ist seit #569 nicht mehr im Buch; die App hat diese Regeln fest eingebaut, wird er in einem älteren Buch noch gefunden, gilt dessen Fassung)
   (Skillauswahl, Auswahlfragen, verständliche Ausgaben, Qualitätssicherung), `ghostwriter-lektorat` bei Prüfaufträgen und
   `ghostwriter-buchgedaechtnis` bei Kontinuitätsfragen (Auswahl nach der Anfrage). Ausgelassen sind die Teile für Chats mit
   Shell (Repository einbinden, Git-Benutzer, Darstellungsmodus, Kurzbefehle, erste Ansicht, Fehlermeldungen ans Hauptrepository);

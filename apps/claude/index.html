@@ -2004,6 +2004,14 @@ function skillGuide(){
   const q = String(S.skillQuery || ""), by = n => sk.list.find(x => x.dir === n), used = [], blocks = [];
   const g = by("ghostwriter"), personal = sk.personal && by(sk.personal);
   if (personal){ used.push(personal.dir); blocks.push(`PERSÖNLICHER SKILL „${personal.dir}“ (Autor, Erzählstimme, Vorgaben; geht dem allgemeinen Skill vor)\n${personal.body.slice(0, 6000)}`); }
+  if (!g){   // #569: den Skill „ghostwriter“ gibt es im Buch nicht mehr; die in der App geltenden Regeln stehen hier
+    used.push("ghostwriter");
+    blocks.push(`REGELN FÜR DIE APP (aus START.md)
+Skillauswahl: Nenne zu Beginn einer Aufgabe in einem Satz, welchen Skill du verwendest (oder dass keiner passt); der persönliche Skill geht vor.
+Auswahlfragen: Biete bei passenden Entscheidungen wenige verständliche Optionen und eine eigene Antwort an; dazwischen sprich frei, keine Durchklickstrecke.
+Verständliche Ausgaben: Antworte im einfachen Modus in Alltagssprache und kurz, ohne unnötige Git-Fachbegriffe; Fehler, Risiken und ausstehende Freigaben nie verschweigen.
+Qualitätssicherung: Lies vor dem Abschluss einer Schreib- oder Überarbeitungsaufgabe die ganze betroffene Einheit; prüfe Logik, Chronologie, Kontinuität, Perspektive, Ton und Sprache gegen die Projektvorgaben; vermeide KI-typische Muster (kein ankündigender Schlusssatz, keine zusammenfassenden Formeln, keine Moral am Absatzende); kein Pathos, nichts von anderen Autoren oder aus anderen Büchern übernehmen, Figuren in sexuellen Szenen immer eindeutig erwachsen; leite eine Freigabe nie aus einem Prüfergebnis ab.`);
+  }
   if (g){
     used.push("ghostwriter");
     const pre = g.pre.split(/\n\n+/).filter(x => /^\*\*(Skillauswahl|Auswahlfragen)/.test(x.trim())).join("\n\n");
