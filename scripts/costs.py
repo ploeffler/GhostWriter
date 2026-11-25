@@ -9,10 +9,13 @@ Kostenarten (`cost_status` in den Kostendateien, schemas/costs.schema.json):
 
 Gezählt werden nur KI-API-Aufrufe (`backend_api`, `action_api`); Chat-Arbeit über ein Abo
 kostet nichts zusätzlich, alte Chat-Schätzungen (`legacy_chat_estimate`) zählen nicht (D08/D25).
-Der automatische Import der Anbieterabrechnung kommt nach v1.0.
+Schätzungen entstehen automatisch je Aufruf aus der Nutzung und der Preistabelle (`providers.yml` → `prices`, #66); der
+Betrag steht in der Projektwährung, mit Originalbetrag sowie Kurs und Datum des EZB-Referenzkurses am Eintrag. Ohne Kurs bleibt
+er in der Originalwährung und gilt als „nicht umgerechnet“. Anbieterabrechnungen werden nicht abgeholt; Rechnungen trägt man
+von Hand ein (`add`).
 
 Aufruf:
-  python3 scripts/costs.py <buch> summary [--month JJJJ-MM] [--json]
+  python3 scripts/costs.py <buch> summary [--month JJJJ-MM] [--by month|provider|activity|chapter|section] [--json]
   python3 scripts/costs.py <buch> add --amount 1.20 --provider openai --model gpt-x \\
       [--section sec-…] [--activity research] [--currency EUR] [--at 2026-11-24] [--note "Rechnung 42"]
 """
@@ -31,6 +34,7 @@ from render_view import counted, load  # noqa: E402
 
 STATUSES = ('actual', 'estimated', 'manually_entered', 'unavailable')
 LABEL = {'actual': 'tatsächlich', 'estimated': 'geschätzt', 'manually_entered': 'manuell', 'unavailable': 'unbekannt'}
+BY = ('month', 'provider', 'activity', 'chapter', 'section')
 ACTIVITIES = ('research', 'brainstorming', 'writing', 'revision', 'fact_check', 'other')
 
 
@@ -66,7 +70,54 @@ def summary(base, month=None):
         for cur, amount in result[s]['amounts'].items():
             known[cur] = known.get(cur, Decimal(0)) + amount
     return {'month': month, 'by_status': result, 'known_total': known,
-            'complete': result['unavailable']['count'] == 0, 'calls': len(rows)}
+            'complete': result['unavailable']['count'] == 0, 'calls': len(rows),
+            'unconverted': sum(1 for e in rows if e.get('exchange_rate_status') == 'unavailable')}
+
+
+def scoped_entries(base):
+    """Alle Einträge mit dem Kapitel ihrer Datei (None bei Projektkosten)."""
+    out = []
+    for path in cost_files(base):
+        chapter = path.parent.parent.name if path.parent.name == 'costs' and path.parent.parent.parent.name == 'chapters' else None
+        for e in (yaml.safe_load(path.read_text(encoding='utf-8')) or {}).get('entries') or []:
+            out.append((e, chapter))
+    return out
+
+
+def breakdown(base, by, month=None):
+    """Auswertung je Monat, Anbieter, Aufgabe, Kapitel oder Abschnitt (#66): je Zeile Aufrufe, Summen je Kostenart und Währung,
+    unbekannte Beträge gezählt. Geschätzt, tatsächlich und manuell bleiben getrennt."""
+    if by not in BY:
+        raise ValueError(f'Auswertung je {", ".join(BY)}')
+    keyed = {id(e): (e, ch) for e, ch in scoped_entries(base)}
+    rows = {}
+    for e in counted([e for e, _ in keyed.values()]):
+        if month and str(e.get('occurred_at', ''))[:7] != month:
+            continue
+        ch = keyed[id(e)][1]
+        key = {'month': str(e.get('occurred_at', ''))[:7], 'provider': e.get('provider') or '–',
+               'activity': e.get('activity_type') or '–', 'chapter': ch or '(Projekt)',
+               'section': e.get('section_id') or '(Projekt)'}[by]
+        row = rows.setdefault(key, {'key': key, 'calls': 0, 'unavailable': 0, 'amounts': {s: {} for s in STATUSES[:3]}})
+        row['calls'] += 1
+        status = e.get('cost_status') if e.get('cost_status') in STATUSES else 'unavailable'
+        if e.get('cost_amount') is None or status == 'unavailable':
+            row['unavailable'] += 1
+            continue
+        cur = e.get('currency', 'EUR')
+        row['amounts'][status][cur] = row['amounts'][status].get(cur, Decimal(0)) + Decimal(str(e['cost_amount']))
+    return [rows[k] for k in sorted(rows)]
+
+
+def breakdown_text(rows, by):
+    names = {'month': 'Monat', 'provider': 'Dienst', 'activity': 'Aufgabe', 'chapter': 'Kapitel', 'section': 'Abschnitt'}
+    lines = [f'Kosten je {names[by]}']
+    for r in rows:
+        parts = [f'{LABEL[s]} {fmt(r["amounts"][s])}' for s in STATUSES[:3] if r['amounts'][s]]
+        if r['unavailable']:
+            parts.append(f'{r["unavailable"]} unbekannt')
+        lines.append(f'- {r["key"]}: {r["calls"]} Aufrufe · ' + ('; '.join(parts) or 'kein Betrag'))
+    return '\n'.join(lines) if rows else lines[0] + '\n- keine Einträge'
 
 
 def fmt(amounts):
@@ -83,6 +134,8 @@ def text(info):
     total = fmt(info['known_total'])
     lines.append(f'Bekannte Summe: {total}' + ('' if info['complete'] else
                  f' (ohne {info["by_status"]["unavailable"]["count"]} Aufrufe mit unbekanntem Betrag)'))
+    if info.get('unconverted'):
+        lines.append(f'Nicht umgerechnet (kein Wechselkurs): {info["unconverted"]} Einträge, Betrag in der Originalwährung')
     return '\n'.join(lines)
 
 
@@ -121,7 +174,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('project')
     sub = ap.add_subparsers(dest='cmd', required=True)
-    s = sub.add_parser('summary'); s.add_argument('--month'); s.add_argument('--json', action='store_true')
+    s = sub.add_parser('summary'); s.add_argument('--month'); s.add_argument('--by', choices=BY); s.add_argument('--json', action='store_true')
     a = sub.add_parser('add')
     a.add_argument('--amount', required=True); a.add_argument('--provider', required=True)
     a.add_argument('--model', default=''); a.add_argument('--section'); a.add_argument('--activity', default='other')
@@ -129,6 +182,10 @@ def main(argv=None):
     args = ap.parse_args(argv)
     base, _ = load(args.project)
     try:
+        if args.cmd == 'summary' and args.by:
+            rows = breakdown(base, args.by, args.month)
+            print(json.dumps(rows, ensure_ascii=False, default=str, indent=2) if args.json else breakdown_text(rows, args.by))
+            return 0
         if args.cmd == 'summary':
             info = summary(base, args.month)
             if args.json:
