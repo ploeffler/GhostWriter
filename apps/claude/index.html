@@ -135,7 +135,7 @@ async function getFile(path, ref, fresh){
   const key = (ref || "") + "|" + path;
   if (!fresh && S.files.has(key)) return S.files.get(key);
   const input = {owner:S.owner, repo:S.repo, path};
-  if (ref) input.ref = "refs/heads/" + ref;
+  if (ref) input.ref = /^[0-9a-f]{40}$/.test(ref) ? ref : "refs/heads/" + ref;
   const f = fileOf(await call("get_file_contents", input));
   if (f.text === null) throw {message:"Datei nicht lesbar: " + path};
   S.files.set(key, f);
@@ -247,9 +247,12 @@ async function projectData(){
     let w = 0, done = 0;
     for (const s of c.sections || []){ const f = cached(s.path); if (!f) continue; w += words(msOf(f.text)); done += front(f.text).status === "approved" ? 1 : 0; }
     const tags = tagsFor((c.sections || []).map(s => s.id));
-    return {CHAPTER_NUMBER:i + 1, CHAPTER_TITLE:c.title, CHAPTER_STATUS:c.status, CHAPTER_COST:(c.cost && c.cost.text) || "–", CHAPTER_COST_HINT:"Summe der Abschnittskosten",
+    const row = {CHAPTER_NUMBER:i + 1, CHAPTER_TITLE:c.title, CHAPTER_STATUS:c.status, CHAPTER_COST:(c.cost && c.cost.text) || "–", CHAPTER_COST_HINT:"Summe der Abschnittskosten",
       CHAPTER_ID:c.id, CHAPTER_WORDS:w, CHAPTER_WORDS_TEXT:fmtNum(w) + (w === 1 ? " Wort" : " Wörter"),
       CHAPTER_APPROVED_TEXT:(c.sections || []).length ? `${done} von ${c.sections.length}` : "", CHAPTER_CHECKS_JSON:pick(tags, J_SLIM), CHAPTER_NOTES_TEXT:"", CHAPTER_CHECK_DETAILS:""};
+    const sm = staleMarks((c.sections || []).map((s, si) => [`${i + 1}.${si + 1}`, (cached(s.path) || {}).text]));
+    row.CHAPTER_STALE_TEXT = sm[0]; row.CHAPTER_STALE_HINT = sm[1];
+    return row;
   });
   const longest = Math.max(0, ...rows.map(r => r.CHAPTER_WORDS));
   rows.forEach(r => { r.CHAPTER_WORDS_PCT = longest ? Math.round(100 * r.CHAPTER_WORDS / longest) : 0; });
@@ -262,6 +265,8 @@ async function projectData(){
   if (S.pr){ const n = S.pr.commits || 1; Object.assign(d, {PENDING_COUNT:n, PENDING_TEXT:plural(n, "Änderung", "Änderungen"), PENDING_PR:S.pr.number}); }
   if ((S.lib.books || []).length >= 2) d.LIBRARY_COUNT = S.lib.books.length;
   if (charItems().length) d.CHARACTER_COUNT = charItems().length;
+  const nStale = rows.reduce((n, r) => n + (r.CHAPTER_STALE_TEXT ? (parseInt(r.CHAPTER_STALE_TEXT, 10) || 1) : 0), 0);
+  if (nStale) d.STALE_TEXT = `${nStale} veraltet`;
   return d;
 }
 async function chapterData(ci){
@@ -276,7 +281,8 @@ async function chapterData(ci){
     const m = {a:cnt("PLATZHALTER-ANEKDOTE"), q:cnt("QUELLE PRÜFEN"), me:cnt("MEDIZIN PRÜFEN"), r:cnt("RECHT PRÜFEN"), k:cnt("KONTINUITÄT PRÜFEN")};
     markers += m.a + m.q + m.me + m.r + m.k; approved += st === "approved" ? 1 : 0;
     return {SECTION_ID:s.id, SECTION_NUMBER:`${ci + 1}.${si + 1}`, SECTION_TITLE:s.title, SECTION_STATUS:st, SECTION_COST:(s.cost && s.cost.text) || "–",
-      MARKERS_ANEKDOTE:m.a, MARKERS_QUELLE:m.q, MARKERS_MEDIZIN:m.me, MARKERS_RECHT:m.r, MARKERS_KONTINUITAET:m.k, SECTION_CHECKS_JSON:pick(tagsFor([s.id]), J_FULL)};
+      MARKERS_ANEKDOTE:m.a, MARKERS_QUELLE:m.q, MARKERS_MEDIZIN:m.me, MARKERS_RECHT:m.r, MARKERS_KONTINUITAET:m.k, SECTION_CHECKS_JSON:pick(tagsFor([s.id]), J_FULL),
+      SECTION_STALE_TEXT:staleMarks([["", t]])[0], SECTION_STALE_HINT:staleMarks([[`${ci + 1}.${si + 1}`, t]])[1].replace(/^[^:]+: /, "")};
   });
   const n = secs.length, ids = secs.map(s => s.id), tags = tagsFor(ids), hist = historyFor(ids);
   const d = Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), CHAPTER_ID:c.id, CHAPTER_NUMBER:ci + 1,
@@ -304,6 +310,8 @@ async function sectionData(id){
     MARKER_COUNT_TEXT:markers.length ? `${markers.length} offene${markers.length === 1 ? "r" : ""} Marker` : "keine offenen Marker",
     FACT_CHECK:h.fact_check || "disabled", APPROVAL_WRITING:String(!!ap.writing || waived), APPROVAL_SECTION:String(!!ap.section),
     PREV_SECTION_ID:pid, PREV_SECTION_PROMPT:ptx, NEXT_SECTION_ID:nid, NEXT_SECTION_PROMPT:ntx, MARKERS:markers});
+  const st = staleOf(t);
+  Object.assign(d, {STALE_TEXT:st ? staleHint(st) : "", STALE_NONE:st ? "" : "1", STALE_ARGS:JSON.stringify({section_id:id})});
   if (tags.length) d.CHECKS_JSON = pick(tags, J_FULL);
   if (hist.length){ d.CHECKS_HISTORY_COUNT = hist.length; d.CHECKS_HISTORY_JSON = pick(hist, J_HIST); }
   return {d, x, f};
@@ -356,7 +364,10 @@ async function show(view, arg){
     if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, checksCard() + queueCard() + await reviewCard(), "project"); }
     if (view === "chapter"){ S.chap = arg; S.sec = null; crumbs(); busy("Kapitel wird geladen …"); const d = await chapterData(arg); return desk("kapitelansicht", d, "", "chapter:" + (chapters()[arg] || {}).id); }
     if (view === "queue"){ crumbs(); busy("Warteschlange wird gelesen …"); return widget("warteschlange", await queueData()); }
-    if (view === "review"){ crumbs(); busy("Hinweisdurchsicht wird geladen …"); return widget("hinweisdurchsicht", await reviewData(arg)); }
+    if (view === "review"){ crumbs(); busy("Hinweisdurchsicht wird geladen …"); const rd = await reviewData(arg), ri = S.reviewInfo || {}, bar = [];
+      if (ri.name === "gering-zu") bar.push(`<button class="btn" data-act="gering" data-f="${esc(arg)}">${ri.gering} geringe Hinweise lassen (nein)</button>`, `<button class="btn" data-act="gering-show" data-f="${esc(arg)}">Geringes einzeln ansehen</button>`);
+      if (ri.staged || S.reviewAll) bar.push(`<button class="btn" data-act="all-show" data-f="${esc(arg)}">${S.reviewAll ? "Wieder in Stufen" : "Alle Einträge zeigen"}</button>`);
+      return widget("hinweisdurchsicht", rd, bar.length ? `<div class="row" style="margin-top:10px;gap:8px">${bar.join(" ")}</div>` : ""); }
     if (view === "characters"){ S.chap = null; S.sec = null; crumbs(); busy("Figuren werden geladen …"); return widget("figuren", await charListData()); }
     if (view === "data"){ S.book = null; S.chap = null; S.sec = null; crumbs(); busy("Daten werden gesammelt …"); const d = await dataData(); return widget("daten", d); }
     if (view === "section"){
@@ -499,6 +510,10 @@ async function act({action, data, text}){
       case "view.queue": S.msg = null; return show("queue");
       case "queue.prioritize": return queueChange("prioritize", data);
       case "queue.cancel": return queueChange("cancel", data);
+      case "queue.retry": return queueChange("retry", data);
+      case "section.mark_stale": return staleChange("mark", data);
+      case "section.clear_stale": return staleChange("clear", data);
+      case "stale.list": return staleList();
       case "notes_review.decide": return reviewDecide(data);
       case "notes_review.plan": return reviewPlan(data);
       case "notes_review.apply": return reviewApply(data);
@@ -609,6 +624,22 @@ function fmSet(text, key, value){
   else fm = new RegExp("^" + key + ":", "m").test(fm) ? fm.replace(new RegExp("^(" + key + ":[ \\t]*)([^#\\n]*?)([ \\t]*(#.*)?)$", "m"), (a, p, v, c) => p + value + (c || "")) : fm + `\n${key}: ${value}`;
   return "---\n" + fm + "\n---\n" + text.slice(m[0].length);
 }
+/* Veraltet-Vermerk (#510, #592): `stale: {since, reason, source}` im Kopf der Abschnittsdatei wie scripts/stale.py */
+const isoDay = v => v instanceof Date ? v.toISOString().slice(0, 10) : String(v || "");
+function staleOf(t){ const st = front(t || "").stale; return st && typeof st === "object" ? {since:isoDay(st.since), reason:String(st.reason || ""), source:String(st.source || "")} : null; }
+const staleHint = st => `Als veraltet markiert seit ${st.since}: ${st.reason}`;
+function staleMarks(items){   // items [[Nummer, Text]] -> [Text, Tooltip]
+  const marked = items.map(([n, t]) => [n, staleOf(t)]).filter(x => x[1]);
+  if (!marked.length) return ["", ""];
+  return [marked.length === 1 ? "veraltet" : `${marked.length} veraltet`, marked.slice(0, 5).map(([n, st]) => `${n}: ${staleHint(st)}`).join("; ")];
+}
+function staleSet(text, entry){   // entry null = entfernen
+  const m = /^---\n([\s\S]*?)\n---\n/.exec(text); if (!m) return text;
+  const fm = m[1].replace(/^stale:\n(?:[ \t]+.*\n?)+/m, "").replace(/\n+$/, "");
+  const q = v => JSON.stringify(String(v));
+  const add = entry ? `\nstale:\n  since: ${entry.since}\n  reason: ${q(entry.reason)}` + (entry.source ? `\n  source: ${q(entry.source)}` : "") : "";
+  return "---\n" + fm + add + "\n---\n" + text.slice(m[0].length);
+}
 function readmeSet(text, h, val){ return block(text, h) ? setBlock(text, h, val) : text; }
 async function renumber(scopeIds, files, ref, orig){
   // Nummern und Überschriften der Abschnitte und die Abschnittslisten der Kapitel-READMEs (wie scripts/sections.py renumber)
@@ -702,14 +733,34 @@ async function approvalState(data){
     v.effect = "Der Abschnitt wird wieder geöffnet und geht auf „Überarbeitung“.";
   } else {
     v.title = "Abschnitt abschließen"; v.button = "Abschließen";
-    if (ap.section) add("block", "Der Abschnitt ist bereits abgeschlossen.");
+    v.drift = ap.section ? await sectionDrift(x.s.id, ms, x.s.path) : null;   // #563: Text nach dem Abschließen geändert
+    if (v.drift){
+      v.title = "Geänderten Text neu abschließen";
+      add("warn", "Der Text weicht von der letzten Freigabe ab.");
+      v.drift.lines.forEach(t => add("warn", t));
+    } else if (ap.section) add("block", "Der Abschnitt ist bereits abgeschlossen.");
     if (!ap.writing) add("block", "Schreiben ist für diesen Abschnitt nicht erlaubt.");
     if (EMPTY_MS.includes(ms.trim())) add("block", "Es gibt noch kein Manuskript."); else add("ok", `Manuskript: ${fmtNum(words(ms))} Wörter.`);
     add(marks ? "warn" : "ok", marks ? `${marks} offene${marks === 1 ? "r" : ""} Marker – sie bleiben im abgeschlossenen Text.` : "Keine offenen Marker.");
     if (h.fact_check === "requested") add("warn", "Ein Faktencheck ist angefordert – ist er erledigt?");
-    v.effect = "Der Abschnitt wird abgeschlossen. Du bestätigst den Text so, wie er im Abschnittsformular steht; danach ist er gesperrt und lässt sich nur nach „Wieder öffnen“ ändern.";
+    v.effect = v.drift ? "Der Abschnitt bleibt abgeschlossen, jetzt mit dem geänderten Text. Die Freigabe wird neu festgehalten."
+      : "Der Abschnitt wird abgeschlossen. Du bestätigst den Text so, wie er im Abschnittsformular steht; danach ist er gesperrt und lässt sich nur nach „Wieder öffnen“ ändern.";
   }
   return {v, checks, kind, revoke};
+}
+async function sectionDrift(id, ms, path){
+  const f = await getFile("approvals.yml", S.readRef, true).catch(() => ({text:""}));
+  let list = []; try { list = (window.jsyaml.load(f.text || "") || {}).entries || []; } catch (e) { return null; }
+  const rec = list.filter(e => e && e.kind === "section" && e.id === id).pop();
+  if (!rec || rec.action !== "granted" || !String(rec.note || "").startsWith("content_sha256=")) return null;
+  const now = await sha256full(ms);
+  if (rec.note === "content_sha256=" + now) return null;
+  const lines = []; const commit = String(rec.commit || "");
+  if (/^[0-9a-f]{40}$/.test(commit)){
+    const old = await getFile(path, commit).then(r => msOf(r.text)).catch(() => null);
+    if (old != null) lines.push(`Wörter bei der letzten Freigabe / jetzt: ${fmtNum(words(old))} / ${fmtNum(words(ms))}`);
+  }
+  return {rec, lines};
 }
 const ST = s => ({planned:"geplant", in_progress:"in Arbeit", ready_for_approval:"bereit zum Abschluss", approved:"abgeschlossen", writing:"Schreiben", revision:"Überarbeitung", research:"Recherche"}[s] || s);
 async function approvalData(data){
@@ -744,8 +795,10 @@ async function approve(data){
         msg = `${v.label}: Schreiben ${revoke ? "gesperrt" : "erlaubt"}`;
       } else if (!revoke){
         t = fmSet(t, "section", "true"); t = fmSet(t, "status", "approved");
+        if (staleOf(t)) t = staleSet(t, null);   // erneutes Abschließen entfernt die Veraltet-Marke (#510)
+        if (v.drift) entry("section", v.x.s.id, "revoked");   // #563: neu abschließen = revoked + granted in einem Commit
         entry("section", v.x.s.id, "granted", "content_sha256=" + await sha256full(msOf(orig[p])));
-        msg = `${v.label} abgeschlossen`;
+        msg = v.drift ? `${v.label}: geänderten Text neu abgeschlossen` : `${v.label} abgeschlossen`;
       } else {
         t = fmSet(t, "section", "false"); t = fmSet(t, "status", "revision"); t = fmSet(t, "writing", "false");
         entry("section", v.x.s.id, "revoked"); entry("writing", v.x.s.id, "revoked");
@@ -1305,13 +1358,22 @@ async function queueData(){
   return d;
 }
 async function queueChange(kind, d){
-  busy(kind === "prioritize" ? "Auftrag wird vorgezogen …" : "Auftrag wird abgebrochen …");
+  busy(kind === "prioritize" ? "Auftrag wird vorgezogen …" : kind === "retry" ? "Auftrag wird wieder geöffnet …" : "Auftrag wird abgebrochen …");
   try {
     const path = String(d.request || ""); if (!/^(chapters\/[^/]+\/research\/[^/]+|matter\/research\/[^/]+|jobs)\/request-\d+\.yml$/.test(path)) throw {message:"Ungültige Angabe."};
     const work = await prepareWork(); await loadBookData(work);
     const t = (await getFile(path, work, true).catch(() => { throw {message:"Der Auftrag ist nicht mehr da (vielleicht schon erledigt)."}; })).text, data = window.jsyaml.load(t) || {};
-    if (jobState(data) === "failed") throw {message:"Dieser Auftrag läuft nicht mehr; vorziehen oder abbrechen geht nur bei wartenden Aufträgen."};
+    if (kind !== "retry" && jobState(data) === "failed") throw {message:"Dieser Auftrag läuft nicht mehr; vorziehen oder abbrechen geht nur bei wartenden Aufträgen."};
+    if (kind === "retry" && jobState(data) !== "failed") throw {message:"Erneut versuchen geht nur bei fehlgeschlagenen Aufträgen."};
     let out = t.replace(/\n*$/, "\n");
+    if (kind === "retry"){   // #554/#596: error und failed_at entfernen, derselbe Auftrag ist wieder offen
+      out = out.replace(/^error:.*(?:\n[ \t]+.*)*\n?/m, "").replace(/^failed_at:.*\n?/m, "");
+      const back = window.jsyaml.load(out) || {};
+      if (back.error || back.failed_at || JSON.stringify(Object.assign({}, back, {error:0, failed_at:0})) !== JSON.stringify(Object.assign({}, data, {error:0, failed_at:0}))) throw {message:"Die Auftragsdatei ließ sich nicht sicher ändern; nichts wurde gespeichert."};
+      const r = await commit([{path, content:out}], `Warteschlange: ${path} erneut versucht`, {action:"queue.retry"});
+      S.msg = savedMsg("Auftrag wieder geöffnet; er läuft beim nächsten Durchgang erneut (derselbe Auftrag, kein zweiter).", r);
+      return show("queue");
+    }
     if (kind === "prioritize") out = /^priority:.*$/m.test(out) ? out.replace(/^priority:.*$/m, "priority: true") : out + "priority: true\n";
     else out = out.replace(/^waiting:.*\n/m, "") + `error: Vom Benutzer in der App abgebrochen\nfailed_at: '${new Date().toISOString().replace(/\.\d+Z$/, "+00:00")}'\n`;
     const back = window.jsyaml.load(out) || {};
@@ -1321,6 +1383,31 @@ async function queueChange(kind, d){
     if (kind === "cancel") S.msg.html += ` <span class="dim">Die App kann keine Dateien löschen: Der Auftrag steht jetzt als fehlgeschlagen und läuft nicht mehr. Ein schon laufender Auftrag lässt sich so nicht stoppen.</span>`;
   } catch (e) { S.msg = failMsg(e); }
   show("queue");
+}
+
+/* Veraltet-Markierung (#510, #592): Status, Freigabe und Fingerabdruck bleiben, der Text ändert sich nicht */
+async function staleChange(kind, d){
+  busy(kind === "mark" ? "Markierung wird gesetzt …" : "Markierung wird entfernt …");
+  try {
+    const x = allSecs().find(v => v.s.id === d.section_id); if (!x) throw {message:"Abschnitt nicht gefunden."};
+    const reason = String(d.reason || "").split(/\s+/).filter(Boolean).join(" ");
+    if (kind === "mark" && !reason) throw {message:"Bitte einen Grund angeben."};
+    const work = await prepareWork(); await loadBookData(work);
+    const t = (await getFile(x.s.path, work, true)).text, now = staleOf(t);
+    if (kind === "clear" && !now) throw {message:"Der Abschnitt ist nicht als veraltet markiert."};
+    const out = staleSet(t, kind === "mark" ? {since:new Date().toISOString().slice(0, 10), reason, source:String(d.source || "")} : null);
+    if (msOf(out) !== msOf(t) || (kind === "mark" ? !staleOf(out) : staleOf(out))) throw {message:"Die Abschnittsdatei ließ sich nicht sicher ändern; nichts wurde gespeichert."};
+    const r = await commit([{path:x.s.path, content:out}], kind === "mark" ? `${x.s.title}: als veraltet markiert` : `${x.s.title}: Veraltet-Markierung entfernt`, {action:"section." + kind + "_stale"});
+    S.msg = savedMsg(kind === "mark" ? "Als veraltet markiert. Status und Freigabe bleiben." : "Markierung entfernt.", r);
+  } catch (e) { S.msg = failMsg(e); }
+  show("section", d.section_id);
+}
+async function staleList(){
+  await loadSecFiles(allSecs(), "Veraltete Abschnitte werden gesucht");
+  const rows = [];
+  chapters().forEach((c, ci) => (c.sections || []).forEach((s, si) => { const st = staleOf((cached(s.path) || {}).text); if (st) rows.push(`<li><b>${ci + 1}.${si + 1} ${esc(s.title)}</b>: ${esc(staleHint(st))}</li>`); }));
+  S.msg = {kind:"info", html:rows.length ? `<b>Veraltete Abschnitte (${rows.length}):</b><ul>${rows.join("")}</ul>` : "Kein Abschnitt ist als veraltet markiert."};
+  return show(S.view === "section" ? "section" : S.view === "chapter" ? "chapter" : "project", S.view === "section" ? S.sec && S.sec.id : S.chap);
 }
 
 /* Hinweisdurchsicht (#367): editorial/durchsicht-*.yml – Eintrag für Eintrag entscheiden, jede Antwort als kleiner Nachtrag */
@@ -1338,13 +1425,65 @@ async function reviewLoad(file){
 }
 const setReview = (file, text) => { (S.reviewText = S.reviewText || {})[file] = text; (S.reviewAt = S.reviewAt || {})[file] = Date.now(); };
 const reviewWhere = e => e.chapter_id ? "Kapitel " + String(e.abschnitt).split(".")[0] : e.abschnitt;
+/* Stufen der Durchsicht (#570, #473) wie hinweise.stages/current: ab 12 offenen Einträgen nur die aktuelle Stufe */
+const R_RANK = {blockierend:0, wesentlich:1, mittel:2, gering:3}, R_GROUP_MIN = 3, R_ROUND = 5, R_STAGE_MIN = 12, R_PREFIX = "gruppe:";
+const rOpen = e => (e.entscheidung || "offen") === "offen" && !e.umgesetzt, rSev = e => e.schweregrad || "mittel";
+async function rGroupKeys(list){   // Gruppenschlüssel: Art + Prüfsumme des bereinigten Musters (hier: eigene, stabile Kurzprüfsumme)
+  const out = new Map();
+  for (const e of list){
+    let n = String(e.muster || e.grund || "").replace(/[\d"„“»«'‚‘’]+/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+    const b = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(n));
+    out.set(e, `${e.art || ""}-${[...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("").slice(0, 6)}`);
+  }
+  return out;
+}
+async function reviewStages(data){
+  const every = reviewEntries(data).map(x => x[1]), keys = await rGroupKeys(every), known = (data.themen || []).map(t => t.id), themed = e => known.includes(e.thema) && rSev(e) !== "blockierend";
+  const counts = {}; for (const e of every) if (!["blockierend", "gering"].includes(rSev(e)) && !known.includes(e.thema)) counts[keys.get(e)] = (counts[keys.get(e)] || 0) + 1;
+  const grouped = new Set(Object.keys(counts).filter(k => counts[k] >= R_GROUP_MIN)), middle = e => !["blockierend", "gering"].includes(rSev(e)) && !themed(e);
+  const opened = every.filter(rOpen), groups = {};
+  for (const e of opened) if (middle(e) && grouped.has(keys.get(e))) (groups[keys.get(e)] = groups[keys.get(e)] || []).push(e);
+  const singles = opened.filter(e => middle(e) && !grouped.has(keys.get(e))).sort((a, b) => R_RANK[rSev(a)] - R_RANK[rSev(b)]);
+  const done = every.filter(e => middle(e) && !grouped.has(keys.get(e)) && !rOpen(e)).length, rounds = [];
+  for (let i = 0; i < singles.length; i += R_ROUND) rounds.push(singles.slice(i, i + R_ROUND));
+  const titles = Object.fromEntries((data.themen || []).map(t => [t.id, t.titel])), themes = known.map(id => [id, titles[id], opened.filter(e => themed(e) && e.thema === id)]);
+  const themeTotal = known.filter(id => every.some(e => themed(e) && e.thema === id)).length, openThemes = themes.filter(t => t[2].length);
+  return {blocking:opened.filter(e => rSev(e) === "blockierend"), themes:openThemes, themeNo:themeTotal - openThemes.length + 1, themeTotal, groups, keys, rounds,
+    gering:opened.filter(e => rSev(e) === "gering" && !themed(e)), open:opened.length, roundNo:Math.floor(done / R_ROUND) + 1, roundTotal:singles.length ? Math.ceil((done + singles.length) / R_ROUND) : 0,
+    themeBlocking:Object.fromEntries(known.map(id => [id, every.filter(e => e.thema === id && rSev(e) === "blockierend").map(e => e.id)]))};
+}
+async function reviewCurrent(data, gering){
+  const st = await reviewStages(data), left = `noch ${st.open} offen`;
+  if (st.blocking.length) return {name:"blockierend", items:st.blocking, head:`Stufe 1 · Blockierendes, einzeln · ${st.blocking.length} offen · ${left}`, st};
+  if (st.themes.length){
+    const [tid, title, items] = st.themes[0], minor = items.filter(e => rSev(e) === "gering"), hidden = (minor.length && minor.length < items.length && !gering) ? minor : [], shown = items.filter(e => !hidden.includes(e));
+    const refs = st.themeBlocking[tid] || [];
+    return {name:"thema", items:shown, head:`Stufe 2 · Thema ${st.themeNo} von ${st.themeTotal}: ${title} · ${shown.length} offen${hidden.length ? ` (+ ${hidden.length} geringe zu diesem Thema)` : ""}${refs.length ? ` · Blockierendes dazu: ${refs.join(", ")} (Stufe 1)` : ""} · ${left}`, st};
+  }
+  const gk = Object.keys(st.groups);
+  if (gk.length) return {name:"gruppen", items:gk.map(k => Object.assign({}, st.groups[k][0], {id:R_PREFIX + k, abschnitt:`${st.groups[k].length} Stellen`, chapter_status:"", frage:`Alle ${st.groups[k].length} Stellen: wie vorgeschlagen (ja) · alle lassen (nein)`, varianten:[], schweregrad:"", _group:true})), head:`Stufe 2 · Gleiche Muster · ${gk.length} Gruppen · ${left}`, st};
+  if (st.rounds.length) return {name:"runde", items:st.rounds[0], head:`Stufe 3 · Runde ${st.roundNo} von ${st.roundTotal} · ${left}`, st};
+  if (st.gering.length) return gering ? {name:"gering", items:st.gering, head:`Stufe 4 · Geringes · ${st.gering.length} offen`, st} : {name:"gering-zu", items:[], head:`Stufe 4 · ${st.gering.length} geringe Hinweise zugeklappt`, st};
+  return {name:"fertig", items:[], head:"Alle Einträge entschieden", st};
+}
 async function reviewData(file){
   const {data} = await reviewLoad(file), all = reviewEntries(data), done = all.filter(([, e]) => (e.entscheidung || "offen") !== "offen").length;
   const [y, m, dd] = String(data.erstellt || "").split("-");
   const row = (e, author) => Object.assign({E_ID:e.id, E_WHERE:e.abschnitt, E_CHAPTER_TEXT:reviewWhere(e) + (e.chapter_status ? " · " + (CH_STATUS[e.chapter_status] || e.chapter_status) : ""), E_KIND:e.art || "",
-    E_REASON:(e.schweregrad === "blockierend" ? "⛔ blockierend: " : "") + (e.grund || ""), E_CONTEXT:e.kontext || "", E_OLD:e.alt || "", E_NEW:e.neu || "", E_DECISION:reviewState(e)},
-    author ? {E_QUESTION:(e.frage || "") + (e.varianten || []).map((v, k) => ` · Variante ${k + 1}: ${v}`).join("")} : {});
+    E_REASON:(e.schweregrad === "blockierend" ? "⛔ blockierend: " : "") + (e.grund || ""), E_CONTEXT:e.kontext || "", E_OLD:e.alt || "", E_NEW:e.neu || (e.streichen ? "(entfällt)" : ""), E_DECISION:reviewState(e)},
+    author ? {E_PROPOSED:e.vorschlag_von === "assistent" ? "1" : "", E_QUESTION:(e.frage || "") + (e.varianten || []).map((v, k) => ` · Variante ${k + 1}: ${v}`).join("")} : {});
   const d = Object.assign(base(), {REVIEW_FILE:file, REVIEW_BOOK:data.buch || "", REVIEW_DATE_TEXT:dd ? `Stand ${dd}.${m}.${y}` : "", REVIEW_COUNT_TEXT:`${all.length} Einträge · ${done} entschieden · ${all.length - done} offen`});
+  const openCount = all.filter(([, e]) => rOpen(e)).length; S.reviewInfo = {file, staged:false, name:"", gering:0};
+  if (openCount >= R_STAGE_MIN && !S.reviewAll){   // #570: nur die aktuelle Stufe
+    const cur = await reviewCurrent(data, S.reviewGering); d.REVIEW_COUNT_TEXT = cur.head;
+    S.reviewInfo = {file, staged:true, name:cur.name, gering:cur.st.gering.length};
+    const ids = new Set(cur.items.map(e => e.id)), authorRows = cur.name === "gruppen" ? cur.items.map(e => row(e, true)) : (data.autorenentscheidung || []).filter(e => ids.has(e.id)).map(e => row(e, true));
+    const auto = (data.ohne_autor || []).filter(e => ids.has(e.id)).map(e => row(e, false));
+    if (auto.length) d.AUTO = auto;
+    if (authorRows.length) d.AUTHOR = authorRows;
+    if ((data.ausgelassen || []).length) d.SKIPPED = data.ausgelassen.map(x => ({SK_REF:x.befund, SK_REASON:x.grund}));
+    return d;
+  }
   if ((data.ohne_autor || []).length) d.AUTO = data.ohne_autor.map(e => row(e, false));
   if ((data.autorenentscheidung || []).length) d.AUTHOR = data.autorenentscheidung.map(e => row(e, true));
   if ((data.ausgelassen || []).length) d.SKIPPED = data.ausgelassen.map(x => ({SK_REF:x.befund, SK_REASON:x.grund}));
@@ -1395,16 +1534,36 @@ async function reviewDecide(d){
       if (decision === "geändert" && !String(d.new || "").trim()) throw {message:"Bei „geändert“ gehört die eigene Fassung dazu."};
       const work = await prepareWork(); S.readRef = work;
       const {text, data} = await reviewLoad(file), e = (reviewEntries(data).find(([, x]) => x.id === d.entry) || [])[1];
+      if (String(d.entry).startsWith(R_PREFIX)) return reviewGroup(file, text, data, String(d.entry).slice(R_PREFIX.length), decision);
       if (!e) throw {message:`Eintrag ${d.entry} nicht gefunden.`};
       if (e.umgesetzt) throw {message:`${d.entry} ist schon umgesetzt.`};
       const out = reviewSet(text, d.entry, decision, decision === "geändert" ? String(d.new).trim() : (typeof d.new === "string" ? d.new : null));
       const r = await commit([{path:file, content:out}], `Hinweisdurchsicht: ${d.entry} ${decision}`, {action:"notes_review.decide"});
       setReview(file, out);
       const all = reviewEntries(window.jsyaml.load(out)), open = all.filter(([, x]) => (x.entscheidung || "offen") === "offen").length;
-      flash(r.pr || r.nothing ? "ok" : "warn", `<b>${esc(d.entry)}: ${esc(decision)}</b> – gespeichert. ${open ? `Noch ${open} offen.` : "Alle Einträge entschieden. Umsetzen prüfen zeigt, was ins Manuskript kommen kann."}`);
+      const msg = `<b>${esc(d.entry)}: ${esc(decision)}</b> – gespeichert. ${open ? `Noch ${open} offen.` : "Alle Einträge entschieden. Umsetzen prüfen zeigt, was ins Manuskript kommen kann."}`;
+      if (open + 1 >= R_STAGE_MIN && !S.reviewAll){ S.msg = {kind:r.pr || r.nothing ? "ok" : "warn", html:msg}; return show("review", file); }   // Stufen: nächste Karte/Stufe zeigen
+      flash(r.pr || r.nothing ? "ok" : "warn", msg);
     } catch (e) { flash("err", "<b>Nicht gespeichert.</b> " + esc(errText(e))); }
   });
   return S.reviewChain;
+}
+const rProposal = e => !!(e.alt && e.neu && e.neu !== e.alt && e.section_id !== "book" && rSev(e) !== "blockierend" && !(e.varianten || []).length);
+async function reviewGroup(file, text, data, key, decision, gering){
+  // Gruppenentscheidung wie hinweise.decide_group / decide_gering: ja = Einträge mit Vorschlag annehmen, nein = alle lassen; ein Commit
+  if (!["ja", "nein"].includes(decision)) throw {message:"Für eine Gruppe gilt nur ja (wie vorgeschlagen) oder nein (alle lassen)."};
+  const all = reviewEntries(data).map(x => x[1]), keys = await rGroupKeys(all);
+  const hits = all.filter(e => rOpen(e) && (gering ? rSev(e) === "gering" : keys.get(e) === key && !["blockierend", "gering"].includes(rSev(e))));
+  const todo = hits.filter(e => gering || decision === "nein" || rProposal(e)), skipped = hits.length - todo.length;
+  if (!hits.length) throw {message:`${gering ? "Geringes" : "Gruppe " + key} nicht gefunden oder schon entschieden.`};
+  if (!todo.length) throw {message:"Kein Eintrag der Gruppe hat einen eindeutigen Vorschlag; bitte einzeln ansehen."};
+  let out = text; for (const e of todo) out = entryPatch(out, e.id, {entscheidung:gering ? "nein" : decision});
+  const back = reviewEntries(window.jsyaml.load(out)), ids = new Set(todo.map(e => e.id));
+  if (back.length !== all.length || back.some(([, e]) => ids.has(e.id) ? e.entscheidung !== (gering ? "nein" : decision) : false)) throw {message:"Die Durchsichtsdatei ließ sich nicht sicher ändern; bitte im Chat mit GhostWriter entscheiden."};
+  const r = await commit([{path:file, content:out}], `Hinweisdurchsicht: ${gering ? "Geringes gelassen" : "Gruppe " + key + " " + decision} (${todo.length})`, {action:"notes_review.decide"});
+  setReview(file, out);
+  S.msg = {kind:r.pr || r.nothing ? "ok" : "warn", html:`<b>${gering ? "Geringes" : "Gruppe"}: ${todo.length} Einträge ${decision === "ja" && !gering ? "angenommen" : "gelassen"}</b>${skipped ? `, ${skipped} ohne eindeutigen Vorschlag übersprungen` : ""}.`};
+  return show("review", file);
 }
 const W_LEAD = /^(?:\s|…|\.\.\.)+/, W_TRAIL = /(?:\s|…|\.\.\.)+$/;
 function wording(text, alt, neu){
@@ -1930,6 +2089,9 @@ document.addEventListener("click", async ev => {
   else if (d.act === "review"){ S.msg = null; show("review", d.f); }
   else if (d.act === "queue"){ S.msg = null; show("queue"); }
   else if (d.act === "reviewapply") reviewApply({file:d.f});
+  else if (d.act === "gering"){ S.reviewChain = (S.reviewChain || Promise.resolve()).then(async () => { try { const work = await prepareWork(); S.readRef = work; const {text, data} = await reviewLoad(d.f); await reviewGroup(d.f, text, data, "", "nein", true); } catch (e) { flash("err", "<b>Nicht gespeichert.</b> " + esc(errText(e))); } }); }
+  else if (d.act === "gering-show"){ S.reviewGering = true; show("review", d.f); }
+  else if (d.act === "all-show"){ S.reviewAll = !S.reviewAll; show("review", d.f); }
   else if (d.act === "allchecks"){ S.showAll = !S.showAll; show("project"); }
   else if (d.act === "copy"){ try { await navigator.clipboard.writeText($("cpy").textContent); t.textContent = "Kopiert"; } catch (e) { t.textContent = "Kopieren nicht möglich – Text markieren"; } }
   else if (d.q) chat((QUICK[scopeOf()] || {})[d.q] || d.q, d.q);
