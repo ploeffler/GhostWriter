@@ -235,24 +235,26 @@ class EntryFilesTest(unittest.TestCase):
 
     def test_manifest(self):
         managed, book = MANIFEST['managed'], MANIFEST['book']
-        for p in ('CLAUDE.md', 'AGENTS.md', '.claude/skills/ghostwriter/'):
+        for p in ('CLAUDE.md', 'AGENTS.md'):
             self.assertIn(p, managed)
             self.assertTrue((ROOT / p).exists(), p)
+        self.assertIn('.claude/skills/ghostwriter/', managed)         # entfällt (#569): das Update entfernt die alte Kopie
+        self.assertFalse((ROOT / '.claude/skills/ghostwriter').exists())
         self.assertIn('assistant.yml', book)
         self.assertFalse(any(p.rstrip('/') in ('.claude', '.claude/skills') for p in managed + book))
 
-    def test_general_skill(self):
-        text = (ROOT / '.claude/skills/ghostwriter/SKILL.md').read_text(encoding='utf-8')
-        head = yaml.safe_load(text.split('---')[1])
-        self.assertEqual(head['name'], 'ghostwriter')
-        self.assertTrue(head['description'])
-        for s in ('--repo', 'permissions.push', 'user.email', 'assistant.py . check', 'Widget'):
+    def test_start_carries_the_flow_of_the_removed_skill(self):
+        """#569: Was früher nur im Skill `ghostwriter` stand, steht in START.md; der Skill hat keine Kopie im Hauptrepo mehr."""
+        text = (ROOT / 'START.md').read_text(encoding='utf-8')
+        for s in ('--repo', 'permissions.push', 'user.email', 'zz-schreibtest', 'Fall 1', 'Fall 2', 'Fall 3', '„Speichern“',
+                  '„Zusammenführen“', 'issue_write', 'Anforderungen zuordnen'):
             self.assertIn(s, text)
         for f in ('CLAUDE.md', 'AGENTS.md'):
             t = (ROOT / f).read_text(encoding='utf-8')
             self.assertIn('START.md', t)
             self.assertIn('--repo', t)
             self.assertIn('assistant.yml', t)
+            self.assertNotIn('.claude/skills/ghostwriter/SKILL.md', t)
 
     def test_update_keeps_personal_skill(self):
         import update_from_upstream as up
@@ -266,8 +268,9 @@ class EntryFilesTest(unittest.TestCase):
             git(d, 'commit', '-qm', 'Programm alt')
             git(d, 'branch', 'upstream')
             git(d, 'switch', '-q', 'upstream')
-            gen.write_text('neu\n', encoding='utf-8')
+            gen.unlink()                       # entfällt im Hauptrepo (#569)
             Path(d, 'CLAUDE.md').write_text('neu\n', encoding='utf-8')
+            git(d, 'add', '-A')
             git(d, 'commit', '-qam', 'Programm neu')
             git(d, 'switch', '-q', 'main')
             own = Path(d, '.claude/skills/anna-auf-romane/SKILL.md')
@@ -279,7 +282,7 @@ class EntryFilesTest(unittest.TestCase):
             git(d, 'merge', '-q', '--no-commit', '--no-ff', 'upstream')
             unresolved, _ = up.resolve_paths(d, 'upstream', MANIFEST, True)
             self.assertEqual(unresolved, [])
-            self.assertEqual(gen.read_text(encoding='utf-8'), 'neu\n')
+            self.assertFalse(gen.exists())     # die alte Kopie wird beim Update entfernt
             self.assertEqual(Path(d, 'CLAUDE.md').read_text(encoding='utf-8'), 'neu\n')
             self.assertEqual(own.read_text(encoding='utf-8'), 'persönlich\n')
             self.assertEqual(Path(d, 'assistant.yml').read_text(encoding='utf-8'), 'format: 1\n')
@@ -292,8 +295,8 @@ class ProgramRepoTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             git(d, 'init', '-q', '-b', 'main')
             shutil.copyfile(STARTER_FILE, Path(d, 'ghostwriter.yml'))
-            Path(d, '.claude/skills/ghostwriter').mkdir(parents=True)
-            Path(d, '.claude/skills/ghostwriter/SKILL.md').write_text('x', encoding='utf-8')
+            Path(d, '.claude/skills/ghostwriter-lektorat').mkdir(parents=True)
+            Path(d, '.claude/skills/ghostwriter-lektorat/SKILL.md').write_text('x', encoding='utf-8')
             git(d, 'add', '.')
             git(d, 'commit', '-qm', 'Programm')
             env, os.environ['GHOSTWRITER_DEFAULT_BRANCH'] = dict(os.environ), 'main'
@@ -318,7 +321,7 @@ class ReportRuleTest(unittest.TestCase):
     def test_every_entry_contains_rule(self):
         import build_start
         de = {'CLAUDE.md': 'ohne Rückfrage als Issue im Hauptrepository', 'AGENTS.md': 'ohne Rückfrage als Issue im Hauptrepository',
-              '.claude/skills/ghostwriter/SKILL.md': '**ohne Rückfrage** als Issue im Hauptrepository',
+              'START.md': '**ohne Rückfrage** als Issue ins Hauptrepository',
               'templates/assistant-skill.md': 'ohne Rückfrage als Issue im Hauptrepo'}
         for name, phrase in de.items():
             self.assertIn(phrase, (ROOT / name).read_text(encoding='utf-8'), name)

@@ -120,7 +120,7 @@ class StaleWriteTest(unittest.TestCase):
     def test_changed_or_deleted_instructions_require_refresh(self):
         for path in ('START.md', 'CLAUDE.md', 'AGENTS.md', 'ghostwriter-skills.yml',
                      'docs/start/freigaben.md',
-                     '.claude/skills/ghostwriter/SKILL.md',
+                     '.claude/skills/ghostwriter-lektorat/SKILL.md',
                      '.claude/skills/personal/SKILL.md'):
             with self.subTest(path=path):
                 target = self.root / path

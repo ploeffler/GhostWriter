@@ -93,7 +93,7 @@ Manche Wendungen verraten einen Text als KI-geschrieben, egal in welchem Buch un
 
 Die gepflegte Liste mit Erkennungsmustern für Deutsch und Englisch steht in [`templates/qa/ki-muster.yml`](../templates/qa/ki-muster.yml) und kommt mit jedem Update. Neue Muster werden dort ergänzt, nicht im Buchprofil. Ein Buch kann die Liste mit `style.avoid` in `ghostwriter.yml` um eigene Wendungen ergänzen, die nie vorkommen sollen; abschalten lässt sich keine allgemeine Regel. Die automatische Erkennung ist eine Heuristik: Sie findet typische Formulierungen, nicht jede Variante, und meldet gelegentlich eine bewusst gesetzte Wendung. Die redaktionelle Prüfung bleibt deshalb nötig.
 
-Die Regel steht in allen Anweisungen, mit denen GhostWriter eine KI Buchtext formulieren oder prüfen lässt: `CLAUDE.md`, `AGENTS.md`, der allgemeine Skill `ghostwriter`, `START.md` (Grundregeln, Schreiben, Kapitelüberarbeitung) und der daraus erzeugte Einstieg samt Open-WebUI-Einstieg sowie die Chat-Analysen „Klappentext“ und „Sprache“. Die Hintergrundanalysen Figuren, Kurzbeschreibungen, Stilprofil, Schauplätze, Zeitleiste und Widersprüche werten nur aus und formulieren keinen Buchtext; sie bekommen die Regel nicht.
+Die Regel steht in allen Anweisungen, mit denen GhostWriter eine KI Buchtext formulieren oder prüfen lässt: `CLAUDE.md`, `AGENTS.md`, `START.md` (Grundregeln, Schreiben, Kapitelüberarbeitung) und der daraus erzeugte Einstieg samt Open-WebUI-Einstieg sowie die Chat-Analysen „Klappentext“ und „Sprache“. Die Hintergrundanalysen Figuren, Kurzbeschreibungen, Stilprofil, Schauplätze, Zeitleiste und Widersprüche werten nur aus und formulieren keinen Buchtext; sie bekommen die Regel nicht.
 
 ## Neues Material und Erkenntnis-Abgleich
 

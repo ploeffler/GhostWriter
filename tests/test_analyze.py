@@ -454,13 +454,13 @@ class AnalyzeTest(unittest.TestCase):
 
     def test_ai_pattern_rule_in_all_writing_instructions(self):
         """#305: jede Anweisung, mit der eine KI Buchtext schreibt, enthält die Regel gegen KI-typische Muster."""
-        for rel in ('CLAUDE.md', 'AGENTS.md', '.claude/skills/ghostwriter/SKILL.md', 'START.md',
+        for rel in ('CLAUDE.md', 'AGENTS.md', 'START.md',
                     'templates/start/de.md', 'templates/start/en.md'):
             self.assertIn('templates/qa/ki-muster.yml', (ROOT / rel).read_text(encoding='utf-8'), rel)
         self.assertIn('KI-typische Muster', (ROOT / 'templates/start/openwebui.de.md').read_text(encoding='utf-8'))
         self.assertIn('AI-typical patterns', (ROOT / 'templates/start/openwebui.en.md').read_text(encoding='utf-8'))
         # #307: Grundregeln für Buchtext, besonders die Untergrenze zu erwachsenen Figuren
-        for rel in ('CLAUDE.md', 'AGENTS.md', '.claude/skills/ghostwriter/SKILL.md', 'START.md', 'docs/QUALITAETSSICHERUNG.md',
+        for rel in ('CLAUDE.md', 'AGENTS.md', 'START.md', 'docs/QUALITAETSSICHERUNG.md',
                     'templates/start/openwebui.de.md'):
             text = (ROOT / rel).read_text(encoding='utf-8')
             self.assertIn('#307', text if rel != 'templates/start/openwebui.de.md' else '#307', rel)

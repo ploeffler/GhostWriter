@@ -656,7 +656,8 @@ class ProgramRepoTest(unittest.TestCase):
                 self.assertEqual(library.program_problems(d, 'refs/heads', MANIFEST), ([], []))
                 # #584: jeder Eintrag in ghostwriter-skills.yml gilt als allgemein, ein unbekannter als persönlich
                 general = library.general_skills(d)
-                self.assertIn('ghostwriter', general)
+                self.assertIn('ghostwriter-lektorat', general)
+                self.assertNotIn('ghostwriter', general)       # entfällt (#569)
                 for name in sorted(general):
                     Path(d, '.claude', 'skills', name).mkdir(parents=True)
                 self.assertEqual(library.program_problems(d, 'refs/heads', MANIFEST), ([], []))
