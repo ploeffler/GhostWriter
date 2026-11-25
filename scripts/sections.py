@@ -5,6 +5,9 @@ Aufruf:
   python scripts/sections.py <projektordner> merge <quelle>[,<quelle>…] <ziel> [--manuscript append|archive]
   python scripts/sections.py <projektordner> remove <abschnitt> [--into <ziel>] [--confirm]
   python scripts/sections.py <projektordner> move <abschnitt> <kapitel> [--position N]
+  python scripts/sections.py <projektordner> add <kapitel> <titel> [--position N]
+  python scripts/sections.py <projektordner> rename <abschnitt> <titel>
+  python scripts/sections.py <projektordner> reorder <abschnitt> [--after <abschnitt>]
 
 Abschnitte werden mit ID (`sec-…`) oder Nummer (`7.2`) angegeben, Kapitel mit
 ID (`ch-…`) oder Nummer (`7`); `--position` zählt ab 1 (Standard: am Ende).
@@ -20,6 +23,10 @@ remove  entfernt einen Abschnitt. Mit --into wie merge; sonst wandert die Datei
 move    verschiebt Abschnitt, Laufdateien und Kosten in ein anderes Kapitel. Die
         ID bleibt stabil (auch mit altem Kapitelpräfix), der Dateiname bekommt
         die neue Nummer.
+
+add     legt einen neuen Abschnitt an (aus templates/section.md, Status planned); rename benennt um (ID und Pfad bleiben);
+        reorder stellt einen Abschnitt innerhalb seines Kapitels um (#209). Beide ändern keinen Text; rename und reorder
+        gehen deshalb auch bei einem abgeschlossenen Abschnitt, nicht bei einem ausgecheckten.
 
 Gemeinsam: abgeschlossene Abschnitte (Status approved bzw. approvals.section)
 werden nicht angefasst – erst die Freigabe zurücknehmen. Nummern und
@@ -459,6 +466,94 @@ def cmd_move(base, ref, chapter_ref, position=None):
     return report(config, 'verschoben', [{'id': sec['id'], 'title': sec['title'], 'from': old_num}], changed, left, sec)
 
 
+def slug_of(title):
+    t = re.sub(r'[^a-z0-9]+', '-', (title or '').lower().translate(str.maketrans({'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss'}))).strip('-')
+    return t[:40].strip('-') or 'abschnitt'
+
+
+def cmd_add(base, chapter_ref, title, position=None, paragraphs=None):
+    """Neuen Abschnitt anlegen (#209): aus `templates/section.md`, Status `planned`, am Ende oder an `position` (ab 1);
+    `paragraphs` werden zum Manuskript (Fließtext, ohne Formatierung)."""
+    text, config = load(base)
+    ch = chapter_of(config, chapter_ref)
+    ci = config['structure']['chapters'].index(ch) + 1
+    title = ' '.join((title or '').split())
+    if not title:
+        raise SystemExit('Titel fehlt')
+    pos = len(ch['sections']) if position is None else max(0, min(int(position) - 1, len(ch['sections'])))
+    taken = {s['id'] for c in config['structure']['chapters'] for s in c['sections']} | \
+        {r.get('id') for r in (config['structure'].get('retired') or [])}
+    sid, n = f'sec-{ci:02d}-{pos + 1:02d}-{slug_of(title)}', 2
+    while sid in taken:
+        sid, n = f'sec-{ci:02d}-{pos + 1:02d}-{slug_of(title)}-{n}', n + 1
+    name = f'{pos + 1:02d}-{slug_of(title)}.md'
+    while (base / ch['path'] / 'sections' / name).exists():
+        name = 'v-' + name
+    rel = f'{ch["path"]}/sections/{name}'
+    body = '\n\n'.join(p.strip() for p in paragraphs or [] if p.strip()) or 'Noch nicht begonnen.'
+    tpl = (ROOT / 'templates' / 'section.md').read_text(encoding='utf-8')
+    quoted = yaml.safe_dump(title, allow_unicode=True, width=10**6).splitlines()[0]
+    file_text = (tpl.replace('<STABILE-ID>', sid).replace('<KAPITEL>.<ABSCHNITT>', f'{ci}.{pos + 1}')
+                 .replace('title: "<TITEL>"', f'title: {quoted}').replace('<NUMMER> <TITEL>', f'{ci}.{pos + 1} {title}'))
+    file_text = re.sub(r'(?s)(## Manuskript\n\n).*\Z', lambda m: m.group(1) + body + '\n', file_text)
+    block = f'- id: {sid}\n  title: {quoted}\n  path: {rel}\n'
+    text = insert_entry(text, ch, pos, block)
+    (base / rel).parent.mkdir(parents=True, exist_ok=True)
+    (base / rel).write_text(file_text, encoding='utf-8')
+    ch['sections'].insert(pos, {'id': sid, 'title': title, 'path': rel})
+    changed, left = finish(base, config, text, [], {}, [], [])
+    return f'✓ Abschnitt {ci}.{pos + 1} „{title}“ angelegt ({sid})\n'
+
+
+def cmd_rename(base, ref, title):
+    """Abschnitt umbenennen (#209): Titel in ghostwriter.yml, Abschnittsdatei, Überschrift und Liste im Kapitel-README. ID,
+    Pfad, Status und Freigabe bleiben (der Text ändert sich nicht)."""
+    text, config = load(base)
+    ch, sec = section_of(config, ref)
+    title = ' '.join((title or '').split())
+    if not title:
+        raise SystemExit('Titel fehlt')
+    start, end, _ = entry_span(text, sec['id'])
+    quoted = yaml.safe_dump(title, allow_unicode=True, width=10**6).splitlines()[0]
+    block = re.sub(r'(?m)^(\s*title:\s*).*$', lambda m: m.group(1) + quoted, text[start:end], count=1)
+    text = text[:start] + block + text[end:]
+    old = sec['title']
+    path = base / sec['path']
+    head, ftext = read_section(base, sec)
+    ftext = re.sub(r'(?m)^title: .*$', f'title: {quoted}', ftext, count=1)
+    ftext = re.sub(rf'(?m)^# ({re.escape(str(head.get("number")))}) .*$', lambda m: f'# {m.group(1)} {title}', ftext, count=1)
+    path.write_text(ftext, encoding='utf-8')
+    sec['title'] = title
+    finish(base, config, text, [], {}, [], [])
+    return f'✓ Abschnitt {number(config, sec["id"])} umbenannt: „{old}“ → „{title}“\n'
+
+
+def cmd_reorder(base, ref, after=None):
+    """Abschnitt innerhalb seines Kapitels umstellen (#209): hinter `after` (Abschnitt) bzw. an den Anfang. Der Text ändert sich
+    nicht, ein abgeschlossener Abschnitt darf deshalb umgestellt werden; Nummern und Listen werden nachgezogen."""
+    text, config = load(base)
+    ch, sec = section_of(config, ref)
+    if after:
+        ach, asec = section_of(config, after)
+        if ach['id'] != ch['id']:
+            raise SystemExit('Umstellen geht nur innerhalb eines Kapitels (sonst move)')
+        if asec['id'] == sec['id']:
+            raise SystemExit('Abschnitt kann nicht hinter sich selbst stehen')
+    import checkout
+    from render_view import load as load_project
+    entry = checkout.locked_by_checkout(base, load_project(base)[1], sec['id'])
+    if entry:
+        raise SystemExit(f'Abschnitt {checkout.lock_message(entry, section=sec["title"])}')
+    old_num = number(config, sec['id'])
+    text, block = remove_entry(text, sec['id'])
+    ch['sections'] = [x for x in ch['sections'] if x['id'] != sec['id']]
+    pos = (next(i for i, x in enumerate(ch['sections']) if x['id'] == asec['id']) + 1) if after else 0
+    text = insert_entry(text, ch, pos, block)
+    ch['sections'].insert(pos, sec)
+    finish(base, config, text, [], {}, [], [])
+    return f'✓ Abschnitt {old_num} „{sec["title"]}“ umgestellt, jetzt {number(config, sec["id"])}\n'
+
+
 def report(config, verb, records, changed, left, target=None):
     lines = []
     for r in records:
@@ -494,9 +589,25 @@ def main(argv=None):
     v.add_argument('section')
     v.add_argument('chapter')
     v.add_argument('--position', type=int)
+    ad = sub.add_parser('add')
+    ad.add_argument('chapter')
+    ad.add_argument('title')
+    ad.add_argument('--position', type=int)
+    rn = sub.add_parser('rename')
+    rn.add_argument('section')
+    rn.add_argument('title')
+    ro = sub.add_parser('reorder')
+    ro.add_argument('section')
+    ro.add_argument('--after')
     a = ap.parse_args(argv)
     base = a.project.resolve()
-    if a.cmd == 'merge':
+    if a.cmd == 'add':
+        out = cmd_add(base, a.chapter, a.title, a.position)
+    elif a.cmd == 'rename':
+        out = cmd_rename(base, a.section, a.title)
+    elif a.cmd == 'reorder':
+        out = cmd_reorder(base, a.section, a.after)
+    elif a.cmd == 'merge':
         out = cmd_merge(base, a.sources, a.target, a.manuscript)
     elif a.cmd == 'remove':
         out = cmd_remove(base, a.section, a.into, a.confirm, a.manuscript)

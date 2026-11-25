@@ -2,6 +2,7 @@
 """Rückgabe zu einem Checkout einchecken (#573, Teil 2 zu #209).
 
   python3 scripts/checkin.py <buch> <datei>… [--checkout GW-XXXX] [--date JJJJ-MM-TT] [--repo owner/name]
+  python3 scripts/checkin.py <buch> aufbau <ordner> [--apply a-001,a-002 --confirm]
   python3 scripts/checkin.py <buch> note <ordner> --seite N --text "…" [--abschnitt 3.2] [--alt … --neu …] [--frage …] [--unleserlich]
 
 Nimmt die Arbeitskopie des Gegenlesers zurück: DOCX (auch mit Kommentaren und Änderungsnachverfolgung), PDF (auch mit
@@ -16,6 +17,9 @@ PDF-Kommentaren) oder Scan/Handyfoto ausgedruckter Seiten. Die Kennung kommt aus
    `editorial/rueckgabe-<id>-<datum>.yml` (Schema `findings`): eindeutig mit `alt`/`neu`; hat sich die Stelle seither
    geändert, mit `frage` und allen Fassungen, nie blind. Kommentare werden Befunde mit `frage`. Änderungsnachverfolgung
    wird nie still angenommen: Sie ist Teil des Vergleichs und wird als Befund zur Entscheidung vorgelegt.
+3a. Aufbau-Änderungen (#209): neue, gelöschte, verschobene und umbenannte Abschnitte werden nicht als Befunde, sondern eigens in
+   `rueckgabe.yml` (`aufbau`) aufgeführt; `aufbau <ordner> --apply … --confirm` übernimmt ausgewählte nach ausdrücklicher
+   Bestätigung und bei beendetem Checkout (über `scripts/sections.py`).
 4. `rueckgabe.yml` im Ablageordner: erkannte Seiten und Zuordnung, Zahl der Anmerkungen, `unbekannt`, offene Fragen.
    Handschrift abschreiben und Korrekturzeichen deuten macht der Assistent nach START.md (nie raten) und trägt die
    Befunde in die Befunddatei ein; ab dort gilt die Kette `hinweise.py collect` → Stufen (#570) → `plan`/`apply`.
@@ -197,7 +201,7 @@ def read_docx(path, scope=None):
         head = re.match(r'^(\d+)\.(\d+)\s+(.+)$', text)
         sec = next((mapping[n] for n in names if n in mapping), None)
         how = 'textmarke' if sec else None
-        if not sec and level and int(level.group(1)) == 2 and text and (scope is not None or head):
+        if not sec and level and int(level.group(1)) == 2 and text and (head or norm(text).casefold() not in NOT_SECTIONS):
             if head:
                 number, title = f'{head.group(1)}.{head.group(2)}', head.group(3).strip()
                 hit = (scope or {}).get(number)
@@ -234,6 +238,7 @@ def read_docx(path, scope=None):
     return out, found, {'eingefuegt': ins, 'geloescht': dele}, props, order
 
 
+NOT_SECTIONS = ('quellen', 'literatur', 'quellenverzeichnis', 'anmerkungen', 'fußnoten')   # Überschriften 2. Ebene ohne Abschnitt
 STATUS_NOTE = re.compile(r'^Stand: .*nicht abgeschlossen$')
 
 
@@ -326,6 +331,95 @@ def _three(old, new, today):
     if old and today is not None and old not in today:
         text += ' · Die Stelle hat sich seit dem Checkout geändert; heutiger Stand prüfen.'
     return text + ' Welche Fassung gilt?'
+
+
+# ---------- Aufbau (#209) ----------
+
+def baseline_structure(base, commit):
+    """[(Abschnitts-ID, Titel, Kapitelnummer)] der Gliederung beim Checkout (`ghostwriter.yml` im Ausgangscommit) oder None."""
+    r = subprocess.run(['git', '-C', str(base), 'show', f'{commit}:ghostwriter.yml'], capture_output=True, text=True)
+    if r.returncode:
+        return None
+    try:
+        data = yaml.safe_load(r.stdout) or {}
+        return [(sec['id'], sec['title'], ci) for ci, ch in enumerate(data['structure']['chapters'], start=1) for sec in ch['sections']]
+    except (yaml.YAMLError, KeyError, TypeError):
+        return None
+
+
+def _lis(values):
+    """Indizes einer längsten aufsteigenden Teilfolge (Abschnitte, die ihre Reihenfolge behalten)."""
+    best, prev = [], []
+    for i, v in enumerate(values):
+        best.append(1)
+        prev.append(-1)
+        for j in range(i):
+            if values[j] < v and best[j] + 1 > best[i]:
+                best[i], prev[i] = best[j] + 1, j
+    if not values:
+        return set()
+    i = max(range(len(values)), key=lambda k: best[k])
+    keep = set()
+    while i >= 0:
+        keep.add(i)
+        i = prev[i]
+    return keep
+
+
+def detect_aufbau(scope_ids, base_struct, structure):
+    """Aufbau-Änderungen der Rückgabe (#209): neue, gelöschte, verschobene und umbenannte Abschnitte.
+
+    `scope_ids` = Abschnitte des Checkouts, `base_struct` = Gliederung beim Checkout, `structure` = Abschnitte der DOCX in
+    Dokumentreihenfolge (`read_docx`). Ein Abschnitt, der im Dokument fehlt, gilt nur dann als gelöscht, wenn das Dokument
+    sonst Abschnitte des Checkouts enthält (eine leere oder nicht erkannte Datei löscht nichts). Jeder Eintrag ist ein
+    Vorschlag; übernommen wird er nur nach eigener Bestätigung."""
+    out = []
+    if base_struct is None:
+        return out
+    base = {sid: (title, ch) for sid, title, ch in base_struct if sid in scope_ids}
+    base_order = [sid for sid, _, _ in base_struct if sid in base]
+    recognized = [e for e in structure if e['sid'] in base]
+    prev_sid = None
+    for e in structure:
+        if e['sid'] is None:
+            out.append({'art': 'neu', 'titel': e['titel'], 'kapitel': e['kapitel'], 'hinter': prev_sid,
+                        'absaetze': len(e['absaetze']), 'text': list(e['absaetze'])})
+        prev_sid = e['sid'] or prev_sid
+    if recognized:
+        seen = {e['sid'] for e in recognized}
+        for sid in base_order:
+            if sid not in seen:
+                out.append({'art': 'geloescht', 'abschnitt': sid, 'titel': base[sid][0], 'kapitel': base[sid][1]})
+        order = [base_order.index(e['sid']) for e in recognized]
+        keep = _lis(order)
+        for k, e in enumerate(recognized):
+            moved_chapter = e['kapitel'] and e['kapitel'] != base[e['sid']][1]
+            if k not in keep or moved_chapter:
+                before = next((r['sid'] for r in reversed(recognized[:k]) if r['kapitel'] == e['kapitel']), None)
+                out.append({'art': 'verschoben', 'abschnitt': e['sid'], 'titel': base[e['sid']][0], 'kapitel': e['kapitel'] or base[e['sid']][1],
+                            'von_kapitel': base[e['sid']][1], 'hinter': before})
+        for e in recognized:
+            if e['nummer'] and norm(e['titel']).casefold() != norm(base[e['sid']][0]).casefold():
+                out.append({'art': 'umbenannt', 'abschnitt': e['sid'], 'alt': base[e['sid']][0], 'neu': e['titel']})
+    for i, item in enumerate(out, start=1):
+        item['id'] = f'a-{i:03d}'
+        item['status'] = 'offen'
+    return out
+
+
+def aufbau_text(item, numbers):
+    """Eine Zeile je Aufbau-Änderung für Bericht und Chat; `numbers` = {Abschnitts-ID: „N.M“}."""
+    n = numbers.get(item.get('abschnitt'), '')
+    art = item['art']
+    if art == 'neu':
+        after = f' nach {numbers.get(item["hinter"], "?")}' if item.get('hinter') else ' am Anfang'
+        return f'neuer Abschnitt „{item["titel"]}“ in Kapitel {item["kapitel"] or "?"}{after} ({item["absaetze"]} Absätze)'
+    if art == 'geloescht':
+        return f'Abschnitt {n} „{item["titel"]}“ fehlt in der Rückgabe (gelöscht?)'
+    if art == 'verschoben':
+        after = f'nach {numbers.get(item["hinter"], "?")}' if item.get('hinter') else 'an den Anfang'
+        return f'Abschnitt {n} „{item["titel"]}“ verschoben: in Kapitel {item["kapitel"]} {after}'
+    return f'Abschnitt {n} umbenannt: „{item["alt"]}“ → „{item["neu"]}“'
 
 
 # ---------- Ablage ----------
@@ -464,6 +558,8 @@ def checkin(base, config, files, checkout_id=None, date=None, repo=None):
                                                   if 'textmarke' not in how else 'teils über die Überschriften zugeordnet')
             known = {s for s in (entry.get('abschnitte') or {})}
             for sid, theirs in sections.items():
+                if sid.startswith('neu:'):
+                    continue                                   # neuer Abschnitt: steht unter `aufbau`
                 if sid not in known:
                     unknown.append({'abschnitt': sid, 'grund': 'nicht Teil des Checkouts'})
                     continue
@@ -475,6 +571,8 @@ def checkin(base, config, files, checkout_id=None, date=None, repo=None):
                 today = checks.manuscript(base, config, sid) or ''
                 for it in compare_section(sid, ours, theirs, today):
                     items.append({**it, 'abschnitt': sid, 'quelle': f'{report["dateien"][0]}#{sid}', 'gegenleser': entry.get('gegenleser', '')})
+            base_struct = baseline_structure(base, entry.get('commit', '')) if entry.get('commit') else None
+            report['aufbau'] = detect_aufbau(set(entry.get('abschnitte') or {}), base_struct, structure)
             for sid, author, text, anchor in comments:
                 if sid in known:
                     items.append({'abschnitt': sid, 'art': 'aufbau', 'befund': f'Kommentar von {author or "Gegenleser"}: {text}'[:400],
@@ -690,6 +788,80 @@ def note(base, config, folder, seite, text, abschnitt=None, alt=None, neu=None, 
     return item
 
 
+def _numbers(config):
+    return {sec['id']: f'{ci}.{si}' for ci, ch in enumerate(config['structure']['chapters'], start=1)
+            for si, sec in enumerate(ch['sections'], start=1)}
+
+
+def aufbau_list(base, config, folder):
+    """Aufbau-Änderungen einer Rückgabe (#209) als Zeilen: (ID, Status, Text)."""
+    report = yaml.safe_load((Path(base) / folder / 'rueckgabe.yml').read_text(encoding='utf-8')) or {}
+    numbers = _numbers(config)
+    return [(a['id'], a.get('status', 'offen'), aufbau_text(a, numbers) + (f' – {a["grund"]}' if a.get('grund') else ''))
+            for a in report.get('aufbau') or []]
+
+
+def aufbau_apply(base, config, folder, ids, confirm=False):
+    """Ausgewählte Aufbau-Änderungen übernehmen (#209), jede nur nach eigener Bestätigung (`confirm`). Voraussetzung: Der
+    Checkout ist beendet (wie bei den Befunden). Abgeschlossene Abschnitte und Kapitel bleiben geschützt: umbenennen und
+    umstellen im Kapitel ändern den Text nicht und gehen auch bei einem abgeschlossenen Abschnitt, Löschen und Verschieben in
+    ein anderes Kapitel erst nach der Rücknahme der Freigabe. Nie ohne `confirm`. → [(ID, Ergebnis)]"""
+    import sections
+    base, folder = Path(base), Path(folder)
+    if not confirm:
+        raise ValueError('Ohne ausdrückliche Bestätigung wird nichts übernommen (--confirm)')
+    path = (folder if folder.is_absolute() else base / folder) / 'rueckgabe.yml'
+    report = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+    entry = next(e for e in co.load(base)['checkouts'] if e['id'] == report['kennung'])
+    if entry['status'] == 'ausgecheckt':
+        raise ValueError(f'Checkout {entry["id"]} läuft noch: erst ausdrücklich beenden (checkout.py end), dann übernehmen')
+    items = {a['id']: a for a in report.get('aufbau') or []}
+    wanted = [items[i] for i in ids if i in items]
+    unknown = [i for i in ids if i not in items]
+    if unknown:
+        raise ValueError(f'Unbekannte Aufbau-Änderung: {", ".join(unknown)}')
+    order = {'umbenannt': 0, 'neu': 1, 'verschoben': 2, 'geloescht': 3}
+    results = []
+    for a in sorted(wanted, key=lambda x: order[x['art']]):
+        if a.get('status') == 'uebernommen':
+            results.append((a['id'], 'schon übernommen'))
+            continue
+        try:
+            from render_view import load
+            cfg = load(base)[1]
+            if a['art'] == 'umbenannt':
+                msg = sections.cmd_rename(base, a['abschnitt'], a['neu'])
+            elif a['art'] == 'neu':
+                if not a.get('kapitel'):
+                    raise ValueError('Kapitel des neuen Abschnitts unbekannt')
+                chapter = cfg['structure']['chapters'][int(a['kapitel']) - 1]
+                pos = 1
+                if a.get('hinter'):
+                    ids_in = [x['id'] for x in chapter['sections']]
+                    pos = ids_in.index(a['hinter']) + 2 if a['hinter'] in ids_in else len(ids_in) + 1
+                msg = sections.cmd_add(base, chapter['id'], a['titel'], pos, a.get('text'))
+            elif a['art'] == 'verschoben':
+                chapter = cfg['structure']['chapters'][int(a['kapitel']) - 1]
+                current = next(c for c in cfg['structure']['chapters'] if any(x['id'] == a['abschnitt'] for x in c['sections']))
+                if current['id'] == chapter['id']:
+                    msg = sections.cmd_reorder(base, a['abschnitt'], a.get('hinter'))
+                else:
+                    ids_in = [x['id'] for x in chapter['sections']]
+                    pos = (ids_in.index(a['hinter']) + 2) if a.get('hinter') in ids_in else 1
+                    msg = sections.cmd_move(base, a['abschnitt'], chapter['id'], pos)
+            else:
+                msg = sections.cmd_remove(base, a['abschnitt'], confirm=True)
+            a['status'] = 'uebernommen'
+            results.append((a['id'], msg.strip().splitlines()[0]))
+        except (SystemExit, ValueError, KeyError, IndexError) as exc:
+            a['status'] = 'nicht-moeglich'
+            a['grund'] = str(exc)[:200]
+            results.append((a['id'], f'nicht möglich: {exc}'))
+    report['aufbau'] = list(items.values())
+    path.write_text(yaml.safe_dump(report, allow_unicode=True, sort_keys=False), encoding='utf-8')
+    return results
+
+
 def summary(report):
     lines = [f'{report["kennung"]}: {report["art"]}-Rückgabe eingecheckt ({report["datum"]})']
     if report.get('spaet'):
@@ -698,6 +870,8 @@ def summary(report):
         ok = sum(1 for p in report['seiten'] if p['zuordnung'] == 'qr')
         lines.append(f'{len(report["seiten"])} Seiten, {ok} über den QR-Code zugeordnet, {len(report["seiten"]) - ok} unbekannt')
     lines.append(f'{report["befunde"]} Befunde, {report["kommentare"]} Kommentare/Anmerkungen')
+    if report.get('aufbau'):
+        lines.append(f'{len(report["aufbau"])} Aufbau-Änderungen zur eigenen Bestätigung (checkin.py <buch> aufbau <ordner>)')
     for key in ('programm', 'vergleich', 'zuordnung_abschnitte'):
         if report.get(key):
             lines.append(f'{key.capitalize()}: {report[key]}')
@@ -711,6 +885,27 @@ def summary(report):
 
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
+    if len(argv) > 1 and argv[1] == 'aufbau':
+        ap2 = argparse.ArgumentParser(prog='checkin.py <buch> aufbau', description='Aufbau-Änderungen einer Rückgabe (#209)')
+        ap2.add_argument('project')
+        ap2.add_argument('cmd')
+        ap2.add_argument('folder')
+        ap2.add_argument('--apply', help='IDs, durch Komma getrennt (a-001,a-003); nur mit --confirm')
+        ap2.add_argument('--confirm', action='store_true', help='ausdrückliche Bestätigung des Benutzers')
+        a = ap2.parse_args(argv)
+        from render_view import load
+        base, config = load(a.project)
+        try:
+            if a.apply:
+                for aid, text in aufbau_apply(base, config, a.folder, [x.strip() for x in a.apply.split(',') if x.strip()], a.confirm):
+                    print(f'{aid}: {text}')
+            else:
+                rows = aufbau_list(base, config, a.folder)
+                print('\n'.join(f'{i} [{st}] {t}' for i, st, t in rows) or 'Keine Aufbau-Änderungen.')
+        except (ValueError, OSError) as exc:
+            print(exc, file=sys.stderr)
+            return 1
+        return 0
     if len(argv) > 1 and argv[1] == 'note':
         np = argparse.ArgumentParser(prog='checkin.py <buch> note', description='Abgeschriebene Randnotiz eintragen (#573)')
         np.add_argument('project')
