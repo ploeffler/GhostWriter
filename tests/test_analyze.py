@@ -201,6 +201,47 @@ class AnalyzeTest(unittest.TestCase):
         self.assertEqual(validate_project.check_project(self.base), [])
         self.assertIsNone(analyze.latest(self.base, 'style'))
 
+    def test_glossary_terms(self):
+        """#490: Begriffe nur mit Fundstelle, Erklärung nur mit eigener Fundstelle, Übernahme einzeln, Vorhandenes bleibt."""
+        _, config = load(self.base)
+        sec = config['structure']['chapters'][0]['sections'][0]
+        t11 = section_file(self.base, sec)[3]
+        w1, w2 = re.findall(r'[A-ZÄÖÜ][a-zäöüß]{5,}', t11)[:2]
+        q = lambda w: next(x for x in re.split(r'(?<=[.!?])\s+', t11) if w in x)
+        data = json.loads(self.fake.read_text(encoding='utf-8'))
+        data['glossary'] = {'extract': {sec['id']: {'items': [
+            {'term': w1, 'explanation': 'Erklärt im Text.', 'evidence': [{'field': 'term', 'where': '1.1', 'quote': w1},
+                                                                       {'field': 'explanation', 'where': '1.1', 'quote': w1}]},
+            {'term': w2, 'explanation': 'Ohne eigene Fundstelle.', 'evidence': [{'field': 'term', 'where': '1.1', 'quote': w2}]},
+            {'term': 'Atlantis', 'evidence': [{'where': '1.1', 'quote': 'Atlantis liegt am Meer'}]}]}}}
+        self.fake.write_text(json.dumps(data), encoding='utf-8')
+        subprocess.run([sys.executable, str(ROOT / 'scripts/matter.py'), str(self.base), 'add', 'glossary'], check=True,
+                       capture_output=True)
+        analyze.run(self.base, 'glossary', now='2026-11-04T01:00:00+01:00')
+        res = json.loads((self.base / 'analysis/glossary/run-001.json').read_text(encoding='utf-8'))
+        by = {i['term']: i for i in res['items']}
+        self.assertEqual(sorted(by), sorted({w1, w2}))                       # Atlantis ohne Fundstelle
+        self.assertEqual(by[w1]['explanation'], 'Erklärt im Text.')
+        self.assertNotIn('explanation', by[w2])                             # Erklärung ohne eigene Fundstelle
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
+                              '--draft', 'analysis/glossary/run-001.json', '--text'], capture_output=True, text=True, check=True).stdout
+        self.assertIn(w1, out)
+        i1 = [i['term'] for i in res['items']].index(w1)
+        i2 = 1 - i1
+        done = analyze.apply(self.base, 'run-001', 'glossary', [{'index': i1}, {'index': i2}])   # w2 ohne Erklärung: übersprungen
+        self.assertTrue(done)
+        entries = analyze.glossary_known(self.base)
+        self.assertEqual(list(entries.values()), [w1])
+        analyze.apply(self.base, 'run-001', 'glossary', [{'index': i1, 'explanation': 'Anders.'}, {'index': i2, 'explanation': 'Selbst geschrieben.'}])
+        from render_view import glossary_entries
+        _, config = load(self.base)
+        item = next(i for _, i in __import__('render_view').matter_items(config) if i['kind'] == 'glossary')
+        got = dict(glossary_entries(section_file(self.base, item)[3])[1])
+        self.assertEqual(got[w1], 'Erklärt im Text.')                       # vorhandener Eintrag bleibt
+        self.assertEqual(got[w2], 'Selbst geschrieben.')
+        # das Glossar selbst wird nicht gelesen
+        self.assertTrue(all(not k.startswith(item['id']) for k, _, _ in analyze.glossary_blocks(self.base, config)))
+
     def test_places_timeline(self):
         _, config = load(self.base)
         chs = config['structure']['chapters']

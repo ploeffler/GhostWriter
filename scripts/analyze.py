@@ -17,6 +17,9 @@ Arten (`--kind`, Vorgabe characters; mehrere mit Komma):
               Zahlen ohne KI (Wörter je Satz, Anteil wörtlicher Rede); übernommen nach ghostwriter.yml (`style`)
   places      Schauplätze mit Art, Beschreibung und Abschnitten; andere Bezeichnungen desselben Orts über
               merge_model; übernommen nach story/places.yml
+  glossary    Glossar-Begriffe (#490): Fachwörter, Abkürzungen und Bezeichnungen, die der Text nennt, mit Erklärung nur,
+              wenn der Text sie selbst gibt (wörtliche Fundstelle); Vorgabe aus, jeder Begriff wird einzeln gewählt
+              und über scripts/matter.py ins Glossar übernommen, vorhandene Einträge bleiben
   timeline    Zeitleiste: Ereignisse je Abschnitt mit Zeitangabe aus dem Text; Zeitsprünge, Widersprüche und
               Unklares als Hinweisliste (merge_model, nur Verweise auf geprüfte Ereignisse); übernommen nach
               story/timeline.yml
@@ -152,6 +155,17 @@ Regeln:
 - Jede Angabe braucht eine Fundstelle: evidence = [{"field": "name|kind|short", "where": "<Abschnitt, z. B. 1.2>",
   """ + QUOTE_RULE + """}].
 Antworte nur mit JSON: {"items": [{"name": "", "aliases": [], "kind": "", "short": "", "sections": [], "evidence": []}]}"""
+
+GLOSSARY_SYSTEM = """Du liest einen Ausschnitt eines Buchs und nennst Begriffe, die ein Glossar erklären sollte: Fachwörter, seltene
+oder erfundene Wörter, Abkürzungen, Titel und Bezeichnungen, die der Text selbst nennt.
+Regeln:
+- Nur Begriffe, die im Text wörtlich vorkommen. Nichts erfinden, nichts aus Weltwissen ergänzen.
+- Keine Figuren- und Ortsnamen, keine gewöhnlichen Wörter.
+- "explanation": nur, wenn der Text den Begriff selbst erklärt oder beschreibt; ein Satz in eigenen Worten. Sonst leer.
+  Eine Erklärung braucht eine Fundstelle mit field "explanation".
+- Jede Angabe braucht eine Fundstelle: evidence = [{"field": "term|explanation", "where": "<Abschnitt, z. B. 1.2>",
+  """ + QUOTE_RULE + """}].
+Antworte nur mit JSON: {"items": [{"term": "", "explanation": "", "sections": [], "evidence": []}]}"""
 
 PLACES_MERGE_SYSTEM = """Du bekommst Schauplätze, die in verschiedenen Kapiteln eines Buchs gefunden wurden, je mit Namen,
 anderen Namen und einem Satz. Gib an, welche Einträge derselbe Ort sind (z. B. "das Haus am See" und "Seehaus"). Nur
@@ -867,6 +881,84 @@ def places_combine(base, config, results, todo, prev, ask):
     return {'items': items, 'groups': groups}, body
 
 
+# Glossar-Begriffe (#490): Begriffe mit Erklärung nur aus dem Text, ohne Zusammenführung durch die KI
+
+def verify_glossary(answer, texts):
+    """Begriffe: nur mit wörtlicher Fundstelle, in der der Begriff steht; die Erklärung nur mit eigener Fundstelle
+    (field explanation). → (begriffe, verworfen)"""
+    ntexts = {k: norm(v) for k, v in texts.items()}
+    out, dropped = [], 0
+    for it in (answer or {}).get('items') or []:
+        term = ' '.join(str(it.get('term') or '').split())
+        if not term or ':' in term:
+            continue
+        ok = []
+        for e in it.get('evidence') or []:
+            h = check_quote(e, ntexts)
+            if h:
+                h['field'] = 'explanation' if h['field'] == 'explanation' else 'term'
+                ok.append(h)
+            else:
+                dropped += 1
+        if not any(norm(term) in ntexts[e['where']] for e in ok):
+            dropped += 1
+            continue
+        clean = {'term': term, 'evidence': ok[:4]}
+        expl = ' '.join(str(it.get('explanation') or '').split())
+        if expl and any(e['field'] == 'explanation' for e in ok):
+            clean['explanation'] = expl
+        elif expl:
+            dropped += 1
+        clean['sections'] = [k for k in dict.fromkeys(e['where'] for e in ok) if norm(term) in ntexts[k]]
+        out.append(clean)
+    return out, dropped
+
+
+def glossary_blocks(base, config, scope=None, matter=True, split=True):
+    """Blöcke ohne das Glossar selbst: seine Einträge wären sonst alle „schon im Glossar“."""
+    own = {i['id'] for _, i in matter_items(config) if i['kind'] == 'glossary'}
+    for key, title, texts in blocks(base, config, scope, matter, split):
+        if key.split('--part-')[0] not in own:
+            yield key, title, texts
+
+
+def glossary_known(base):
+    """{normalisierter Begriff: Begriff} der Einträge im vorhandenen Glossar."""
+    from render_view import glossary_entries
+    config = yaml.safe_load((Path(base) / 'ghostwriter.yml').read_text(encoding='utf-8')) or {}
+    for _, item in matter_items(config):
+        if item['kind'] == 'glossary':
+            ms = section_file(Path(base), item)[3]
+            return {norm(t): t for t, _ in glossary_entries('' if ms == 'Noch nicht begonnen.' else ms)[1]}
+    return {}
+
+
+def glossary_combine(base, config, results, todo, prev, ask):
+    """Begriffe aller Blöcke nach Namen zusammen (ohne KI); schon im Glossar stehende Begriffe sind markiert.
+    → (vorschläge, md)"""
+    known = glossary_known(base)
+    merged = {}
+    for k in results:
+        for it in results[k]:
+            m = merged.setdefault(norm(it['term']), {'term': it['term'], 'sections': [], 'evidence': []})
+            if it.get('explanation') and not m.get('explanation'):
+                m['explanation'] = it['explanation']
+            m['sections'] += [s for s in it['sections'] if s not in m['sections']]
+            m['evidence'] += it['evidence']
+    items = []
+    for key, m in merged.items():
+        m['evidence'] = m['evidence'][:6]
+        if key in known:
+            m['existing'] = known[key]
+        items.append(m)
+    items.sort(key=lambda x: (-len(x['sections']), x['term'].casefold()))
+    body = ['## Vorschläge', '']
+    body += [f'- **{it["term"]}**' + (f': {it["explanation"]}' if it.get('explanation') else '')
+             + (f' – {", ".join(it["sections"])}' if it['sections'] else '') + (' (steht schon im Glossar)' if it.get('existing') else '')
+             for it in items] or ['*keine*']
+    return {'items': items}, body
+
+
 # Zeitleiste (#124): Ereignisse je Abschnitt, Auffälligkeiten über das ganze Buch
 
 def verify_timeline(answer, texts):
@@ -1569,6 +1661,9 @@ KINDS = {
     'places': {'label': 'Schauplätze', 'offer': 'Schauplätze', 'icon': 'map-pin', 'system': PLACES_SYSTEM, 'context': None,
                'verify': verify_places, 'combine': places_combine, 'matter': True, 'output_tokens': 1000,
                'merge_tokens': (1500, 300), 'merge': True},
+    'glossary': {'label': 'Glossar-Begriffe', 'offer': 'Glossar-Begriffe', 'icon': 'book-2', 'system': GLOSSARY_SYSTEM,
+                 'context': None, 'blocks': glossary_blocks, 'verify': verify_glossary, 'combine': glossary_combine, 'matter': True,
+                 'output_tokens': 1000, 'merge_tokens': (0, 0), 'merge': False},
     'timeline': {'label': 'Zeitleiste', 'offer': 'Zeitleiste', 'icon': 'timeline', 'system': TIMELINE_SYSTEM, 'context': None,
                  'verify': verify_timeline, 'combine': timeline_combine, 'matter': True, 'output_tokens': 1500,
                  'merge_tokens': (3000, 800), 'merge': True},
@@ -1985,6 +2080,25 @@ def apply_places(base, config, data, choices):
     return [str(path.relative_to(base))]
 
 
+def apply_glossary(base, config, data, choices):
+    """Glossar-Begriffe (#490): nur die gewählten Einträge, einzeln über matter.glossary_set. choices:
+    [{index, term?, explanation?}]. Ein vorhandener Begriff wird nie überschrieben; ohne Erklärung wird nichts angelegt.
+    → [geänderte Dateien]"""
+    import matter
+    items = data.get('items') or []
+    known = glossary_known(base)
+    item = None
+    for c in choices:
+        it = items[int(c['index'])]
+        term = ' '.join(str(c.get('term') or it['term']).split())
+        expl = ' '.join(str(c.get('explanation') or it.get('explanation') or '').split())
+        if norm(term) in known or not expl:
+            continue
+        item = matter.glossary_set(Path(base), term, expl, new=True)
+        known[norm(term)] = term
+    return [item['path']] if item else []
+
+
 def apply_timeline(base, config, data, choices):
     """Zeitleiste nach story/timeline.yml: gewählte Ereignisse (choices [{index, when?, what?}]) und Auffälligkeiten
     ({issue, text?}); ersetzt die bisherige Zeitleiste der betroffenen Abschnitte nicht, sondern ergänzt sie
@@ -2117,7 +2231,7 @@ def apply_language(base, config, data, choices):
     return [str(path.relative_to(base))]
 
 
-APPLY = {'summaries': apply_summaries, 'style': apply_style, 'places': apply_places, 'timeline': apply_timeline,
+APPLY = {'summaries': apply_summaries, 'style': apply_style, 'places': apply_places, 'glossary': apply_glossary, 'timeline': apply_timeline,
          'chronology': apply_chronology,
          'continuity': apply_continuity, 'language': apply_language}
 
