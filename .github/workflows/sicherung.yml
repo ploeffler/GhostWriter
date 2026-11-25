@@ -1,0 +1,70 @@
+name: Gesamtsicherung
+
+# #489: das ganze Repository als eine ZIP-Datei (Lesefassung je Buch, vollständiges Git als Bundle,
+# GitHub-Einstellungen ohne Secret-Werte, Issues und Pull Requests). Nur von Hand gestartet
+# (Actions → Gesamtsicherung → Run workflow); das Ergebnis ist ein privates Workflow-Artefakt
+# (nur für Personen mit Zugriff auf das Repository), nie ein Release und nie öffentlich.
+# Eine automatische Wiederholung (z. B. monatlich) und Verschlüsselung gibt es in dieser Fassung nicht.
+on:
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: 'Tage, die das Artefakt aufbewahrt wird (1 bis 90)'
+        required: false
+        default: '14'
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
+
+concurrency:
+  group: sicherung
+  cancel-in-progress: false
+
+jobs:
+  sicherung:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # alle Branches und die ganze Historie
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Werkzeuge
+        run: |
+          pip install -q pyyaml
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends pandoc texlive-xetex texlive-latex-recommended \
+            texlive-latex-extra texlive-lang-german texlive-fonts-recommended fonts-texgyre lmodern poppler-utils qpdf >/dev/null
+
+      - name: Sicherung erstellen und prüfen
+        env:
+          GH_TOKEN: ${{ secrets.GHOSTWRITER_UPDATE_TOKEN || github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p sicherung-out
+          python scripts/sicherung.py erstellen . -o "sicherung-out/GhostWriter-Sicherung.zip" --repo "$REPO"
+          python scripts/sicherung.py pruefen sicherung-out/GhostWriter-Sicherung.zip
+
+      - name: Als privates Artefakt ablegen
+        env:
+          DAYS: ${{ inputs.retention_days }}
+        run: |
+          case "$DAYS" in ''|*[!0-9]*) DAYS=14;; esac
+          [ "$DAYS" -ge 1 ] && [ "$DAYS" -le 90 ] || DAYS=14
+          echo "RETENTION=$DAYS" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GhostWriter-Sicherung
+          path: sicherung-out/GhostWriter-Sicherung.zip
+          retention-days: ${{ env.RETENTION }}
+          if-no-files-found: error

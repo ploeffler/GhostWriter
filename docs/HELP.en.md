@@ -14,6 +14,7 @@ Enter **Help** in the chat for a short list of commands and shortcuts for the cu
 | `Chapter 2` or `Section 2.3` | Open that location |
 | `New book: My title` | Open the new-book form |
 | `New chapter` | Open the new-chapter form |
+| `Sicherung erstellen` | Full backup of the repository as a ZIP file: reading version, complete Git, GitHub settings without secret values ([Full backup](FULL-BACKUP.en.md)) |
 | `Save session` | Preserve conversation work in a pull request |
 | `Session sichern`, `Chat sichern`, `Chat speichern` | German aliases for saving a session |
 | `Load session` | Read the backup to resume work; do not merge |

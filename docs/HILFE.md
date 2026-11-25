@@ -14,6 +14,7 @@ Schicke **Hilfe** im Chat. Du erhältst eine kurze Befehlsübersicht und die Kü
 | `Kapitel 2` oder `Abschnitt 2.3` | Gewünschte Stelle öffnen |
 | `Neues Buch: Mein Titel` | Formular für ein neues Buch öffnen |
 | `Neues Kapitel` | Formular für ein neues Kapitel öffnen |
+| `Sicherung erstellen` | Gesamtsicherung des Repositorys als ZIP-Datei: Lesefassung, vollständiges Git, GitHub-Einstellungen ohne Secret-Werte ([Gesamtsicherung](GESAMTSICHERUNG.md)) |
 | `Session sichern` | Gesprächsarbeit dauerhaft in einem Änderungspaket sichern |
 | `Chat sichern` oder `Chat speichern` | Dasselbe wie „Session sichern“ |
 | `Session laden` | Gesicherten Gesprächsstand zum Weiterarbeiten laden; nichts übernehmen |
