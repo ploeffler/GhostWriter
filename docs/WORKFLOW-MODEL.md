@@ -125,39 +125,67 @@ Die [Beschlüsse D01–D32](ENTSCHEIDUNGEN-v1.0.md) ersetzen widersprechende äl
 
 ### Buchübersetzung (geplant)
 
-**Bestätigte Anforderungen vom 07.11.2026 zu #75; Umsetzung weiterhin für
-v1.5 geplant.** Eine Übersetzung darf ausschließlich von einer bestehenden
-**Auflage** ausgehen. Deren feststehender Buchstand ist die verbindliche
-Quelle; ein laufender Arbeitsstand ist keine zulässige Übersetzungsbasis.
+**Planungsstand 25.11.2026 zu [#75](https://github.com/ploeffler/GhostWriter/issues/75)
+(bestätigte Anforderungen vom 07.11.2026, ergänzt und teilweise geändert);
+Umsetzung weiterhin für v1.5 geplant.** Eine Übersetzung darf ausschließlich
+von einer bestehenden **Auflage** ausgehen. Deren feststehender Buchstand ist
+die verbindliche Quelle; ein laufender Arbeitsstand ist keine zulässige
+Übersetzungsbasis.
 
-- **Ein Auftrag, ein Abschnitt:** Die Übersetzung ist pro Abschnitt im Chat
-  abarbeitbar, kein einzelner Großauftrag für das ganze Buch. Sie lässt sich
-  nach einem Abschnitt unterbrechen und später anhand des gespeicherten
-  Fortschritts fortsetzen.
-- **Im vorhandenen KI-Chat:** Der gewählte Chat-Dienst, beispielsweise Claude
-  oder GPT, führt den Abschnittsauftrag aus. Dafür ist keine zusätzliche
-  Übersetzungs-API erforderlich. Ein anderer Chat wird über Auftrag und
-  Ergebnisrückgabe eingebunden; kein stiller Anbieterwechsel.
-- **Kein Hintergrundlauf:** Der zuvor erwogene Übersetzungslauf über GitHub
-  Actions ist durch die abschnittsweise Bearbeitung im Chat ersetzt. Allgemeine
-  Pläne für zeitgesteuerte KI-Läufe bleiben davon unabhängig.
-- **Gemeinsamer Kontext:** Jeder Auftrag erhält neben dem Originalabschnitt
-  den erforderlichen Buch- und Kapitelkontext sowie einheitliche Vorgaben für
-  Zielsprache, Erzählstimme, Namen und Terminologie.
-- **Prüfung und Fortschritt:** Original und Übersetzung getrennt erhalten;
-  Ausgangsauflage, Abschnitt, Zielsprache, verwendeten Dienst und Bearbeitungs-
-  und Prüfstand nachvollziehbar zuordnen. Übersetzung prüfen und überarbeiten,
-  bevor sie zur eigenen Freigabe vorgelegt wird. Eine erzeugte Übersetzung
-  erhält keine automatische Freigabe. Vor Abschluss den vollständigen
-  betroffenen Zusammenhang gemäß den Qualitätsregeln prüfen.
-- **Sprachauflagen:** Die neue Sprachfassung bekommt ihre eigene Freigabe und
+- **Eigener Buch-Branch je Sprachfassung:** z. B. `buch/<kurztitel>-en`, mit
+  Verweis auf Original-Branch und Ausgangsauflage. Freigaben, Prüfungen,
+  Hinweisdurchsicht, Auflagen und Bücherregal funktionieren wie bei jedem
+  Buch; das Bücherregal zeigt die Sprachfassungen beim Original. Je Abschnitt
+  bleiben Ausgangsauflage, Fingerabdruck des Originals, Dienst und Modell
+  sowie Bearbeitungs- und Prüfstand nachvollziehbar.
+- **Ein Auftrag, ein Abschnitt:** Kein einzelner Großauftrag für das ganze
+  Buch. Die Übersetzung lässt sich nach einem Abschnitt unterbrechen und
+  später anhand des gespeicherten Fortschritts fortsetzen.
+- **Im Chat oder in der Warteschlange:** Vorgabe ist der vorhandene KI-Chat
+  (beispielsweise Claude oder GPT), ohne zusätzliche Übersetzungs-API und
+  ohne Schlüssel. Wahlweise lassen sich mehrere Abschnitte als Aufträge der
+  Art `translation` in die
+  [Hintergrund-Warteschlange](https://github.com/ploeffler/GhostWriter/issues/476)
+  geben; das braucht einen eigenen KI-Schlüssel, Kosten und Limits gelten wie
+  bei anderen Aufträgen. Die Entscheidung vom 07.11.2026 „kein Hintergrundlauf“
+  ist damit aufgehoben, weil es die Warteschlange inzwischen gibt. Kein stiller
+  Anbieterwechsel.
+- **Begriffsliste vorab:** Vor dem ersten Abschnitt entsteht je Sprache eine
+  Liste der Namen, Orte, Fachbegriffe und der Entsprechung von Du und Sie,
+  vorgeschlagen aus Figuren, Orten und Glossar-Analyse und vom Autor
+  bestätigt. Jeder Auftrag hält sich daran; Abweichungen werden Befunde.
+- **Gemeinsamer Kontext und Stil:** Jeder Auftrag erhält neben dem
+  Originalabschnitt den nötigen Buch- und Kapitelkontext sowie die Vorgaben
+  zu Zielsprache, Erzählstimme und Begriffen. Der Stil ist je Sprachfassung
+  einstellbar: Vorgabe „nah am Original, natürlich in der Zielsprache“,
+  wahlweise freier (Redewendungen, Wortspiele angepasst). Dialekt und Mundart
+  entscheidet der Autor je Fall als Thema in der Hinweisdurchsicht
+  (Standardsprache, regionale Färbung in der Zielsprache oder Original
+  belassen); die Entscheidung gilt danach buchweit.
+- **Prüfung vor der Freigabe:** Abgleich mit dem Original (Vollständigkeit,
+  nichts ausgelassen oder hinzuerfunden, Namen, Begriffe, Zahlen,
+  Zeitangaben) und Sprachlektorat in der Zielsprache, beides als Befunde in
+  der bestehenden Hinweiskette; wahlweise externe Prüfung über Auschecken und
+  Einchecken an eine Übersetzerin, einen Übersetzer oder Muttersprachler. Eine
+  erzeugte Übersetzung erhält keine automatische Freigabe. Vor Abschluss den
+  vollständigen betroffenen Zusammenhang gemäß den Qualitätsregeln prüfen.
+- **Umfang:** Neben dem Text werden Titel und Untertitel (Vorschlag, Freigabe
+  durch den Autor), Vor- und Nachspann (Widmung, Danksagung, Glossar,
+  Impressum mit den rechtlichen Angaben je Sprache), Klappentext und Umschlag
+  sowie Bildunterschriften übersetzt.
+- **Neue Auflage des Originals:** Geänderte Abschnitte werden in der
+  Sprachfassung als „veraltet“ markiert, mit Unterschied zum Original, und
+  abschnittsweise nachgezogen.
+- **Sprachauflagen:** Die Sprachfassung bekommt ihre eigene Freigabe und
   Auflage. Eine spätere Originalauflage ersetzt weder die festgehaltene
   Übersetzungsbasis noch bereits freigegebene Übersetzungen automatisch.
 
-Die konkrete Datenstruktur, Speicherung und Bedienung sind noch auszuarbeiten.
-Diese Anforderungen sind keine bereits implementierte Übersetzungsfunktion.
-Die davon getrennte Anbindung eines integrierten KI-Chats in der eigenen App
-bleibt ein [offener Architekturpunkt](ARCHITECTURE.md#ki-anbindung-der-eigenen-app-planungsstand-07112026).
+Datenmodell (Verknüpfung von Sprach-Branch und Original, aus
+`project.translations_planned` angelegte Sprachfassungen) und Migration sind
+noch auszuarbeiten. Diese Anforderungen sind keine bereits implementierte
+Übersetzungsfunktion. Die davon getrennte Anbindung eines integrierten
+KI-Chats in der eigenen App bleibt ein
+[offener Architekturpunkt](ARCHITECTURE.md#ki-anbindung-der-eigenen-app-planungsstand-07112026).
 
 ### Git als Produktvorteil
 
