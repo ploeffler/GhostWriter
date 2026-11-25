@@ -112,9 +112,10 @@ wie Auftragsübergabe und Rückgabe funktionieren und wie Buchstand, Kontext,
 Fehler und Freigaben über diese Wege erhalten bleiben. Einen anderen Anbieter
 nicht stillschweigend anstelle des gewählten Dienstes verwenden.
 
-Die abschnittsweise Übersetzung soll zunächst im vorhandenen KI-Chat möglich
-sein, ohne zusätzliche Übersetzungs-API oder Hintergrundlauf. Die dafür
-bestätigten Regeln stehen im
+Die abschnittsweise Übersetzung soll im vorhandenen KI-Chat ohne zusätzliche
+Übersetzungs-API möglich sein; wahlweise über die Hintergrund-Warteschlange mit
+eigenem Schlüssel (Planungsstand 25.11.2026). Die dafür bestätigten Regeln
+stehen im
 [Workflow-Modell](WORKFLOW-MODEL.md#buchübersetzung-geplant).
 
 ## MVP-Grenze
