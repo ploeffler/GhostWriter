@@ -61,6 +61,17 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   Repository-Suche, sonst über den Branch mit dem Stand von `library.json`, zuletzt `main`. **Grenze:** Beim Angleichen und beim
   Übernehmen in die Serie bleibt die Datei `characters/<id>.md` im Buch liegen, weil die App keine Dateien löschen kann (sie wird
   nicht mehr benutzt). **Noch nicht in der App:** Teile von Vor- und Nachspann als Bereich, Vorschläge auf Ebene der Serie.
+- Abschnitt neu abschließen (#563): Weicht der Text eines abgeschlossenen Abschnitts vom Fingerabdruck der letzten Freigabe
+  ab, zeigt die Bestätigung „Geänderten Text neu abschließen“ (Wortzahl damals und jetzt) statt des Hindernisses
+  „bereits abgeschlossen“. Die Freigabe schreibt `revoked` und `granted` mit neuem `content_sha256` in einem Commit;
+  eine Veraltet-Marke des Abschnitts entfällt dabei.
+- Veraltet-Marke (#510, #592; Widgets ab UI 0.69.0): Die Marke „veraltet“ mit Grund steht in Projektübersicht, Kapitelansicht
+  und Abschnittsformular (`stale:` im Kopf der Abschnittsdatei wie `scripts/stale.py`). „Als veraltet markieren“ (mit Grund)
+  und „Markierung entfernen“ ändern nur den Kopf, ein Commit; Status, Freigabe und Text bleiben. `stale.list` zeigt die Liste.
+  **Noch nicht in der App:** Marken bei Teilen von Vor- und Nachspann.
+- Erneut versuchen (#554, #596): Fehlgeschlagene Aufträge der Warteschlange zeigen die Meldung des Skripts (bei „Modell
+  nicht mehr verfügbar“ mit dem Hinweis auf das Formular „KI-Dienste“). „Erneut versuchen“ entfernt `error` und `failed_at`;
+  derselbe Auftrag ist wieder offen, kein zweiter Auftrag, ein Commit.
 - Hinweisdurchsicht (#367): Karte „Hinweisdurchsicht“ in der Projektübersicht, Ansicht mit einer Karte je Eintrag
   aus `editorial/durchsicht-*.yml`. „Übernehmen“, „Nicht ändern“ und eigene Fassung speichern jede Antwort sofort
   als kleinen Nachtrag (nur die Zeilen des Eintrags ändern sich, die Datei wird danach gegengeprüft; schnelle
@@ -70,8 +81,14 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   (umgesetzt → `erledigt`, nein → `entschieden`), alles in einem Commit auf den Arbeits-Branch. Umgesetzt werden nur
   ✅-Einträge; abgeschlossene Kapitel und Abschnitte werden nie angefasst. Auslassungspunkte am Rand des alten Wortlauts werden wie in `hinweise.py` weggelassen, ein Wortlaut in einem anderen Abschnitt wird als ⚠️ mit der Stelle gemeldet (#522). Ändert eine frühere Umsetzung den Text eines
   späteren Eintrags in demselben Abschnitt, wird dieser übersprungen und gemeldet (das Skript bricht dort ab). Danach zeigt
-  die App die betroffenen Stellen im Zusammenhang. **Noch nicht in der App:** Nachprüfung (Schlusskorrektur,
-  Qualitätsprüfung) und erneutes Abschließen der Kapitel; das geht weiter im Chat.
+  die App die betroffenen Stellen im Zusammenhang. Ab 12 offenen Einträgen zeigt die App wie `hinweise.py` nur die
+  aktuelle Stufe (#570): Blockierendes einzeln, ein Thema je Runde (`themen`), Gruppen gleicher Muster (eine Zeile
+  `gruppe:<schlüssel>`, „ja“ nimmt alle Einträge mit eindeutigem Vorschlag an, „nein“ lässt alle; ein Commit), Runden zu
+  fünf, Geringes zugeklappt („Geringe lassen“ bzw. „Geringes einzeln ansehen“). Nach jeder Antwort erscheint die nächste
+  Stufe; „Alle Einträge zeigen“ schaltet die Stufen ab. Vorschläge des Assistenten und Streichungen (#609, #615) werden
+  angezeigt. **Noch nicht in der App:** eigene Knöpfe je Variante (braucht eine Vorlage in ghostwriter-ui),
+  Rückfragen („Frage stellen“), Nachprüfung (Schlusskorrektur, Qualitätsprüfung) und erneutes Abschließen der Kapitel;
+  das geht weiter im Chat.
 - Hintergrund-Warteschlange (#478): Karte „Hintergrund-Warteschlange“ in der Projektübersicht, Ansicht (Vorlage `warteschlange`)
   mit wartenden, auf Bestätigung wartenden (Budget), von einem anderen Auftrag abhängigen, fehlgeschlagenen und fertigen,
   noch nicht übernommenen Aufträgen. Die Reihenfolge ist dieselbe wie in `scripts/jobs.py` (Vorrang, `after`, Buchreihenfolge,
@@ -114,6 +131,7 @@ einen Hinweis und den Text, mit dem man es im Chat auslöst.
 | `vendor/icons.css` | benutzte Symbole aus `@tabler/icons` als CSS-Masken |
 | `build_vendor.py` | baut die beiden Dateien in `vendor/`; nie von Hand ändern |
 | `tests/app.test.cjs` | Durchlauf in jsdom mit echten Daten, Schreibaufrufe abgefangen |
+| `tests/app-v12.test.cjs` | Neu abschließen, Erneut versuchen, Veraltet-Marken und Stufen der Durchsicht mit nachgebildetem Repository (`tests/fixtures/adhs`), ohne Netz |
 
 ## Nachziehen bei Programmänderungen
 
@@ -127,7 +145,8 @@ wird die App im selben Änderungspaket mitgezogen:
    npm install --prefix /tmp/gw-claude-test jsdom@24 js-yaml@4
    NODE_PATH=/tmp/gw-claude-test/node_modules GW_REPO=chillyconcane/YAWA node apps/claude/tests/app.test.cjs
    ```
-   Der Test liest mit `gh api` und schreibt nichts. Echte Schreibtests (Speichern, Freigabe, Übernehmen)
+   Der Test liest mit `gh api` und schreibt nichts. Ohne Zugriff auf eine Bibliothek läuft
+   `NODE_PATH=/tmp/gw-claude-test/node_modules node apps/claude/tests/app-v12.test.cjs` mit nachgebildeten Daten. Echte Schreibtests (Speichern, Freigabe, Übernehmen)
    macht der Benutzer in der App.
 4. Veröffentlichen: neue Connector-Werkzeuge zuerst in den Fähigkeiten des Artefakts eintragen, dann
    `index.html` und `vendor/` veröffentlichen. Die App ist öffentlich geteilt, eine neue Fassung ist also sofort
