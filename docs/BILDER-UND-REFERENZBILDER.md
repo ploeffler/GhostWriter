@@ -69,6 +69,8 @@ Der Ablauf:
 5. Im Auftragsprotokoll festhalten, welche Referenz-IDs tatsächlich verwendet wurden.
 6. Ergebnis wie bisher prüfen und ausdrücklich freigeben, bevor es als Buchillustration in das Manuskript bzw. die Ausgabe übernommen wird.
 
+**Übergabe über die Action „Bild erzeugen“ (#143):** `python3 scripts/image_service.py . services` zeigt die Fähigkeit je Bilddienst aus `providers.yml` (`image_services`: Referenzbilder ja/nein, Höchstzahl, Formate, Größe). `image_service.py plan --service google --references ref-img-…` prüft, was an den Dienst gehen würde (übergeben, übersprungen mit Grund, Betriebsart), ohne etwas zu senden. Die Action „Bild erzeugen“ (`image.yml`, nur mit eigenem Secret `GEMINI_API_KEY` und `consent`) schickt die freigegebenen Referenzen tatsächlich als Bild an Google Gemini und schreibt je Auftrag `bild.jpg` und `handover.yml` unter `quellen/bild-entwuerfe/` auf den Arbeits-Branch: Dienst, Modell, übergebene Referenz-IDs mit Bildversion (SHA-256 der Datei), Übersprungenes mit Grund; spätere Änderungen an einer Referenz ändern das Protokoll nicht. Das Ergebnis ist ein Entwurf, kein Buchbild. Heute übergibt GhostWriter nur an Google Gemini (bis zu 3 Bilder, PNG/JPEG, bis 7 MB je Bild); bei anderen Diensten meldet es ausdrücklich, dass nichts übergeben wird.
+
 Wenn der verwendete Dienst keine Bildreferenzen unterstützt, muss GhostWriter dies offen anzeigen. Das Bild darf dann nicht als tatsächlich übermittelte Referenz ausgegeben werden. Eine textliche Beschreibung kann als Ersatz vorgeschlagen werden, muss aber als solche kenntlich sein.
 
 ## Wiederverwendbarkeit und Nachvollziehbarkeit
