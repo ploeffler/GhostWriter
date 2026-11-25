@@ -2,6 +2,7 @@
 """Lesende Hilfen für Kapitelmaterial und den Abgleich von Buch- und Arbeitsstand."""
 import argparse
 import json
+import sys
 import subprocess
 from pathlib import Path
 
@@ -106,6 +107,37 @@ CONTEXT_PATHS = {'ghostwriter.yml', 'workflow.yml', 'assistant.yml',
 CONTEXT_DIRS = ('docs/start', '.claude/skills')
 
 
+def approved_drift(base, config=None, paths=None):
+    """Abgeschlossene Abschnitte und Teile, deren Text vom Fingerabdruck der letzten Freigabe abweicht (#595): wer sie ohne
+    Wiederöffnen speichert, lässt später `validate_project.py` scheitern. `paths` (relativ zum Buch) grenzt auf die Dateien ein,
+    die geschrieben werden sollen; ohne Angabe wird alles geprüft. Rückgabe: [{'id', 'number', 'path', 'kind', 'command'}]."""
+    import hashlib
+    scripts = Path(__file__).resolve().parent
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+    from assemble import latest_approval
+    from render_view import matter_items, section_file
+    base = Path(base)
+    config = config or yaml.safe_load((base / 'ghostwriter.yml').read_text(encoding='utf-8'))
+    wanted = set(paths or [])
+    found = []
+    units = [(f'{c}.{n}', 'section', sec) for c, ch in enumerate(config['structure']['chapters'], start=1)
+             for n, sec in enumerate(ch['sections'], start=1)] + [(item['id'][4:], 'matter', item) for _, item in matter_items(config)]
+    for number, kind, unit in units:
+        if wanted and unit['path'] not in wanted:
+            continue
+        head, _, _, manuscript = section_file(base, unit)
+        if head.get('status') != 'approved' or (head.get('approvals') or {}).get('section') is not True:
+            continue
+        record = latest_approval(base, kind, unit['id'])
+        digest = hashlib.sha256(manuscript.encode('utf-8')).hexdigest()
+        if record and record.get('action') == 'granted' and record.get('note') == 'content_sha256=' + digest:
+            continue
+        found.append({'id': unit['id'], 'number': number, 'path': unit['path'], 'kind': kind,
+                      'command': f'python3 scripts/render_view.py . approval-section {number}'})
+    return found
+
+
 def assess_write(base, expected_ref, current_ref, paths):
     """Schreibfreier Schutz gegen veraltete Formulare und geänderte Anweisungen.
 
@@ -152,11 +184,22 @@ def main():
     guard.add_argument('expected_ref')
     guard.add_argument('current_ref')
     guard.add_argument('paths', nargs='+')
+    drift = sub.add_parser('approved-drift', help='abgeschlossene Abschnitte mit geändertem Text vor dem Commit finden (#595)')
+    drift.add_argument('paths', nargs='*', help='Dateien, die geschrieben werden sollen (leer = alle)')
     sub.add_parser('historical-candidates')
     args = p.parse_args()
     try:
-        if args.action == 'guard':
+        if args.action == 'approved-drift':
+            found = approved_drift(args.project, None, args.paths)
+            result = {'ok': not found, 'approved_changes': found,
+                      'hint': ('Abgeschlossener Text weicht vom Fingerabdruck der Freigabe ab: vor dem Commit warnen und '
+                               '„Geänderten Text neu abschließen“ anbieten (render_view.py … approval-section N.M).') if found else ''}
+        elif args.action == 'guard':
             result = assess_write(args.project, args.expected_ref, args.current_ref, args.paths)
+            try:   # #595: dieselbe Antwort nennt abgeschlossene Abschnitte, deren Text sich beim Schreiben ändern würde
+                result['approved_changes'] = approved_drift(args.project, None, args.paths)
+            except (OSError, KeyError, yaml.YAMLError):
+                result['approved_changes'] = []
         elif args.action == 'compare':
             result = compare_book_work(args.project, args.book_ref, args.work_ref)
         elif args.action == 'historical-candidates':
