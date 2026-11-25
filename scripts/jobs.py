@@ -7,6 +7,8 @@ Aufruf:
                                         [--model M] [--confirm-low-budget] [--requested-by NAME]
                                         [--priority] [--after <auftrag>]
   python scripts/jobs.py <buch> prioritize --request <auftrag>      (vorziehen, #478)
+  python scripts/jobs.py <buch> suggest --section <id> [--question Q] [--json]   (Vorschlag vor dem Einreihen, #478)
+  python scripts/jobs.py <buch> merge --request <auftrag> --question Q           (Zusammenlegen, #478)
   python scripts/jobs.py <buch> cancel --request <auftrag>          (nur wartende Aufträge)
   python scripts/jobs.py <buch> process [--defaults datei] [--limit 5] [--push-to <arbeits-branch>]
   python scripts/jobs.py <ordner> remote [--start] [--paused] [--dry-run]   (Kontrolllauf, #481)
@@ -25,7 +27,9 @@ Gemeinsame Felder: `type`, `requested_at`, `requested_by`, `provider`, `model`,
 Reihenfolge (#478), in dieser Rangfolge: Vorrang (`priority: true`, „vorziehen“), Abhängigkeit
 (`after: <Auftrag>`: der Auftrag wartet, bis der genannte erledigt oder fehlgeschlagen ist;
 Ringe werden ignoriert und gemeldet), Buchreihenfolge (Kapitel, Abschnitt; Vor- und Nachspann
-danach), `requested_at`, Dateipfad. Die KI sortiert nicht um. Je Auftrag: Budget prüfen (darunter `waiting: budget`, außer
+danach), `requested_at`, Dateipfad. Die KI sortiert nicht um. Vor dem Einreihen prüft `suggest` einmal gegen die
+wartenden Recherchen und bietet „Danach einreihen“ (`--after`), „Zusammenlegen“ (`merge`) oder „Unabhängig“ an; es
+ändert nichts, erst die Wahl des Benutzers legt etwas an. Je Auftrag: Budget prüfen (darunter `waiting: budget`, außer
 `confirm_low_budget`), ausführen, Ergebnis committen und pushen (`--push-to`). Ein Fehler
 stoppt die Warteschlange nicht. `--limit` begrenzt die Aufträge je Lauf; `remaining` nennt,
 wie viele danach noch offen sind (die Action startet sich dann selbst neu).
@@ -244,6 +248,64 @@ def cancel(base, request):
 def section_path(base, config, section_id):
     ch, sec, _, _ = research.find_section(base, config, section_id)
     return Path(base) / ch['path'] / 'research' / sec['id']
+
+
+def suggest(base, section, question=None, type_='research'):
+    """Vorschlag vor dem Einreihen (#478). Prüft einmal gegen die wartenden Recherchen und ändert nichts.
+    Beziehungen: `same_section` (gleicher Abschnitt: Zusammenlegen oder danach einreihen) und `same_chapter`
+    (anderer Abschnitt desselben Kapitels: danach einreihen, damit der neue Auftrag die schon erledigte Recherche als
+    Vorwissen bekommt). Empfehlung: `merge` bei gleichem Abschnitt, `after` bei gleichem Kapitel, sonst `independent`.
+    Ein Auftrag in Prüfung (`locked_by`) oder mit Fehler steht nicht zur Wahl."""
+    base = Path(base)
+    config = read(base / 'ghostwriter.yml') or {}
+    if type_ != 'research':
+        return {'recommended': 'independent', 'candidates': [], 'options': ['independent']}
+    chapter_of = {}
+    for ch in (config.get('structure') or {}).get('chapters') or []:
+        for sec in ch.get('sections') or []:
+            chapter_of[sec.get('id')] = ch.get('id')
+    mine = chapter_of.get(section)
+    candidates = []
+    for j in jobs(base, config):
+        if j['type'] != 'research' or not pending(j) or j.get('locked_by'):
+            continue
+        sid = j.get('section_id', '')
+        relation = 'same_section' if sid == section else 'same_chapter' if mine and chapter_of.get(sid) == mine else None
+        if relation:
+            d = j['data']
+            candidates.append({'request': j['rel'], 'relation': relation, 'section_id': sid, 'question': d.get('question') or '',
+                               'state': j['state'], 'requested_at': str(d.get('requested_at') or '')})
+    # gleicher Abschnitt zuerst, dann der zuletzt eingereihte (er läuft am spätesten)
+    candidates.sort(key=lambda c: c['requested_at'], reverse=True)
+    candidates.sort(key=lambda c: c['relation'] != 'same_section')   # stabil: bleibt je Gruppe neueste zuerst
+    options = ['independent']
+    recommended = 'independent'
+    if candidates:
+        options = ['after', 'independent']
+        recommended = 'after'
+        if any(c['relation'] == 'same_section' for c in candidates):
+            options = ['merge', 'after', 'independent']
+            recommended = 'merge'
+    return {'section_id': section, 'question': question or '', 'recommended': recommended, 'options': options,
+            'candidates': candidates}
+
+
+def merge(base, request, question=None):
+    """Zusammenlegen (#478): die Frage in einen wartenden Auftrag desselben Abschnitts übernehmen, statt einen zweiten
+    anzulegen. Nur wartende Recherchen; eine schon vorhandene Frage bleibt stehen, die neue folgt als eigener Absatz."""
+    job = find(base, request)
+    if job['type'] != 'research':
+        raise ValueError('Zusammenlegen geht nur bei Recherchen.')
+    if not pending(job):
+        raise ValueError('Zusammenlegen geht nur bei wartenden Aufträgen.')
+    question = (question or '').strip()
+    if not question:
+        raise ValueError('Zum Zusammenlegen die Frage angeben (--question).')
+    old = str(job['data'].get('question') or '').strip()
+    if question not in old:
+        job['data']['question'] = f'{old}\n\n{question}' if old else question
+        write(job['path'], job['data'])
+    return job['path']
 
 
 def enqueue(base, type_='research', section=None, question=None, provider=None, model=None,
@@ -652,7 +714,7 @@ def listing(base):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('base')
-    ap.add_argument('cmd', choices=['list', 'enqueue', 'prioritize', 'retry', 'cancel', 'process', 'remote', 'report'])
+    ap.add_argument('cmd', choices=['list', 'enqueue', 'prioritize', 'retry', 'cancel', 'suggest', 'merge', 'process', 'remote', 'report'])
     ap.add_argument('--language', default='de')
     ap.add_argument('--start', action='store_true', help='remote: Abarbeitung je Buch starten')
     ap.add_argument('--paused', action='store_true', help='remote: Automatik pausiert, nur melden')
@@ -704,6 +766,27 @@ def main(argv=None):
             if summary_path:
                 with open(summary_path, 'a', encoding='utf-8') as f:
                     f.write('\n' + text + '\n')
+            return 0
+        if a.cmd == 'suggest':
+            if not a.section:
+                raise ValueError('--section angeben.')
+            data = suggest(base, a.section, a.question, a.type)
+            if a.json:
+                print(json.dumps(data, ensure_ascii=False, indent=1))
+            else:
+                names = {'merge': 'Zusammenlegen', 'after': 'Danach einreihen', 'independent': 'Unabhängig'}
+                print('Empfehlung: ' + names[data['recommended']] + ' (' + ', '.join(names[o] for o in data['options']) + ')')
+                for c in data['candidates']:
+                    print(f'- {c["request"]} ({"gleicher Abschnitt" if c["relation"] == "same_section" else "gleiches Kapitel"})'
+                          + (f': {c["question"]}' if c['question'] else ''))
+            return 0
+        if a.cmd == 'merge':
+            if not a.request:
+                raise ValueError('--request angeben.')
+            path = merge(base, a.request, a.question)
+            if a.push_to:
+                commit_push(base, f'Warteschlange: Frage in {path.relative_to(base)} zusammengelegt', a.push_to)
+            print(path.relative_to(base))
             return 0
         if a.cmd in ('prioritize', 'cancel', 'retry'):
             if not a.request:
