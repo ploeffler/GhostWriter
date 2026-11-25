@@ -908,6 +908,70 @@ def aufbau_apply(base, config, folder, ids, confirm=False):
     return results
 
 
+# ---------- Anzeige (#573, #209, #630) ----------
+
+def view_values(base, config, folder, language='de'):
+    """Werte für die Vorlage `rueckgabe` (ghostwriter-ui ab 0.70.0): (values, blocks) aus `rueckgabe.yml` im Ablageordner."""
+    base = Path(base)
+    folder = Path(folder) if Path(folder).is_absolute() else base / folder
+    report = yaml.safe_load((folder / 'rueckgabe.yml').read_text(encoding='utf-8')) or {}
+    en = language == 'en'
+    t = (lambda de, en_: en_ if en else de)
+    entry = next((e for e in co.load(base)['checkouts'] if e['id'] == report.get('kennung')), {})
+    ended = entry.get('status', 'ausgecheckt') != 'ausgecheckt'
+    kinds = {'docx': t('Word-Datei (DOCX)', 'Word file (DOCX)'), 'pdf': 'PDF', 'scan': t('Scan oder Foto der Ausdrucke', 'Scan or photo of the printouts')}
+    kind = kinds.get(report.get('art'), str(report.get('art')))
+    if report.get('programm') and report['programm'] != 'unbekannt':
+        kind += f' · {report["programm"]}'
+    date = str(report.get('datum') or '')
+    shown = f'{date[8:10]}.{date[5:7]}.{date[:4]}' if en is False and len(date) == 10 else date
+    n, c = report.get('befunde') or 0, report.get('kommentare') or 0
+    stats = (f'{n} findings · {c} comments' if en else f'{n} Befunde · {c} Kommentare')
+    aufbau = report.get('aufbau') or []
+    if aufbau:
+        stats += (f' · {len(aufbau)} structure changes' if en else f' · {len(aufbau)} Aufbau-Änderungen')
+    notes = [x for x in (report.get('nicht_uebernommen') or [])]
+    notes = [t('Nicht übernommen: ', 'Not taken over: ') + x for x in notes]
+    for key in ('vergleich', 'zuordnung_abschnitte', 'hinweis'):
+        if report.get(key):
+            notes.append(str(report[key]))
+    pages = []
+    for p in report.get('seiten') or []:
+        pages.append(f'{t("Seite", "Page")} {p["seite"]}: ' + (f'{t("Kapitel", "chapter")} {p.get("kapitel") or "?"} (QR)' if p.get('zuordnung') == 'qr' else t('unbekannt', 'unknown')))
+    rows = aufbau_list(base, config, folder.relative_to(base)) if aufbau else []
+    values = {'RET_ID': report.get('kennung', ''), 'RET_KIND_TEXT': kind, 'RET_DATE_TEXT': shown, 'RET_STATS_TEXT': stats,
+              'RET_LATE_TEXT': (t(f'Späte Rückgabe: Der Checkout ist {report.get("checkout_status")}; Zwischenänderungen erscheinen als Frage.',
+                                  f'Late return: the checkout is {report.get("checkout_status")}; changes in between appear as questions.') if report.get('spaet') else ''),
+              'RET_FOLDER': folder.relative_to(base).as_posix(), 'RET_FINDINGS_FILE': report.get('befunddatei') or '',
+              'RET_END_ARGS': '' if ended else json.dumps({'id': report.get('kennung')}, separators=(',', ':')),
+              'RET_CAN_APPLY': '1' if ended else '',
+              'RET_APPLY_HINT': '' if ended or not aufbau else t('Der Checkout läuft noch: erst beenden, dann lassen sich Aufbau-Änderungen übernehmen.',
+                                                                'The checkout is still running: end it first, then structure changes can be applied.')}
+    blocks = {'NOTES': [{'N_TEXT': x} for x in notes], 'PAGES': [{'P_TEXT': x} for x in pages],
+              'QUESTIONS': [{'Q_TEXT': x} for x in report.get('offene_fragen') or []],
+              'AUFBAU': [{'A_ID': i, 'A_TEXT': text, 'A_STATE': st} for i, st, text in rows]}
+    return values, blocks
+
+
+def text_view(base, config, folder, language='de'):
+    values, blocks = view_values(base, config, folder, language)
+    en = language == 'en'
+    lines = [f'### 📥 {"Return checked in" if en else "Rückgabe eingecheckt"} · {values["RET_ID"]}', '',
+             f'{values["RET_KIND_TEXT"]} · {values["RET_DATE_TEXT"]} · {values["RET_STATS_TEXT"]}', '']
+    if values['RET_LATE_TEXT']:
+        lines += [f'⚠️ {values["RET_LATE_TEXT"]}', '']
+    lines += [f'- {n["N_TEXT"]}' for n in blocks['NOTES']] + [f'- {p["P_TEXT"]}' for p in blocks['PAGES']]
+    if blocks['QUESTIONS']:
+        lines += ['', '**' + ('Open questions' if en else 'Offene Fragen') + '**'] + [f'- {q["Q_TEXT"]}' for q in blocks['QUESTIONS']]
+    if blocks['AUFBAU']:
+        lines += ['', '**' + ('Structure changes' if en else 'Aufbau-Änderungen') + '**'] + [f'- `{a["A_ID"]}` [{a["A_STATE"]}] {a["A_TEXT"]}' for a in blocks['AUFBAU']]
+        lines += ['', values['RET_APPLY_HINT'] or ('Apply with: `checkin.py <book> aufbau <folder> --apply a-001 --confirm`, only after your own confirmation.' if en
+                                                      else 'Übernehmen: `checkin.py <buch> aufbau <ordner> --apply a-001 --confirm`, nur nach deiner ausdrücklichen Bestätigung.')]
+    if values['RET_FINDINGS_FILE']:
+        lines += ['', f'{"Findings" if en else "Befunde"}: `{values["RET_FINDINGS_FILE"]}`']
+    return '\n'.join(lines) + '\n'
+
+
 def summary(report):
     lines = [f'{report["kennung"]}: {report["art"]}-Rückgabe eingecheckt ({report["datum"]})']
     if report.get('spaet'):

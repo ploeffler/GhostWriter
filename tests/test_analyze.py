@@ -226,6 +226,9 @@ class AnalyzeTest(unittest.TestCase):
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
                               '--draft', 'analysis/glossary/run-001.json', '--text'], capture_output=True, text=True, check=True).stdout
         self.assertIn(w1, out)
+        wid = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
+                              '--draft', 'analysis/glossary/run-001.json'], capture_output=True, text=True, check=True).stdout
+        self.assertIn('GW.render("glossar-vorschlag"', wid)                  # Widget ab UI 0.70.0 (#630)
         i1 = [i['term'] for i in res['items']].index(w1)
         i2 = 1 - i1
         done = analyze.apply(self.base, 'run-001', 'glossary', [{'index': i1}, {'index': i2}])   # w2 ohne Erklärung: übersprungen

@@ -158,6 +158,28 @@ class CheckinFlowTest(unittest.TestCase):
         self.assertTrue(any('Tabellen' in x for x in report.get('nicht_uebernommen', [])))      # das Testbuch hat eine Tabelle
         self.assertIn('Nicht übernommen: ', checkin.summary(report))
 
+    def test_return_view_for_the_widget_and_text(self):
+        folder, report = checkin.checkin(self.base, self.config, [self.restructure()], date='2026-11-25')
+        rel = folder.relative_to(self.base).as_posix()
+        values, blocks = checkin.view_values(self.base, self.config, rel)
+        self.assertEqual(values['RET_ID'], self.entry['id'])
+        self.assertEqual(len(blocks['AUFBAU']), 4)
+        self.assertTrue(all(a['A_STATE'] == 'offen' for a in blocks['AUFBAU']))
+        self.assertEqual(values['RET_CAN_APPLY'], '')
+        self.assertIn('erst beenden', values['RET_APPLY_HINT'])
+        self.assertIn(self.entry['id'], values['RET_END_ARGS'])
+        self.assertIn('25.11.2026', values['RET_DATE_TEXT'])
+        text = checkin.text_view(self.base, self.config, rel)
+        self.assertIn('Aufbau-Änderungen', text)
+        self.assertIn('Rückgabe eingecheckt', text)
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'checkin', rel], capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertIn('GW.render("rueckgabe"', out.stdout)
+        checkout.end(self.base, self.config, self.entry['id'], 'zurück', by='x')
+        values, _ = checkin.view_values(self.base, self.config, rel, 'en')
+        self.assertEqual((values['RET_CAN_APPLY'], values['RET_END_ARGS'], values['RET_APPLY_HINT']), ('1', '', ''))
+        self.assertIn('findings', values['RET_STATS_TEXT'])
+
     def test_changed_structure_since_return_blocks_apply(self):
         folder, report = checkin.checkin(self.base, self.config, [self.restructure()], date='2026-11-25')
         checkout.end(self.base, self.config, self.entry['id'], 'zurück', by='x')

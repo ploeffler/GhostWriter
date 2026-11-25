@@ -38,6 +38,7 @@ Abschnitten, die nicht abgeschlossen sind: Wiederöffnen bleibt eine eigene, aus
 import argparse
 import datetime
 import hashlib
+import json
 import math
 import re
 import subprocess
@@ -977,6 +978,7 @@ def widget_values(base, path, stufen=None, size=ROUND_SIZE, gering=False, group=
              'E_DECISION': 'umgesetzt' if e.get('umgesetzt') else e.get('entscheidung', 'offen')}
         if author:
             r['E_PROPOSED'] = '1' if e.get('vorschlag_von') == 'assistent' else ''   # #609
+            r['E_VARIANTS_JSON'] = json.dumps([str(v) for v in e.get('varianten') or []], ensure_ascii=False) if e.get('varianten') else ''   # #630: Knopf je Variante (UI ab 0.70.0)
             r['E_QUESTION'] = e.get('frage', '') + ''.join(f' · Variante {k}: {v}' for k, v in
                                                           enumerate(e.get('varianten') or [], start=1))   # #447
         return r
