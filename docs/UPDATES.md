@@ -64,7 +64,7 @@ Tags und Releases bleiben gültig; sie zeigen weiter auf ihre Commits. Neue Aufl
 
 Neue Pflichtfelder gibt es mit v0.6 nicht; die Datenversion bleibt 1 (`scripts/migrate_project.py`).
 
-**1.1.2:** Streichung als Vorschlag in der Hinweisdurchsicht (#615) (#618). <!-- Entwurf (#488): überarbeiten und diese Markierung entfernen -->
+**1.1.2:** Patch zur Hinweisdurchsicht: Eine Streichung lässt sich jetzt als Vorschlag speichern (#615). `hinweise.py propose … --delete` bzw. `decide … --decision streichen` setzt `streichen: true`, die Karte zeigt „neu: (entfällt)“, `plan` meldet die Streichung als umsetzbar, und `apply` entfernt den alten Wortlaut samt überzähligem Leerzeichen davor oder danach. Eine leere neue Fassung allein bedeutet weiter „kein Vorschlag“. Wie bisher holt dein Buch Updates nur aus Releases; die Datenversion bleibt 1 (neues Feld ist optional).
 
 **1.1.1:** Patch zur Hinweisdurchsicht, die Befunde in Themen ordnet. Die Themen mehrerer Kapiteldateien kommen in Kapitelreihenfolge (buchweite zuerst, im selben Kapitel die neueste Datei, #606), und geringe Befunde bleiben in ihrer Themenrunde, am Ende zugeklappt (#607). Die Einzelkarte nennt Stufe, Thema und Fortschritt im Thema (#608). Der Ablauf zwischen zwei Antworten ist kürzer (#609): `hinweise.py decide … --next-card` speichert und gibt die nächste Karte aus, ein Vorschlag des Assistenten steht auf der Karte (`hinweise.py propose`), Rückfragen werden nicht als Entscheidung gespeichert (Knopf „Frage stellen“ in ghostwriter-ui 0.68.0, `hinweise.py ask`), und die Durchsicht wird je abgeschlossenem Thema bzw. Runde gesichert („Zwischenstand speichern“, `hinweise.py checkpoint`). Wie 1.1.0 holt dein Buch Updates nur aus Releases; die Datenversion bleibt 1 (neue Felder sind optional).
 
