@@ -24,6 +24,20 @@ Danach liegt kein Branch mehr hinter dem Hauptrepository, und GitHubs Hinweis �
 
 Neue Versionen erscheinen erst, wenn ein Versionsschritt im Hauptrepository nach `main` gemergt ist. Zwischenstände aus Entwicklungs-Branches kommen nicht in dein Buch.
 
+## Update-Kanal: nur Releases (#604)
+
+Ab 1.1.0 holen Bücher und Bibliotheken Updates **nur aus veröffentlichten Releases**, nicht mehr vom laufenden Stand `main`. Was gemergt, aber noch nicht freigegeben ist, kommt erst mit dem nächsten Release. Der Kanal ist eine **Actions-Variable** des Repositorys (*Settings → Secrets and variables → Actions → Variables*), die kein Update überschreibt:
+
+| `GHOSTWRITER_UPDATE_CHANNEL` | Was das Update holt |
+|---|---|
+| fehlt oder `release` (**Vorgabe**) | der neueste Release-Tag `vX.Y` bzw. `vX.Y.Z` (nach Version sortiert, nicht nach Datum), ohne Vorabversionen |
+| `rc` | der neueste Tag einschließlich Vorabversionen (`vX.Y-rc.N`), etwa für Abnahmen im Testbuch |
+| `main` | wie früher der laufende Stand (`upstream.ref` im Manifest), für die Entwicklung |
+
+Gilt der Kanal `release` oder `rc`, ist für jeden Branch derselbe Tag maßgeblich; gleichnamige Branches des Hauptrepositorys zählen nur im Kanal `main`. Beim **manuellen Start** der Action gibt es das Feld `channel` für eine einmalige Ausnahme („einmal `rc` holen“); leer gilt die Variable. Ein unbekannter Wert bricht den Lauf mit einer Meldung ab.
+
+**Umstieg ohne Rückschritt:** Hat ein Buch schon einen neueren `main`-Stand als das letzte Release (der Release-Commit steckt im Buch, die Programmversion ist gleich oder höher), bleibt es unverändert, bis ein **höheres** Release erscheint; der Bericht sagt „Stand von main (1.0.0+N), wartet auf das nächste Release“. Gibt es im Hauptrepository noch keinen Release-Tag, wird nichts eingespielt und der Bericht erklärt, wie sich der Kanal `main` einstellen lässt. Die Zusammenfassung jedes Laufs nennt Kanal, Version, Tag und den Link zu den Release-Notizen. Im Hauptrepository selbst gilt immer `main`.
+
 ## Täglicher Bericht als GitHub-Benachrichtigung
 
 Der tägliche Update-Lauf ergänzt die Actions-Zusammenfassung und veröffentlicht den vollständigen Bericht höchstens einmal pro UTC-Tag im festen Issue „GhostWriter: täglicher Update-Bericht“. Der Empfänger wird erwähnt; GitHub übernimmt die Benachrichtigung gemäß seinen persönlichen Einstellungen. Es werden kein SMTP-Zugang und keine zusätzlichen Secrets benötigt. Empfängerwahl, Abonnieren, Pausieren und manuelles Anfordern stehen unter [Tägliche GitHub-Übersicht](DAILY-SUMMARY.md#tagesbericht-erhalten).

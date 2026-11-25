@@ -19,6 +19,9 @@ on:
       branch:
         description: 'Nur diesen Buch-Branch aktualisieren (leer = alle)'
         required: false
+      channel:
+        description: 'Update-Kanal nur für diesen Lauf: release | rc | main (leer = Repo-Variable GHOSTWRITER_UPDATE_CHANNEL, sonst release)'
+        required: false
       dry_run:
         description: 'Probelauf: nur anzeigen, nichts einspielen'
         type: boolean
@@ -100,6 +103,7 @@ jobs:
           DAILY_UPDATE_REPORT_PATH: ${{ runner.temp }}/ghostwriter-update-report.md
           INPUT_BRANCH: ${{ inputs.branch }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          GHOSTWRITER_UPDATE_CHANNEL: ${{ inputs.channel || vars.GHOSTWRITER_UPDATE_CHANNEL }}   # #604: Vorgabe release
         run: |
           args=()
           if [ -n "$INPUT_BRANCH" ]; then args+=(--branch "$INPUT_BRANCH"); fi

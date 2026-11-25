@@ -2,7 +2,13 @@
 """Hält Forks und Buch-Branches auf dem Stand des GhostWriter-Hauptrepositorys.
 
 Aufruf (in der Action „GhostWriter aktualisieren“, .github/workflows/update.yml):
-  python scripts/update_from_upstream.py [--dry-run] [--branch NAME] [--status FILE]
+  python scripts/update_from_upstream.py [--dry-run] [--branch NAME] [--status FILE] [--channel release|rc|main]
+
+Kanal (#604): Bücher holen Updates standardmäßig nur aus veröffentlichten Releases (`release`: neuester Tag
+vX.Y[.Z]); `rc` nimmt auch Vorabversionen (vX.Y-rc.N), `main` den laufenden Stand wie früher (`upstream.ref`).
+Der Kanal kommt aus `--channel`, sonst aus der Repo-Variable GHOSTWRITER_UPDATE_CHANNEL, sonst `release`. Im Kanal
+`release` und `rc` gilt für jeden Branch derselbe Tag (kein gleichnamiger Branch); ein Buch, das schon einen
+neueren main-Stand enthält, bleibt unverändert, bis ein höheres Release erscheint.
 
 Wie GitHubs „Sync fork“, aber sicher für Bücher. Für jeden Branch wird gezählt,
 wie viele Commits er hinter seinem Gegenstück im Hauptrepository liegt
@@ -46,6 +52,7 @@ Umgebung:
   GITHUB_REPOSITORY        owner/repo dieses Repositorys
   GITHUB_TOKEN             Token der Action (dieses Repository, Issues)
   GITHUB_EVENT_PATH        Ereignis der Action (Standard-Branch)
+  GHOSTWRITER_UPDATE_CHANNEL optional: release (Vorgabe) | rc | main, aus der Actions-Variable gleichen Namens
   GHOSTWRITER_UPDATE_TOKEN optional: Leserecht auf ein privates Hauptrepository und
                            Workflow-Schreibrecht; ohne ihn bleiben Änderungen an
                            .github/workflows/ aus und werden gemeldet
@@ -95,6 +102,33 @@ def exists(rev, path, cwd=None):
 def show(rev, path, cwd=None):
     r = subprocess.run(['git', 'show', f'{rev}:{path}'], cwd=cwd, text=True, capture_output=True)
     return r.stdout if r.returncode == 0 else None
+
+
+CHANNELS = ('release', 'rc', 'main')
+TAG_RE = re.compile(r'^v(\d+)\.(\d+)(?:\.(\d+))?(?:-rc\.(\d+))?$')   # Format aus scripts/release.py (tag_name)
+TAG_NS = 'refs/ghostwriter/upstream-tags'
+
+
+def channel_of(value):
+    """Kanal aus Eingabe, Variable oder Vorgabe; ValueError bei unbekanntem Wert."""
+    name = (value or '').strip().lower() or 'release'
+    if name not in CHANNELS:
+        raise ValueError(f'Unbekannter Update-Kanal „{value}“. Erlaubt: release (Vorgabe), rc, main.')
+    return name
+
+
+def pick_tag(names, channel):
+    """Neuester Tag nach Version (nicht nach Datum): `release` ohne Vorabversionen, `rc` mit; sonst None.
+    Ein Release steht über seinen Vorabversionen (v1.1 > v1.1-rc.2)."""
+    best = None
+    for name in names:
+        m = TAG_RE.match(name)
+        if not m or (channel == 'release' and m.group(4)):
+            continue
+        key = (int(m.group(1)), int(m.group(2)), int(m.group(3) or 0), 0 if m.group(4) else 1, int(m.group(4) or 0))
+        if best is None or key > best[0]:
+            best = (key, name)
+    return best[1] if best else None
 
 
 def version_tuple(v):
@@ -295,7 +329,7 @@ def expected_start(base, up_rev, branch):
         raise RuntimeError(f'START.md nicht erzeugt: {error}') from error
 
 
-def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
+def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows, release=None):
     """Gibt ein dict mit behind, ahead, status (updated|current|skipped|failed) und text zurück."""
     base = f'origin/{branch}'
     # Repository aus dem Template (oder Import) teilt keine Historie mit dem Hauptrepository:
@@ -327,6 +361,12 @@ def update_branch(branch, up_rev, up_label, up_manifest, args, can_workflows):
         drift.extend(path for path, text in generated.items() if show(base, path) != text)
         previous = git('ls-tree', '-r', '--name-only', base, '--', 'docs/start').splitlines()
         drift.extend(path for path in previous if path not in generated)
+    own_version = (yaml.safe_load(show(base, MANIFEST) or '{}') or {}).get('version')
+    if release and related and behind == 0 and drift and own_version and version_tuple(own_version) >= version_tuple(version):
+        # #604: Der Release-Commit steckt schon im Buch, das Buch hat aber einen neueren main-Stand: nicht zurücksetzen
+        return {**res, 'status': 'current',
+                'text': f'Stand von main ({own_version}+{git("rev-list", "--count", up_rev + ".." + base)}), '
+                        f'wartet auf das nächste Release (jetzt {release["tag"]})'}
     if behind == 0 and not drift:
         return {**res, 'status': 'current', 'text': f'aktuell, nicht hinter {up_label}'}
     config = yaml.safe_load(show(base, 'ghostwriter.yml') or '{}') or {}
@@ -592,6 +632,7 @@ def main(argv):
     ap.add_argument('--dry-run', action='store_true', help='nichts committen oder pushen')
     ap.add_argument('--branch', help='nur diesen Branch')
     ap.add_argument('--status', help='Ergebnis je Branch als JSON in diese Datei schreiben')
+    ap.add_argument('--channel', help='release (Vorgabe), rc oder main; sonst GHOSTWRITER_UPDATE_CHANNEL (#604)')
     args = ap.parse_args(argv[1:])
 
     manifest = yaml.safe_load(Path(MANIFEST).read_text(encoding='utf-8'))
@@ -600,6 +641,13 @@ def main(argv):
     here = os.environ.get('GITHUB_REPOSITORY', '')
     same_repo = repo == here and not os.environ.get('GHOSTWRITER_UPSTREAM_URL')
     token = os.environ.get('GHOSTWRITER_UPDATE_TOKEN') or ''
+    try:
+        channel = channel_of(args.channel or os.environ.get('GHOSTWRITER_UPDATE_CHANNEL'))
+    except ValueError as e:
+        summary(['## GhostWriter-Update', '', f'❌ {e}'])
+        return 1
+    if same_repo:
+        channel = 'main'   # im Hauptrepository selbst gibt es nur den laufenden Stand
 
     git('fetch', '-q', '--prune', 'origin', '+refs/heads/*:refs/remotes/origin/*')
     if same_repo:
@@ -607,7 +655,8 @@ def main(argv):
     else:
         url = os.environ.get('GHOSTWRITER_UPSTREAM_URL') or \
             f'https://x-access-token:{token or os.environ.get("GITHUB_TOKEN", "")}@github.com/{repo}.git'
-        r = subprocess.run(['git', 'fetch', '-q', '--prune', url, '+refs/heads/*:refs/ghostwriter/upstream/*'],
+        r = subprocess.run(['git', 'fetch', '-q', '--prune', url, '+refs/heads/*:refs/ghostwriter/upstream/*',
+                            f'+refs/tags/*:{TAG_NS}/*'],
                            text=True, capture_output=True)
         if r.returncode:
             msg = (f'Hauptrepository {repo} nicht erreichbar. Ist es privat, braucht dieses Repository das Secret '
@@ -620,16 +669,36 @@ def main(argv):
             return 1
         up_ns = 'refs/ghostwriter/upstream'
 
+    release = None
+    if channel != 'main':
+        names = git('for-each-ref', '--format=%(refname:strip=3)', TAG_NS, check=False).splitlines()
+        tag = pick_tag(names, channel)
+        if not tag:
+            summary(['## GhostWriter-Update', '', f'Hauptrepository: `{repo}` · Kanal `{channel}`', '',
+                     f'Im Hauptrepository gibt es noch keinen Release-Tag{" (auch keine Vorabversion)" if channel == "rc" else ""}; '
+                     'nichts eingespielt. Für den laufenden Stand die Repo-Variable GHOSTWRITER_UPDATE_CHANNEL auf `main` '
+                     'setzen (docs/UPDATES.md, „Update-Kanal“).'])
+            return 0
+        tag_sha = git('rev-parse', f'{TAG_NS}/{tag}^{{commit}}')
+        release = {'tag': tag, 'sha': tag_sha}
+
     def counterpart(branch):
+        if release:
+            return release['sha'], f'{repo}@{release["tag"]}'
         if not same_repo and git('rev-parse', '-q', '--verify', f'{up_ns}/{branch}', check=False):
             return f'{up_ns}/{branch}', f'{repo}:{branch}'
         return f'{up_ns}/{ref}', f'{repo}:{ref}'
 
-    if not exists(f'{up_ns}/{ref}', MANIFEST):
+    if not exists(release['sha'] if release else f'{up_ns}/{ref}', MANIFEST):
         summary(['## GhostWriter-Update', '', f'{repo}:{ref} hat noch kein {MANIFEST}; nichts zu tun.'])
         return 0
 
-    lines = ['## GhostWriter-Update', '', f'Hauptrepository: `{repo}`', '',
+    head = f'Hauptrepository: `{repo}`'
+    if release:   # #604: Version, Tag und Link zu den Release-Notizen
+        rel_version = (yaml.safe_load(show(release['sha'], MANIFEST) or '{}') or {}).get('version') or '?'
+        head += (f' · Kanal `{channel}` · Release {rel_version} (Tag `{release["tag"]}`, '
+                 f'[Release-Notizen](https://github.com/{repo}/releases/tag/{release["tag"]}))')
+    lines = ['## GhostWriter-Update', '', head, '',
              '| Branch | hinter | Ergebnis |', '|---|--:|---|']
     icon = {'updated': '✅', 'current': '✔️', 'skipped': '⏭️', 'failed': '❌', 'conflict': '⚠️'}
     results, failed = [], False
@@ -637,12 +706,12 @@ def main(argv):
         up_rev, up_label = counterpart(branch)
         up_manifest = yaml.safe_load(show(up_rev, MANIFEST) or '{}') or {}
         try:
-            res = update_branch(branch, up_rev, up_label, up_manifest, args, bool(token))
+            res = update_branch(branch, up_rev, up_label, up_manifest, args, bool(token), release)
             if res.pop('stale', False):
                 # Branch ist während des Laufs weitergewandert (z. B. „Bücherregal aktualisieren“):
                 # neuen Stand holen und das Update für diesen Branch einmal neu einspielen
                 git('fetch', '-q', 'origin', f'+refs/heads/{branch}:refs/remotes/origin/{branch}')
-                res = update_branch(branch, up_rev, up_label, up_manifest, args, bool(token))
+                res = update_branch(branch, up_rev, up_label, up_manifest, args, bool(token), release)
                 res.pop('stale', None)
         except RuntimeError as e:
             res = {'branch': branch, 'upstream': up_label, 'status': 'failed', 'text': str(e)}
