@@ -83,6 +83,24 @@ def wording(text, alt, neu):
     return a, n
 
 
+def has_change(e):
+    """Hat der Eintrag eine Fassung oder eine Streichung als Vorschlag? Ein leeres `neu` allein heißt „kein Vorschlag“,
+    eine Streichung trägt `streichen: true` (#615)."""
+    return bool(e.get('neu') or e.get('streichen'))
+
+
+def tidy_deletion(body, a):
+    """`a` einmal aus `body` entfernen und das überzählige Leerzeichen davor oder danach mitnehmen (#615): mitten im Absatz
+    bleibt ein Leerzeichen, am Absatzende und -anfang keines, vor Satzzeichen keines."""
+    i = body.index(a)
+    before, after = body[:i], body[i + len(a):]
+    if before.endswith(' ') and (after[:1] in ('', ' ', '\n') or after[:1] in '.,;:!?)'):
+        before = before[:-1]
+    elif after.startswith(' ') and (before == '' or before.endswith('\n')):
+        after = after[1:]
+    return before + after
+
+
 def editorial(base):
     return Path(base) / 'editorial'
 
@@ -347,6 +365,9 @@ def looks_like_question(text):
 
 
 def decide(path, entry_id, decision, new=None, variant=None, as_text=False):
+    delete = decision == 'streichen'   # #615: Streichung als Entscheidung = „ja“ mit `streichen: true`
+    if delete:
+        decision, new = 'ja', None
     if variant is not None:   # #473: Variante N wählen = „geändert“ mit dem Wortlaut der Variante
         decision = 'geändert'
     if decision not in DECISIONS:
@@ -367,20 +388,28 @@ def decide(path, entry_id, decision, new=None, variant=None, as_text=False):
                     raise ValueError(f'{entry_id} hat {len(options)} Varianten; Variante {variant} gibt es nicht')
                 new = options[variant - 1]
                 e['variante'] = variant
+            if delete and not e.get('alt'):
+                raise ValueError(f'{entry_id} hat keinen alten Wortlaut; es gibt nichts zu streichen')
             e['entscheidung'] = decision
-            if new is not None:
+            if delete:
+                e['streichen'] = True
+                e['neu'] = ''
+            elif new is not None:
                 e['neu'] = new
+                e.pop('streichen', None)   # eine neue Fassung ersetzt eine frühere Streichung
             write_yaml(path, data)
             return e
     raise ValueError(f'Eintrag {entry_id} nicht gefunden')
 
 
-def propose(path, entry_id, new, variants=None):
+def propose(path, entry_id, new, variants=None, delete=False):
     """Vorschlag des Assistenten an einen offenen Eintrag schreiben (#609): `neu` (und `varianten`), gekennzeichnet mit
     `vorschlag_von: assistent`. Die Karte zeigt ihn als „neu“ bzw. „Vorschlag“; „Übernehmen“ speichert genau diesen Text."""
     new = (new or '').strip()
-    if not new:
-        raise ValueError('Der Vorschlag ist leer (--new)')
+    if delete and new:
+        raise ValueError('--delete und --new schließen sich aus')
+    if not new and not delete:
+        raise ValueError('Der Vorschlag ist leer (--new); eine Streichung als Vorschlag mit --delete')
     variants = [v.strip() for v in variants or [] if v and v.strip()]
     if len(variants) > 3:
         raise ValueError('Höchstens drei Varianten')
@@ -391,7 +420,13 @@ def propose(path, entry_id, new, variants=None):
                 raise ValueError(f'{entry_id} ist schon entschieden; ein Vorschlag geht nur bei offenen Einträgen')
             if e.get('neu') and e.get('vorschlag_von') != 'assistent':
                 e['neu_befund'] = e['neu']   # Vorschlag aus der Befunddatei bleibt nachvollziehbar
+            if delete and not e.get('alt'):
+                raise ValueError(f'{entry_id} hat keinen alten Wortlaut; es gibt nichts zu streichen')
             e['neu'] = new
+            if delete:
+                e['streichen'] = True   # #615: Streichung ist ein gültiger Vorschlag
+            else:
+                e.pop('streichen', None)
             e['vorschlag_von'] = 'assistent'
             if variants:
                 e['varianten'] = variants
@@ -472,7 +507,7 @@ def show(data, only_open=False):
                 chapter = e['chapter_id'] or e['abschnitt']
                 lines += [f'**{where(e)}**' + (f' ({e["chapter_status"]})' if e.get('chapter_status') else ''), '']
             lines += [f'`{e["id"]}` · {e["abschnitt"]} · {e["art"]} · **{e.get("entscheidung", "offen")}** – {e.get("grund", "")}',
-                      f'> alt: {e["alt"]}', f'> neu: {e["neu"]}', '']
+                      f'> alt: {e["alt"]}', f'> neu: {e.get("neu") or "(entfällt)"}', '']
     if author:
         lines += ['#### Autorenentscheidung', '']
         for e in author:
@@ -481,8 +516,8 @@ def show(data, only_open=False):
                       f'> Frage: {e.get("frage", "")}']
             if e.get('alt'):
                 lines += [f'> alt: {e["alt"]}']
-            if e.get('neu'):
-                lines += [f'> Vorschlag: {e["neu"]}']
+            if has_change(e):
+                lines += [f'> Vorschlag: {e.get("neu") or "(entfällt)"}']
             for k, v in enumerate(e.get('varianten') or [], start=1):
                 lines += [f'> Variante {k}: {v}']
             lines += ['']
@@ -591,8 +626,8 @@ def _entry_lines(e):
         lines += [f'> Frage: {e["frage"]}']
     if e.get('alt'):
         lines += [f'> alt: {e["alt"]}']
-    if e.get('neu'):
-        lines += [f'> {"Vorschlag" if e.get("frage") else "neu"}: {e["neu"]}']
+    if has_change(e):
+        lines += [f'> {"Vorschlag" if e.get("frage") else "neu"}: {e.get("neu") or "(entfällt)"}']
     for k, v in enumerate(e.get('varianten') or [], start=1):
         lines += [f'> Variante {k}: {v}']
     return lines + ['']
@@ -784,7 +819,7 @@ def plan(base, config, data, chapters=None):
         _, ch, _, head = _section(base, config, e['section_id'])
         ch = ch or {}
         text = checks.manuscript(base, config, e['section_id']) or ''
-        if not e.get('alt') or not e.get('neu'):
+        if not e.get('alt') or not has_change(e):
             out.append(('⚠️', e, 'ohne alten Wortlaut oder Vorschlag: von Hand umsetzen'))
         elif ch.get('status') == 'approved':
             out.append(('⛔', e, f'Kapitel {e["abschnitt"].split(".")[0]} ist abgeschlossen: erst wieder öffnen'))
@@ -793,10 +828,10 @@ def plan(base, config, data, chapters=None):
                                  'erst wieder öffnen'))
         elif _checked_out(base, config, e['section_id']):
             out.append(('⛔', e, f'ausgecheckt: {_checked_out(base, config, e["section_id"])["id"]} (Checkout erst beenden)'))
-        elif wording(text, e['alt'], e['neu']) is None:
+        elif wording(text, e['alt'], e.get('neu') or '') is None:
             out.append(_not_found(base, config, e, text))
         else:
-            out.append(('✅', e, 'umsetzbar'))
+            out.append(('✅', e, 'streichen' if e.get('streichen') else 'umsetzbar'))
     return out
 
 
@@ -815,7 +850,7 @@ def _not_found(base, config, e, text):
             other = checks.manuscript(base, config, sid) or ''
         except Exception:   # noqa: BLE001 – ein nicht lesbarer Abschnitt ist hier kein Treffer
             continue
-        if wording(other, e['alt'], e['neu']) is not None:
+        if wording(other, e['alt'], e.get('neu') or '') is not None:
             places.append(number)
     if len(places) == 1:
         return ('⚠️', e, f'Wortlaut steht in {places[0]} statt {e["abschnitt"]}: Abschnitt im Befund prüfen, von Hand umsetzen')
@@ -834,14 +869,15 @@ def plan_text(items):
     return '\n'.join(lines) + '\n'
 
 
-def _replace_in_manuscript(path, alt, neu):
+def _replace_in_manuscript(path, alt, neu, delete=False):
     text = Path(path).read_text(encoding='utf-8')
     marker = '\n## Manuskript\n'
     head, sep, body = text.partition(marker)
     found = wording(body, alt, neu) if sep else None
     if found is None:
         raise ValueError(f'{path}: alter Wortlaut nicht genau einmal im Manuskript')
-    Path(path).write_text(head + sep + body.replace(found[0], found[1], 1), encoding='utf-8')
+    new_body = tidy_deletion(body, found[0]) if delete else body.replace(found[0], found[1], 1)
+    Path(path).write_text(head + sep + new_body, encoding='utf-8')
     return found[1]
 
 
@@ -881,14 +917,14 @@ def apply(base, config, path, chapters=None):
         if mark != '✅':
             skipped.append((mark, e, why))
             continue
-        used = _replace_in_manuscript(base / e['datei'], e['alt'], e['neu'])
+        used = _replace_in_manuscript(base / e['datei'], e['alt'], e.get('neu') or '', bool(e.get('streichen')))
         e['umgesetzt'] = True
         applied.append(e)
         scope = e['chapter_id'] or e['section_id']   # Teil von Vor-/Nachspann: eigener Prüfbereich
         if scope not in touched:
             touched.append(scope)
         text = checks.manuscript(base, config, e['section_id']) or ''
-        ctx.append((e, context(text, used) if used and text.count(used) == 1 else e['neu']))
+        ctx.append((e, context(text, used) if used and text.count(used) == 1 else (e.get('neu') or '(entfällt)')))
     write_yaml(path, data)
     reports = _write_back(base, data)
     return {'applied': applied, 'skipped': skipped, 'reports': reports, 'chapters': touched, 'context': ctx}
@@ -937,7 +973,7 @@ def widget_values(base, path, stufen=None, size=ROUND_SIZE, gering=False, group=
              'E_KIND': e.get('art', ''),
              'E_REASON': ('⛔ blockierend: ' if e.get('schweregrad') == 'blockierend' else '') + e.get('grund', ''),
              'E_CONTEXT': e.get('kontext', ''),
-             'E_OLD': e.get('alt', ''), 'E_NEW': e.get('neu', ''),
+             'E_OLD': e.get('alt', ''), 'E_NEW': e.get('neu') or ('(entfällt)' if e.get('streichen') else ''),
              'E_DECISION': 'umgesetzt' if e.get('umgesetzt') else e.get('entscheidung', 'offen')}
         if author:
             r['E_PROPOSED'] = '1' if e.get('vorschlag_von') == 'assistent' else ''   # #609
@@ -1036,7 +1072,8 @@ def main(argv=None):
     pr = sub.add_parser('propose', help='Vorschlag des Assistenten an einen Eintrag schreiben (#609)')
     pr.add_argument('project')
     pr.add_argument('entry')
-    pr.add_argument('--new', required=True)
+    pr.add_argument('--new', default='')
+    pr.add_argument('--delete', action='store_true', help='Streichung des alten Wortlauts als Vorschlag (#615)')
     pr.add_argument('--variant', action='append', default=[], help='Variante (bis zu drei, mehrfach angeben)')
     pr.add_argument('--file')
     pr.add_argument('--next-card', action='store_true', help='danach dieselbe Karte ausgeben')
@@ -1058,7 +1095,7 @@ def main(argv=None):
     d.add_argument('entry', nargs='?')
     d.add_argument('--group', help='ganze Gruppe entscheiden (#570)')
     d.add_argument('--gering', action='store_true', help='alle geringen offenen Einträge lassen (#570)')
-    d.add_argument('--decision', choices=DECISIONS[1:])
+    d.add_argument('--decision', choices=DECISIONS[1:] + ('streichen',), help='streichen: alten Wortlaut entfernen (#615)')
     d.add_argument('--new')
     d.add_argument('--variant', type=int, help='Variante N wählen (#473)')
     d.add_argument('--as-text', action='store_true', help='„geändert“ mit einem Fragetext trotzdem als Fassung speichern (#609)')
@@ -1108,7 +1145,7 @@ def main(argv=None):
             return 0
         if args.cmd in ('propose', 'ask'):
             if args.cmd == 'propose':
-                e = propose(path, args.entry, args.new, args.variant)
+                e = propose(path, args.entry, args.new, args.variant, args.delete)
                 print(f'{e["id"]}: Vorschlag gespeichert', file=sys.stderr if not args.text else sys.stdout)
             else:
                 find = [e for _, e in entries(read_yaml(path)) if e.get('id') == args.entry]

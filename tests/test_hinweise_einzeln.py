@@ -325,3 +325,74 @@ class ProposeAskCheckpointTest(unittest.TestCase):
         self.assertIn('GhostWriter-Aktion: notes_review.checkpoint', g('log', '-1', '--format=%B'))
         self.assertEqual(g('show', '--stat', '--format=', 'HEAD').count('durchsicht-'), 1)
         self.assertIn('Nichts zu speichern', self.cli('checkpoint').stdout)
+
+
+class DeletionTest(unittest.TestCase):
+    """#615: Eine Streichung ist ein gültiger Vorschlag; apply entfernt den Wortlaut samt überzähligem Leerzeichen."""
+
+    def test_tidy_deletion_mid_paragraph_and_at_the_end(self):
+        t = hinweise.tidy_deletion
+        self.assertEqual(t('Eins. Zwei. Drei.', 'Zwei.'), 'Eins. Drei.')           # Mitte: ein Leerzeichen bleibt
+        self.assertEqual(t('Eins. Zwei.', 'Zwei.'), 'Eins.')                        # Ende: kein Leerzeichen am Schluss
+        self.assertEqual(t('Eins. Zwei.\n\nNächster Absatz.', 'Zwei.'), 'Eins.\n\nNächster Absatz.')
+        self.assertEqual(t('Zwei. Eins.', 'Zwei.'), 'Eins.')                        # Anfang
+        self.assertEqual(t('Er kam , sagte sie.', ', sagte sie'), 'Er kam.')        # Leerzeichen vor dem Satzzeichen entfällt
+        self.assertEqual(t('Es war gut (leise) und weit.', ' (leise)'), 'Es war gut und weit.')
+        self.assertEqual(t('Wort extra, danach.', ' extra'), 'Wort, danach.')       # vor Satzzeichen kein Leerzeichen
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.base = Path(tmp.name) / 'b'
+        shutil.copytree(ROOT / 'tests/fixtures/adhs', self.base)
+        _, self.config = load(self.base)
+        sec = self.config['structure']['chapters'][0]['sections'][0]
+        self.sec = sec
+        self.file = self.base / sec['path']
+        text = self.file.read_text(encoding='utf-8')
+        marker = '\n## Manuskript\n'
+        head, _, body = text.partition(marker)
+        self.mid, self.end = 'Dieser Satz entfällt mitten im Absatz.', 'Dieser Schlusssatz entfällt am Absatzende.'
+        body = f'\nAnfang des Absatzes. {self.mid} Weiter im Absatz. {self.end}\n\nNächster Absatz bleibt.\n'
+        self.file.write_text(head + marker + body, encoding='utf-8')
+        (self.base / 'editorial').mkdir(exist_ok=True)
+        self.path = self.base / 'editorial' / 'durchsicht-2026-11-25.yml'
+
+        def entry(n, alt):
+            return {'id': f'e-{n:03d}', 'befund': f'x#{n}', 'abschnitt': '1.1', 'section_id': sec['id'], 'chapter_id': self.config['structure']['chapters'][0]['id'],
+                    'chapter_status': '', 'datei': sec['path'], 'art': 'aufbau', 'grund': 'erklärender Absatzschluss', 'alt': alt, 'neu': '',
+                    'frage': 'Streichen?', 'entscheidung': 'offen', 'kontext': ''}
+        data = {'buch': 'x', 'erstellt': '2026-11-25', 'quelle': [], 'anleitung': '', 'ohne_autor': [],
+                'autorenentscheidung': [entry(1, self.mid), entry(2, self.end), entry(3, '')]}
+        self.path.write_text(yaml.safe_dump(data, allow_unicode=True), encoding='utf-8')
+
+    def test_propose_delete_plan_and_apply(self):
+        self.assertEqual(hinweise.plan(self.base, self.config, hinweise.read_yaml(self.path)), [])
+        hinweise.decide(self.path, 'e-001', 'ja')
+        self.assertEqual(hinweise.plan(self.base, self.config, hinweise.read_yaml(self.path))[0][0], '⚠️')   # ohne Vorschlag wie bisher
+        with self.assertRaises(ValueError):
+            hinweise.propose(self.path, 'e-003', '')                        # leer ohne --delete bleibt ungültig
+        with self.assertRaisesRegex(ValueError, 'nichts zu streichen'):
+            hinweise.propose(self.path, 'e-003', '', delete=True)           # ohne alten Wortlaut
+        e = hinweise.propose(self.path, 'e-002', '', delete=True)
+        self.assertEqual((e['streichen'], e['neu'], e['vorschlag_von']), (True, '', 'assistent'))
+        e = hinweise.decide(self.path, 'e-001', 'streichen')                # Entscheidung „streichen“
+        self.assertEqual((e['entscheidung'], e['streichen']), ('ja', True))
+        hinweise.decide(self.path, 'e-002', 'ja')
+        plan = hinweise.plan(self.base, self.config, hinweise.read_yaml(self.path))
+        self.assertEqual([(m, e['id'], why) for m, e, why in plan], [('✅', 'e-001', 'streichen'), ('✅', 'e-002', 'streichen')])
+        values, blocks = hinweise.widget_values(self.base, self.path, entry='e-002')
+        self.assertEqual(blocks['AUTHOR'][0]['E_NEW'], '(entfällt)')
+        self.assertIn('> Vorschlag: (entfällt)', hinweise.show_single(hinweise.read_yaml(self.path), 'e-002'))
+        result = hinweise.apply(self.base, self.config, self.path)
+        self.assertEqual(len(result['applied']), 2)
+        body = self.file.read_text(encoding='utf-8').partition('\n## Manuskript\n')[2]
+        self.assertEqual(body, '\nAnfang des Absatzes. Weiter im Absatz.\n\nNächster Absatz bleibt.\n')
+
+    def test_new_wording_replaces_an_earlier_deletion(self):
+        hinweise.propose(self.path, 'e-001', '', delete=True)
+        e = hinweise.propose(self.path, 'e-001', 'Ein kürzerer Satz.')
+        self.assertNotIn('streichen', e)
+        e = hinweise.decide(self.path, 'e-001', 'streichen')
+        e = hinweise.decide(self.path, 'e-001', 'geändert', 'Doch lieber so.')
+        self.assertNotIn('streichen', e)
