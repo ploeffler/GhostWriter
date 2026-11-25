@@ -1092,5 +1092,7 @@
   "the_section_stays_approved_with_the_changed_text_the_approval_is_logged_again": "Der Abschnitt bleibt abgeschlossen. Im Protokoll stehen „zurückgenommen“ und „erteilt“ mit dem neuen Fingerabdruck in einem Commit; du bestätigst den Text, wie er jetzt vorliegt.",
   "stale_marker": "veraltet",
   "the_text_is_marked_stale_since": "Als veraltet markiert seit {p_a}: {p_b}",
-  "section_s_are_marked_stale_the_chapter_approval_does_not_check_content": "{p_a} Abschnitt(e) als veraltet markiert (Freigabe bleibt gültig): {p_b}. Vor dem Abschließen klären, ob der Text noch stimmt."
+  "section_s_are_marked_stale_the_chapter_approval_does_not_check_content": "{p_a} Abschnitt(e) als veraltet markiert (Freigabe bleibt gültig): {p_b}. Vor dem Abschließen klären, ob der Text noch stimmt.",
+  "view.matter.stale": "| ⚠ Veraltet | Seit {p_a}: {p_b} |",
+  "edition.stale_sections": "Als veraltet markiert (Freigabe bleibt gültig, die Auflage wird nicht blockiert): {list}."
 }

@@ -1036,7 +1036,8 @@ def matter_rows(base, config):
     for area, item in matter_items(config):
         head, _, _, ms = section_file(base, item)
         rows.append({'MATTER_ID': item['id'], 'MATTER_KIND': item['kind'], 'MATTER_AREA': area,
-                     'MATTER_TITLE': item['title'], 'MATTER_STATUS': head['status'],
+                     'MATTER_TITLE': item['title'] + (f" ⚠ {view_message('stale_marker')}" if head.get('stale') else ''),
+                     'MATTER_STATUS': head['status'],
                      'MATTER_MARKERS': str(sum(marker_counts(ms).values()))})
     return rows
 
@@ -1052,7 +1053,9 @@ def matter_view(base, config, args):
             parts = []
             for kind, (area, title, _) in MATTER.items():
                 i = have.get(kind)
-                parts.append({'PART_KIND': kind, 'PART_TITLE': i['title'] if i else view_matter_kind(kind), 'PART_AREA': area,
+                parts.append({'PART_KIND': kind, 'PART_TITLE': (i['title'] + (f" ⚠ {view_message('stale_marker')}"
+                                                                              if section_file(base, i)[0].get('stale') else ''))
+                              if i else view_matter_kind(kind), 'PART_AREA': area,
                               'PART_ID': i['id'] if i else '', 'PART_STATUS': section_file(base, i)[0]['status'] if i else '',
                               'PART_HINT': view_labels('MATTER_HINTS')[kind]})
             return fill('vor-nachspann.html', {'PROJECT_TITLE_SHORT': short}, {'PARTS': parts})
@@ -1060,6 +1063,8 @@ def matter_view(base, config, args):
         for kind, (area, title, _) in MATTER.items():
             i = have.get(kind)
             state = display_status(section_file(base, i)[0]['status']) if i else view_message('view.matter.not_created')
+            if i and section_file(base, i)[0].get('stale'):   # #510
+                state += f" ⚠ {view_message('stale_marker')}"
             lines.append(f'| {i["title"] if i else view_matter_kind(kind)} | {view_message('view.matter.front_matter') if area == "front" else view_message('view.matter.back_matter')} | {state} |')
         lines += ['', view_message('view.matter.only_approved_parts_enter_an_edition_you'), '', '---']
         items = [(i['title'], view_message('view.matter.open')) for _, i in matter_items(config)]
@@ -1105,6 +1110,8 @@ def matter_view(base, config, args):
              '| | |', '|---|---|', view_message('view.matter.goal', p_a=goal or view_message('view.matter.not_set')),
              view_message('view.matter.writing_approval', p_a=yn(writing_ok(config, head["approvals"]))),
              view_message('view.matter.approved', p_a=yn(head["approvals"]["section"]))]
+    if head.get('stale'):   # #510
+        lines.append(view_message('view.matter.stale', p_a=head['stale']['since'], p_b=head['stale']['reason']))
     if kind in MATTER_SIGNED:
         lines += [view_message('view.matter.byline', p_a=head.get("byline") or view_message('view.matter.the_book_s_author')),
                   view_message('view.matter.place_date', p_a=head.get("place_date") or view_message('view.matter.unspecified'))]
@@ -1954,6 +1961,10 @@ def edition_create_view(base, config, args):
     if parts:
         reasons = ', '.join(parts[:-1]) + (view_message('edition.and') if len(parts) > 1 else '') + parts[-1]
         warn = (warn + ' ' if warn else '') + view_message('edition.blocked', reasons=reasons)
+    import stale
+    old = stale.warning_lines(base, config)   # #510: warnen, nicht blockieren
+    if old:
+        warn = (warn + ' ' if warn else '') + view_message('edition.stale_sections', list='; '.join(old))
     if not short:
         short = 'Ohne Titel'
     values = {'EDITION_NUMBER': n, 'EDITION_NAME': br['name_pattern'].format(title_short=short, edition=n),
