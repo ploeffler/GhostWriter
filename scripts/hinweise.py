@@ -40,6 +40,7 @@ import datetime
 import hashlib
 import math
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -557,6 +558,37 @@ def ordered(data):
     return sorted(every, key=key)   # stabil: sonst Reihenfolge der Datei
 
 
+def card_head(data, e):
+    """Stufe, Thema und Fortschritt im Thema für die Einzelkarte (#608), z. B.
+    „Stufe 2 · Thema 1 von 22: Titel · 1 von 2 in diesem Thema“. Leer, wenn die Durchsicht weder Themen hat noch in Stufen läuft."""
+    if not (data.get('themen') or staged(data)):
+        return ''
+    every = [x for _, x in entries(data)]
+    sev = _severity(e)
+    if sev == 'blockierend':
+        return f'Stufe 1 · Blockierendes, einzeln · {sum(1 for x in every if _is_open(x) and _severity(x) == "blockierend")} offen'
+    known = {t['id']: t['titel'] for t in data.get('themen') or []}
+    if e.get('thema') in known:
+        with_entries = [t for t in known if any(x.get('thema') == t and _severity(x) != 'blockierend' for x in every)]
+        members = [x for x in ordered(data) if x.get('thema') == e['thema'] and _severity(x) != 'blockierend']
+        pos = next((i for i, x in enumerate(members, start=1) if x.get('id') == e.get('id')), 1)
+        return (f'Stufe 2 · Thema {with_entries.index(e["thema"]) + 1} von {len(with_entries)}: {known[e["thema"]]}'
+                f' · {pos} von {len(members)} in diesem Thema')
+    return 'Stufe 4 · Geringes' if sev == 'gering' else 'Stufe 3 · Übrige nach Schweregrad'
+
+
+def unit_done(data, e):
+    """Name der Einheit („Thema „X““, „Stufe 1“), die mit der Entscheidung zu `e` abgeschlossen wurde, sonst ''. (#609)"""
+    every = [x for _, x in entries(data)]
+    if _severity(e) == 'blockierend':
+        return 'Stufe 1 (Blockierendes)' if not any(_is_open(x) and _severity(x) == 'blockierend' for x in every) else ''
+    titles = {t['id']: t['titel'] for t in data.get('themen') or []}
+    if e.get('thema') in titles and not any(_is_open(x) and x.get('thema') == e['thema'] and _severity(x) != 'blockierend'
+                                            for x in every):
+        return f'Thema „{titles[e["thema"]]}“'
+    return ''
+
+
 def single(data, entry_id=None):
     """(Eintrag oder None, Nummer, Gesamtzahl, offen): der genannte Eintrag bzw. der nächste offene."""
     seq = ordered(data)
@@ -578,7 +610,8 @@ def show_single(data, entry_id=None):
     lines = [f'### 🧹 Hinweisdurchsicht · {data.get("buch", "")}']
     if e is None:
         return '\n'.join(lines + ['Alle Einträge entschieden. Als Nächstes: Umsetzen prüfen (`hinweise.py plan`).', '']) + '\n'
-    lines += [f'Eintrag {n} von {total} · noch {opened} offen', '']
+    head = card_head(data, e)
+    lines += [(head + ' · ' if head else '') + f'Eintrag {n} von {total} · noch {opened} offen', '']
     card = _entry_lines(e)
     if e.get('kontext'):
         card.insert(len(card) - 1 - len(e.get('varianten') or []), f'> Zusammenhang: {e["kontext"]}')
@@ -859,7 +892,8 @@ def widget_values(base, path, stufen=None, size=ROUND_SIZE, gering=False, group=
     name = ''
     if entry:   # #473: genau eine Karte; entry = Eintrags-ID oder „next“
         e, n, total, opened = single(data, None if entry == 'next' else entry)
-        values['REVIEW_COUNT_TEXT'] = (f'Eintrag {n} von {total} · noch {opened} offen' if e else
+        head = card_head(data, e) if e else ''
+        values['REVIEW_COUNT_TEXT'] = (((head + ' · ') if head else '') + f'Eintrag {n} von {total} · noch {opened} offen' if e else
                                        'Alle Einträge entschieden · als Nächstes: Umsetzen prüfen')
         shown = {e['id']} if e else set()
         stufen = False
@@ -946,6 +980,9 @@ def main(argv=None):
     d.add_argument('--decision', choices=DECISIONS[1:])
     d.add_argument('--new')
     d.add_argument('--variant', type=int, help='Variante N wählen (#473)')
+    d.add_argument('--next-card', action='store_true', help='danach die nächste Karte ausgeben (#609)')
+    d.add_argument('--repo', help='owner/repo für die Karte (mit --next-card)')
+    d.add_argument('--text', action='store_true', help='mit --next-card: Textfassung statt Widget')
     d.add_argument('--file')
     for name, text in (('accept', 'Vorschläge annehmen (Rundumprüfung, #565)'), ('plan', 'vor dem Umsetzen zeigen, was geht'),
                        ('apply', 'entschiedene Einträge umsetzen')):
@@ -1010,7 +1047,19 @@ def main(argv=None):
         if not args.entry or not (args.decision or args.variant):
             raise ValueError('Eintrag und --decision (oder --variant) angeben (oder --group / --gering)')
         e = decide(path, args.entry, args.decision, args.new, args.variant)
-        print(f'{e["id"]}: {e["entscheidung"]}')
+        print(f'{e["id"]}: {e["entscheidung"]}', file=sys.stderr if args.next_card and not args.text else sys.stdout)
+        if args.next_card:
+            done = unit_done(read_yaml(path), e)
+            if done:   # #609: Zwischenstand je abgeschlossenem Thema bzw. Stufe (Schreibregel in START.md)
+                print(f'✓ {done} abgeschlossen: Zwischenstand jetzt speichern (ein Commit, siehe „Speichern der Durchsicht“).',
+                      file=sys.stderr)
+            cmd = [sys.executable, str(Path(__file__).resolve().parent / 'render_view.py'), str(base), 'notes-review', str(path),
+                   '--next'] + (['--text'] if args.text else []) + (['--repo', args.repo] if args.repo else [])
+            card = subprocess.run(cmd, capture_output=True, text=True)
+            sys.stdout.write(card.stdout)
+            if card.returncode:
+                print(card.stderr, file=sys.stderr)
+                return 1
         return 0
     except ValueError as exc:
         print(exc, file=sys.stderr)

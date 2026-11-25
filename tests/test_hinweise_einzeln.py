@@ -73,6 +73,74 @@ class SingleTest(unittest.TestCase):
             self.assertIn('Variante 2: Jahr 1954', rows[0]['E_QUESTION'])
 
 
+def themed_data():
+    def e(n, sev, thema):
+        return {'id': f'e-{n:03d}', 'befund': f'x#{n}', 'abschnitt': '1.1', 'chapter_id': 'k', 'chapter_status': '', 'datei': '', 'art': 'aufbau',
+                'grund': f'g{n}', 'schweregrad': sev, 'entscheidung': 'offen', 'alt': '', 'neu': '', 'kontext': '', 'frage': '?',
+                **({'thema': thema} if thema else {})}
+    return {'buch': 'x', 'erstellt': '2026-11-25', 'quelle': [], 'anleitung': '', 'ohne_autor': [],
+            'themen': [{'id': 'a', 'titel': 'Handlungsjahr'}, {'id': 'b', 'titel': 'Figuren'}],
+            'autorenentscheidung': [e(1, 'blockierend', 'a'), e(2, 'mittel', 'a'), e(3, 'mittel', 'a'), e(4, 'mittel', 'b'), e(5, 'gering', None)]}
+
+
+class CardHeadTest(unittest.TestCase):
+    """#608: Stufe, Thema und Fortschritt im Thema auf der Einzelkarte."""
+
+    def test_head_names_stage_theme_and_progress(self):
+        data = themed_data()
+        by = {e['id']: e for _, e in hinweise.entries(data)}
+        self.assertEqual(hinweise.card_head(data, by['e-001']), 'Stufe 1 · Blockierendes, einzeln · 1 offen')
+        self.assertEqual(hinweise.card_head(data, by['e-003']), 'Stufe 2 · Thema 1 von 2: Handlungsjahr · 2 von 2 in diesem Thema')
+        self.assertEqual(hinweise.card_head(data, by['e-004']), 'Stufe 2 · Thema 2 von 2: Figuren · 1 von 1 in diesem Thema')
+        self.assertEqual(hinweise.card_head(data, by['e-005']), 'Stufe 4 · Geringes')
+        self.assertIn('Stufe 2 · Thema 1 von 2: Handlungsjahr · 1 von 2 in diesem Thema · Eintrag 2 von 5',
+                      hinweise.show_single(data, 'e-002'))
+        self.assertEqual(hinweise.card_head({'ohne_autor': [], 'autorenentscheidung': [card(1)]}, card(1)), '')   # ohne Themen wie bisher
+
+    def test_widget_count_text_has_the_head(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d)
+            (base / 'editorial').mkdir()
+            path = base / 'editorial' / 'durchsicht-2026-11-25.yml'
+            path.write_text(yaml.safe_dump(themed_data(), allow_unicode=True), encoding='utf-8')
+            values, _ = hinweise.widget_values(base, path, entry='e-003')
+            self.assertTrue(values['REVIEW_COUNT_TEXT'].startswith('Stufe 2 · Thema 1 von 2: Handlungsjahr · 2 von 2 in diesem Thema · Eintrag'))
+
+
+class NextCardTest(unittest.TestCase):
+    """#609 Punkt 3: decide --next-card speichert und gibt die nächste Karte aus."""
+
+    def run_cli(self, base, *args):
+        import subprocess
+        return subprocess.run([sys.executable, str(ROOT / 'scripts/hinweise.py'), str(base), *args], capture_output=True, text=True)
+
+    def test_decide_and_show_next_card(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d) / 'b'
+            shutil.copytree(ROOT / 'tests/fixtures/adhs', base)
+            (base / 'editorial').mkdir(exist_ok=True)
+            path = base / 'editorial' / 'durchsicht-2026-11-25.yml'
+            data = themed_data()
+            for _, e in hinweise.entries(data):
+                e['abschnitt'], e['section_id'] = '1.1', 'sec-01-01-der-brief-der-sechs-monate'
+                e['chapter_id'] = 'ch-01-endlich-eine-erklaerung'
+            path.write_text(yaml.safe_dump(data, allow_unicode=True), encoding='utf-8')
+            r = self.run_cli(base, 'decide', 'e-001', '--decision', 'nein', '--file', str(path), '--next-card', '--text')
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn('e-001: nein', r.stdout)
+            self.assertIn('Stufe 1 (Blockierendes) abgeschlossen: Zwischenstand jetzt speichern', r.stderr)
+            self.assertIn('Stufe 2 · Thema 1 von 2: Handlungsjahr · 1 von 2 in diesem Thema', r.stdout)   # nächste Karte e-002
+            self.assertIn('`e-002`', r.stdout)
+            r = self.run_cli(base, 'decide', 'e-002', '--decision', 'ja', '--file', str(path), '--next-card', '--text')
+            self.assertNotIn('abgeschlossen', r.stderr)   # Thema noch nicht fertig
+            r = self.run_cli(base, 'decide', 'e-003', '--decision', 'ja', '--file', str(path), '--next-card', '--repo', 'o/r')
+            self.assertIn('Thema „Handlungsjahr“ abgeschlossen', r.stderr)
+            self.assertIn('GW.render("hinweisdurchsicht"', r.stdout)   # Widget für die nächste Karte (e-004), Meldung nur auf stderr
+            self.assertIn('Thema 2 von 2: Figuren', r.stdout)
+            self.assertNotIn('e-003: ja', r.stdout)
+            self.assertEqual(yaml.safe_load(path.read_text(encoding='utf-8'))['autorenentscheidung'][2]['entscheidung'], 'ja')
+
+
 class ThemesTest(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
