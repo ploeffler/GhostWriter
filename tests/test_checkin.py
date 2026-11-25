@@ -139,10 +139,32 @@ class CheckinFlowTest(unittest.TestCase):
 
     def test_second_return_gets_own_folder_and_unchanged_docx_has_no_findings(self):
         folder1, r1 = checkin.checkin(self.base, self.config, [self.docx], date='2026-11-25')
-        folder2, _ = checkin.checkin(self.base, self.config, [self.docx], date='2026-11-25')
+        other = self.edit(self.sample_word(), 'Ersatzwort')
+        folder2, r2 = checkin.checkin(self.base, self.config, [other], date='2026-11-25')
         self.assertNotEqual(folder1, folder2)
         self.assertEqual(r1['befunde'], 0)
         self.assertNotIn('befunddatei', r1)
+        self.assertGreaterEqual(r2['befunde'], 1)
+
+    def test_same_file_twice_is_refused_without_duplicates(self):
+        checkin.checkin(self.base, self.config, [self.docx], date='2026-11-25')
+        with self.assertRaisesRegex(ValueError, 'schon eingecheckt'):
+            checkin.checkin(self.base, self.config, [self.docx], date='2026-11-25')
+        self.assertEqual(len(list((self.base / 'checkouts' / self.entry['id']).glob('rueckgabe-*'))), 1)
+        self.assertEqual(len(checkout.load(self.base)['checkouts'][0]['rueckgaben']), 1)
+
+    def test_footnotes_tables_and_images_are_reported_as_not_taken_over(self):
+        _, report = checkin.checkin(self.base, self.config, [self.docx], date='2026-11-25')
+        self.assertTrue(any('Tabellen' in x for x in report.get('nicht_uebernommen', [])))      # das Testbuch hat eine Tabelle
+        self.assertIn('Nicht übernommen: ', checkin.summary(report))
+
+    def test_changed_structure_since_return_blocks_apply(self):
+        folder, report = checkin.checkin(self.base, self.config, [self.restructure()], date='2026-11-25')
+        checkout.end(self.base, self.config, self.entry['id'], 'zurück', by='x')
+        import sections
+        sections.cmd_rename(self.base, 'sec-01-02-die-etiketten-die-wir-kennen', 'Zwischendurch geändert')
+        with self.assertRaisesRegex(ValueError, 'Gliederung hat sich'):
+            checkin.aufbau_apply(self.base, self.config, folder, [report['aufbau'][0]['id']], confirm=True)
 
     # --- Aufbau (#209) ---
 

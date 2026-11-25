@@ -143,6 +143,41 @@ def docx_id_fallback(path):
     return None, ''
 
 
+def docx_losses(path):
+    """Inhalte, die der Vergleich nicht übernimmt (#209): Fußnoten, Tabellen, Bilder und Gestaltung. Gibt Zeilen für den
+    Bericht; verglichen wird nur der Text, reine Gestaltungsänderungen (fett, kursiv, Schrift, Abstände) bleiben unberücksichtigt."""
+    out = []
+    try:
+        with zipfile.ZipFile(path) as z:
+            names = z.namelist()
+            doc = z.read('word/document.xml').decode('utf-8', 'replace')
+            notes = z.read('word/footnotes.xml').decode('utf-8', 'replace') if 'word/footnotes.xml' in names else ''
+    except (OSError, zipfile.BadZipFile, KeyError):
+        return out
+    footnotes = len([m for m in re.findall(r'<w:footnote\b([^>]*)>', notes) if 'w:type="separator"' not in m and 'continuationSeparator' not in m])
+    tables = doc.count('<w:tbl>')
+    images = max(0, doc.count('<w:drawing>') - 1)       # das Titelblatt trägt den QR-Code
+    if footnotes:
+        out.append(f'{footnotes} Fußnoten: nur der Text im Abschnitt wird verglichen, Änderungen an Fußnoten werden nicht übernommen')
+    if tables:
+        out.append(f'{tables} Tabellen: nur der Text der Zellen wird verglichen, Tabellenaufbau und -format werden nicht übernommen')
+    if images:
+        out.append(f'{images} Bilder: Bilder werden nicht verglichen oder übernommen')
+    return out
+
+
+def _fingerprint(config):
+    """Gliederung (Kapitel und Abschnitte mit Titel) als Prüfsumme: ändert sie sich, passen offene Aufbau-Änderungen nicht mehr."""
+    import hashlib
+    text = json.dumps([[c['id'], [[x['id'], x['title']] for x in c['sections']]] for c in config['structure']['chapters']], ensure_ascii=False)
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]
+
+
+def file_digest(path):
+    import hashlib
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
 # ---------- Text ----------
 
 def norm(text):
@@ -534,6 +569,10 @@ def checkin(base, config, files, checkout_id=None, date=None, repo=None):
         if not entry:
             raise ValueError(f'Checkout {cid} gibt es in diesem Buch nicht; nichts abgelegt')
 
+        digests = [file_digest(f) for f in files]
+        for r in entry.get('rueckgaben') or []:
+            if r.get('pruefsummen') == digests:
+                raise ValueError(f'Diese Rückgabe wurde schon eingecheckt ({r["ordner"]}); nichts abgelegt, nichts doppelt')
         folder = folder_for(base, cid, date)
         folder.mkdir(parents=True)
         report = {'kennung': cid, 'art': kind, 'datum': date, 'checkout_status': entry['status'],
@@ -549,6 +588,8 @@ def checkin(base, config, files, checkout_id=None, date=None, repo=None):
         if kind == 'docx':
             sections, comments, tracked, props, structure = docx_data
             report['aenderungsnachverfolgung'] = tracked
+            if docx_losses(files[0]):
+                report['nicht_uebernommen'] = docx_losses(files[0])
             if not (tracked['eingefuegt'] or tracked['geloescht']) and not comments:
                 report['vergleich'] = ('keine Änderungsverfolgung und keine Kommentare gefunden, Vergleich über den Text'
                                        + (f' ({report["programm"]})' if report.get('programm') not in (None, 'unbekannt') else ''))
@@ -573,6 +614,7 @@ def checkin(base, config, files, checkout_id=None, date=None, repo=None):
                     items.append({**it, 'abschnitt': sid, 'quelle': f'{report["dateien"][0]}#{sid}', 'gegenleser': entry.get('gegenleser', '')})
             base_struct = baseline_structure(base, entry.get('commit', '')) if entry.get('commit') else None
             report['aufbau'] = detect_aufbau(set(entry.get('abschnitte') or {}), base_struct, structure)
+            report['gliederung'] = _fingerprint(config)
             for sid, author, text, anchor in comments:
                 if sid in known:
                     items.append({'abschnitt': sid, 'art': 'aufbau', 'befund': f'Kommentar von {author or "Gegenleser"}: {text}'[:400],
@@ -623,7 +665,7 @@ def checkin(base, config, files, checkout_id=None, date=None, repo=None):
         (folder / 'rueckgabe.yml').write_text(yaml.safe_dump(report, allow_unicode=True, sort_keys=False), encoding='utf-8')
         # Befunddatei verweist auf den Bericht; nach dem Schreiben des Berichts gültig
         entry.setdefault('rueckgaben', []).append({'ordner': folder.relative_to(base).as_posix(), 'art': kind, 'datum': date,
-                                                   'befunde': len(items)})
+                                                   'befunde': len(items), 'pruefsummen': digests})
         co.save(base, data)
         return folder, report
 
@@ -815,6 +857,9 @@ def aufbau_apply(base, config, folder, ids, confirm=False):
     entry = next(e for e in co.load(base)['checkouts'] if e['id'] == report['kennung'])
     if entry['status'] == 'ausgecheckt':
         raise ValueError(f'Checkout {entry["id"]} läuft noch: erst ausdrücklich beenden (checkout.py end), dann übernehmen')
+    from render_view import load as _load
+    if report.get('gliederung') and report['gliederung'] != _fingerprint(_load(base)[1]):
+        raise ValueError('Die Gliederung hat sich seit der Rückgabe geändert; die Rückgabe bitte erneut prüfen (checkin.py … aufbau zeigt die Liste), nichts übernommen')
     items = {a['id']: a for a in report.get('aufbau') or []}
     wanted = [items[i] for i in ids if i in items]
     unknown = [i for i in ids if i not in items]
@@ -858,6 +903,7 @@ def aufbau_apply(base, config, folder, ids, confirm=False):
             a['grund'] = str(exc)[:200]
             results.append((a['id'], f'nicht möglich: {exc}'))
     report['aufbau'] = list(items.values())
+    report['gliederung'] = _fingerprint(_load(base)[1])      # nach der Übernahme gilt die neue Gliederung für weitere Auswahlen
     path.write_text(yaml.safe_dump(report, allow_unicode=True, sort_keys=False), encoding='utf-8')
     return results
 
@@ -872,6 +918,8 @@ def summary(report):
     lines.append(f'{report["befunde"]} Befunde, {report["kommentare"]} Kommentare/Anmerkungen')
     if report.get('aufbau'):
         lines.append(f'{len(report["aufbau"])} Aufbau-Änderungen zur eigenen Bestätigung (checkin.py <buch> aufbau <ordner>)')
+    for line in report.get('nicht_uebernommen') or []:
+        lines.append(f'Nicht übernommen: {line}')
     for key in ('programm', 'vergleich', 'zuordnung_abschnitte'):
         if report.get(key):
             lines.append(f'{key.capitalize()}: {report[key]}')
