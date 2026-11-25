@@ -896,6 +896,9 @@ def main(argv):
     if not args.proof:
         for note in matter_notes(matter):
             print(f'ⓘ {note}')
+    import stale
+    for line in stale.warning_lines(base, config):   # #510: Auflage und Probedruck warnen, blockieren nicht
+        print(f'⚠ veraltet markiert: {line}')
 
     meta = metadata(config, args.edition, args.date)
     ts = meta['typesetting']

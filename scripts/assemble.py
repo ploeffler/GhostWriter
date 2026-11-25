@@ -769,6 +769,9 @@ def main(argv):
                 print(f'✗ {line}')
             for line in matter_notes(matter):
                 print(f'ⓘ {line}')
+            import stale
+            for line in stale.warning_lines(base, config):   # #510: warnen, nicht blockieren
+                print(f'⚠ veraltet markiert: {line}')
             if not found:
                 words = sum(len(re.findall(r'\w+', md)) for _, _, md, _, _ in parts) + \
                     sum(len(re.findall(r'\w+', m[2])) for m in matter)

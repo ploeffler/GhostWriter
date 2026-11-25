@@ -5,7 +5,8 @@
   python3 scripts/stale.py <buch> clear 1.2
   python3 scripts/stale.py <buch> list
 
-Das Feld `stale: {since, reason, source}` steht im Kopf der Abschnittsdatei. Es ändert weder Status noch
+Das Feld `stale: {since, reason, source}` steht im Kopf der Abschnittsdatei bzw. der Datei eines Teils von Vor-/Nachspann
+(Nummer: `mat-…`, Art oder Titel). Auflage und Probedruck warnen mit der Liste, blockieren aber nicht. Es ändert weder Status noch
 `approvals` noch den Fingerabdruck des Manuskripts (der Text bleibt unverändert). Beim erneuten Abschließen des
 Abschnitts entfernt der Assistent das Feld (`clear`); ein bloßes Wiederöffnen lässt es stehen.
 """
@@ -24,9 +25,13 @@ BLOCK = re.compile(r'(?m)^stale:\n(?:[ \t]+.*\n)+')
 
 
 def locate(base, config, number):
+    from render_view import find_matter   # Vor- und Nachspann: ID, Art oder Titel (#510)
+    item = find_matter(config, str(number)) if not re.fullmatch(r'\d+\.\d+', str(number)) else None
+    if item:
+        return item
     m = re.fullmatch(r'(\d+)\.(\d+)', str(number))
     if not m:
-        raise ValueError('Abschnittsnummer wie 1.2 angeben')
+        raise ValueError('Abschnittsnummer wie 1.2 oder Teil von Vor-/Nachspann (z. B. mat-vorwort) angeben')
     try:
         return config['structure']['chapters'][int(m[1]) - 1]['sections'][int(m[2]) - 1]
     except IndexError:
@@ -77,7 +82,17 @@ def stale_sections(base, config):
             note = section_file(Path(base), sec)[0].get('stale')
             if note:
                 out.append((f'{c}.{s}', sec, note))
+    from render_view import matter_items
+    for _, item in matter_items(config):
+        note = section_file(Path(base), item)[0].get('stale')
+        if note:
+            out.append((item['id'], item, note))
     return out
+
+
+def warning_lines(base, config):
+    """Zeilen für Auflage und Probedruck (#510): warnen, nie blockieren. Leer, wenn nichts als veraltet markiert ist."""
+    return [f'{n} {sec["title"]} (seit {note["since"]}: {note["reason"]})' for n, sec, note in stale_sections(base, config)]
 
 
 def main(argv=None):

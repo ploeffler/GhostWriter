@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
+import matter  # noqa: E402
 import stale  # noqa: E402
 import validate_project  # noqa: E402
 from render_view import load, section_file  # noqa: E402
@@ -63,6 +64,35 @@ class StaleTest(unittest.TestCase):
         stale.mark(self.base, self.config, '1.1', 'x', date='2026-11-24')
         out = self.view('approval-chapter', '1', '--text')
         self.assertIn('als veraltet markiert', out)
+        self.assertIn('1.1', out)
+
+    def add_matter(self):
+        matter.add(self.base, 'foreword')
+        _, self.config = load(self.base)
+        return self.config['structure']['front_matter'][0] if 'front_matter' in self.config['structure'] \
+            else next(i for _, i in __import__('render_view').matter_items(self.config))
+
+    def test_matter_mark_clear_and_views(self):
+        item = self.add_matter()
+        stale.mark(self.base, self.config, item['id'], 'Vorwort überholt', date='2026-11-25')
+        head = section_file(self.base, item)[0]
+        self.assertEqual(head['stale']['reason'], 'Vorwort überholt')
+        self.assertFalse(validate_project.check_project(self.base))
+        self.assertIn(item['id'], stale.stale_sections(self.base, self.config)[0][0])
+        self.assertIn('veraltet', self.view('matter', '--text') + self.view('matter'))
+        self.assertIn('Seit 2026-11-25: Vorwort überholt', self.view('matter', item['id'], '--text'))
+        self.assertTrue(stale.clear(self.base, self.config, item['id']))
+        self.assertEqual(stale.stale_sections(self.base, self.config), [])
+
+    def test_edition_warns_but_does_not_block(self):
+        item = self.add_matter()
+        stale.mark(self.base, self.config, '1.1', 'Zeitzeugin widerspricht', date='2026-11-25')
+        stale.mark(self.base, self.config, item['id'], 'überholt', date='2026-11-25')
+        lines = stale.warning_lines(self.base, self.config)
+        self.assertEqual(len(lines), 2)
+        self.assertTrue(lines[0].startswith('1.1 ') and 'Zeitzeugin widerspricht' in lines[0])
+        out = self.view('edition-create', '--text')
+        self.assertIn('Als veraltet markiert', out)
         self.assertIn('1.1', out)
 
 

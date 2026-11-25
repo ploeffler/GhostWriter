@@ -13,6 +13,17 @@
     "byline": {"type": "string", "description": "Vorwort, Nachwort: Verfasser, wenn nicht der Autor des Buchs; am Ende gesetzt (#58)"},
     "place_date": {"type": "string", "description": "Vorwort, Nachwort: Ort und Datum am Ende, z. B. „Graz, im Oktober 2026“ (#58)"},
     "characters": {"type": "array", "items": {"type": "string", "pattern": "^char-[a-z0-9][a-z0-9-]*$"}, "uniqueItems": true, "description": "Figuren, die vorkommen (#53)"},
+    "stale": {
+      "type": "object",
+      "description": "inhaltlich überholt, ohne die Freigabe zurückzunehmen (#510)",
+      "required": ["since", "reason"],
+      "properties": {
+        "since": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+        "reason": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "description": "Pfad der Quelle, z. B. eines Berichts oder Materials"}
+      },
+      "additionalProperties": false
+    },
     "approvals": {
       "type": "object",
       "required": ["writing", "section"],
