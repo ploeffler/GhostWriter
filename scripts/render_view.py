@@ -1425,8 +1425,8 @@ def limit_summary(base, config):
 
 
 # Hintergrundläufe (#123, #124): Kürzel und Symbol je Art in der Textfassung der Projektübersicht
-ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA', 'style': 'SA', 'places': 'OA', 'timeline': 'ZA', 'continuity': 'WA', 'language': 'SPA', 'chronology': 'CA'}
-ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝', 'style': '🪶', 'places': '📍', 'timeline': '🕰️', 'continuity': '🔗', 'language': '✍️', 'chronology': '📅'}
+ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA', 'style': 'SA', 'places': 'OA', 'glossary': 'GA', 'timeline': 'ZA', 'continuity': 'WA', 'language': 'SPA', 'chronology': 'CA'}
+ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝', 'style': '🪶', 'places': '📍', 'glossary': '📖', 'timeline': '🕰️', 'continuity': '🔗', 'language': '✍️', 'chronology': '📅'}
 
 
 def check_index(base, config, language='de'):
@@ -3670,7 +3670,29 @@ def chronology_suggest_view(base, config, args, data, run_text):
     return '\n'.join(out) + '\n'
 
 
-ANALYSIS_VIEWS = {'chronology': chronology_suggest_view, 'summaries': summaries_suggest_view, 'style': style_suggest_view, 'places': places_suggest_view,
+def glossary_suggest_view(base, config, args, data, run_text):
+    """Glossar-Begriffe (#490): als Text in jeder Darstellung (kein eigenes Widget). Begriff, Erklärung nur aus dem Text,
+    Abschnitte, Stand gegenüber dem Glossar. Übernommen wird einzeln; Vorgabe ist nichts angehakt."""
+    import analyze
+    known = analyze.glossary_known(base)
+    scope = scope_text(str(data.get('scope') or 'book'), config)
+    rows = []
+    for i, it in enumerate(data.get('items') or []):
+        state = view_message('view.glossary_suggest.already_exists') if analyze.norm(it['term']) in known else \
+            (view_message('view.glossary_suggest.new') if it.get('explanation') else view_message('view.glossary_suggest.no_explanation'))
+        rows.append(f'| {i + 1} | **{it["term"]}** | {it.get("explanation") or "–"} | {", ".join(it.get("sections") or []) or "–"} | {state} |')
+    out = [view_message('view.glossary_suggest.title', p_a=scope),
+           plural(len(rows), view_message('view.glossary_suggest.term'), view_message('view.glossary_suggest.terms')) + (f' · {run_text}' if run_text else ''), '']
+    out += ([view_message('view.glossary_suggest.header'), '|--:|---|---|---|---|'] + rows) if rows else [view_message('view.glossary_suggest.none')]
+    out += ['', view_message('view.glossary_suggest.note'), '', '---',
+            menu([(view_message('view.glossary_suggest.apply'), view_message('view.glossary_suggest.apply_these')),
+                  (view_message('view.places_suggest.all'), view_message('view.glossary_suggest.apply_all')),
+                  (view_message('view.glossary_suggest.explain'), view_message('view.glossary_suggest.explain_text')),
+                  ('X', view_message('view.glossary_suggest.discard'))])]
+    return '\n'.join(out) + '\n'
+
+
+ANALYSIS_VIEWS = {'glossary': glossary_suggest_view, 'chronology': chronology_suggest_view, 'summaries': summaries_suggest_view, 'style': style_suggest_view, 'places': places_suggest_view,
                   'timeline': timeline_suggest_view, 'continuity': continuity_suggest_view, 'language': language_suggest_view}
 
 

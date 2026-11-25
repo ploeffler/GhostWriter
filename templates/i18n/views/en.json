@@ -1095,5 +1095,20 @@
   "section_s_are_marked_stale_the_chapter_approval_does_not_check_content": "{p_a} section(s) marked outdated (approval stays valid): {p_b}. Check whether the text is still right before finalizing.",
   "view.matter.stale": "| ⚠ Outdated | Since {p_a}: {p_b} |",
   "edition.stale_sections": "Marked outdated (approval stays valid, the edition is not blocked): {list}.",
-  "checked_out_mark": "checked out"
+  "checked_out_mark": "checked out",
+  "view.glossary_suggest.title": "### 📖 Glossary terms from the text · {p_a}",
+  "view.glossary_suggest.header": "| # | Term | Explanation | Sections | Status |",
+  "view.glossary_suggest.none": "*No terms with a cited passage.*",
+  "view.glossary_suggest.note": "From the text only. An explanation is shown only where the text gives it itself; without one, add your own. Terms are applied to the glossary one by one; existing entries stay unchanged.",
+  "view.glossary_suggest.apply": "Apply: 1, 3",
+  "view.glossary_suggest.apply_these": "apply these",
+  "view.glossary_suggest.apply_all": "apply all new ones with an explanation",
+  "view.glossary_suggest.explain": "3 = explanation …",
+  "view.glossary_suggest.explain_text": "enter an explanation for term 3 yourself",
+  "view.glossary_suggest.discard": "discard",
+  "view.glossary_suggest.new": "new",
+  "view.glossary_suggest.no_explanation": "new, no explanation",
+  "view.glossary_suggest.already_exists": "already in the glossary",
+  "view.glossary_suggest.term": "term",
+  "view.glossary_suggest.terms": "terms"
 }

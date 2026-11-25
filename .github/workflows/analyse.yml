@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       kind:
-        description: 'Analyse: characters, summaries, style, places, timeline, continuity, language, chronology (mehrere mit Komma; leer = nur die Warteschlange abarbeiten)'
+        description: 'Analyse: characters, summaries, style, places, glossary, timeline, continuity, language, chronology (mehrere mit Komma; leer = nur die Warteschlange abarbeiten)'
         default: ''
       scope:
         description: 'Bereich: book (ganzes Buch) oder Nummer eines Kapitels'

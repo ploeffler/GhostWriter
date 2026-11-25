@@ -1095,5 +1095,20 @@
   "section_s_are_marked_stale_the_chapter_approval_does_not_check_content": "{p_a} Abschnitt(e) als veraltet markiert (Freigabe bleibt gültig): {p_b}. Vor dem Abschließen klären, ob der Text noch stimmt.",
   "view.matter.stale": "| ⚠ Veraltet | Seit {p_a}: {p_b} |",
   "edition.stale_sections": "Als veraltet markiert (Freigabe bleibt gültig, die Auflage wird nicht blockiert): {list}.",
-  "checked_out_mark": "ausgecheckt"
+  "checked_out_mark": "ausgecheckt",
+  "view.glossary_suggest.title": "### 📖 Glossar-Begriffe aus dem Text · {p_a}",
+  "view.glossary_suggest.header": "| # | Begriff | Erklärung | Abschnitte | Stand |",
+  "view.glossary_suggest.none": "*Keine Begriffe mit Fundstelle.*",
+  "view.glossary_suggest.note": "Nur aus dem Text. Eine Erklärung steht nur da, wo der Text sie selbst gibt; ohne Erklärung bitte selbst eine ergänzen. Übernommen wird einzeln ins Glossar; vorhandene Einträge bleiben unverändert.",
+  "view.glossary_suggest.apply": "Übernehmen: 1, 3",
+  "view.glossary_suggest.apply_these": "diese übernehmen",
+  "view.glossary_suggest.apply_all": "alle neuen mit Erklärung übernehmen",
+  "view.glossary_suggest.explain": "3 = Erklärung …",
+  "view.glossary_suggest.explain_text": "Erklärung für Begriff 3 selbst eintragen",
+  "view.glossary_suggest.discard": "verwerfen",
+  "view.glossary_suggest.new": "neu",
+  "view.glossary_suggest.no_explanation": "neu, ohne Erklärung",
+  "view.glossary_suggest.already_exists": "steht schon im Glossar",
+  "view.glossary_suggest.term": "Begriff",
+  "view.glossary_suggest.terms": "Begriffe"
 }
