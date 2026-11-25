@@ -37,6 +37,10 @@ permissions:
   contents: write
   pull-requests: write
 
+defaults:
+  run:
+    shell: bash   # bash -e -o pipefail: ein Fehler vor `| tee` bricht den Schritt ab
+
 jobs:
   image:
     runs-on: ubuntu-latest
