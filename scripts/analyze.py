@@ -89,6 +89,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'scripts'))
+import pricing  # noqa: E402
 from render_view import (chapter_number, character_file, character_items, load, matter_items, section_file)  # noqa: E402
 
 PROVIDERS = {
@@ -1698,10 +1699,12 @@ def cost_entry(s, provider, model, run_id, tin, tout, when, n, label='Figuren', 
     wf = yaml.safe_load((ROOT / 'workflow.yml').read_text(encoding='utf-8'))
     cur = ((wf.get('cost_tracking') or {}).get('project_currency') or 'EUR')
     act = f'act-{run_id}-{n:03d}' if kind == 'characters' else f'act-{kind}-{run_id}-{n:03d}'   # Läufe je Art zählen getrennt
-    return {'activity_id': act, 'occurred_at': when, 'source': 'action_api', 'run_id': f'{kind}/{run_id}' if kind != 'characters' else run_id,
-            'provider': provider, 'model': model, 'activity_type': 'other', 'currency': cur,
-            'cost_amount': price, 'cost_status': 'estimated' if price is not None else 'unavailable',
-            'input_tokens': tin, 'output_tokens': tout, 'note': f'{label}-Analyse (Hintergrundlauf)'}
+    entry = {'activity_id': act, 'occurred_at': when, 'source': 'action_api', 'run_id': f'{kind}/{run_id}' if kind != 'characters' else run_id,
+             'provider': provider, 'model': model, 'activity_type': 'other', 'currency': cur,
+             'cost_amount': price, 'cost_status': 'estimated' if price is not None else 'unavailable',
+             'input_tokens': tin, 'output_tokens': tout, 'note': f'{label}-Analyse (Hintergrundlauf)'}
+    pricing.enrich(entry, tin, tout)   # ohne eigenen Preis im Buch: Preistabelle und EZB-Kurs (#66)
+    return entry
 
 
 def run(base, kind='characters', scope=None, now=None):

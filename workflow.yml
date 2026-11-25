@@ -118,6 +118,7 @@ cost_tracking:
     provenance_fields: [run_id, request_id, synthetic]
     optional_usage_fields: [input_tokens, output_tokens, cached_input_tokens, reasoning_tokens, image_units, audio_units, other_usage_quantity]
     pricing_fields: [pricing_basis, input_unit_price, output_unit_price, cached_input_unit_price, pricing_source, pricing_checked_at]
+    conversion_fields: [original_currency, original_amount, exchange_rate, exchange_rate_date, exchange_rate_source, exchange_rate_status]   # #66: ECB-Referenzkurs des Tages
     cost_status_values: [actual, estimated, manually_entered, unavailable]
     preserve_original_currency_and_amount: true
     conversion:

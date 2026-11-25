@@ -48,6 +48,7 @@ from pathlib import Path
 import yaml
 
 import model_defaults
+import pricing
 
 ROOT = Path(__file__).resolve().parent.parent
 KEY_ENV = 'GHOSTWRITER_RESEARCH_KEY'
@@ -475,6 +476,14 @@ def run(base, section_id, question=None, provider=None, model=None, defaults=Non
     folder.mkdir(parents=True, exist_ok=True)
     n = f'{next_number(folder, RUN_RE):03d}'
     amount, no_search_price = price(cfg['service'], res['input_tokens'], res['output_tokens'], res['searches'])
+    wf = read_yaml(ROOT / 'workflow.yml')
+    currency = (wf.get('cost_tracking') or {}).get('project_currency') or 'EUR'
+    table_fields = None
+    if amount is None:   # kein eigener Preis im Buch: Preistabelle in providers.yml und EZB-Kurs (#66); sonst bleibt der Betrag unbekannt
+        est = pricing.estimate(cfg['provider'], cfg['model'], res['input_tokens'], res['output_tokens'], res['searches'])
+        if est:
+            table_fields = pricing.cost_fields(est, currency, today)
+            amount, no_search_price = table_fields['cost_amount'], not est['search_priced']
     run_id = f'run-{n}'
     meta = {'id': run_id, 'type': 'research', 'section_id': sec['id'], 'status': 'completed', 'date': today,
             'provider': cfg['provider'], 'model': cfg['model'], 'web_research': True, 'searches': res['searches'],
@@ -487,15 +496,16 @@ def run(base, section_id, question=None, provider=None, model=None, defaults=Non
     md = ('---\n' + yaml.safe_dump(meta, allow_unicode=True, sort_keys=False) + '---\n\n'
           + f'# Recherchelauf {n}\n\n{intro}\n\n' + with_sources(body, res['sources'], today, en).rstrip() + '\n')
     (folder / f'{run_id}.md').write_text(md, encoding='utf-8')
-    wf = read_yaml(ROOT / 'workflow.yml')
     note = f'Recherche mit Internet ({res["searches"]} Suchanfragen)' + (', ohne Suchkosten' if no_search_price else '')
     entry = {'activity_id': f'act-research-{sec["id"]}-{run_id}', 'occurred_at': now.isoformat(),
              'source': 'action_api', 'run_id': f'research/{sec["id"]}/{run_id}', 'provider': cfg['provider'],
              'model': cfg['model'], 'activity_type': 'research', 'section_id': sec['id'],
-             'currency': (wf.get('cost_tracking') or {}).get('project_currency') or 'EUR',
+             'currency': currency,
              'cost_amount': amount, 'cost_status': 'estimated' if amount is not None else 'unavailable',
              'input_tokens': res['input_tokens'], 'output_tokens': res['output_tokens'],
              'other_usage_quantity': res['searches'], 'note': note}
+    if table_fields:
+        entry.update(table_fields)
     if res.get('request_id'):
         entry['request_id'] = str(res['request_id'])[:200]
     write_cost(base, ch, sec, entry)
