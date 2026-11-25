@@ -904,7 +904,8 @@ class RenderedWidget(str):
 
 # Felder, die die Vorlage nicht liest und die nur der Textfassung dienen (#360): nicht ins Widget schicken,
 # damit die Ausgabe klein bleibt und unverändert in den Chat passt. In .data bleiben sie erhalten.
-WIDGET_OMIT = {'projektuebersicht': {'CHAPTERS': ('CHAPTER_CHECKS', 'CHAPTER_CHECKS_TEXT', 'CHAPTER_HISTORY')}}
+WIDGET_OMIT = {'projektuebersicht': {'CHAPTERS': ('CHAPTER_CHECKS', 'CHAPTER_CHECKS_TEXT', 'CHAPTER_HISTORY'),
+                                     '': ('CHECKS_BOOK_STALE',)}}   # '' = oberste Ebene (#538)
 
 
 def widget_payload(name, data):
@@ -914,7 +915,9 @@ def widget_payload(name, data):
         return data
     out = dict(data)
     for block, keys in omit.items():
-        if isinstance(out.get(block), list):
+        if not block:
+            out = {k: v for k, v in out.items() if k not in keys}
+        elif isinstance(out.get(block), list):
             out[block] = [{k: v for k, v in r.items() if k not in keys} if isinstance(r, dict) else r for r in out[block]]
     return out
 
@@ -1517,8 +1520,10 @@ def project_view(base, config, args):
                        else view_message('overview.preview_undated', number=pn)})
     if ck:   # Kopfzeile „Letzte Prüfungen“ (#331)
         import checks
-        values['CHECKS_RECENT'] = ck.recent()
-        values['CHECKS_RECENT_TEXT'] = checks.recent_text(values['CHECKS_RECENT'])
+        if detailed:   # #538: „Letzte Prüfungen“ nur in der Darstellung „erweitert“
+            values['CHECKS_RECENT'] = ck.recent()
+            values['CHECKS_RECENT_TEXT'] = checks.recent_text(values['CHECKS_RECENT'])
+        values['CHECKS_BOOK_STALE'] = ck.book_stale()   # #538: buchweite Prüfungen, deren Text sich seither geändert hat
         values['CHECKS_LEGEND'] = (checks.LEGEND if detailed else checks.LEGEND_LATEST)['de']
         if detailed:
             values['CHECK_DETAILS'] = '1'
@@ -1588,8 +1593,9 @@ def project_view(base, config, args):
             lines += [f'> 🔄 **GhostWriter-Update:** {values["UPDATE_TEXT"]} · `U` einspielen', '']
         if values.get('CHECKS_RECENT_TEXT'):
             lines += [f'🧪 **Letzte Prüfungen:** {values["CHECKS_RECENT_TEXT"]}', '']
+        if ck:
             import checks
-            lines += checks.todo(rows)   # #538
+            lines += checks.todo(rows, 'de', values.get('CHECKS_BOOK_STALE'))   # #538
         if values['PROJECT_DESCRIPTION_SHORT']:
             lines += [f'> {values["PROJECT_DESCRIPTION_SHORT"]}', '']
         if values['PROJECT_DESCRIPTION']:

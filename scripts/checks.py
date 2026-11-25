@@ -751,18 +751,20 @@ def as_json(tag_list, keep=JSON_KEYS):
 TODO_MAX = 8   # höchstens so viele Kapitel in „Handlungsbedarf“, der Rest als Zahl (#538)
 TODO_TEXT = {
     'de': {'head': 'Handlungsbedarf', 'chapter': 'Kapitel', 'failed': 'nicht bestanden', 'changed': 'Text seit der Prüfung geändert, neu prüfen',
-           'notes': 'offene Hinweise', 'note': 'offener Hinweis', 'more': 'weitere Kapitel'},
+           'notes': 'offene Hinweise', 'note': 'offener Hinweis', 'more': 'weitere Kapitel', 'book': 'Buch neu prüfen'},
     'en': {'head': 'Needs attention', 'chapter': 'Chapter', 'failed': 'failed', 'changed': 'text changed since the check, check again',
-           'notes': 'open notes', 'note': 'open note', 'more': 'more chapters'},
+           'notes': 'open notes', 'note': 'open note', 'more': 'more chapters', 'book': 'Check the book again'},
 }
 
 
-def todo(rows, language='de'):
+def todo(rows, language='de', book_stale=()):
     """Kompakte Zeilen „Handlungsbedarf“ für die Projektübersicht (#538): je Kapitel nur, was jetzt zu tun ist
     (nicht bestanden, seit der Prüfung geändert, offene Hinweise). Ohne Bedarf keine Zeile. Die Prüfhistorie bleibt
     in den Prüfdetails bzw. der Kapitelansicht."""
     t = TODO_TEXT['en' if language == 'en' else 'de']
     items = []
+    for b in book_stale or ():   # #538: buchweite Prüfung, seither wurde ein Abschnitt geändert
+        items.append(f'- {t["book"]} ({b["label"][("en" if language == "en" else "de")]})')
     for r in rows:
         parts = []
         for tag in r.get('CHAPTER_CHECKS') or []:
@@ -835,6 +837,22 @@ class Index:
 
     def section_history(self, sid):
         return history(self.base, self.config, [sid], self.entries, self.language, self.now) if self.entries else []
+
+    def book_stale(self):
+        """Prüfarten (#538), deren neuester buchweiter Eintrag nicht mehr zum Text passt: ein Abschnitt hat sich seit der
+        Prüfung geändert. [{'kind': …, 'label': {'de': …, 'en': …}}], nach Prüfart sortiert."""
+        latest = {}
+        for i, e in enumerate(self.entries):
+            if 'book' in (e.get('scope') or []):
+                rank = (when(e), i)
+                if e['kind'] not in latest or rank >= latest[e['kind']][0]:
+                    latest[e['kind']] = (rank, e)
+        ids = list(self.now)
+        out = []
+        for kind, (_, e) in sorted(latest.items()):
+            if state(self.base, self.config, e, ids, self.now) == 'changed':
+                out.append({'kind': kind, 'label': {lang: label(kind, lang)[0] for lang in ('de', 'en')}})
+        return out
 
     def open_notes(self, ch):
         """Offene Hinweise (#362): Summe von `notes` aus dem neuesten Eintrag je Prüfart, der das Kapitel berührt;
