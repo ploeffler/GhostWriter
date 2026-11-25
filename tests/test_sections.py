@@ -134,5 +134,39 @@ class SectionsTest(unittest.TestCase):
         self.assertEqual(before.split('  chapters:')[0], after.split('  retired:')[0])
 
 
+    def test_add_rename_reorder(self):
+        """#209: neuer Abschnitt, umbenennen und umstellen innerhalb des Kapitels."""
+        out = sections.cmd_add(self.base, '1', 'Ein neuer Gedanke', position=2, paragraphs=['Erster Absatz.', 'Zweiter Absatz.'])
+        self.assertIn('1.2', out)
+        ids = self.ids()
+        self.assertEqual(ids[1], 'sec-01-02-ein-neuer-gedanke')
+        new = next(x for x in self.config()['structure']['chapters'][0]['sections'] if x['id'] == ids[1])
+        text = (self.base / new['path']).read_text(encoding='utf-8')
+        self.assertIn('number: "1.2"', text)
+        self.assertTrue(text.rstrip().endswith('Erster Absatz.\n\nZweiter Absatz.'))
+        self.assertEqual(ids[2], S2)                                   # der alte Abschnitt 1.2 ist jetzt 1.3
+        self.valid()
+        sections.cmd_rename(self.base, S2, 'Neue Überschrift')
+        sec = next(x for x in self.config()['structure']['chapters'][0]['sections'] if x['id'] == S2)
+        self.assertEqual(sec['title'], 'Neue Überschrift')
+        self.assertIn('# 1.3 Neue Überschrift', (self.base / sec['path']).read_text(encoding='utf-8'))
+        self.assertIn('| 1.3 | Neue Überschrift |', (self.base / CH1 / 'README.md').read_text(encoding='utf-8'))
+        sections.cmd_reorder(self.base, S3, after=None)               # an den Anfang
+        self.assertEqual(self.ids()[0], S3)
+        sections.cmd_reorder(self.base, S3, after=S2)
+        self.assertEqual(self.ids()[self.ids().index(S3) - 1], S2)
+        self.valid()
+
+    def test_reorder_allows_approved_section_but_not_across_chapters(self):
+        cfg = self.config()
+        sec = next(x for x in cfg['structure']['chapters'][0]['sections'] if x['id'] == S3)
+        path = self.base / sec['path']
+        path.write_text(path.read_text(encoding='utf-8').replace('section: false', 'section: true').replace('status: writing', 'status: approved'), encoding='utf-8')
+        sections.cmd_reorder(self.base, S3, after=None)
+        self.assertEqual(self.ids()[0], S3)
+        with self.assertRaises(SystemExit):
+            sections.cmd_reorder(self.base, S3, after=self.config()['structure']['chapters'][1]['sections'][0]['id'])
+
+
 if __name__ == '__main__':
     unittest.main()

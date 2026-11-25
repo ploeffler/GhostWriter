@@ -144,6 +144,112 @@ class CheckinFlowTest(unittest.TestCase):
         self.assertEqual(r1['befunde'], 0)
         self.assertNotIn('befunddatei', r1)
 
+    # --- Aufbau (#209) ---
+
+    def restructure(self):
+        """Gegenleser: 1.5 gelöscht, 1.4 umbenannt, 1.3 hinter 1.6 geschoben, neuer Abschnitt nach 1.9."""
+        from docx import Document
+        d = Document(str(self.docx))
+        body = d.element.body
+        kids = list(body)
+        groups, cur = {}, None
+        for el in kids:
+            if el.tag.endswith('}p'):
+                text = ''.join(t.text or '' for t in el.iter(checkin.q('t'))).strip()
+                style = el.find(f'{checkin.q("pPr")}/{checkin.q("pStyle")}')
+                val = (style.get(checkin.q('val')) if style is not None else '') or ''
+                if val in ('Heading1', 'Heading2'):
+                    cur = text[:3] if val == 'Heading2' and text[:1].isdigit() else None
+                    if val == 'Heading2' and not text[:1].isdigit():
+                        cur = text           # „Quellen“
+            if cur and not el.tag.endswith('}sectPr'):    # Tabellen gehören zu ihrem Abschnitt
+                groups.setdefault(cur, []).append(el)
+        for el in groups['1.5']:
+            body.remove(el)
+        rename = groups['1.4'][0]
+        for t in rename.iter(checkin.q('t')):
+            t.text = (t.text or '').replace('Die Uhr, die bei mir anders tickt', 'Meine innere Uhr')
+        anchor = groups['1.6'][-1]
+        for el in reversed(groups['1.3']):
+            anchor.addnext(el)
+        last = groups['1.9'][-1]
+        import copy
+        head = copy.deepcopy(groups['1.9'][0])
+        for el in list(head):
+            if el.tag.endswith('}bookmarkStart') or el.tag.endswith('}bookmarkEnd'):
+                head.remove(el)
+        texts = list(head.iter(checkin.q('t')))
+        texts[0].text = 'Neuer Gedanke'
+        for t in texts[1:]:
+            t.text = ''
+        paras = []
+        for line in ('Ein ganz neuer Absatz.', 'Und noch einer.'):
+            para = copy.deepcopy(groups['1.9'][1])
+            ts = list(para.iter(checkin.q('t')))
+            ts[0].text = line
+            for t in ts[1:]:
+                t.text = ''
+            paras.append(para)
+        for el in reversed([head] + paras):
+            last.addnext(el)
+        out = self.tmp / 'umgebaut.docx'
+        d.save(str(out))
+        return out
+
+    def test_structure_changes_are_listed_and_applied_only_after_confirmation(self):
+        back = self.restructure()
+        folder, report = checkin.checkin(self.base, self.config, [back], date='2026-11-25')
+        kinds = sorted(a['art'] for a in report['aufbau'])
+        self.assertEqual(kinds, ['geloescht', 'neu', 'umbenannt', 'verschoben'], report['aufbau'])
+        self.assertEqual(report['befunde'], 0)                         # reine Aufbau-Änderungen, kein Text geändert
+        by = {a['art']: a for a in report['aufbau']}
+        self.assertEqual(by['neu']['text'], ['Ein ganz neuer Absatz.', 'Und noch einer.'])
+        self.assertTrue(by['verschoben']['abschnitt'].startswith('sec-01-03'))
+        self.assertEqual(by['verschoben']['hinter'][:10], 'sec-01-06-')
+        rows = checkin.aufbau_list(self.base, self.config, folder.relative_to(self.base))
+        self.assertEqual(len(rows), 4)
+        ids = [a['id'] for a in report['aufbau']]
+        with self.assertRaisesRegex(ValueError, 'Bestätigung'):
+            checkin.aufbau_apply(self.base, self.config, folder, ids, confirm=False)
+        with self.assertRaisesRegex(ValueError, 'läuft noch'):
+            checkin.aufbau_apply(self.base, self.config, folder, ids, confirm=True)
+        checkout.end(self.base, self.config, self.entry['id'], 'zurück', by='x')
+        before = (self.base / 'chapters/01-endlich-eine-erklaerung/sections/03-was-hinter-den-etiketten-steckt.md').read_text(encoding='utf-8')
+        results = dict(checkin.aufbau_apply(self.base, self.config, folder, [by['umbenannt']['id'], by['neu']['id']], confirm=True))
+        self.assertEqual(len(results), 2, results)
+        _, config = load(self.base)
+        titles = [x['title'] for x in config['structure']['chapters'][0]['sections']]
+        self.assertIn('Meine innere Uhr', titles)
+        self.assertEqual(titles[-1], 'Neuer Gedanke')
+        new = config['structure']['chapters'][0]['sections'][-1]
+        self.assertIn('Ein ganz neuer Absatz.', (self.base / new['path']).read_text(encoding='utf-8'))
+        rest = dict(checkin.aufbau_apply(self.base, self.config, folder, [by['verschoben']['id'], by['geloescht']['id']], confirm=True))
+        _, config = load(self.base)
+        numbers = {x['id']: f'1.{i}' for i, x in enumerate(config['structure']['chapters'][0]['sections'], start=1)}
+        self.assertNotIn(by['geloescht']['abschnitt'], numbers)
+        self.assertEqual(numbers[by['verschoben']['abschnitt']], '1.5')       # nach 1.6 (alt), 1.5 ist entfernt
+        text3 = (self.base / [x for x in config['structure']['chapters'][0]['sections'] if x['id'] == by['verschoben']['abschnitt']][0]['path']).read_text(encoding='utf-8')
+        self.assertEqual(text3.split('## Manuskript')[1], before.split('## Manuskript')[1])   # Text unverändert
+        rep = yaml.safe_load((folder / 'rueckgabe.yml').read_text(encoding='utf-8'))
+        self.assertTrue(all(a['status'] == 'uebernommen' for a in rep['aufbau']), rest)
+        import validate_project
+        self.assertFalse(validate_project.check_project(self.base))
+
+    def test_missing_sections_in_unrecognized_file_delete_nothing(self):
+        out = self.tmp / 'leer.docx'
+        from docx import Document
+        d = Document(str(self.docx))
+        for el in list(d.element.body):
+            if el.tag.endswith('}p') and not any('GW-' in (t.text or '') or 'Kennung' in (t.text or '') for t in el.iter(checkin.q('t'))):
+                d.element.body.remove(el)
+        d.save(str(out))
+        _, report = checkin.checkin(self.base, self.config, [out], date='2026-11-25')
+        self.assertFalse([a for a in report['aufbau'] if a['art'] == 'geloescht'])
+
+    def test_unchanged_return_has_no_structure_changes(self):
+        _, report = checkin.checkin(self.base, self.config, [self.docx], date='2026-11-25')
+        self.assertEqual(report['aufbau'], [])
+
     @unittest.skipUnless(cv2 is not None and shutil.which('soffice') and shutil.which('pdftotext'), 'OpenCV, LibreOffice, pdftotext nötig')
     # --- Programme (#209): Word, LibreOffice, Google Docs, Pages ---
 
