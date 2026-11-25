@@ -96,6 +96,49 @@ def docx_properties(path):
     return {e.get('name'): ''.join(e.itertext()) for e in root}
 
 
+def docx_application(path):
+    """Programm, das die DOCX zuletzt geschrieben hat (docProps/app.xml): Word, LibreOffice Writer, Google Docs, Pages
+    oder `unbekannt` (#209). Nur für Hinweise; der Vergleich hängt nicht davon ab."""
+    try:
+        with zipfile.ZipFile(path) as z:
+            xml = z.read('docProps/app.xml').decode('utf-8', 'replace') if 'docProps/app.xml' in z.namelist() else ''
+    except (OSError, zipfile.BadZipFile):
+        return 'unbekannt'
+    m = re.search(r'<Application>([^<]*)</Application>', xml)
+    app = (m.group(1) if m else '').lower()
+    for key, name in (('microsoft', 'Word'), ('libreoffice', 'LibreOffice Writer'), ('google', 'Google Docs'), ('pages', 'Pages')):
+        if key in app:
+            return name
+    return 'unbekannt'
+
+
+def docx_id_fallback(path):
+    """Kennung, wenn die Dokumenteigenschaft fehlt (Google Docs und Pages verwerfen sie oft): (Kennung, Quelle) oder (None, '').
+    Erst der Text des Titelblatts („Kennung: GW-XXXX“), dann ein QR-Code unter den Bildern der Datei."""
+    try:
+        from docx import Document
+        doc = Document(str(path))
+        for p in doc.paragraphs[:40]:
+            m = re.search(r'Kennung:\s*(GW-[A-HJ-NP-Z2-9]{4})', p.text)
+            if m:
+                return m.group(1), 'titelblatt'
+    except Exception:   # noqa: BLE001 – beschädigte Datei: weiter mit dem Bild-Versuch
+        pass
+    try:
+        import cv2
+        import numpy as np
+        with zipfile.ZipFile(path) as z:
+            for name in z.namelist():
+                if name.startswith('word/media/') and name.lower().endswith(('.png', '.jpg', '.jpeg')):
+                    img = cv2.imdecode(np.frombuffer(z.read(name), np.uint8), cv2.IMREAD_COLOR)
+                    payload = parse_payload(decode_qr(img) or '') if img is not None else None
+                    if payload:
+                        return payload['id'], 'qr'
+    except Exception:   # noqa: BLE001
+        pass
+    return None, ''
+
+
 # ---------- Text ----------
 
 def norm(text):
@@ -123,11 +166,18 @@ def baseline(base, commit, rel):
     return manuscript_of(r.stdout) if r.returncode == 0 else None
 
 
-def read_docx(path):
-    """{Abschnitts-ID: [Absatz, …]}, Kommentare [(Abschnitt, Autor, Text, Ankertext)], Zähler der Änderungsnachverfolgung."""
+def read_docx(path, scope=None):
+    """{Abschnitts-ID: [Absatz, …]}, Kommentare [(Abschnitt, Autor, Text, Ankertext)], Zähler der Änderungsnachverfolgung,
+    Dokumenteigenschaften und die Abschnitte in Dokumentreihenfolge (#209).
+
+    Ein Abschnitt wird über die Textmarke `gw_…` erkannt; fehlt sie (Google Docs, Pages), über die Überschrift „N.M Titel“ aus
+    `scope` ({Nummer: (ID, Titel)} des Checkouts): Nummer und Titel gleich = sicher, nur der Titel gleich = verschoben
+    (`bestaetigt` nein), nur die Nummer gleich = vermutlich umbenannt. Eine Überschrift ohne Treffer ist ein neuer Abschnitt
+    (`sid` None). Reihenfolge-Eintrag: {sid, nummer, titel, absaetze, erkannt, kapitel}."""
     from docx import Document
     props = docx_properties(path)
     mapping = json.loads(props.get('ghostwriter_sections') or '{}')
+    by_title = {norm(t).casefold(): (n, sid) for n, (sid, t) in (scope or {}).items()}
     doc = Document(str(path))
     comments = {}
     for rel in doc.part.rels.values():
@@ -136,19 +186,40 @@ def read_docx(path):
             root = etree.fromstring(rel.target_part.blob)
             for c in root.iter(q('comment')):
                 comments[c.get(q('id'))] = (c.get(q('author')) or '', ' '.join(''.join(t.itertext()) for t in c.iter(q('p'))).strip())
-    out, found, current = {}, [], None
+    out, found, order, current, chapter = {}, [], [], None, None
     body = doc.element.body
     for p in body.iter(q('p')):
         names = [b.get(q('name')) for b in p.iter(q('bookmarkStart'))]
         style = p.find(f'{q("pPr")}/{q("pStyle")}')
         style_val = (style.get(q('val')) if style is not None else '') or ''
         text = ''.join(t.text or '' for t in p.iter(q('t'))).strip()
+        level = re.match(r'(?i)(?:heading|berschrift)(\d)$', style_val)
+        head = re.match(r'^(\d+)\.(\d+)\s+(.+)$', text)
         sec = next((mapping[n] for n in names if n in mapping), None)
-        if sec:                                     # Abschnittsüberschrift mit Textmarke
+        how = 'textmarke' if sec else None
+        if not sec and level and int(level.group(1)) == 2 and text and (scope is not None or head):
+            if head:
+                number, title = f'{head.group(1)}.{head.group(2)}', head.group(3).strip()
+                hit = (scope or {}).get(number)
+                if hit and norm(hit[1]).casefold() == norm(title).casefold():
+                    sec, how = hit[0], 'ueberschrift'
+                elif norm(title).casefold() in by_title:
+                    sec, how = by_title[norm(title).casefold()][1], 'titel'
+                elif hit:
+                    sec, how = hit[0], 'nummer'
+            if not sec:
+                sec, how = 'neu:' + (text[:60] or str(len(order) + 1)), 'neu'
+        if sec:                                     # Abschnittsüberschrift
             current = sec
             out.setdefault(current, [])
+            number = (head.group(1) + '.' + head.group(2)) if head else ''
+            title = head.group(3).strip() if head else text
+            order.append({'sid': None if how == 'neu' else sec, 'schluessel': sec, 'nummer': number, 'titel': title,
+                          'erkannt': how, 'kapitel': chapter, 'absaetze': out[current]})
             continue
-        level = re.match(r'(?i)(?:heading|berschrift)(\d)$', style_val)
+        if level and int(level.group(1)) == 1:
+            m = re.match(r'^(\d+)\b', text)
+            chapter = int(m.group(1)) if m else chapter
         if style_val.lower() in ('title', 'subtitle') or (level and int(level.group(1)) <= 2):
             current = None                          # Kapitelüberschrift, Untertitel, „Quellen“ u. Ä.: gehört zu keinem Abschnitt
             continue
@@ -160,7 +231,7 @@ def read_docx(path):
             out[current].append(text)
     ins = len(list(body.iter(q('ins'))))
     dele = len(list(body.iter(q('del'))))
-    return out, found, {'eingefuegt': ins, 'geloescht': dele}, props
+    return out, found, {'eingefuegt': ins, 'geloescht': dele}, props, order
 
 
 STATUS_NOTE = re.compile(r'^Stand: .*nicht abgeschlossen$')
@@ -290,6 +361,13 @@ def write_findings(base, cid, date, folder, items):
     return path
 
 
+def _scope_numbers(config, entry):
+    """{„N.M“: (Abschnitts-ID, Titel)} der Abschnitte des Checkouts (aktuelle Gliederung) für den Überschriften-Rückfall."""
+    known = set(entry.get('abschnitte') or {})
+    return {f'{ci}.{si}': (sec['id'], sec['title']) for ci, ch in enumerate(config['structure']['chapters'], start=1)
+            for si, sec in enumerate(ch['sections'], start=1) if sec['id'] in known}
+
+
 def checkin(base, config, files, checkout_id=None, date=None, repo=None):
     """Rückgabe einchecken; gibt (Ablageordner, Bericht) zurück. Fehler: ValueError, es bleibt nichts liegen."""
     import checks
@@ -306,14 +384,20 @@ def checkin(base, config, files, checkout_id=None, date=None, repo=None):
             raise ValueError(f'Datei nicht gefunden: {f}')
 
     pages, found_ids = [], set()
-    props, docx_data = {}, None
+    props, docx_data, report_extra = {}, None, {}
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         if kind == 'docx':
-            docx_data = read_docx(files[0])
-            props = docx_data[3]
+            report_extra['programm'] = docx_application(files[0])
+            props = docx_properties(files[0])
             if props.get('ghostwriter_checkout'):
                 found_ids.add(props['ghostwriter_checkout'])
+                report_extra['kennung_aus'] = 'eigenschaft'
+            else:
+                fid, how = docx_id_fallback(files[0])
+                if fid:
+                    found_ids.add(fid)
+                    report_extra['kennung_aus'] = how
         else:
             import cv2
             images = []
@@ -359,7 +443,9 @@ def checkin(base, config, files, checkout_id=None, date=None, repo=None):
         folder = folder_for(base, cid, date)
         folder.mkdir(parents=True)
         report = {'kennung': cid, 'art': kind, 'datum': date, 'checkout_status': entry['status'],
-                  'spaet': entry['status'] != 'ausgecheckt', 'dateien': []}
+                  'spaet': entry['status'] != 'ausgecheckt', 'dateien': [], **report_extra}
+        if kind == 'docx':
+            docx_data = read_docx(files[0], _scope_numbers(config, entry))
         for i, f in enumerate(files, start=1):
             target = f'original{"" if len(files) == 1 else f"-{i}"}{f.suffix.lower()}'
             shutil.copyfile(f, folder / target)
@@ -367,8 +453,15 @@ def checkin(base, config, files, checkout_id=None, date=None, repo=None):
 
         items, unknown, comments_n = [], [], 0
         if kind == 'docx':
-            sections, comments, tracked, _ = docx_data
+            sections, comments, tracked, props, structure = docx_data
             report['aenderungsnachverfolgung'] = tracked
+            if not (tracked['eingefuegt'] or tracked['geloescht']) and not comments:
+                report['vergleich'] = ('keine Änderungsverfolgung und keine Kommentare gefunden, Vergleich über den Text'
+                                       + (f' ({report["programm"]})' if report.get('programm') not in (None, 'unbekannt') else ''))
+            how = {s_['erkannt'] for s_ in structure}
+            if how - {'textmarke'}:
+                report['zuordnung_abschnitte'] = ('Textmarken fehlen, Abschnitte über die Überschriften zugeordnet'
+                                                  if 'textmarke' not in how else 'teils über die Überschriften zugeordnet')
             known = {s for s in (entry.get('abschnitte') or {})}
             for sid, theirs in sections.items():
                 if sid not in known:
@@ -605,6 +698,9 @@ def summary(report):
         ok = sum(1 for p in report['seiten'] if p['zuordnung'] == 'qr')
         lines.append(f'{len(report["seiten"])} Seiten, {ok} über den QR-Code zugeordnet, {len(report["seiten"]) - ok} unbekannt')
     lines.append(f'{report["befunde"]} Befunde, {report["kommentare"]} Kommentare/Anmerkungen')
+    for key in ('programm', 'vergleich', 'zuordnung_abschnitte'):
+        if report.get(key):
+            lines.append(f'{key.capitalize()}: {report[key]}')
     if report.get('hinweis'):
         lines.append(report['hinweis'])
     if report.get('befunddatei'):
