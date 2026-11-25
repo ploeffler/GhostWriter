@@ -67,6 +67,8 @@ Before a suitable assignment, GhostWriter shows approved references associated w
 5. Record the reference IDs actually used in the assignment log.
 6. Review and explicitly approve the result before including it as a book illustration in the manuscript or edition.
 
+**Handover through the “Bild erzeugen” action (#143):** `python3 scripts/image_service.py . services` shows each image service’s capability from `providers.yml` (`image_services`: image references yes/no, maximum, formats, size). `image_service.py plan --service google --references ref-img-…` checks what would go to the service (handed over, skipped with reason, mode) without sending anything. The “Bild erzeugen” action (`image.yml`, only with your own `GEMINI_API_KEY` secret and `consent`) actually sends the approved references as images to Google Gemini and writes `bild.jpg` and `handover.yml` per job under `quellen/bild-entwuerfe/` on the working branch: service, model, handed-over reference IDs with image version (SHA-256 of the file), skipped ones with reason; later changes to a reference never change the record. The result is a draft, not a book image. Today GhostWriter only hands over to Google Gemini (up to 3 images, PNG/JPEG, up to 7 MB each); for other services it states explicitly that nothing is handed over.
+
 If the service does not support image references, say so clearly. Do not claim that an image was actually passed as a reference. A text description can be offered as a substitute, but must be identified as such.
 
 ## Reuse and traceability

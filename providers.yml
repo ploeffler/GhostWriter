@@ -53,6 +53,30 @@ special:
     name: Aktueller Chat-Assistent
     note: Verwendet den Assistenten der laufenden Sitzung. Standard für die In-Chat-Version.
 
+# Bilddienste für die Übergabe von Referenzbildern (#143, Punkte 5 und 6; scripts/image_service.py).
+# `via_action`: GhostWriter spricht den Dienst selbst an (Action „Bild erzeugen“) und kann die Bildbytes übergeben;
+# sonst bleibt die Übergabe beim Chat-Programm und GhostWriter meldet das ausdrücklich. `references`: Fähigkeit des Dienstes
+# (supported, Höchstzahl, Formate, Größe je Bild in Bytes). `checked_at` = Datum der Prüfung beim Anbieter.
+image_services:
+  - id: google
+    name: Google Gemini (Bildmodell)
+    via_action: true
+    api_key_secret: GEMINI_API_KEY
+    references: {supported: true, max: 3, formats: [png, jpeg], max_bytes: 7340032}   # Anbieter: bis zu 3 Bilder je Anfrage, 7 MB je Bild inline
+    checked_at: "2026-11-25"
+  - id: openai
+    name: OpenAI (Bildmodell)
+    via_action: false
+    note: "GhostWriter hat für diesen Dienst noch keinen Aufruf; im Chat übergibt das Chat-Programm Bilder selbst."
+    references: {supported: false}
+    checked_at: "2026-11-25"
+  - id: chat
+    name: Bilddienst im Chat (andere Dienste, z. B. über einen Connector)
+    via_action: false
+    note: "Ob der Dienst Bildreferenzen annimmt, entscheidet das Chat-Programm; GhostWriter sieht die Übergabe nicht."
+    references: {supported: false}
+    checked_at: "2026-11-25"
+
 providers:
   # --- Große Sprachmodell-Anbieter (Recherche, Brainstorming, Schreiben, Revision, Fact-Check) ---
   - id: openai
