@@ -110,6 +110,19 @@ jobs:
           if [ "$INPUT_DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           python scripts/update_from_upstream.py "${args[@]}"
 
+      - name: KI-Modelle prüfen
+        # #596: nur lesend (Modelllisten der Anbieter, kostenlos), nur mit vorhandenem Schlüssel; nahe Abschaltungen
+        # kommen aus providers.yml. Ergebnis als Hinweis im Bericht, nie eine automatische Umschaltung.
+        if: always() && hashFiles('scripts/model_defaults.py') != ''
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          DAILY_UPDATE_REPORT_PATH: ${{ runner.temp }}/ghostwriter-update-report.md
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python scripts/model_defaults.py check . --report
+
       - name: Hintergrund-Warteschlange prüfen
         # #481: liegengebliebene Aufträge auf den Arbeits-Branches finden und je Buch die Abarbeitung
         # starten (workflow_dispatch, ohne KI-Aufruf); bei pausierter Automatik nur melden.

@@ -12,6 +12,7 @@ Datei oder der Eintrag, gilt die eingebaute Rückfallvorgabe des aufrufenden Skr
 in der Umgebung steht. Es schaltet nie von selbst auf ein anderes Modell um.
 """
 import argparse
+import datetime
 import json
 import os
 import re
@@ -95,6 +96,31 @@ LISTS = {
 }
 
 
+RETIRE_WARN_DAYS = 90
+
+
+def retirement_lines(today=None, root=ROOT):
+    """Warnungen zu Vorgabemodellen, deren Abschaltung (`retire_at` in providers.yml) nah ist oder vorbei ist (#596).
+    Braucht keinen Schlüssel: die Angaben stammen aus den öffentlichen Abkündigungsseiten der Anbieter."""
+    today = today or datetime.date.today()
+    out = []
+    for pid, tasks in (read_catalog(root).get('model_defaults') or {}).items():
+        for task, e in (tasks or {}).items():
+            try:
+                when = datetime.date.fromisoformat(str((e or {}).get('retire_at') or ''))
+            except ValueError:
+                continue
+            days = (when - today).days
+            if days > RETIRE_WARN_DAYS:
+                continue
+            state = f'wird am {when.isoformat()} abgeschaltet' if days >= 0 else f'ist seit dem {when.isoformat()} abgeschaltet'
+            out.append(f'Das Vorgabemodell {e.get("model")} ({pid}, {"Bild" if task == "image" else "Recherche"}) {state}'
+                       + (f' ({e["note"]})' if e.get('note') else '')
+                       + '. Im Formular „KI-Dienste“ ein anderes Modell eintragen oder die Vorgabe in providers.yml prüfen; '
+                         'es wird nie automatisch umgestellt.')
+    return out
+
+
 def wanted_models(base=None, root=ROOT):
     """[(Anbieter, Aufgabe, Modell, Secret-Name)] der eingestellten bzw. vorgegebenen Modelle."""
     cfg = {}
@@ -118,10 +144,11 @@ def wanted_models(base=None, root=ROOT):
     return out
 
 
-def check(base=None, env=None, fetch=_get, root=ROOT):
-    """Zeilen für Modelle, die in der Liste des Anbieters fehlen. Ohne Schlüssel oder bei Netzfehler: keine Aussage."""
+def check(base=None, env=None, fetch=_get, root=ROOT, today=None):
+    """Zeilen für Modelle, die in der Liste des Anbieters fehlen, und für nahe Abschaltungen (`retire_at`).
+    Ohne Schlüssel oder bei Netzfehler gibt es zur Liste keine Aussage."""
     env = os.environ if env is None else env
-    lines, lists = [], {}
+    lines, lists = retirement_lines(today, root), {}
     for pid, task, model, secret in wanted_models(base, root):
         key = env.get(secret or '')
         if not key or pid not in LISTS:
@@ -142,15 +169,22 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('cmd', choices=['show', 'check'])
     ap.add_argument('base', nargs='?')
+    ap.add_argument('--report', action='store_true', help='check: Hinweise in den täglichen Bericht schreiben, Exit-Code immer 0')
     a = ap.parse_args(argv)
     if a.cmd == 'show':
         for pid, tasks in (read_catalog().get('model_defaults') or {}).items():
             for task, e in (tasks or {}).items():
-                print(f'{pid}\t{task}\t{e.get("model")}\tgeprüft {e.get("checked_at") or "unbekannt"}')
+                print(f'{pid}\t{task}\t{e.get("model")}\tgeprüft {e.get("checked_at") or "unbekannt"}'
+                      + (f'\tabgeschaltet {e["retire_at"]}' if e.get('retire_at') else ''))
         return 0
     lines = check(a.base)
     print('\n'.join(lines) or 'Alle geprüften Modelle stehen in den Listen der Anbieter (oder es ist kein Schlüssel hinterlegt).')
-    return 1 if lines else 0
+    if lines and a.report:   # #596: Hinweis im täglichen Bericht und in der Zusammenfassung der Action
+        text = '\n'.join(['', '### KI-Modelle', ''] + [f'- {x}' for x in lines]) + '\n'
+        for target in dict.fromkeys(t for t in (os.environ.get('GITHUB_STEP_SUMMARY'), os.environ.get('DAILY_UPDATE_REPORT_PATH')) if t):
+            with open(target, 'a', encoding='utf-8') as f:
+                f.write(text)
+    return 0 if a.report else (1 if lines else 0)
 
 
 if __name__ == '__main__':

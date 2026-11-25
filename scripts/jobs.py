@@ -531,7 +531,8 @@ def remote_status(base='.', ref_prefix='refs/remotes/origin/'):
     import library
     prefix = library.settings(library.load_manifest())['work_prefix']
     out = {}
-    blank = lambda: {'done': 0, 'failed': 0, 'waiting': 0, 'waiting_budget': 0, 'done_sections': [], 'failed_reasons': []}
+    blank = lambda: {'done': 0, 'failed': 0, 'waiting': 0, 'waiting_budget': 0, 'done_sections': [], 'failed_reasons': [],
+                     'model_failed': []}
     for book, _, _, name, data in branch_jobs(base, ref_prefix):
         info = out.setdefault(book, blank())
         st = state(data) if isinstance(data, dict) else 'failed'
@@ -539,6 +540,8 @@ def remote_status(base='.', ref_prefix='refs/remotes/origin/'):
             info['failed'] += 1
             where = Path(name).parent.name if kind_of(data) == 'research' else kind_of(data)
             info['failed_reasons'].append(f'{where}: {str((data or {}).get("error") or "")[:120]}')
+            if 'nicht mehr verfügbar' in str((data or {}).get('error') or ''):   # #596: Fehlerklasse „Modell nicht mehr verfügbar“
+                info['model_failed'].append(name)
         elif st == 'waiting_budget':
             info['waiting_budget'] += 1
         else:
@@ -584,6 +587,11 @@ def report(status, language='de'):
             line += (' – results: ' if en else ' – Ergebnisse: ') + ', '.join(sorted(set(info['done_sections']))[:5])
         lines.append(line)
         lines += [f'  - {"failed" if en else "fehlgeschlagen"}: {r}' for r in info['failed_reasons'][:3]]
+        for request in info.get('model_failed', [])[:3]:   # #596: Weg zum erneuten Versuch nennen
+            lines.append('  - ' + (f'model no longer available: change the model in “AI services” or update GhostWriter, then '
+                                   f'retry: `python3 scripts/jobs.py . retry --request {request}`' if en else
+                                   f'Modell nicht mehr verfügbar: im Formular „KI-Dienste“ ein anderes Modell eintragen oder '
+                                   f'GhostWriter aktualisieren, dann erneut versuchen: `python3 scripts/jobs.py . retry --request {request}`'))
         if info['waiting_budget']:
             lines.append('  - ' + (f'{info["waiting_budget"]} waiting for confirmation (budget)' if en else
                                    f'{info["waiting_budget"]} warten auf Bestätigung (Budget): „Trotzdem starten“'))

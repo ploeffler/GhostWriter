@@ -16,6 +16,9 @@ import jobs  # noqa: E402
 import model_defaults as md  # noqa: E402
 import research  # noqa: E402
 
+import datetime  # noqa: E402
+EARLY = datetime.date(2026, 1, 1)   # weit vor jeder angekündigten Abschaltung
+
 # Wortlaut aus #529 (gekürzt)
 GEMINI_404 = ('{"error": {"code": 404, "message": "This model models/gemini-2.5-flash is no longer available to new users. '
               'Please update your code to use models/gemini-3.8-flash for the latest features and improvements."}}')
@@ -66,16 +69,49 @@ class CheckTest(unittest.TestCase):
     def test_check_reports_missing_models_only_with_key(self):
         def fetch(url, headers):
             return {'models': [{'name': 'models/gemini-3.8-flash'}]} if 'generativelanguage' in url else {'data': []}
-        self.assertEqual(md.check(None, {}, fetch), [])   # ohne Schlüssel keine Aussage
+        self.assertEqual(md.check(None, {}, fetch, today=EARLY), [])   # ohne Schlüssel keine Aussage
         env = {'GEMINI_API_KEY': 'x'}
-        lines = md.check(None, env, fetch)
+        lines = md.check(None, env, fetch, today=EARLY)
         self.assertEqual(len(lines), 1, lines)               # Bildmodell fehlt in der Liste, Recherchemodell nicht
         self.assertIn('gemini-2.5-flash-image', lines[0])
 
     def test_network_error_is_no_statement(self):
         def fetch(url, headers):
             raise urllib.error.URLError('offline')
-        self.assertEqual(md.check(None, {'GEMINI_API_KEY': 'x'}, fetch), [])
+        self.assertEqual(md.check(None, {'GEMINI_API_KEY': 'x'}, fetch, today=EARLY), [])
+
+
+class RetirementTest(unittest.TestCase):
+    """#596: nahe Abschaltungen aus providers.yml, ohne Schlüssel."""
+
+    def test_warns_from_ninety_days_before(self):
+        self.assertEqual(md.retirement_lines(EARLY), [])
+        lines = md.retirement_lines(datetime.date(2026, 11, 25))
+        self.assertEqual(len(lines), 1, lines)
+        self.assertIn('gpt-5 (openai, Recherche) wird am 2026-12-11 abgeschaltet', lines[0])
+        self.assertIn('nie automatisch umgestellt', lines[0])
+        later = md.retirement_lines(datetime.date(2027, 1, 5))
+        self.assertTrue(any('ist seit dem 2026-12-11 abgeschaltet' in x for x in later))
+        self.assertTrue(any('gemini-2.5-flash-image' in x for x in md.retirement_lines(datetime.date(2027, 2, 20))))
+
+    def test_all_defaults_are_checked_with_a_date(self):
+        catalog = yaml.safe_load((ROOT / 'providers.yml').read_text(encoding='utf-8'))['model_defaults']
+        for pid, tasks in catalog.items():
+            for task, e in tasks.items():
+                self.assertGreaterEqual(str(e['checked_at']), '2026-11-25', (pid, task))   # #596: echt geprüft
+
+    def test_report_goes_into_the_daily_report(self):
+        import os
+        import subprocess
+        with tempfile.TemporaryDirectory() as d:
+            report = Path(d, 'report.md')
+            env = {k: v for k, v in os.environ.items() if not k.endswith('_API_KEY')}
+            env['DAILY_UPDATE_REPORT_PATH'] = str(report)
+            r = subprocess.run([sys.executable, str(ROOT / 'scripts/model_defaults.py'), 'check', '--report'], env=env,
+                               capture_output=True, text=True, cwd=ROOT)
+            self.assertEqual(r.returncode, 0, r.stderr)   # mit --report immer 0
+            if report.exists():   # abhängig vom heutigen Datum: nur der Aufbau zählt
+                self.assertIn('### KI-Modelle', report.read_text(encoding='utf-8'))
 
 
 class RetryTest(unittest.TestCase):
@@ -96,6 +132,18 @@ class RetryTest(unittest.TestCase):
             self.assertEqual(len(list(req.parent.glob('request-*.yml'))), 1)   # kein zweiter Auftrag
             with self.assertRaises(ValueError):
                 jobs.retry(base, str(req.relative_to(base)))   # nicht mehr fehlgeschlagen
+
+
+
+class ReportHintTest(unittest.TestCase):
+    def test_return_message_names_the_retry_for_model_errors(self):
+        status = {'buch/a': {'done': 0, 'failed': 1, 'waiting': 0, 'waiting_budget': 0, 'done_sections': [],
+                             'failed_reasons': ['sec-01: Das Modell x ist nicht mehr verfügbar'],
+                             'model_failed': ['chapters/c/research/s/request-001.yml']}}
+        text = jobs.report(status)
+        self.assertIn('Modell nicht mehr verfügbar', text)
+        self.assertIn('jobs.py . retry --request chapters/c/research/s/request-001.yml', text)
+        self.assertIn('retry: `python3 scripts/jobs.py . retry', jobs.report(status, 'en'))
 
 
 if __name__ == '__main__':
