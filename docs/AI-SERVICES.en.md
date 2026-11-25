@@ -74,7 +74,7 @@ With Google Gemini set up and the secret `GEMINI_API_KEY`, the workflow “Bild 
 
 ## Queue agents
 
-The task queue uses GitHub issues. An agent may work on an issue and propose a pull request; the default is manual processing in chat. Configure an agent in **AI services** and follow its provider's GitHub setup. An agent running in Actions may need an API-key secret. Approvals remain with you: completing an issue or an agent's work is not a book approval.
+There is only one queue, the background queue. The “agent for tasks” works on tasks kept as GitHub issues. An agent may work on an issue and propose a pull request; the default is manual processing in chat. Configure an agent in **AI services** and follow its provider's GitHub setup. An agent running in Actions may need an API-key secret. Approvals remain with you: completing an issue or an agent's work is not a book approval.
 
 ## Add or remove a service later
 

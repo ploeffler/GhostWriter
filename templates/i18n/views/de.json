@@ -870,7 +870,7 @@
   "service.role_revision": "Überarbeiten",
   "service.role_fact_check": "Faktencheck",
   "service.hint_fact_check": "am besten ein anderer Dienst als beim Schreiben",
-  "service.role_queue_processing": "Aufgaben-Warteschlange",
+  "service.role_queue_processing": "Agent für Aufgaben",
   "service.hint_queue_processing": "Agent, der GitHub-Issues abarbeitet; Standard: manuell",
   "service.web_access": "über die Websuche (kostenlos)",
   "service.github_access": "in GitHub zugewiesen",

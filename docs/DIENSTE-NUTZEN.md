@@ -15,7 +15,7 @@ Diese Anleitung zeigt, wie du einen KI-Dienst, den du schon hast, für eine Aufg
 | Ein Modell auf deinem eigenen Rechner (Ollama, LM Studio) | [Weg 3](#weg-3-lokale-modelle-auf-deinem-rechner) | wie Weg 2, aber ohne Internetrecherche |
 | Ein Dienst nur mit API-Schlüssel (z. B. Cohere, OpenRouter, Amazon Bedrock, Azure, Vertex AI) | [Weg 4](#weg-4-dienste-nur-mit-api-schlüssel) | technisch; Schlüssel als [GitHub-Secret](#api-schlüssel-als-github-secret), vorerst nicht direkt aus dem Chat |
 | Eine Recherchequelle (z. B. Semantic Scholar, OpenAlex, Brave Search) | [Recherchequellen](#recherchequellen) | je nach Quelle |
-| Ein Agent für die Aufgaben-Warteschlange (z. B. GitHub Copilot, Claude Code, Codex, Jules) | [Agenten](#agenten-für-die-aufgaben-warteschlange) | Einrichtung in GitHub |
+| Ein Agent für Aufgaben (z. B. GitHub Copilot, Claude Code, Codex, Jules) | [Agenten](#agent-für-aufgaben) | Einrichtung in GitHub |
 
 ## Weg 1: Der Chat, in dem du arbeitest
 
@@ -115,13 +115,13 @@ Hast du für **Recherche** einen Dienst mit API-Schlüssel eingestellt, recherch
 
 Ist Google Gemini mit dem Secret `GEMINI_API_KEY` eingetragen, färbt die Action „Bild colorieren“ Schwarz-Weiß-Fotos ein und übernimmt davon nur die Farbe ([Fotos colorieren](BILDER-UND-REFERENZBILDER.md#fotos-colorieren-452)). Ein eigenes Bildmodell kannst du unter **Einstellungen** des Dienstes als **Modell** eintragen (ein Name mit `image`, z. B. `gemini-2.5-flash-image`); sonst gilt diese Vorgabe. Andere Bilddienste mit eigenem Secret laufen noch nicht über die Action.
 
-## Agenten für die Aufgaben-Warteschlange
+## Agent für Aufgaben
 
-Nicht zu verwechseln mit der Hintergrund-Warteschlange (Aufträge für Recherche und andere Hintergrundarbeiten, siehe oben). Die Aufgaben-Warteschlange sind Aufgaben als Issues in GitHub (z. B. „Quelle in Abschnitt 2.3 prüfen“). Ein Agent kann ein Issue übernehmen, die Dateien bearbeiten und einen Pull Request anlegen. Standard ist **manuell**: Du arbeitest die Aufgaben im Chat ab.
+Es gibt nur **eine** Warteschlange, die Hintergrund-Warteschlange (siehe oben). Der „Agent für Aufgaben“ ist der Agent, der Aufgaben als Issues in GitHub (z. B. „Quelle in Abschnitt 2.3 prüfen“). Ein Agent kann ein Issue übernehmen, die Dateien bearbeiten und einen Pull Request anlegen. Standard ist **manuell**: Du arbeitest die Aufgaben im Chat ab.
 
 Wenn du einen Agenten schon nutzt (zum Beispiel über ein GitHub-Copilot-Abo):
 
-1. Trag ihn im Formular **KI-Dienste** ein und wähl ihn bei **Aufgaben-Warteschlange** aus.
+1. Trag ihn im Formular **KI-Dienste** ein und wähl ihn bei **Agent für Aufgaben** aus.
 2. Die Einrichtung passiert beim Anbieter und in GitHub; folge dem Link **Website** im Formular. Meist weist man dem Agenten danach ein Issue in GitHub zu. Läuft der Agent als GitHub Action (z. B. Claude Code, Codex-Action, Gemini CLI), wähl unter **Einstellungen** den Zugang **API-Schlüssel** und hinterleg den Schlüssel als [GitHub-Secret](#api-schlüssel-als-github-secret). Agenten, die du in GitHub direkt zuweist (Copilot, Partner-Agenten), brauchen keinen eigenen Schlüssel.
 3. Was der Agent ändert, kommt als Pull Request. **Freigaben bleiben immer bei dir im Chat**; ein Agent kann nichts freigeben, und ein geschlossenes Issue ist keine Freigabe.
 

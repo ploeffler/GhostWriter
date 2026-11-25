@@ -6,6 +6,7 @@ Aufruf:
   python scripts/jobs.py <buch> enqueue --type research --section <id> [--question Q] [--provider P]
                                         [--model M] [--confirm-low-budget] [--requested-by NAME]
                                         [--priority] [--after <auftrag>]
+                                        [--not-before <zeitpunkt>] [--when budget_free] [--after-event <ereignis>]
   python scripts/jobs.py <buch> prioritize --request <auftrag>      (vorziehen, #478)
   python scripts/jobs.py <buch> cancel --request <auftrag>          (nur wartende Aufträge)
   python scripts/jobs.py <buch> process [--defaults datei] [--limit 5] [--push-to <arbeits-branch>]
@@ -21,6 +22,12 @@ Auftrag (Schema schemas/job.schema.json): eine Datei `request-NNN.yml`.
 Gemeinsame Felder: `type`, `requested_at`, `requested_by`, `provider`, `model`,
 `confirm_low_budget`; Zustand: `error` und `failed_at` (fehlgeschlagen, läuft nicht erneut),
 `waiting: budget` (wartet auf Bestätigung, weil das KI-Budget unter der Schwelle ist).
+
+Startbedingungen (#65, alle optional, mehrere kombinierbar: der Auftrag startet erst, wenn **alle** erfüllt sind):
+`not_before` (ISO-Zeitpunkt, feste Zeit), `when: budget_free` (nur wenn das KI-Budget des Monats nicht unter der Pausenschwelle
+liegt), `after_event` (`chapter_approved[:<kapitel>]`, `edition_created`, `material_added`; gemessen am Stand beim Einreihen,
+`event_baseline`). Ein Auftrag mit offener Bedingung bleibt liegen (`start_wait`) und wird vom nächsten Lauf bzw. vom täglichen
+Kontrolllauf gestartet, sobald alles erfüllt ist. Es gibt keine eigene zeitgesteuerte Action.
 
 Reihenfolge (#478), in dieser Rangfolge: Vorrang (`priority: true`, „vorziehen“), Abhängigkeit
 (`after: <Auftrag>`: der Auftrag wartet, bis der genannte erledigt oder fehlgeschlagen ist;
@@ -160,13 +167,69 @@ def locked_by(base, config, section_id):
         return None
 
 
-def jobs(base, config=None):
+EVENTS = ('chapter_approved', 'edition_created', 'material_added')
+
+
+def event_baseline(base, config=None):
+    """Stand der Ereignis-Quellen beim Einreihen: Auflagenzähler und Zahl des eingebrachten Materials."""
+    base = Path(base)
+    config = config if config is not None else (read(base / 'ghostwriter.yml') or {})
+    return {'edition': int((config.get('project') or {}).get('current_edition') or 0),
+            'material': len(list(base.glob('quellen/*/material.yml')))}
+
+
+def _when(value):
+    try:
+        t = datetime.datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)
+
+
+def start_wait(base, config, data, now=None, low=None):
+    """Offene Startbedingungen eines Auftrags (#65) als Text, leer = darf starten. Geprüft werden `not_before`,
+    `when: budget_free` und `after_event`; alle müssen erfüllt sein. Eine unlesbare Angabe blockiert nicht dauerhaft."""
+    now = now or now_utc()
+    waits = []
+    nb = data.get('not_before')
+    if nb and (_when(nb) or now) > now:
+        waits.append(f'nicht vor {nb}')
+    when = data.get('when')
+    if when == 'budget_free' or (isinstance(when, list) and 'budget_free' in when):
+        if (low or budget_low)(base):
+            waits.append('wartet auf freies KI-Budget')
+    event = str(data.get('after_event') or '').strip()
+    if event:
+        name, _, target = event.partition(':')
+        done = True
+        if name == 'chapter_approved':
+            since = _when(data.get('requested_at'))
+            entries = (read(Path(base) / 'approvals.yml') or {}).get('entries') or []
+            done = any(e.get('kind') == 'chapter' and e.get('action') == 'granted' and (not target or e.get('id') == target)
+                       and (since is None or (_when(e.get('at')) or since) > since) for e in entries)
+        elif name in ('edition_created', 'material_added'):
+            key = 'edition' if name == 'edition_created' else 'material'
+            baseline = (data.get('event_baseline') or {}).get(key)   # fehlt (von Hand geschrieben): gilt als erfüllt
+            done = baseline is None or event_baseline(base, config)[key] > int(baseline)
+        if not done:
+            waits.append('wartet auf Ereignis: ' + {'chapter_approved': 'Kapitel abgeschlossen' + (f' ({target})' if target else ''),
+                                                    'edition_created': 'Auflage erzeugt', 'material_added': 'Material eingebracht'}.get(name, event))
+    return '; '.join(waits)
+
+
+def jobs(base, config=None, now=None):
     """Alle Aufträge mit Pfad, Daten und Zustand, in Abarbeitungsreihenfolge (#478): Vorrang, dann Buchreihenfolge,
     dann Auftragszeit; ein Auftrag mit `after` steht stets hinter seinem Ziel."""
     base = Path(base)
     config = config if config is not None else (read(base / 'ghostwriter.yml') or {})
     order = book_order(config)
     out = []
+    known = {}
+
+    def cache_low(b):   # Budgetprüfung höchstens einmal je Aufruf
+        if 'low' not in known:
+            known['low'] = budget_low(b, config)
+        return known['low']
     for path in files(base):
         data = read(path)
         if data is None:
@@ -176,6 +239,9 @@ def jobs(base, config=None):
         rank = (0 if data.get('priority') is True else 1,) + order.get(sid, (8, 0, 0)) \
             + (str(data.get('requested_at') or ''), str(path.relative_to(base)))
         out.append({'path': path, 'data': data, 'state': state(data), 'rank': rank, 'section_id': sid, 'type': kind(data)})
+        wait = start_wait(base, config, data, now, low=cache_low) if pending(out[-1]) else ''
+        if wait:   # #65: Startbedingung offen; der Auftrag bleibt liegen
+            out[-1]['start_wait'] = wait
         lock = locked_by(base, config, sid)
         if lock:   # #572: Abschnitt ist zum Gegenlesen ausgecheckt: der Auftrag wartet, bis der Checkout beendet ist
             out[-1]['locked_by'] = lock['id']
@@ -195,10 +261,11 @@ def jobs(base, config=None):
     return ordered
 
 
-def queue(base, config=None, types=None):
-    """Aufträge, die jetzt ausgeführt werden dürfen: offen und nicht von einem noch offenen Auftrag abhängig."""
-    return [j for j in jobs(base, config) if j['state'] == 'open' and not j.get('blocked_by') and not j.get('locked_by')
-            and (not types or j['type'] in types)]
+def queue(base, config=None, types=None, now=None):
+    """Aufträge, die jetzt ausgeführt werden dürfen: offen, nicht von einem noch offenen Auftrag abhängig und mit
+    erfüllten Startbedingungen (#65)."""
+    return [j for j in jobs(base, config, now) if j['state'] == 'open' and not j.get('blocked_by') and not j.get('locked_by')
+            and not j.get('start_wait') and (not types or j['type'] in types)]
 
 
 def find(base, request):
@@ -247,12 +314,27 @@ def section_path(base, config, section_id):
 
 
 def enqueue(base, type_='research', section=None, question=None, provider=None, model=None,
-            confirm_low_budget=False, requested_by=None, now=None, fields=None, priority=False, after=None):
+            confirm_low_budget=False, requested_by=None, now=None, fields=None, priority=False, after=None,
+            not_before=None, when=None, after_event=None):
     """Auftrag anlegen; einziger Weg, eine Arbeit in die Warteschlange zu stellen. Gibt den Pfad zurück.
     Recherche am Abschnitt; andere Arten unter jobs/ mit ihren Feldern (`fields`) unter dem Namen der Art."""
     if type_ not in TYPES:
         raise ValueError(f'Unbekannte Art: {type_}')
     base = Path(base)
+    start = {}   # Startbedingungen (#65)
+    if not_before:
+        if _when(not_before) is None:
+            raise ValueError(f'--not-before braucht einen Zeitpunkt (ISO 8601), nicht: {not_before}')
+        start['not_before'] = str(not_before)
+    if when:
+        if when != 'budget_free':
+            raise ValueError('--when kennt nur budget_free.')
+        start['when'] = when
+    if after_event:
+        if str(after_event).partition(':')[0] not in EVENTS:
+            raise ValueError(f'--after-event: {", ".join(EVENTS)} (chapter_approved optional mit :<kapitel>)')
+        start['after_event'] = after_event
+        start['event_baseline'] = event_baseline(base)
     if type_ != 'research':
         folder = base / 'jobs'
         folder.mkdir(parents=True, exist_ok=True)
@@ -266,6 +348,7 @@ def enqueue(base, type_='research', section=None, question=None, provider=None, 
             data['priority'] = True
         if after:
             data['after'] = after
+        data.update(start)
         data[type_] = {k: v for k, v in (fields or {}).items() if k in FIELDS[type_] and v not in (None, '')}
         path = folder / f'request-{n:03d}.yml'
         write(path, data)
@@ -287,6 +370,7 @@ def enqueue(base, type_='research', section=None, question=None, provider=None, 
         data['priority'] = True
     if after:
         data['after'] = after
+    data.update(start)
     path = folder / f'request-{n:03d}.yml'
     write(path, data)
     return path
@@ -426,7 +510,7 @@ def process(base, defaults=None, limit=LIMIT, push_to=None, commit=True, now=Non
     config = read(base / 'ghostwriter.yml') or {}
     results = []
     for _ in range(limit):
-        ready = queue(base, config, types)   # jedes Mal neu: ein erledigter Auftrag gibt abhängige frei (#478)
+        ready = queue(base, config, types, now)   # jedes Mal neu: ein erledigter Auftrag gibt abhängige frei (#478)
         if not ready:
             break
         job = ready[0]
@@ -466,7 +550,7 @@ def process(base, defaults=None, limit=LIMIT, push_to=None, commit=True, now=Non
                 message = f'Warteschlange: {rel} fehlgeschlagen'
         if commit:
             commit_push(base, message, push_to, paths=paths, action=action)
-    return results, len(queue(base, config, types))
+    return results, len(queue(base, config, types, now))
 
 
 def summary(results, remaining=0):
@@ -527,6 +611,8 @@ def remote_pending(base='.', ref_prefix='refs/remotes/origin/'):
     out = {}
     for book, _, _, _, data in branch_jobs(base, ref_prefix):
         if isinstance(data, dict) and state(data) == 'open':
+            if data.get('not_before') and (_when(data['not_before']) or now_utc()) > now_utc():
+                continue   # #65: feste Zeit noch nicht erreicht, der Kontrolllauf startet ihn erst danach
             wf = WORKFLOW[kind_of(data)]
             out.setdefault(book, {})
             out[book][wf] = out[book].get(wf, 0) + 1
@@ -645,7 +731,7 @@ def listing(base):
                     'section_id': j.get('section_id', ''), 'requested_at': d.get('requested_at'),
                     'question': d.get('question'), 'error': d.get('error') or j.get('error'),
                     'priority': d.get('priority') is True, 'after': d.get('after') or '',
-                    'blocked_by': j.get('blocked_by') or '', 'locked_by': j.get('locked_by') or '', 'note': j.get('problem') or j.get('note') or ''})
+                    'blocked_by': j.get('blocked_by') or '', 'start_wait': j.get('start_wait') or '', 'locked_by': j.get('locked_by') or '', 'note': j.get('problem') or j.get('note') or ''})
     return out
 
 
@@ -665,6 +751,9 @@ def main(argv=None):
     ap.add_argument('--request', help='prioritize/retry/cancel: Auftrag (Pfad im Buch oder Dateiname)')
     ap.add_argument('--priority', action='store_true', help='enqueue: vorziehen')
     ap.add_argument('--after', help='enqueue: erst nach diesem Auftrag (Pfad im Buch)')
+    ap.add_argument('--not-before', help='enqueue: erst ab diesem Zeitpunkt (ISO 8601, #65)')
+    ap.add_argument('--when', help='enqueue: budget_free = nur bei freiem KI-Budget (#65)')
+    ap.add_argument('--after-event', help='enqueue: chapter_approved[:<kapitel>] | edition_created | material_added (#65)')
     ap.add_argument('--question')
     ap.add_argument('--provider')
     ap.add_argument('--model')
@@ -686,6 +775,7 @@ def main(argv=None):
                 names = {'open': 'wartet', 'waiting_budget': 'wartet auf Bestätigung (Budget)', 'failed': 'fehlgeschlagen'}
                 print('\n'.join(f'- {names[x["state"]]}: {x["request"]}' + (' (vorgezogen)' if x['priority'] else '')
                                 + (f' – wartet auf {x["blocked_by"]}' if x['blocked_by'] else '')
+                                + (f' – Startbedingung: {x["start_wait"]}' if x.get('start_wait') else '')
                                 + (f' – wartet: ausgecheckt ({x["locked_by"]})' if x.get('locked_by') else '')
                                 + (f' – {x["error"]}' if x['error'] else '') + (f' [{x["note"]}]' if x['note'] else '')
                                 for x in data) or '- Keine Aufträge.')
@@ -720,7 +810,8 @@ def main(argv=None):
                 key, _, value = item.partition('=')
                 fields[key.strip()] = {'true': True, 'false': False}.get(value.strip().lower(), value) if value.strip().lower() in ('true', 'false') else value
             path = enqueue(base, a.type, a.section, a.question, a.provider, a.model, a.confirm_low_budget, a.requested_by,
-                           fields=fields, priority=a.priority, after=a.after)
+                           fields=fields, priority=a.priority, after=a.after, not_before=a.not_before, when=a.when,
+                           after_event=a.after_event)
             if a.push_to:   # Auftrag sofort sichern: geht ein Lauf verloren, bleibt er in der Warteschlange
                 commit_push(base, f'Warteschlange: Auftrag {path.relative_to(base)}', a.push_to)
             print(path.relative_to(base))

@@ -2383,7 +2383,7 @@ ROLE_INFO = [('default', 'Standard', 'gilt für alle Aufgaben, die unten nicht e
              ('writing', 'Schreiben', 'Sprachqualität im Deutschen, lange Texte'),
              ('revision', 'Überarbeiten', ''),
              ('fact_check', 'Faktencheck', 'am besten ein anderer Dienst als beim Schreiben'),
-             ('queue_processing', 'Aufgaben-Warteschlange', 'Agent, der GitHub-Issues abarbeitet; Standard: manuell')]
+             ('queue_processing', 'Agent für Aufgaben', 'Agent, der GitHub-Issues abarbeitet; Standard: manuell')]
 WEB_TEXT = {'native': 'mit Websuche', 'via_tool': 'Websuche über Werkzeug', 'none': 'ohne Websuche'}
 ACCESS_TEXT = {'app': 'Chat-App oder Website', 'api': 'API-Schlüssel', 'local': 'auf meinem Rechner', 'cli': 'Kommandozeile',
                'web': view_message('service.web_access'), 'github': view_message('service.github_access')}
