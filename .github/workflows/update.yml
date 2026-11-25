@@ -45,6 +45,10 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    outputs:   # für das Aufräumen am Ende (#664)
+      program: ${{ steps.where.outputs.program }}
+      paused: ${{ steps.limits.outputs.paused }}
+      applied: ${{ steps.apply.outcome }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,6 +61,22 @@ jobs:
 
       - name: Abhängigkeiten installieren
         run: pip install pyyaml jsonschema
+
+      - name: Programm-Repository erkennen
+        # #664: im Hauptrepository (upstream.repo) räumt der Update-Lauf nicht auf, dort bleibt es beim Start von Hand.
+        id: where
+        run: |
+          python3 - <<'PY'
+          import os
+          import yaml
+          try:
+              upstream = ((yaml.safe_load(open('ghostwriter-manifest.yml', encoding='utf-8')) or {}).get('upstream') or {}).get('repo')
+          except OSError:
+              upstream = None
+          here = os.environ['GITHUB_REPOSITORY']
+          program = bool(upstream) and upstream.lower() == here.lower()
+          open(os.environ['GITHUB_OUTPUT'], 'a').write(f'program={"true" if program else "false"}\n')
+          PY
 
       - name: Limits prüfen
         # #62: unter limits.pause_below_percent (Vorgabe 10 %) läuft die Automatik nicht; kein Fehlerlauf.
@@ -161,3 +181,21 @@ jobs:
             export SUMMARY_BRANCHES_AVAILABLE=false
           fi
           python scripts/daily_summary.py
+
+  cleanup:
+    # #664: am Ende des Update-Laufs erledigte Arbeits-Branches aufräumen, aber nur in Forks und Bibliotheken und nur,
+    # wenn das Update fehlerfrei durchgelaufen ist: kein Fehler in einem Buch, kein Probelauf, kein Lauf für nur einen
+    # Branch, Automatik nicht pausiert. Abschalten: Repository-Variable GHOSTWRITER_AUTO_CLEANUP=false.
+    # Es gelten die Sicherheitsregeln aus cleanup.yml (nur gemergte bzw. vollständig enthaltene Branches, nie mit
+    # offenem Pull Request, Löschung an den geprüften Head gebunden; Versions-Branches werden zu Tags).
+    needs: update
+    if: >-
+      needs.update.result == 'success' && needs.update.outputs.applied == 'success'
+      && needs.update.outputs.program != 'true' && needs.update.outputs.paused != 'true'
+      && inputs.dry_run != true && inputs.branch == '' && vars.GHOSTWRITER_AUTO_CLEANUP != 'false'
+    permissions:
+      contents: write
+      pull-requests: read
+    uses: ./.github/workflows/cleanup.yml
+    with:
+      dry_run: false
