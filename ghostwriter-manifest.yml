@@ -17,7 +17,7 @@ version: 1.0.0
 
 upstream:
   repo: ploeffler/GhostWriter
-  ref: main
+  ref: main     # Kanal `main`; Vorgabe der Updates ist der neueste Release (GHOSTWRITER_UPDATE_CHANNEL, #604)
 
 # Programmdateien: beim Update vom Upstream übernommen (Ordner mit /)
 managed:
