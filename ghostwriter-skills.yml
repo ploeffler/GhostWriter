@@ -1,7 +1,8 @@
 format: 1
 repository: ploeffler/ghostwriter-skills
-commit: 07a289e8168a3d50622f80d7b27c1d7c002f5b11
+commit: cca2595c08b9e9c6a5e154710f88553f5775e126
 skills:
+  ghostwriter-anekdoten: 7d117156ed7cfef6d1ae722f5658b6006ae7b900413225b09caa89ae08718a07
   ghostwriter-buchgedaechtnis: cfabe73bc4bdcb2f42c76f4c3e3491284e951f865fc3f2690f17c9411f5a86d3
   ghostwriter-gegenlesen: cad44e213c9221d7559e53c9aa7ce3f35e3096f8de92800f9202ea02c9640fc3
   ghostwriter-lektorat: 2a0dc40934037a5f4f1558743a56e785aabd21828454e101fd1ba8c8f11083d3

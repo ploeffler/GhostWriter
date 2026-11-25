@@ -178,10 +178,12 @@ Je Ereignis:
 - "when": die Zeitangabe so, wie sie im Text steht oder sich daraus ergibt (z. B. "Sommer 1989", "drei Tage später",
   "am nächsten Morgen", "vor zwanzig Jahren" für eine Rückblende); ohne Zeitangabe im Text leer lassen;
 - "what": was geschieht, in einem kurzen Satz;
+- "characters": die Namen der Personen, die das Ereignis erleben oder davon erfahren, wie im Text (leer, wenn unklar);
+  daraus ergibt sich später, was eine Figur bis zu einer Stelle im Buch weiß (#430);
 - "evidence": [{"where": "<Abschnitt>", """ + QUOTE_RULE + """}], am besten die Stelle mit der Zeitangabe.
 Regeln: Nur aus dem Text, nichts erfinden, keine Daten ausrechnen, die der Text nicht nennt. Nur Ereignisse, die für
 die Handlung bzw. den Ablauf zählen, höchstens acht je Abschnitt.
-Antworte nur mit JSON: {"events": [{"where": "", "when": "", "what": "", "evidence": []}]}"""
+Antworte nur mit JSON: {"events": [{"where": "", "when": "", "what": "", "characters": [], "evidence": []}]}"""
 
 TIMELINE_MERGE_SYSTEM = """Du bekommst die Ereignisse eines Buchs in der Reihenfolge des Textes, je mit Nummer, Abschnitt,
 Zeitangabe und einem Satz. Nenne nur auffällige Stellen der zeitlichen Abfolge:
@@ -988,7 +990,15 @@ def verify_timeline(answer, texts):
         if not ok:
             dropped += 1
             continue
-        out.append({'where': where, 'when': ' '.join(str(ev.get('when') or '').split()), 'what': what, 'evidence': ok[:2]})
+        names = []   # Namen nur, wenn sie im Abschnitt stehen (nichts hineinraten, #430)
+        for n in ev.get('characters') or []:
+            n = ' '.join(str(n).split())
+            if n and norm(n) in ntexts[where] and n not in names:
+                names.append(n)
+        item = {'where': where, 'when': ' '.join(str(ev.get('when') or '').split()), 'what': what, 'evidence': ok[:2]}
+        if names:
+            item['characters'] = names[:8]
+        out.append(item)
     out.sort(key=lambda e: order.index(e['where']))   # stabil: Reihenfolge im Abschnitt bleibt
     return out, dropped
 
@@ -2112,6 +2122,23 @@ def apply_glossary(base, config, data, choices):
     return [item['path']] if item else []
 
 
+def character_ids(config, names):
+    """Namen aus dem Text → Figuren-IDs des Buchs (Name oder Vorname, eindeutig); Unbekanntes entfällt."""
+    try:
+        from characters import character_items
+        items = character_items(config)
+    except Exception:   # noqa: BLE001 – ohne Figurenliste keine Zuordnung
+        return []
+    out = []
+    for n in names:
+        key = norm(n)
+        hits = [i for i in items if norm(i.get('name')) == key] or \
+               [i for i in items if key and key in norm(i.get('name')).split()]
+        if len(hits) == 1 and hits[0]['id'] not in out:
+            out.append(hits[0]['id'])
+    return out
+
+
 def apply_timeline(base, config, data, choices):
     """Zeitleiste nach story/timeline.yml: gewählte Ereignisse (choices [{index, when?, what?}]) und Auffälligkeiten
     ({issue, text?}); ersetzt die bisherige Zeitleiste der betroffenen Abschnitte nicht, sondern ergänzt sie
@@ -2128,9 +2155,14 @@ def apply_timeline(base, config, data, choices):
         it = items[int(c['index'])]
         ev = {'section': ids.get(it['where'], it['where']), 'when': ' '.join(str(c.get('when', it['when'])).split()),
               'what': ' '.join(str(c.get('what') or it['what']).split()), 'quote': it['evidence'][0]['quote']}
+        chars = character_ids(config, it.get('characters') or [])
+        if chars:   # #430: nur Figuren, die das Buch kennt; unbekannte Namen entfallen
+            ev['characters'] = chars
         same = next((e for e in events if (e['section'], e['what']) == (ev['section'], ev['what'])), None)
         if same:
             num[it['n']] = same['id']
+            if chars and not same.get('characters'):   # Ergänzung eines früheren Ereignisses ohne Figuren
+                same['characters'] = chars
             continue
         ev = dict({'id': f'ev-{max([int(e["id"][3:]) for e in events] + [0]) + 1:03d}'}, **ev)
         events.append(ev)

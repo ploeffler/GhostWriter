@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/anecdote.schema.json",
+  "title": "Anekdote (anekdoten/<id>.yml im Buch bzw. series/<ser-id>/anekdoten/<id>.yml in der Reihe, #643)",
+  "description": "Eigenes Erlebnis des Autors, im Original festgehalten. Anonymisiert oder abgewandelt wird erst beim Einbau in einen Abschnitt (`verwendungen`). Nur für Eigentümer und Bearbeiter; nicht in Leser-Ansichten, Auflagen oder Exporten außer als eingebaute Fassung im Text.",
+  "type": "object",
+  "required": ["id", "titel", "text", "erfasst_am"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^anek-[0-9]{3,}(-[a-z0-9-]+)?$"},
+    "titel": {"type": "string", "minLength": 1},
+    "kurzfassung": {"type": "string"},
+    "text": {"type": "string", "minLength": 1, "description": "Erzählung des Autors, unverändert"},
+    "personen": {"type": "array", "items": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}, "rolle": {"type": "string"}}, "additionalProperties": false}, "description": "Originalnamen"},
+    "ort": {"type": "string"},
+    "zeit": {"type": "string", "description": "ungenau erlaubt (wie die Chronologie)"},
+    "themen": {"type": "array", "items": {"type": "string"}},
+    "quelle": {"type": "string", "description": "Gespräch, Notiz, Upload, Sprachnotiz-Abschrift …"},
+    "erfasst_am": {"type": "string"},
+    "von": {"type": "string"},
+    "eingeplant_fuer": {"type": ["string", "null"], "description": "Abschnitt, für den die Anekdote vorgemerkt ist (Zustand eingeplant)"},
+    "verwendungen": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["abschnitt", "buch", "fassung", "wahrheit", "einverstaendnis", "am"],
+        "properties": {
+          "abschnitt": {"type": "string"},
+          "buch": {"type": "string", "description": "Kurztitel bzw. Branch des Buchs"},
+          "fassung": {"enum": ["anonymisiert", "abgewandelt", "original"]},
+          "wahrheit": {"enum": ["woertlich", "frei", "anlass"], "description": "wörtlich (belegt), frei erzählt (Kern wahr), nur als Anlass (fiktionalisiert)"},
+          "ersetzungen": {"type": "array", "items": {"type": "object", "required": ["original", "im_buch"], "properties": {"original": {"type": "string"}, "im_buch": {"type": "string"}}, "additionalProperties": false}},
+          "einverstaendnis": {
+            "type": "object",
+            "required": ["stand"],
+            "properties": {"stand": {"enum": ["anonymisiert", "liegt_vor", "nicht_noetig"]}, "notiz": {"type": "string"}},
+            "additionalProperties": false
+          },
+          "am": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
