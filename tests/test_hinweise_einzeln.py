@@ -141,6 +141,37 @@ class ThemesTest(unittest.TestCase):
         self.assertEqual([t['id'] for t in data['themen']][0], 'buchweit')
         self.assertLess([t['id'] for t in data['themen']].index('kap1-neu'), [t['id'] for t in data['themen']].index('kap2'))
 
+    def test_minor_findings_stay_in_their_theme(self):
+        """#607: geringe Befunde gehören zur Themenrunde (am Ende zugeklappt); ein Thema nur aus Geringem erscheint; Blockierendes bleibt vorn."""
+        def e(n, sev, thema):
+            return {'id': f'e-{n:03d}', 'befund': f'x#{n}', 'abschnitt': '1.1', 'chapter_id': 'k', 'art': 'aufbau', 'grund': f'g{n}',
+                    'schweregrad': sev, 'entscheidung': 'offen', 'thema': thema, 'alt': '', 'neu': '', 'frage': '?'}
+        data = {'buch': 'x', 'erstellt': '2026-11-25', 'ohne_autor': [],
+                'themen': [{'id': 'a', 'titel': 'Thema A'}, {'id': 'b', 'titel': 'Nur Geringes'}],
+                'autorenentscheidung': [e(1, 'blockierend', 'a'), e(2, 'mittel', 'a'), e(3, 'gering', 'a'), e(4, 'gering', 'a'),
+                                        e(5, 'gering', 'b'), e(6, 'gering', 'b'), e(7, 'gering', None)]}
+        name, items, head = hinweise.current(data)
+        self.assertEqual((name, [x['id'] for x in items]), ('blockierend', ['e-001']))
+        data['autorenentscheidung'][0]['entscheidung'] = 'ja'
+        name, items, head = hinweise.current(data)
+        self.assertEqual((name, [x['id'] for x in items]), ('thema', ['e-002']))
+        self.assertIn('Thema 1 von 2: Thema A', head)
+        self.assertIn('+ 2 geringe zu diesem Thema', head)
+        self.assertIn('Blockierendes dazu: e-001', head)
+        self.assertIn('2 geringe zu diesem Thema zugeklappt', hinweise.show_stufen(data))
+        self.assertEqual([x['id'] for x in hinweise.current(data, gering=True)[1]], ['e-002', 'e-003', 'e-004'])
+        for x in data['autorenentscheidung'][1:4]:
+            x['entscheidung'] = 'nein'
+        name, items, head = hinweise.current(data)   # Thema nur aus Geringem erscheint als Runde
+        self.assertEqual((name, [x['id'] for x in items]), ('thema', ['e-005', 'e-006']))
+        self.assertIn('Thema 2 von 2: Nur Geringes', head)
+        for x in items:
+            x['entscheidung'] = 'nein'
+        self.assertEqual(hinweise.current(data)[0], 'gering-zu')   # nur das ungeordnete Geringe bleibt zugeklappt
+        order = [x['id'] for x in hinweise.ordered(data)]
+        self.assertEqual(order[:3], ['e-001', 'e-002', 'e-003'])   # Geringes am Ende seines Themas
+        self.assertEqual(order[-1], 'e-007')
+
     def test_without_themes_nothing_changes(self):
         self.write('bericht-a.yml', {'befunde': [self.finding(1)]})
         _, data = hinweise.collect(self.base, self.config, date='2026-11-24', commit='abcdef1')

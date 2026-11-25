@@ -461,8 +461,8 @@ def stages(data, size=ROUND_SIZE):
 
     known = [t['id'] for t in data.get('themen') or []]
 
-    def themed(e):
-        return e.get('thema') in known and _severity(e) not in ('blockierend', 'gering')
+    def themed(e):   # #607: auch geringe Befunde gehören zu ihrem Thema; Blockierendes bleibt in Stufe 1
+        return e.get('thema') in known and _severity(e) != 'blockierend'
 
     def middle(e):
         return _severity(e) not in ('blockierend', 'gering') and not themed(e)
@@ -481,7 +481,9 @@ def stages(data, size=ROUND_SIZE):
     open_themes = [r for r in theme_rounds if r[2]]
     return {'blocking': [e for e in opened if _severity(e) == 'blockierend'], 'themes': open_themes,
             'theme_no': theme_total - len(open_themes) + 1, 'theme_total': theme_total, 'groups': groups, 'rounds': rounds,
-            'gering': [e for e in opened if _severity(e) == 'gering'], 'open': len(opened),
+            'gering': [e for e in opened if _severity(e) == 'gering' and not themed(e)], 'open': len(opened),
+            'theme_blocking': {tid: [e['id'] for e in every if e.get('thema') == tid and _severity(e) == 'blockierend']
+                               for tid in known},
             'round_no': done // size + 1, 'round_total': math.ceil((done + len(singles)) / size) if singles else 0}
 
 
@@ -501,8 +503,15 @@ def current(data, size=ROUND_SIZE, gering=False, group=None):
     if st['blocking']:
         return 'blockierend', st['blocking'], f'Stufe 1 · Blockierendes, einzeln · {len(st["blocking"])} offen · {left}'
     if st['themes']:   # #570: ein Thema je Runde, in der Reihenfolge der Abhängigkeit
-        _, title, items = st['themes'][0]
-        return 'thema', items, f'Stufe 2 · Thema {st["theme_no"]} von {st["theme_total"]}: {title} · {len(items)} offen · {left}'
+        tid, title, items = st['themes'][0]
+        minor = [e for e in items if _severity(e) == 'gering']
+        hidden = minor if (minor and len(minor) < len(items) and not gering) else []   # #607: am Ende zugeklappt, außer das Thema besteht nur aus Geringem
+        shown = [e for e in items if e not in hidden]
+        more = f' (+ {len(hidden)} geringe zu diesem Thema)' if hidden else ''
+        refs = st['theme_blocking'].get(tid) or []
+        link = f' · Blockierendes dazu: {", ".join(refs)} (Stufe 1)' if refs else ''
+        return 'thema', shown, (f'Stufe 2 · Thema {st["theme_no"]} von {st["theme_total"]}: {title} · {len(shown)} offen{more}'
+                                f'{link} · {left}')
     if st['groups']:
         return 'gruppen', st['groups'], f'Stufe 2 · Gleiche Muster · {len(st["groups"])} Gruppen · {left}'
     if st['rounds']:
@@ -540,10 +549,10 @@ def ordered(data):
         sev = _severity(e)
         if sev == 'blockierend':
             return (0, 0, 0)
-        if sev == 'gering':
+        if sev == 'gering' and e.get('thema') not in pos:
             return (3, 0, 0)
         if e.get('thema') in pos:
-            return (1, pos[e['thema']], 0)
+            return (1, pos[e['thema']], 1 if sev == 'gering' else 0)   # #607: Geringes am Ende seines Themas
         return (2, RANK[sev], 0)
     return sorted(every, key=key)   # stabil: sonst Reihenfolge der Datei
 
@@ -600,6 +609,9 @@ def show_stufen(data, size=ROUND_SIZE, gering=False, group=None):
         return '\n'.join(lines) + '\n'
     if name == 'thema':
         lines += ['Diese Einträge hängen zusammen und werden gemeinsam entschieden.', '']
+        hidden = [e for e in current(data, size, True)[1] if e not in items]   # #607
+        if hidden:
+            lines += [f'+ {len(hidden)} geringe zu diesem Thema zugeklappt; aufklappen: `hinweise.py show . --gering`', '']
     for e in items:
         lines += _entry_lines(e)
     if name == 'gering-zu':
