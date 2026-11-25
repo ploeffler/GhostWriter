@@ -105,7 +105,7 @@ def merged_prs(since, root=ROOT):
     for entry in out.split('\x1e'):
         if '\x1f' not in entry:
             continue
-        subject, body = entry.strip().split('\x1f', 1)
+        subject, body = (x.strip() for x in entry.split('\x1f', 1))   # erst trennen: str.strip() entfernt \x1f, wenn der Rumpf leer ist
         m = re.match(r'Merge pull request #(\d+)', subject)
         if m:
             title = (body.strip().splitlines() or [''])[0].strip() or subject
