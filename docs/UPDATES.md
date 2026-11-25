@@ -250,6 +250,8 @@ Stand entspricht. Ein inzwischen hinzugekommener Commit verhindert die Löschung
 Bei Versionsbranches muss zusätzlich der gleichnamige Erhaltungstag unverändert
 vorhanden sein; Tagprüfung und Löschung bilden einen atomaren Vorgang.
 
+**Aufräumen im täglichen Update-Lauf (#664, ab 1.4):** In Forks und Bibliotheken ruft der Update-Lauf (`update.yml`) am Ende dieselbe Aufräum-Logik auf, aber nur, wenn das Update ohne Fehler durchgelaufen ist: kein ❌ bei einem Buch, kein Probelauf, kein Lauf für nur einen Branch, Automatik nicht pausiert. Im Hauptrepository (`upstream.repo`) bleibt das Aufräumen eine Aktion von Hand. Es gelten unverändert alle Sicherheitsregeln der Action (nur gemergte bzw. vollständig enthaltene Branches, nie mit offenem Pull Request, Löschung an den geprüften Head gebunden; Versions-Branches werden zu Tags). Das Ergebnis („N Branches aufgeräumt“, Liste) steht in der Zusammenfassung des Jobs „cleanup“ im Lauf, nicht im Tagesbericht. Abschalten: Repository-Variable `GHOSTWRITER_AUTO_CLEANUP` auf `false` setzen (Vorgabe: an).
+
 Technisch nutzt sie [GitHubs `updateRefs` mit `beforeOid`](https://docs.github.com/en/graphql/reference/git#updaterefs).
 Fehlen GraphQL-Zugriff oder Berechtigungen oder ist die Antwort unklar, wird die
 Löschung nicht als erfolgreich gemeldet. Es gibt keinen unbedingten Löschversuch

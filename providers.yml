@@ -45,6 +45,22 @@ model_defaults:
     # Abschaltung frühestens 2027-03-15 (ältere Fassung der Seite nannte 2026-10-02); Ersatz laut Anbieter gemini-3.1-flash-lite-image.
     image: {model: gemini-2.5-flash-image, checked_at: "2026-11-25", retire_at: "2027-03-15", note: "Ersatz laut Anbieter gemini-3.1-flash-lite-image; nicht umgestellt, ohne Schlüssel nicht getestet"}
 
+# Preistabelle (#66): Preise je Anbieter und Modell für die automatische Kostenschätzung („geschätzt“) aus der Nutzung
+# jeder Antwort (Tokens, Suchanfragen). Je Eintrag: `currency`, `input_per_mtok` und `output_per_mtok` (je 1 Mio. Tokens),
+# optional `search_per_1k` (je 1000 Suchanfragen), `source` (Seite des Anbieters) und `checked_at` (Prüfdatum). Ein Modell
+# ohne Eintrag bleibt „unbekannt“, nie 0; nichts aus dem Gedächtnis eintragen, nur von der Anbieterseite. Rechnungen bleiben
+# „tatsächlich“ von Hand (`costs.py add`). Tarife wie Batch, Flex oder Cache-Preise sind hier nicht abgebildet (Standardpreis).
+# Beim Ändern `checked_at` neu setzen. Umrechnung in die Projektwährung: ECB-Referenzkurs des Tages (`scripts/pricing.py`).
+prices:
+  anthropic:
+    claude-sonnet-5-5: {currency: USD, input_per_mtok: 2, output_per_mtok: 10, search_per_1k: 10, source: "https://platform.claude.com/docs/en/about-claude/pricing", checked_at: "2026-11-26"}
+    claude-opus-5-5: {currency: USD, input_per_mtok: 4, output_per_mtok: 20, search_per_1k: 10, source: "https://platform.claude.com/docs/en/about-claude/pricing", checked_at: "2026-11-26"}
+  openai:
+    # Standardpreise laut Preisseite. gpt-6.1-terra steht dort nur im Flex-Tarif, nicht im Standardtarif: bewusst ohne Eintrag,
+    # bis der Preis feststeht (offene Frage an Peter an #66).
+    gpt-6.1-sol: {currency: USD, input_per_mtok: 2, output_per_mtok: 10, search_per_1k: 10, source: "https://developers.openai.com/api/docs/pricing", checked_at: "2026-11-26"}
+  # google: Preisseite war bei der Prüfung nicht erreichbar; bewusst ohne Einträge (Beträge bleiben „unbekannt“).
+
 # Sonderwert: der Assistent, mit dem gerade gechattet wird (egal welcher Anbieter).
 special:
   - id: chat

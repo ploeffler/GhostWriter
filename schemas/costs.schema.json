@@ -39,6 +39,12 @@
           "cached_input_unit_price": {"type": "number", "minimum": 0},
           "pricing_source": {"type": "string"},
           "pricing_checked_at": {"type": "string"},
+          "original_currency": {"type": "string", "pattern": "^[A-Z]{3}$", "description": "Währung des Originalbetrags (z. B. USD laut Preistabelle), wenn in die Projektwährung umgerechnet wurde (#66)"},
+          "original_amount": {"type": "number", "minimum": 0, "description": "Betrag vor der Umrechnung"},
+          "exchange_rate": {"type": "number", "exclusiveMinimum": 0, "description": "Kurs: 1 Einheit der Originalwährung in der Währung des Eintrags"},
+          "exchange_rate_date": {"type": "string", "description": "Datum des Referenzkurses (JJJJ-MM-TT)"},
+          "exchange_rate_source": {"type": "string", "description": "Quelle des Kurses, z. B. ECB (Referenzkurs der Europäischen Zentralbank)"},
+          "exchange_rate_status": {"enum": ["applied", "unavailable"], "description": "applied: umgerechnet; unavailable: kein Kurs, der Betrag bleibt in der Originalwährung (nicht umgerechnet)"},
           "note": {"type": "string"}
         },
         "additionalProperties": false

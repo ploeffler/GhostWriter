@@ -765,27 +765,27 @@ Zusätzlich gelten überall die ausgeschriebenen Befehle aus `START.md`, Abschni
 
 ## Nachrichtenformat
 
-Jede Vorlage schickt eine Nachricht aus einer lesbaren Zeile und den festen Daten. Der Chat zeigt die Nachricht vollständig an; damit sie unauffällig bleibt, gibt es zwei Formen.
+Jede Vorlage schickt eine Nachricht aus einer lesbaren Zeile und den festen Daten. Der Chat zeigt die Nachricht vollständig an. Seit ghostwriter-ui 0.71.0 (#642) steht darin **kein Codeblock** mehr: Die Claude-App meldete Nachrichten mit einem Block `gw` als möglicherweise schädlichen Code.
 
-**Kurzform** für Klicks ohne Eingaben (Ansichten öffnen, Formulare öffnen, Navigation): eine Zeile Inline-Code `gw:<aktion>`, dahinter die Daten als `schlüssel=wert`, getrennt durch Leerzeichen:
+Aufbau, immer in dieser Reihenfolge:
 
-````text
-Abschnitt 2.4 „Die Scham, die wir mitbringen“ bearbeiten
-
-`gw:view.section section_id=sec-02-04-die-scham-die-wir-mitbringen`
-````
-
-**Block** für alles mit Eingaben (Formulare speichern) oder wenn ein Wert Leerzeichen enthält, leer oder länger als 80 Zeichen ist: JSON im Block `gw`:
+1. **Klartextzeile** für Menschen („Abschnitt 2.4 „Die Scham, die wir mitbringen“ bearbeiten“).
+2. **Kennzeile** als Inline-Code: `gw:<aktion>`, dahinter alle kurzen Werte (Zahl, `true`/`false` oder Text ohne Leerzeichen und Backtick, höchstens 80 Zeichen) als `schlüssel=wert`, getrennt durch Leerzeichen.
+3. **Feldzeilen** für alle übrigen Werte (Freitext, Leerzeichen, leer, länger als 80 Zeichen), je Feld eine Zeile `feld: wert`. Mehrzeilige Werte setzen jede Folgezeile mit zwei Leerzeichen eingerückt fort. Ein leerer Wert steht als `feld:`. Backtick und Backslash im Wert sind mit einem Backslash maskiert (`\``, `\\`); beim Lesen wieder zurücknehmen. Zahlen, Listen und Objekte, die nicht in die Kennzeile passen, stehen als `feld (JSON): <JSON in einer Zeile>`.
 
 ````text
-Projektdaten speichern: ADHS im Erwachsenenleben
+Eintrag e-033: anders formulieren
 
-```gw
-{"action":"project.update","title":"ADHS im Erwachsenenleben", …}
-```
+`gw:notes_review.decide file=editorial/durchsicht-2026-11-20.yml entry=e-033 decision=geändert`
+new: Die Überfahrt von Trogir nach Triest dauerte
+  zwei Tage und eine Nacht.
 ````
 
-Welche Form gilt, entscheidet `gwSend` in `ghostwriter-ui` selbst. Beide Formen bedeuten dasselbe: Kurzform `gw:a k=v` entspricht `{"action":"a","k":"v"}`; Zahlen und `true`/`false` werden als solche gelesen. Der Assistent wertet die Daten aus; die Zeile darüber ist für Menschen. Freie Eingaben ohne Daten bleiben erlaubt.
+`expected_head_sha` steht auf **12 Zeichen** gekürzt in der Kennzeile; für den Abgleich mit dem Head genügt der Anfang (Präfix). Große Datenmengen gehören nicht in die Nachricht, sie bleiben im Repository (die Nachricht nennt nur Pfad bzw. ID). Die Daten werden nicht kodiert oder komprimiert; der Benutzer soll lesen können, was das Widget in seinem Namen schickt.
+
+Welche Werte in die Kennzeile und welche in Feldzeilen kommen, entscheidet `GW.message` in `ghostwriter-ui` selbst. Kurzform `gw:a k=v` entspricht `{"action":"a","k":"v"}`; Zahlen und `true`/`false` werden als solche gelesen. Der Assistent wertet die Daten aus; die Zeile darüber ist für Menschen. Freie Eingaben ohne Daten bleiben erlaubt.
+
+**Übergang:** Das frühere Format mit einem Block `gw` und JSON (` ```gw` … ` ``` `) wird weiter gelesen, etwa von Widgets älterer Versionen (UI bis 0.70.0, Claude-Web-App). Neue Widgets senden es nicht mehr.
 
 | Aktion | Daten | Bedeutung | Antwort des Assistenten | Endpunkt in `docs/API-CONTRACT.md` (Weg B) |
 |---|---|---|---|---|

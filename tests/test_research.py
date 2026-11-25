@@ -122,7 +122,8 @@ class RunTest(unittest.TestCase):
         tmp, base = book(ai)
         self.addCleanup(tmp.cleanup)
         with mock.patch.object(research, 'post_json', return_value=response) as post, \
-                mock.patch.dict(os.environ, {research.KEY_ENV: 'k-secret'}):
+                mock.patch.object(research.pricing, 'fetch_url', side_effect=OSError('offline')), \
+                mock.patch.dict(os.environ, {research.KEY_ENV: 'k-secret'}):   # #66: kein Netz im Test, Wechselkurs fehlt
             head = research.run(base, 'sec-01-01-start', now=NOW, **kw)
         return base, head, post
 
