@@ -8,6 +8,7 @@ Aufruf:
   python scripts/characters.py <projektordner> context <abschnitt N.M|sec-…|mat-…>
   python scripts/characters.py <projektordner> update <figur> '<json>'
   python scripts/characters.py <projektordner> profile <figur>
+  python scripts/characters.py <projektordner> interview <figur> --bis <stelle> [--max-chars 12000]
 Figuren aus dem Text vorschlagen:
   python scripts/characters.py <buch> scan [book|<kapitel N>|<abschnitt N.M>|<teil>] [--part K]
   python scripts/characters.py <buch> apply vorschlaege.json [--series-repo <standard>]
@@ -208,6 +209,86 @@ def profile(base, key):
     out += ['## Kommt vor in', '']
     out += [f'- {s}' for s in seen] or ['- noch keinem Abschnitt zugeordnet']
     return '\n'.join(out).rstrip() + '\n'
+
+
+def until_index(targets, until):
+    """Index (einschließlich) der Stelle in der Buchreihenfolge: `N.M` (Abschnitt), `N` (Ende von Kapitel N), `sec-…` bzw. Teil."""
+    until = str(until).strip()
+    if re.fullmatch(r'\d+', until):
+        last = [i for i, (k, _, _) in enumerate(targets) if k.startswith(f'{until}.')]
+        if last:
+            return last[-1]
+    for i, (k, t, entry) in enumerate(targets):
+        if until in (k, t, entry.get('id')):
+            return i
+    raise SystemExit(f'Stelle „{until}“ nicht gefunden (Abschnitt N.M, Kapitel N, sec-… oder ein Teil)')
+
+
+def interview(base, key, until, max_chars=12000):
+    """Wissensstand einer Figur bis zu einer Stelle im Buch (#430, Stufe 2 des Figurengesprächs). Nur lesend.
+
+    Ausgegeben werden das Profil, ihre Auftritte (Abschnitte bis zur Stelle) und die Ereignisse aus story/timeline.yml bis dort,
+    je Eintrag mit Quelle (Abschnitt, Ereignis-ID). Ereignisse mit Feld `characters` gelten als **belegt** (die Figur weiß davon nur,
+    wenn sie aufgeführt ist); Ereignisse ohne das Feld als **angenähert** (die Figur kommt im Abschnitt vor). Ist der Umfang zu groß
+    (`max_chars`), erscheinen nur Titel und Ereignisse in Kurzform; das steht im Ergebnis. Nie das ganze Buch.
+    """
+    _, config = load(base)
+    item = find_character(config, key)
+    if not item:
+        raise SystemExit(f'Figur „{key}“ nicht gefunden')
+    targets = scope_targets(base, config, 'book')
+    stop = until_index(targets, until)
+    names = {i['id']: i['name'] for i in character_items(config)}
+    sections = {}
+    appears = []
+    for i, (k, t, entry) in enumerate(targets[:stop + 1]):
+        head, _, summary, _ = section_file(base, entry)
+        sections[entry.get('id') or head.get('id')] = (k, t)
+        if item['id'] in (head.get('characters') or []):
+            appears.append((entry.get('id') or head.get('id'), k, t, summary))
+    events = []
+    timeline = Path(base) / 'story' / 'timeline.yml'
+    if timeline.is_file():
+        for ev in (yaml.safe_load(timeline.read_text(encoding='utf-8')) or {}).get('events') or []:
+            sid = ev.get('section')
+            if sid not in sections:
+                continue   # nach der gewählten Stelle oder unbekannt: die Figur weiß noch nichts davon
+            if 'characters' in ev:
+                if item['id'] in (ev.get('characters') or []):
+                    events.append((ev, 'belegt'))
+            elif any(a[0] == sid for a in appears):
+                events.append((ev, 'angenähert'))
+    place = sections[list(sections)[-1]] if sections else ('', '')
+    out = ['## Figurengespräch: Wissensstand bis ' + f'{place[0]} „{place[1]}“', '']
+    if '_series' in item:
+        out += ['Figur der Serie: Es gilt ihre Fassung für diesen Band.', '']
+    out += profile_lines(base, item, names)
+    full = list(out)
+    short = list(out)
+    full += ['## Auftritte bis zu dieser Stelle', '']
+    short += ['## Auftritte bis zu dieser Stelle (Kurzform)', '']
+    for sid, k, t, summary in appears:
+        full.append(f'- {k} „{t}“ (Quelle: {sid})' + (f': {summary}' if summary else ''))
+        short.append(f'- {k} „{t}“ (Quelle: {sid})')
+    if not appears:
+        full.append('- Die Figur ist bis zu dieser Stelle nicht aufgetreten: Sie weiß nichts von der Handlung, nur was ihr Profil nennt.')
+        short.append(full[-1])
+    heading = ['', '## Was die Figur bis hierher weiß (Ereignisse)', '']
+    full += heading
+    short += heading[:2] + ['## Was die Figur bis hierher weiß (Ereignisse, Kurzform)', '']
+    for ev, how in events:
+        label = f'{ev["id"]}, {sections[ev["section"]][0]}, {how}'
+        full.append(f'- {ev.get("when") or "ohne Zeitangabe"}: {ev["what"]} (Quelle: {label})')
+        short.append(f'- {ev["what"][:90]} (Quelle: {label})')
+    if not events:
+        full.append('- Keine Ereignisse in story/timeline.yml bis zu dieser Stelle.')
+        short.append(full[-1])
+    note = ['', 'Hinweis: „belegt“ = Ereignis nennt die Figur (`characters`); „angenähert“ = Ereignis ohne dieses Feld in einem Abschnitt, '
+            'in dem die Figur vorkommt. Was nicht hier steht, weiß die Figur nicht; nichts hinzuerfinden, Erfundenes im Gespräch kennzeichnen.']
+    text = '\n'.join(full + note).rstrip() + '\n'
+    if len(text) > max_chars:
+        text = '\n'.join(short + note + ['Hinweis: Wegen des Umfangs in Kurzform (Zusammenfassungen); Einzelheiten bei Bedarf in den genannten Quellen nachlesen.']).rstrip() + '\n'
+    return text
 
 
 HEAD_FIELDS = ['id', 'name', 'role', 'short', 'age', 'appearance', 'traits', 'voice', 'visual', 'portrait', 'relations']
@@ -487,13 +568,15 @@ def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
     ap.add_argument('cmd', choices=['list', 'add', 'assign', 'context', 'update', 'detach', 'align', 'adopt',
-                                    'series-add', 'series-update', 'scan', 'apply', 'profile'])
+                                    'series-add', 'series-update', 'scan', 'apply', 'profile', 'interview'])
     ap.add_argument('--part', type=int, help='bei scan: Teil (bei langen Bereichen)')
     ap.add_argument('--run', help='bei apply: Lauf der Analyse im Hintergrund (run-NNN), danach als erledigt vermerkt')
     ap.add_argument('--series-repo', help='bei adopt, series-add, series-update: Ordner mit dem Standard-Branch (series/)')
     ap.add_argument('args', nargs='*')
     ap.add_argument('--role', default='main', choices=list(ROLE_DE))
     ap.add_argument('--short', default='')
+    ap.add_argument('--bis', help='bei interview: Stelle im Buch (Abschnitt N.M, Kapitel N, sec-… oder Teil)')
+    ap.add_argument('--max-chars', type=int, default=12000, help='bei interview: Umfang, darüber Kurzform')
     a = ap.parse_args(argv[1:])
     base = Path(a.project)
     if a.cmd == 'list':
@@ -519,6 +602,11 @@ def main(argv):
         if len(a.args) != 1:
             ap.error('profile braucht genau eine Figur (Name oder ID)')
         sys.stdout.write(profile(base, a.args[0]))
+        return 0
+    if a.cmd == 'interview':
+        if len(a.args) != 1 or not a.bis:
+            ap.error('interview braucht eine Figur und --bis <Stelle>')
+        sys.stdout.write(interview(base, a.args[0], a.bis, a.max_chars))
         return 0
     if a.cmd == 'apply':
         import json
