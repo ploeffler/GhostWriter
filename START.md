@@ -43,6 +43,7 @@ Akzeptiere zusätzlich zu den deutschen Befehlen die folgenden englischen Entspr
 | `Check out chapters 3–5`, `Check out book` | `Auschecken Kapitel 3–5`, `Auschecken Buch` |
 | `Check in`, `End checkout`, `Checkouts` | `Einchecken`, `Checkout beenden`, `Checkouts` |
 | `Add material` | `Material einbringen` |
+| `Capture anecdote`, `Anecdotes` | `Anekdote erfassen`, `Anekdoten` |
 | `Update`, `Data`, `Profile`, `AI disclosure` | `Update`, `Daten`, `Profil`, `KI-Angabe` |
 | `Core rules` | `Grundregeln` |
 | `Project details` | `Projektdaten` |
@@ -307,6 +308,7 @@ Klicks in den Chat-Vorlagen schicken eine Zeile Text und feste Daten: als Kennze
 | `Einchecken` (Kürzel `EC`) | Rückgabe (DOCX, PDF oder Foto der Ausdrucke) einchecken und als Befunde einbringen; beendet den Checkout nicht (#573) |
 | `Checkout beenden` (Kürzel `CB`), `Checkouts` | Checkout ausdrücklich beenden, nur als eigene Auswahl mit Bestätigung; `Checkouts` listet alle (`checkout.py . status`) |
 | `Material einbringen` (Kürzel `ME`) | Foto, Foto vom Foto, Dokument oder Rückgabe einbringen; startet auch bei einem Upload ohne Befehl; Skill `ghostwriter-material`, Abschnitt „Material einbringen (#574)“ |
+| `Anekdote erfassen` (Kürzel `AN`), `Anekdoten` | eigenes Erlebnis festhalten bzw. die Sammlung zeigen und passende Anekdoten in einen Abschnitt einbauen (Abschnitt „Anekdoten (#643)“) |
 | `Zeitleiste` | Chronologie aus Unterlagen und Recherche mit Hinweisen, wo die Daten nicht zusammenpassen (Abschnitt „Chronologie“, #354) |
 | `Einstellungen`, `KI-Dienste` | das jeweilige Formular |
 | `Alle Einstellungen` | Übersicht aller Einstellungen mit Wert, Herkunft und Formular (`render_view.py . settings-overview [gruppe | bibliothek | serie <id> | sammelband <id>]`, nur lesend, Widget bzw. `--text`, #299) |
@@ -692,6 +694,18 @@ Lädt der Benutzer ein Foto, ein Foto vom Foto, ein Dokument (Urkunde, Brief) od
 10. **Abschluss im Chat:** was abgelegt, wer markiert/unbekannt, was neu oder widersprüchlich, ob coloriert (oder warum nicht); `markiert.jpg` zeigen.
 
 Das Original bleibt immer unverändert. Persönliche Zusätze (Altersgrenzen der Geschichte, eigene Zeitleiste, Abfragen) gehören in den persönlichen Skill des Buchs.
+
+### Anekdoten (#643)
+
+Eigene Erlebnisse des Autors werden **im Original** gesammelt und erst beim Einbau in einen Abschnitt anonymisiert oder abgewandelt (Befehl „Anekdote erfassen“, Kürzel **AN**, bzw. „Anekdoten“ für die Liste). Programmfunktion `scripts/anekdoten.py`; Daten `anekdoten/<id>.yml` (Buch) bzw. `series/<ser-id>/anekdoten/<id>.yml` (Reihe, nur auf dem Standard-Branch, für alle Bände sichtbar), Schema `schemas/anecdote.schema.json`. **Nur Eigentümer und Bearbeiter** (Rollen aus „Team und Rollen“; Leser bekommen weder Liste noch Schreibaktionen). Anekdoten erscheinen nie in Leser-Ansichten, Auflagen oder Exporten, nur als eingebaute Fassung im Text; auf Git-Ebene sind die Dateien für jeden mit Lesezugriff auf das Repository lesbar (entschieden: kein eigener privater Ort).
+
+1. **Erfassen:** Der Autor erzählt im Chat oder lädt Text bzw. die Abschrift einer Sprachnotiz hoch. Der Assistent strukturiert nur und fragt nur nach Fehlendem (Titel, Personen mit Rolle, Ort, Zeit, Themen); **am Inhalt ändert er nichts**. `python3 scripts/anekdoten.py . add --titel … --text … [--person "Name:Rolle"] [--ort …] [--zeit …] [--thema …] [--quelle …] [--series <ser-id>]`, ein Commit auf dem Arbeits-Branch (Reihe: Standard-Branch, wie Serien-Aktionen).
+2. **Vorschlagen:** Bei Abschnittsplanung, Ghostwriting, Ideensammlung und bei einem `[PLATZHALTER-ANEKDOTE: …]` die freien Einträge anbieten: `anekdoten.py . suggest --section <id>` bzw. `--text "…"` (lesend; verwendete Einträge fehlen, vorgemerkte nur für ihren Abschnitt). Mit dem Wissensstand (4a) abgleichen: „gibt es schon als …“. Vormerken: `anekdoten.py . plan <id> --section <id>` (`--clear` hebt es auf).
+3. **Einbauen (Auswahl):** Eine Auswahlkarte fragt je Verwendung: **Fassung** (anonymisiert | abgewandelt | original), **Wahrheitsgehalt** (wörtlich, belegt | frei erzählt, Kern wahr | nur als Anlass, fiktionalisiert), **Ersetzungen** (Vorschlag aus Figuren und Orten des Buchs: Original → im Buch) und **Einverständnis** echter Personen (anonymisiert | liegt vor | nicht nötig, mit Begründung). Der Text im Abschnitt entsteht als **Vorschlag** und wird nur nach ausdrücklicher Bestätigung übernommen (Freigaberegeln unverändert); erst danach `anekdoten.py . use <id> --section <id> --fassung … --wahrheit … --einverstaendnis … [--ersetzung "Original=Im Buch" …] [--notiz …]` (ein Commit zusammen mit dem Abschnitt). Der Eintrag zeigt dann die Verwendung mit der Zuordnung Original ↔ Fassung im Buch.
+4. **Doppelt verwendet:** `use` warnt, wenn der Eintrag schon verwendet ist, in einer Reihe auch in einem anderen Band („schon verwendet in Band 1“); den Benutzer fragen, nichts stillschweigend doppelt einbauen.
+5. **Auflage und Probedruck:** `anekdoten.py . check` nennt Verwendungen der Fassung „original“ ohne Einverständnisvermerk; vor einer Auflage bzw. einem Probedruck als Hinweis zeigen. Bei Sachbuch und Biografie gehört der Wahrheitsgehalt zur Qualitätssicherung (`docs/QUALITAETSSICHERUNG.md`).
+
+Der Skill `ghostwriter-anekdoten` (Repository `ghostwriter-skills`) führt durch Erfassen, Vorschlagen und Einbauen und verweist auf dieses Skript. Das Original wird nie überschrieben; Personennamen im Original gehen nie in Buchtext, nur die Ersetzungen.
 
 ### Freigaben (verbindlich)
 
