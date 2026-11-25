@@ -122,6 +122,17 @@
       }
     },
     {
+      "id": "full-backup",
+      "title": {
+        "de": "Gesamtsicherung",
+        "en": "Full backup"
+      },
+      "source": {
+        "de": "GESAMTSICHERUNG.md",
+        "en": "FULL-BACKUP.en.md"
+      }
+    },
+    {
       "id": "images",
       "title": {
         "de": "Bilder & Referenzen",
