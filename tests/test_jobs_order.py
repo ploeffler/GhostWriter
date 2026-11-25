@@ -280,3 +280,60 @@ class SuggestTest(Base):
         with mock.patch('builtins.print') as out:
             self.assertEqual(jobs.main([str(self.base), 'suggest', '--section', 'sec-01-01', '--json']), 0)
         self.assertEqual(json.loads(out.call_args[0][0])['recommended'], 'merge')
+
+
+class AutoAnalysisTest(Base):
+    """#123: Analysen nach einem Kapitelabschluss automatisch einreihen (je Buch wahlweise), nur bei Neuem."""
+
+    def configure(self, kinds):
+        p = self.base / 'ghostwriter.yml'
+        c = yaml.safe_load(p.read_text(encoding='utf-8'))
+        c['analysis'] = {'auto_after_chapter': kinds}
+        p.write_text(yaml.safe_dump(c), encoding='utf-8')
+
+    def approve(self, at):
+        p = self.base / 'approvals.yml'
+        d = yaml.safe_load(p.read_text(encoding='utf-8')) if p.is_file() else {'entries': []}
+        d['entries'].append({'kind': 'chapter', 'id': 'ch-01', 'action': 'granted', 'at': at, 'by': 'x', 'commit': 'abc1234'})
+        p.write_text(yaml.safe_dump(d), encoding='utf-8')
+
+    def test_off_by_default_and_needs_an_approval(self):
+        self.approve('2026-11-20T08:00:00+00:00')
+        self.assertEqual(jobs.auto_analysis(self.base), [])
+        self.configure(['characters'])
+        (self.base / 'approvals.yml').unlink()
+        self.assertEqual(jobs.auto_analysis(self.base), [])
+
+    def test_enqueues_once_per_approval_and_not_while_waiting(self):
+        self.configure(['characters'])
+        self.approve('2026-11-20T08:00:00+00:00')
+        made = jobs.auto_analysis(self.base)
+        self.assertEqual(len(made), 1)
+        data = yaml.safe_load(made[0].read_text(encoding='utf-8'))
+        self.assertEqual((data['type'], data['analysis']['kind'], data['analysis']['scope'], data['requested_by']),
+                         ('analysis', 'characters', 'book', 'auto'))
+        self.assertEqual(jobs.auto_analysis(self.base), [])   # wartet noch: kein zweiter Auftrag
+        made[0].unlink()
+        run = self.base / 'analysis/characters'
+        run.mkdir(parents=True)
+        (run / 'run-001.json').write_text('{"created_at": "2026-11-21T08:00:00+00:00"}', encoding='utf-8')
+        self.assertEqual(jobs.auto_analysis(self.base), [])   # Lauf nach dem Abschluss: nichts Neues
+        self.approve('2026-11-22T08:00:00+00:00')
+        self.assertEqual(len(jobs.auto_analysis(self.base)), 1)   # neuer Abschluss: wieder
+
+    def test_unknown_kinds_ignored_and_cli(self):
+        self.configure(['unsinn'])
+        self.approve('2026-11-20T08:00:00+00:00')
+        self.assertEqual(jobs.auto_analysis(self.base), [])
+        self.configure(['characters'])
+        self.assertEqual(jobs.main([str(self.base), 'auto']), 0)
+        self.assertEqual(len(jobs.files(self.base)), 1)
+
+    def test_analysis_settings_form_keeps_auto_setting(self):
+        import analyze
+        self.configure(['characters'])
+        analyze.settings_set(self.base, {'parallel': 2})
+        c = yaml.safe_load((self.base / 'ghostwriter.yml').read_text(encoding='utf-8'))
+        self.assertEqual(c['analysis'], {'parallel': 2, 'auto_after_chapter': ['characters']})
+        with self.assertRaises(ValueError):
+            analyze.clean_settings({'auto_after_chapter': ['unsinn']})

@@ -10,6 +10,7 @@ Aufruf:
   python scripts/jobs.py <buch> prioritize --request <auftrag>      (vorziehen, #478)
   python scripts/jobs.py <buch> suggest --section <id> [--question Q] [--json]   (Vorschlag vor dem Einreihen, #478)
   python scripts/jobs.py <buch> merge --request <auftrag> --question Q           (Zusammenlegen, #478)
+  python scripts/jobs.py <buch> auto [--push-to <branch>]   (Analysen nach Kapitelabschluss einreihen, #123)
   python scripts/jobs.py <buch> cancel --request <auftrag>          (nur wartende Aufträge)
   python scripts/jobs.py <buch> process [--defaults datei] [--limit 5] [--push-to <arbeits-branch>]
   python scripts/jobs.py <ordner> remote [--start] [--paused] [--dry-run]   (Kontrolllauf, #481)
@@ -438,6 +439,35 @@ def enqueue(base, type_='research', section=None, question=None, provider=None, 
     return path
 
 
+def auto_analysis(base, now=None):
+    """Analysen nach einem Kapitelabschluss einreihen (#123), wenn das Buch es wünscht
+    (`analysis.auto_after_chapter: [characters, …]` in ghostwriter.yml). Je Art ein Auftrag für das ganze Buch,
+    sobald ein Kapitel nach dem letzten Lauf der Art abgeschlossen wurde und kein Auftrag der Art mehr wartet; gelesen
+    wird dann nur, was sich seit dem letzten Lauf geändert hat (Fingerabdruck). Gibt die angelegten Aufträge zurück."""
+    import analyze
+    base = Path(base)
+    config = read(base / 'ghostwriter.yml') or {}
+    kinds = [k for k in (config.get('analysis') or {}).get('auto_after_chapter') or [] if k in analyze.KINDS]
+    entries = (read(base / 'approvals.yml') or {}).get('entries') or []
+    approved = [t for t in (_when(e.get('at')) for e in entries
+                            if e.get('kind') == 'chapter' and e.get('action') == 'granted') if t]
+    if not kinds or not approved:
+        return []
+    latest = max(approved)
+    waiting = {str((j['data'].get('analysis') or {}).get('kind') or 'characters') for j in jobs(base, config)
+               if j['type'] == 'analysis' and pending(j)}
+    made = []
+    for kind in kinds:
+        if kind in waiting:
+            continue
+        runs = [t for t in (_when(json.loads(p.read_text(encoding='utf-8')).get('created_at'))
+                            for p in sorted((base / 'analysis' / kind).glob('run-[0-9][0-9][0-9].json'))) if t]
+        if runs and max(runs) >= latest:
+            continue
+        made.append(enqueue(base, 'analysis', fields={'kind': kind, 'scope': 'book'}, requested_by='auto', now=now))
+    return made
+
+
 def budget_low(base, config=None):
     """True, wenn das KI-Budget unter der Pausenschwelle liegt (limits.py)."""
     try:
@@ -800,7 +830,7 @@ def listing(base):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('base')
-    ap.add_argument('cmd', choices=['list', 'enqueue', 'prioritize', 'retry', 'cancel', 'suggest', 'merge', 'process', 'remote', 'report'])
+    ap.add_argument('cmd', choices=['list', 'enqueue', 'prioritize', 'retry', 'cancel', 'suggest', 'merge', 'auto', 'process', 'remote', 'report'])
     ap.add_argument('--language', default='de')
     ap.add_argument('--start', action='store_true', help='remote: Abarbeitung je Buch starten')
     ap.add_argument('--paused', action='store_true', help='remote: Automatik pausiert, nur melden')
@@ -869,6 +899,12 @@ def main(argv=None):
                 for c in data['candidates']:
                     print(f'- {c["request"]} ({"gleicher Abschnitt" if c["relation"] == "same_section" else "gleiches Kapitel"})'
                           + (f': {c["question"]}' if c['question'] else ''))
+            return 0
+        if a.cmd == 'auto':
+            made = auto_analysis(base)
+            if made and a.push_to:
+                commit_push(base, 'Warteschlange: Analyse nach Kapitelabschluss eingereiht', a.push_to, paths=['jobs'])
+            print('\n'.join(str(p.relative_to(base)) for p in made) or 'Nichts einzureihen.')
             return 0
         if a.cmd == 'merge':
             if not a.request:
