@@ -211,3 +211,71 @@ class StartConditionTest(Base):
         git(self.base, 'fetch', '-q', 'origin')
         pending = jobs.remote_pending(self.base)
         self.assertEqual(sum(sum(w.values()) for w in pending.values()), 1)
+
+class SuggestTest(Base):
+    """#478: Vorschlag beim Einreihen (Danach einreihen / Zusammenlegen / Unabhängig); ohne Klick ändert sich nichts."""
+
+    def snapshot(self):
+        return sorted((str(p.relative_to(self.base)), p.read_text(encoding='utf-8')) for p in self.base.rglob('request-*.yml'))
+
+    def test_empty_queue_is_independent(self):
+        s = jobs.suggest(self.base, 'sec-01-01', 'Frage')
+        self.assertEqual((s['recommended'], s['options'], s['candidates']), ('independent', ['independent'], []))
+
+    def test_same_section_recommends_merge_and_changes_nothing(self):
+        a = self.add('sec-01-01', AT, question='Erste Frage')
+        before = self.snapshot()
+        s = jobs.suggest(self.base, 'sec-01-01', 'Zweite Frage')
+        self.assertEqual(s['recommended'], 'merge')
+        self.assertEqual(s['options'], ['merge', 'after', 'independent'])
+        self.assertEqual([(c['request'], c['relation']) for c in s['candidates']], [(rel(self.base, a), 'same_section')])
+        self.assertEqual(self.snapshot(), before)
+
+    def test_same_chapter_recommends_after_other_chapter_is_independent(self):
+        self.add('sec-01-02', AT)
+        s = jobs.suggest(self.base, 'sec-01-01')
+        self.assertEqual((s['recommended'], s['options']), ('after', ['after', 'independent']))
+        self.assertEqual(s['candidates'][0]['relation'], 'same_chapter')
+        self.assertEqual(jobs.suggest(self.base, 'sec-02-01')['recommended'], 'independent')
+
+    def test_failed_and_locked_jobs_are_not_offered(self):
+        a = self.add('sec-01-01', AT)
+        data = yaml.safe_load(a.read_text(encoding='utf-8'))
+        data.update({'error': 'kaputt', 'failed_at': AT})
+        a.write_text(yaml.safe_dump(data), encoding='utf-8')
+        self.assertEqual(jobs.suggest(self.base, 'sec-01-01')['candidates'], [])
+
+    def test_same_section_first_then_newest(self):
+        self.add('sec-01-02', '2026-11-22T21:00:00+00:00')
+        b = self.add('sec-01-01', AT)
+        self.add('sec-01-02', '2026-11-22T22:00:00+00:00')
+        s = jobs.suggest(self.base, 'sec-01-01')
+        self.assertEqual(s['candidates'][0]['request'], rel(self.base, b))
+        self.assertEqual([c['requested_at'] for c in s['candidates'][1:]],
+                         ['2026-11-22T22:00:00+00:00', '2026-11-22T21:00:00+00:00'])
+
+    def test_other_types_are_independent(self):
+        self.add('sec-01-01', AT)
+        self.assertEqual(jobs.suggest(self.base, 'sec-01-01', type_='analysis')['recommended'], 'independent')
+
+    def test_merge_appends_question_once_only_for_pending(self):
+        a = self.add('sec-01-01', AT, question='Erste Frage')
+        jobs.merge(self.base, rel(self.base, a), 'Zweite Frage')
+        jobs.merge(self.base, rel(self.base, a), 'Zweite Frage')   # zweimal derselbe Klick: keine Verdopplung
+        self.assertEqual(yaml.safe_load(a.read_text(encoding='utf-8'))['question'], 'Erste Frage\n\nZweite Frage')
+        self.assertEqual(len(self.snapshot()), 1)               # kein zweiter Auftrag
+        with self.assertRaises(ValueError):
+            jobs.merge(self.base, rel(self.base, a), '')
+        data = yaml.safe_load(a.read_text(encoding='utf-8'))
+        data['error'] = 'x'
+        a.write_text(yaml.safe_dump(data), encoding='utf-8')
+        with self.assertRaises(ValueError):
+            jobs.merge(self.base, rel(self.base, a), 'Dritte')
+
+    def test_merge_without_old_question_and_cli(self):
+        a = self.add('sec-01-01', AT)
+        self.assertEqual(jobs.main([str(self.base), 'merge', '--request', rel(self.base, a), '--question', 'Nur diese']), 0)
+        self.assertEqual(yaml.safe_load(a.read_text(encoding='utf-8'))['question'], 'Nur diese')
+        with mock.patch('builtins.print') as out:
+            self.assertEqual(jobs.main([str(self.base), 'suggest', '--section', 'sec-01-01', '--json']), 0)
+        self.assertEqual(json.loads(out.call_args[0][0])['recommended'], 'merge')
