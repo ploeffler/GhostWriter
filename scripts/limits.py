@@ -76,7 +76,8 @@ def settings(config):
 
 def month_costs(base, month):
     """Summe der Backend-API-Kosten im Monat (JJJJ-MM) in Projektwährung; Einträge in anderer Währung zählen
-    mit ihrem Betrag (Umrechnung kommt mit #66)."""
+    mit ihrem Betrag; geschätzte Einträge sind seit #66 schon in die Projektwährung umgerechnet (nur ohne Kurs bleibt die
+    Originalwährung stehen)."""
     files = sorted(base.glob('chapters/*/costs/*.yml'))
     if (base / 'costs' / 'project.yml').is_file():
         files.append(base / 'costs' / 'project.yml')
