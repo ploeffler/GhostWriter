@@ -64,7 +64,7 @@ PRIOR_CHAPTER = 1500    # davon höchstens für andere Abschnitte desselben Kapi
 # Anbieter mit eingebauter Websuche über die API (Teil 1). Weitere folgen in Teil 2 von #462.
 PROVIDERS = {
     'anthropic': {'model': 'claude-sonnet-5-5', 'label': 'Anthropic'},
-    'openai': {'model': 'gpt-5', 'label': 'OpenAI'},
+    'openai': {'model': 'gpt-6.1-terra', 'label': 'OpenAI'},
     'google': {'model': 'gemini-3.8-flash', 'label': 'Google Gemini'},
 }
 # #554: Die Vorgaben stehen in providers.yml (`model_defaults`); die Werte oben sind nur der Rückfall.

@@ -86,13 +86,20 @@ class RetirementTest(unittest.TestCase):
 
     def test_warns_from_ninety_days_before(self):
         self.assertEqual(md.retirement_lines(EARLY), [])
-        lines = md.retirement_lines(datetime.date(2026, 11, 25))
+        lines = md.retirement_lines(datetime.date(2026, 12, 20))
         self.assertEqual(len(lines), 1, lines)
-        self.assertIn('gpt-5 (openai, Recherche) wird am 2026-12-11 abgeschaltet', lines[0])
+        self.assertIn('gemini-2.5-flash-image (google, Bild) wird am 2027-03-15 abgeschaltet', lines[0])
         self.assertIn('nie automatisch umgestellt', lines[0])
-        later = md.retirement_lines(datetime.date(2027, 1, 5))
-        self.assertTrue(any('ist seit dem 2026-12-11 abgeschaltet' in x for x in later))
-        self.assertTrue(any('gemini-2.5-flash-image' in x for x in md.retirement_lines(datetime.date(2027, 2, 20))))
+        later = md.retirement_lines(datetime.date(2027, 3, 16))
+        self.assertTrue(any('ist seit dem 2027-03-15 abgeschaltet' in x for x in later))
+
+    def test_openai_research_default_is_not_retired(self):
+        """#638: gpt-5 (Abschaltung 2026-12-11) ist ersetzt; die Vorgabe ist gpt-6.1-terra und trägt keine Abschaltung."""
+        catalog = yaml.safe_load((ROOT / 'providers.yml').read_text(encoding='utf-8'))['model_defaults']
+        entry = catalog['openai']['research']
+        self.assertEqual(entry['model'], 'gpt-6.1-terra')
+        self.assertNotIn('retire_at', entry)
+        self.assertEqual(md.default_model('openai', 'research', 'x'), 'gpt-6.1-terra')
 
     def test_all_defaults_are_checked_with_a_date(self):
         catalog = yaml.safe_load((ROOT / 'providers.yml').read_text(encoding='utf-8'))['model_defaults']
