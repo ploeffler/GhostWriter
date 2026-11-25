@@ -1034,13 +1034,56 @@ def credit():
     return c.get('text', ''), c.get('url', '')
 
 
+def stale_values(head, ident):
+    """Felder der Vorlagen abschnitt-/teil-bearbeiten zum Veraltet-Vermerk (#592)."""
+    st = head.get('stale')
+    return {'STALE_TEXT': view_message('the_text_is_marked_stale_since', p_a=f"{st['since']}", p_b=f"{st['reason']}") if st else '',
+            'STALE_NONE': '' if st else '1', 'STALE_ARGS': json.dumps({'section_id': ident}, separators=(',', ':'))}
+
+
+def row_flags(r, prefix):
+    """Marken „veraltet“ und „ausgecheckt“ einer Zeile für die Textfassung (#592, #572), mit führendem Leerzeichen; sonst ''."""
+    return ''.join(f' ⚠ {r[k]}' if k.endswith('STALE_TEXT') else f' 🔒 {r[k]}'
+                   for k in (f'{prefix}_STALE_TEXT', f'{prefix}_CHECKOUT_TEXT') if r.get(k))
+
+
+def _checkouts(base, config):
+    try:
+        import checkout
+        return checkout.display(base, config, UI.get('language', 'de'))
+    except Exception:   # noqa: BLE001
+        return []
+
+
+def stale_marks(items):
+    """(Text, Tooltip) der Veraltet-Marke (#592) für Abschnitts- bzw. Teilköpfe `items = [(Nummer, Kopf)]`; leer ohne Marke."""
+    marked = [(number, head['stale']) for number, head in items if head.get('stale')]
+    if not marked:
+        return '', ''
+    word = view_message('stale_marker')
+    text = word if len(marked) == 1 else f'{len(marked)} {word}'
+    hint = '; '.join(f'{n}: ' + view_message('the_text_is_marked_stale_since', p_a=f"{h['since']}", p_b=f"{h['reason']}") for n, h in marked[:5])
+    return text, hint
+
+
+def checkout_blocks(base, config, chapter_id=None):
+    """Block `CHECKOUTS` (#572): aktive Checkouts, für ein Kapitel nur die, die es betreffen. Leer ohne Checkout-Datei."""
+    try:
+        import checkout
+        found = checkout.display(base, config, UI.get('language', 'de'))
+    except Exception:   # noqa: BLE001 – ohne lesbare checkouts.yml keine Anzeige
+        return []
+    return [{'CO_ID': c['id'], 'CO_TEXT': c['text'], 'CO_ARGS': json.dumps({'id': c['id']}, separators=(',', ':'))}
+            for c in found if not chapter_id or chapter_id in c['chapters']]
+
+
 def matter_rows(base, config):
     rows = []
     for area, item in matter_items(config):
         head, _, _, ms = section_file(base, item)
         rows.append({'MATTER_ID': item['id'], 'MATTER_KIND': item['kind'], 'MATTER_AREA': area,
-                     'MATTER_TITLE': item['title'] + (f" ⚠ {view_message('stale_marker')}" if head.get('stale') else ''),
-                     'MATTER_STATUS': head['status'],
+                     'MATTER_TITLE': item['title'], 'MATTER_STATUS': head['status'],
+                     'MATTER_STALE_TEXT': stale_marks([(item['title'], head)])[0], 'MATTER_STALE_HINT': stale_marks([(item['title'], head)])[1],
                      'MATTER_MARKERS': str(sum(marker_counts(ms).values()))})
     return rows
 
@@ -1108,6 +1151,7 @@ def matter_view(base, config, args):
             values.update({'SERIES_ID': config['_series']['id'], 'SERIES_TITLE': config['_series']['title']})
             blocks['SERIES_TERMS'] = [{'T_TERM': x['term'], 'T_TEXT': x['text'] or x['book_text'], 'T_BOOK_TEXT': x['book_text'],
                                        'T_STATE': x['state'], 'T_STATE_TEXT': view_labels('TERM_STATE_DE')[x['state']]} for x in st]
+        values.update(stale_values(head, item['id']))   # #592
         return fill('teil-bearbeiten.html', values, blocks)
     lines = [f'### 📜 {item["title"]}', f'{area} · {display_status(head["status"])}', '',
              '| | |', '|---|---|', view_message('view.matter.goal', p_a=goal or view_message('view.matter.not_set')),
@@ -1462,21 +1506,25 @@ def project_view(base, config, args):
     ck = check_index(base, config)
     for i, ch in enumerate(chapters, start=1):
         ch_amount, ch_est = combine([total(section_costs(base, ch, s)) for s in ch['sections']])
-        words, done = 0, 0   # Textumfang und abgeschlossene Abschnitte (#362)
-        for s in ch['sections']:
+        words, done, marked = 0, 0, []   # Textumfang und abgeschlossene Abschnitte (#362), veraltete Abschnitte (#592)
+        for si, s in enumerate(ch['sections'], start=1):
             try:
                 head, _, _, ms = section_file(base, s)
             except Exception:   # noqa: BLE001
                 continue
             words += manuscript_words(ms)
             done += head.get('status') == 'approved'
+            marked.append((f'{i}.{si}', head))
+        stale_text, stale_hint = stale_marks(marked)
         parts.append((ch_amount, ch_est))
         rows.append({'CHAPTER_NUMBER': i, 'CHAPTER_TITLE': ch['title'], 'CHAPTER_STATUS': ch['status'],
                      'CHAPTER_COST': money(ch_amount, ch_est),
                      'CHAPTER_COST_HINT': cost_hint('Summe der Abschnittskosten', ch_amount, ch_est),
                      'CHAPTER_ID': ch['id'], 'CHAPTER_WORDS': words,
                      'CHAPTER_WORDS_TEXT': f'{words:,}'.replace(',', '.') + (' Wort' if words == 1 else ' Wörter'),
-                     'CHAPTER_APPROVED_TEXT': f'{done} von {len(ch["sections"])}' if ch['sections'] else ''})
+                     'CHAPTER_APPROVED_TEXT': f'{done} von {len(ch["sections"])}' if ch['sections'] else '',
+                     'CHAPTER_STALE_TEXT': stale_text, 'CHAPTER_STALE_HINT': stale_hint,
+                     'CHAPTER_CHECKOUT_TEXT': ''})
         if ck:   # Prüf-Tags je Kapitel (#331)
             notes = ck.open_notes(ch)
             if notes is not None:   # offene Hinweise aus dem Prüfprotokoll (#362)
@@ -1495,6 +1543,10 @@ def project_view(base, config, args):
                     shown = hist[:checks.HISTORY_CAP]
                     rows[-1].update({'CHAPTER_HISTORY': hist, 'CHAPTER_HISTORY_COUNT': len(shown),
                                      'CHAPTER_HISTORY_JSON': checks.history_json(shown, checks.HISTORY_KEYS_SLIM)})
+    cos = checkout_blocks(base, config)   # #572: Checkouts und Marke „ausgecheckt (Kennung)“ je Kapitel
+    for r in rows:
+        ids = [c['CO_ID'] for c in cos if r['CHAPTER_ID'] in next((x['chapters'] for x in _checkouts(base, config) if x['id'] == c['CO_ID']), [])]
+        r['CHAPTER_CHECKOUT_TEXT'] = f"{view_message('checked_out_mark')} ({', '.join(ids)})" if ids else ''
     longest = max([r['CHAPTER_WORDS'] for r in rows] or [0])
     for r in rows:   # Balken relativ zum längsten Kapitel (#362)
         r['CHAPTER_WORDS_PCT'] = round(100 * r['CHAPTER_WORDS'] / longest) if longest else 0
@@ -1534,6 +1586,13 @@ def project_view(base, config, args):
         values['CHECKS_LEGEND'] = (checks.LEGEND if detailed else checks.LEGEND_LATEST)['de']
         if detailed:
             values['CHECK_DETAILS'] = '1'
+    try:   # #592: Zähler „N veraltet“ (Abschnitte und Teile)
+        import stale
+        n_stale = len(stale.stale_sections(base, config))
+    except Exception:   # noqa: BLE001
+        n_stale = 0
+    if n_stale:
+        values['STALE_TEXT'] = f"{n_stale} {view_message('stale_marker')}"
     changes = load_changes(args)
     if changes:
         values.update({'PENDING_COUNT': len(changes['commits']), 'PENDING_TEXT': changes_text(changes),
@@ -1577,7 +1636,8 @@ def project_view(base, config, args):
     front = [m for m in matter if m['MATTER_AREA'] == 'front']
     back = [m for m in matter if m['MATTER_AREA'] == 'back']
     def matter_line(ms, label):
-        return f'**{label}:** ' + ' · '.join(f'{m["MATTER_TITLE"]} {STATUS_ICON.get(m["MATTER_STATUS"], "")}'.strip() for m in ms)
+        return f'**{label}:** ' + ' · '.join(f'{m["MATTER_TITLE"]} {STATUS_ICON.get(m["MATTER_STATUS"], "")}'.strip()
+                                              + (f' ⚠ {m["MATTER_STALE_TEXT"]}' if m.get('MATTER_STALE_TEXT') else '') for m in ms)
     if args.text:
         lines = [f'### 📘 {values["PROJECT_TITLE"] or "Noch ohne Titel"}',
                  f'**{values["PROJECT_EDITION_TEXT"]}**'
@@ -1600,6 +1660,10 @@ def project_view(base, config, args):
             lines += [f'> 🔄 **GhostWriter-Update:** {values["UPDATE_TEXT"]} · `U` einspielen', '']
         if values.get('CHECKS_RECENT_TEXT'):
             lines += [f'🧪 **Letzte Prüfungen:** {values["CHECKS_RECENT_TEXT"]}', '']
+        for c in cos:   # #572
+            lines += [f'🔒 {c["CO_TEXT"]} · `CB` Checkout beenden', '']
+        if values.get('STALE_TEXT'):   # #592
+            lines += [f'⚠️ {values["STALE_TEXT"]} · `python3 scripts/stale.py . list`', '']
         if ck:
             import checks
             lines += checks.todo(rows, 'de', values.get('CHECKS_BOOK_STALE'))   # #538
@@ -1611,7 +1675,7 @@ def project_view(base, config, args):
             lines += [matter_line(front, 'Vorspann'), '']
         if rows and ck:   # mit Spalte „Prüfungen“ (#331)
             lines += ['| # | Kapitel | Umfang | Fertig | Kosten | Status | Prüfungen | Hinweise | |', '|--:|---|--:|--:|--:|---|---|--:|:-:|']
-            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_WORDS_TEXT"]} | {r["CHAPTER_APPROVED_TEXT"] or "–"} | {r["CHAPTER_COST"]} | {display_status(r["CHAPTER_STATUS"])} | {r["CHAPTER_CHECKS_TEXT"]} | {r.get("CHAPTER_NOTES", "–")} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
+            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]}{row_flags(r, "CHAPTER")} | {r["CHAPTER_WORDS_TEXT"]} | {r["CHAPTER_APPROVED_TEXT"] or "–"} | {r["CHAPTER_COST"]} | {display_status(r["CHAPTER_STATUS"])} | {r["CHAPTER_CHECKS_TEXT"]} | {r.get("CHAPTER_NOTES", "–")} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
             if detailed and any(r.get('CHAPTER_CHECK_DETAILS') for r in rows):   # erweiterte Darstellung (#398)
                 import checks
                 lines += ['', '**Prüfdetails**', '']
@@ -1623,7 +1687,7 @@ def project_view(base, config, args):
         elif rows:
             # Letzte Spalte: Kürzel zum Bearbeiten des Kapitels (wie der Bearbeiten-Knopf der Kapitelansicht).
             lines += ['| # | Kapitel | Umfang | Fertig | Kosten | Status | |', '|--:|---|--:|--:|--:|---|:-:|']
-            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]} | {r["CHAPTER_WORDS_TEXT"]} | {r["CHAPTER_APPROVED_TEXT"] or "–"} | {r["CHAPTER_COST"]} | {display_status(r["CHAPTER_STATUS"])} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
+            lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]}{row_flags(r, "CHAPTER")} | {r["CHAPTER_WORDS_TEXT"]} | {r["CHAPTER_APPROVED_TEXT"] or "–"} | {r["CHAPTER_COST"]} | {display_status(r["CHAPTER_STATUS"])} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
         else:
             lines += ['*Noch keine Kapitel.*']
         if back:
@@ -1658,6 +1722,13 @@ def project_view(base, config, args):
             lines += ['', small(f'{values["CREDIT_TEXT"]}')]
         return '\n'.join(lines) + '\n'
     blocks = {'CHAPTERS': rows}
+    if cos:
+        blocks['CHECKOUTS'] = cos
+    if ck:   # #593: Handlungsbedarf als Karte im Widget
+        import checks as checks_mod
+        todo = checks_mod.todo_widget(rows, UI.get('language', 'de'), values.get('CHECKS_BOOK_STALE'))
+        if todo:
+            blocks['TODO'] = todo
     if analyses:
         blocks['ANALYSES'] = analyses
     if front:
@@ -1675,6 +1746,7 @@ def chapter_view(base, config, args, cnum):
     sub = re.search(r'(?m)^\*([^*].*)\*$', readme)
     rows, parts, counts_total, approved = [], [], 0, 0
     ck = check_index(base, config)
+    cos = checkout_blocks(base, config, ch['id'])   # #572
     for si, s in enumerate(ch['sections'], start=1):
         head, _, _, ms = section_file(base, s)
         counts = marker_counts(ms)
@@ -1683,8 +1755,11 @@ def chapter_view(base, config, args, cnum):
         a, e = total(section_costs(base, ch, s))
         parts.append((a, e))
         stale = head.get('stale')   # #510: überholt, Freigabe bleibt
-        rows.append({'SECTION_ID': s['id'], 'SECTION_NUMBER': f'{cnum}.{si}',
-                     'SECTION_TITLE': s['title'] + (f" ⚠ {view_message('stale_marker')}" if stale else ''),
+        locked = [c['CO_ID'] for c in cos if s['id'] in (next((x['sections'] for x in _checkouts(base, config) if x['id'] == c['CO_ID']), set()))]
+        rows.append({'SECTION_ID': s['id'], 'SECTION_NUMBER': f'{cnum}.{si}', 'SECTION_TITLE': s['title'],
+                     'SECTION_STALE_TEXT': view_message('stale_marker') if stale else '',
+                     'SECTION_STALE_HINT': view_message('the_text_is_marked_stale_since', p_a=f"{stale['since']}", p_b=f"{stale['reason']}") if stale else '',
+                     'SECTION_CHECKOUT_TEXT': view_message('checked_out_mark') if locked else '',
                      'SECTION_STATUS': head['status'], 'SECTION_COST': money(a, e),
                      'MARKERS_ANEKDOTE': counts['anekdote'], 'MARKERS_QUELLE': counts['quelle'],
                      'MARKERS_MEDIZIN': counts['medizin'], 'MARKERS_RECHT': counts['recht'],
@@ -1726,6 +1801,7 @@ def chapter_view(base, config, args, cnum):
             lines += [f'*{values["CHAPTER_SUBTITLE"]}*']
         lines += ['', f'**Ziel des Kapitels:** {ch_goal or "*noch offen*"}', '',
                   f'**Kurzbeschreibung:** {ch_summary or "*noch offen*"} · `Z` ändern, Kapitelrecherche']
+        lines += [''] + [f'🔒 {c["CO_TEXT"]} · `CB` Checkout beenden' for c in cos]
         lines += ['', f'{values["SECTION_COUNT_TEXT"]} · ✅ {values["APPROVED_COUNT_TEXT"]} freigegeben · {values["MARKER_COUNT_TEXT"]} · Kosten **{values["CHAPTER_COST"]}**', '']
         if chapter_checks:
             lines += ['🧪 **Prüfungen:** ' + ' · '.join(f'`{t["CK_TAG"]}` {t["CK_TEXT"]}' for t in chapter_checks), '']
@@ -1734,13 +1810,13 @@ def chapter_view(base, config, args, cnum):
             lines += checks.history_text(chapter_history) + ['']
         if rows and ck:   # mit Spalte „Prüfungen“ (#331)
             lines += ['| # | Abschnitt | Marker | Kosten | Status | Prüfungen |', '|--:|---|---|--:|---|---|']
-            lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {marks(r)} | {r["SECTION_COST"]} | {display_status(r["SECTION_STATUS"])} | {r["SECTION_CHECKS_TEXT"]} |' for r in rows]
+            lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]}{row_flags(r, "SECTION")} | {marks(r)} | {r["SECTION_COST"]} | {display_status(r["SECTION_STATUS"])} | {r["SECTION_CHECKS_TEXT"]} |' for r in rows]
             lines += ['', small(f'{values["CHECKS_LEGEND"]}')]
             if counts_total:
                 lines += ['', small(f'{MARKER_LEGEND}')]
         elif rows:
             lines += ['| # | Abschnitt | Marker | Kosten | Status |', '|--:|---|---|--:|---|']
-            lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]} | {marks(r)} | {r["SECTION_COST"]} | {display_status(r["SECTION_STATUS"])} |' for r in rows]
+            lines += [f'| {r["SECTION_NUMBER"]} | {r["SECTION_TITLE"]}{row_flags(r, "SECTION")} | {marks(r)} | {r["SECTION_COST"]} | {display_status(r["SECTION_STATUS"])} |' for r in rows]
             if counts_total:
                 lines += ['', small(f'{MARKER_LEGEND}')]
         else:
@@ -1756,6 +1832,8 @@ def chapter_view(base, config, args, cnum):
         lines += [menu(items)]
         return '\n'.join(lines) + '\n'
     blocks = {'SECTIONS': rows}
+    if cos:
+        blocks['CHECKOUTS'] = cos
     if chapter_checks:
         blocks['CHECKS'] = chapter_checks
     if chapter_history:
@@ -1828,6 +1906,7 @@ def section_view(base, config, args, cnum, snum):
               'PREV_SECTION_ID': prev_id, 'PREV_SECTION_PROMPT': prev_text,
               'NEXT_SECTION_ID': next_id, 'NEXT_SECTION_PROMPT': next_text}
     values.update(research_queue_values(base))
+    values.update(stale_values(head, s['id']))   # #592: Marke und Knöpfe
     chars = character_items(config)
     in_section = head.get('characters') or []
     if chars:   # Figuren (#53): Auswahl im Abschnittsformular
@@ -3017,7 +3096,8 @@ def book_row(b):
             'BOOK_COST': (b.get('cost') or {}).get('text') or money(0, False),
             'BOOK_PENDING_TEXT': f'{plural(b["pending"], "Änderung", "Änderungen")} offen' if b.get('pending') else '',
             'BOOK_UPDATED_TEXT': f'{"zuletzt geändert" if ready else "angelegt"} am {de_date(b.get("updated_at"))}' if b.get('updated_at') else '',
-            'BOOK_JOBS_TEXT': jobs_text(b.get('jobs'))}
+            'BOOK_JOBS_TEXT': jobs_text(b.get('jobs')),
+            'BOOK_CHECKOUT_TEXT': ' · '.join(c['text'] for c in b.get('checkouts') or [])}
 
     if UI.get('language') == 'en':
         result.update({
@@ -3140,7 +3220,8 @@ def library_view(base, config, args):
                     out.append(f'| | {label} | | | | |')
                 vol = f'{r["BOOK_VOLUME_TEXT"]}: ' if r['BOOK_VOLUME_TEXT'] else ''
                 out.append(f'| {i} | {vol}**{r["BOOK_TITLE"]}** ({r["BOOK_TITLE_SHORT"]}){" · ⏳ " + r["BOOK_PENDING_TEXT"] if r["BOOK_PENDING_TEXT"] else ""}'
-                           f'{" · 📋 " + r["BOOK_JOBS_TEXT"] if r["BOOK_JOBS_TEXT"] else ""} | '
+                           f'{" · 📋 " + r["BOOK_JOBS_TEXT"] if r["BOOK_JOBS_TEXT"] else ""}'
+                           f'{" · 🔒 " + r["BOOK_CHECKOUT_TEXT"] if r.get("BOOK_CHECKOUT_TEXT") else ""} | '
                            f'{"✅ eingerichtet" if r["BOOK_STATE"] == "ready" else "🚧 im Aufbau"} | {progress_bar(r["BOOK_APPROVED_SECTION_COUNT"], r["BOOK_SECTION_COUNT"])} {r["BOOK_PROGRESS_TEXT"]} | {r["BOOK_EDITION_TEXT"]} | {r["BOOK_COST"]} |')
                 out += [f'| {e["E_KEY"]} | ↳ {e["E_TEXT"]}{" · " + e["E_DETAIL"] if e["E_DETAIL"] else ""} | | | | |'
                         for e in editions if e['E_BOOK_BRANCH'] == r['BOOK_BRANCH']]

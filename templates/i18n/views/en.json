@@ -1094,5 +1094,6 @@
   "the_text_is_marked_stale_since": "Marked outdated since {p_a}: {p_b}",
   "section_s_are_marked_stale_the_chapter_approval_does_not_check_content": "{p_a} section(s) marked outdated (approval stays valid): {p_b}. Check whether the text is still right before finalizing.",
   "view.matter.stale": "| ⚠ Outdated | Since {p_a}: {p_b} |",
-  "edition.stale_sections": "Marked outdated (approval stays valid, the edition is not blocked): {list}."
+  "edition.stale_sections": "Marked outdated (approval stays valid, the edition is not blocked): {list}.",
+  "checked_out_mark": "checked out"
 }

@@ -329,6 +329,14 @@ def build_library(namespace='refs/remotes/origin', cwd=ROOT, manifest=None, pull
     for b in out:
         if b['branch'] in status:
             b['jobs'] = {k: v for k, v in status[b['branch']].items() if k in ('done', 'failed', 'waiting', 'waiting_budget')}
+    try:   # ausgecheckte Bereiche je Buch (#572): nur aus checkouts.yml des Buch-Branchs
+        import checkout
+        for b in out:
+            found = checkout.ref_checkouts(cwd, f'{namespace}/{b["branch"]}')
+            if found:
+                b['checkouts'] = found
+    except Exception:   # noqa: BLE001 – ohne lesbare Checkouts keine Anzeige
+        pass
     data = {'format': 1, 'program': program_info(cwd, manifest), 'secret_names': names, 'books': out,
             'sessions': session_backups(namespace, cwd, pulls)}
     ser = series_entries(cwd, out)
