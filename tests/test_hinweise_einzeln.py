@@ -120,6 +120,27 @@ class ThemesTest(unittest.TestCase):
         self.assertIn('Thema 2 von 2', head)
         self.assertIn('hängen zusammen', hinweise.show_stufen(data))
 
+    def test_theme_order_follows_chapters_not_file_names(self):
+        """#606: Kapitel 1 zuerst, buchweite Themen ganz vorn, im selben Kapitel die neueste Datei nach Datum."""
+        ch = self.config['structure']['chapters']
+        s1, s2 = ch[0]['sections'][0]['id'], ch[1]['sections'][0]['id']
+
+        def finding(n, sid):
+            return {'id': f'b-{n:03d}', 'abschnitt': sid, 'art': 'aufbau', 'befund': f'Befund {n}', 'status': 'offen'}
+
+        def theme(i, *ids):
+            return {'id': i, 'titel': f'Thema {i}', 'befunde': list(ids)}
+        # Namenssortierung (a < b < c) widerspricht der Kapitelreihenfolge (Kapitel 2 steht in der alphabetisch ersten Datei)
+        self.write('a-kap2-2026-11-21.yml', {'befunde': [finding(1, s2)], 'themen': [theme('kap2', 'b-001')]})
+        self.write('b-kap1-2026-11-21.yml', {'befunde': [finding(1, s1)], 'themen': [theme('kap1-alt', 'b-001')]})
+        self.write('c-kap1-2026-11-24.yml', {'befunde': [finding(1, s1), finding(2, 'book')],
+                                              'themen': [theme('kap1-neu', 'b-001'), theme('buchweit', 'b-002')]})
+        self.assertEqual([t['id'] for t in hinweise.collect_themes(self.base, self.config)[0]],
+                         ['buchweit', 'kap1-neu', 'kap1-alt', 'kap2'])
+        _, data = hinweise.collect(self.base, self.config, date='2026-11-25', commit='abcdef1')
+        self.assertEqual([t['id'] for t in data['themen']][0], 'buchweit')
+        self.assertLess([t['id'] for t in data['themen']].index('kap1-neu'), [t['id'] for t in data['themen']].index('kap2'))
+
     def test_without_themes_nothing_changes(self):
         self.write('bericht-a.yml', {'befunde': [self.finding(1)]})
         _, data = hinweise.collect(self.base, self.config, date='2026-11-24', commit='abcdef1')
