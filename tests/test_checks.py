@@ -134,7 +134,9 @@ class ChecksTest(unittest.TestCase):
                       report=None)
         checks.record(self.base, self.config, 'proofreading', ['book'], 'passed', date='2026-11-16')
         out = render_view.project_view(self.base, self.config, args())
-        self.assertIn('🧪 **Letzte Prüfungen:** Sprache ✓· 2026-11-17 · Korrektur ✓ 2026-11-16', out)
+        self.assertNotIn('Letzte Prüfungen', out)   # #538: nur in der Darstellung „erweitert“
+        detailed = render_view.project_view(self.base, self.config, args(darstellung='erweitert'))
+        self.assertIn('🧪 **Letzte Prüfungen:** Sprache ✓· 2026-11-17 · Korrektur ✓ 2026-11-16', detailed)
         self.assertIn('| Prüfungen |', out)
         self.assertIn('| L✓· K✓ |', out)
         self.assertIn('Ein Tag ist keine Freigabe.', out)
@@ -162,7 +164,7 @@ class ChecksTest(unittest.TestCase):
     def test_english_text(self):
         import render_view_en
         checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed', date='2026-11-17')
-        widget = render_view.project_view(self.base, self.config, args(text=False))
+        widget = render_view.project_view(self.base, self.config, args(text=False, darstellung='erweitert'))
         data = render_view_en.prepare('projektuebersicht', widget.data, self.config, args())
         self.assertEqual(data['CHECKS_RECENT_TEXT'], 'Language ✓ 2026-11-17')
         self.assertIn('A tag is not an approval.', data['CHECKS_LEGEND'])
