@@ -61,6 +61,8 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   Repository-Suche, sonst über den Branch mit dem Stand von `library.json`, zuletzt `main`. **Grenze:** Beim Angleichen und beim
   Übernehmen in die Serie bleibt die Datei `characters/<id>.md` im Buch liegen, weil die App keine Dateien löschen kann (sie wird
   nicht mehr benutzt). **Noch nicht in der App:** Teile von Vor- und Nachspann als Bereich, Vorschläge auf Ebene der Serie.
+- Vor- und Nachspann (#510): Die Projektübersicht zeigt die Teile von Vor- und Nachspann mit Status, offenen Markern und der Marke „veraltet“ (Tooltip mit Datum und Grund). Öffnen und Bearbeiten der Teile geht weiter im Chat.
+- Rückgaben vom Gegenlesen (#573, #209): Karte „Rückgaben vom Gegenlesen“ in der Projektübersicht, Ansicht (Vorlage `rueckgabe`) mit Kennung, Art, Programm, Zahlen, Hinweisen („Vergleich über den Text“, nicht übernommen), Seiten, offenen Fragen und den Aufbau-Änderungen. **Nur lesend:** Das Einchecken (Upload von DOCX, PDF oder Fotos, QR-Zuordnung, Vergleich) und das Übernehmen der Aufbau-Änderungen laufen im Chat mit GhostWriter (`scripts/checkin.py`), weil die App keine Dateien binär hochladen und keine Programmskripte ausführen kann; „Checkout beenden“ und „Übernehmen“ zeigen den Text für den Chat.
 - Abschnitt neu abschließen (#563): Weicht der Text eines abgeschlossenen Abschnitts vom Fingerabdruck der letzten Freigabe
   ab, zeigt die Bestätigung „Geänderten Text neu abschließen“ (Wortzahl damals und jetzt) statt des Hindernisses
   „bereits abgeschlossen“. Die Freigabe schreibt `revoked` und `granted` mit neuem `content_sha256` in einem Commit;
@@ -86,8 +88,7 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   `gruppe:<schlüssel>`, „ja“ nimmt alle Einträge mit eindeutigem Vorschlag an, „nein“ lässt alle; ein Commit), Runden zu
   fünf, Geringes zugeklappt („Geringe lassen“ bzw. „Geringes einzeln ansehen“). Nach jeder Antwort erscheint die nächste
   Stufe; „Alle Einträge zeigen“ schaltet die Stufen ab. Vorschläge des Assistenten und Streichungen (#609, #615) werden
-  angezeigt. **Noch nicht in der App:** eigene Knöpfe je Variante (braucht eine Vorlage in ghostwriter-ui),
-  Rückfragen („Frage stellen“), Nachprüfung (Schlusskorrektur, Qualitätsprüfung) und erneutes Abschließen der Kapitel;
+  angezeigt. Seit UI 0.70.0 hat jede Variante einer Autorenentscheidung einen eigenen Knopf (wie `hinweise.py decide --variant`: „geändert“ mit dem Wortlaut der Variante, `variante` im Eintrag); „Frage stellen“ geht an Claude mit dem Eintrag als Zusammenhang und entscheidet und speichert nichts. **Noch nicht in der App:** Nachprüfung (Schlusskorrektur, Qualitätsprüfung) und erneutes Abschließen der Kapitel;
   das geht weiter im Chat.
 - Hintergrund-Warteschlange (#478): Karte „Hintergrund-Warteschlange“ in der Projektübersicht, Ansicht (Vorlage `warteschlange`)
   mit wartenden, auf Bestätigung wartenden (Budget), von einem anderen Auftrag abhängigen, fehlgeschlagenen und fertigen,
@@ -110,7 +111,7 @@ bzw. ein Fork bekommt davon nichts. Wer den Link öffnet, nutzt immer die zuletz
   Will der Benutzer im Chat etwas ändern, sagt Claude nicht nur „kann ich nicht“, sondern bietet den Knopf zum
   passenden Formular an, in dem er speichert.
 
-Nicht in der App: zeitgesteuerte Läufe, Auflagen, Bilder, Figuren, Löschen, Lektorat. Ebenso Läufe der Actions,
+Nicht in der App: Einchecken von Rückgaben (Upload), zeitgesteuerte Läufe, Auflagen, Bilder, Figuren, Löschen, Lektorat. Ebenso Läufe der Actions,
 Probedrucke und Nutzungsgrenzen, weil der GitHub-Konnektor sie nicht liefert. Klicks auf Fehlendes zeigen
 einen Hinweis und den Text, mit dem man es im Chat auslöst.
 
