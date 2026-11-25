@@ -182,21 +182,50 @@ def paragraph(text, number):
     return ''
 
 
-def collect_themes(base):
-    """Themen der Befunddateien (#570): ([{id, titel}] in Reihenfolge, {Datei#befund: thema}). Die Reihenfolge der
-    zuletzt angelegten Datei mit `themen` gilt; Themen älterer Dateien folgen danach. Befunde anderer Berichte
-    werden als `<bericht>.yml#b-001` zugeordnet."""
-    order, titles, of = [], {}, {}
-    for path in reversed(findings_files(base)):
+def _file_date(path):
+    m = re.search(r'(\d{4}-\d{2}-\d{2})', path.stem)
+    return m.group(1) if m else ''
+
+
+def collect_themes(base, config=None):
+    """Themen der Befunddateien (#570): ([{id, titel}] in Reihenfolge, {Datei#befund: thema}).
+
+    Reihenfolge (#606): zuerst Themen, die nur buchweite Befunde (`abschnitt: book`) enthalten, danach die übrigen in der
+    Reihenfolge der Kapitel (Kapitel der frühesten Befundstelle der Datei); bei gleichem Kapitel gilt die neueste Datei nach
+    Datum im Namen (nicht die Namenssortierung), ihre Themen kommen zuerst. Innerhalb einer Datei bleibt die Reihenfolge der
+    Liste `themen`. Befunde anderer Berichte werden als `<bericht>.yml#b-001` zugeordnet."""
+    index = section_index(config) if config else {}
+    chapter_no = {ch['id']: n for n, ch in enumerate((config or {}).get('structure', {}).get('chapters') or [], start=1)}
+
+    def chapter_of(sid):
+        if sid == BOOK:
+            return 0
+        _, ch, _ = index.get(sid, (None, None, None))
+        return chapter_no.get((ch or {}).get('id'), len(chapter_no) + 1)   # Vor-/Nachspann und Unbekanntes hinter den Kapiteln
+
+    files = []
+    for path in findings_files(base):
         data = read_yaml(path)
-        for t in data.get('themen') or []:
+        if data.get('themen'):
+            places = [chapter_of(f.get('abschnitt')) for f in data.get('befunde') or [] if f.get('abschnitt') != BOOK]
+            files.append((path, data, min(places) if places else 0))
+    files.sort(key=lambda f: (_file_date(f[0]), f[0].name), reverse=True)   # neueste zuerst …
+    files.sort(key=lambda f: f[2])                                          # … stabil nach Kapitel
+    kind = {}   # (Datei, Befund-ID) → Abschnitt, für buchweite Themen auch über Berichte hinweg
+    for path in findings_files(base):
+        for f in read_yaml(path).get('befunde') or []:
+            kind[(path.name, f.get('id'))] = f.get('abschnitt')
+    bookwide, rest, titles, of = [], [], {}, {}
+    for path, data, _ in files:
+        for t in data['themen']:
+            members = [kind.get((Path(str(r).rpartition('#')[0]).name or path.name, str(r).rpartition('#')[2])) for r in t.get('befunde') or []]
             if t['id'] not in titles:
                 titles[t['id']] = t['titel']
-                order.append(t['id'])
+                (bookwide if members and all(m == BOOK for m in members) else rest).append(t['id'])
             for ref in t.get('befunde') or []:
                 name, _, bid = str(ref).rpartition('#')
                 of.setdefault(f'{Path(name).name or path.name}#{bid}', t['id'])
-    return [{'id': i, 'titel': titles[i]} for i in order], of
+    return [{'id': i, 'titel': titles[i]} for i in bookwide + rest], of
 
 
 def collect(base, config, chapters=None, date=None, commit=None, mode=None):
@@ -212,7 +241,7 @@ def collect(base, config, chapters=None, date=None, commit=None, mode=None):
     if unknown:
         raise ValueError(f'Unbekanntes Kapitel: {", ".join(sorted(unknown))}')
     auto, author, skipped, sources = [], [], [], []
-    themes, theme_of = collect_themes(base)
+    themes, theme_of = collect_themes(base, config)
     for path in findings_files(base):
         data = read_yaml(path)
         rel = path.relative_to(base).as_posix()
