@@ -94,9 +94,14 @@ Der Weg zu v0.5 ist in fünf Stufen geteilt. Jede endet mit einer Abnahme im Cha
 | v1.2 | Planung: Mehrere Autoren Teil 1 – Bereich zum Gegenlesen auschecken (#572), Material einbringen (#574); Referenzbilder (#143); Glossar-Analyse (#490) |
 | v1.3 | Planung: Mehrere Autoren Teil 2 – Rückgabe einchecken (#573) und kontrollierte Rückführung (#209, D17); Skill `ghostwriter` entflechten (#569); Gesamtsicherung (#489) |
 | v1.4 | Planung: Warteschlange und KI-Dienste – Agenten-Aufgaben (#65), Recherche-Warteschlange Teil 2 (#478), Kosten und Budget (#66), Rundumprüfung im Hintergrund (#531), Recherche mit Internet Teil 2 (#462), Figurenanalyse (#123) |
-| v1.5 | Planung: Figurengespräch Stufe 2 und 3 (#430, #431), Figurenbild-Assistent (#540), Buchteaser-Skill (#532), weitere Clients (#525, #555), Übersetzung des Buchs mit Auflagen je Sprache (#75) |
+| v1.5 | Planung: Sprachfassungen und Figuren – Übersetzung des Buchs mit Auflagen je Sprache (#75), Anekdoten sammeln und einbauen (#643), Figurengespräch Stufe 2 und 3 (#430, #431), Figurenbild-Assistent (#540), Buchteaser-Skill (#532) |
+| v1.6 | Planung: Erzählen und Sammeln – Sprachnotiz einbringen (#644), Stammbaum und Beziehungsnetz (#645), Karte der Schauplätze (#648), Varianten ausprobieren (#646), Schreibziele und Fortschritt (#656) |
+| v1.7 | Planung: Prüfen mit Lesern – Testleser-Runde mit Fragebogen (#649), Feedback aus E-Mails (#657), Rechte-Prüfung vor der Auflage (#650), Spannungs- und Tempokurve (#652) |
+| v1.8 | Planung: Assistenten – zuerst Grundsatzklärung, wer wann mit welchem Zugang selbstständig arbeitet; Kontinuitäts-Wächter (#647), zeitgesteuerter Feedback-Abruf (#657), messbare Bewertungsschleife (#339), Prompt-Profiler (#204) |
+| v1.9 | Planung: Veröffentlichen – Paket für Verlag und Agentur (#651), Prüfung für Self-Publishing (#655), Hörbuch-Fassung (#653), Material für Trailer und Verfilmung (#523) |
+| v2.0 | Planung: Eigene App – PWA und Chat-Anbindung (#525), Buchansichten für weitere Clients (#555), installierbare und offline nutzbare Web-App (#35, #61), eigene Schnittstelle (#19), Upload-API (#616); vorher prüfen, was sich beim Zugang (MCP-Apps, Konnektoren, API) getan hat |
 
-Stand der Planung: 24.11.2026, maßgeblich sind die Meilensteine im Hauptrepository.
+Stand der Planung: 25.11.2026, maßgeblich sind die Meilensteine im Hauptrepository.
 
 Jeder Schritt, der die Datenstruktur ändert, liefert eine Migration mit (#59); Doku und Programm prüft `scripts/check_docs.py` in `validate.yml`.
 
