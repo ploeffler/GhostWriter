@@ -14,6 +14,20 @@ The update is validated before it is pushed. If validation fails, the branch is 
 
 In a library, the workflow updates the default branch and then each eligible book branch. Working branches are not updated on their own. An open change package (work branch `ghostwriter/<book>` with an open pull request to the book) receives the new book state right after its book is updated, so workflows and checks there run with the new program version (#470). On a conflict the change package stays unchanged and the summary names the files; only a conflicting overview file is regenerated. Work branches without an open pull request are left alone; a dry run only reports. A failure on one book does not stop the others. At the end of every update run, also when started by hand, the workflow looks for leftover background-queue jobs on all work branches (for example after an interrupted research run or a job confirmed later) and starts processing per book ("Recherche" without a section), without any AI call (#481). If automation is paused, nothing starts (the queue does not restart itself either; leftover jobs wait until you nudge it by hand or the pause ends) and the summary reports how many jobs are waiting; a dry run only reports. Starting “GhostWriter aktualisieren” by hand therefore also nudges the queue. Since #479 this covers all four kinds (research, analysis, colorizing, import); “Run workflow” without inputs (analysis without `kind`, colorizing without `folder`, import with `step: queue`) adds no job and only processes the queue. GitHub disables schedules in public repositories after 60 days without activity; then start this run once by hand. The project overview may offer **Update einspielen** (install update) when a newer upstream state is available.
 
+## Update channel: releases only (#604)
+
+From 1.1.0, books and libraries take updates **only from published releases**, no longer from the running `main`. What is merged but not yet released arrives with the next release. The channel is an **Actions variable** of the repository (*Settings → Secrets and variables → Actions → Variables*) that no update overwrites:
+
+| `GHOSTWRITER_UPDATE_CHANNEL` | What the update takes |
+|---|---|
+| unset or `release` (**default**) | the newest release tag `vX.Y` or `vX.Y.Z` (sorted by version, not by date), without pre-releases |
+| `rc` | the newest tag including pre-releases (`vX.Y-rc.N`), for example for acceptance in a test book |
+| `main` | as before, the running state (`upstream.ref` in the manifest), for development |
+
+With channel `release` or `rc` the same tag applies to every branch; same-named branches of the upstream repository count only in channel `main`. Starting the workflow manually offers the field `channel` for a one-off exception (“take `rc` once”); empty means the variable. An unknown value stops the run with a message.
+
+**Switching without a step back:** A book that already has a newer `main` state than the latest release (the release commit is in the book and the program version is equal or higher) stays unchanged until a **higher** release appears; the report says “Stand von main (1.0.0+N), wartet auf das nächste Release” (state of main, waiting for the next release). If upstream has no release tag yet, nothing is applied and the report explains how to set channel `main`. The summary of each run names channel, version, tag and the link to the release notes. In the main repository itself, `main` always applies.
+
 ## Daily report and GitHub notifications
 
 The scheduled update run posts the complete report, including branch results, at most once per UTC day in a dedicated issue. It mentions the recipient; GitHub can send the comment by email according to personal notification settings. No SMTP service or extra secrets are needed. Repeated runs do not create duplicate comments. Closing the issue pauses delivery; reopening it resumes delivery.
