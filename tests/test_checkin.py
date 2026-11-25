@@ -140,6 +140,50 @@ class CheckinFlowTest(unittest.TestCase):
         self.assertEqual(r1['befunde'], 0)
         self.assertNotIn('befunddatei', r1)
 
+    @unittest.skipUnless(cv2 is not None and shutil.which('soffice') and shutil.which('pdftotext'), 'OpenCV, LibreOffice, pdftotext nötig')
+    def test_pdf_comment_is_assigned_to_section_and_note_makes_findings(self):
+        from pypdf import PdfReader, PdfWriter
+        try:
+            from pypdf.annotations import Text as TextNote
+            note_of = lambda text, rect: TextNote(text=text, rect=rect)   # noqa: E731
+        except ImportError:
+            from pypdf.generic import AnnotationBuilder
+            note_of = lambda text, rect: AnnotationBuilder.text(text=text, rect=rect)   # noqa: E731
+        files = self.cf.build(self.base, self.config, self.entry, self.out, 'o/r', 'buch/x', self.commit, '2026-11-24')
+        pdf = self.out / next(f for f in files if f.endswith('.pdf'))
+        pages = checkin.pdf_words(pdf)
+        heads = checkin.pdf_headings(pages, {'1.1', '1.2', '1.3'})
+        self.assertTrue(any(h[2] == '1.2' for h in heads), heads)
+        page, y, _ = next(h for h in heads if h[2] == '1.2')
+        height = pages[page - 1][1]
+        w = PdfWriter(clone_from=str(pdf))
+        w.add_annotation(page_number=page - 1, annotation=note_of('Hier fehlt ein Beleg', (80, height - y - 60, 100, height - y - 40)))
+        marked = self.tmp / 'kommentiert.pdf'
+        with open(marked, 'wb') as fh:
+            w.write(fh)
+        folder, report = checkin.checkin(self.base, self.config, [marked], date='2026-11-25')
+        sec2 = self.config['structure']['chapters'][0]['sections'][1]['id']
+        note = next(a for a in report['anmerkungen'] if a['text'] == 'Hier fehlt ein Beleg')
+        self.assertEqual((note['abschnitt'], note['nummer']), (sec2, '1.2'))
+        findings = yaml.safe_load((self.base / report['befunddatei']).read_text(encoding='utf-8'))['befunde']
+        self.assertTrue(any(f['abschnitt'] == sec2 and 'Beleg' in f['frage'] for f in findings))
+        # abgeschriebene Randnotiz eines Scans: eindeutig, unleserlich, ohne Abschnitt
+        word = self.sample_word()
+        sid1 = self.config['structure']['chapters'][0]['sections'][0]['id']
+        item = checkin.note(self.base, self.config, folder, 1, f'{word} → Ersatzwort', abschnitt='1.1', alt=word, neu='Ersatzwort')
+        self.assertTrue(item['befund'])
+        with self.assertRaisesRegex(ValueError, 'nicht wörtlich'):
+            checkin.note(self.base, self.config, folder, 1, 'x', abschnitt='1.1', alt='gibt es nicht im Text', neu='y')
+        checkin.note(self.base, self.config, folder, 1, '(unleserlich)', abschnitt='1.1', unleserlich=True)
+        checkin.note(self.base, self.config, folder, 1, 'Randnotiz ohne Zuordnung')
+        rep = yaml.safe_load((folder / 'rueckgabe.yml').read_text(encoding='utf-8'))
+        self.assertEqual(len(rep['anmerkungen']), 4)
+        self.assertEqual(len(rep['offene_fragen']), 2)
+        findings = yaml.safe_load((self.base / rep['befunddatei']).read_text(encoding='utf-8'))['befunde']
+        self.assertTrue(any(f.get('alt') == word and f['abschnitt'] == sid1 for f in findings))
+        import validate_project
+        self.assertFalse(validate_project.check_project(self.base))
+
     def test_wrong_checkout_and_unknown_file_leave_nothing(self):
         with self.assertRaisesRegex(ValueError, 'gehört zu'):
             checkin.checkin(self.base, self.config, [self.docx], checkout_id='GW-2222')

@@ -627,6 +627,19 @@ Im Chat bleibt die gewählte Ansicht, ohne doppelte Volltextausgabe. Bei `Darste
 
 Ist ein Bereich zum Gegenlesen ausgecheckt (`checkouts.yml`, `python3 scripts/checkout.py . status`), gilt: **lesen ja, schreiben nein.** Vor jedem Schreiben, Überarbeiten, Verschieben, Hinweise umsetzen oder Abschließen eines Abschnitts `checkout.py check <abschnitt>` bzw. `locked_by_checkout` prüfen; ist er gesperrt, die Sperre mit Kennung und Gegenleser nennen und nichts ändern. Beenden, Abbrechen, Verlängern und Zurückholen nur auf ausdrücklichen Wunsch des Benutzers, als eigene Auswahl mit Bestätigung. Die Sperre ist keine Freigabe. Direktes Bearbeiten auf GitHub verhindert sie nicht; `checkout.py verify` meldet das. **Einchecken (#573):** Kommt eine Rückgabe (DOCX, PDF oder Foto bzw. Scan der Ausdrucke), `python3 scripts/checkin.py . <datei>… [--checkout GW-…]` (Kürzel EC); Original unverändert, Seiten über den QR-Code zuordnen, unbekannte Seiten nennen statt raten, Handschrift selbst abschreiben (unleserlich = Frage, nie raten), Korrekturzeichen nur bei Eindeutigkeit als `alt`/`neu`, sonst als Frage, Personen nie am Gesicht erkennen. Die Befunde in `editorial/rueckgabe-…yml` ergänzen und die Hinweisdurchsicht als Auswahl anbieten; den Checkout nicht beenden („Checkout beenden“ ist eine eigene Auswahl). Manuskriptseiten nie an externe Texterkennungs- oder Bilddienste. Überfällige Checkouts (`checkout.py . overdue`) beim Wiedereinstieg einmal nennen, mit den Möglichkeiten Frist verlängern, teilweise zurückholen, abbrechen oder Erinnerung entwerfen (nichts wird verschickt). DOCX und PDF mit QR-Kennung baut `checkout.py start --out <ordner>` bzw. die Action „Auschecken zum Gegenlesen“ (`checkout.yml`, Aktion `checkout.start`); ohne Skriptausführung die Action starten.
 
+### Rückgabe vom Gegenlesen einchecken (#573)
+
+Kommt eine Rückgabe (DOCX, PDF oder Foto der Ausdrucke), startet dieser Ablauf (Kürzel **EC**):
+
+1. `python3 scripts/checkin.py . <datei>… [--checkout GW-XXXX]` legt das Original ab, ordnet über Dokumenteigenschaft bzw. QR-Code zu und schreibt `checkouts/<kennung>/rueckgabe-<datum>/rueckgabe.yml` (Seiten mit `abschnitte_im_kapitel`, offene Fragen). DOCX- und PDF-Kommentare landen mit Abschnitt direkt als Befunde; bei PDF-Kommentaren ist der Abschnitt die letzte Überschrift „N.M“ vor der Stelle, ohne Überschrift `unbekannt`.
+2. **Scan oder Handyfoto (Schritt des Assistenten):** `seite-NN.jpg` ansehen, den Abschnitt über die Überschrift auf der Seite bestimmen (nur aus `abschnitte_im_kapitel`; unsicher = Frage, nie raten) und jede Randnotiz **einzeln** eintragen:
+   `python3 scripts/checkin.py . note <ordner> --seite N --abschnitt 3.2 --text "<abgeschriebener Wortlaut>" [--alt "<Stelle>" --neu "<Fassung>"] [--frage "<Rückfrage>"] [--unleserlich]`.
+   - **Handschrift:** abschreiben, wie sie dasteht. Unleserliches nie raten: `--unleserlich` (nur offene Frage, kein Befund).
+   - **Korrekturzeichen deuten:** Streichung, Einfügezeichen, Umstellung, Absatzzeichen: eindeutig → `--alt`/`--neu` (`alt` muss wörtlich im Ausgangsstand stehen, sonst lehnt das Werkzeug ab); unklar → `--frage`.
+   - Hat sich die Stelle seit dem Checkout geändert, nennt der Befund das in der Frage; nie blind übernehmen.
+   - Manuskriptseiten nur selbst lesen, nie an externe Texterkennungs- oder Bilddienste.
+3. Weiter wie bei jedem Befund: `hinweise.py collect`, Stufen, `plan`/`apply`. Der Checkout bleibt bestehen, bis er ausdrücklich beendet wird; nichts wird ohne Bestätigung übernommen oder freigegeben.
+
 ### Material einbringen (#574)
 
 Lädt der Benutzer ein Foto, ein Foto vom Foto, ein Dokument (Urkunde, Brief) oder eine Rückgabe zum Buch hoch, startet dieser Ablauf auch ohne Befehl („Material einbringen“, Kürzel **ME**):
