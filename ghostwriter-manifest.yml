@@ -32,6 +32,7 @@ managed:
   - .claude/skills/ghostwriter-lektorat/  # gezielte redaktionelle Prüfarten
   - .claude/skills/ghostwriter-gegenlesen/  # Auschecken zum Gegenlesen, Einchecken (#572, #573)
   - .claude/skills/ghostwriter-material/  # Material einbringen (#574)
+  - .claude/skills/ghostwriter-figurenbild/  # Figurenbild-Assistent (#540)
   - .claude/skills/ghostwriter-anekdoten/  # Anekdoten erfassen und einbauen (#643)
   - ghostwriter-manifest.yml
   - ghostwriter-skills.yml     # festgelegte Quelle und Prüfsummen allgemeiner Skills
@@ -56,7 +57,8 @@ book:
   - matter/                 # Vor- und Nachspann: Widmung, Prolog, Epilog, Danksagung (#57)
   - cover/                  # Umschlag: Bilder und Rückseitentexte (#68)
   - reference-images/       # Originale und Metadaten visueller Referenzen (#143)
-  - characters/             # Figuren (#53)
+  - characters/             # Figuren (#53); Bilder je Figur unter characters/<id>/ (#540)
+  - images/                 # Bildstil des Projekts (images/stil.yml, #540)
   - story/                  # Schauplätze und Zeitleiste (#124)
   - costs/
   - research/

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/image-style.schema.json",
+  "title": "Bildstil des Projekts (images/stil.yml bzw. series/<ser-id>/stil.yml, #540)",
+  "description": "Visueller Stil für Figuren- und Personenbilder, getrennt von der literarischen Erzählstimme (`style` in ghostwriter.yml). Ein Band erbt den Stil der Serie und überschreibt Felder in images/stil.yml.",
+  "type": "object",
+  "properties": {
+    "medium": {"enum": ["foto", "comic", "illustration", "aquarell", "frei"]},
+    "realismus": {"type": "string"},
+    "farbigkeit": {"type": "string"},
+    "licht": {"type": "string"},
+    "ausschnitt": {"type": "string"},
+    "hintergrund": {"type": "string"},
+    "merkmale": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "wiederkehrende Bildmerkmale"},
+    "ausschluesse": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "was nicht ins Bild soll"},
+    "freitext": {"type": "string"}
+  },
+  "additionalProperties": false
+}

@@ -100,6 +100,10 @@ Black-and-white family photos can be colorized without an image model changing f
 - **Checks:** same aspect ratio, same composition and a mean lightness deviation below 1/255; otherwise nothing is written.
 - A colorized image is labelled “colorized later” in the book. The colors are an assumption, not evidence.
 
+## Character image assistant (#540)
+
+For character images the assistant guides you through image style, prompt and variants (skill `ghostwriter-figurenbild`, script `scripts/figurenbild.py`, data model under [Character images](DATA-MODEL.md#figurenbilder-540)). The project's **image style** (`images/stil.yml`) is separate from the narrative voice and is saved only after explicit confirmation. The **prompt** is built from the character profile, the author's wishes and the style; for each detail it says whether it comes from the profile, the author or the image design. Whatever the profile does not fix (such as hairstyle or clothing colour) stays an image suggestion and does not become a manuscript fact. A shared style does not mean identical clothing: `figurenbild.py pruefen` reports identical clothing across characters. Every variant is stored unchanged with the character (`characters/<id>/bilder/`) with its full prompt, tool and model (otherwise “unknown”) and a checksum; a change such as “clothing only” is a new variant with the source image as input. Such an image is **not a reference approval**; that stays a separate step (see above). The assistant uses the chat's image service; without one it outputs the complete request to copy. Graphical style cards and variant comparison follow as a widget; until then the text version applies.
+
 ## Relationship to the existing illustration feature
 
 Feature #54 manages generated or supplied illustrations by section, including draft and approval status for editions. Reference management supplements it rather than replacing it.

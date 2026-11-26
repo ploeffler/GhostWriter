@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ploeffler/GhostWriter/schemas/figure-images.schema.json",
+  "title": "Bilder einer Figur (characters/<char-id>/bilder.yml, #540)",
+  "description": "Varianten eines Figurenbilds mit dem vollständig gesendeten Prompt. Originale werden nie überschrieben; eine Änderung ist eine neue Variante mit Eingabebild. Ein Bild ist keine Referenzfreigabe (#417).",
+  "type": "object",
+  "required": ["figur", "bilder"],
+  "properties": {
+    "figur": {"type": "string", "pattern": "^char-[a-z0-9][a-z0-9-]*$"},
+    "bilder": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "datei", "sha256", "art", "prompt", "status"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^bild-[0-9]{3,}$"},
+          "datei": {"type": "string", "description": "relativ zur Figur, bilder/bild-NNN.<endung>"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "angelegt": {"type": "string"},
+          "art": {"enum": ["erzeugung", "aenderung"]},
+          "prompt": {"type": "string", "minLength": 1, "description": "der tatsächlich gesendete Prompt, vollständig"},
+          "eingabe": {"type": "array", "items": {"type": "string", "pattern": "^bild-[0-9]{3,}$"}, "description": "Eingabebilder (bei einer Änderung)"},
+          "werkzeug": {"type": "string", "description": "sonst `unbekannt`"},
+          "modell": {"type": "string", "description": "sonst `unbekannt`"},
+          "quelle_profil": {"type": "string", "description": "Stand des Figurenprofils beim Erzeugen (Kurzprüfsumme)"},
+          "herkunft": {"type": "object", "additionalProperties": {"enum": ["profil", "autor", "bildgestaltung"]}, "description": "Herkunft je Angabe"},
+          "kleidung": {"type": "string", "description": "kurze Kleidungsangabe, damit gleiche Kleidung mehrerer Figuren auffällt"},
+          "status": {"enum": ["idee", "gewaehlt", "referenz"]},
+          "referenz": {"type": "string", "pattern": "^ref-img-[a-z0-9][a-z0-9-]*$", "description": "bei status referenz: freigegebenes Referenzbild (#417)"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
