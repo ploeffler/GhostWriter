@@ -28,6 +28,14 @@ class AppAktionen(unittest.TestCase):
         self.assertEqual(sorted(set(self.inventory) & self.handled), [], 'Aktion ist behandelt, Eintrag streichen')
         self.assertEqual(sorted(set(self.inventory) - self.table), [], 'Eintrag für unbekannte Aktion')
 
+    def test_eingebettete_liste_entspricht_aktionen_json(self):
+        html = (APP / 'index.html').read_text(encoding='utf-8')
+        m = re.search(r'/\*GW-NA\*/(.*?)/\*GW-NA-END\*/', html, re.S)
+        self.assertTrue(m, 'Marke /*GW-NA*/ in index.html fehlt')
+        embedded = json.loads(m.group(1))
+        expected = {k: v['reason']['de'] for k, v in self.inventory.items()}
+        self.assertEqual(embedded, expected, 'index.html neu aus aktionen.json erzeugen (Liste zwischen /*GW-NA*/ und /*GW-NA-END*/)')
+
     def test_eintraege_vollstaendig(self):
         for name, e in self.inventory.items():
             self.assertIn(e['state'], ('chat', 'spaeter'), name)

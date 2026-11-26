@@ -24,6 +24,10 @@ Die Bediensprache wird zuerst nach `START.md` bestimmt. Bei Englisch verwende ei
 
 Nie beide Fassungen derselben Ansicht und nie den Modus von Ansicht zu Ansicht wechseln. Der Benutzer kann umschalten: `Nur Text` stellt auf Text um; `Widgets` stellt bei Deutsch und einem Anbieter mit `chat_widgets: true` zurück. Bei Englisch standardmäßig bei Text bzw. unterstützten nativen Elementen bleiben. Die übersetzte grafische Vorschau nur ausdrücklich und in einem tatsächlich widgetfähigen Client verwenden.
 
+### Fähigkeiten der Umgebung (#662, UI 0.80.0)
+
+Eine Umgebung, die nicht alle Aktionen ausführt (Claude-Web-App, später die eigene App), meldet das der Laufzeit mit `GW.capabilities({<aktion>: {state: "chat"|"spaeter", reason: {de, en}}}, <sprache>)`. Knöpfe mit `data-a` bzw. `data-gw-send` dieser Aktionen sind dann schon vor dem Klick ausgegraut (Grund als `title`). Der Chat ruft das nicht auf; dort bleibt alles wie bisher. Die Liste der Claude-Web-App steht in `apps/claude/aktionen.json`.
+
 ## Ausgabe im Chat
 
 Im Modus „Widget“ schreibt der Assistent keine fertige Ansicht, sondern nur eine Ladezeile und die Daten. Den Darstellungscode lädt der Chat von jsDelivr:
