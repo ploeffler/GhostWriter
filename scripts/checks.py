@@ -718,8 +718,9 @@ HISTORY_CAP = 10
 
 
 def history_json(items, keep=HISTORY_KEYS):
-    """Widget: frühere Prüfungen kompakt als JSON; das Widget gruppiert nach CK_LABEL und zeigt je Eintrag CK_WHEN."""
-    return json.dumps([{k: t.get(k, '') for k in keep} for t in items], ensure_ascii=False, separators=(',', ':'))
+    """Widget: frühere Prüfungen kompakt (ab UI 0.74.0, #674): gepackt, ohne CK_MARK und CK_TEXT (die setzt gw.js zusammen).
+    Das Widget gruppiert nach CK_LABEL und zeigt je Eintrag CK_WHEN."""
+    return as_payload(items, tuple(k for k in keep if k not in COMPOSED_KEYS))
 
 
 def localize(tag, language='de'):
@@ -746,8 +747,38 @@ JSON_KEYS_DETAIL = JSON_KEYS_SLIM + ('CK_ID', 'CK_NOTE')
 
 
 def as_json(tag_list, keep=JSON_KEYS):
-    """Widget (ghostwriter-ui, data-gw-checks): kompakte JSON-Liste der Tags."""
+    """Widget (ghostwriter-ui, data-gw-checks), alte Form: JSON-Liste der Tags als Text. Für Clients ohne UI 0.74.0."""
     return json.dumps([{k: t.get(k, '') for k in keep} for t in tag_list], ensure_ascii=False, separators=(',', ':'))
+
+
+# Kompakte Form (#674, ab UI 0.74.0): Felder, die gw.js aus den übrigen zusammensetzt, werden nicht gesendet.
+COMPOSED_KEYS = ('CK_TAG', 'CK_TEXT', 'CK_MARK')
+COMPACT_KEYS = ('CK_SHORT', 'CK_LABEL', 'CK_RESULT', 'CK_STATE', 'CK_WHEN', 'CK_PARTIAL', 'CK_REPORT')
+COMPACT_KEYS_DETAIL = COMPACT_KEYS + ('CK_ID', 'CK_NOTE')
+
+
+def as_payload(tag_list, keep=COMPACT_KEYS):
+    """Prüf-Tags als echtes JSON statt als Zeichenkette, gepackt: {"k": [Schlüssel], "r": [[Werte], …], "p": [Berichtspfade]}.
+    Jeder Berichtspfad steht einmal in `p`, `CK_REPORT` ist der Index. Leere Werte am Zeilenende entfallen. Keine Tags: ''."""
+    if not tag_list:
+        return ''
+    reports, rows = [], []
+    for t in tag_list:
+        row = []
+        for k in keep:
+            v = t.get(k, '')
+            if k == 'CK_REPORT' and v:
+                if v not in reports:
+                    reports.append(v)
+                v = reports.index(v)
+            row.append(v)
+        while row and row[-1] == '':
+            row.pop()
+        rows.append(row)
+    out = {'k': list(keep), 'r': rows}
+    if reports:
+        out['p'] = reports
+    return out
 
 
 TODO_MAX = 8   # höchstens so viele Kapitel in „Handlungsbedarf“, der Rest als Zahl (#538)

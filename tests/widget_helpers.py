@@ -34,3 +34,36 @@ def widget_data(out):
     if not m:
         raise AssertionError('kein GW.render in der Ausgabe: ' + out[:200])
     return widget_json(m.group(1))
+
+
+def check_list(value, language='de'):
+    """Prüf-Liste eines Widgets (#674) lesen wie gw.js: Zeichenkette (alte Form), Liste oder {k, r, p}; CK_MARK, CK_TAG und CK_TEXT
+    werden wie in gw.js zusammengesetzt, wenn sie fehlen. So prüfen die Tests, dass beide Seiten dieselben Texte ergeben."""
+    import checks
+    if isinstance(value, str):
+        value = json.loads(value) if value else []
+    if isinstance(value, dict):
+        paths = value.get('p') or []
+        rows = []
+        for row in value['r']:
+            item = {c: (row[i] if i < len(row) else '') for i, c in enumerate(value['k'])}
+            if isinstance(item.get('CK_REPORT'), int):
+                item['CK_REPORT'] = paths[item['CK_REPORT']]
+            rows.append(item)
+        value = rows
+    out = []
+    for c in value:
+        c = dict(c)
+        res, st = c.get('CK_RESULT', ''), c.get('CK_STATE', '')
+        if res and 'CK_MARK' not in c:
+            mark = checks.RESULT_MARK.get(res, '')
+            suffix = {'changed': '*', 'unknown': '?'}.get(st, '')
+            suffix = '' if mark == '?' and suffix == '?' else suffix
+            c['CK_MARK'] = mark
+            if 'CK_TAG' not in c and 'CK_SHORT' in c:
+                c['CK_TAG'] = f'{c["CK_SHORT"]}{mark}{suffix}'
+            if 'CK_TEXT' not in c and 'CK_LABEL' in c:
+                c['CK_TEXT'] = (f'{c["CK_LABEL"]}: {checks.RESULT_TEXT[language][res]}, {c.get("CK_WHEN") or c.get("CK_DATE", "")} · '
+                                f'{checks.STATE_TEXT[language][st]}' + ((' · teilweise' if language == 'de' else ' · partial') if c.get('CK_PARTIAL') else ''))
+        out.append(c)
+    return out
