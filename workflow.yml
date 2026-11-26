@@ -29,10 +29,12 @@ product_roadmap:
       - {version: "v1.4", goal: background_queue_and_ai_services}               # #65, #478, #66, #531, #462, #123
       - {version: "v1.5", goal: language_versions_and_characters}              # Planung 25.11.: #75, #643, #430, #431, #540, #532
       - {version: "v1.6", goal: own_app_with_browser_model}                     # #662, #35, #61; #525 (Modell im Browser), #75 (lokal übersetzen)
-      - {version: "v1.7", goal: telling_and_collecting}                        # #644, #645, #648, #646, #656
-      - {version: "v1.8", goal: review_with_readers}                           # #649, #657, #650, #652
-      - {version: "v1.9", goal: assistants}                                    # #659, #660, #661, #647, #657 (zeitgesteuert), #339, #204
-      - {version: "v2.0", goal: publishing_and_cloud_chat_providers}           # #651, #655, #653, #523; #525 (Anbieter mit Konto/Schlüssel), #555, #19, #616
+      - {version: "v1.7", goal: extension_foundation}                          # Planung 26.11.: plugins#2 (Format, Andockstellen Arten 1–5, 6a, 7), #707 Feingliederung mit Koordinaten, #648 Karte; parallel Plugin Film (plugins#3)
+      - {version: "v1.8", goal: knowledge}                                     # Quellenverzeichnis, Belege, Zitate, Wissensquellen Teil 1 (#709); Umzug Figuren (plugins#6) und Erinnerung (plugins#5, #645); danach Plugin Guide (plugins#1)
+      - {version: "v1.9", goal: telling_and_readers}                           # #644, #646, #656, #650, #652; Plugin Leserunde (plugins#7: Gegenlesen, #649, #657)
+      - {version: "v2.0", goal: assistants_and_providers}                      # #659, #660, #661, #647, #339, #204; #525 (Anbieter mit Konto/Schlüssel), #555, #19, #616; Austausch mit KI-Wissensbasen (#709)
+      - {version: "v2.1", goal: publishing}                                    # Plugin Veröffentlichen (plugins#8: #651, #655, #653); Trailer-Export #523 im Film-Plugin
+      - {version: "v2.5", goal: plugin_typesetting_blocks}                     # Satz-Bausteine aus Plugins (Art 6b, plugins#2), z. B. Hafen-Steckbrief im Druck
   v1_0:
     purpose: complete_book_workflow_without_ai_provider_apis
     scope: chat_and_manual_handoff_without_ai_provider_connections
