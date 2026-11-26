@@ -57,7 +57,7 @@ ai_providers:
 | `google` | Google (Gemini / API) | US | App, API | eingebaut | alle Rollen |
 | `mistral` | Mistral AI (Le Chat / API) | FR | App, API | über Werkzeug | Recherche bis Fact-Check; europäischer Anbieter |
 | `xai` | xAI (Grok / API) | US | App, API | eingebaut | Recherche bis Fact-Check |
-| `perplexity` | Perplexity (App / Sonar API) | US | App, API | eingebaut | Recherche, Fact-Check |
+| `perplexity` | Perplexity (App / Agent API) | US | App, API | eingebaut | Recherche, Fact-Check |
 | `microsoft_copilot` | Microsoft Copilot | US | App | eingebaut | Recherche, Brainstorming, Schreiben, Revision |
 | `cohere` | Cohere (Command / API) | CA | API | über Werkzeug | Recherche mit eigenen Dokumenten, Revision, Fact-Check |
 | `deepseek` | DeepSeek | CN | App, API | über Werkzeug | Brainstorming, Schreiben, Revision; Datenschutz prüfen |

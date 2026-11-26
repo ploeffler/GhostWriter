@@ -107,7 +107,7 @@ class ResolveTest(unittest.TestCase):
     def test_messages(self):
         for ai, text in [({'available': [], 'default': {'provider': 'chat'}}, 'kein Anbieter'),
                          ({'research': {'provider': 'chat'}}, 'kein Anbieter'),
-                         ({'research': {'provider': 'mistral'}}, 'Teil 2'),
+                         ({'research': {'provider': 'mistral'}}, 'noch nicht recherchieren'),
                          ({'research': {'provider': 'microsoft_copilot'}}, 'Chat-App'),
                          ({'research': {'provider': 'google'}, 'services': {'google': {'api_key_secret': 'GHOSTWRITER_UPDATE_TOKEN'}}},
                           'Ungültiger Secret-Name')]:

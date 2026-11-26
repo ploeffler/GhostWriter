@@ -887,7 +887,7 @@
   "catalog.google_vertex.note": "Gemini and other models; data center region can be selected.",
   "catalog.local_ollama.note": "Open models on your own computer; quality depends on model and hardware.",
   "catalog.brave_search.note": "Own index, independent of Google.",
-  "catalog.tavily.note": "Search API designed for AI agents.",
+  "catalog.tavily.note": "Search API designed for AI agents. Planned default search service (decision of 26 Nov 2026), not connected yet.",
   "catalog.exa.note": "Semantic search, finding similar pages.",
   "catalog.parallel.note": "Provides excerpts prepared for LLMs.",
   "catalog.perplexity_sonar.note": "Search with a summarized, cited answer.",

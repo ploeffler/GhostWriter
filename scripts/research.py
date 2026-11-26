@@ -62,8 +62,11 @@ MAX_PRIOR = 6000        # Vorwissen aus früheren Recherchen je Auftrag (#478), 
 PRIOR_PER_RUN = 1800
 PRIOR_CHAPTER = 1500    # davon höchstens für andere Abschnitte desselben Kapitels
 
-# Anbieter mit eingebauter Websuche über die API (Teil 1). Weitere folgen in Teil 2 von #462.
+# Anbieter mit eingebauter Websuche über die API (Teil 1 und Teil 2 von #462; Angaben am 26.11.2026 auf den Anbieterseiten geprüft).
 PROVIDERS = {
+    'perplexity': {'model': 'perplexity/sonar', 'label': 'Perplexity'},      # Agent API; die Sonar-Schnittstelle über Chat Completions ist abgekündigt
+    'xai': {'model': 'grok-4.3', 'label': 'xAI (Grok)'},                       # Responses API mit web_search
+    'openrouter': {'model': 'openai/gpt-5.6-luna', 'label': 'OpenRouter'},     # Responses API mit openrouter:web_search
     'anthropic': {'model': 'claude-sonnet-5-5', 'label': 'Anthropic'},
     'openai': {'model': 'gpt-6.1-terra', 'label': 'OpenAI'},
     'google': {'model': 'gemini-3.8-flash', 'label': 'Google Gemini'},
@@ -126,8 +129,8 @@ def resolve(base, defaults=None, provider=None, model=None):
     if pid not in PROVIDERS:
         if 'api' not in (info.get('access') or []):
             raise ResearchError(f'{name} gibt es nur als Chat-App: Recherche dort im Chat machen.')
-        raise ResearchError(f'{name} kann in der Action „Recherche“ noch nicht recherchieren '
-                            '(kommt mit Teil 2 von #462). Möglich sind Anthropic, OpenAI und Google.')
+        raise ResearchError(f'{name} kann in der Action „Recherche“ noch nicht recherchieren. Möglich sind '
+                            + ', '.join(p['label'] for p in PROVIDERS.values()) + '.')
     service = (ap.get('services') or {}).get(pid) or {}
     secret = service.get('api_key_secret') or info.get('api_key_secret') or ''
     if not SECRET_RE.match(secret):
@@ -314,6 +317,62 @@ def call_openai(key, model, system, user):
             'output_tokens': u.get('output_tokens') or 0, 'searches': searches, 'request_id': data.get('id')}
 
 
+def _responses_result(data, searches=None):
+    """Antwort einer Responses-API (xAI, OpenRouter): Text, url_citation-Quellen, Tokens, Zahl der Suchaufrufe."""
+    text, cited, calls = [], [], 0
+    for item in data.get('output') or []:
+        if 'search' in str(item.get('type') or '') and item.get('type') != 'message':
+            calls += 1
+        elif item.get('type') == 'message':
+            for c in item.get('content') or []:
+                if c.get('type') == 'output_text':
+                    text.append(c.get('text') or '')
+                    cited += [(a.get('title'), a.get('url')) for a in c.get('annotations') or [] if a.get('type') == 'url_citation']
+    u = data.get('usage') or {}
+    return {'text': '\n'.join(text), 'sources': _sources(cited), 'input_tokens': u.get('input_tokens') or 0,
+            'output_tokens': u.get('output_tokens') or 0, 'searches': searches if searches is not None else calls, 'request_id': data.get('id')}
+
+
+def call_xai(key, model, system, user):
+    """xAI: Websuche nur über die Responses API (Live Search über Chat Completions ist abgekündigt)."""
+    data = post_json('https://api.x.ai/v1/responses', {
+        'model': model, 'instructions': system, 'input': user, 'tools': [{'type': 'web_search'}]},
+        {'authorization': f'Bearer {key}'}, 'xai', model)
+    return _responses_result(data)
+
+
+def call_openrouter(key, model, system, user):
+    """OpenRouter: Server-Werkzeug openrouter:web_search über die Responses API (`:online` und das Plugin `web` sind abgekündigt)."""
+    data = post_json('https://openrouter.ai/api/v1/responses', {
+        'model': model, 'instructions': system, 'input': user,
+        'tools': [{'type': 'openrouter:web_search', 'parameters': {'max_results': 5, 'max_total_results': 20}}]},
+        {'authorization': f'Bearer {key}'}, 'openrouter', model)
+    n = ((data.get('usage') or {}).get('server_tool_use_details') or {}).get('web_search_requests')
+    return _responses_result(data, n)
+
+
+def call_perplexity(key, model, system, user):
+    """Perplexity: Agent API (POST /v1/agent). Quellen stehen im Eintrag `search_results`, der Text im Eintrag `message`."""
+    data = post_json('https://api.perplexity.ai/v1/agent', {
+        'model': model, 'instructions': system, 'input': user, 'tools': [{'type': 'web_search'}]},
+        {'authorization': f'Bearer {key}'}, 'perplexity', model)
+    text, found, cited = [], [], []
+    for item in data.get('output') or []:
+        if item.get('type') == 'search_results':
+            found += [(r.get('title'), r.get('url')) for r in item.get('results') or [] if r.get('url')]
+        elif item.get('type') == 'message':
+            for c in item.get('content') or []:
+                if c.get('type') == 'output_text':
+                    text.append(c.get('text') or '')
+                    cited += [(a.get('title'), a.get('url')) for a in c.get('annotations') or [] if a.get('url')]
+    u = data.get('usage') or {}
+    searches = ((u.get('tool_calls_details') or {}).get('search_web') or {}).get('invocation')
+    return {'text': '\n'.join(text), 'sources': _sources(cited or found), 'input_tokens': u.get('input_tokens') or 0,
+            'output_tokens': u.get('output_tokens') or 0,
+            'searches': searches if searches is not None else sum(1 for i in data.get('output') or [] if i.get('type') == 'search_results'),
+            'request_id': data.get('id')}
+
+
 def call_google(key, model, system, user):
     data = post_json(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent', {
         'systemInstruction': {'parts': [{'text': system}]}, 'contents': [{'role': 'user', 'parts': [{'text': user}]}],
@@ -328,7 +387,8 @@ def call_google(key, model, system, user):
             'searches': len(gm.get('webSearchQueries') or []), 'request_id': data.get('responseId')}
 
 
-CALLS = {'anthropic': call_anthropic, 'openai': call_openai, 'google': call_google}
+CALLS = {'anthropic': call_anthropic, 'openai': call_openai, 'google': call_google, 'perplexity': call_perplexity, 'xai': call_xai,
+         'openrouter': call_openrouter}
 
 # Gemini liefert Quellen als befristete Weiterleitungen (vertexaisearch.cloud.google.com/grounding-api-redirect/…)
 # und als Titel nur die Domain. In der Action werden sie zur echten Adresse und zum Seitentitel aufgelöst.

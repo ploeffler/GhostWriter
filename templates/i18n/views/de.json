@@ -887,7 +887,7 @@
   "catalog.google_vertex.note": "Gemini und weitere Modelle; Rechenzentrumsregion wählbar.",
   "catalog.local_ollama.note": "Offene Modelle auf eigenem Rechner; Qualität hängt von Modell und Hardware ab.",
   "catalog.brave_search.note": "Eigener, von Google unabhängiger Index.",
-  "catalog.tavily.note": "Für KI-Agenten entwickelte Such-API.",
+  "catalog.tavily.note": "Für KI-Agenten entwickelte Such-API. Vorgesehener Standard-Suchdienst (Entscheidung Peter 26.11.2026), noch nicht angebunden.",
   "catalog.exa.note": "Semantische Suche, „ähnliche Seiten finden“.",
   "catalog.parallel.note": "Liefert für LLMs aufbereitete Auszüge.",
   "catalog.perplexity_sonar.note": "Suche mit zusammengefasster, belegter Antwort.",
