@@ -188,7 +188,20 @@ Decisions are applied at the end of a chapter or on request. First,
 `hinweise.py plan <book> [--chapter …]` marks each decided entry ✅ applicable,
 ⚠️ manual (no old wording or proposal, or the wording is in a different section
 than the finding names, the message says which) or ⛔ (section or chapter finalized,
-wording not found or not unique). Ellipses and spaces that the old wording carries
+wording not found or not unique). **An answer is not a replacement (#675):** If
+`neu` does not look like new wording for `alt`, the entry is ⚠️ instead of ✅ and
+`apply` does not apply it (a second check right before replacing). This covers an
+answer to the question (one or two words for a whole sentence, such as “Hafen”), an
+instruction (“… entsprechend ändern”, arrows such as “→”), a list or timeline and a
+question. The author's answer goes into its own field `antwort`
+(`hinweise.py decide . <id> --answer "…"`, also together with `--new`); `decide`
+refuses such an answer in `--new`. The card shows “Antwort” (answer) apart from the
+proposal. If a short text really is the new wording, the author confirms it with
+`--as-text` (`ersatz_bestaetigt: true`). `collect --merge` reports suspicious `neu`
+values in existing entries. **Locking:** `hinweise.py lock . --reason "…"` locks a
+dialogue file (`gesperrt`): `apply` and `accept` stop with the reason, deciding
+stays possible, `show`, `plan` and the card show the note; `hinweise.py unlock .`
+lifts the lock. Ellipses and spaces that the old wording carries
 at its edges from the finding are left out before comparing and replacing (for `neu`
 only the same edges, #522); if the wording really stands with the dots in the text it
 stays unchanged. The script does not claim that the text has changed; it does not
@@ -203,7 +216,8 @@ asks separately about finalizing again. Saving and merging work as for other
 book changes.
 
 Decisions are only `ja`, `nein` or `geändert` (wording in `neu`); “leave as is”
-is `nein`. The author's reasoning goes into `begruendung`. Further places changed
+is `nein`. The author's reasoning goes into `begruendung`, their answer to the
+question into `antwort` (#675), never into `neu`. Further places changed
 by the same decision go into `weitere_ersetzungen` (`alt`, `neu`, optional
 `datei`); `apply` only changes the first place, the assistant applies the others
 by hand. Where something was applied (for example in `story/chronologie.md`)
