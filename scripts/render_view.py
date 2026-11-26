@@ -914,6 +914,12 @@ def widget_payload(name, data):
     if not omit:
         return data
     out = dict(data)
+    if name == 'projektuebersicht':   # #674: derselbe Hinweis in jeder Kapitelzeile steht einmal oben; die Laufzeit fällt auf die oberste Ebene zurück
+        rows = out.get('CHAPTERS')
+        hints = {r.get('CHAPTER_COST_HINT') for r in rows} if isinstance(rows, list) and rows and all(isinstance(r, dict) for r in rows) else set()
+        if len(hints) == 1 and next(iter(hints)):
+            out['CHAPTER_COST_HINT'] = next(iter(hints))
+            out['CHAPTERS'] = [{k: v for k, v in r.items() if k != 'CHAPTER_COST_HINT'} for r in rows]
     for block, keys in omit.items():
         if not block:
             out = {k: v for k, v in out.items() if k not in keys}
@@ -1526,7 +1532,8 @@ def check_cells(tags):
 def check_json(tags, slim=False):
     """Widget (#331): Tags als JSON-Liste für data-gw-checks in ghostwriter-ui (slim: ohne CK_PILL, #360)."""
     import checks
-    return checks.as_json(tags, checks.JSON_KEYS_SLIM if slim else checks.JSON_KEYS)
+    keep = checks.COMPACT_KEYS if slim else checks.COMPACT_KEYS + ('CK_PILL',)   # Tags mit Klartext (Pille) in Abschnitt und Kapitel
+    return checks.as_payload(tags, keep)
 
 
 def project_view(base, config, args):
@@ -1567,7 +1574,7 @@ def project_view(base, config, args):
                              'CHAPTER_CHECKS_JSON': check_json(tags, slim=True)})
             if detailed:   # erweiterte Darstellung (#398, #672): Notiz im Tooltip, höchstens eine kurze Zeile Handlungsbedarf
                 import checks
-                rows[-1]['CHAPTER_CHECKS_JSON'] = checks.as_json(tags, checks.JSON_KEYS_DETAIL)
+                rows[-1]['CHAPTER_CHECKS_JSON'] = checks.as_payload(tags, checks.COMPACT_KEYS_DETAIL)
                 need = checks.chapter_need(rows[-1])
                 if need:
                     rows[-1]['CHAPTER_CHECK_DETAILS'] = need

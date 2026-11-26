@@ -18,7 +18,7 @@ import checks  # noqa: E402
 import render_view  # noqa: E402
 import validate_project  # noqa: E402
 from render_view import load, section_file  # noqa: E402
-from tests.widget_helpers import widget_json  # noqa: E402
+from tests.widget_helpers import check_list, widget_json  # noqa: E402
 
 
 def args(**kw):
@@ -149,15 +149,16 @@ class ChecksTest(unittest.TestCase):
         widget = render_view.project_view(self.base, self.config, args(text=False))
         self.assertEqual(widget.data['CHAPTERS'][0]['CHAPTER_CHECKS_TEXT'], 'L✓· K✓')
         self.assertEqual(widget.data['CHAPTERS'][0]['CHAPTER_CHECKS'][0]['CK_KIND'], 'language')
-        row = json.loads(widget.data['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])
+        row = check_list(widget.data['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])
         self.assertEqual([c['CK_TAG'] for c in row], ['L✓·', 'K✓'])
-        self.assertEqual(sorted(row[0]), ['CK_REPORT', 'CK_RESULT', 'CK_STATE', 'CK_TAG', 'CK_TEXT'])   # ohne CK_PILL (#360)
+        self.assertEqual(widget.data['CHAPTERS'][0]['CHAPTER_CHECKS_JSON']['k'], list(checks.COMPACT_KEYS))   # ohne CK_PILL (#360), ohne CK_TAG und CK_TEXT (#674)
+        self.assertEqual(row[0]['CK_TEXT'], 'Sprache: bestanden mit Hinweisen, ' + row[0]['CK_WHEN'] + ' · aktuell')   # wie das Widget zusammensetzt
         payload = widget_json(widget.split('GW.render("projektuebersicht",', 1)[1].rsplit(')</script>', 1)[0].replace('<\\/', '</'))
         self.assertNotIn('CHAPTER_CHECKS', payload['CHAPTERS'][0])   # Liste und Textfassung nur für --text (#360)
         self.assertNotIn('CHAPTER_CHECKS_TEXT', payload['CHAPTERS'][0])
         self.assertIn('CHAPTER_CHECKS_JSON', payload['CHAPTERS'][0])
         chap = render_view.chapter_view(self.base, self.config, args(text=False), 1)
-        self.assertEqual(json.loads(chap.data['CHECKS_JSON'])[0]['CK_TAG'], 'L✓·')
+        self.assertEqual(check_list(chap.data['CHECKS_JSON'])[0]['CK_TAG'], 'L✓·')
         self.assertIn('SECTION_CHECKS_JSON', chap.data['SECTIONS'][0])
         sec = render_view.section_view(self.base, self.config, args(text=False), 1, 1)
         self.assertEqual([t['CK_TAG'] for t in sec.data['CHECKS']], ['L✓·', 'K✓'])
@@ -170,7 +171,7 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual(data['CHECKS_RECENT_TEXT'], 'Language ✓ 2026-11-17')
         self.assertIn('A tag is not an approval.', data['CHECKS_LEGEND'])
         self.assertEqual(data['CHAPTERS'][0]['CHAPTER_CHECKS'][0]['CK_TEXT'], 'Language: passed, 2026-11-17 · current')
-        self.assertEqual(json.loads(data['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])[0]['CK_TEXT'], 'Language: passed, 2026-11-17 · current')
+        self.assertEqual(check_list(data['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'], 'en')[0]['CK_TEXT'], 'Language: passed, 2026-11-17 · current')
         approval = {'CHECKS': [{'C_TEXT': 'Prüfpunkt'}]}   # Prüfpunkte der Freigabe bleiben unberührt
         render_view_en.localize_checks(approval)
         self.assertEqual(approval, {'CHECKS': [{'C_TEXT': 'Prüfpunkt'}]})
@@ -206,12 +207,12 @@ class ChecksTest(unittest.TestCase):
         self.assertIn('- Qualität: 2026-11-17 ✗', out)
         chap = render_view.chapter_view(self.base, self.config, args(text=False), 1)
         self.assertEqual(chap.data['CHECKS_HISTORY_COUNT'], 1)
-        self.assertEqual(json.loads(chap.data['CHECKS_HISTORY_JSON'])[0]['CK_TAG'], 'Q✗')
+        self.assertEqual(check_list(chap.data['CHECKS_HISTORY_JSON'])[0]['CK_MARK'], '✗')
         out = render_view.section_view(self.base, self.config, args(), 1, 1)
         self.assertIn('Frühere Prüfungen (1)', out)
         import render_view_en
         data = render_view_en.prepare('kapitelansicht', chap.data, self.config, args())
-        self.assertIn('Quality: failed', json.loads(data['CHECKS_HISTORY_JSON'])[0]['CK_TEXT'])
+        self.assertIn('Quality: failed', check_list(data['CHECKS_HISTORY_JSON'], 'en')[0]['CK_TEXT'])
 
     def test_project_has_no_history_text(self):   # #497, #672
         """Viele lange Prüfungen: die Projektübersicht trägt weder Verlauf noch Fließtext; Details stehen in der Kapitelansicht."""
@@ -226,7 +227,7 @@ class ChecksTest(unittest.TestCase):
         self.assertNotIn('CHAPTER_CHECK_DETAILS', row)   # nichts zu tun: keine Zeile
         self.assertNotIn('frühere', json.dumps(wide.data, ensure_ascii=False))
         chap = render_view.chapter_view(self.base, self.config, args(text=False), 1)   # die Kapitelansicht bleibt vollständig
-        self.assertIn('Prüfhinweis', chap.data['CHECKS_HISTORY_JSON'])
+        self.assertIn('Prüfhinweis', json.dumps(chap.data['CHECKS_HISTORY_JSON'], ensure_ascii=False))
 
     def test_project_details_extended(self):   # #398, #672
         import render_view_en
@@ -236,10 +237,10 @@ class ChecksTest(unittest.TestCase):
         plain = render_view.project_view(self.base, self.config, args(text=False))
         self.assertNotIn('CHAPTER_HISTORY_JSON', plain.data['CHAPTERS'][0])
         self.assertNotIn('Frühere Prüfungen', plain.data['CHECKS_LEGEND'])
-        self.assertNotIn('CK_NOTE', plain.data['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])
+        self.assertNotIn('CK_NOTE', plain.data['CHAPTERS'][0]['CHAPTER_CHECKS_JSON']['k'])
         wide = render_view.project_view(self.base, self.config, args(text=False, darstellung='erweitert'))
         row = wide.data['CHAPTERS'][0]
-        tag = json.loads(row['CHAPTER_CHECKS_JSON'])[0]
+        tag = check_list(row['CHAPTER_CHECKS_JSON'])[0]
         self.assertEqual(tag['CK_NOTE'], '2 wesentliche Punkte (W1, W2), 9 Hinweise')   # Tooltip
         self.assertTrue(tag['CK_ID'])
         self.assertNotIn('CHAPTER_HISTORY_JSON', row)
@@ -253,7 +254,20 @@ class ChecksTest(unittest.TestCase):
         self.assertNotIn('Frühere Prüfungen', out)
         en = render_view_en.prepare('projektuebersicht', wide.data, self.config, args())
         self.assertNotIn('Earlier checks', en['CHECKS_LEGEND'])
-        self.assertIn('CK_NOTE', en['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])
+        self.assertIn('CK_NOTE', en['CHAPTERS'][0]['CHAPTER_CHECKS_JSON']['k'])
+
+    def test_compact_check_payload_is_packed_and_hoists_cost_hint(self):   # #674
+        checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed_with_notes', date='2026-11-17', report='editorial/a.md')
+        checks.record(self.base, self.config, 'proofreading', [self.ch1['id']], 'passed', date='2026-11-17', report='editorial/a.md')
+        widget = render_view.project_view(self.base, self.config, args(text=False))
+        payload = widget_json(widget.split('GW.render("projektuebersicht",', 1)[1].rsplit(')</script>', 1)[0].replace('<\\/', '</'))
+        packed = payload['CHAPTERS'][0]['CHAPTER_CHECKS_JSON']
+        self.assertIsInstance(packed, dict)                       # echtes JSON, keine Zeichenkette
+        self.assertEqual(packed['p'], ['editorial/a.md'])         # Berichtspfad einmal
+        self.assertEqual([r[packed['k'].index('CK_REPORT')] for r in packed['r']], [0, 0])
+        self.assertTrue(payload['CHAPTER_COST_HINT'])             # gleicher Hinweis steht einmal oben
+        self.assertEqual({r['CHAPTER_COST_HINT'] for r in payload['CHAPTERS']}, {''})
+        self.assertEqual(checks.as_payload([]), '')
 
     def test_project_need_line_is_short(self):   # #672
         import render_view_en
