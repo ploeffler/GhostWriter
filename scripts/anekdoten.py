@@ -192,10 +192,24 @@ def words(text):
     return {w for w in re.findall(r'[a-zäöüß0-9]{4,}', (text or '').lower()) if w not in STOP}
 
 
+def section_id(base, section):
+    """Abschnitt als Kennung (sec-…) oder sichtbare Nummer (1.2) → Kennung; Unbekanntes bleibt, wie es ist."""
+    s = str(section or '').strip()
+    if not re.fullmatch(r'\d+\.\d+', s):
+        return s
+    ci, si = (int(x) for x in s.split('.'))
+    chapters = (config(base).get('structure') or {}).get('chapters') or []
+    try:
+        return chapters[ci - 1]['sections'][si - 1]['id']
+    except (IndexError, KeyError, TypeError):
+        raise ValueError(f'Abschnitt {s} nicht gefunden.')
+
+
 def suggest(base, section=None, text=''):
     """Freie Einträge, die zu Abschnitt bzw. Platzhalter passen (Themen, Personen, Ort, Zeit, Wörter); lesend.
     Verwendete Einträge erscheinen nicht, eingeplante nur für ihren Abschnitt."""
     context = text or ''
+    section = section_id(base, section) if section else section
     if section:
         cfg = config(base)
         for ch in (cfg.get('structure') or {}).get('chapters') or []:
@@ -230,7 +244,7 @@ def plan(base, anek_id, section=None, clear=False, actor=None):
     if clear:
         entry['eingeplant_fuer'] = None
     elif section:
-        entry['eingeplant_fuer'] = section
+        entry['eingeplant_fuer'] = section_id(base, section)
     else:
         raise ValueError('--section angeben oder --clear.')
     validate(entry)
@@ -243,6 +257,7 @@ def use(base, anek_id, section, fassung, wahrheit, einverstaendnis, ersetzungen=
     require_author(base, actor)
     if fassung not in FASSUNG or wahrheit not in WAHRHEIT or einverstaendnis not in STAND:
         raise ValueError(f'Fassung: {", ".join(FASSUNG)}; Wahrheitsgehalt: {", ".join(WAHRHEIT)}; Einverständnis: {", ".join(STAND)}')
+    section = section_id(base, section)
     entry, rel = find(base, anek_id, series_id)
     path = Path(base) / rel
     if not path.is_file():

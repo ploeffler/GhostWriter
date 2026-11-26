@@ -837,6 +837,15 @@ def draft_note(body):
     return ''
 
 
+def anecdote_warnings(base):
+    """#643: Anekdoten im Original ohne Einverständnisvermerk. Fehler beim Lesen werden nur gemeldet."""
+    try:
+        import anekdoten
+        return anekdoten.check(base)
+    except Exception as e:   # noqa: BLE001 – eine kaputte Anekdote soll keine Auflage verhindern
+        return [f'Anekdoten nicht prüfbar ({e.__class__.__name__}: {e})']
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
@@ -899,6 +908,8 @@ def main(argv):
     import stale
     for line in stale.warning_lines(base, config):   # #510: Auflage und Probedruck warnen, blockieren nicht
         print(f'⚠ veraltet markiert: {line}')
+    for line in anecdote_warnings(base):   # #643: Original ohne Einverständnisvermerk – warnen, nicht blockieren
+        print(f'⚠ Anekdote: {line}')
 
     meta = metadata(config, args.edition, args.date)
     ts = meta['typesetting']

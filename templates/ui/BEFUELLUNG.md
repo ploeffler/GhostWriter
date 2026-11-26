@@ -160,7 +160,7 @@ Kann der Assistent den Stand nicht ermitteln (keine Leserechte auf das Hauptrepo
 | `CHAPTER_APPROVABLE` | `true`, wenn das Kapitel auf `ready_for_approval` steht und alle Abschnitte `approved` sind; sonst leer (dann fehlt der Knopf „Kapitel abschließen“) |
 | `CHAPTER_REVISION_READY` | `true`, wenn alle Abschnitte Manuskripttext und mindestens Status `writing` haben; sonst leer. Ermittelt mit `scripts/chapter_revision.py`; bei leerem Wert fehlt „Kapitel überarbeiten“. Vor der Durchführung den aktuellen Stand erneut prüfen. |
 | `CHAPTER_COST`, `CHAPTER_COST_HINT` | Kapitelkosten |
-| im Block `SECTIONS`: `SECTION_STALE_TEXT`, `SECTION_STALE_HINT`, `SECTION_CHECKOUT_TEXT`; Block `CHECKOUTS` mit `CO_ID`, `CO_TEXT`, `CO_ARGS` | Marken je Abschnitt (ab UI 0.69.0): „veraltet“ mit Tooltip „Veraltet seit …: Grund“ (#592), „ausgecheckt“ (#572); Hinweis auf Checkouts, die das Kapitel betreffen, mit „Checkout beenden“ |
+| im Block `SECTIONS`: `SECTION_STALE_TEXT`, `SECTION_STALE_HINT`, `SECTION_CHECKOUT_TEXT`, `SECTION_ANECDOTE_TEXT`, `SECTION_ANECDOTE_HINT`; Block `CHECKOUTS` mit `CO_ID`, `CO_TEXT`, `CO_ARGS` | Marken je Abschnitt (ab UI 0.69.0): „veraltet“ mit Tooltip „Veraltet seit …: Grund“ (#592), „ausgecheckt“ (#572), ab UI 0.79.0 „enthält Anekdote“ bzw. „Anekdote eingeplant“ mit den Titeln als Tooltip (#643); Hinweis auf Checkouts, die das Kapitel betreffen, mit „Checkout beenden“ |
 | Block `SECTIONS`: `SECTION_ID`, `SECTION_NUMBER`, `SECTION_TITLE`, `SECTION_STATUS`, `SECTION_COST`, `MARKERS_ANEKDOTE`, `MARKERS_QUELLE`, `MARKERS_MEDIZIN`, `MARKERS_RECHT` | je Abschnitt; Status aus dem Kopf der Abschnittsdatei |
 | im Block `SECTIONS`: `SECTION_CHECKS_TEXT`, `SECTION_CHECKS_JSON`, Liste `SECTION_CHECKS`; dazu `CHAPTER_CHECKS_TEXT`, `CHECKS_JSON`, `CHECKS_LEGEND`, Block `CHECKS` | Prüf-Tags (#331) je Abschnitt und für das ganze Kapitel, Felder wie `CHAPTER_CHECKS` in der Projektübersicht; ohne Prüfprotokoll weglassen. Tags sind keine Freigabe und stehen getrennt von Status und Freigaben |
 
@@ -733,6 +733,20 @@ Hintergrund-Warteschlange (#478, ab UI 0.67.0; `render_view.py queue`, `--text` 
 
 „Vorziehen“ sendet `queue.prioritize`, „Abbrechen“ (mit Rückfrage) `queue.cancel`, beide mit `request`; „Erneut versuchen“ bei fehlgeschlagenen Aufträgen (ab UI 0.69.0, #596) sendet `queue.retry` mit `request`.
 
+### `anekdoten.html`
+
+Anekdoten des Buchs und seiner Reihe (#643, UI 0.79.0; `render_view.py anecdotes [<Abschnitt>]`, `START.md`, „Anekdoten“). Nur für Eigentümer und Bearbeiter (#455); Lesern nicht zeigen. Der **Originaltext erscheint nie im Widget**; „Anzeigen“ holt ihn im Chat (`anekdoten.py . show <id>`).
+
+| Platzhalter | Quelle |
+|---|---|
+| `ANEC_MODE` | `list` (alle) oder `section` (mit Abschnitt: passende freie und für ihn eingeplante, sortiert wie `anekdoten.py suggest`) |
+| `ANEC_COUNT_TEXT` | „5 Anekdoten · 3 frei · 1 eingeplant · 1 verwendet“ (immer über alle) |
+| `ANEC_SECTION_ID`, `ANEC_SECTION_NUMBER`, `ANEC_SECTION_TITLE` | Abschnitt im Modus `section` (Eingabe `1.2` oder `sec-…`) |
+| Block `ANECDOTES`: `A_ID`, `A_TITLE`, `A_STATE`, `A_STATE_TEXT`, `A_PLANNED_TEXT`, `A_TOPICS_TEXT`, `A_SERIES_TEXT`, `A_USES_TEXT`, `A_MATCH_TEXT` | je Eintrag aus `anekdoten.entries`: Zustand `frei` \| `eingeplant` \| `verwendet`, „eingeplant für 1.2“, Themen, „Reihe <ser-id>“, „verwendet in 2.1 (anonymisiert)“, im Modus `section` „Passt: …“ (gemeinsame Wörter) |
+| Block `HINTS`: `H_TEXT` | `anekdoten.py . check` (Original ohne Einverständnisvermerk) |
+
+Aktionen: `anecdote.capture`, `anecdote.show`, `anecdote.suggest`, `anecdote.plan`, `anecdote.use` (siehe unten). Der Abschnitt kommt als Nummer (`1.2`); `anekdoten.py` nimmt Nummer oder Kennung.
+
 ### `analyse-einstellungen.html`
 
 Formular „Analyse-Einstellungen“ (`render_view.py analysis-settings`, #299, ab UI 0.47.0) für den Block `analysis`.
@@ -850,6 +864,11 @@ Welche Werte in die Kennzeile und welche in Feldzeilen kommen, entscheidet `GW.m
 | `figurenbild.stil.save` | `style` (Objekt mit den gefüllten Feldern `medium`, `realismus`, `farbigkeit`, `licht`, `ausschnitt`, `hintergrund`, `merkmale`, `ausschluesse`, `freitext`) | Bildstil des Projekts speichern (eigene Bestätigung im Widget) | `python scripts/figurenbild.py . stil set '<json>'`, ein Commit; leere Felder bleiben unverändert | – |
 | `figurenbild.pick` | `figure`, `image_id`, `status` (`gewaehlt` \| `idee`) | Variante auswählen (nur der Status, keine Referenzfreigabe) | `python scripts/figurenbild.py . waehlen <Figur> <Bild> --status <status>`, ein Commit | – |
 | `figurenbild.change` | `figure`, `image_id` | Variante gezielt ändern | Rückfrage, was sich ändern soll; dann Änderungsprompt mit dem Bild als Eingabe und `figurenbild.py . variante … --art aenderung --eingabe <Bild>` | – |
+| `anecdote.capture` | – | Anekdote erzählen (Widget `anekdoten`) | wie Befehl `Anekdote erfassen`: im Chat strukturiert festhalten, Inhalt nicht ändern (`START.md`, „Anekdoten“, Schritt 1) |
+| `anecdote.show` | `id` | Original im Chat zeigen | `anekdoten.py . show <id>`; nur Eigentümer und Bearbeiter |
+| `anecdote.suggest` | `section` (`N.M`) | Vorschläge für einen Abschnitt | `render_view.py anecdotes <N.M>` |
+| `anecdote.plan` | `id`, `section` (`N.M`) | für den Abschnitt einplanen (erst nach zweitem Klick) | `anekdoten.py . plan <id> --section <N.M>`, ein Commit; schreibend, mit `expected_head_sha` |
+| `anecdote.use` | `id`, `section` (`N.M`) | Einbau beginnen | nichts schreiben: Fassung, Wahrheitsgehalt, Ersetzungen und Einverständnis im Chat klären, Text als Vorschlag, erst nach Bestätigung `anekdoten.py . use …` (`START.md`, „Anekdoten“, Schritt 3) |
 | `character.talk.start` | `figure` (Name oder ID), optional `until` (`N.M`, `N`) | Figurengespräch beginnen (Steuerkarte `figurengespraech`) | Klartext `Figurengespräch <Name> [bis <Stelle>]` bzw. `Talk to <Name> [until <place>]`: `START.md`, „Figuren“, Schritt 8; danach die Karte `character-talk <Figur> --draft '{"phase":"active","until":…}'` zeigen | – |
 | `character.talk.end` | – | Gespräch beenden | wie `Gespräch beenden` (Schritt 8.4, 8.5); danach Karte `phase: insights` mit den Erkenntnissen zeigen, als Vorschläge ohne Haken | – |
 | `character.talk.until` | `until` (`N.M`, `N` oder `book`) | Stelle im laufenden Gespräch ändern | `characters.py . interview <Figur> --bis <Stelle>` neu lesen und mit der neuen Grenze weiterführen; Karte erneuern | – |

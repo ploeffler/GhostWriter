@@ -127,6 +127,20 @@ class SuggestAndUseTest(Base):
         self.assertEqual(len(anekdoten.check(self.base)), 1)
         self.assertEqual(anekdoten.main([str(self.base), 'check']), 1)
 
+    def test_edition_build_warns_but_does_not_block(self):
+        """#643: Auflage und Probedruck melden den Hinweis über build_edition.anecdote_warnings."""
+        import build_edition
+        self.assertEqual(build_edition.anecdote_warnings(self.base), [])
+        _, a = self.add()
+        anekdoten.use(self.base, a['id'], 'sec-01-01', 'original', 'woertlich', 'liegt_vor', notiz='mündlich')
+        p = next((self.base / 'anekdoten').glob('*.yml'))
+        d = yaml.safe_load(p.read_text(encoding='utf-8'))
+        d['verwendungen'][0]['einverstaendnis'] = {'stand': 'offen'}
+        p.write_text(yaml.safe_dump(d, allow_unicode=True), encoding='utf-8')
+        self.assertEqual(len(build_edition.anecdote_warnings(self.base)), 1)
+        with mock.patch.object(anekdoten, 'check', side_effect=OSError('kaputt')):
+            self.assertIn('nicht prüfbar', build_edition.anecdote_warnings(self.base)[0])
+
 
 class SeriesTest(Base):
     """Reihen-Anekdote liegt auf dem Standard-Branch und ist in jedem Band sichtbar; Doppelverwendung wird gemeldet."""

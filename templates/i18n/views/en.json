@@ -1110,5 +1110,7 @@
   "view.glossary_suggest.no_explanation": "new, no explanation",
   "view.glossary_suggest.already_exists": "already in the glossary",
   "view.glossary_suggest.term": "term",
-  "view.glossary_suggest.terms": "terms"
+  "view.glossary_suggest.terms": "terms",
+  "anecdote_used_mark": "contains anecdote",
+  "anecdote_planned_mark": "anecdote planned"
 }

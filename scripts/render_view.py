@@ -1804,6 +1804,7 @@ def chapter_view(base, config, args, cnum):
     rows, parts, counts_total, approved = [], [], 0, 0
     ck = check_index(base, config)
     cos = checkout_blocks(base, config, ch['id'])   # #572
+    anec = anecdote_marks(base)   # #643
     for si, s in enumerate(ch['sections'], start=1):
         head, _, _, ms = section_file(base, s)
         counts = marker_counts(ms)
@@ -1817,6 +1818,7 @@ def chapter_view(base, config, args, cnum):
                      'SECTION_STALE_TEXT': view_message('stale_marker') if stale else '',
                      'SECTION_STALE_HINT': view_message('the_text_is_marked_stale_since', p_a=f"{stale['since']}", p_b=f"{stale['reason']}") if stale else '',
                      'SECTION_CHECKOUT_TEXT': view_message('checked_out_mark') if locked else '',
+                     'SECTION_ANECDOTE_TEXT': anec.get(s['id'], ('', ''))[0], 'SECTION_ANECDOTE_HINT': anec.get(s['id'], ('', ''))[1],
                      'SECTION_STATUS': head['status'], 'SECTION_COST': money(a, e),
                      'MARKERS_ANEKDOTE': counts['anekdote'], 'MARKERS_QUELLE': counts['quelle'],
                      'MARKERS_MEDIZIN': counts['medizin'], 'MARKERS_RECHT': counts['recht'],
@@ -3847,6 +3849,89 @@ def talk_places(base, config):
     return out
 
 
+def anecdote_marks(base):
+    """#643: je Abschnitts-ID (Marke, Tooltip) – „enthält Anekdote“ vor „Anekdote eingeplant“; ohne Anekdoten leer."""
+    try:
+        import anekdoten
+        items = anekdoten.entries(base)
+        book = anekdoten.book_name(base)
+    except Exception:   # noqa: BLE001 – Anekdoten sind optional; die Kapitelansicht soll nie daran scheitern
+        return {}
+    used, planned = {}, {}
+    for e, _ in items:
+        for u in e.get('verwendungen') or []:
+            if u.get('buch') in (None, book) and u.get('abschnitt'):
+                used.setdefault(u['abschnitt'], []).append(e.get('titel', e.get('id', '')))
+        if e.get('eingeplant_fuer') and not e.get('verwendungen'):
+            planned.setdefault(e['eingeplant_fuer'], []).append(e.get('titel', e.get('id', '')))
+    out = {sid: (view_message('anecdote_used_mark'), ' · '.join(t)) for sid, t in used.items()}
+    for sid, t in planned.items():
+        out.setdefault(sid, (view_message('anecdote_planned_mark'), ' · '.join(t)))
+    return out
+
+
+def anecdotes_view(base, config, args):
+    """Anekdoten (#643, Vorlage anekdoten): `anecdotes` zeigt alle Anekdoten von Buch und Reihe mit Zustand und Hinweisen,
+    `anecdotes <Abschnitt>` (1.2 oder sec-…) die passenden freien für diesen Abschnitt. Nur lesend und nur für Eigentümer und
+    Bearbeiter; der Originaltext erscheint nicht (dafür `anekdoten.py . show`). Textfassung mit --text."""
+    import anekdoten
+    en = UI.get('language') == 'en'
+    state_text = {'frei': ('frei', 'free'), 'eingeplant': ('eingeplant', 'planned'), 'verwendet': ('verwendet', 'used')}
+    numbers = {sec['id']: f'{ci}.{si}' for ci, ch in enumerate(config['structure']['chapters'], start=1)
+               for si, sec in enumerate(ch['sections'], start=1)}
+    items = anekdoten.entries(base)
+    sec_id = sec_num = sec_title = ''
+    match = {}
+    if args.where:
+        try:
+            sec_id = anekdoten.section_id(base, args.where)
+        except ValueError as e:
+            raise SystemExit(str(e))
+        if sec_id not in numbers:
+            raise SystemExit(f'Abschnitt „{args.where}“ nicht gefunden')
+        sec_num = numbers[sec_id]
+        sec_title = next(sec['title'] for ch in config['structure']['chapters'] for sec in ch['sections'] if sec['id'] == sec_id)
+        ranked = anekdoten.suggest(base, sec_id)
+        match = {r['id']: r for r in ranked}
+        order = {r['id']: n for n, r in enumerate(ranked)}
+        items = sorted([(e, p) for e, p in items if e.get('id') in match], key=lambda x: order[x[0]['id']])
+    rows = []
+    for e, _ in items:
+        st = anekdoten.state(e)
+        uses = [f'{numbers.get(u.get("abschnitt"), u.get("abschnitt"))} ({u.get("fassung", "")})' for u in e.get('verwendungen') or []]
+        m = match.get(e['id'])
+        rows.append({'A_ID': e['id'], 'A_TITLE': e.get('titel', e['id']), 'A_STATE': st, 'A_STATE_TEXT': state_text[st][1 if en else 0],
+                     'A_PLANNED_TEXT': ((f'planned for {numbers.get(e["eingeplant_fuer"], e["eingeplant_fuer"])}' if en else
+                                         f'eingeplant für {numbers.get(e["eingeplant_fuer"], e["eingeplant_fuer"])}') if e.get('eingeplant_fuer') else ''),
+                     'A_TOPICS_TEXT': ((('Topics: ' if en else 'Themen: ') + ', '.join(e['themen'])) if e.get('themen') else ''),
+                     'A_SERIES_TEXT': ((('Series ' if en else 'Reihe ') + e['_series']) if e.get('_series') else ''),
+                     'A_USES_TEXT': ((('used in ' if en else 'verwendet in ') + ', '.join(uses)) if uses else ''),
+                     'A_MATCH_TEXT': ((('Matches: ' if en else 'Passt: ') + ', '.join(m['passt'])) if m and m.get('passt') else '')})
+    every = anekdoten.entries(base)
+    counts = {k: sum(1 for e, _ in every if anekdoten.state(e) == k) for k in state_text}
+    count_text = (f'{len(every)} anecdote(s) · {counts["frei"]} free · {counts["eingeplant"]} planned · {counts["verwendet"]} used' if en else
+                  f'{plural(len(every), "Anekdote", "Anekdoten")} · {counts["frei"]} frei · {counts["eingeplant"]} eingeplant · {counts["verwendet"]} verwendet')
+    hints = [{'H_TEXT': h} for h in anekdoten.check(base)]
+    if not args.text:
+        values = {'ANEC_MODE': 'section' if sec_id else 'list', 'ANEC_COUNT_TEXT': count_text, 'ANEC_SECTION_ID': sec_id,
+                  'ANEC_SECTION_NUMBER': sec_num, 'ANEC_SECTION_TITLE': sec_title}
+        return fill('anekdoten.html', values, {'ANECDOTES': rows, 'HINTS': hints})
+    head = (f'### 💬 Anecdotes for {sec_num} {sec_title}' if en else f'### 💬 Anekdoten für {sec_num} {sec_title}') if sec_id else \
+           ('### 💬 Anecdotes' if en else '### 💬 Anekdoten')
+    out = [head, count_text, '']
+    out += [f'⚠ {h["H_TEXT"]}' for h in hints] + ([''] if hints else [])
+    for r in rows:
+        extra = ' · '.join(x for x in (r['A_MATCH_TEXT'], r['A_TOPICS_TEXT'], r['A_PLANNED_TEXT'], r['A_USES_TEXT'], r['A_SERIES_TEXT']) if x)
+        out.append(f'- **{r["A_TITLE"]}** ({r["A_STATE_TEXT"]}, `{r["A_ID"]}`)' + (f' – {extra}' if extra else ''))
+    if not rows:
+        out.append(('- No matching free anecdote.' if en else '- Keine passende freie Anekdote.') if sec_id else
+                   ('- No anecdotes yet. `Capture anecdote` records one as it happened.' if en else
+                    '- Noch keine Anekdoten. `Anekdote erfassen` hält eine im Original fest.'))
+    out += ['', ('Commands: `Show anecdote <id>` · `Plan anecdote <id> for <section>` · `Use anecdote <id> in <section>`' if en else
+                 'Befehle: `Anekdote anzeigen <id>` · `Anekdote <id> für <Abschnitt> einplanen` · `Anekdote <id> in <Abschnitt> einbauen`')]
+    return '\n'.join(out) + '\n'
+
+
 def character_talk_view(base, config, args):
     """Steuerkarte für das Figurengespräch (#431, Vorlage figurengespraech): Start, Knöpfe während des Gesprächs, Karte „Erkenntnisse“.
     Aufruf `character-talk [<Figur>] [--draft {phase, until, insights:[{field, text}]}]`. Nur lesend; die Antworten der Figur stehen
@@ -4431,7 +4516,7 @@ def choice_view(base, config, args):
                 {'QUESTIONS': questions, 'OPTIONS': options})
 
 
-FORMS = {'figure-image': figure_image_view, 'character-talk': character_talk_view, 'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view,
+FORMS = {'figure-image': figure_image_view, 'character-talk': character_talk_view, 'anecdotes': anecdotes_view, 'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view,
          'character-suggest': character_suggest_view, 'analysis-suggest': analysis_suggest_view, 'import-preview': import_preview_view, 'import-outline': import_outline_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
