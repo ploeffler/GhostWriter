@@ -1110,5 +1110,7 @@
   "view.glossary_suggest.no_explanation": "neu, ohne Erklärung",
   "view.glossary_suggest.already_exists": "steht schon im Glossar",
   "view.glossary_suggest.term": "Begriff",
-  "view.glossary_suggest.terms": "Begriffe"
+  "view.glossary_suggest.terms": "Begriffe",
+  "anecdote_used_mark": "enthält Anekdote",
+  "anecdote_planned_mark": "Anekdote eingeplant"
 }
