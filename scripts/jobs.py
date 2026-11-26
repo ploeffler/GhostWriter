@@ -14,6 +14,7 @@ Aufruf:
   python scripts/jobs.py <buch> cancel --request <auftrag>          (nur wartende Aufträge)
   python scripts/jobs.py <buch> enqueue --type chapter_review --field chapters=ch-03,ch-04|all   (Rundumprüfung, #531)
   python scripts/jobs.py <buch> enqueue --type agent --field task="…" --field criteria="A;B" [--field kind=review|analysis|draft]   (Auftrag für die Sitzung, #65)
+  python scripts/jobs.py <buch> enqueue --type media --field model=fal-ai/… --field prompt="…" [--field input=<bild>] [--field seed=N] --field confirm=true   (fal.ai, #701)
   python scripts/jobs.py <buch> complete --request <auftrag>        (Übergabe abschließen, wenn der Assistent die KI-Teile erledigt hat)
   python scripts/jobs.py <buch> process [--defaults datei] [--limit 5] [--push-to <arbeits-branch>]
   python scripts/jobs.py <ordner> remote [--start] [--paused] [--dry-run]   (Kontrolllauf, #481)
@@ -65,18 +66,19 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'scripts'))
 import research  # noqa: E402
 
-TYPES = ('research', 'analysis', 'colorize', 'import', 'chapter_review', 'agent')
+TYPES = ('research', 'analysis', 'colorize', 'import', 'chapter_review', 'agent', 'media')
 # Felder je Art (Eingaben der bisherigen Actions, #479); sie stehen unter dem Namen der Art
 FIELDS = {'analysis': ('kind', 'scope', 'prompt_profile'),
           'colorize': ('folder', 'consent', 'model', 'replace', 'hint', 'minors_exception'),
           'import': ('step', 'file', 'ops', 'writing_approval', 'by', 'prompt_profile'),
           'chapter_review': ('chapters',),
-          'agent': ('kind', 'task', 'criteria', 'scope')}
+          'agent': ('kind', 'task', 'criteria', 'scope'),
+          'media': ('model', 'prompt', 'input', 'seed', 'params', 'output', 'confirm', 'price_usd')}
 AGENT_KINDS = ('review', 'analysis', 'draft')   # Prüflauf, Analyse, Entwurf (#65); nie Issues im Hauptrepo abarbeiten
 # Workflow, der eine Art abarbeitet, und der Branch, auf den das Ergebnis kommt
 WORKFLOW = {'research': 'research.yml', 'analysis': 'analyse.yml', 'colorize': 'colorize.yml', 'import': 'import.yml',
-            'chapter_review': 'analyse.yml', 'agent': 'analyse.yml'}
-TARGET = {'research': 'work', 'colorize': 'work', 'analysis': 'book', 'import': 'book', 'chapter_review': 'book', 'agent': 'book'}
+            'chapter_review': 'analyse.yml', 'agent': 'analyse.yml', 'media': 'media.yml'}
+TARGET = {'research': 'work', 'colorize': 'work', 'analysis': 'book', 'import': 'book', 'chapter_review': 'book', 'agent': 'book', 'media': 'work'}
 # Arten bzw. Schritte ohne KI-Kosten: keine Budgetprüfung
 FREE = {('import', 'convert'), ('import', 'edit'), ('import', 'apply'), ('chapter_review', ''), ('agent', '')}   # Rundumprüfung (#531): nur Prüfungen ohne KI
 REQUEST_RE = research.REQUEST_RE
@@ -693,7 +695,78 @@ def run_agent(base, job):
     return {'label': f'Agent-Auftrag bereit für die Sitzung: {str(a.get("task") or "")[:60]}', 'keep': True, 'paths': [], 'action': 'agent.handover'}
 
 
-RUNNERS = {'agent': run_agent, 'colorize': run_colorize, 'analysis': run_analysis, 'import': run_import, 'chapter_review': run_chapter_review}
+_CTX = {'push_to': None, 'commit': False}   # von process() gesetzt: der Runner sichert die request_id sofort
+
+
+def run_media(base, job):
+    """Medien-Auftrag bei fal.ai (#701): Bild, Video oder Ton. Kostenpflichtig, deshalb nur mit `media.confirm: true` (ausdrückliche Bestätigung im Chat).
+    Die `request_id` wird sofort in den Auftrag geschrieben und gesichert (`submitted`); ein späterer Lauf holt nur ab, sendet nie ein zweites Mal.
+    Ergebnis im Arbeits-Branch unter `media/<auftrag>/` (oder `media.output`), nie im Manuskript; keine Freigabe."""
+    import base64
+    import fal_media
+    base = Path(base)
+    m = job['data'].get('media') or {}
+    model, prompt = str(m.get('model') or '').strip(), str(m.get('prompt') or '').strip()
+    if not model or not prompt:
+        raise research.ResearchError('Medien-Auftrag: Modell und Prompt angeben (--field model=… --field prompt=…).')
+    if m.get('confirm') is not True:
+        raise research.ResearchError('Ohne ausdrückliche Bestätigung (confirm) wird nichts bezahlt: Kosten und Aufrufzahl vorher im Chat nennen.')
+    stem = job['path'].stem
+    outdir = Path(str(m.get('output') or f'media/{stem}'))
+    if outdir.is_absolute() or '..' in outdir.parts:
+        raise research.ResearchError('media.output muss ein Ordner im Buch sein.')
+    try:
+        key = fal_media.api_key()
+        rid = (job['data'].get('submitted') or {}).get('request_id')
+        if not rid:
+            params = m.get('params')
+            if isinstance(params, str) and params.strip():
+                params = json.loads(params)
+            body = dict(params) if isinstance(params, dict) else {}
+            body['prompt'] = prompt
+            if m.get('seed') not in (None, ''):
+                body['seed'] = int(m['seed'])
+            if m.get('input'):
+                src = (base / str(m['input'])).resolve()
+                if base.resolve() not in src.parents or not src.is_file():
+                    raise research.ResearchError('media.input muss eine Bilddatei im Buch sein.')
+                mime = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp'}.get(src.suffix.lower())
+                if not mime:
+                    raise research.ResearchError('media.input: JPEG, PNG oder WebP.')
+                body['image_url'] = f'data:{mime};base64,' + base64.b64encode(src.read_bytes()).decode('ascii')
+            rid = fal_media.submit(model, body, key)
+            job['data']['submitted'] = {'request_id': rid, 'at': now_utc().isoformat()}
+            write(job['path'], job['data'])
+            if _CTX['commit']:   # sichern, bevor gewartet wird: ein Absturz darf nie ein zweites, bezahltes Senden auslösen
+                commit_push(base, f'Medien-Auftrag {stem} gesendet', _CTX['push_to'], paths=['jobs'], action='media.submit')
+        fal_media.wait(model, rid, key, timeout=int(os.environ.get('FAL_WAIT_SECONDS') or 600))
+        urls = fal_media.media_urls(fal_media.result(model, rid, key))
+        saved = []
+        for n, (kind, url) in enumerate(urls[:4], 1):
+            ext = Path(url.split('?')[0]).suffix.lower() or {'video': '.mp4', 'image': '.png', 'audio': '.mp3'}[kind]
+            dest = base / outdir / f'{kind}-{n}{ext}'
+            fal_media.download(url, dest)
+            saved.append(dest.relative_to(base).as_posix())
+    except (fal_media.FalError, ValueError) as e:   # JSONDecodeError ist ein ValueError
+        raise research.ResearchError(str(e)[:300])
+    meta = {'model': model, 'seed': m.get('seed'), 'prompt': prompt, 'files': saved, 'created_at': now_utc().isoformat(),
+            'note': 'Entwurf, keine Freigabe. Die request_id steht nicht hier.'}
+    write(base / outdir / 'media.yml', {k: v for k, v in meta.items() if v is not None})
+    cpath = base / 'costs' / 'project.yml'
+    cpath.parent.mkdir(exist_ok=True)
+    data = read(cpath) if cpath.is_file() else {'scope': 'project'}
+    price = m.get('price_usd')
+    entry = {'activity_id': f'act-media-{stem}', 'occurred_at': now_utc().isoformat(), 'source': 'action_api', 'provider': 'fal',
+             'model': model, 'activity_type': 'other', 'currency': 'USD', 'cost_amount': float(price) if price is not None else None,
+             'cost_status': 'estimated' if price is not None else 'unavailable', 'other_usage_quantity': 1,
+             'note': 'Medien-Auftrag (Hintergrundlauf)' + ('' if price is not None else ', Preis nicht angegeben')}
+    data['entries'] = (data.get('entries') or []) + [entry]
+    write(cpath, data)
+    return {'label': f'Medium erzeugt: {saved[0]}' + (f' (+{len(saved) - 1})' if len(saved) > 1 else ''),
+            'paths': [outdir.as_posix(), 'costs/project.yml'], 'action': 'media.fal'}
+
+
+RUNNERS = {'media': run_media, 'agent': run_agent, 'colorize': run_colorize, 'analysis': run_analysis, 'import': run_import, 'chapter_review': run_chapter_review}
 
 
 def run_job(base, job, defaults, now):
@@ -720,6 +793,7 @@ def process(base, defaults=None, limit=LIMIT, push_to=None, commit=True, now=Non
     base = Path(base)
     config = read(base / 'ghostwriter.yml') or {}
     results = []
+    _CTX.update(push_to=push_to, commit=bool(commit))
     for _ in range(limit):
         ready = queue(base, config, types, now)   # jedes Mal neu: ein erledigter Auftrag gibt abhängige frei (#478)
         if not ready:

@@ -21,7 +21,7 @@ import jobs  # noqa: E402
 TEXT = {
     'de': {
         'title': 'Hintergrund-Warteschlange', 'none': 'keine Aufträge', 'one': '1 Auftrag', 'many': '{n} Aufträge',
-        'research': 'Recherche', 'analysis': 'Analyse', 'colorize': 'Colorieren', 'import': 'Import', 'chapter_review': 'Rundumprüfung', 'agent': 'Auftrag für die Sitzung',
+        'research': 'Recherche', 'analysis': 'Analyse', 'colorize': 'Colorieren', 'import': 'Import', 'chapter_review': 'Rundumprüfung', 'agent': 'Auftrag für die Sitzung', 'media': 'Medium (fal.ai)',
         'handover': 'Prüfungen ohne KI erledigt, wartet auf die KI-Teile im Chat',
         'open': 'wartet', 'budget': 'wartet auf Bestätigung (KI-Budget knapp)', 'blocked': 'wartet auf einen anderen Auftrag',
         'blocked_by': 'Erst nach {name}', 'locked_by': 'wartet: ausgecheckt ({id}), bis der Checkout beendet ist', 'priority': 'vorgezogen', 'queued': 'eingereicht {when}',
@@ -32,7 +32,7 @@ TEXT = {
     },
     'en': {
         'title': 'Background queue', 'none': 'no jobs', 'one': '1 job', 'many': '{n} jobs',
-        'research': 'Research', 'analysis': 'Analysis', 'colorize': 'Colorize', 'import': 'Import', 'chapter_review': 'Editorial review', 'agent': 'Task for the session',
+        'research': 'Research', 'analysis': 'Analysis', 'colorize': 'Colorize', 'import': 'Import', 'chapter_review': 'Editorial review', 'agent': 'Task for the session', 'media': 'Media (fal.ai)',
         'handover': 'checks without AI done, waiting for the AI parts in chat',
         'open': 'waiting', 'budget': 'waiting for confirmation (AI budget low)', 'blocked': 'waiting for another job',
         'blocked_by': 'Only after {name}', 'locked_by': 'waiting: checked out ({id}) until the checkout ends', 'priority': 'moved up', 'queued': 'queued {when}',
@@ -76,7 +76,7 @@ def title(job, config, language):
     where = section_label(config, job['section_id']) if job['type'] == 'research' else ''
     if not where:
         extra = data.get(job['type']) if isinstance(data.get(job['type']), dict) else {}
-        where = str(str(extra.get('task') or '')[:60] or extra.get('kind') or extra.get('folder') or extra.get('step') or (extra.get('chapters') if isinstance(extra.get('chapters'), str) else ', '.join(extra.get('chapters') or [])) or '')
+        where = str(str(extra.get('task') or '')[:60] or str(extra.get('model') or '') or extra.get('kind') or extra.get('folder') or extra.get('step') or (extra.get('chapters') if isinstance(extra.get('chapters'), str) else ', '.join(extra.get('chapters') or [])) or '')
     return f'{kind} · {where}' if where else kind
 
 
@@ -85,7 +85,7 @@ def detail(job):
     if job['type'] == 'research':
         return str(data.get('question') or '')
     extra = data.get(job['type']) if isinstance(data.get(job['type']), dict) else {}
-    return ', '.join(f'{k}: {v}' for k, v in extra.items() if k in ('kind', 'scope', 'folder', 'file', 'step', 'chapters') and v and not isinstance(v, list))
+    return ', '.join(f'{k}: {v}' for k, v in extra.items() if k in ('kind', 'scope', 'folder', 'file', 'step', 'chapters', 'model') and v and not isinstance(v, list))
 
 
 def done_runs(base, language):

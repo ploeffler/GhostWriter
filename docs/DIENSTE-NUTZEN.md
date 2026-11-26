@@ -118,6 +118,10 @@ Hast du für **Recherche** einen Dienst mit API-Schlüssel eingestellt, recherch
 
 Ist Google Gemini mit dem Secret `GEMINI_API_KEY` eingetragen, färbt die Action „Bild colorieren“ Schwarz-Weiß-Fotos ein und übernimmt davon nur die Farbe ([Fotos colorieren](BILDER-UND-REFERENZBILDER.md#fotos-colorieren-452)). Ein eigenes Bildmodell kannst du unter **Einstellungen** des Dienstes als **Modell** eintragen (ein Name mit `image`, z. B. `gemini-2.5-flash-image`); sonst gilt diese Vorgabe. Andere Bilddienste mit eigenem Secret laufen noch nicht über die Action.
 
+## Medien erzeugen mit fal.ai (#701)
+
+Für Bild, Video oder Ton gibt es die Auftragsart `media` der Hintergrund-Warteschlange. Die Action „Medien erzeugen (fal.ai)“ (`.github/workflows/media.yml`) arbeitet die Aufträge ab und braucht das Secret **`FAL_KEY`** ([API-Schlüssel als GitHub-Secret](#api-schlüssel-als-github-secret)). Ein Runner hat freien Internetzugang; Hosts müssen nicht freigegeben werden (anders als in einer Cloud-Sitzung, siehe chillyconcane/YAWA#440). Das kostet Geld bei fal.ai, deshalb legt der Assistent einen Auftrag nur nach deiner ausdrücklichen Bestätigung an (Modell, Zahl der Aufrufe, geschätzter Preis). Jeder Auftrag wird genau einmal gesendet; Abbruch oder Zeitüberschreitung führen nie zu einem zweiten, bezahlten Aufruf, ein späterer Lauf holt das Ergebnis nur ab. Ergebnisse sind Entwürfe im Arbeits-Branch (`media/<auftrag>/`), keine Freigabe. Nutzungsbedingungen und Preise des gewählten Modells liest du vorher auf der fal-Seite; GhostWriter trägt keine Preise aus dem Gedächtnis ein.
+
 ## Agent für Aufgaben
 
 Es gibt nur **eine** Warteschlange, die Hintergrund-Warteschlange (siehe oben). Der „Agent für Aufgaben“ ist der Agent, der Aufgaben als Issues in GitHub (z. B. „Quelle in Abschnitt 2.3 prüfen“). Ein Agent kann ein Issue übernehmen, die Dateien bearbeiten und einen Pull Request anlegen. Standard ist **manuell**: Du arbeitest die Aufgaben im Chat ab.
