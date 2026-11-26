@@ -2,6 +2,7 @@
 import io
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -165,6 +166,45 @@ class PortraitsAnalysisTest(Base):
                                  capture_output=True, text=True).stdout
             self.assertIn(word, out)
             self.assertNotIn('{{', out)
+
+
+class FigureImageViewTest(Base):
+    """Widget-Daten und Textfassung für Stilkarten und Variantenvergleich (#540, Teil 3)."""
+    def view(self, *args):
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'figure-image', *args, '--repo', 'o/r'],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def data(self, *args):
+        import re
+        from tests.widget_helpers import widget_json
+        return widget_json(re.search(r'GW\.render\("figurenbild",(.*)\)</script>', self.view(*args)).group(1))
+
+    def test_style_cards_and_current_values(self):
+        d = self.data('stil')
+        self.assertEqual([m['M_VALUE'] for m in d['MEDIA']], list(figurenbild.MEDIEN))
+        self.assertEqual(d['FB_MEDIUM'], '')
+        self.run_cli('stil', 'set', json.dumps({'medium': 'comic', 'merkmale': 'Bart, Hut', 'licht': 'hart'}))
+        d = self.data('stil')
+        self.assertEqual((d['FB_MEDIUM'], d['FB_LICHT'], d['FB_MERKMALE']), ('comic', 'hart', 'Bart, Hut'))
+
+    def test_variants_with_thumbnail_and_text(self):
+        from PIL import Image
+        Image.new('RGB', (40, 30), 'red').save(self.tmp / 'real.png')
+        self.run_cli('variante', 'opi', str(self.tmp / 'real.png'), '--prompt-datei', str(self.tmp / 'prompt.txt'), '--kleidung', 'Jacke')
+        self.run_cli('variante', 'opi', str(self.tmp / 'real.png'), '--prompt-datei', str(self.tmp / 'prompt.txt'), '--art', 'aenderung', '--eingabe', 'bild-001')
+        d = self.data('Opi')
+        self.assertEqual([v['V_ID'] for v in d['VARIANTS']], ['bild-001', 'bild-002'])
+        self.assertTrue(d['VARIANTS'][0]['V_THUMB'].startswith('data:image/jpeg;base64,'))   # Ableitung, nicht das Original
+        self.assertEqual(d['VARIANTS'][1]['V_INPUT'], 'aus bild-001')
+        self.assertNotIn('V_PROMPT', {k for k in d['VARIANTS'][0] if len(str(d['VARIANTS'][0][k])) > 140})
+        text = self.view('Opi', '--text')
+        self.assertIn('bild-002', text)
+        self.assertIn('Referenzfreigabe', text)
+        self.assertIn('Images of Opi', self.view('Opi', '--text', '--language', 'en'))
+        self.assertNotEqual(subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'figure-image', 'Gibtsnicht', '--repo', 'o/r'],
+                                           capture_output=True, text=True).returncode, 0)
 
 
 if __name__ == '__main__':
