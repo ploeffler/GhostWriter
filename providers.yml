@@ -40,6 +40,12 @@ model_defaults:
     research: {model: claude-sonnet-5-5, checked_at: "2026-11-25"}   # öffentliche Abkündigungsseite: als Ersatz genannt, keine Abschaltung angekündigt
   openai:
     research: {model: gpt-6.1-terra, checked_at: "2026-11-26"}   # Entscheidung Peter 25.11.2026 (#638): Ersatz für gpt-5 (Abschaltung 2026-12-11), günstiger als die empfohlene Stufe gpt-6.1-sol
+  perplexity:
+    research: {model: perplexity/sonar, checked_at: "2026-11-26", note: "Agent API (POST /v1/agent); Sonar über Chat Completions endete am 2026-09-27"}
+  xai:
+    research: {model: grok-4.3, checked_at: "2026-11-26"}
+  openrouter:
+    research: {model: openai/gpt-5.6-luna, checked_at: "2026-11-26"}
   google:
     research: {model: gemini-3.8-flash, checked_at: "2026-11-25"}   # öffentliche Abkündigungsseite: als Ersatz für 3.5 bis 3.7 genannt
     # Abschaltung frühestens 2027-03-15 (ältere Fassung der Seite nannte 2026-10-02); Ersatz laut Anbieter gemini-3.1-flash-lite-image.
@@ -60,6 +66,14 @@ prices:
     # bis der Preis feststeht (offene Frage an Peter an #66).
     gpt-6.1-sol: {currency: USD, input_per_mtok: 2, output_per_mtok: 10, search_per_1k: 10, source: "https://developers.openai.com/api/docs/pricing", checked_at: "2026-11-26"}
   # google: Preisseite war bei der Prüfung nicht erreichbar; bewusst ohne Einträge (Beträge bleiben „unbekannt“).
+  # Teil 2 von #462 (26.11.2026, auf den Anbieterseiten gegengeprüft). Perplexity: Agent API, web_search 0,0025 $ je Aufruf; xAI: web_search 5 $ je 1.000 Aufrufe;
+  # OpenRouter: Modellpreise laut Modellliste, Websuche über Exa 0,007 $ je Anfrage (Standard-Engine; andere Engines kosten anders, dann weicht die Schätzung ab).
+  perplexity:
+    perplexity/sonar: {currency: USD, input_per_mtok: 0.25, output_per_mtok: 2.5, search_per_1k: 2.5, source: "https://docs.perplexity.ai/docs/getting-started/pricing.md", checked_at: "2026-11-26"}
+  xai:
+    grok-4.3: {currency: USD, input_per_mtok: 1.25, output_per_mtok: 2.5, search_per_1k: 5, source: "https://docs.x.ai/developers/pricing.md", checked_at: "2026-11-26"}
+  openrouter:
+    openai/gpt-5.6-luna: {currency: USD, input_per_mtok: 0.2, output_per_mtok: 1.2, search_per_1k: 7, source: "https://openrouter.ai/docs/guides/features/server-tools/web-search", checked_at: "2026-11-26"}
 
 # Sonderwert: der Assistent, mit dem gerade gechattet wird (egal welcher Anbieter).
 special:
@@ -157,7 +171,7 @@ providers:
     api_key_url: https://console.x.ai
 
   - id: perplexity
-    name: Perplexity (App / Sonar API)
+    name: Perplexity (App / Agent API)
     kind: llm
     hq: US
     access: [app, api]
@@ -308,7 +322,7 @@ search_tools:
   - id: tavily
     name: Tavily
     kind: search_api
-    note: Für KI-Agenten entwickelte Such-API.
+    note: Für KI-Agenten entwickelte Such-API. Vorgesehener Standard-Suchdienst (Entscheidung Peter 26.11.2026), noch nicht angebunden.
     url: https://tavily.com
     api_key_secret: TAVILY_API_KEY
     api_key_url: https://app.tavily.com
