@@ -410,6 +410,46 @@ class ChapterReviewTest(Base):
         self.assertEqual(jobs.WORKFLOW['chapter_review'], 'analyse.yml')
 
 
+class AgentJobTest(Base):
+    """#65: Auftragsart `agent` als Übergabe an die Sitzung (wie die Rundumprüfung, kein Agent auf GitHub)."""
+    def test_enqueue_validates_and_start_conditions_hold_it_back(self):
+        with self.assertRaises(ValueError):
+            jobs.enqueue(self.base, 'agent', fields={'kind': 'review'})                      # ohne Aufgabe
+        with self.assertRaises(ValueError):
+            jobs.enqueue(self.base, 'agent', fields={'task': 'x', 'kind': 'issues'})         # keine Issues im Hauptrepo
+        path = jobs.enqueue(self.base, 'agent', fields={'task': 'Kapitel 2 auf Zeitform prüfen', 'criteria': 'Befund je Satz; keine Änderung'},
+                            after_event='chapter_approved:ch-02')
+        data = yaml.safe_load(path.read_text())
+        self.assertEqual(data['agent'], {'task': 'Kapitel 2 auf Zeitform prüfen', 'kind': 'review', 'criteria': ['Befund je Satz', 'keine Änderung']})
+        import jsonschema
+        jsonschema.validate(data, __import__('json').loads((ROOT / 'schemas/job.schema.json').read_text()))
+        self.assertEqual(jobs.queue(self.base, types=['agent']), [])                         # Startbedingung offen: bleibt liegen
+        self.assertIn('Kapitel abgeschlossen', jobs.jobs(self.base)[0]['start_wait'])
+
+    def test_process_hands_over_for_free_and_session_completes(self):
+        path = jobs.enqueue(self.base, 'agent', fields={'task': 'Figur Opi gegen Zeitleiste prüfen', 'kind': 'analysis'})
+        with mock.patch.object(jobs, 'budget_low', return_value=True):                        # kostet nichts
+            results, remaining = jobs.process(self.base, commit=False)
+        self.assertTrue(results[0]['ok'] and not results[0].get('waiting'))
+        data = yaml.safe_load(path.read_text())
+        self.assertIn('Figur Opi', data['handover']['note'])
+        self.assertEqual(jobs.find(self.base, path.name)['state'], 'handover')
+        self.assertEqual(jobs.process(self.base, commit=False)[0], [])                       # nicht erneut
+        jobs.commit_push(self.base, 'Auftrag', 'buch/b', paths=['jobs'])
+        git(self.base, 'fetch', '-q', 'origin')
+        self.assertEqual(jobs.remote_pending(self.base), {})                                  # keine Action zu starten
+        status = jobs.remote_status(self.base)['buch/b']
+        text = jobs.report({'buch/b': status})
+        self.assertIn('Auftrag für die Sitzung', text)
+        self.assertIn('Auftrag für die Sitzung', jobs.report({'buch/b': status}))
+        self.assertIn('task for this session', jobs.report({'buch/b': status}, 'en'))
+        import queue_view
+        view = queue_view.text_view(self.base, yaml.safe_load((self.base / 'ghostwriter.yml').read_text()))
+        self.assertIn('Auftrag für die Sitzung', view)
+        self.assertEqual(jobs.main([str(self.base), 'complete', '--request', path.relative_to(self.base).as_posix()]), 0)
+        self.assertFalse(path.exists())
+
+
 class WorkflowTest(unittest.TestCase):
     def test_workflow_queue(self):
         """#480/#479: alle vier Actions legen Aufträge im Job prep an (ohne Gruppe, nie verdrängt) und arbeiten
