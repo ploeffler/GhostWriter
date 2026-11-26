@@ -33,6 +33,7 @@ managed:
   - .claude/skills/ghostwriter-gegenlesen/  # Auschecken zum Gegenlesen, Einchecken (#572, #573)
   - .claude/skills/ghostwriter-material/  # Material einbringen (#574)
   - .claude/skills/ghostwriter-figurenbild/  # Figurenbild-Assistent (#540)
+  - .claude/skills/ghostwriter-kurz-und-klar/  # Antwortstil „Kurz und klar“ (#698)
   - .claude/skills/ghostwriter-anekdoten/  # Anekdoten erfassen und einbauen (#643)
   - ghostwriter-manifest.yml
   - ghostwriter-skills.yml     # festgelegte Quelle und Prüfsummen allgemeiner Skills
