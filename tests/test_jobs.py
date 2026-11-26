@@ -313,6 +313,103 @@ class OtherTypesTest(Base):
         self.assertEqual(jobs.remote_pending(self.base)['buch/b'], {'analyse.yml': 1, 'colorize.yml': 1})
 
 
+class ChapterReviewTest(Base):
+    """#531: Rundumprüfung als Übergabe: nur Prüfungen ohne KI in der Warteschlange, KI-Teile beim nächsten Einstieg."""
+    def ready(self, chapter):
+        for sid in (f'sec-0{chapter}-01', f'sec-0{chapter}-02'):
+            path = self.base / f'chapters/ch-0{chapter}/sections/{sid}.md'
+            text = path.read_text(encoding='utf-8').replace('status: planned', 'status: writing')
+            path.write_text(text + '\n## Manuskript\n\nEin Satz Text.\n', encoding='utf-8')
+
+    def test_enqueue_chapters_and_schema(self):
+        path = jobs.enqueue(self.base, 'chapter_review', fields={'chapters': 'ch-02,ch-01'})
+        data = yaml.safe_load(path.read_text())
+        self.assertEqual(data['type'], 'chapter_review')
+        self.assertEqual(data['chapter_review'], {'chapters': 'ch-02,ch-01'})
+        import jsonschema
+        jsonschema.validate(data, __import__('json').loads((ROOT / 'schemas/job.schema.json').read_text()))
+        self.assertEqual([n for n, _ in jobs.review_chapters({'structure': {'chapters': [{'id': 'a'}, {'id': 'b'}, {'id': 'c'}]}}, 'c,a')], [1, 3])
+        with self.assertRaises(research.ResearchError):
+            jobs.review_chapters({'structure': {'chapters': [{'id': 'a'}]}}, 'x')
+
+    def run_review(self, fields):
+        path = jobs.enqueue(self.base, 'chapter_review', fields=fields)
+        calls = []
+
+        def script(base, name, *args, env=None):
+            calls.append((name, args))
+            folder = Path(base) / 'analysis' / 'language'
+            folder.mkdir(parents=True, exist_ok=True)
+            (folder / f'run-00{len(calls)}.json').write_text('{}')
+            return ''
+        with mock.patch.object(jobs, 'script', script), mock.patch.object(jobs, 'budget_low', return_value=True):
+            results, remaining = jobs.process(self.base, commit=False)
+        return path, calls, results, remaining
+
+    def test_handover_instead_of_deleting_and_budget_ignored(self):
+        self.ready(1)   # Kapitel 2 bleibt unfertig
+        path, calls, results, remaining = self.run_review({'chapters': 'all'})
+        self.assertTrue(results[0]['ok'] and not results[0].get('waiting'))   # kostet nichts: auch bei knappem Budget
+        self.assertTrue(path.exists())                                          # Auftrag bleibt für den Assistenten
+        data = yaml.safe_load(path.read_text())
+        rows = {r['id']: r for r in data['handover']['chapters']}
+        self.assertTrue(rows['ch-01']['ready'])
+        self.assertEqual(rows['ch-01']['language_run'], 'run-001.json')
+        self.assertIn('structure', rows['ch-01']['ai_steps'])
+        self.assertFalse(rows['ch-02']['ready'])                                # unfertiges Kapitel: nur berichtet, nicht geprüft
+        self.assertEqual(rows['ch-02']['language_run'], '')
+        self.assertEqual(calls, [('analyze.py', ('run', '--kind', 'language', '--scope', '1'))])   # keine KI-Art, nur „language“
+        self.assertEqual(jobs.find(self.base, path.name)['state'], 'handover')
+        self.assertEqual(remaining, 0)
+        again, _ = jobs.process(self.base, commit=False)                        # läuft nicht noch einmal
+        self.assertEqual(again, [])
+
+    def test_approvals_and_stale_are_reported_not_changed(self):
+        self.ready(1)
+        sec = self.base / 'chapters/ch-01/sections/sec-01-01.md'
+        text = sec.read_text(encoding='utf-8').replace('section: false', 'section: true').replace(
+            'status: writing', 'status: writing\nstale:\n  since: "2026-11-01"\n  reason: Fakt geändert')
+        sec.write_text(text, encoding='utf-8')
+        path, _, _, _ = self.run_review({'chapters': 'ch-01'})
+        row = yaml.safe_load(path.read_text())['handover']['chapters'][0]
+        self.assertEqual((row['sections_approved'], row['stale']), (1, ['sec-01-01']))
+        self.assertEqual(sec.read_text(encoding='utf-8'), text)                 # nichts geändert
+
+    def test_complete_cancel_report_and_remote(self):
+        self.ready(1)
+        path, _, _, _ = self.run_review({'chapters': 'ch-01'})
+        rel = path.relative_to(self.base).as_posix()
+        jobs.commit_push(self.base, 'Auftrag', 'buch/b', paths=['analysis'])   # Buch-Branch (TARGET)
+        git(self.base, 'fetch', '-q', 'origin')
+        self.assertEqual(jobs.remote_pending(self.base), {})                     # nichts mehr zu starten
+        status = jobs.remote_status(self.base)['buch/b']
+        self.assertEqual((status['handover'], status['waiting']), (1, 0))
+        text = jobs.report({'buch/b': status})
+        self.assertIn('KI-Teile', text)
+        self.assertIn(f'complete --request {rel}', text)
+        self.assertIn('review(s) waiting', jobs.status_text(status, 'en'))
+        self.assertEqual(jobs.listing(self.base)[0]['state'], 'handover')
+        self.assertEqual(jobs.main([str(self.base), 'complete', '--request', rel]), 0)
+        self.assertFalse(path.exists())
+        with self.assertRaises(ValueError):
+            jobs.complete(self.base, rel)                                        # nur Übergabe-Aufträge
+
+    def test_queue_view_shows_handover(self):
+        import queue_view
+        self.ready(1)
+        self.run_review({'chapters': 'ch-01'})
+        config = yaml.safe_load((self.base / 'ghostwriter.yml').read_text())
+        text = queue_view.text_view(self.base, config)
+        self.assertIn('Rundumprüfung', text)
+        self.assertIn('wartet auf die KI-Teile', text)
+        self.assertIn('Editorial review', queue_view.text_view(self.base, config, 'en'))
+
+    def test_workflow_processes_chapter_review(self):
+        text = (ROOT / '.github/workflows/analyse.yml').read_text(encoding='utf-8')
+        self.assertIn('--types analysis,chapter_review', text)
+        self.assertEqual(jobs.WORKFLOW['chapter_review'], 'analyse.yml')
+
+
 class WorkflowTest(unittest.TestCase):
     def test_workflow_queue(self):
         """#480/#479: alle vier Actions legen Aufträge im Job prep an (ohne Gruppe, nie verdrängt) und arbeiten
