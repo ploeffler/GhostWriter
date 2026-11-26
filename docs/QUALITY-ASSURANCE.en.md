@@ -216,6 +216,8 @@ The user can change response mode at any time:
 - **“Extended answers on”** or **“Debugger mode on”**: Show technical detail, repository/file paths, branches, commits, validation messages, causes and status more fully.
 - **“Extended answers off”**, **“Debugger mode off”** or **“Simple mode”**: Return to concise, everyday explanations.
 
+**“Short and clear on” / “Short and clear off” (#698):** Answer style, independent of the response mode: result first, at most 3–5 points, one question as a choice, decisions one at a time, a separate “👉 You: …” line, everyday language, recommendation first for research. The procedure is in the skill `ghostwriter-kurz-und-klar` (ghostwriter-skills). Errors, risks, costs and approvals are never dropped. As the library default: `answer_style: kurz-und-klar` in `assistant.yml` (“Short and clear permanently”).
+
 The selected mode lasts for the current chat until changed. Do not claim it has been saved permanently unless an explicitly available project setting is used.
 
 ## Display modes

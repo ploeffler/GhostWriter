@@ -190,6 +190,10 @@ def display_line(profile):
         parts.append('- Darstellungsmodus in Claude: Widget (`render_view.py` ohne `--text`).')
     if ans:
         parts.append(f'- Antwortmodus: {ANSWERS[ans]} als Standard dieses Repositorys; „Erweiterte Antworten an/aus“ im Chat geht vor.')
+    if profile.get('answer_style') == 'kurz-und-klar':
+        parts.append('- Antwortstil „Kurz und klar“ (#698) ist der Standard dieses Repositorys: den Skill `ghostwriter-kurz-und-klar` '
+                     'laden und befolgen; „Kurz und klar an/aus“ im Chat geht vor. Er regelt die Form, der Antwortmodus die Detailtiefe; '
+                     'Fehler, Risiken, Kosten und Freigaben fallen nie weg.')
     if profile.get('answer_backup') == 'hintergrund':
         parts.append('- Antwortsicherung im Abschnittsdialog: im Hintergrund (`chat_backup.py answer-checkpoint … --background`), '
                      'nächste Frage sofort; vor der nächsten Sicherung `chat_backup.py wait <session>` (START.md, #487).')
@@ -304,7 +308,7 @@ def set_profile(base, changes, force=False):
     hand = handwritten(base, prof)
     if hand and not force:
         return None, [handwritten_error(hand.relative_to(base))], None
-    order = ['format', 'repo', 'skill', 'interface_language', 'work_modes', 'display', 'answers', 'answer_backup', 'subagent_models', 'startup', 'git',
+    order = ['format', 'repo', 'skill', 'interface_language', 'work_modes', 'display', 'answers', 'answer_style', 'answer_backup', 'subagent_models', 'startup', 'git',
              'author', 'voice', 'upstream']
     prof = {k: prof[k] for k in order if k in prof}
     header = '# Assistenten-Profil (#136): gilt für alle Bücher dieses Repositorys; daraus entsteht\n' \

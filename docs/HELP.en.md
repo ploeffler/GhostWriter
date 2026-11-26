@@ -37,6 +37,7 @@ Enter **Help** in the chat for a short list of commands and shortcuts for the cu
 | `Text only` | Switch to text views |
 | `Simple mode` | Short, plain answers |
 | `Extended answers on` | Include technical detail |
+| `Short and clear on` | Answer style: result first, few points, one question as a choice |
 
 ## Collect and merge changes
 
