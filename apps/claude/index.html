@@ -132,12 +132,40 @@ function fileOf(res){
   }
   return {text, sha, commit};
 }
+/* ---------- Anschlüsse (#662): alles, was die App von GitHub und von der KI braucht, geht über GW_PORTS ----------
+   Die Ansichten und Abläufe kennen keinen Konnektor. Ein anderer Anschluss (eigene Web-App: GitHub-REST mit Token) liefert dieselben Formen:
+   git.getFile(path, ref, {owner, repo}) → {text, sha, commit} · git.getBlob(path, ref) → {b64, mime}|null · git.listDir(path, ref) → [Eintrag]
+   git.listPRs({head, base, perPage, owner, repo}) → [PR] (head/base als Branch-Namen) · git.prCommits(nr) → [Commit] · git.createBranch(name, from)
+   git.createPR({head, base, title, body}) · git.mergePR(nr, {title, expectedHeadSha}) · git.updatePRBranch(nr) · git.pushFiles(branch, files, message, action)
+   git.me() → Login|"" · git.repoInfo(owner, repo, full) → Repository|null · git.listBranches(owner, repo, seite) → [Branch]
+   ai: S.sample (oder null) · store: localStorage · agent: Kennung in Commit-Nachrichten */
+const refOf = ref => ref ? (/^[0-9a-f]{40}$/.test(ref) ? ref : "refs/heads/" + ref) : "";
+const arr = r => Array.isArray(r && r.payload) ? r.payload : [];
+const GW_PORTS = {
+  agent: "GhostWriter für Claude",
+  git: {
+    async getFile(path, ref, o){ o = o || {}; const input = {owner:o.owner || S.owner, repo:o.repo || S.repo, path}; if (ref) input.ref = refOf(ref); return fileOf(await call("get_file_contents", input)); },
+    async getBlob(path, ref){ return blobOf(await call("get_file_contents", {owner:S.owner, repo:S.repo, path, ref:"refs/heads/" + ref})); },
+    async listDir(path, ref){ const input = {owner:S.owner, repo:S.repo, path}; if (ref) input.ref = "refs/heads/" + ref; return arr(await call("get_file_contents", input)); },
+    async listPRs(q){ q = q || {}; const o = q.owner || S.owner, input = {owner:o, repo:q.repo || S.repo, state:"open", perPage:q.perPage || 5};
+      if (q.head) input.head = o + ":" + q.head; if (q.base) input.base = q.base; return arr(await call("list_pull_requests", input)); },
+    async prCommits(nr){ return arr(await call("pull_request_read", {method:"get_commits", owner:S.owner, repo:S.repo, pullNumber:nr, perPage:100})); },
+    async createBranch(name, from){ await call("create_branch", {owner:S.owner, repo:S.repo, branch:name, from_branch:from}); },
+    async createPR(p){ await call("create_pull_request", {owner:S.owner, repo:S.repo, head:p.head, base:p.base, title:p.title, body:p.body}); },
+    async mergePR(nr, o){ o = o || {}; const input = {owner:S.owner, repo:S.repo, pullNumber:nr, merge_method:"merge"};
+      if (o.title) input.commit_title = o.title; if (o.expectedHeadSha) input.expectedHeadSha = o.expectedHeadSha; await call("merge_pull_request", input); },
+    async updatePRBranch(nr){ await call("update_pull_request_branch", {owner:S.owner, repo:S.repo, pullNumber:nr}); },
+    async pushFiles(branch, files, message, action){ await call("push_files", {owner:S.owner, repo:S.repo, branch, files, message:message + "\n\n" + GW_PORTS.agent + (action ? `\nGhostWriter-Aktion: ${action}` : "")}); },
+    async me(){ const r = await call("get_me", {}); return (r.payload && r.payload.login) || ""; },
+    async repoInfo(owner, repo, full){ const input = {query:`repo:${owner}/${repo}`}; if (full) input.minimal_output = false; const p = (await call("search_repositories", input)).payload;
+      return p ? (Array.isArray(p) ? p[0] : (p.items || [])[0]) || null : null; },
+    async listBranches(owner, repo, page){ const input = {owner, repo, perPage:100}; if (page) input.page = page; return arr(await call("list_branches", input)); }
+  }
+};
 async function getFile(path, ref, fresh){
   const key = (ref || "") + "|" + path;
   if (!fresh && S.files.has(key)) return S.files.get(key);
-  const input = {owner:S.owner, repo:S.repo, path};
-  if (ref) input.ref = /^[0-9a-f]{40}$/.test(ref) ? ref : "refs/heads/" + ref;
-  const f = fileOf(await call("get_file_contents", input));
+  const f = await GW_PORTS.git.getFile(path, ref);
   if (f.text === null) throw {message:"Datei nicht lesbar: " + path};
   S.files.set(key, f);
   return f;
@@ -145,12 +173,11 @@ async function getFile(path, ref, fresh){
 async function pool(items, n, fn){ const out = new Array(items.length); let i = 0; await Promise.all(Array.from({length:Math.min(n, items.length)}, async () => { while (i < items.length){ const k = i++; try { out[k] = await fn(items[k]); } catch (e) { out[k] = null; } } })); return out; }
 const workOf = b => b.work_branch || "ghostwriter/" + b.branch;
 async function openPR(b){
-  const res = await call("list_pull_requests", {owner:S.owner, repo:S.repo, state:"open", head:S.owner + ":" + workOf(b), base:b.branch, perPage:5});
-  const p = Array.isArray(res.payload) ? res.payload[0] : null;
+  const p = (await GW_PORTS.git.listPRs({head:workOf(b), base:b.branch}))[0] || null;
   return p ? {number:p.number, url:p.html_url, head:p.head && p.head.sha} : null;
 }
 async function prCommits(pr){
-  try { const c = await call("pull_request_read", {method:"get_commits", owner:S.owner, repo:S.repo, pullNumber:pr.number, perPage:100}); pr.list = Array.isArray(c.payload) ? c.payload : []; pr.commits = pr.list.length || 1; } catch (e) { pr.list = []; pr.commits = 1; }
+  try { pr.list = await GW_PORTS.git.prCommits(pr.number); pr.commits = pr.list.length || 1; } catch (e) { pr.list = []; pr.commits = 1; }
   return pr;
 }
 
@@ -590,14 +617,13 @@ async function prepareWork(){
   if (await openPR(b)) return work;
   const bk = await getFile("ghostwriter.yml", b.branch, true);
   const wk = await getFile("ghostwriter.yml", work, true).catch(() => null);
-  if (!wk){ await call("create_branch", {owner:S.owner, repo:S.repo, branch:work, from_branch:b.branch}); return work; }
+  if (!wk){ await GW_PORTS.git.createBranch(work, b.branch); return work; }
   if (wk.commit && bk.commit && wk.commit === bk.commit) return work;
   // Arbeits-Branch ist älter als das Buch: erst auf den Buchstand bringen (nur Buch → Arbeits-Branch)
   try {
-    await call("create_pull_request", {owner:S.owner, repo:S.repo, head:b.branch, base:work, title:`GhostWriter: Arbeits-Branch auf den Stand von ${b.branch} bringen`, body:"Automatisch vor dem nächsten Speichern: übernimmt den aktuellen Buchstand in den Arbeits-Branch. Das Buch selbst ändert sich dadurch nicht."});
-    const r = await call("list_pull_requests", {owner:S.owner, repo:S.repo, state:"open", head:S.owner + ":" + b.branch, base:work, perPage:5});
-    const p = Array.isArray(r.payload) && r.payload[0];
-    if (p) await call("merge_pull_request", {owner:S.owner, repo:S.repo, pullNumber:p.number, merge_method:"merge", commit_title:`Buchstand von ${b.branch} in den Arbeits-Branch übernommen`});
+    await GW_PORTS.git.createPR({head:b.branch, base:work, title:`GhostWriter: Arbeits-Branch auf den Stand von ${b.branch} bringen`, body:"Automatisch vor dem nächsten Speichern: übernimmt den aktuellen Buchstand in den Arbeits-Branch. Das Buch selbst ändert sich dadurch nicht."});
+    const p = (await GW_PORTS.git.listPRs({head:b.branch, base:work}))[0];
+    if (p) await GW_PORTS.git.mergePR(p.number, {title:`Buchstand von ${b.branch} in den Arbeits-Branch übernommen`});
   } catch (e) { if (!/no commits|nothing to compare|already/i.test((e && e.message) || "")) throw e; }
   return work;
 }
@@ -605,9 +631,9 @@ async function commit(files, message, opts){
   const b = S.book, work = workOf(b);
   files = files.filter(f => f && typeof f.content === "string");
   if (!files.length) return {nothing:true};
-  await call("push_files", {owner:S.owner, repo:S.repo, branch:work, files, message:message + "\n\nGhostWriter für Claude" + (opts && opts.action ? `\nGhostWriter-Aktion: ${opts.action}` : "")});
+  await GW_PORTS.git.pushFiles(work, files, message, opts && opts.action);
   let pr = await openPR(b), note = "";
-  if (!pr){ try { await call("create_pull_request", {owner:S.owner, repo:S.repo, head:work, base:b.branch, title:`GhostWriter: Änderungen für ${b.branch}`, body:"Angelegt mit GhostWriter für Claude. Übernahme ins Buch nur nach ausdrücklicher Bestätigung."}); pr = await openPR(b); } catch (e) { note = errText(e); } }
+  if (!pr){ try { await GW_PORTS.git.createPR({head:work, base:b.branch, title:`GhostWriter: Änderungen für ${b.branch}`, body:"Angelegt mit " + GW_PORTS.agent + ". Übernahme ins Buch nur nach ausdrücklicher Bestätigung."}); pr = await openPR(b); } catch (e) { note = errText(e); } }
   if (pr) await prCommits(pr);
   S.pr = pr;
   await loadBookData(work, files);
@@ -727,7 +753,7 @@ async function saveSection(data){
 
 /* Freigaben (START.md, „Freigaben“) */
 const EMPTY_MS = ["", "Noch nicht begonnen.", "Offen."];
-async function login(){ if (S.login) return S.login; try { const r = await call("get_me", {}); S.login = (r.payload && r.payload.login) || "chat"; } catch (e) { S.login = "chat"; } return S.login; }
+async function login(){ if (S.login) return S.login; try { S.login = (await GW_PORTS.git.me()) || "chat"; } catch (e) { S.login = "chat"; } return S.login; }
 async function sha256full(t){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t.trim())); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
 function nowIso(){ const d = new Date(), o = -d.getTimezoneOffset(), p = n => String(Math.abs(n)).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${o >= 0 ? "+" : "-"}${p(Math.trunc(o / 60))}:${p(o % 60)}`; }
 async function approvalState(data){
@@ -1018,7 +1044,7 @@ async function portraitData(ref, px){
   if (S.portraits.has(key)) return S.portraits.get(key);
   let url = "";
   try {
-    const b = blobOf(await call("get_file_contents", {owner:S.owner, repo:S.repo, path:ref.path, ref:"refs/heads/" + S.readRef})); if (!b) throw new Error("kein Bild");
+    const b = await GW_PORTS.git.getBlob(ref.path, S.readRef); if (!b) throw new Error("kein Bild");
     const bin = atob(b.b64), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     const obj = URL.createObjectURL(new Blob([bytes], {type:b.mime}));
     const img = await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => no(new Error("Bild nicht lesbar")); im.src = obj; });
@@ -1033,14 +1059,14 @@ async function portraitData(ref, px){
    gelesen ohne Branch-Angabe (= Standard-Branch), geschrieben direkt dorthin (kein Änderungspaket, wie im Chat) */
 const SOURCE_DE = {series:"aus der Serie", copy:"Kopie der Serie (gleich)", copy_diff:"Kopie, weicht von der Serie ab", own:"nur in diesem Buch"};
 async function listDefault(dir){
-  try { const r = await call("get_file_contents", {owner:S.owner, repo:S.repo, path:dir}); return Array.isArray(r.payload) ? r.payload : []; } catch (e) { return []; }
+  try { return await GW_PORTS.git.listDir(dir); } catch (e) { return []; }
 }
 async function defaultBranch(){
   if (S.defBranch && S.defBranch.repo === S.owner + "/" + S.repo) return S.defBranch.name;
   let name = "";
-  try { const r = await call("search_repositories", {query:`repo:${S.owner}/${S.repo}`}), it = r.payload && (Array.isArray(r.payload) ? r.payload[0] : (r.payload.items || [])[0]); name = (it && it.default_branch) || ""; } catch (e) {}
+  try { const it = await GW_PORTS.git.repoInfo(S.owner, S.repo); name = (it && it.default_branch) || ""; } catch (e) {}
   if (!name){   // Rückfall: der Branch, dessen Spitze der Standard-Stand von library.json ist
-    try { const lj = await call("get_file_contents", {owner:S.owner, repo:S.repo, path:"library.json"}), sha = fileOf(lj).commit, br = await call("list_branches", {owner:S.owner, repo:S.repo, perPage:100}), hit = (Array.isArray(br.payload) ? br.payload : []).filter(b => b.commit && b.commit.sha === sha).map(b => b.name);
+    try { const lj = await GW_PORTS.git.getFile("library.json"), sha = lj.commit, br = await GW_PORTS.git.listBranches(S.owner, S.repo), hit = br.filter(b => b.commit && b.commit.sha === sha).map(b => b.name);
       name = hit.includes("main") ? "main" : hit.includes("master") ? "master" : hit[0] || ""; } catch (e) {}
   }
   name = name || "main"; S.defBranch = {repo:S.owner + "/" + S.repo, name}; return name;
@@ -1073,7 +1099,7 @@ async function allChars(){
 const charSource = (it, ser) => !ser ? "" : it._series ? "series" : it._copy_of ? (it._differs ? "copy_diff" : "copy") : "own";
 async function commitDefault(files, message, action){
   const branch = await defaultBranch(); files = files.filter(f => f && typeof f.content === "string"); if (!files.length) return;
-  await call("push_files", {owner:S.owner, repo:S.repo, branch, files, message:message + "\n\nGhostWriter für Claude" + (action ? `\nGhostWriter-Aktion: ${action}` : "")});
+  await GW_PORTS.git.pushFiles(branch, files, message, action);
   S.seriesFor = null;   // nächstes Lesen holt den neuen Stand
 }
 
@@ -1801,8 +1827,8 @@ Setze den vollständigen Manuskripttext zwischen die Zeilen <<<MANUSKRIPT und MA
 }
 async function runFiles(x, folder){
   const dir = `${x.c.path}/${folder}/${x.s.id}`;
-  try { const r = await call("get_file_contents", {owner:S.owner, repo:S.repo, path:dir, ref:"refs/heads/" + S.readRef});
-    const list = (Array.isArray(r.payload) ? r.payload : []).filter(e => /^run-\d+\.md$/.test(e.name)).sort((a, b) => a.name.localeCompare(b.name));
+  try { const r = await GW_PORTS.git.listDir(dir, S.readRef);
+    const list = r.filter(e => /^run-\d+\.md$/.test(e.name)).sort((a, b) => a.name.localeCompare(b.name));
     const out = []; for (const e of list.slice(-3)) out.push({name:e.name, text:(await getFile(e.path || dir + "/" + e.name, S.readRef)).text});
     out.count = list.length; out.max = Math.max(0, ...list.map(e => +e.name.slice(4, -3)));
     return out;
@@ -1827,7 +1853,7 @@ async function webProvider(){
   return id ? {id, name:WEB_PROVIDERS[id]} : null;
 }
 async function listDir(dir, ref){
-  try { const r = await call("get_file_contents", {owner:S.owner, repo:S.repo, path:dir, ref:"refs/heads/" + ref}); return Array.isArray(r.payload) ? r.payload : []; }
+  try { return await GW_PORTS.git.listDir(dir, ref); }
   catch (e) { return []; }
 }
 async function webResearch(id, confirmLow){
@@ -1844,7 +1870,7 @@ async function webResearch(id, confirmLow){
     if ((await wf(work)) !== want){
       const pr = await openPR(S.book);
       if (pr){ busy("Änderungspaket wird auf den Buchstand gebracht …");
-        await call("update_pull_request_branch", {owner:S.owner, repo:S.repo, pullNumber:pr.number});
+        await GW_PORTS.git.updatePRBranch(pr.number);
         for (let i = 0; i < 12 && (await wf(work)) !== want; i++) await new Promise(r => setTimeout(r, 1500)); }
       if ((await wf(work)) !== want)
         throw {message:"Das Änderungspaket ist älter als das letzte GhostWriter-Update und ließ sich nicht automatisch auf den Buchstand bringen. Auf GitHub im Änderungspaket „Update branch“ klicken oder es zuerst übernehmen, dann die Recherche noch einmal starten."};
@@ -1961,9 +1987,7 @@ async function merge(data){
   if (!S.pr || Number(data.pull_request) !== S.pr.number) return;
   busy("Wird übernommen …");
   try {
-    const input = {owner:S.owner, repo:S.repo, pullNumber:S.pr.number, merge_method:"merge"};
-    if (data.expected_head_sha) input.expectedHeadSha = data.expected_head_sha;
-    await call("merge_pull_request", input);
+    await GW_PORTS.git.mergePR(S.pr.number, {expectedHeadSha:data.expected_head_sha});
     S.msg = {kind:"ok", html:`<b>Übernommen.</b> Änderungspaket #${S.pr.number} ist jetzt im Buch.`};
     S.pr = null; await loadBookData(S.book.branch);
   } catch (e) { S.msg = {kind:"err", html:"<b>Nicht übernommen.</b> " + esc(errText(e))}; }
@@ -1975,13 +1999,13 @@ async function merge(data){
 async function dataData(){
   const lib = S.lib || {}, prog = lib.program || {}, own = S.owner, rp = S.repo;
   const [repoR, brR, prR, upR] = await Promise.all([
-    call("search_repositories", {query:`repo:${own}/${rp}`, minimal_output:false}).catch(() => null),
-    (async () => { const all = []; for (let pg = 1; pg <= 5; pg++){ const r = await call("list_branches", {owner:own, repo:rp, perPage:100, page:pg}); const a = Array.isArray(r.payload) ? r.payload : []; all.push(...a); if (a.length < 100) break; } return all; })().catch(() => null),
-    call("list_pull_requests", {owner:own, repo:rp, state:"open", perPage:100}).catch(() => null),
+    GW_PORTS.git.repoInfo(own, rp, true).catch(() => null),
+    (async () => { const all = []; for (let pg = 1; pg <= 5; pg++){ const a = await GW_PORTS.git.listBranches(own, rp, pg); all.push(...a); if (a.length < 100) break; } return all; })().catch(() => null),
+    GW_PORTS.git.listPRs({owner:own, repo:rp, perPage:100}).catch(() => null),
     (async () => { const [u, ref] = String(prog.upstream || "ploeffler/GhostWriter:main").split(":"); const [o, r] = u.split("/");
-      const f = fileOf(await call("get_file_contents", {owner:o, repo:r, path:"ghostwriter-manifest.yml", ref:"refs/heads/" + (ref || "main")})); return (window.jsyaml.load(f.text) || {}).version; })().catch(() => null)
+      const f = await GW_PORTS.git.getFile("ghostwriter-manifest.yml", ref || "main", {owner:o, repo:r}); return (window.jsyaml.load(f.text) || {}).version; })().catch(() => null)
   ]);
-  const repo = repoR && repoR.payload && Array.isArray(repoR.payload.items) ? repoR.payload.items[0] : null, pulls = prR && Array.isArray(prR.payload) ? prR.payload : [];
+  const repo = repoR || null, pulls = prR || [];
   const size = repo && repo.size, sizeText = size == null ? "Größe unbekannt" : size >= 1024 ? (size / 1024).toFixed(1).replace(".", ",") + " MB" : size + " KB";
   const vis = repo ? (repo.private ? "privat" : "öffentlich") : "Sichtbarkeit unbekannt", brText = brR ? plural(brR.length, "Branch", "Branches") : "Zahl der Branches unbekannt";
   const vcmp = (a, b) => { const x = String(a || "").split(".").map(Number), y = String(b || "").split(".").map(Number); for (let i = 0; i < Math.max(x.length, y.length); i++){ const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };

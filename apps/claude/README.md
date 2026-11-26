@@ -115,6 +115,14 @@ Nicht in der App: Einchecken von Rückgaben (Upload), zeitgesteuerte Läufe, Auf
 Probedrucke und Nutzungsgrenzen, weil der GitHub-Konnektor sie nicht liefert. Klicks auf Fehlendes zeigen
 einen Hinweis und den Text, mit dem man es im Chat auslöst.
 
+## Anschlüsse (#662)
+
+Ansichten und Abläufe kennen keinen Konnektor. Alles, was die App von GitHub braucht, geht über `GW_PORTS.git` in `index.html`
+(`getFile`, `getBlob`, `listDir`, `listPRs`, `prCommits`, `createBranch`, `createPR`, `mergePR`, `updatePRBranch`, `pushFiles`, `me`, `repoInfo`,
+`listBranches`); der Kopfkommentar dort beschreibt die Rückgabeformen. Die Claude-Anbindung steht in `call()` und den Methoden von `GW_PORTS.git`;
+die KI ist `S.sample`. Ein anderer Anschluss (eigene Web-App, GitHub-REST mit Token) liefert dieselben Formen. `tests/test_app_ports.py` verhindert
+Konnektor-Aufrufe außerhalb von `GW_PORTS`. Nächster Schritt: `index.html` in `apps/shared/` aufteilen (Zuschnitt in #662).
+
 ## Knopf-Inventar (#662, #597)
 
 Jede Aktion der Widgets (Aktionstabelle in `templates/ui/BEFUELLUNG.md`) ist in genau einem Zustand: **geht** (in `index.html`
