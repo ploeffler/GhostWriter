@@ -10,8 +10,11 @@ Befunde stehen maschinenlesbar neben dem Bericht in `editorial/<bericht>.yml` (S
       unverändert, --new legt durchsicht-<datum>-2.yml (nächste freie Nummer) an
   python3 scripts/hinweise.py show <buch> [--file editorial/durchsicht-….yml] [--open]
       Textfassung des Dialogs: kapitelweise alt und neu, darunter die Autorenentscheidungen
-  python3 scripts/hinweise.py decide <buch> <eintrag> --decision ja|nein|geändert [--new TEXT] [--file …]
-      schreibt nur `entscheidung` (und bei „geändert“ `neu`) in die Dialogdatei
+  python3 scripts/hinweise.py decide <buch> <eintrag> --decision ja|nein|geändert [--new TEXT] [--answer TEXT] [--file …]
+      schreibt nur `entscheidung` (und bei „geändert“ `neu`) in die Dialogdatei; `--answer` speichert die Antwort auf
+      `frage` getrennt in `antwort` (#675): `neu` bleibt reiner Ersatztext für `alt`
+  python3 scripts/hinweise.py lock <buch> --reason TEXT [--file …] | unlock <buch> [--file …]
+      Dialogdatei sperren (#675): `apply` und `accept` brechen mit dem Grund ab, `decide` bleibt erlaubt
   python3 scripts/hinweise.py show <buch> --stufen [--round N] [--size 5] [--gering] [--group GRUPPE] | --alle
       Abarbeitung in Stufen (#570): 1. Blockierendes einzeln, 2. gleiche Muster als eine Entscheidung
       (ab drei Einträgen gleicher Art und gleichen Befunds), 3. der Rest in Runden zu höchstens fünf nach
@@ -24,7 +27,8 @@ Befunde stehen maschinenlesbar neben dem Bericht in `editorial/<bericht>.yml` (S
       Rundumprüfung (#565): alle offenen Einträge mit konkretem Vorschlag (alt → neu) annehmen, auch
       Autorenentscheidungen; nie blockierende, buchweite oder solche mit mehreren Varianten
   python3 scripts/hinweise.py plan <buch> [--chapter …] [--file …]
-      vor dem Umsetzen (Teil 2): je Eintrag ✅ umsetzbar, ⚠️ von Hand, ⛔ abgeschlossen (erst wieder öffnen)
+      vor dem Umsetzen (Teil 2): je Eintrag ✅ umsetzbar, ⚠️ von Hand, ⛔ abgeschlossen (erst wieder öffnen); sieht `neu`
+      nach Antwort oder Anweisung statt Ersatztext aus, ⚠️ statt ✅ (#675)
   python3 scripts/hinweise.py apply <buch> [--chapter …] [--file …]
       setzt die ✅-Einträge ins Manuskript um, schreibt den Befundstatus zurück und nennt die Nachprüfung
 
@@ -88,6 +92,40 @@ def has_change(e):
     """Hat der Eintrag eine Fassung oder eine Streichung als Vorschlag? Ein leeres `neu` allein heißt „kein Vorschlag“,
     eine Streichung trägt `streichen: true` (#615)."""
     return bool(e.get('neu') or e.get('streichen'))
+
+
+_INSTRUCTION = re.compile(
+    r'(→|->|=>)|\b(?:entsprechend|bitte|überall|jeweils)\b.*\b(?:ändern|anpassen|angleichen|ergänzen|umschreiben|streichen|'
+    r'einfügen|ersetzen|korrigieren)\b', re.IGNORECASE | re.DOTALL)
+_LIST_LINE = re.compile(r'^\s*(?:[-*•]\s|\d+[.)]\s|\d{3,4}\s*[:–-])')
+SHORT_WORDS = 2      # so wenige Wörter in `neu` …
+LONG_WORDS = 6       # … für so viele Wörter in `alt` sind eher eine Antwort als ein Ersatz (#675)
+
+
+def not_replacement(e):
+    """Grund, warum `neu` nicht wie ein Ersatztext für `alt` aussieht, sonst '' (#675). Gilt für Antworten auf die Frage
+    („Hafen“ für einen ganzen Satz), Anweisungen („… entsprechend ändern“, Pfeile) und Listen bzw. Zeitleisten. Eine Fassung,
+    die der Autor ausdrücklich als Text bestätigt hat (`ersatz_bestaetigt`, `decide --as-text`), gilt als Ersatz."""
+    neu, alt = str(e.get('neu') or ''), str(e.get('alt') or '')
+    if not neu or e.get('streichen') or e.get('ersatz_bestaetigt'):
+        return ''
+    if e.get('antwort') and neu.strip() == str(e['antwort']).strip():
+        return '`neu` ist die Antwort auf die Frage'
+    if looks_like_question(neu) and not looks_like_question(alt):
+        return '`neu` ist eine Frage'
+    if _INSTRUCTION.search(neu) and not _INSTRUCTION.search(alt):
+        return '`neu` sieht nach einer Anweisung aus'
+    lines = [x for x in neu.splitlines() if x.strip()]
+    if len(lines) > max(1, len([x for x in alt.splitlines() if x.strip()])) and any(_LIST_LINE.match(x) for x in lines):
+        return '`neu` ist eine Liste bzw. Zeitleiste'
+    if len(alt.split()) >= LONG_WORDS and len(neu.split()) <= SHORT_WORDS and len(neu) * 4 < len(alt):
+        return '`neu` ist viel kürzer als `alt` (eher eine Antwort als ein Ersatz)'
+    return ''
+
+
+def locked(data):
+    """Grund der Sperre der Dialogdatei (`gesperrt`, #675) oder ''."""
+    return str(data.get('gesperrt') or '').strip()
 
 
 def tidy_deletion(body, a):
@@ -350,6 +388,11 @@ def collect(base, config, chapters=None, date=None, commit=None, mode=None):
     return out, data
 
 
+def suspicious(data):
+    """[(eintrag, grund)] für noch nicht umgesetzte Einträge, deren `neu` nicht wie ein Ersatztext aussieht (#675)."""
+    return [(e, why) for _, e in entries(data) if not e.get('umgesetzt') and (why := not_replacement(e))]
+
+
 def latest(base):
     files = dialog_files(base)
     return files[-1] if files else None
@@ -365,7 +408,10 @@ def looks_like_question(text):
     return bool(re.search(r'\?[\s\"„“»«\'’)\]]*$', str(text or '')))
 
 
-def decide(path, entry_id, decision, new=None, variant=None, as_text=False):
+def decide(path, entry_id, decision, new=None, variant=None, as_text=False, answer=None):
+    """Entscheidung speichern. `answer` ist die Antwort auf `frage` (#675) und landet in `antwort`, nie in `neu`; ohne eigene
+    Fassung (`--new`) bleibt `neu` dann leer bzw. der bisherige Vorschlag wandert nach `neu_befund`."""
+    answer = (answer or '').strip() or None
     delete = decision == 'streichen'   # #615: Streichung als Entscheidung = „ja“ mit `streichen: true`
     if delete:
         decision, new = 'ja', None
@@ -373,12 +419,18 @@ def decide(path, entry_id, decision, new=None, variant=None, as_text=False):
         decision = 'geändert'
     if decision not in DECISIONS:
         raise ValueError(f'Unbekannte Entscheidung: {decision}')
-    if decision == 'geändert' and not new and variant is None:
-        raise ValueError('Bei „geändert“ gehört die eigene Fassung dazu (--new)')
+    if decision == 'geändert' and not new and variant is None and not answer:
+        raise ValueError('Bei „geändert“ gehört die eigene Fassung (--new) oder die Antwort auf die Frage (--answer) dazu')
     if decision == 'geändert' and variant is None and looks_like_question(new) and not as_text:
         raise ValueError('Das sieht wie eine Rückfrage aus, nicht wie eine Fassung: nichts gespeichert. Antworte darauf und zeige '
                          'die Karte erneut (hinweise.py ask); soll der Text trotzdem als Fassung gelten, --as-text angeben.')
     data = read_yaml(path)
+    for _, e in entries(data):
+        if e.get('id') == entry_id and decision == 'geändert' and variant is None and new and not as_text:
+            why = not_replacement(dict(e, neu=new, antwort=answer or e.get('antwort'), ersatz_bestaetigt=False, streichen=False))
+            if why:   # #675: Antwort oder Anweisung nicht als Ersatztext speichern
+                raise ValueError(f'{why}: nichts gespeichert. Die Antwort auf die Frage gehört nach --answer; als Ersatz für '
+                                 '`alt` den neuen Wortlaut mit --new angeben. Ist der Text wirklich die neue Fassung, --as-text.')
     for _, e in entries(data):
         if e.get('id') == entry_id:
             if e.get('umgesetzt'):
@@ -392,12 +444,23 @@ def decide(path, entry_id, decision, new=None, variant=None, as_text=False):
             if delete and not e.get('alt'):
                 raise ValueError(f'{entry_id} hat keinen alten Wortlaut; es gibt nichts zu streichen')
             e['entscheidung'] = decision
+            if answer:
+                e['antwort'] = answer
             if delete:
                 e['streichen'] = True
                 e['neu'] = ''
             elif new is not None:
                 e['neu'] = new
                 e.pop('streichen', None)   # eine neue Fassung ersetzt eine frühere Streichung
+            elif answer and decision == 'geändert':
+                if e.get('neu') and not e.get('neu_befund'):
+                    e['neu_befund'] = e['neu']   # der frühere Vorschlag ist nicht gewählt, bleibt aber nachvollziehbar
+                e['neu'] = ''
+                e.pop('streichen', None)
+            if as_text and decision == 'geändert' and e.get('neu'):
+                e['ersatz_bestaetigt'] = True
+            elif new is not None or delete or (answer and decision == 'geändert'):
+                e.pop('ersatz_bestaetigt', None)
             write_yaml(path, data)
             return e
     raise ValueError(f'Eintrag {entry_id} nicht gefunden')
@@ -436,6 +499,17 @@ def propose(path, entry_id, new, variants=None, delete=False):
     raise ValueError(f'Eintrag {entry_id} nicht gefunden')
 
 
+def lock(path, reason=None):
+    """Dialogdatei sperren bzw. mit leerem Grund entsperren (#675). `decide` bleibt erlaubt, `apply` und `accept` nicht."""
+    data = read_yaml(path)
+    if reason and reason.strip():
+        data['gesperrt'] = reason.strip()
+    else:
+        data.pop('gesperrt', None)
+    write_yaml(path, data)
+    return data
+
+
 def checkpoint(base, message=None, push_to=None):
     """Zwischenstand der Durchsicht speichern (#609): ein Commit der geänderten Dialogdateien `editorial/durchsicht-*.yml`.
     Gibt (Zahl entschiedener Einträge, Commit oder None) zurück; None, wenn nichts zu speichern ist."""
@@ -467,7 +541,7 @@ def proposal(e):
     """Eintrag mit eindeutigem Vorschlag, den die Rundumprüfung ohne Rückfrage annehmen darf (#565): `alt` und `neu`
     vorhanden und verschieden, nicht blockierend, nicht buchweit, keine Auswahl unter mehreren Varianten."""
     return bool(e.get('alt') and e.get('neu') and e['neu'] != e['alt'] and e.get('section_id') != BOOK
-                and e.get('schweregrad') != 'blockierend' and not e.get('varianten'))
+                and e.get('schweregrad') != 'blockierend' and not e.get('varianten') and not not_replacement(e))   # #675
 
 
 def accept(path, chapters=None, skip=()):
@@ -475,6 +549,8 @@ def accept(path, chapters=None, skip=()):
     `angenommen: rundumpruefung` kennzeichnen. Abgeschlossenes hält danach `plan` zurück (⛔)."""
     chapters = set(chapters or [])
     data = read_yaml(path)
+    if locked(data):
+        raise ValueError(f'Durchsicht gesperrt: {locked(data)} (entsperren: hinweise.py unlock)')
     taken = []
     for _, e in entries(data):
         if e.get('umgesetzt') or e.get('entscheidung', 'offen') != 'offen' or not proposal(e):
@@ -500,6 +576,8 @@ def show(data, only_open=False):
     done = sum(e.get('entscheidung', 'offen') != 'offen' for _, e in total)
     lines = [f'### 🧹 Hinweisdurchsicht · {data.get("buch", "")}',
              f'Stand {data.get("erstellt", "")} · {len(total)} Einträge · {done} entschieden · {len(total) - done} offen', '']
+    if locked(data):
+        lines += [f'⛔ Gesperrt: {locked(data)} – entscheiden ja, umsetzen nein', '']
     if auto:
         lines += ['#### Ohne Autor lösbar', '']
         chapter = None
@@ -515,6 +593,8 @@ def show(data, only_open=False):
             mark = '⛔ blockierend · ' if e.get('schweregrad') == 'blockierend' else ''
             lines += [f'`{e["id"]}` · {mark}{e["abschnitt"]} · {e["art"]} · **{e.get("entscheidung", "offen")}** – {e.get("grund", "")}',
                       f'> Frage: {e.get("frage", "")}']
+            if e.get('antwort'):
+                lines += [f'> Antwort: {e["antwort"]}']
             if e.get('alt'):
                 lines += [f'> alt: {e["alt"]}']
             if has_change(e):
@@ -625,10 +705,14 @@ def _entry_lines(e):
     lines = [f'`{e["id"]}` · {mark}{e["abschnitt"]} · {e["art"]} · **{e.get("entscheidung", "offen")}** – {e.get("grund", "")}']
     if e.get('frage'):
         lines += [f'> Frage: {e["frage"]}']
+    if e.get('antwort'):
+        lines += [f'> Antwort: {e["antwort"]}']   # #675: getrennt vom Ersatztext
     if e.get('alt'):
         lines += [f'> alt: {e["alt"]}']
     if has_change(e):
         lines += [f'> {"Vorschlag" if e.get("frage") else "neu"}: {e.get("neu") or "(entfällt)"}']
+    if not_replacement(e):
+        lines += [f'> ⚠️ {not_replacement(e)}: wird nicht automatisch umgesetzt']
     for k, v in enumerate(e.get('varianten') or [], start=1):
         lines += [f'> Variante {k}: {v}']
     return lines + ['']
@@ -821,7 +905,8 @@ def plan(base, config, data, chapters=None):
         ch = ch or {}
         text = checks.manuscript(base, config, e['section_id']) or ''
         if not e.get('alt') or not has_change(e):
-            out.append(('⚠️', e, 'ohne alten Wortlaut oder Vorschlag: von Hand umsetzen'))
+            out.append(('⚠️', e, 'Antwort des Autors ohne neuen Wortlaut: von Hand umsetzen' if e.get('antwort')
+                        else 'ohne alten Wortlaut oder Vorschlag: von Hand umsetzen'))
         elif ch.get('status') == 'approved':
             out.append(('⛔', e, f'Kapitel {e["abschnitt"].split(".")[0]} ist abgeschlossen: erst wieder öffnen'))
         elif head.get('status') == 'approved':
@@ -831,6 +916,9 @@ def plan(base, config, data, chapters=None):
             out.append(('⛔', e, f'ausgecheckt: {_checked_out(base, config, e["section_id"])["id"]} (Checkout erst beenden)'))
         elif wording(text, e['alt'], e.get('neu') or '') is None:
             out.append(_not_found(base, config, e, text))
+        elif not_replacement(e):   # #675: Antwort oder Anweisung nie wörtlich ins Manuskript
+            out.append(('⚠️', e, f'{not_replacement(e)}: von Hand umsetzen oder den neuen Wortlaut eintragen '
+                                 '(decide --new …; ist es wirklich die Fassung: --as-text)'))
         else:
             out.append(('✅', e, 'streichen' if e.get('streichen') else 'umsetzbar'))
     return out
@@ -860,10 +948,12 @@ def _not_found(base, config, e, text):
     return ('⛔', e, 'Wortlaut nicht gefunden: Text oder Befund prüfen')
 
 
-def plan_text(items):
+def plan_text(items, data=None):
+    head = [f'⛔ Durchsicht gesperrt: {locked(data)} – `apply` setzt nichts um (entsperren: hinweise.py unlock)', ''] \
+        if data and locked(data) else []
     if not items:
-        return 'Keine entschiedenen Einträge zum Umsetzen.\n'
-    lines = [f'{mark} `{e["id"]}` · {e["abschnitt"]} · {why}' for mark, e, why in items]
+        return '\n'.join(head + ['Keine entschiedenen Einträge zum Umsetzen.']) + '\n'
+    lines = head + [f'{mark} `{e["id"]}` · {e["abschnitt"]} · {why}' for mark, e, why in items]
     blocked = sorted({e['abschnitt'] for mark, e, _ in items if mark == '⛔' and 'abgeschlossen' in _})
     if blocked:
         lines += ['', 'Wieder öffnen braucht eine eigene Bestätigung (START.md, „Freigaben“): ' + ', '.join(blocked)]
@@ -912,9 +1002,13 @@ def apply(base, config, path, chapters=None):
     import checks
     base = Path(base)
     data = read_yaml(path)
+    if locked(data):
+        raise ValueError(f'Durchsicht gesperrt: {locked(data)}. Nichts umgesetzt (entsperren: hinweise.py unlock).')
     items = plan(base, config, data, chapters)
     applied, skipped, touched, ctx = [], [], [], []
     for mark, e, why in items:
+        if mark == '✅' and not_replacement(e):   # #675: zweite Sicherung direkt vor dem Ersetzen
+            mark, why = '⚠️', f'{not_replacement(e)}: von Hand umsetzen'
         if mark != '✅':
             skipped.append((mark, e, why))
             continue
@@ -980,12 +1074,15 @@ def widget_values(base, path, stufen=None, size=ROUND_SIZE, gering=False, group=
             r['E_PROPOSED'] = '1' if e.get('vorschlag_von') == 'assistent' else ''   # #609
             r['E_VARIANTS_JSON'] = json.dumps([str(v) for v in e.get('varianten') or []], ensure_ascii=False) if e.get('varianten') else ''   # #630: Knopf je Variante (UI ab 0.70.0)
             r['E_QUESTION'] = e.get('frage', '') + ''.join(f' · Variante {k}: {v}' for k, v in
-                                                          enumerate(e.get('varianten') or [], start=1))   # #447
+                                                          enumerate(e.get('varianten') or [], start=1)) \
+                + (f' · Antwort: {e["antwort"]}' if e.get('antwort') else '') \
+                + (f' · ⚠️ {not_replacement(e)}: wird nicht automatisch umgesetzt' if not_replacement(e) else '')   # #447, #675
         return r
     rel = Path(path).resolve().relative_to(Path(base).resolve()).as_posix()
     values = {'REVIEW_FILE': rel, 'REVIEW_BOOK': data.get('buch', ''),
               'REVIEW_DATE_TEXT': f'Stand {d}.{m}.{y}' if d else '',
               'REVIEW_COUNT_TEXT': f'{len(all_entries)} Einträge · {done} entschieden · {len(all_entries) - done} offen'}
+    lock_text = f'⛔ Gesperrt: {locked(data)} · ' if locked(data) else ''   # #675
     blocks = {}
     shown = None
     name = ''
@@ -1009,6 +1106,7 @@ def widget_values(base, path, stufen=None, size=ROUND_SIZE, gering=False, group=
     author = [row(e, True) for e in data.get('autorenentscheidung') or [] if shown is None or e['id'] in shown]
     if shown and name == 'gruppen':
         author = [row(e, True) for e in items]
+    values['REVIEW_COUNT_TEXT'] = lock_text + values['REVIEW_COUNT_TEXT']
     skipped = [{'SK_REF': s['befund'], 'SK_REASON': s['grund']} for s in data.get('ausgelassen') or []]
     if auto:
         blocks['AUTO'] = auto
@@ -1099,12 +1197,20 @@ def main(argv=None):
     d.add_argument('--gering', action='store_true', help='alle geringen offenen Einträge lassen (#570)')
     d.add_argument('--decision', choices=DECISIONS[1:] + ('streichen',), help='streichen: alten Wortlaut entfernen (#615)')
     d.add_argument('--new')
+    d.add_argument('--answer', help='Antwort auf die Frage des Eintrags, getrennt vom Ersatztext (#675)')
     d.add_argument('--variant', type=int, help='Variante N wählen (#473)')
     d.add_argument('--as-text', action='store_true', help='„geändert“ mit einem Fragetext trotzdem als Fassung speichern (#609)')
     d.add_argument('--next-card', action='store_true', help='danach die nächste Karte ausgeben (#609)')
     d.add_argument('--repo', help='owner/repo für die Karte (mit --next-card)')
     d.add_argument('--text', action='store_true', help='mit --next-card: Textfassung statt Widget')
     d.add_argument('--file')
+    lk = sub.add_parser('lock', help='Dialogdatei sperren: kein apply/accept, decide bleibt erlaubt (#675)')
+    lk.add_argument('project')
+    lk.add_argument('--reason', required=True)
+    lk.add_argument('--file')
+    uk = sub.add_parser('unlock', help='Sperre der Dialogdatei aufheben (#675)')
+    uk.add_argument('project')
+    uk.add_argument('--file')
     for name, text in (('accept', 'Vorschläge annehmen (Rundumprüfung, #565)'), ('plan', 'vor dem Umsetzen zeigen, was geht'),
                        ('apply', 'entschiedene Einträge umsetzen')):
         x = sub.add_parser(name, help=text)
@@ -1125,6 +1231,9 @@ def main(argv=None):
                                  mode='merge' if args.merge else 'new' if args.new else None)
             print(f'{path.relative_to(base).as_posix()}: {len(data["ohne_autor"])} ohne Autor lösbar, '
                   f'{len(data["autorenentscheidung"])} Autorenentscheidungen, {len(data.get("ausgelassen") or [])} nicht aufgenommen')
+            for e, why in suspicious(data):   # #675: auffällige `neu` in vorhandenen Einträgen melden
+                print(f'⚠️ {e["id"]} ({e["abschnitt"]}): {why} – wird nicht automatisch umgesetzt; Antwort nach `antwort`, '
+                      'Ersatztext nach `neu` (hinweise.py decide … --answer/--new)')
             return 0
         if args.cmd == 'checkpoint':
             done, sha = checkpoint(base, args.message, args.push_to)
@@ -1164,8 +1273,14 @@ def main(argv=None):
                     print(card.stderr, file=sys.stderr)
                     return 1
             return 0
+        if args.cmd in ('lock', 'unlock'):
+            lock(path, args.reason if args.cmd == 'lock' else None)
+            print(f'{path.relative_to(base).as_posix() if path.is_relative_to(base) else path}: '
+                  + (f'gesperrt ({args.reason.strip()})' if args.cmd == 'lock' else 'entsperrt'))
+            return 0
         if args.cmd == 'plan':
-            print(plan_text(plan(base, config, read_yaml(path), args.chapter)), end='')
+            data = read_yaml(path)
+            print(plan_text(plan(base, config, data, args.chapter), data), end='')
             return 0
         if args.cmd == 'accept':
             import checkout
@@ -1188,9 +1303,11 @@ def main(argv=None):
             changed, skipped = decide_group(path, group, args.decision)
             print(f'{len(changed)} Einträge: {args.decision}' + (f'; {len(skipped)} ohne Vorschlag bleiben offen' if skipped else ''))
             return 0
+        if args.answer and not args.decision and args.variant is None:
+            args.decision = 'geändert'   # #675: nur die Antwort auf die Frage, ohne neuen Wortlaut
         if not args.entry or not (args.decision or args.variant):
             raise ValueError('Eintrag und --decision (oder --variant) angeben (oder --group / --gering)')
-        e = decide(path, args.entry, args.decision, args.new, args.variant, args.as_text)
+        e = decide(path, args.entry, args.decision, args.new, args.variant, args.as_text, args.answer)
         print(f'{e["id"]}: {e["entscheidung"]}', file=sys.stderr if args.next_card and not args.text else sys.stdout)
         if args.next_card:
             done = unit_done(read_yaml(path), e)

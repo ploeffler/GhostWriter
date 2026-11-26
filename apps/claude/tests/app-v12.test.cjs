@@ -1,5 +1,6 @@
 // Test der Claude-Web-App (v1.2, #597) mit einem nachgebildeten Repository aus tests/fixtures/adhs – ohne Netz und ohne Schreibzugriff.
-// Prüft: Neu-Abschließen (#563), Erneut versuchen (#554/#596), Veraltet-Marken (#510/#592), Stufen der Hinweisdurchsicht (#570/#473).
+// Prüft: Neu-Abschließen (#563), Erneut versuchen (#554/#596), Veraltet-Marken (#510/#592), Stufen der Hinweisdurchsicht (#570/#473),
+// Antwort statt Ersatztext und gesperrte Durchsicht (#675).
 //
 //   npm install --prefix /tmp/gw-claude-test jsdom@24 js-yaml@4
 //   NODE_PATH=/tmp/gw-claude-test/node_modules node apps/claude/tests/app-v12.test.cjs
@@ -37,6 +38,12 @@ files["editorial/durchsicht-test.yml"] = require("js-yaml").dump({buch: "Test", 
 files["ghostwriter.yml"] = files["ghostwriter.yml"].replace(/^structure:\n/m, "structure:\n  front_matter:\n    - id: mat-vorwort\n      kind: foreword\n      title: Vorwort\n      path: matter/vorwort.md\n");
 files["matter/vorwort.md"] = `---\nid: mat-vorwort\ntitle: Vorwort\nstatus: writing\nstale:\n  since: 2026-11-20\n  reason: Neue Angaben\n---\n\n# Vorwort\n\n## Manuskript\n\nEin Vorwort.\n`;
 files["editorial/durchsicht-var.yml"] = require("js-yaml").dump({buch: "Test", erstellt: "2026-11-20", ohne_autor: [], autorenentscheidung: [Object.assign(ent(1), {frage: "Welche Fassung?", varianten: ["Erste Wahl", "Zweite Wahl"], neu: ""})]}, {lineWidth: 100, noArrayIndent: true});
+// #675: Antwort bzw. Anweisung in `neu`, eine gesperrte Durchsicht
+const ms2 = msOf(files[sec2.path]), sent2 = (ms2.match(/[^.!?\n]+[.!?]/g) || []).map(x => x.trim()).find(x => x.split(/\s+/).length >= 8 && ms2.split(x).length === 2);
+files["editorial/durchsicht-antwort.yml"] = require("js-yaml").dump({buch: "Test", erstellt: "2026-11-25", ohne_autor: [], autorenentscheidung: [
+  Object.assign(ent(1), {section_id: sec2.id, abschnitt: "1.2", art: "aufbau", frage: "Hafen oder See?", alt: sent2, neu: "", schweregrad: "blockierend"}),
+  Object.assign(ent(2), {section_id: sec2.id, abschnitt: "1.2", art: "kontinuitaet", frage: "Welche Fassung gilt?", alt: sent2, neu: "- 1923: Taufe\n- 1925: Umzug → in 3.3 angleichen", entscheidung: "geändert"})]}, {lineWidth: 100, noArrayIndent: true});
+files["editorial/durchsicht-gesperrt.yml"] = files["editorial/durchsicht-antwort.yml"].replace(/^erstellt:/m, "gesperrt: 'kein apply bis #675'\nerstellt:");
 const ckId = "GW-ABCD", rdir = `checkouts/${ckId}/rueckgabe-2026-11-25`;
 files["checkouts.yml"] = require("js-yaml").dump({checkouts: [{id: ckId, status: "ausgecheckt", rueckgaben: [{ordner: rdir, art: "docx", datum: "2026-11-25", befunde: 2}]}]});
 files[rdir + "/rueckgabe.yml"] = require("js-yaml").dump({kennung: ckId, art: "docx", datum: "2026-11-25", programm: "Google Docs", befunde: 2, kommentare: 1, vergleich: "keine Änderungsverfolgung und keine Kommentare gefunden, Vergleich über den Text",
@@ -149,6 +156,20 @@ const txt = () => (d.querySelector("#app") || {}).textContent || "";
   ok(asked.length === 1 && /FRAGE DES AUTORS/.test(asked[0]) && /Welche passt besser/.test(asked[0]), "Frage stellen geht an Claude mit dem Eintrag");
   ok(pushes.length === n, "Frage stellen speichert nichts");
   ok(/zweite Variante passt besser/.test(txt()), "Antwort wird gezeigt");
+  // #675: Antwort nicht als Ersatztext, Zeitleiste nicht umsetzen, Sperre
+  ok(!!sent2, "Testsatz in 1.2 gefunden");
+  n = pushes.length;
+  await send(gwa("notes_review.decide", {file: "editorial/durchsicht-antwort.yml", entry: "H01", decision: "geändert", new: "Hafen"}));
+  ok(pushes.length === n && /kürzer/.test(txt()), "„Hafen“ für einen ganzen Satz wird nicht als Fassung gespeichert");
+  await send(gwa("notes_review.plan", {file: "editorial/durchsicht-antwort.yml"}));
+  ok(/⚠️ H02 · 1.2 · „neu“ (sieht nach einer Anweisung aus|ist eine Liste)/.test(txt()) && !/umsetzbaren Eintr/.test(txt()), "Umsetzen prüfen: Zeitleiste ⚠️, kein Umsetzen-Knopf");
+  n = pushes.length; const before2 = files[sec2.path];
+  await send(gwa("notes_review.apply", {file: "editorial/durchsicht-antwort.yml"}));
+  ok(pushes.length === n && files[sec2.path] === before2, "Umsetzen: Manuskript unverändert");
+  await send(gwa("view.notes_review", {file: "editorial/durchsicht-gesperrt.yml"}));
+  ok(/Gesperrt: kein apply bis #675/.test(txt()), "Gesperrte Durchsicht zeigt den Grund");
+  await send(gwa("notes_review.apply", {file: "editorial/durchsicht-gesperrt.yml"}));
+  ok(pushes.length === n && /gesperrt/.test(txt()), "Gesperrte Durchsicht: nichts umgesetzt");
   await send(gwa("view.checkin", {}));   // unbekannte Aktion: keine Wirkung
   await send("x\n\n`gw:view.project`");
   w.__S().view = "project";

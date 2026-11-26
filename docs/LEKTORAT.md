@@ -199,7 +199,20 @@ Umgesetzt wird erst am Ende eines Kapitels oder auf Auftrag. Vorher zeigt
 `hinweise.py plan <buch> [--chapter …]` je entschiedenem Eintrag ✅ umsetzbar,
 ⚠️ von Hand (ohne alten Wortlaut oder Vorschlag, oder der Wortlaut steht in einem
 anderen Abschnitt als im Befund genannt, die Meldung nennt ihn) oder ⛔ (Abschnitt
-oder Kapitel abgeschlossen, Wortlaut nicht gefunden bzw. mehrfach). Auslassungspunkte
+oder Kapitel abgeschlossen, Wortlaut nicht gefunden bzw. mehrfach). **Antwort ist kein
+Ersatztext (#675):** Sieht `neu` nicht wie ein neuer Wortlaut für `alt` aus, steht
+der Eintrag auf ⚠️ statt ✅, und `apply` setzt ihn nicht um (zweite Prüfung direkt
+vor dem Ersetzen). Das gilt für eine Antwort auf die Frage (ein, zwei Wörter für
+einen ganzen Satz, etwa „Hafen“), eine Anweisung („… entsprechend ändern“, Pfeile
+wie „→“), eine Liste oder Zeitleiste und eine Frage. Die Antwort des Autors gehört
+in das eigene Feld `antwort` (`hinweise.py decide . <id> --answer "…"`, auch
+zusammen mit `--new`); `decide` lehnt eine solche Antwort in `--new` ab. Die Karte
+zeigt „Antwort“ getrennt vom Vorschlag. Ist ein kurzer Text wirklich die neue
+Fassung, bestätigt der Autor ihn mit `--as-text` (`ersatz_bestaetigt: true`).
+`collect --merge` meldet auffällige `neu` in vorhandenen Einträgen. **Sperren:**
+`hinweise.py lock . --reason "…"` sperrt eine Dialogdatei (`gesperrt`): `apply`
+und `accept` brechen mit dem Grund ab, entscheiden bleibt möglich, `show`, `plan`
+und die Karte zeigen den Hinweis; `hinweise.py unlock .` hebt die Sperre auf. Auslassungspunkte
 und Leerzeichen, die der alte Wortlaut aus dem Befund am Rand mitbringt, werden vor
 dem Vergleich und beim Ersetzen weggelassen (bei `neu` nur dieselben Ränder, #522);
 steht der Wortlaut mit den Punkten im Text, bleibt er unverändert. „Text hat sich
@@ -215,7 +228,8 @@ betroffenen Kapitel eine Nachprüfung ein (Schlusskorrektur und Qualität, mit
 wird wie bei anderen Buchänderungen.
 
 Entscheidungen tragen nur `ja`, `nein` oder `geändert` (Wortlaut in `neu`); „so
-belassen“ ist `nein`. Was der Autor dazu sagt, gehört in `begruendung`. Ändert
+belassen“ ist `nein`. Was der Autor dazu sagt, gehört in `begruendung`, seine
+Antwort auf die Frage in `antwort` (#675), nie in `neu`. Ändert
 dieselbe Entscheidung weitere Stellen, stehen sie als `weitere_ersetzungen`
 (je `alt`, `neu`, optional `datei`) im Eintrag; `apply` setzt nur die erste Stelle
 um, die weiteren übernimmt der Assistent von Hand. Was wo umgesetzt wurde (etwa

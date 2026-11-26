@@ -1481,8 +1481,8 @@ async function reviewData(file){
   const [y, m, dd] = String(data.erstellt || "").split("-");
   const row = (e, author) => Object.assign({E_ID:e.id, E_WHERE:e.abschnitt, E_CHAPTER_TEXT:reviewWhere(e) + (e.chapter_status ? " · " + (CH_STATUS[e.chapter_status] || e.chapter_status) : ""), E_KIND:e.art || "",
     E_REASON:(e.schweregrad === "blockierend" ? "⛔ blockierend: " : "") + (e.grund || ""), E_CONTEXT:e.kontext || "", E_OLD:e.alt || "", E_NEW:e.neu || (e.streichen ? "(entfällt)" : ""), E_DECISION:reviewState(e)},
-    author ? {E_PROPOSED:e.vorschlag_von === "assistent" ? "1" : "", E_VARIANTS_JSON:(e.varianten || []).length ? JSON.stringify(e.varianten.map(String)) : "", E_QUESTION:(e.frage || "") + (e.varianten || []).map((v, k) => ` · Variante ${k + 1}: ${v}`).join("")} : {});
-  const d = Object.assign(base(), {REVIEW_FILE:file, REVIEW_BOOK:data.buch || "", REVIEW_DATE_TEXT:dd ? `Stand ${dd}.${m}.${y}` : "", REVIEW_COUNT_TEXT:`${all.length} Einträge · ${done} entschieden · ${all.length - done} offen`});
+    author ? {E_PROPOSED:e.vorschlag_von === "assistent" ? "1" : "", E_VARIANTS_JSON:(e.varianten || []).length ? JSON.stringify(e.varianten.map(String)) : "", E_QUESTION:(e.frage || "") + (e.varianten || []).map((v, k) => ` · Variante ${k + 1}: ${v}`).join("") + (e.antwort ? ` · Antwort: ${e.antwort}` : "") + (notReplacement(e) ? ` · ⚠️ ${notReplacement(e)}: wird nicht automatisch umgesetzt` : "")} : {});
+  const d = Object.assign(base(), {REVIEW_FILE:file, REVIEW_BOOK:data.buch || "", REVIEW_DATE_TEXT:dd ? `Stand ${dd}.${m}.${y}` : "", REVIEW_COUNT_TEXT:(data.gesperrt ? `⛔ Gesperrt: ${data.gesperrt} · ` : "") + `${all.length} Einträge · ${done} entschieden · ${all.length - done} offen`});
   const openCount = all.filter(([, e]) => rOpen(e)).length; S.reviewInfo = {file, staged:false, name:"", gering:0};
   if (openCount >= R_STAGE_MIN && !S.reviewAll){   // #570: nur die aktuelle Stufe
     const cur = await reviewCurrent(data, S.reviewGering); d.REVIEW_COUNT_TEXT = cur.head;
@@ -1594,6 +1594,8 @@ async function reviewDecide(d){
         if (!(variant >= 1 && variant <= opts.length)) throw {message:`${d.entry} hat ${opts.length} Varianten; Variante ${d.variant} gibt es nicht.`};
         wording = String(opts[variant - 1]);
       }
+      if (decision === "geändert" && !variant){ const why = notReplacement(Object.assign({}, e, {neu:wording, ersatz_bestaetigt:false, streichen:false}));
+        if (why) throw {message:`${why}. Die Antwort auf die Frage ist kein neuer Wortlaut; bitte den neuen Satz selbst eintragen oder im Chat mit GhostWriter entscheiden (#675).`}; }
       const out = reviewSet(text, d.entry, decision, wording, variant);
       const r = await commit([{path:file, content:out}], `Hinweisdurchsicht: ${d.entry} ${decision}`, {action:"notes_review.decide"});
       setReview(file, out);
@@ -1605,7 +1607,21 @@ async function reviewDecide(d){
   });
   return S.reviewChain;
 }
-const rProposal = e => !!(e.alt && e.neu && e.neu !== e.alt && e.section_id !== "book" && rSev(e) !== "blockierend" && !(e.varianten || []).length);
+// #675 (wie hinweise.not_replacement): Antwort, Anweisung, Liste oder Frage in `neu` ist kein Ersatztext für `alt`
+const R_INSTR = /(→|->|=>)|\b(?:entsprechend|bitte|überall|jeweils)\b[\s\S]*\b(?:ändern|anpassen|angleichen|ergänzen|umschreiben|streichen|einfügen|ersetzen|korrigieren)\b/i,
+  R_LIST = /^\s*(?:[-*•]\s|\d+[.)]\s|\d{3,4}\s*[:–-])/, R_Q = /\?[\s"„“»«'’)\]]*$/;
+function notReplacement(e){
+  const neu = String(e.neu || ""), alt = String(e.alt || ""), words = t => t.split(/\s+/).filter(Boolean).length;
+  if (!neu || e.streichen || e.ersatz_bestaetigt) return "";
+  if (e.antwort && neu.trim() === String(e.antwort).trim()) return "„neu“ ist die Antwort auf die Frage";
+  if (R_Q.test(neu) && !R_Q.test(alt)) return "„neu“ ist eine Frage";
+  if (R_INSTR.test(neu) && !R_INSTR.test(alt)) return "„neu“ sieht nach einer Anweisung aus";
+  const lines = neu.split("\n").filter(l => l.trim()), altLines = alt.split("\n").filter(l => l.trim()).length;
+  if (lines.length > Math.max(1, altLines) && lines.some(l => R_LIST.test(l))) return "„neu“ ist eine Liste bzw. Zeitleiste";
+  if (words(alt) >= 6 && words(neu) <= 2 && neu.length * 4 < alt.length) return "„neu“ ist viel kürzer als „alt“ (eher eine Antwort als ein Ersatz)";
+  return "";
+}
+const rProposal = e => !!(e.alt && e.neu && e.neu !== e.alt && e.section_id !== "book" && rSev(e) !== "blockierend" && !(e.varianten || []).length && !notReplacement(e));
 async function reviewGroup(file, text, data, key, decision, gering){
   // Gruppenentscheidung wie hinweise.decide_group / decide_gering: ja = Einträge mit Vorschlag annehmen, nein = alle lassen; ein Commit
   if (!["ja", "nein"].includes(decision)) throw {message:"Für eine Gruppe gilt nur ja (wie vorgeschlagen) oder nein (alle lassen)."};
@@ -1650,10 +1666,11 @@ function reviewPlanItems(data, secs){
     let mark, why;
     if (e.section_id === "book"){ mark = "⚠️"; why = "buchweit: von Hand in den betroffenen Abschnitten umsetzen"; }
     else if (!x){ mark = "⛔"; why = "Abschnitt gibt es nicht mehr"; }
-    else if (!e.alt || !e.neu){ mark = "⚠️"; why = "ohne alten Wortlaut oder Vorschlag: von Hand umsetzen"; }
+    else if (!e.alt || !e.neu){ mark = "⚠️"; why = e.antwort ? "Antwort des Autors ohne neuen Wortlaut: von Hand umsetzen" : "ohne alten Wortlaut oder Vorschlag: von Hand umsetzen"; }
     else if (x.c.status === "approved"){ mark = "⛔"; why = `Kapitel ${String(e.abschnitt).split(".")[0]} ist abgeschlossen: erst wieder öffnen`; }
     else if (front(f.text).status === "approved"){ mark = "⛔"; why = `Abschnitt ${e.abschnitt} ist abgeschlossen: erst wieder öffnen`; }
     else if (wording(ms, e.alt, e.neu) === null){ [mark, why] = wordingNotFound(e, ms, secs); }
+    else if (notReplacement(e)){ mark = "⚠️"; why = `${notReplacement(e)}: von Hand umsetzen oder den neuen Wortlaut eintragen`; }   // #675
     else { mark = "✅"; why = "umsetzbar"; }
     out.push({mark, why, e, x});
   }
@@ -1665,8 +1682,8 @@ async function reviewPlan(d){
     busy("Wird geprüft …");
     const file = String(d.file || ""), {data} = await reviewLoad(file), secs = allSecs();
     await loadSecFiles(secs, "Wird geprüft");
-    const items = reviewPlanItems(data, secs), ok = items.filter(i => i.mark === "✅").length;
-    S.msg = {kind:"info", html:`<b>Umsetzen prüfen</b> (ändert noch nichts)${items.length ? planLines(items) : "<div>Keine entschiedenen Einträge zum Umsetzen.</div>"}${ok ? `<div style="margin-top:8px"><button class="btn pri" data-act="reviewapply" data-f="${esc(file)}">${ok === 1 ? "Den umsetzbaren Eintrag" : `Die ${ok} umsetzbaren Einträge`} ins Manuskript umsetzen</button></div><div class="dim" style="margin-top:6px">Nur ✅-Einträge werden umgesetzt, in einem Commit auf dem Arbeits-Branch (Manuskripte, Durchsicht, Befundstatus). Ins Buch kommt es erst über „Änderungen übernehmen“.</div>` : ""}`};
+    const items = reviewPlanItems(data, secs), ok = data.gesperrt ? 0 : items.filter(i => i.mark === "✅").length;
+    S.msg = {kind:"info", html:`<b>Umsetzen prüfen</b> (ändert noch nichts)${data.gesperrt ? `<div>⛔ Durchsicht gesperrt: ${esc(data.gesperrt)} – es wird nichts umgesetzt.</div>` : ""}${items.length ? planLines(items) : "<div>Keine entschiedenen Einträge zum Umsetzen.</div>"}${ok ? `<div style="margin-top:8px"><button class="btn pri" data-act="reviewapply" data-f="${esc(file)}">${ok === 1 ? "Den umsetzbaren Eintrag" : `Die ${ok} umsetzbaren Einträge`} ins Manuskript umsetzen</button></div><div class="dim" style="margin-top:6px">Nur ✅-Einträge werden umgesetzt, in einem Commit auf dem Arbeits-Branch (Manuskripte, Durchsicht, Befundstatus). Ins Buch kommt es erst über „Änderungen übernehmen“.</div>` : ""}`};
   } catch (e) { S.msg = failMsg(e); }
   show("review", d.file);
 }
@@ -1685,11 +1702,12 @@ async function reviewApply(d){
     const file = String(d.file || ""); if (!/^editorial\/durchsicht-[^/]+\.yml$/.test(file)) throw {message:"Ungültige Angabe."};
     const work = await prepareWork(); await loadBookData(work); S.readRef = work;
     const {text:dtext, data} = await reviewLoad(file), secs = allSecs();
+    if (data.gesperrt) throw {message:`Durchsicht gesperrt: ${data.gesperrt}. Nichts umgesetzt.`};   // #675
     await loadSecFiles(secs, "Wird geprüft");
     const items = reviewPlanItems(data, secs), files = {}, orig = {[file]:dtext}, applied = [], skipped = [], ctx = [], notes = [];
     const MARK = "\n## Manuskript\n";
     for (const it of items){
-      if (it.mark !== "✅"){ skipped.push(it); continue; }
+      if (it.mark !== "✅" || notReplacement(it.e)){ skipped.push(it.mark === "✅" ? Object.assign({}, it, {mark:"⚠️", why:notReplacement(it.e)}) : it); continue; }   // #675: zweite Sicherung
       const e = it.e, path = e.datei || it.x.s.path;
       if (!(path in files)){ const t = (await getFile(path, work, true)).text; files[path] = t; orig[path] = t; }
       const t = files[path], k = t.indexOf(MARK);
