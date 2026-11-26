@@ -49,12 +49,14 @@ LABELS = {
 }
 ANALYSIS_LABELS = {
     'de': {'characters': 'Figuren', 'summaries': 'Kurzbeschreibungen', 'style': 'Stil', 'places': 'Schauplätze',
-           'timeline': 'Zeitleiste', 'continuity': 'Widersprüche', 'language': 'Sprache', 'chronology': 'Chronologie'},
+           'timeline': 'Zeitleiste', 'continuity': 'Widersprüche', 'language': 'Sprache', 'chronology': 'Chronologie',
+           'portraits': 'Personenbilder'},
     'en': {'characters': 'Characters', 'summaries': 'Summaries', 'style': 'Style', 'places': 'Places',
-           'timeline': 'Timeline', 'continuity': 'Continuity', 'language': 'Language', 'chronology': 'Chronology'},
+           'timeline': 'Timeline', 'continuity': 'Continuity', 'language': 'Language', 'chronology': 'Chronology',
+           'portraits': 'Character images'},
 }
 ANALYSIS_SHORT = {'characters': 'AF', 'summaries': 'AK', 'style': 'ASt', 'places': 'AO', 'timeline': 'AZ',
-                  'continuity': 'AW', 'language': 'ASp', 'chronology': 'AC'}
+                  'continuity': 'AW', 'language': 'ASp', 'chronology': 'AC', 'portraits': 'AP'}
 RESULT_MARK = {'passed': '✓', 'passed_with_notes': '✓·', 'failed': '✗', 'incomplete': '…', 'unknown': '?'}
 RESULT_TEXT = {
     'de': {'passed': 'bestanden', 'passed_with_notes': 'bestanden mit Hinweisen', 'failed': 'nicht bestanden',

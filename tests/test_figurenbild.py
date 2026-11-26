@@ -12,6 +12,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
+import analyze  # noqa: E402
 import characters  # noqa: E402
 import figurenbild  # noqa: E402
 import validate_project  # noqa: E402
@@ -20,7 +21,7 @@ PNG = (b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08
        b'\x00\x05\xfe\x02\xfe\xa7\x9a\x9d\xd1\x00\x00\x00\x00IEND\xaeB`\x82')
 
 
-class FigurenbildTest(unittest.TestCase):
+class Base(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
@@ -45,6 +46,8 @@ class FigurenbildTest(unittest.TestCase):
             args += [f'--{k.replace("_", "-")}', v] if not isinstance(v, list) else [x for i in v for x in (f'--{k}', i)]
         return self.run_cli(*args)
 
+
+class FigurenbildTest(Base):
     def test_style_set_show_and_series_inheritance(self):
         self.assertIn('Noch kein Bildstil', self.run_cli('stil')[1])
         code, _ = self.run_cli('stil', 'set', json.dumps({'medium': 'foto', 'licht': 'weiches Licht', 'ausschluesse': 'Glamour, Retusche'}))
@@ -120,6 +123,48 @@ class FigurenbildTest(unittest.TestCase):
         (self.base / 'images/stil.yml').write_text('medium: foto\n')
         (self.base / 'characters/char-opi/bilder/bild-001.png').unlink()
         self.assertTrue(any('Bilddatei fehlt' in e for e in validate_project.check_project(self.base)))
+
+
+class PortraitsAnalysisTest(Base):
+    """Analyseart `portraits` (#540): werkweite Personenübersicht ohne KI."""
+    def groups(self):
+        head = analyze.run(self.base, 'portraits')
+        data = yaml.safe_load(json.dumps(json.loads((self.base / 'analysis/portraits' / head['result']).read_text())))
+        return head, {i['id']: i['group'] for i in data['items']}, data
+
+    def test_groups_and_no_changes_and_no_cost(self):
+        before = (self.base / 'characters/char-opi.md').read_text()
+        head, groups, data = self.groups()
+        self.assertEqual(groups, {'char-strolchi': 'braucht_hilfe', 'char-opi': 'vorbereitbar'})
+        self.assertEqual((head['provider'], head['cost'], head['input_tokens']), (None, 0, 0))   # ohne KI, ohne Kosten
+        strolchi = next(i for i in data['items'] if i['id'] == 'char-strolchi')
+        self.assertIn('Wie sieht Strolchi aus', strolchi['question'])
+        self.assertEqual((self.base / 'characters/char-opi.md').read_text(), before)            # nichts angelegt oder geändert
+        self.assertFalse((self.base / 'characters/char-opi/bilder.yml').exists())
+
+    def test_existing_image_and_changed_profile_and_untracked_person(self):
+        self.add_image('opi')
+        self.run_cli('waehlen', 'opi', 'bild-001', '--status', 'gewaehlt')
+        self.assertEqual(self.groups()[1]['char-opi'], 'vorhanden')
+        characters.update(self.base, 'opi', {'appearance': 'groß, weißer Bart, Glatze'})        # Profil seit dem Bild geändert
+        self.assertEqual(self.groups()[1]['char-opi'], 'aktualisieren')
+        # Name aus der Figuren-Analyse, zu dem es kein Profil gibt
+        (self.base / 'analysis/characters').mkdir(parents=True)
+        (self.base / 'analysis/characters/run-001.json').write_text(json.dumps({'items': [
+            {'name': 'Opi', 'aliases': [], 'sections': []}, {'name': 'Frau Meier', 'aliases': ['Meiers'], 'sections': ['1.1']}]}))
+        _, groups, data = self.groups()
+        extra = [i for i in data['items'] if i['group'] == 'ohne_profil']
+        self.assertEqual([i['name'] for i in extra], ['Frau Meier'])
+
+    def test_text_view_for_any_client(self):
+        import subprocess
+        head = analyze.run(self.base, 'portraits')
+        for lang, word in (('de', 'Autorenhilfe'), ('en', 'Needs the author')):
+            out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest', '--draft',
+                                  f'analysis/portraits/{head["result"]}', '--repo', 'o/r', '--language', lang],
+                                 capture_output=True, text=True).stdout
+            self.assertIn(word, out)
+            self.assertNotIn('{{', out)
 
 
 if __name__ == '__main__':
