@@ -1665,6 +1665,88 @@ def language_combine(base, config, results, todo, prev, ask):
     return {'items': items}, body
 
 
+# ---------- Personenbilder (#540): werkweite Übersicht, ganz ohne KI ----------
+
+PORTRAIT_GROUPS = ('vorbereitbar', 'braucht_hilfe', 'aktualisieren', 'vorhanden', 'nur_erwaehnt')
+PORTRAIT_LABEL = {'vorbereitbar': 'Selbstständig vorbereitbar', 'braucht_hilfe': 'Braucht Autorenhilfe',
+                  'aktualisieren': 'Bild sollte aktualisiert werden', 'vorhanden': 'Bereits angelegt und bebildert',
+                  'nur_erwaehnt': 'Nur erwähnt, Bildbedarf unklar', 'ohne_profil': 'Im Text, aber ohne Figurenprofil'}
+
+
+def portraits_blocks(base, config, scope=None, matter=True, split=True):
+    """Ein Block je Figur: Profilangaben, Zahl der Erwähnungen im Werk und der Stand der Bilder (bilder.yml). Der Block-Text
+    ändert sich mit Profil, Text und Bildern, so bleibt der Zwischenspeicher richtig."""
+    import figurenbild
+    from render_view import character_file, character_items
+    units = [(i['id'], i['title'], i) for _, i in matter_items(config)] if matter else []
+    for ci, ch in enumerate(config['structure']['chapters'], start=1):
+        units.extend((s['id'], f'{ci}.{si}', s) for si, s in enumerate(ch['sections'], start=1))
+    texts = [(where, section_file(base, s)[3]) for _, where, s in units]
+    for item in character_items(config):
+        head, description, _ = character_file(base, item)
+        name = str(item['name'])
+        needle = name.casefold()
+        where = [w for w, t in texts if needle in t.casefold()]
+        mentions = sum(t.casefold().count(needle) for _, t in texts)
+        images = figurenbild.load_images(base, item['id'])['bilder'] if '_series' not in item else []
+        data = {'id': item['id'], 'name': name, 'role': head.get('role'), 'short': head.get('short') or '', 'age': str(head.get('age') or ''),
+                'appearance': str(head.get('appearance') or ''), 'visual': str(head.get('visual') or ''), 'mentions': mentions,
+                'sections': where[:12], 'profile': figurenbild.profile_digest(item, head, description),
+                'images': [{'id': i['id'], 'status': i.get('status'), 'profile': i.get('quelle_profil')} for i in images]}
+        yield item['id'], name, {name: json.dumps(data, ensure_ascii=False, sort_keys=True)}
+
+
+def portraits_local(texts, **_):
+    """Eine Figur einordnen (ohne KI) → ([Eintrag], 0). Regeln: Bild mit anderem Profilstand → aktualisieren; Bild vorhanden → vorhanden;
+    Aussehen oder Bildmerkmale im Profil → vorbereitbar; Randfigur mit höchstens zwei Erwähnungen und ohne Aussehen → nur erwähnt;
+    sonst braucht der Autor Angaben zum Aussehen."""
+    out = []
+    for text in texts.values():
+        d = json.loads(text)
+        chosen = [i for i in d['images'] if i['status'] in ('gewaehlt', 'referenz')]
+        has_look = bool(d['appearance'].strip() or d['visual'].strip())
+        open_points = [label for key, label in (('appearance', 'Aussehen'), ('age', 'Alter')) if not d[key].strip()]
+        if d['images'] and any(i['profile'] and i['profile'] != d['profile'] for i in (chosen or d['images'])):
+            group, why = 'aktualisieren', 'Das Profil hat sich seit dem Bild geändert.'
+        elif d['images']:
+            group = 'vorhanden'
+            why = 'Bild ausgewählt.' if chosen else 'Nur Bildideen, noch keines ausgewählt.'
+        elif has_look:
+            group, why = 'vorbereitbar', 'Profil nennt das Aussehen; Prompt und Bildentwurf lassen sich ohne Rückfrage vorbereiten.'
+        elif d['role'] == 'minor' and d['mentions'] <= 2:
+            group, why = 'nur_erwaehnt', f'Randfigur, im Text {d["mentions"]}-mal genannt, kein Aussehen im Profil.'
+        else:
+            group, why = 'braucht_hilfe', 'Im Profil fehlt das Aussehen (' + ', '.join(open_points or ['Aussehen']) + '); der Autor sollte es ergänzen oder wählen.'
+        out.append({'id': d['id'], 'name': d['name'], 'role': d['role'], 'group': group, 'why': why, 'mentions': d['mentions'],
+                    'sections': d['sections'], 'images': len(d['images']),
+                    'missing': [] if has_look else (open_points or ['Aussehen']),
+                    'question': '' if group != 'braucht_hilfe' else f'Wie sieht {d["name"]} aus (Alter, Statur, Haare, typische Kleidung)?'})
+    return out, 0
+
+
+def portraits_combine(base, config, results, todo, prev, ask):
+    """Personenbilder: Figuren je Gruppe; dazu Namen aus der letzten Figuren-Analyse ohne Profil. → (vorschläge, md)"""
+    items = [it for k in ordered_results(config, results) for it in results[k]]
+    known = {str(i['name']).casefold() for i in items} | {str(i['id']) for i in items}
+    last = sorted((base / 'analysis' / 'characters').glob('run-[0-9][0-9][0-9].json'))
+    unnamed = []
+    if last:
+        for cand in (json.loads(last[-1].read_text(encoding='utf-8')).get('items') or []):
+            names = {str(cand.get('name', '')).casefold()} | {str(a).casefold() for a in cand.get('aliases') or []}
+            if cand.get('name') and not names & known:
+                unnamed.append({'id': '', 'name': cand['name'], 'role': '', 'group': 'ohne_profil',
+                                'why': 'Die Figuren-Analyse fand die Person, ein Figurenprofil gibt es noch nicht.',
+                                'mentions': 0, 'sections': cand.get('sections') or [], 'images': 0, 'missing': ['Profil'], 'question': ''})
+    items += unnamed
+    body = ['## Personenübersicht (ohne KI)', '', 'Die Übersicht legt nichts an und startet keine Bildproduktion.', '']
+    for group in PORTRAIT_GROUPS + ('ohne_profil',):
+        rows = [i for i in items if i['group'] == group]
+        body += [f'### {PORTRAIT_LABEL[group]} ({len(rows)})', '']
+        body += [f'- **{i["name"]}**: {i["why"]}' + (f' Frage: {i["question"]}' if i['question'] else '') for i in rows] or ['*keine*']
+        body.append('')
+    return {'items': items, 'counts': {g: sum(1 for i in items if i['group'] == g) for g in PORTRAIT_GROUPS + ('ohne_profil',)}}, body
+
+
 # Je Art: label (für Texte), offer (Hinweis in der Übersicht), icon (Tabler-Symbol), system (Auftrag je Block),
 # context (zusätzlicher Text vor dem Abschnitt), verify, combine, matter (Vor- und Nachspann lesen), output_tokens
 # (Schätzung je Block), merge_tokens (Schätzung Zusammenführen), merge (Zusammenführen mit merge_model).
@@ -1697,6 +1779,10 @@ KINDS = {
                                                         'patterns': ai_patterns(config)},
                  'combine': language_combine, 'matter': True,
                  'output_tokens': 0, 'merge_tokens': (0, 0), 'merge': False},
+    # Personenbilder (#540): werkweite Übersicht je Figur, ohne KI; legt nichts an und startet keine Bildproduktion
+    'portraits': {'label': 'Personenbilder', 'offer': 'Personenbilder', 'icon': 'user-circle', 'system': None, 'context': None,
+                  'blocks': portraits_blocks, 'verify': None, 'local': portraits_local, 'combine': portraits_combine, 'matter': True,
+                  'output_tokens': 0, 'merge_tokens': (0, 0), 'merge': False},
     # Chronologie (#364): liest Unterlagen statt des Manuskripts, immer das ganze Buch
     'chronology': {'label': 'Chronologie', 'offer': 'Chronologie-Vorschläge', 'icon': 'calendar-time', 'system': CHRONOLOGY_SYSTEM,
                    'context': None, 'blocks': chronology_blocks, 'verify_ctx': True, 'verify': verify_chronology,

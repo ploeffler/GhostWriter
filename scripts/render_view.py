@@ -1471,8 +1471,8 @@ def limit_summary(base, config):
 
 
 # Hintergrundläufe (#123, #124): Kürzel und Symbol je Art in der Textfassung der Projektübersicht
-ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA', 'style': 'SA', 'places': 'OA', 'glossary': 'GA', 'timeline': 'ZA', 'continuity': 'WA', 'language': 'SPA', 'chronology': 'CA'}
-ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝', 'style': '🪶', 'places': '📍', 'glossary': '📖', 'timeline': '🕰️', 'continuity': '🔗', 'language': '✍️', 'chronology': '📅'}
+ANALYSIS_KEY = {'characters': 'FA', 'summaries': 'KA', 'style': 'SA', 'places': 'OA', 'glossary': 'GA', 'timeline': 'ZA', 'continuity': 'WA', 'language': 'SPA', 'chronology': 'CA', 'portraits': 'PA'}
+ANALYSIS_EMOJI = {'characters': '👤', 'summaries': '📝', 'style': '🪶', 'places': '📍', 'glossary': '📖', 'timeline': '🕰️', 'continuity': '🔗', 'language': '✍️', 'chronology': '📅', 'portraits': '🖼️'}
 
 
 def check_index(base, config, language='de'):
@@ -3721,7 +3721,30 @@ def glossary_suggest_view(base, config, args, data, run_text):
     return '\n'.join(out) + '\n'
 
 
-ANALYSIS_VIEWS = {'glossary': glossary_suggest_view, 'chronology': chronology_suggest_view, 'summaries': summaries_suggest_view, 'style': style_suggest_view, 'places': places_suggest_view,
+def portraits_suggest_view(base, config, args, data, run_text):
+    """Personenbilder (#540): Textansicht in jeder Darstellung, kein Widget. Gruppen wie im Lauf: vorbereitbar, braucht
+    Autorenhilfe, aktualisieren, vorhanden, nur erwähnt, ohne Profil. Die Ansicht legt nichts an."""
+    import analyze
+    en = UI.get('language') == 'en'
+    labels_en = {'vorbereitbar': 'Can be prepared on its own', 'braucht_hilfe': 'Needs the author', 'aktualisieren': 'Image should be updated',
+                 'vorhanden': 'Already created and illustrated', 'nur_erwaehnt': 'Only mentioned, need unclear', 'ohne_profil': 'In the text, but no character profile'}
+    items = data.get('items') or []
+    out = [('### 🖼️ Character images · ' if en else '### 🖼️ Personenbilder · ') + scope_text(str(data.get('scope') or 'book'), config),
+           (f'{len(items)} people' if en else plural(len(items), 'Person', 'Personen')) + (f' · {run_text}' if run_text else ''), '']
+    for group in analyze.PORTRAIT_GROUPS + ('ohne_profil',):
+        rows = [i for i in items if i.get('group') == group]
+        if not rows:
+            continue
+        out.append(f'**{labels_en[group] if en else analyze.PORTRAIT_LABEL[group]} ({len(rows)})**')
+        for i in rows:
+            out.append(f'- **{i["name"]}**: {i["why"]}' + (f' ({"question" if en else "Frage"}: {i["question"]})' if i.get('question') else ''))
+        out.append('')
+    out += ['The overview creates nothing and starts no image production. Next: pick people for “Character image” (prompt and image), or answer the questions first.' if en else
+            'Die Übersicht legt nichts an und startet keine Bildproduktion. Weiter: Personen für das „Figurenbild“ (Prompt und Bild) auswählen oder zuerst die Fragen beantworten.']
+    return '\n'.join(out) + '\n'
+
+
+ANALYSIS_VIEWS = {'portraits': portraits_suggest_view, 'glossary': glossary_suggest_view, 'chronology': chronology_suggest_view, 'summaries': summaries_suggest_view, 'style': style_suggest_view, 'places': places_suggest_view,
                   'timeline': timeline_suggest_view, 'continuity': continuity_suggest_view, 'language': language_suggest_view}
 
 
