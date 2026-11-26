@@ -543,6 +543,25 @@
         "additionalProperties": false
       }
     },
+    "content": {
+      "type": "object",
+      "description": "Kennzeichnung des Inhalts im Buchprofil (#75): explicit true = das Buch enthält sexuell explizite Inhalte; die Übersetzung bietet dann Modelle mit entsprechender Lizenzsperre (TranslateGemma) nicht an",
+      "properties": {"explicit": {"type": "boolean"}},
+      "additionalProperties": false
+    },
+    "translation": {
+      "type": "object",
+      "description": "Nur in einer Sprachfassung (eigener Buch-Branch, #75): Sprache, Original-Branch, Ausgangsauflage und Stil",
+      "required": ["language", "source_branch", "source_edition"],
+      "properties": {
+        "language": {"type": "string", "pattern": "^[a-z]{2,3}(-[A-Z]{2})?$"},
+        "source_branch": {"type": "string", "minLength": 1},
+        "source_edition": {"type": "integer", "minimum": 1},
+        "style": {"enum": ["close", "free"], "description": "close = nah am Original, natürlich in der Zielsprache; free = freier"},
+        "created_at": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
     "characters": {
       "type": "array",
       "description": "Figuren des Buchs (#53) in Reihenfolge; fehlt = keine",

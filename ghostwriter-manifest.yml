@@ -58,6 +58,7 @@ book:
   - cover/                  # Umschlag: Bilder und Rückseitentexte (#68)
   - reference-images/       # Originale und Metadaten visueller Referenzen (#143)
   - characters/             # Figuren (#53); Bilder je Figur unter characters/<id>/ (#540)
+  - translation/            # Begriffsliste und Stand je Abschnitt einer Sprachfassung (#75)
   - images/                 # Bildstil des Projekts (images/stil.yml, #540)
   - story/                  # Schauplätze und Zeitleiste (#124)
   - costs/

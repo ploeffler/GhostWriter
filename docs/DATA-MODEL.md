@@ -107,6 +107,12 @@ IDs sind stabil und maschinenlesbar, z. B. `ch-01-intro` und `sec-01-purpose`. S
 | `project.description` | ausführliche Beschreibung |
 | `project.language` | Sprache des Buchs als Sprachcode, z. B. `de` (Silbentrennung und Anführungszeichen im Buchsatz) |
 | `project.translations_planned` | geplante Übersetzungen als Sprachcodes, z. B. `[en]`; nur Angabe aus dem Wizard, fehlt = keine (Umsetzung der Übersetzung: #75) |
+| `translation.language` | nur in einer Sprachfassung (eigener Buch-Branch, #75): Zielsprache als Sprachcode, z. B. `en` |
+| `translation.source_branch` | Original-Branch, aus dem übersetzt wird |
+| `translation.source_edition` | Ausgangsauflage des Originals (Zahl); Quelle ist ausschließlich eine Auflage |
+| `translation.style` | `close` (nah am Original, natürlich in der Zielsprache) oder `free` (freier); Vorgabe `close` |
+| `translation.created_at` | Zeitpunkt, an dem die Sprachfassung angelegt wurde |
+| `content.explicit` | Buchprofil (#75): `true` = das Buch enthält sexuell explizite Inhalte; die Übersetzung bietet dann TranslateGemma nicht an; fehlt = `false` |
 | `project.target_audience` | Zielgruppe |
 | `project.book_type` | Buchtyp, z. B. Sachbuch, Ratgeber, Roman, Kinderbuch |
 | `project.status` | Projektstatus, z. B. `concept` |
@@ -354,6 +360,17 @@ Der Status beginnt immer mit `stored`. Nur eine ausdrückliche Freigabe setzt `a
 **Bildkandidaten (#218).** `research/images/candidates.yml` (`scripts/image_research.py`): Liste `candidates` mit `id` (`cand-NNN`), `status` (`candidate` | `adopted` | `rejected`), `title`, `url` (Bild), `page` (Fundseite), `author`, `license`, `license_url`, `found_by` (`chat` | `user`), `found_at`, `links` (Zuordnungen wie bei Referenzbildern), `note`, `rights` (`clear` nur mit Urheber und Lizenz, sonst `unclear`), nach Übernahme `adopted_as` (`ref-img-…`) und `adopted_at`, nach Verwerfen `rejected_at` und `reason`. Ein Kandidat enthält nie eine Bilddatei; die Übernahme legt nach ausdrücklicher Bestätigung ein Referenzbild mit Status `stored` an.
 
 Die aktuelle CLI verwaltet die Dateien und erzwingt Freigabe und Auswahl. Die Übergabe der Bildbytes an den Bilddienst und ein authentifizierter API-Upload sind noch nicht implementiert; ein Dateipfad oder eine Textbeschreibung ist keine tatsächliche Bildreferenzübergabe.
+
+## Übersetzung (#75, Grundlagen)
+
+Jede Sprachfassung ist ein eigener Buch-Branch. Dateien (alle gehören dem Buch; Schema des Blocks `translation` in [`schemas/ghostwriter.schema.json`](../schemas/ghostwriter.schema.json)):
+
+- `ghostwriter.yml` → `translation: {language, source_branch, source_edition, style (close | free), created_at}`: Zielsprache, Original-Branch, Ausgangsauflage (Quelle ist ausschließlich eine Auflage).
+- `ghostwriter.yml` → `content: {explicit: true}` (Buchprofil): Das Buch enthält sexuell explizite Inhalte; die Übersetzung bietet dann TranslateGemma nicht an. Fehlt das Feld, gilt `false`.
+- `translation/terms.yml`: `language`, `terms: [{source, target, kind (name | place | term | address | keep), note?}]`. Pflicht vor dem ersten Auftrag.
+- `translation/status.yml`: `language`, `sections: {<abschnitt-id>: {source_fingerprint, source_edition, model, state (open | translated | checked | approved), updated_at}}`. Weicht der Fingerabdruck des Originalabschnitts ab, ist die Übersetzung veraltet (`translation.py stale`).
+
+Bedienung: `START.md`, „Übersetzung des Buchs“. Gewichte lokaler Modelle hostet oder spiegelt GhostWriter nie.
 
 ## Figuren
 
