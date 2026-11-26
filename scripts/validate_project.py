@@ -78,6 +78,8 @@ MATTER_HEAD = validator('matter.schema.json')
 CHARACTER_HEAD = validator('character.schema.json')
 IMAGE_META = validator('image.schema.json')
 REFERENCE_IMAGE_META = validator('reference-image.schema.json')
+IMAGE_STYLE = validator('image-style.schema.json')
+FIGURE_IMAGES = validator('figure-images.schema.json')
 PLACES = validator('places.schema.json')
 TIMELINE = validator('timeline.schema.json')
 CHRONOLOGY = validator('chronology.schema.json')
@@ -449,6 +451,32 @@ def check_project(project_dir):
     sections = {base / s['path'] for ch in config['structure']['chapters'] for s in ch['sections']}
     errors += images.placement_problems([(str(path), path.read_text(encoding='utf-8'), path in sections)
                                          for path in refs if path.is_file()])
+
+    # Figurenbilder (#540): Bildstil des Projekts und Bilder je Figur
+    style_path = base / 'images' / 'stil.yml'
+    if style_path.is_file():
+        style = load_yaml(style_path, errors)
+        if style is not None:
+            errors += schema_errors(IMAGE_STYLE, style, style_path)
+    for fig_path in sorted((base / 'characters').glob('char-*/bilder.yml')):
+        data = load_yaml(fig_path, errors)
+        if data is None:
+            continue
+        errs = schema_errors(FIGURE_IMAGES, data, fig_path)
+        errors += errs
+        if errs:
+            continue
+        if data['figur'] != fig_path.parent.name:
+            errors.append(f'{fig_path}: figur passt nicht zum Ordner {fig_path.parent.name}')
+        ids = [i['id'] for i in data['bilder']]
+        if len(ids) != len(set(ids)):
+            errors.append(f'{fig_path}: Bild-IDs doppelt')
+        for img in data['bilder']:
+            if not (fig_path.parent / img['datei']).is_file():
+                errors.append(f'{fig_path}: Bilddatei fehlt: {img["datei"]}')
+            for ref in img.get('eingabe') or []:
+                if ref not in ids:
+                    errors.append(f'{fig_path}: Eingabebild {ref} unbekannt ({img["id"]})')
 
     # Projektweite Referenzbilder bleiben von Buchillustrationen getrennt.
     reference_dir = base / 'reference-images'

@@ -534,6 +534,17 @@ Figuren sind optional (`characters`, `docs/DATA-MODEL.md`, „Figuren“) und Ar
       - **Widersprüche** zu Buch und Recherche als Liste mit Fundstelle, ohne Entscheidung.
       Nie ins Manuskript. Bestehende Angaben nur ersetzen, wenn der Autor das ausdrücklich wählt.
 
+### Figurenbild-Assistent (#540)
+
+`Figurenbild`, `Figurenbild-Assistent` (Englisch `Character image`, Kürzel FB) oder der Wunsch, eine Figur zu bebildern. Allgemeiner Skill `ghostwriter-figurenbild` (`.claude/skills/ghostwriter-figurenbild/SKILL.md`); Skript `scripts/figurenbild.py`, Datenmodell in `docs/DATA-MODEL.md` („Figurenbilder“), Grenzen in `docs/BILDER-UND-REFERENZBILDER.md`. Der Assistent erzeugt Bilder nur mit dem Bilddienst des Chats (sonst den vollständigen Auftrag zum Kopieren ausgeben), nie mit stillschweigend vorausgesetztem Anbieter oder Kosten.
+
+1. **Grundlage:** `python scripts/characters.py . profile <Figur>`, `python scripts/figurenbild.py . stil`, `python scripts/figurenbild.py . liste <Figur>`. Fehlende Angaben bleiben offen.
+2. **Bildstil:** Medium (`foto`, `comic`, `illustration`, `aquarell`, `frei`) und Realismus, Farbigkeit, Licht, Ausschnitt, Hintergrund, wiederkehrende Merkmale, Ausschlüsse als Auswahl anbieten; erst nach ausdrücklicher Bestätigung `python scripts/figurenbild.py . stil set '<json>'` (`images/stil.yml`; eine Serie führt `series/<ser-id>/stil.yml`, `--serie <datei>` liest sie). Der Bildstil ist nicht die Erzählstimme.
+3. **Prompt:** `python scripts/figurenbild.py . prompt <Figur> [--kleidung …] [--ausdruck …] [--ort …] [--szene …]`: Der Prompt kommt aus Profil, Wünschen des Autors und Stil; „Herkunft“ nennt je Angabe `profil`, `autor` oder `bildgestaltung`. Was „noch offen“ ist (Frisur, Kleidungsfarbe …), ist ein Bildvorschlag und kein Manuskriptfakt. Gemeinsamer Stil heißt nicht gleiche Kleidung: je Figur unterscheiden.
+4. **Erzeugen und ansehen:** ein Auftrag je Figur; Ergebnis mit Profil, Wunsch, Ausdruck, Kleidung und Stil vergleichen. Änderungen („nur Kleidung“) nehmen das vorhandene Bild als Eingabe und benennen nur die Änderung, alles andere wird ausdrücklich erhalten.
+5. **Ablegen** (nach Bestätigung): `python scripts/figurenbild.py . variante <Figur> <Bilddatei> --prompt-datei <datei> [--art aenderung --eingabe bild-001] [--werkzeug …] [--modell …] [--kleidung …]` legt das Bild unverändert unter `characters/<id>/bilder/` ab und trägt Prompt, Prüfsumme, Werkzeug und Modell (sonst `unbekannt`) in `bilder.yml` ein; `waehlen` setzt `idee` oder `gewaehlt`; `pruefen` meldet veränderte oder fehlende Dateien und gleiche Kleidung mehrerer Figuren. Commit-Nachricht gibt das Skript aus.
+6. **Grenzen:** Das Bild ist keine Referenzfreigabe (`referenz` setzt `waehlen` nur mit freigegebenem Referenzbild nach #417). Keine Profiländerung, keine Manuskriptfakten, keine Freigabe. Figuren in sexuellen Darstellungen und Minderjährige, die reale Personen zeigen, nie; Fotos echter Personen nicht an externe Dienste ohne Einverständnis (`material.external_allowed`). Grafische Hilfe (Stilkarten, Variantenvergleich) nur, wo der Client sie anzeigt; bis das Widget da ist (geplant, #540), alles als Text.
+
 ### Analysen im Hintergrund (verbindlich, #123, #124)
 
 Für alle buchweiten Prüfungen gilt [Große Bücher abschnittsweise prüfen](docs/CONTEXT.md#große-bücher-abschnittsweise-prüfen): Originaltexte und umfangreiche Zwischenergebnisse in Dateien halten; im Chat nur kompakte Befunde. Kapitel- und Buchzusammenhang mit gezielten Originalstellen prüfen.

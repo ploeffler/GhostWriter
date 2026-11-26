@@ -102,6 +102,10 @@ Schwarz-Weiß-Fotos aus Familienbesitz lassen sich einfärben, ohne dass ein Bil
 - **Geprüft wird:** gleiches Seitenverhältnis, gleicher Bildaufbau und eine mittlere Helligkeitsabweichung unter 1/255. Sonst wird nichts geschrieben.
 - Ein coloriertes Bild wird im Buch als „nachträglich coloriert“ gekennzeichnet. Die Farben sind eine Annahme, kein Beleg.
 
+## Figurenbild-Assistent (#540)
+
+Für Bilder von Figuren führt der Assistent durch Bildstil, Prompt und Varianten (Skill `ghostwriter-figurenbild`, Skript `scripts/figurenbild.py`, Datenmodell unter [Figurenbilder](DATA-MODEL.md#figurenbilder-540)). Der **Bildstil** des Projekts (`images/stil.yml`) ist von der Erzählstimme getrennt und wird erst nach ausdrücklicher Bestätigung gespeichert. Der **Prompt** entsteht aus Figurenprofil, Wünschen des Autors und Stil; zu jeder Angabe steht, ob sie aus dem Profil, vom Autor oder aus der Bildgestaltung stammt. Was das Profil nicht festlegt (etwa Frisur oder Kleidungsfarbe), bleibt ein Bildvorschlag und wird kein Manuskriptfakt. Ein gemeinsamer Stil bedeutet nicht gleiche Kleidung: `figurenbild.py pruefen` meldet gleiche Kleidung mehrerer Figuren. Jede Variante liegt unverändert bei der Figur (`characters/<id>/bilder/`) mit vollständigem Prompt, Werkzeug und Modell (sonst „unbekannt“) und Prüfsumme; eine Änderung wie „nur Kleidung“ ist eine neue Variante mit dem Ausgangsbild als Eingabe. Ein solches Bild ist **keine Referenzfreigabe**; die bleibt ein eigener Schritt (siehe oben). Der Assistent nutzt den Bilddienst des Chats; ohne ihn gibt er den vollständigen Auftrag zum Kopieren aus. Grafische Stilkarten und Variantenvergleich folgen als Widget; bis dahin gilt die Textfassung.
+
 ## Abgrenzung zur bestehenden Illustrationsfunktion
 
 Die bestehende Funktion #54 verwaltet erzeugte bzw. bereitgestellte Illustrationen abschnittsbezogen und kennt deren Entwurf- und Freigabestatus für die Buchausgabe. Die neue Referenzverwaltung ergänzt dies, ersetzt es aber nicht.

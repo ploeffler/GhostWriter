@@ -379,6 +379,35 @@ relations:
 
 Darunter `## Beschreibung` und `## Notizen`. Abschnitte und Teile von Vor- und Nachspann nennen ihre Figuren im Kopf: `characters: [char-strolchi, char-opi]`. Die Prüfung kontrolliert Dateien, IDs, Namen, Beziehungen und diese Verweise. `scripts/characters.py` legt Figuren an (`add`), ordnet sie zu (`assign`), speichert das Formular (`update`) und gibt den Kontext für KI-Läufe aus (`context <abschnitt>`). Figuren kommen nicht ins Buch. Figurenliste und Figurenansicht zeigen ein Profilbild (#417) als verkleinerte Ableitung des Referenzbilds; das Original wird nicht in den Chat geladen.
 
+
+### Figurenbilder (#540)
+
+Bildstil und Bilder je Figur, bedient mit `scripts/figurenbild.py` (Skill `ghostwriter-figurenbild`). Beides gehört dem Buch.
+
+- **Bildstil** `images/stil.yml` (Schema [`schemas/image-style.schema.json`](../schemas/image-style.schema.json)): `medium` (`foto` | `comic` | `illustration` | `aquarell` | `frei`), `realismus`, `farbigkeit`, `licht`, `ausschnitt`, `hintergrund`, `merkmale` (Liste, wiederkehrend), `ausschluesse` (Liste), `freitext`. Der Bildstil ist von der Erzählstimme (`style` in `ghostwriter.yml`) getrennt. Eine Serie führt `series/<ser-id>/stil.yml`; der Band erbt ihn und überschreibt Felder in `images/stil.yml`.
+- **Bilder je Figur** `characters/<char-id>/bilder.yml` (Schema [`schemas/figure-images.schema.json`](../schemas/figure-images.schema.json)) mit den Dateien unter `characters/<char-id>/bilder/`:
+
+```yaml
+figur: char-opi
+bilder:
+- id: bild-001
+  datei: bilder/bild-001.png     # Original, wird nie überschrieben
+  sha256: 3b0c…                  # Prüfsumme der Datei
+  angelegt: '2026-11-26T10:00:00+00:00'
+  art: erzeugung                 # erzeugung | aenderung (eine Änderung ist eine neue Variante mit `eingabe`)
+  prompt: |                      # der tatsächlich gesendete Prompt, vollständig
+    Bildart: Porträt einer Romanfigur …
+  eingabe: []                    # Eingabebilder (bild-NNN), bei einer Änderung Pflicht
+  werkzeug: Chat-Bilddienst      # sonst `unbekannt`
+  modell: unbekannt
+  quelle_profil: 9f2c1a7e0b3d4c55  # Stand des Figurenprofils beim Erzeugen
+  herkunft: {aussehen: profil, kleidung: autor, stil: bildgestaltung}
+  kleidung: Strickjacke, Rostrot # damit gleiche Kleidung mehrerer Figuren auffällt
+  status: gewaehlt               # idee | gewaehlt | referenz
+```
+
+`status: referenz` mit `referenz: ref-img-…` gilt nur bei freigegebenem Referenzbild (#417); ein Bild allein ist keine Freigabe. `validate_project.py` prüft beide Dateien (Schema, Bilddatei vorhanden, Eingabebilder bekannt).
+
 ## Übersichtsdatei
 
 `ghostwriter-index.json` wird von `scripts/build_index.py` erzeugt, im Repository von der Action „Übersichtsdatei aktualisieren“ (`.github/workflows/index.yml`) nach jedem Push, der Buchdateien ändert. Sie enthält je Kapitel und Abschnitt Status, Freigaben, Kosten-Summen (Betrag, Schätzkennzeichen, Text) und Markerzahlen je Art, dazu Projektsumme, Auflage und `workflow.current_*`, bei Vor- und Nachspann unter `matter` je Teil Art, Bereich, Titel, Status, Freigaben und Marker, bei Figuren unter `characters` je Figur ID, Name, Rolle und wo sie vorkommt, aber keinen Manuskripttext und keine Zeitstempel. Die Prüf-Action meldet eine veraltete Datei als Hinweis. Ohne Kapitel gibt es keine Übersichtsdatei.
