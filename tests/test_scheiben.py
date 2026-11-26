@@ -63,5 +63,60 @@ class SliceTest(unittest.TestCase):
         self.assertLess(sizes['kapitel:1'], sizes['kopf'] + 600)
 
 
+class LibraryAndChapterSliceTest(unittest.TestCase):
+    """Bücherregal je Buch und Kapitelansicht je Abschnitt (#674)."""
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.base = Path(tmp.name) / 'buch'
+        shutil.copytree(ROOT / 'tests/fixtures/adhs', self.base)
+        self.lib = Path(tmp.name) / 'library.json'
+        book = {'branch': 'buch/adhs', 'status': 'ready', 'title': 'ADHS', 'title_short': 'adhs', 'author': 'A', 'sections_total': 10,
+                'sections_approved': 2, 'chapters_total': 2, 'chapters_approved': 0, 'current_edition': 1, 'editions': [{'number': 1, 'tag': 't-1'}],
+                'updated_at': '2026-11-01', 'cost': {'text': '–'}}
+        book2 = dict(book, branch='buch/zwei', title='Zwei', title_short='zwei', editions=[])
+        self.lib.write_text(json.dumps({'books': [book, book2]}), encoding='utf-8')
+
+    def run_view(self, view, *args, check=True):
+        extra = ['--library', str(self.lib)] if view == 'library' else []
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), view, *args, '--repo', 'o/r', *extra],
+                           capture_output=True, text=True)
+        if check:
+            self.assertEqual(r.returncode, 0, r.stderr)
+        return r
+
+    def data(self, view, name, *where):
+        out = self.run_view(view, *where, '--scheibe', name).stdout
+        return widget_json(re.search(r'GW\.render\("[a-z]+",(.*)\)</script>', out).group(1))
+
+    def test_library_slices(self):
+        r = self.run_view('library', '--scheibe', 'liste')
+        names = r.stdout.split()
+        self.assertEqual(names[:3], ['kopf', 'buch:1', 'buch:2'])
+        head, one, two = self.data('library', 'kopf'), self.data('library', 'buch:1'), self.data('library', 'buch:2')
+        self.assertEqual((head['SLICE'], one['SLICE']), ('kopf', 'buch'))
+        self.assertFalse(head['BOOKS'])
+        self.assertEqual([b['BOOK_BRANCH'] for b in one['BOOKS']], ['buch/adhs'])
+        self.assertEqual([e['E_NUMBER'] for e in one['EDITIONS']], [1])                  # nur die Auflagen dieses Buchs
+        self.assertEqual([b['BOOK_BRANCH'] for b in two['BOOKS']], ['buch/zwei'])
+        self.assertFalse(two['EDITIONS'])
+        self.assertNotEqual(self.run_view('library', '--scheibe', 'buch:9', check=False).returncode, 0)
+        self.assertNotEqual(self.run_view('library', '--scheibe', 'kopf', '--text', check=False).returncode, 0)
+
+    def test_chapter_slices(self):
+        names = self.run_view('chapter', '1', '--scheibe', 'liste').stdout.split()
+        n = len(names) - 2
+        self.assertEqual((names[0], names[1], names[-1]), ('kopf', 'abschnitt:1', 'ende'))
+        head, first, second, last, end = (self.data('chapter', x, '1') for x in ('kopf', 'abschnitt:1', 'abschnitt:2', f'abschnitt:{n}', 'ende'))
+        self.assertEqual((head['SLICE'], first['SLICE'], second['SLICE'], end['SLICE']), ('kopf', 'abschnitt', 'abschnitt-weiter', 'ende'))
+        self.assertTrue(head['CHAPTER_TITLE'] and not head['SECTIONS'])
+        self.assertEqual([len(s['SECTIONS']) for s in (first, second, last)], [1, 1, 1])
+        self.assertEqual(first['SECTIONS'][0]['SECTION_NUMBER'], '1.1')
+        self.assertFalse(first['CHAPTER_TITLE'])
+        full = self.run_view('chapter', '1').stdout
+        self.assertEqual(len(re.findall(r'"SECTION_ID"', full)) or 1, 1)                  # ohne --scheibe weiter in einem Stück
+        self.assertNotIn('"SLICE"', full)
+
+
 if __name__ == '__main__':
     unittest.main()

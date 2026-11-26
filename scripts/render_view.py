@@ -1895,7 +1895,33 @@ def chapter_view(base, config, args, cnum):
         blocks['CHECKS'] = chapter_checks
     if chapter_history:
         blocks['CHECKS_HISTORY'] = chapter_history
+    if getattr(args, 'scheibe', None):   # #674: Scheiben (ab UI 0.78.0)
+        return chapter_slice(args.scheibe, values, blocks, rows)
     return fill('kapitelansicht.html', values, blocks)
+
+
+def chapter_slices(n_sections):
+    return ['kopf'] + [f'abschnitt:{i}' for i in range(1, n_sections + 1)] + ['ende']
+
+
+def chapter_slice(wanted, values, blocks, rows):
+    """Eine Scheibe der Kapitelansicht (#674): `kopf` (Titel, Ziel, Zusammenfassung, Prüf-Tags, Checkouts), `abschnitt:N` (eine Zeile),
+    `ende` (Hinweis zum Zusammenführen). Die Legende der Prüf-Tags steht in der letzten Abschnittsscheibe."""
+    names = chapter_slices(len(rows))
+    if wanted == 'liste':
+        return '\n'.join(names) + '\n'
+    if wanted not in names:
+        raise SystemExit(f'Scheibe „{wanted}“ gibt es nicht. Möglich: ' + ', '.join(names))
+    legend = values.pop('CHECKS_LEGEND', '')
+    if wanted == 'kopf':
+        return fill('kapitelansicht.html', dict(values, SLICE='kopf'), {k: v for k, v in blocks.items() if k != 'SECTIONS'})
+    if wanted == 'ende':
+        return fill('kapitelansicht.html', {'SLICE': 'ende'}, {})
+    n = int(wanted.split(':')[1])
+    out = {'SLICE': 'abschnitt' if n == 1 else 'abschnitt-weiter'}
+    if n == len(rows) and legend:
+        out['CHECKS_LEGEND'] = legend
+    return fill('kapitelansicht.html', out, {'SECTIONS': [rows[n - 1]]})
 
 
 def section_hints(base, sid):
@@ -3301,12 +3327,39 @@ def library_view(base, config, args):
         blocks['EDITIONS'] = editions
     if empty_series:
         blocks['EMPTY_SERIES'] = empty_series
-    return fill('buecherregal.html', {'LIBRARY_NAME': repo_label(args), 'BOOK_COUNT_NUMBER': len(rows), 'SERIES_COUNT_NUMBER': len(ser),
-                                      'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
-                                      'SESSION_COUNT_NUMBER': len(sessions),
-                                      'SESSION_COUNT_TEXT': f'{view_message("library.session.heading")} ({len(sessions)})' if sessions else '',
-                                      'JOBS_TEXT': jobs_total,
-                                      'UPDATED_TEXT': ''}, blocks)
+    values = {'LIBRARY_NAME': repo_label(args), 'BOOK_COUNT_NUMBER': len(rows), 'SERIES_COUNT_NUMBER': len(ser),
+              'BOOK_COUNT_TEXT': count, 'EMPTY': '' if rows else '1',
+              'SESSION_COUNT_NUMBER': len(sessions),
+              'SESSION_COUNT_TEXT': f'{view_message("library.session.heading")} ({len(sessions)})' if sessions else '',
+              'JOBS_TEXT': jobs_total,
+              'UPDATED_TEXT': ''}
+    if getattr(args, 'scheibe', None):   # #674: Scheiben (ab UI 0.78.0)
+        return library_slice(args.scheibe, values, blocks, rows, editions, empty_series)
+    return fill('buecherregal.html', values, blocks)
+
+
+def library_slices(n_books, with_end):
+    return ['kopf'] + [f'buch:{i}' for i in range(1, n_books + 1)] + (['ende'] if with_end else [])
+
+
+def library_slice(wanted, values, blocks, rows, editions, empty_series):
+    """Eine Scheibe des Bücherregals (#674): `kopf` (Titel, Warteschlange, Sitzungen), `buch:N` (eine Buchkarte mit ihren Auflagen),
+    `ende` (Serien ohne Bände, nur wenn es welche gibt)."""
+    names = library_slices(len(rows), bool(empty_series))
+    if wanted == 'liste':
+        return '\n'.join(names) + '\n'
+    if wanted not in names:
+        raise SystemExit(f'Scheibe „{wanted}“ gibt es nicht. Möglich: ' + ', '.join(names))
+    if wanted == 'kopf':
+        return fill('buecherregal.html', dict(values, SLICE='kopf'), {k: v for k, v in blocks.items() if k not in ('BOOKS', 'EDITIONS', 'EMPTY_SERIES')})
+    if wanted == 'ende':
+        return fill('buecherregal.html', {'SLICE': 'ende'}, {'EMPTY_SERIES': empty_series})
+    row = rows[int(wanted.split(':')[1]) - 1]
+    out = {'BOOKS': [row]}
+    mine = [e for e in editions if e.get('E_BOOK_BRANCH') == row['BOOK_BRANCH']]
+    if mine:
+        out['EDITIONS'] = mine
+    return fill('buecherregal.html', {'SLICE': 'buch'}, out)
 
 
 SERIES_KIND_DE = {'continuous': 'durchgehende Handlung', 'standalone': 'eigenständige Bände'}
@@ -4438,7 +4491,7 @@ def main():
     ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline', 'notes-review', 'settings-overview', 'queue', 'checkin'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
-    ap.add_argument('--scheibe', help='bei project (Widget): nur diese Scheibe ausgeben (#674): kopf, kapitel:N oder ende; „liste“ nennt sie alle')
+    ap.add_argument('--scheibe', help='bei project, library, chapter (Widget): nur diese Scheibe ausgeben (#674): kopf, kapitel:N | buch:N | abschnitt:N, ende; „liste“ nennt sie alle')
     ap.add_argument('--darstellung', choices=['einfach', 'uebersichtlich', 'erweitert'],
                     help='Darstellungsstufe (#398); „erweitert“ zeigt in der Projektübersicht Prüfdetails je Kapitel')
     ap.add_argument('--ohne-manuskript', '--no-manuscript', dest='no_manuscript', action='store_true',
@@ -4507,6 +4560,8 @@ def main():
     if args.view in FORMS:
         out = FORMS[args.view](base, config, args)
     elif args.view == 'library':
+        if getattr(args, 'scheibe', None) and args.text:
+            raise SystemExit('--scheibe gilt nur für das Widget; die Textfassung kommt in einem Stück.')
         out = library_view(base, config, args)
     elif args.view == 'data':
         out = data_view(base, config, args)
@@ -4568,6 +4623,8 @@ def main():
             values, blocks = queue_view.widget_values(base, config, language)
             out = fill('warteschlange.html', values, blocks)
     elif args.view == 'chapter':
+        if getattr(args, 'scheibe', None) and args.text:
+            raise SystemExit('--scheibe gilt nur für das Widget; die Textfassung kommt in einem Stück.')
         out = chapter_view(base, config, args, chapter_number(config, args.where)[0])
     else:
         c, s = (int(x) for x in args.where.split('.'))
