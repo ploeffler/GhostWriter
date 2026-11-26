@@ -115,20 +115,28 @@ Nicht in der App: Einchecken von Rückgaben (Upload), zeitgesteuerte Läufe, Auf
 Probedrucke und Nutzungsgrenzen, weil der GitHub-Konnektor sie nicht liefert. Klicks auf Fehlendes zeigen
 einen Hinweis und den Text, mit dem man es im Chat auslöst.
 
+## Aufbau und Bau (#662)
+
+`index.html` wird gebaut, nicht von Hand geändert: `python3 apps/claude/build.py` setzt sie aus `index.src.html` (HTML-Gerüst) und den Teilen zusammen
+(`--check` prüft den Stand; der Test `tests/test_app_build.py` ebenso). Ansichten und Abläufe liegen in [`apps/shared/`](../shared) (`app.css`,
+`s01-…` bis `s18-…`), der Anschluss an den Claude-Konnektor in `ports-claude.js` und der Start in `boot-claude.js`. Das Artefakt bleibt eine einzige
+Datei. Die eigene Web-App (`apps/web/`) soll dieselben Teile mit einem eigenen Anschluss verwenden. Änderungen an Ansichten gehören nach `apps/shared/`,
+Änderungen am Konnektor nach `ports-claude.js`; danach neu bauen und `index.html` mit einchecken.
+
 ## Anschlüsse (#662)
 
-Ansichten und Abläufe kennen keinen Konnektor. Alles, was die App von GitHub braucht, geht über `GW_PORTS.git` in `index.html`
+Ansichten und Abläufe kennen keinen Konnektor. Alles, was die App von GitHub braucht, geht über `GW_PORTS.git` (`ports-claude.js`)
 (`getFile`, `getBlob`, `listDir`, `listPRs`, `prCommits`, `createBranch`, `createPR`, `mergePR`, `updatePRBranch`, `pushFiles`, `me`, `repoInfo`,
-`listBranches`); der Kopfkommentar dort beschreibt die Rückgabeformen. Die Claude-Anbindung steht in `call()` und den Methoden von `GW_PORTS.git`;
+`listBranches`); der Kopfkommentar dort beschreibt die Rückgabeformen. Die Claude-Anbindung steht in `ports-claude.js` (`call()` und die Methoden von `GW_PORTS.git`);
 die KI ist `S.sample`. Ein anderer Anschluss (eigene Web-App, GitHub-REST mit Token) liefert dieselben Formen. `tests/test_app_ports.py` verhindert
-Konnektor-Aufrufe außerhalb von `GW_PORTS`. Nächster Schritt: `index.html` in `apps/shared/` aufteilen (Zuschnitt in #662).
+Konnektor-Aufrufe außerhalb von `GW_PORTS`. Nächster Schritt: die eigene App `apps/web/` (Zuschnitt in #662).
 
 ## Knopf-Inventar (#662, #597)
 
 Jede Aktion der Widgets (Aktionstabelle in `templates/ui/BEFUELLUNG.md`) ist in genau einem Zustand: **geht** (in `index.html`
 behandelt, `case "<aktion>"`), **geht im Chat** oder **später**. Die beiden letzten stehen mit Grund (DE/EN) in
 [`aktionen.json`](aktionen.json). Der Test `tests/test_app_aktionen.py` lässt eine neue Aktion ohne Behandlung und ohne Eintrag
-scheitern. Die Einteilung ist ein Vorschlag und von Peter zu bestätigen. Die App graut diese Knöpfe vor dem Klick aus (Grund als Tooltip); die Liste ist in `index.html` zwischen `/*GW-NA*/` und `/*GW-NA-END*/` eingebettet und wird vom Test mit `aktionen.json` verglichen. Die UI-Laufzeit kann das seit 0.80.0 selbst (`GW.capabilities`, ghostwriter-ui); die App nutzt das, sobald ihre eingebaute Laufzeit (`vendor/gw-lite.js`, derzeit 0.70.0) angehoben ist. Das Anheben ist offen, weil frühere Versuche zwei App-Tests („Figur speichern“, „Übernehmen“) brechen ließen. Fehlt für eine Aktion ein Eintrag, meldet die App erst nach dem Klick „Das geht in dieser App noch nicht“.
+scheitern. Die Einteilung ist ein Vorschlag und von Peter zu bestätigen. Die App graut diese Knöpfe vor dem Klick aus (Grund als Tooltip); die Liste ist in `apps/shared/s06-darstellung.js` (und damit in `index.html`) zwischen `/*GW-NA*/` und `/*GW-NA-END*/` eingebettet und wird vom Test mit `aktionen.json` verglichen. Die UI-Laufzeit kann das seit 0.80.0 selbst (`GW.capabilities`, ghostwriter-ui); die App nutzt das, sobald ihre eingebaute Laufzeit (`vendor/gw-lite.js`, derzeit 0.70.0) angehoben ist. Das Anheben ist offen, weil frühere Versuche zwei App-Tests („Figur speichern“, „Übernehmen“) brechen ließen. Fehlt für eine Aktion ein Eintrag, meldet die App erst nach dem Klick „Das geht in dieser App noch nicht“.
 
 ## Einrichtung pro Benutzer
 
