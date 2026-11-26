@@ -62,10 +62,8 @@ def localize_checks(data):
                     if field == 'CHAPTER_CHECKS' and data.get('CHECK_DETAILS'):   # erweiterte Darstellung (#398)
                         keep = checks.JSON_KEYS_DETAIL
                     row[field + '_JSON'] = checks.as_json(row[field], keep)
-            if row.get('CHAPTER_HISTORY'):   # #398
-                row['CHAPTER_HISTORY'] = [dict(checks.localize(t, 'en'), CK_ID=t.get('CK_ID', ''), CK_NOTE=t.get('CK_NOTE', ''))
-                                          for t in row['CHAPTER_HISTORY']]
-                row['CHAPTER_HISTORY_JSON'] = checks.history_json(row['CHAPTER_HISTORY'][:checks.HISTORY_CAP], checks.HISTORY_KEYS_SLIM)   # #497
+            if row.get('CHAPTER_CHECK_DETAILS'):   # #672
+                row['CHAPTER_CHECK_DETAILS'] = checks.chapter_need(row, 'en')
     if data.get('CHECKS') and all(isinstance(t, dict) and 'CK_KIND' in t for t in data['CHECKS']):   # nicht die Prüfpunkte der Freigabe
         data['CHECKS'] = [checks.localize(t, 'en') for t in data['CHECKS']]
         data['CHECKS_JSON'] = checks.as_json(data['CHECKS'])

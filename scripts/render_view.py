@@ -1529,21 +1529,6 @@ def check_json(tags, slim=False):
     return checks.as_json(tags, checks.JSON_KEYS_SLIM if slim else checks.JSON_KEYS)
 
 
-def check_details(tags, history):
-    """Prüfdetails eines Kapitels in einer Zeile (#398): je neuester Prüfung Art, ID und Notiz; dazu Zahl der
-    früheren Prüfungen und die letzte nicht bestandene."""
-    parts = [f'{t["CK_LABEL"]}' + (f' ({t["CK_ID"]})' if t.get('CK_ID') else '') + (f': {t["CK_NOTE"]}' if t.get('CK_NOTE') else '')
-             for t in tags]
-    if history:
-        import checks
-        parts.append(f'{len(history)} frühere Prüfung' + ('' if len(history) == 1 else 'en')
-                     + (f' (die neuesten {checks.HISTORY_CAP} unten, alle in der Kapitelansicht)' if len(history) > checks.HISTORY_CAP else ''))
-    failed = next((t for t in list(tags) + list(history) if t.get('CK_RESULT') == 'failed'), None)
-    if failed:
-        parts.append(f'zuletzt nicht bestanden: {failed["CK_LABEL"]} {failed.get("CK_WHEN") or failed.get("CK_DATE", "")}'.rstrip())
-    return ' · '.join(parts)
-
-
 def project_view(base, config, args):
     p = config['project']
     detailed = getattr(args, 'darstellung', None) == 'erweitert'
@@ -1580,15 +1565,12 @@ def project_view(base, config, args):
             tags = ck.chapter(ch)
             rows[-1].update({'CHAPTER_CHECKS': tags, 'CHAPTER_CHECKS_TEXT': check_cells(tags),
                              'CHAPTER_CHECKS_JSON': check_json(tags, slim=True)})
-            if detailed:   # erweiterte Darstellung (#398): Notiz, Prüf-ID und frühere Prüfungen je Kapitel
+            if detailed:   # erweiterte Darstellung (#398, #672): Notiz im Tooltip, höchstens eine kurze Zeile Handlungsbedarf
                 import checks
-                hist = ck.chapter_history(ch)
-                rows[-1].update({'CHAPTER_CHECKS_JSON': checks.as_json(tags, checks.JSON_KEYS_DETAIL),
-                                 'CHAPTER_CHECK_DETAILS': check_details(tags, hist)})
-                if hist:   # #497: schlanke Felder, höchstens die neuesten checks.HISTORY_CAP; Gesamtzahl steht in den Prüfdetails
-                    shown = hist[:checks.HISTORY_CAP]
-                    rows[-1].update({'CHAPTER_HISTORY': hist, 'CHAPTER_HISTORY_COUNT': len(shown),
-                                     'CHAPTER_HISTORY_JSON': checks.history_json(shown, checks.HISTORY_KEYS_SLIM)})
+                rows[-1]['CHAPTER_CHECKS_JSON'] = checks.as_json(tags, checks.JSON_KEYS_DETAIL)
+                need = checks.chapter_need(rows[-1])
+                if need:
+                    rows[-1]['CHAPTER_CHECK_DETAILS'] = need
     cos = checkout_blocks(base, config)   # #572: Checkouts und Marke „ausgecheckt (Kennung)“ je Kapitel
     for r in rows:
         ids = [c['CO_ID'] for c in cos if r['CHAPTER_ID'] in next((x['chapters'] for x in _checkouts(base, config) if x['id'] == c['CO_ID']), [])]
@@ -1629,7 +1611,7 @@ def project_view(base, config, args):
             values['CHECKS_RECENT'] = ck.recent()
             values['CHECKS_RECENT_TEXT'] = checks.recent_text(values['CHECKS_RECENT'])
         values['CHECKS_BOOK_STALE'] = ck.book_stale()   # #538: buchweite Prüfungen, deren Text sich seither geändert hat
-        values['CHECKS_LEGEND'] = (checks.LEGEND if detailed else checks.LEGEND_LATEST)['de']
+        values['CHECKS_LEGEND'] = checks.LEGEND_LATEST['de']   # #672: keine „Frühere Prüfungen“ in der Projektübersicht
         if detailed:
             values['CHECK_DETAILS'] = '1'
     try:   # #592: Zähler „N veraltet“ (Abschnitte und Teile)
@@ -1722,13 +1704,6 @@ def project_view(base, config, args):
         if rows and ck:   # mit Spalte „Prüfungen“ (#331)
             lines += ['| # | Kapitel | Umfang | Fertig | Kosten | Status | Prüfungen | Hinweise | |', '|--:|---|--:|--:|--:|---|---|--:|:-:|']
             lines += [f'| {r["CHAPTER_NUMBER"]} | {r["CHAPTER_TITLE"]}{row_flags(r, "CHAPTER")} | {r["CHAPTER_WORDS_TEXT"]} | {r["CHAPTER_APPROVED_TEXT"] or "–"} | {r["CHAPTER_COST"]} | {display_status(r["CHAPTER_STATUS"])} | {r["CHAPTER_CHECKS_TEXT"]} | {r.get("CHAPTER_NOTES", "–")} | `✎ B{r["CHAPTER_NUMBER"]}` |' for r in rows]
-            if detailed and any(r.get('CHAPTER_CHECK_DETAILS') for r in rows):   # erweiterte Darstellung (#398)
-                import checks
-                lines += ['', '**Prüfdetails**', '']
-                for r in rows:
-                    if r.get('CHAPTER_CHECK_DETAILS'):
-                        lines.append(f'- Kapitel {r["CHAPTER_NUMBER"]}: {r["CHAPTER_CHECK_DETAILS"]}')
-                        lines += ['  ' + x for x in checks.history_text(r.get('CHAPTER_HISTORY') or [])]
             lines += ['', small(f'{values["CHECKS_LEGEND"]}')]
         elif rows:
             # Letzte Spalte: Kürzel zum Bearbeiten des Kapitels (wie der Bearbeiten-Knopf der Kapitelansicht).
