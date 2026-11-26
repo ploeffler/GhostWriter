@@ -5,7 +5,7 @@
   "description": "Recherche: <kapitel>/research/<abschnitt>/request-NNN.yml bzw. matter/research/<teil>/request-NNN.yml; Arten ohne Abschnitt: jobs/request-NNN.yml. Abgearbeitet von scripts/jobs.py (Action „Recherche“).",
   "type": "object",
   "properties": {
-    "type": {"enum": ["research", "analysis", "colorize", "import", "chapter_review", "agent"], "description": "Art; fehlt = research. analysis, colorize, import folgen mit #479, chapter_review (Rundumprüfung als Übergabe) mit #531"},
+    "type": {"enum": ["research", "analysis", "colorize", "import", "chapter_review", "agent", "media"], "description": "Art; fehlt = research. analysis, colorize, import folgen mit #479, chapter_review (Rundumprüfung als Übergabe) mit #531"},
     "section_id": {"type": "string", "minLength": 1, "description": "Recherche: Abschnitt bzw. Teil von Vor-/Nachspann"},
     "question": {"type": "string", "description": "Recherche: Fragestellung; fehlt = aus Ziel und Kurzbeschreibung"},
     "requested_at": {"type": "string", "description": "Zeitpunkt des Einreihens (ISO 8601); Reihenfolge nach der Buchreihenfolge"},
@@ -26,6 +26,8 @@
     "colorize": {"type": "object", "description": "Felder der Art colorize (#479)"},
     "import": {"type": "object", "description": "Felder der Art import (#479)"},
     "chapter_review": {"type": "object", "description": "Felder der Art chapter_review (#531): chapters = Liste oder Text mit Kapitel-IDs/Nummern, leer oder all = alle"},
+    "media": {"type": "object", "description": "Felder der Art media (#701): model (fal.ai-Modell), prompt, input (Bilddatei im Buch), seed, params (Objekt), output (Ordner), confirm (ausdrückliche Bestätigung der Kosten, Pflicht), price_usd (geschätzter Preis je Aufruf)"},
+    "submitted": {"type": "object", "description": "Medien-Auftrag (#701): request_id und Zeitpunkt, sobald bei fal.ai gesendet; ein späterer Lauf holt nur ab und sendet nie erneut"},
     "agent": {"type": "object", "description": "Felder der Art agent (#65): task (Aufgabe), kind (review | analysis | draft), criteria (Liste der Akzeptanzkriterien), scope (Bereich, z. B. Kapitel-IDs)"},
     "handover": {"type": "object", "description": "Übergabe an die Sitzung (#531 Rundumprüfung, #65 Agent-Auftrag): der Auftrag wartet dann auf die Bearbeitung im Chat (jobs.py complete)"}
   },

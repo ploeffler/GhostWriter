@@ -1,0 +1,139 @@
+name: Medien erzeugen (fal.ai)
+
+# Arbeitet Medien-Aufträge der Hintergrund-Warteschlange ab (#701, type: media): Bild, Video oder Ton über fal.ai. Aufträge legt der Chat an
+# (`jobs.py enqueue --type media …`, kostenpflichtig, nur mit ausdrücklicher Bestätigung `confirm`); dieser Lauf startet ohne Eingaben und
+# arbeitet sie der Reihe nach ab, in einer Gruppe je Buch mit Recherche, Analyse, Colorieren und Import. Braucht das Secret FAL_KEY.
+# Die request_id wird sofort in den Auftrag gesichert; ein erneuter Lauf holt nur ab und sendet nie ein zweites Mal. Ergebnis kommt als Commit
+# auf den Arbeits-Branch ghostwriter/<buch-branch> unter media/<auftrag>/ mit Änderungspaket; übernommen wird nur nach Bestätigung.
+# Start von Hand (Run workflow, auf dem Buch-Branch), aus dem Chat oder vom täglichen Kontrolllauf (`jobs.py remote --start`).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write   # Selbstneustart
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  LIMIT: '3'   # Medien-Aufträge dauern Minuten; der Rest startet sich selbst neu
+  FAL_WAIT_SECONDS: '600'
+
+jobs:
+  prep:
+    # Liefert den Buchnamen für die Gruppe je Buch (ohne Concurrency-Gruppe, wie bei den anderen Arten, #479).
+    runs-on: ubuntu-latest
+    outputs:
+      book: ${{ steps.book.outputs.book }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python-Abhängigkeiten
+        run: pip install pyyaml jsonschema
+
+      - name: Buch
+        id: book
+        env:
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          prefix=$(sed -n 's/^[[:space:]]*work_prefix:[[:space:]]*["'"'"']\{0,1\}\([^"'"'"' ]*\).*/\1/p' ghostwriter-manifest.yml | head -n1)
+          prefix=${prefix:-ghostwriter/}
+          book=${GITHUB_REF_NAME#"$prefix"}
+          if [ "$book" = "$GHOSTWRITER_DEFAULT_BRANCH" ] && ! python scripts/library.py is "$book" --dir .; then
+            echo "::error::$book ist kein Buch. Den Lauf auf dem Buch-Branch starten."; exit 1
+          fi
+          echo "book=$book" >> "$GITHUB_OUTPUT"
+
+  process:
+    needs: prep
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Ein Lauf je Buch über alle Arten der Hintergrund-Warteschlange (research, analysis, colorize, import, media)
+    concurrency:
+      group: jobs-${{ needs.prep.outputs.book }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Abhängigkeiten
+        run: |
+          pip install pyyaml jsonschema
+
+      - name: Ziel-Branch
+        id: work
+        env:
+          BOOK: ${{ needs.prep.outputs.book }}
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if ! python scripts/library.py is "$BOOK" --dir .; then
+            echo "::error::$BOOK ist kein Buch. Den Lauf auf dem Buch-Branch starten."; exit 1
+          fi
+          target=$(python -c "import sys; sys.path.insert(0, 'scripts'); import library; print(library.work_branch(sys.argv[1]))" "$BOOK")
+          if git ls-remote --exit-code --heads origin "$target" >/dev/null; then
+            git fetch -q origin "$target"; git switch -q -C target "origin/$target"
+          else
+            git fetch -q origin "$BOOK"; git switch -q -C target "origin/$BOOK"
+          fi
+          # Programm immer vom Buch-Branch (ein Arbeits-Branch kann älter sein)
+          git fetch -q origin "$BOOK"
+          git restore --source="origin/$BOOK" --worktree -- scripts
+          git config user.name GhostWriter
+          git config user.email ghostwriter@users.noreply.github.com
+          echo "book=$BOOK" >> "$GITHUB_OUTPUT"
+          echo "branch=$target" >> "$GITHUB_OUTPUT"
+
+      - name: Warteschlange abarbeiten (media)
+        id: jobs
+        env:
+          WORK: ${{ steps.work.outputs.branch }}
+          GH_TOKEN: ${{ github.token }}
+          GHOSTWRITER_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          FAL_KEY: ${{ secrets.FAL_KEY }}
+        run: |
+          python scripts/jobs.py . process --types media --limit "$LIMIT" --push-to "$WORK" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Änderungspaket
+        env:
+          BOOK: ${{ steps.work.outputs.book }}
+          WORK: ${{ steps.work.outputs.branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! git ls-remote --exit-code --heads origin "$WORK" >/dev/null; then echo "Nichts zu speichern"; exit 0; fi
+          owner=${GITHUB_REPOSITORY%%/*}
+          open=$(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&head=$owner:$WORK&base=$BOOK" --jq 'length')
+          ahead=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BOOK...$WORK" --jq '.ahead_by')
+          if [ "$open" = "0" ] && [ "${ahead:-0}" != "0" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/pulls" -f base="$BOOK" -f head="$WORK" \
+              -f title="GhostWriter: offene Änderungen" \
+              -f body="Offene Änderungen aus GhostWriter. Übernommen wird erst nach Bestätigung." --jq '.html_url' | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Änderungspaket: $WORK" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Selbstneustart
+        # Pausierte Automatik (GHOSTWRITER_ACTIONS_PAUSED, #62): nicht selbst weiterlaufen; der Rest bleibt in der
+        # Warteschlange, bis von Hand oder vom täglichen Update-Lauf nach der Pause neu angestoßen wird.
+        if: steps.jobs.outputs.remaining != '' && steps.jobs.outputs.remaining != '0' && vars.GHOSTWRITER_ACTIONS_PAUSED != 'true'
+        env:
+          BOOK: ${{ steps.work.outputs.book }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Ohne Eingaben: der nächste Lauf arbeitet nur die Warteschlange ab (gleiche Gruppe, also danach).
+          gh workflow run media.yml --ref "$BOOK" -R "$GITHUB_REPOSITORY"
+          echo "Noch ${{ steps.jobs.outputs.remaining }} Aufträge offen: nächster Lauf gestartet." | tee -a "$GITHUB_STEP_SUMMARY"
