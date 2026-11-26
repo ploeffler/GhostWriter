@@ -220,6 +220,15 @@ function recentText(){
 }
 
 /* ---------- Daten für die Vorlagen (wie scripts/render_view.py) ---------- */
+/* wie render_view.jobs_text / jobs.status_text (#484): „Warteschlange: 2 fertig · 1 fehlgeschlagen · 3 warten“, leer ohne Aufträge */
+function jobsText(i, total){
+  if (!i) return "";
+  const w = (i.waiting || 0) + (i.waiting_budget || 0), parts = [];
+  if (i.done) parts.push(i.done + " fertig");
+  if (i.failed) parts.push(i.failed + " fehlgeschlagen");
+  if (w) parts.push(w + (w === 1 ? " wartet" : " warten"));
+  return parts.length ? (total ? "Hintergrund-Warteschlange: " : "Warteschlange: ") + parts.join(" · ") : "";
+}
 function bookRow(b){
   const ready = b.status === "ready", st = b.sections_total || 0, sa = b.sections_approved || 0, ed = b.current_edition || 0;
   return {BOOK_BRANCH:b.branch, BOOK_TITLE:b.title || b.title_short || "Ohne Titel", BOOK_TITLE_SHORT:b.title_short || b.branch.split("/").pop(),
@@ -229,12 +238,13 @@ function bookRow(b){
     BOOK_EDITION_TEXT:ed ? "Auflage " + ed : "noch keine Auflage", BOOK_COST:(b.cost && b.cost.text) || "–",
     BOOK_PENDING_TEXT:b.pending ? plural(b.pending, "Änderung", "Änderungen") + " offen" : "",
     BOOK_UPDATED_TEXT:b.updated_at ? `${ready ? "zuletzt geändert" : "angelegt"} am ${deDate(b.updated_at)}` : "",
+    BOOK_JOBS_TEXT:jobsText(b.jobs), BOOK_CHECKOUT_TEXT:(b.checkouts || []).map(c => c.text).filter(Boolean).join(" · "),
     BOOK_SERIES:"", BOOK_SERIES_TITLE:"", BOOK_SERIES_KEY:"", BOOK_VOLUME_TEXT:""};
 }
 function libraryData(){
   const books = S.lib.books || [], rows = books.map(bookRow);
   const editions = books.flatMap(b => (b.editions || []).map(e => { const n = e && typeof e === "object" ? (e.number || e.edition) : e; return n ? {E_BOOK_BRANCH:b.branch, E_NUMBER:n, E_TEXT:"Auflage " + n, E_DATE_TEXT:deDate((e && (e.date || e.published)) || ""), E_TAG:(e && e.tag) || ""} : null; }).filter(Boolean));
-  const d = {LANGUAGE:"de", LIBRARY_NAME:S.owner + "/" + S.repo, BOOK_COUNT_TEXT:plural(rows.length, "Buch", "Bücher"), EMPTY:rows.length ? "" : "1", UPDATED_TEXT:"", SESSION_COUNT_TEXT:"", BOOKS:rows};
+  const d = {LANGUAGE:"de", LIBRARY_NAME:S.owner + "/" + S.repo, BOOK_COUNT_TEXT:plural(rows.length, "Buch", "Bücher"), JOBS_TEXT:jobsText(["done", "failed", "waiting", "waiting_budget"].reduce((t, k) => (t[k] = books.reduce((n, b) => n + ((b.jobs || {})[k] || 0), 0), t), {}), true), EMPTY:rows.length ? "" : "1", UPDATED_TEXT:"", SESSION_COUNT_TEXT:"", BOOKS:rows};
   if (editions.length) d.EDITIONS = editions;
   return d;
 }
@@ -341,7 +351,15 @@ function crumbs(){
 }
 const msgBox = () => S.msg ? `<div class="note ${S.msg.kind}" role="status">${S.msg.html}</div>` : "";
 function busy(t){ $("app").innerHTML = `<div class="one"><p class="dim"><span class="spin"></span>${esc(t)}</p></div>`; }
-function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
+/* Fehlende Platzhalter gelten als leer (#685, wie _PACK ab UI 0.72): Die eingebaute Laufzeit lässt unbekannte {{NAME}} stehen.
+   Nach dem Rendern aus Text und Attributen entfernen; Ereignisbehandler bleiben, weil nur Knotenwerte geändert werden. */
+const RAW = /\{\{[#\/]?[A-Z_]+\}\}/g;
+function blankRaw(root){
+  const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) if (RAW.test(n.nodeValue)) n.nodeValue = n.nodeValue.replace(RAW, "");
+  root.querySelectorAll("*").forEach(el => [...el.attributes].forEach(a => { if (RAW.test(a.value)) a.value = a.value.replace(RAW, ""); }));
+}
+function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); blankRaw($("gw")); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
 function widget(name, data, extra){ $("app").innerHTML = `<div class="one">${msgBox()}<div id="gw"></div>${extra || ""}</div>`; gwRender(name, data); patchRun(); crumbs(); window.scrollTo(0, 0); }
 /* Abschnittssteuerung an die App anpassen (#462): „Sofort“ läuft hier in der App, nicht im Chat. Ist ein Dienst mit
    Websuche eingestellt, recherchiert die Action „Recherche“: dieser Knopf ist dann aktiv, „Sofort“ (ohne Internet) aus. */

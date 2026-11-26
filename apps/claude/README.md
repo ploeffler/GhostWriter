@@ -141,6 +141,7 @@ wird die App im selben Änderungspaket mitgezogen:
 
 1. `index.html` anpassen. Neue Ansicht: Vorlage in `build_vendor.py` → `TEMPLATES` eintragen.
 2. Neue Widget-Version: `python3 apps/claude/build_vendor.py --gw ../ghostwriter-ui/dist/gw.js --tabler <@tabler/icons>/icons/outline`.
+   Neue Felder in `templates/*.html` und `render_view.py` (`book_row()` usw.) in den Datenfunktionen von `index.html` ergänzen; fehlt eines, entfernt `blankRaw()` den rohen Platzhalter (#685), die Anzeige bleibt aber leer. Das Upgrade der Widget-Laufzeit auf UI 0.72 (`_PACK`) ist für 1.6 vorgemerkt: Der Stand 0.72 lässt im Test „Figur speichern“ und „Übernehmen“ fehlschlagen.
 3. Test:
    ```
    npm install --prefix /tmp/gw-claude-test jsdom@24 js-yaml@4

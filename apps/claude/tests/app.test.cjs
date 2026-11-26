@@ -101,12 +101,22 @@ const paths = p => (p ? p.files.map(f => f.path) : []);
   d.getElementById("repoIn").value = REPO;
   d.getElementById("fConnect").dispatchEvent(new w.Event("submit", {bubbles: true, cancelable: true}));
   ok(await until(() => d.querySelector("#gw .gw-book")), "Bücherregal");
+  ok(!/\{\{[A-Z_]+\}\}/.test(d.querySelector("#gw").textContent), "Bücherregal: kein roher Platzhalter (#685)");
+  {
+    // Warteschlange und Gegenlesen je Buch wie render_view.book_row (BOOK_JOBS_TEXT, BOOK_CHECKOUT_TEXT, JOBS_TEXT)
+    const B = w.__S().lib.books; B[0].jobs = {done: 2, failed: 1, waiting: 2, waiting_budget: 1}; B[0].checkouts = [{text: "Kapitel 2 bei Anna"}];
+    await send("x\n\n`gw:view.library`");
+    const t = d.querySelector("#gw").textContent;
+    ok(/Warteschlange: 2 fertig · 1 fehlgeschlagen · 3 warten/.test(t) && /Hintergrund-Warteschlange: /.test(t) && /Kapitel 2 bei Anna/.test(t) && !/\{\{/.test(t), "Bücherregal: Warteschlange und Gegenlesen je Buch");
+    delete B[0].jobs; delete B[0].checkouts;
+  }
 
   await send("x\n\n`gw:view.data`");
   ok(d.querySelector("#gw .gw-d") && /Bücher/.test(d.querySelector("#gw .gw-d").textContent), "Seite „Daten“");
 
   await send("x\n\n`gw:library.book.open branch=" + BOOK + "`");
   ok(await until(() => d.querySelector("#gw [data-id^='ch-']"), 600), "Projektübersicht");
+  ok(!/\{\{[A-Z_]+\}\}/.test(d.querySelector("#gw").textContent), "Projektübersicht: kein roher Platzhalter (#685)");
   const S = w.__S(), chs = S.struct;
   ok(/ganzen Buch/.test((d.querySelector(".claude .ch-head p") || {}).textContent || ""), "Claude-Leiste in der Projektübersicht");
 
