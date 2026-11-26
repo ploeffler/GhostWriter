@@ -1763,7 +1763,36 @@ def project_view(base, config, args):
         blocks['MATTER_FRONT'] = front
     if back:
         blocks['MATTER_BACK'] = back
+    wanted = getattr(args, 'scheibe', None)
+    if wanted:   # #674: Scheiben (ab UI 0.75.0), jede als eigenes kleines Widget
+        return project_slice(wanted, values, blocks, rows)
     return fill('projektuebersicht.html', values, blocks)
+
+
+def project_slices(n_chapters):
+    """Reihenfolge der Scheiben der Projektübersicht: Kopf, je Kapitel eine, Ende (Nachspann und Nachweis)."""
+    return ['kopf'] + [f'kapitel:{i}' for i in range(1, n_chapters + 1)] + ['ende']
+
+
+def project_slice(wanted, values, blocks, rows):
+    """Eine Scheibe der Projektübersicht (#674): `kopf`, `kapitel:N` oder `ende`. Die Felder der übrigen Scheiben fehlen, die Vorlage
+    blendet die zugehörigen Bereiche aus (`SLICE`). Die Legende der Prüf-Tags steht in der letzten Kapitelscheibe, der Nachweis am Ende."""
+    names = project_slices(len(rows))
+    if wanted not in names:
+        raise SystemExit(f'Scheibe „{wanted}“ gibt es nicht. Möglich: ' + ', '.join(names))
+    credit = {k: values.pop(k) for k in ('CREDIT_TEXT', 'CREDIT_URL') if k in values}
+    legend = values.pop('CHECKS_LEGEND', '')
+    keep_flags = {k: values[k] for k in ('CHECK_DETAILS',) if k in values}
+    if wanted == 'kopf':
+        values['SLICE'] = 'kopf'
+        return fill('projektuebersicht.html', values, {k: v for k, v in blocks.items() if k not in ('CHAPTERS', 'MATTER_BACK')})
+    if wanted == 'ende':
+        return fill('projektuebersicht.html', dict(credit, SLICE='ende'), {k: v for k, v in blocks.items() if k == 'MATTER_BACK'})
+    n = int(wanted.split(':')[1])
+    out = dict(keep_flags, SLICE='kapitel' if n == 1 else 'kapitel-weiter')
+    if n == len(rows) and legend:
+        out['CHECKS_LEGEND'] = legend
+    return fill('projektuebersicht.html', out, {'CHAPTERS': [rows[n - 1]]})
 
 
 def chapter_view(base, config, args, cnum):
@@ -4359,6 +4388,7 @@ def main():
     ap.add_argument('view', choices=['project', 'chapter', 'section', 'matter', 'characters', 'images', 'library', 'data', 'series', 'timeline', 'notes-review', 'settings-overview', 'queue', 'checkin'] + list(FORMS))
     ap.add_argument('where', nargs='?')
     ap.add_argument('--text', action='store_true')
+    ap.add_argument('--scheibe', help='bei project (Widget): nur diese Scheibe ausgeben (#674): kopf, kapitel:N oder ende; „liste“ nennt sie alle')
     ap.add_argument('--darstellung', choices=['einfach', 'uebersichtlich', 'erweitert'],
                     help='Darstellungsstufe (#398); „erweitert“ zeigt in der Projektübersicht Prüfdetails je Kapitel')
     ap.add_argument('--ohne-manuskript', '--no-manuscript', dest='no_manuscript', action='store_true',
@@ -4439,7 +4469,12 @@ def main():
     elif args.view == 'series':
         out = series_view(base, config, args)
     elif args.view == 'project':
-        out = project_view(base, config, args)
+        if getattr(args, 'scheibe', None) == 'liste':   # #674: welche Scheiben es gibt, eine je Zeile
+            out = '\n'.join(project_slices(len(config['structure']['chapters']))) + '\n'
+        elif getattr(args, 'scheibe', None) and args.text:
+            raise SystemExit('--scheibe gilt nur für das Widget; die Textfassung kommt in einem Stück.')
+        else:
+            out = project_view(base, config, args)
     elif args.view == 'timeline':   # Chronologie (#354): Vorlage zeitleiste bzw. Textfassung
         import chronology
         if args.columns:   # Drei-Spalten-Ansicht (#450): Markdown-Tabelle, auch im Widget-Modus (kein eigenes Widget)
