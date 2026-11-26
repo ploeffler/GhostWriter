@@ -757,9 +757,17 @@ def run_media(base, job):
     data = read(cpath) if cpath.is_file() else {'scope': 'project'}
     price = m.get('price_usd')
     entry = {'activity_id': f'act-media-{stem}', 'occurred_at': now_utc().isoformat(), 'source': 'action_api', 'provider': 'fal',
-             'model': model, 'activity_type': 'other', 'currency': 'USD', 'cost_amount': float(price) if price is not None else None,
-             'cost_status': 'estimated' if price is not None else 'unavailable', 'other_usage_quantity': 1,
-             'note': 'Medien-Auftrag (Hintergrundlauf)' + ('' if price is not None else ', Preis nicht angegeben')}
+             'model': model, 'activity_type': 'other', 'currency': 'USD', 'cost_amount': None, 'cost_status': 'unavailable',
+             'other_usage_quantity': 1, 'note': 'Medien-Auftrag (Hintergrundlauf), Preis nicht angegeben'}
+    if price is not None:   # Betrag in die Projektwährung umrechnen (ECB-Kurs), damit das Monatsbudget (limits.py) ihn richtig zählt
+        import decimal
+        import pricing
+        wf = read(ROOT / 'workflow.yml') or {}
+        currency = (wf.get('cost_tracking') or {}).get('project_currency') or 'EUR'
+        est = {'amount': decimal.Decimal(str(price)), 'currency': 'USD', 'input_unit_price': 0.0, 'output_unit_price': 0.0,
+               'pricing_basis': 'per_call', 'pricing_source': 'Angabe im Auftrag (price_usd)', 'pricing_checked_at': now_utc().date().isoformat()}
+        entry.update(pricing.cost_fields(est, currency, now_utc().date().isoformat()))
+        entry['note'] = 'Medien-Auftrag (Hintergrundlauf), Preis laut Auftrag'
     data['entries'] = (data.get('entries') or []) + [entry]
     write(cpath, data)
     return {'label': f'Medium erzeugt: {saved[0]}' + (f' (+{len(saved) - 1})' if len(saved) > 1 else ''),
