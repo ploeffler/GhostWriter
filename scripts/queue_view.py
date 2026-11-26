@@ -21,7 +21,8 @@ import jobs  # noqa: E402
 TEXT = {
     'de': {
         'title': 'Hintergrund-Warteschlange', 'none': 'keine Aufträge', 'one': '1 Auftrag', 'many': '{n} Aufträge',
-        'research': 'Recherche', 'analysis': 'Analyse', 'colorize': 'Colorieren', 'import': 'Import',
+        'research': 'Recherche', 'analysis': 'Analyse', 'colorize': 'Colorieren', 'import': 'Import', 'chapter_review': 'Rundumprüfung',
+        'handover': 'Prüfungen ohne KI erledigt, wartet auf die KI-Teile im Chat',
         'open': 'wartet', 'budget': 'wartet auf Bestätigung (KI-Budget knapp)', 'blocked': 'wartet auf einen anderen Auftrag',
         'blocked_by': 'Erst nach {name}', 'locked_by': 'wartet: ausgecheckt ({id}), bis der Checkout beendet ist', 'priority': 'vorgezogen', 'queued': 'eingereicht {when}',
         'failed_at': 'fehlgeschlagen {when}', 'retry': 'Erneut versuchen: `python3 scripts/jobs.py . retry --request {path}`', 'done': 'Ergebnis liegt im Änderungspaket', 'empty': 'Keine Aufträge in der Warteschlange.',
@@ -31,7 +32,8 @@ TEXT = {
     },
     'en': {
         'title': 'Background queue', 'none': 'no jobs', 'one': '1 job', 'many': '{n} jobs',
-        'research': 'Research', 'analysis': 'Analysis', 'colorize': 'Colorize', 'import': 'Import',
+        'research': 'Research', 'analysis': 'Analysis', 'colorize': 'Colorize', 'import': 'Import', 'chapter_review': 'Editorial review',
+        'handover': 'checks without AI done, waiting for the AI parts in chat',
         'open': 'waiting', 'budget': 'waiting for confirmation (AI budget low)', 'blocked': 'waiting for another job',
         'blocked_by': 'Only after {name}', 'locked_by': 'waiting: checked out ({id}) until the checkout ends', 'priority': 'moved up', 'queued': 'queued {when}',
         'failed_at': 'failed {when}', 'retry': 'Retry: `python3 scripts/jobs.py . retry --request {path}`', 'done': 'result is in the pending changes', 'empty': 'No jobs in the queue.',
@@ -74,7 +76,7 @@ def title(job, config, language):
     where = section_label(config, job['section_id']) if job['type'] == 'research' else ''
     if not where:
         extra = data.get(job['type']) if isinstance(data.get(job['type']), dict) else {}
-        where = str(extra.get('kind') or extra.get('folder') or extra.get('step') or '')
+        where = str(extra.get('kind') or extra.get('folder') or extra.get('step') or (extra.get('chapters') if isinstance(extra.get('chapters'), str) else ', '.join(extra.get('chapters') or [])) or '')
     return f'{kind} · {where}' if where else kind
 
 
@@ -83,7 +85,7 @@ def detail(job):
     if job['type'] == 'research':
         return str(data.get('question') or '')
     extra = data.get(job['type']) if isinstance(data.get(job['type']), dict) else {}
-    return ', '.join(f'{k}: {v}' for k, v in extra.items() if k in ('kind', 'scope', 'folder', 'file', 'step') and v)
+    return ', '.join(f'{k}: {v}' for k, v in extra.items() if k in ('kind', 'scope', 'folder', 'file', 'step', 'chapters') and v)
 
 
 def done_runs(base, language):
@@ -125,7 +127,9 @@ def groups(base, config, language='de'):
             row['J_ARGS'] = json.dumps({'request': row['J_PATH']}, ensure_ascii=False, separators=(',', ':'))   # Knopf „Erneut versuchen“ (#596)
             failed.append(row)
             continue
-        if j['state'] == 'waiting_budget':
+        if j['state'] == 'handover':   # #531
+            row['J_STATE'], row['J_STATE_TEXT'] = 'open', t(language, 'handover')
+        elif j['state'] == 'waiting_budget':
             row['J_STATE'], row['J_STATE_TEXT'] = 'waiting_budget', t(language, 'budget')
         elif j.get('locked_by'):   # #572
             row['J_STATE'], row['J_STATE_TEXT'] = 'blocked', t(language, 'blocked')

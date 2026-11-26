@@ -5,7 +5,7 @@
   "description": "Recherche: <kapitel>/research/<abschnitt>/request-NNN.yml bzw. matter/research/<teil>/request-NNN.yml; Arten ohne Abschnitt: jobs/request-NNN.yml. Abgearbeitet von scripts/jobs.py (Action „Recherche“).",
   "type": "object",
   "properties": {
-    "type": {"enum": ["research", "analysis", "colorize", "import"], "description": "Art; fehlt = research. analysis, colorize, import folgen mit #479"},
+    "type": {"enum": ["research", "analysis", "colorize", "import", "chapter_review"], "description": "Art; fehlt = research. analysis, colorize, import folgen mit #479, chapter_review (Rundumprüfung als Übergabe) mit #531"},
     "section_id": {"type": "string", "minLength": 1, "description": "Recherche: Abschnitt bzw. Teil von Vor-/Nachspann"},
     "question": {"type": "string", "description": "Recherche: Fragestellung; fehlt = aus Ziel und Kurzbeschreibung"},
     "requested_at": {"type": "string", "description": "Zeitpunkt des Einreihens (ISO 8601); Reihenfolge nach der Buchreihenfolge"},
@@ -24,7 +24,9 @@
     "failed_at": {"type": "string"},
     "analysis": {"type": "object", "description": "Felder der Art analysis (#479)"},
     "colorize": {"type": "object", "description": "Felder der Art colorize (#479)"},
-    "import": {"type": "object", "description": "Felder der Art import (#479)"}
+    "import": {"type": "object", "description": "Felder der Art import (#479)"},
+    "chapter_review": {"type": "object", "description": "Felder der Art chapter_review (#531): chapters = Liste oder Text mit Kapitel-IDs/Nummern, leer oder all = alle"},
+    "handover": {"type": "object", "description": "Rundumprüfung (#531): Ergebnis der Prüfungen ohne KI je Kapitel; der Auftrag wartet dann auf die KI-Teile im Chat (jobs.py complete)"}
   },
   "allOf": [
     {"if": {"properties": {"type": {"const": "research"}}}, "then": {"required": ["section_id"]}},

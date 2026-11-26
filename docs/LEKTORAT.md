@@ -336,6 +336,18 @@ werden nie geändert; ihre Befunde bleiben im Dialog (`plan` zeigt sie als ⛔).
    eine Zeile) und der Link zum Änderungspaket mit „noch nicht übernommen“. Das
    Übernehmen und die Hinweisdurchsicht als Auswahl anbieten.
 
+### Rundumprüfung in der Warteschlange (#531)
+
+Mehrere Kapitel lassen sich als Übergabe-Auftrag einreihen: `python3 scripts/jobs.py <buch> enqueue --type chapter_review
+--field chapters=ch-03,ch-04` (oder `all`; optional mit Startbedingung nach [#65](UPDATES.md): feste Zeit, freies
+Kontingent, nach Kapitelabschluss). Die Warteschlange hält Reihenfolge, Startbedingungen und Status je Kapitel und führt
+nur aus, was ohne KI geht: Verfügbarkeit des Kapitels, Freigaben und Veraltet-Markierungen sowie die Sprachanalyse mit den
+KI-Mustern (Schritt 2). Eine eigene KI-Pipeline in der Action gibt es nicht. Das Ergebnis steht im Auftrag unter
+`handover`; der Auftrag zeigt „wartet auf die KI-Teile im Chat“ und kostet nichts. Beim nächsten Einstieg meldet der
+Assistent die vorbereitete Rundumprüfung und arbeitet die übrigen Schritte (1, 3 bis 9) aus dem Auftrag ab; danach
+`python3 scripts/jobs.py <buch> complete --request <auftrag>`. Kapitel, die noch nicht vollständig vorliegen, werden mit
+Grund gemeldet und nicht geprüft. Keine Freigabe, kein Merge, keine Übernahme.
+
 ## Viele Kapitel: Hilfsagent (#392)
 
 Ein Lektorat über mehrere Kapitel liest ein Hilfsagent, wo die App das kann

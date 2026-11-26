@@ -12,6 +12,8 @@ Aufruf:
   python scripts/jobs.py <buch> merge --request <auftrag> --question Q           (Zusammenlegen, #478)
   python scripts/jobs.py <buch> auto [--push-to <branch>]   (Analysen nach Kapitelabschluss einreihen, #123)
   python scripts/jobs.py <buch> cancel --request <auftrag>          (nur wartende Aufträge)
+  python scripts/jobs.py <buch> enqueue --type chapter_review --field chapters=ch-03,ch-04|all   (Rundumprüfung, #531)
+  python scripts/jobs.py <buch> complete --request <auftrag>        (Übergabe abschließen, wenn der Assistent die KI-Teile erledigt hat)
   python scripts/jobs.py <buch> process [--defaults datei] [--limit 5] [--push-to <arbeits-branch>]
   python scripts/jobs.py <ordner> remote [--start] [--paused] [--dry-run]   (Kontrolllauf, #481)
   python scripts/jobs.py <ordner> report [--json] [--language en]           (Wiedereinstieg, #484)
@@ -31,6 +33,11 @@ Startbedingungen (#65, alle optional, mehrere kombinierbar: der Auftrag startet 
 liegt), `after_event` (`chapter_approved[:<kapitel>]`, `edition_created`, `material_added`; gemessen am Stand beim Einreihen,
 `event_baseline`). Ein Auftrag mit offener Bedingung bleibt liegen (`start_wait`) und wird vom nächsten Lauf bzw. vom täglichen
 Kontrolllauf gestartet, sobald alles erfüllt ist. Es gibt keine eigene zeitgesteuerte Action.
+
+Rundumprüfung (`type: chapter_review`, #531): Weg „Übergabe“. Die Warteschlange hält Reihenfolge, Startbedingungen und Status; sie führt nur
+Prüfungen ohne KI aus (Verfügbarkeit, Freigaben, Veraltet-Markierungen, Sprachanalyse mit KI-Mustern) und schreibt das Ergebnis unter
+`handover` in den Auftrag (Zustand `handover`, kein Budget nötig). Die KI-Teile arbeitet der Assistent beim nächsten Einstieg ab
+(`report` meldet sie); `complete` entfernt den Auftrag danach. Keine KI-Pipeline in der Action, keine Freigabe.
 
 Reihenfolge (#478), in dieser Rangfolge: Vorrang (`priority: true`, „vorziehen“), Abhängigkeit
 (`after: <Auftrag>`: der Auftrag wartet, bis der genannte erledigt oder fehlgeschlagen ist;
@@ -57,16 +64,18 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'scripts'))
 import research  # noqa: E402
 
-TYPES = ('research', 'analysis', 'colorize', 'import')
+TYPES = ('research', 'analysis', 'colorize', 'import', 'chapter_review')
 # Felder je Art (Eingaben der bisherigen Actions, #479); sie stehen unter dem Namen der Art
 FIELDS = {'analysis': ('kind', 'scope', 'prompt_profile'),
           'colorize': ('folder', 'consent', 'model', 'replace', 'hint', 'minors_exception'),
-          'import': ('step', 'file', 'ops', 'writing_approval', 'by', 'prompt_profile')}
+          'import': ('step', 'file', 'ops', 'writing_approval', 'by', 'prompt_profile'),
+          'chapter_review': ('chapters',)}
 # Workflow, der eine Art abarbeitet, und der Branch, auf den das Ergebnis kommt
-WORKFLOW = {'research': 'research.yml', 'analysis': 'analyse.yml', 'colorize': 'colorize.yml', 'import': 'import.yml'}
-TARGET = {'research': 'work', 'colorize': 'work', 'analysis': 'book', 'import': 'book'}
+WORKFLOW = {'research': 'research.yml', 'analysis': 'analyse.yml', 'colorize': 'colorize.yml', 'import': 'import.yml',
+            'chapter_review': 'analyse.yml'}
+TARGET = {'research': 'work', 'colorize': 'work', 'analysis': 'book', 'import': 'book', 'chapter_review': 'book'}
 # Arten bzw. Schritte ohne KI-Kosten: keine Budgetprüfung
-FREE = {('import', 'convert'), ('import', 'edit'), ('import', 'apply')}
+FREE = {('import', 'convert'), ('import', 'edit'), ('import', 'apply'), ('chapter_review', '')}   # Rundumprüfung (#531): nur Prüfungen ohne KI
 REQUEST_RE = research.REQUEST_RE
 LIMIT = 5
 COMMIT_PATHS = ('chapters', 'matter', 'jobs')
@@ -100,9 +109,11 @@ def kind(job):
 
 
 def state(job):
-    """open | waiting_budget | failed"""
+    """open | waiting_budget | failed | handover (Rundumprüfung vorbereitet, KI-Teile beim nächsten Einstieg, #531)"""
     if job.get('error'):
         return 'failed'
+    if job.get('handover'):
+        return 'handover'
     if job.get('waiting') == 'budget' and not job.get('confirm_low_budget'):
         return 'waiting_budget'
     return 'open'
@@ -307,8 +318,18 @@ def retry(base, request):
 def cancel(base, request):
     """Abbrechen: den Auftrag entfernen. Nur wartende Aufträge; ein bereits laufender lässt sich so nicht stoppen."""
     job = find(base, request)
-    if not pending(job):
+    if not pending(job) and job['state'] != 'handover':
         raise ValueError('Abbrechen geht nur bei wartenden Aufträgen.')
+    job['path'].unlink()
+    return job['path']
+
+
+def complete(base, request):
+    """Übergabe abschließen (#531): der Assistent hat die KI-Teile einer Rundumprüfung erledigt; der Auftrag wird entfernt.
+    Nur bei Aufträgen im Zustand Übergabe."""
+    job = find(base, request)
+    if job['state'] != 'handover':
+        raise ValueError('Abschließen geht nur bei Aufträgen, die auf die KI-Teile im Chat warten.')
     job['path'].unlink()
     return job['path']
 
@@ -575,14 +596,87 @@ def run_import(base, job):
     return {'label': label, 'paths': '*', 'step': step, 'action': f'import.{step}'}
 
 
-RUNNERS = {'colorize': run_colorize, 'analysis': run_analysis, 'import': run_import}
+AI_STEPS = ('structure', 'language', 'proofreading', 'rules', 'story_memory')   # Prüfarten, die der Assistent beim Einstieg erledigt
+
+
+def review_chapters(config, wanted):
+    """Kapitel einer Rundumprüfung in Buchreihenfolge: [(Nummer, Kapitel)]. `wanted`: Liste oder Text mit Komma,
+    Kapitel-IDs oder Nummern; leer oder `all` = alle."""
+    chapters = ((config or {}).get('structure') or {}).get('chapters') or []
+    if isinstance(wanted, str):
+        wanted = [w.strip() for w in wanted.split(',') if w.strip()]
+    wanted = [str(w) for w in (wanted or [])]
+    if not wanted or 'all' in wanted:
+        return list(enumerate(chapters, 1))
+    numbers, missing = set(), []
+    for w in wanted:
+        hit = next((n for n, c in enumerate(chapters, 1) if c.get('id') == w or str(n) == w), None)
+        if hit:
+            numbers.add(hit)
+        else:
+            missing.append(w)
+    if missing:
+        raise research.ResearchError('Kapitel nicht gefunden: ' + ', '.join(missing))
+    return [(n, chapters[n - 1]) for n in sorted(numbers)]
+
+
+def run_chapter_review(base, job):
+    """Rundumprüfung als Übergabe (#531, Entscheidung Peter 26.11.2026): nur Prüfungen ohne KI laufen hier (Verfügbarkeit,
+    Freigaben und Veraltet-Markierungen, Sprachanalyse ohne KI mit KI-Mustern). Das Ergebnis steht im Auftrag unter `handover`;
+    die KI-Teile arbeitet der Assistent beim nächsten Einstieg ab (`jobs.py … complete`). Keine KI-Pipeline, keine Freigabe."""
+    import chapter_revision
+    from render_view import section_file
+    base = Path(base)
+    config = read(base / 'ghostwriter.yml') or {}
+    f = job['data'].get('chapter_review') or {}
+    rows = []
+    approvals = (read(base / 'approvals.yml') or {}).get('entries') or []
+    for number, chapter in review_chapters(config, f.get('chapters')):
+        ready = chapter_revision.readiness(base, chapter)
+        approved, stale = 0, []
+        for section in chapter.get('sections') or []:
+            try:
+                head = section_file(base, section)[0]
+            except Exception:   # noqa: BLE001 – unlesbarer Abschnitt steht schon in `ready`
+                continue
+            if (head.get('approvals') or {}).get('section') is True:
+                approved += 1
+            if head.get('stale'):
+                stale.append(section['id'])
+        closed = False
+        for e in approvals:   # letzter Eintrag zum Kapitel entscheidet
+            if e.get('kind') == 'chapter' and e.get('id') == chapter['id']:
+                closed = e.get('action') == 'granted'
+        row = {'id': chapter['id'], 'number': number, 'title': chapter.get('title') or '', 'ready': ready['ready'],
+               'issues': ready['issues'], 'sections': len(chapter.get('sections') or []), 'sections_approved': approved,
+               'stale': stale, 'chapter_approved': closed, 'language_run': '', 'ai_steps': []}
+        if ready['ready']:
+            folder = base / 'analysis' / 'language'
+            before = {p.name for p in folder.glob('run-*.json')} if folder.is_dir() else set()
+            script(base, 'analyze.py', 'run', '--kind', 'language', '--scope', str(number))
+            new = sorted({p.name for p in folder.glob('run-*.json')} - before)
+            row['language_run'] = new[-1] if new else ''
+            row['ai_steps'] = list(AI_STEPS)
+        rows.append(row)
+    job['data']['handover'] = {'prepared_at': now_utc().isoformat(), 'commit': git(base, 'rev-parse', 'HEAD', check=False).stdout.strip(),
+                               'chapters': rows,
+                               'note': 'Offen für den Assistenten: ' + ', '.join(AI_STEPS) + ' (Ablauf docs/LEKTORAT.md, Rundumprüfung). '
+                                       'Nach der Bearbeitung `jobs.py . complete --request <auftrag>`.'}
+    write(job['path'], job['data'])
+    ok = sum(1 for r in rows if r['ready'])
+    return {'label': f'Rundumprüfung vorbereitet: {ok} von {len(rows)} Kapiteln, KI-Teile beim nächsten Einstieg', 'keep': True,
+            'paths': ['analysis', 'story', 'editorial', 'costs/project.yml'], 'action': 'chapter_review.prepare'}
+
+
+RUNNERS = {'colorize': run_colorize, 'analysis': run_analysis, 'import': run_import, 'chapter_review': run_chapter_review}
 
 
 def run_job(base, job, defaults, now):
     data = job['data']
     if job['type'] in RUNNERS:
         res = RUNNERS[job['type']](base, job)
-        job['path'].unlink()
+        if not res.pop('keep', False):   # Übergabe (#531): der Auftrag bleibt, bis der Assistent ihn abschließt
+            job['path'].unlink()
         return dict(res, ok=True)
     if job['type'] == 'research':
         head = research.run(base, job['section_id'], data.get('question'), data.get('provider'), data.get('model'),
@@ -723,8 +817,8 @@ def remote_status(base='.', ref_prefix='refs/remotes/origin/'):
     import library
     prefix = library.settings(library.load_manifest())['work_prefix']
     out = {}
-    blank = lambda: {'done': 0, 'failed': 0, 'waiting': 0, 'waiting_budget': 0, 'done_sections': [], 'failed_reasons': [],
-                     'model_failed': []}
+    blank = lambda: {'done': 0, 'failed': 0, 'waiting': 0, 'waiting_budget': 0, 'handover': 0, 'handover_requests': [], 'done_sections': [],
+                     'failed_reasons': [], 'model_failed': []}
     for book, _, _, name, data in branch_jobs(base, ref_prefix):
         info = out.setdefault(book, blank())
         st = state(data) if isinstance(data, dict) else 'failed'
@@ -736,6 +830,9 @@ def remote_status(base='.', ref_prefix='refs/remotes/origin/'):
                 info['model_failed'].append(name)
         elif st == 'waiting_budget':
             info['waiting_budget'] += 1
+        elif st == 'handover':   # #531: Rundumprüfung vorbereitet, die KI-Teile macht der Assistent
+            info['handover'] += 1
+            info['handover_requests'].append(name)
         else:
             info['waiting'] += 1
     for ref in git(base, 'for-each-ref', '--format=%(refname)', ref_prefix + prefix).stdout.split():
@@ -748,7 +845,7 @@ def remote_status(base='.', ref_prefix='refs/remotes/origin/'):
                     info = out.setdefault(book, blank())
                     info['done'] += 1
                     info['done_sections'].append(Path(name).parent.name)
-    return {b: i for b, i in out.items() if any(i[k] for k in ('done', 'failed', 'waiting', 'waiting_budget'))}
+    return {b: i for b, i in out.items() if any(i[k] for k in ('done', 'failed', 'waiting', 'waiting_budget', 'handover'))}
 
 
 def status_text(info, language='de'):
@@ -762,6 +859,9 @@ def status_text(info, language='de'):
     waiting = (info.get('waiting') or 0) + (info.get('waiting_budget') or 0)
     if waiting:
         parts.append(f'{waiting} ' + ('waiting' if en else 'warten' if waiting != 1 else 'wartet'))
+    if info.get('handover'):
+        parts.append(f'{info["handover"]} ' + ('review(s) waiting for the AI parts in chat' if en else
+                     'Rundumprüfung wartet auf die KI-Teile im Chat' if info['handover'] == 1 else 'Rundumprüfungen warten auf die KI-Teile im Chat'))
     return ' · '.join(parts)
 
 
@@ -770,7 +870,7 @@ def report(status, language='de'):
     if not status:
         return ''
     en = language == 'en'
-    total = {k: sum(i[k] for i in status.values()) for k in ('done', 'failed', 'waiting', 'waiting_budget')}
+    total = {k: sum(i.get(k, 0) for i in status.values()) for k in ('done', 'failed', 'waiting', 'waiting_budget', 'handover')}
     lines = [('Since your last visit: ' if en else 'Seit deinem letzten Besuch: ') + status_text(total, language)
              + (' (background queue)' if en else ' (Hintergrund-Warteschlange)')]
     for book, info in sorted(status.items()):
@@ -784,6 +884,11 @@ def report(status, language='de'):
                                    f'retry: `python3 scripts/jobs.py . retry --request {request}`' if en else
                                    f'Modell nicht mehr verfügbar: im Formular „KI-Dienste“ ein anderes Modell eintragen oder '
                                    f'GhostWriter aktualisieren, dann erneut versuchen: `python3 scripts/jobs.py . retry --request {request}`'))
+        for request in info.get('handover_requests', [])[:3]:   # #531: Rundumprüfung vorbereitet
+            lines.append('  - ' + (f'review prepared ({request}): do the AI parts now (docs/EDITORIAL-REVIEW.en.md), then '
+                                   f'`python3 scripts/jobs.py . complete --request {request}`' if en else
+                                   f'Rundumprüfung vorbereitet ({request}): die KI-Teile jetzt abarbeiten (docs/LEKTORAT.md, „Rundumprüfung“), danach '
+                                   f'`python3 scripts/jobs.py . complete --request {request}`'))
         if info['waiting_budget']:
             lines.append('  - ' + (f'{info["waiting_budget"]} waiting for confirmation (budget)' if en else
                                    f'{info["waiting_budget"]} warten auf Bestätigung (Budget): „Trotzdem starten“'))
@@ -830,7 +935,7 @@ def listing(base):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('base')
-    ap.add_argument('cmd', choices=['list', 'enqueue', 'prioritize', 'retry', 'cancel', 'suggest', 'merge', 'auto', 'process', 'remote', 'report'])
+    ap.add_argument('cmd', choices=['list', 'enqueue', 'prioritize', 'retry', 'cancel', 'complete', 'suggest', 'merge', 'auto', 'process', 'remote', 'report'])
     ap.add_argument('--language', default='de')
     ap.add_argument('--start', action='store_true', help='remote: Abarbeitung je Buch starten')
     ap.add_argument('--paused', action='store_true', help='remote: Automatik pausiert, nur melden')
@@ -864,7 +969,7 @@ def main(argv=None):
             if a.json:
                 print(json.dumps(data, ensure_ascii=False, indent=1))
             else:
-                names = {'open': 'wartet', 'waiting_budget': 'wartet auf Bestätigung (Budget)', 'failed': 'fehlgeschlagen'}
+                names = {'open': 'wartet', 'waiting_budget': 'wartet auf Bestätigung (Budget)', 'failed': 'fehlgeschlagen', 'handover': 'wartet auf die KI-Teile im Chat'}
                 print('\n'.join(f'- {names[x["state"]]}: {x["request"]}' + (' (vorgezogen)' if x['priority'] else '')
                                 + (f' – wartet auf {x["blocked_by"]}' if x['blocked_by'] else '')
                                 + (f' – Startbedingung: {x["start_wait"]}' if x.get('start_wait') else '')
@@ -914,13 +1019,13 @@ def main(argv=None):
                 commit_push(base, f'Warteschlange: Frage in {path.relative_to(base)} zusammengelegt', a.push_to)
             print(path.relative_to(base))
             return 0
-        if a.cmd in ('prioritize', 'cancel', 'retry'):
+        if a.cmd in ('prioritize', 'cancel', 'retry', 'complete'):
             if not a.request:
                 raise ValueError('--request angeben.')
-            path = {'prioritize': prioritize, 'cancel': cancel, 'retry': retry}[a.cmd](base, a.request)
+            path = {'prioritize': prioritize, 'cancel': cancel, 'retry': retry, 'complete': complete}[a.cmd](base, a.request)
             if a.push_to:
                 commit_push(base, f'Warteschlange: {path.relative_to(base)} '
-                            + {'prioritize': 'vorgezogen', 'cancel': 'abgebrochen', 'retry': 'erneut versuchen'}[a.cmd], a.push_to)
+                            + {'prioritize': 'vorgezogen', 'cancel': 'abgebrochen', 'retry': 'erneut versuchen', 'complete': 'abgeschlossen'}[a.cmd], a.push_to)
             print(path.relative_to(base))
             return 0
         if a.cmd == 'enqueue':

@@ -323,6 +323,17 @@ findings stay in the dialogue (`plan` shows them as ⛔).
    new, one line each) and the link to the change package marked “not merged
    yet”. Offer merging and the notes review as choices.
 
+### Full chapter check in the queue (#531)
+
+Several chapters can be queued as a handover job: `python3 scripts/jobs.py <book> enqueue --type chapter_review
+--field chapters=ch-03,ch-04` (or `all`; optionally with a start condition from #65: fixed time, free quota, after a
+chapter is closed). The queue keeps the order, start conditions and status per chapter and runs only what works without
+AI: chapter availability, approvals and stale marks, and the language analysis with the AI-pattern list (step 2). There
+is no AI pipeline in the Action. The result is stored in the job under `handover`; the job shows “waiting for the AI parts
+in chat” and costs nothing. At the next entry the assistant reports the prepared check and works through the remaining
+steps (1, 3 to 9) from the job, then runs `python3 scripts/jobs.py <book> complete --request <job>`. Chapters that are not
+complete yet are reported with the reason and not checked. No approval, no merge, nothing applied.
+
 ## Many chapters: sub-agent (#392)
 
 A review across several chapters is read by a sub-agent where the app supports
