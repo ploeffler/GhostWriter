@@ -1,0 +1,112 @@
+/* ---------- Darstellung ---------- */
+function crumbs(){
+  const c = [];
+  if (S.owner && S.lib) c.push(`<button data-go="library">${esc(S.owner + "/" + S.repo)}</button>`);
+  if (S.book) c.push(`›<button data-go="project">${esc(S.book.title_short || S.book.title)}</button>`);
+  if (S.book && S.chap != null && S.chap >= 0) c.push(`›<button data-go="chapter">Kapitel ${S.chap + 1}</button>`);
+  if (S.sec) c.push(`›<span style="padding:0 6px">${esc(S.secNo)}</span>`);
+  $("crumbs").innerHTML = c.join(" ");
+}
+const msgBox = () => S.msg ? `<div class="note ${S.msg.kind}" role="status">${S.msg.html}</div>` : "";
+function busy(t){ $("app").innerHTML = `<div class="one"><p class="dim"><span class="spin"></span>${esc(t)}</p></div>`; }
+/* Fehlende Platzhalter gelten als leer (#685, wie _PACK ab UI 0.72): Die eingebaute Laufzeit lässt unbekannte {{NAME}} stehen.
+   Nach dem Rendern aus Text und Attributen entfernen; Ereignisbehandler bleiben, weil nur Knotenwerte geändert werden. */
+const RAW = /\{\{[#\/]?[A-Z_]+\}\}/g;
+function blankRaw(root){
+  const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) if (RAW.test(n.nodeValue)) n.nodeValue = n.nodeValue.replace(RAW, "");
+  root.querySelectorAll("*").forEach(el => [...el.attributes].forEach(a => { if (RAW.test(a.value)) a.value = a.value.replace(RAW, ""); }));
+}
+/* Knopf-Inventar (#662): Aktionen, die diese App nicht kann, sind vor dem Klick ausgegraut. Die Liste steht in aktionen.json (Test: tests/test_app_aktionen.py);
+   sobald die eingebaute Laufzeit UI 0.80.0 hat, übernimmt GW.capabilities das. */
+const NA = /*GW-NA*/{"analysis.apply":"Das geht im Chat.","analysis.open":"Das geht im Chat.","analysis.start":"Das geht im Chat.","anecdote.capture":"Das geht im Chat.","anecdote.plan":"Das geht im Chat.","anecdote.show":"Das geht im Chat.","anecdote.suggest":"Das geht im Chat.","anecdote.use":"Das geht im Chat.","backup.create":"Das geht im Chat.","chapter.research.open":"Das geht im Chat.","chapter.research.start":"Das geht im Chat.","chapter.revision.start":"Das geht im Chat.","chapter.sections.add":"Kommt mit v1.6.","chapter.texts.update":"Kommt mit v1.6.","character.talk.apply":"Das geht im Chat.","character.talk.end":"Das geht im Chat.","character.talk.start":"Das geht im Chat.","character.talk.switch":"Das geht im Chat.","character.talk.until":"Das geht im Chat.","checkout.aufbau":"Kommt mit v1.6.","checkout.end":"Kommt mit v1.6.","checkout.return":"Kommt mit v1.6.","checkout.start":"Kommt mit v1.6.","edition.create":"Kommt mit v1.6.","edition.create.open":"Kommt mit v1.6.","edition.preview":"Kommt mit v1.6.","edition.proof":"Kommt mit v1.6.","figurenbild.change":"Das geht im Chat.","figurenbild.pick":"Das geht im Chat.","figurenbild.stil.save":"Das geht im Chat.","image.add":"Kommt mit v1.6.","image.layout":"Kommt mit v1.6.","image.place":"Kommt mit v1.6.","image.prompt":"Kommt mit v1.6.","import.apply":"Kommt mit v1.6.","import.edit":"Kommt mit v1.6.","import.outline.apply":"Das geht im Chat.","import.outline.open":"Das geht im Chat.","import.outline.start":"Das geht im Chat.","library.book.create":"Kommt mit v1.6.","library.book.create.open":"Kommt mit v1.6.","library.edition.open":"Kommt mit v1.6.","manuscript.export":"Kommt mit v1.6.","material.add":"Das geht im Chat.","matter.create":"Kommt mit v1.6.","matter.glossary.from_series":"Kommt mit v1.6.","matter.glossary.suggest":"Kommt mit v1.6.","matter.glossary.to_series":"Kommt mit v1.6.","matter.glossary.update":"Kommt mit v1.6.","matter.update":"Kommt mit v1.6.","project.ai_disclosure.open":"Kommt mit v1.6.","project.ai_disclosure.update":"Kommt mit v1.6.","project.analysis.open":"Kommt mit v1.6.","project.analysis.update":"Kommt mit v1.6.","project.output.open":"Kommt mit v1.6.","project.output.update":"Kommt mit v1.6.","project.providers.open":"Kommt mit v1.6.","project.providers.update":"Kommt mit v1.6.","project.rules.open":"Kommt mit v1.6.","project.rules.update":"Kommt mit v1.6.","project.settings.open":"Kommt mit v1.6.","project.settings.update":"Kommt mit v1.6.","series.create":"Kommt mit v1.6.","series.create.open":"Kommt mit v1.6.","series.edit.open":"Kommt mit v1.6.","series.omnibus.approve":"Kommt mit v1.6.","series.omnibus.edit.open":"Kommt mit v1.6.","series.omnibus.publish":"Kommt mit v1.6.","series.omnibus.revoke":"Kommt mit v1.6.","series.omnibus.update":"Kommt mit v1.6.","series.reorder":"Kommt mit v1.6.","series.update":"Kommt mit v1.6.","series.volume.add":"Kommt mit v1.6.","series.volume.remove":"Kommt mit v1.6.","update.apply":"Kommt mit v1.6.","view.images":"Kommt mit v1.6.","view.matter":"Kommt mit v1.6.","view.series":"Kommt mit v1.6.","view.timeline":"Kommt mit v1.6.","wizard.answer":"Das geht im Chat.","wizard.skip":"Das geht im Chat."}/*GW-NA-END*/;
+function applyNa(root){
+  root.querySelectorAll("[data-a],[data-gw-send]").forEach(b => {
+    const a = b.getAttribute("data-a") || b.getAttribute("data-gw-send") || "", why = Object.prototype.hasOwnProperty.call(NA, a) ? NA[a] : "";
+    if (!why || b.hasAttribute("data-gw-na")) return;
+    b.setAttribute("disabled", ""); b.setAttribute("aria-disabled", "true"); b.setAttribute("data-gw-na", why); b.setAttribute("title", why); b.classList.add("gw-na");
+  });
+}
+function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); blankRaw($("gw")); applyNa($("gw")); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
+function widget(name, data, extra){ $("app").innerHTML = `<div class="one">${msgBox()}<div id="gw"></div>${extra || ""}</div>`; gwRender(name, data); patchRun(); crumbs(); window.scrollTo(0, 0); }
+/* Abschnittssteuerung an die App anpassen (#462): „Sofort“ läuft hier in der App, nicht im Chat. Ist ein Dienst mit
+   Websuche eingestellt, recherchiert die Action „Recherche“: dieser Knopf ist dann aktiv, „Sofort“ (ohne Internet) aus. */
+function patchRun(){
+  const gw = $("gw"); if (!gw || !gw.querySelector(".gw-card[data-task]")) return;
+  gw.querySelectorAll('.gw-opt[data-mode="sofort"] span').forEach(sp => { const t = sp.lastChild; if (t && t.nodeType === 3) t.nodeValue = " · hier in der App"; });
+  webProvider().then(w => {
+    const card = gw.querySelector('.gw-card[data-task="Recherche"]'); if (!w || !card || !gw.isConnected) return;
+    const swap = (b, html, on) => { const n = b.cloneNode(false); n.innerHTML = html; n.dataset.available = on ? "true" : "false"; n.disabled = !on; b.replaceWith(n); return n; };
+    const sched = card.querySelector('.gw-opt[data-mode="zeitgesteuert"]'), now = card.querySelector('.gw-opt[data-mode="sofort"]');
+    if (sched){ const n = swap(sched, `<i class="ti ti-file-search" style="font-size:16px;color:var(--text-secondary)" aria-hidden="true"></i><span style="font-size:13px"><span style="font-weight:500">Mit Internet</span> · GitHub-Action (${esc(w.name)})</span>`, true);
+      n.title = "Recherche mit Websuche über " + w.name + " in der Action „Recherche“";
+      n.addEventListener("click", () => runStart({section_id:(S.sec && S.sec.id) || "", task:"research", mode:"web"})); }
+    if (now){ const n = swap(now, `<i class="ti ti-bolt" style="font-size:16px;color:var(--text-secondary)" aria-hidden="true"></i><span style="font-size:13px"><span style="font-weight:500">Sofort</span> · hier in der App</span><span class="gw-later">ohne Internet</span>`, false);
+      n.title = "Claude hat in der App keine Websuche: Recherche mit Internet über den Knopf darüber."; }
+  });
+}
+function desk(name, data, extra, key){
+  if (S.chatKey !== key){ S.chat = []; S.chatKey = key; }
+  $("app").innerHTML = `<div class="desk"><div>${msgBox()}<div id="gw"></div>${extra || ""}</div>${claudePanel()}</div>`;
+  gwRender(name, data); patchRun(); crumbs(); renderChat(); window.scrollTo(0, 0);
+}
+async function show(view, arg){
+  S.view = view;
+  try {
+    if (view === "connect"){ crumbs(); return connectView(); }
+    if (view === "library"){ S.book = null; S.chap = null; S.sec = null; crumbs(); return widget("buecherregal", libraryData()); }
+    if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, checksCard() + queueCard() + await reviewCard() + await checkinCard(), "project"); }
+    if (view === "checkin"){ crumbs(); busy("Rückgabe wird gelesen …"); return widget("rueckgabe", await checkinData(arg)); }
+    if (view === "chapter"){ S.chap = arg; S.sec = null; crumbs(); busy("Kapitel wird geladen …"); const d = await chapterData(arg); return desk("kapitelansicht", d, "", "chapter:" + (chapters()[arg] || {}).id); }
+    if (view === "queue"){ crumbs(); busy("Warteschlange wird gelesen …"); return widget("warteschlange", await queueData()); }
+    if (view === "review"){ crumbs(); busy("Hinweisdurchsicht wird geladen …"); const rd = await reviewData(arg), ri = S.reviewInfo || {}, bar = [];
+      if (ri.name === "gering-zu") bar.push(`<button class="btn" data-act="gering" data-f="${esc(arg)}">${ri.gering} geringe Hinweise lassen (nein)</button>`, `<button class="btn" data-act="gering-show" data-f="${esc(arg)}">Geringes einzeln ansehen</button>`);
+      if (ri.staged || S.reviewAll) bar.push(`<button class="btn" data-act="all-show" data-f="${esc(arg)}">${S.reviewAll ? "Wieder in Stufen" : "Alle Einträge zeigen"}</button>`);
+      return widget("hinweisdurchsicht", rd, bar.length ? `<div class="row" style="margin-top:10px;gap:8px">${bar.join(" ")}</div>` : ""); }
+    if (view === "characters"){ S.chap = null; S.sec = null; crumbs(); busy("Figuren werden geladen …"); return widget("figuren", await charListData()); }
+    if (view === "data"){ S.book = null; S.chap = null; S.sec = null; crumbs(); busy("Daten werden gesammelt …"); const d = await dataData(); return widget("daten", d); }
+    if (view === "section"){
+      busy("Abschnitt wird geladen …");
+      const {d, x, f} = await sectionData(arg);
+      S.sec = x.s; S.secNo = d.SECTION_NUMBER; S.chap = chapters().indexOf(x.c); S.secFile = f;
+      return desk("abschnitt-bearbeiten", d, "", "section:" + x.s.id);
+    }
+    if (view === "merge"){ crumbs(); return widget("aenderungen-uebernehmen", mergeData()); }
+    if (view === "report"){ $("app").innerHTML = `<div class="one"><div class="card report"><button class="btn" data-go="back" style="margin-bottom:16px">‹ Zurück</button><p class="dim">${esc(S.report.path)}</p>${mdDoc(S.report.text)}</div></div>`; window.scrollTo(0, 0); return; }
+  } catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; $("app").innerHTML = `<div class="one">${msgBox()}</div>`; }
+}
+function connectView(){
+  const warn = !S.ready ? `<p class="dim"><span class="spin"></span>Verbindung zu GitHub wird geprüft …</p>` : !S.mcp ? `<div class="note warn"><b>GitHub-Verbindung nicht verfügbar.</b> Diese App liest und speichert über deinen GitHub-Konnektor in Claude. Verbinde ihn unter claude.ai → Einstellungen → Konnektoren und öffne die App danach erneut.</div>` : "";
+  $("app").innerHTML = `<div class="one"><div class="card"><div style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><i class="ti ti-books" style="font-size:22px;color:#e8731c"></i><b style="font-size:20px">GhostWriter öffnen</b></div>
+    <p class="dim" style="margin:0 0 14px">Deine GhostWriter-Bibliothek auf GitHub – mit denselben Ansichten wie im Chat. Gelesen und gespeichert wird über deinen GitHub-Konnektor, Claude arbeitet über dein eigenes Claude-Konto. Keine Tokens, keine Schlüssel.</p>
+    ${warn}${msgBox()}
+    <form id="fConnect" style="display:flex;gap:8px;flex-wrap:wrap"><input class="in" id="repoIn" style="flex:1 1 240px" placeholder="owner/repo, z. B. chillyconcane/YAWA" value="${esc(store.get("gw.repo") || "")}" autocomplete="off"><button class="btn pri" ${S.mcp ? "" : "disabled"}>Öffnen</button></form>
+    <details class="dim" style="margin-top:14px"><summary>Einmalig einrichten</summary><ol><li>In claude.ai unter Einstellungen → Konnektoren den Konnektor <b>github</b> verbinden.</li><li>Für private Repositorys auf GitHub die App <a href="https://github.com/apps/claude-github-mcp-connector" target="_blank" rel="noopener">Claude Github MCP Connector</a> auf dem Konto installieren, dem das Repository gehört, und das Repository freigeben. Nur „autorisiert“ reicht nicht.</li><li>Beim ersten Öffnen fragt Claude, ob diese App GitHub benutzen darf – mit „Weiter“ bestätigen.</li></ol></details>
+    <p class="dim" style="margin:12px 0 0">Speichern legt Änderungen auf dem Arbeits-Branch ab und öffnet ein Änderungspaket. Ins Buch übernommen wird erst nach deiner Bestätigung.</p></div></div>`;
+}
+function checksCard(){
+  if (!S.checks.length) return "";
+  const scopeName = sc => (Array.isArray(sc) ? sc : [sc]).map(id => { if (id === "book") return "ganzes Buch"; let r = id; chapters().forEach((c, ci) => { if (c.id === id) r = "Kapitel " + (ci + 1); (c.sections || []).forEach((s, si) => { if (s.id === id) r = `Abschnitt ${ci + 1}.${si + 1}`; }); }); return r; }).join(", ");
+  const kn = k => k.startsWith("analysis:") ? "Analyse: " + (ANA[k.slice(9)] || k.slice(9)) : (KIND_LONG[k] || k);
+  const fd = e => deDate(String(e.date || "")) + (e.time ? ", " + e.time : "");
+  const list = S.checks.map((e, i) => [i, e]).sort((a, b) => rankOf(b[1], b[0]).localeCompare(rankOf(a[1], a[0]))).map(v => v[1]);
+  const items = (S.showAll ? list : list.slice(0, 5)).map(e => `<li><div><b>${esc(kn(e.kind))}</b> <span class="w">· ${esc(scopeName(e.scope || []))} · ${esc(fd(e))}</span></div><span class="res ${esc(e.result)}">${esc(RES[e.result] || e.result)}</span>${e.note ? `<div class="nt">${esc(e.note)}</div>` : ""}${e.report ? `<div class="nt"><button class="link" data-report="${esc(e.report)}">Bericht öffnen</button></div>` : ""}</li>`).join("");
+  return `<div class="card" style="margin-top:16px"><b>Prüfberichte</b><ul class="chk" style="margin-top:6px">${items}</ul>${list.length > 5 ? `<button class="link" data-act="allchecks" style="margin-top:6px">${S.showAll ? "Weniger anzeigen" : "Alle " + list.length + " Prüfungen"}</button>` : ""}</div>`;
+}
+function mdDoc(t){
+  const L = esc(t.replace(/^---\n[\s\S]*?\n---\n/, "")).split("\n"), out = []; let list = null;
+  const inl = x => x.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<i>$2</i>");
+  for (const l of L){
+    const li = /^\s*(?:[-*]|\d+[.)])\s+(.*)/.exec(l);
+    if (li){ if (!list){ list = /^\s*\d/.test(l) ? "ol" : "ul"; out.push(`<${list}>`); } out.push(`<li>${inl(li[1])}</li>`); continue; }
+    if (list){ out.push(`</${list}>`); list = null; }
+    const h = /^(#{1,4})\s+(.*)/.exec(l);
+    if (h) out.push(`<h${h[1].length}>${inl(h[2])}</h${h[1].length}>`);
+    else if (/^&gt;\s?/.test(l)) out.push(`<blockquote>${inl(l.replace(/^&gt;\s?/, ""))}</blockquote>`);
+    else if (/^\s*\|/.test(l)) out.push(`<p><code>${l}</code></p>`);
+    else if (l.trim() && !/^-{3,}$/.test(l.trim())) out.push(`<p>${inl(l)}</p>`);
+  }
+  if (list) out.push(`</${list}>`);
+  return out.join("");
+}
+
