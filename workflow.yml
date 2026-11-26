@@ -27,8 +27,8 @@ product_roadmap:
       - {version: "v1.2", goal: checkout_for_review_and_material_intake}         # Mehrere Autoren Teil 1: #572, #574, #143, #490
       - {version: "v1.3", goal: checkin_and_docx_roundtrip}                      # Mehrere Autoren Teil 2: #573, #209 (D17), #569, #489
       - {version: "v1.4", goal: background_queue_and_ai_services}               # #65, #478, #66, #531, #462, #123
-      - {version: "v1.5", goal: language_versions_and_characters}              # Planung 25.11.: #75, #643, #430, #431, #540, #532
-      - {version: "v1.6", goal: own_app_with_browser_model}                     # #662, #35, #61; #525 (Modell im Browser), #75 (lokal übersetzen)
+      - {version: "v1.5", goal: language_versions_and_characters}              # Planung 25.11.: #75, #430, #540, #532; #643 und #431 am 26.11. nach v1.6 (Abnahme offen)
+      - {version: "v1.6", goal: own_app_with_browser_model}                     # #662, #35, #61; #525 (Modell im Browser), #75 (lokal übersetzen); Abnahme #643, #431
       - {version: "v1.7", goal: telling_and_collecting}                        # #644, #645, #648, #646, #656
       - {version: "v1.8", goal: review_with_readers}                           # #649, #657, #650, #652
       - {version: "v1.9", goal: assistants}                                    # #659, #660, #661, #647, #657 (zeitgesteuert), #339, #204
