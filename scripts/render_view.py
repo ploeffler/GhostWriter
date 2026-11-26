@@ -3870,6 +3870,56 @@ def character_talk_view(base, config, args):
     return '\n'.join(out) + '\n'
 
 
+def figure_image_view(base, config, args):
+    """Figurenbild-Assistent (#540, Teil 3, Vorlage figurenbild): `figure-image stil` zeigt die Stilkarten, `figure-image <Figur>` den
+    Variantenvergleich der Bilder einer Figur. Nur lesend; gespeichert wird erst nach der Bestätigung im Widget (`figurenbild.py stil set`,
+    `waehlen`). Textfassung mit --text, auch in Clients ohne Widgets."""
+    import figurenbild
+    en = UI.get('language') == 'en'
+    key = (args.where or 'stil').strip()
+    descr = {'foto': ('fotorealistisch', 'photorealistic'), 'comic': ('Comic', 'comic'), 'illustration': ('Illustration', 'illustration'),
+             'aquarell': ('Aquarell', 'watercolour'), 'frei': ('frei beschrieben', 'freely described')}
+    if key == 'stil':
+        style, _ = figurenbild.merged_style(base)
+        media = [{'M_VALUE': k, 'M_LABEL': {'foto': 'Foto', 'comic': 'Comic', 'illustration': 'Illustration', 'aquarell': 'Aquarell', 'frei': 'Frei'}[k] if not en else
+                  {'foto': 'Photo', 'comic': 'Comic', 'illustration': 'Illustration', 'aquarell': 'Watercolour', 'frei': 'Free'}[k],
+                  'M_DESC': descr[k][1 if en else 0]} for k in figurenbild.MEDIEN]
+        if args.text:
+            out = ['### 🎨 ' + ('Image style for character images' if en else 'Bildstil für Figurenbilder'), '']
+            out += [f'- {k}: {", ".join(v) if isinstance(v, list) else v}' for k, v in style.items()] or \
+                   ['No image style set yet.' if en else 'Noch kein Bildstil festgelegt.']
+            out += ['', ('Choose a medium: ' if en else 'Medium zur Wahl: ') + ', '.join(f'`{m["M_VALUE"]}` ({m["M_DESC"]})' for m in media),
+                    ('Save with `Save image style: <medium> …` after confirming.' if en else 'Speichern nach Bestätigung: `figurenbild.py . stil set \'<json>\'`.')]
+            return '\n'.join(out) + '\n'
+        values = {'FB_MODE': 'stil', 'FB_MEDIUM': style.get('medium', '')}
+        for k in ('realismus', 'farbigkeit', 'licht', 'ausschnitt', 'hintergrund', 'freitext'):
+            values['FB_' + k.upper()] = style.get(k, '')
+        values['FB_MERKMALE'] = ', '.join(style.get('merkmale') or [])
+        values['FB_AUSSCHLUESSE'] = ', '.join(style.get('ausschluesse') or [])
+        return fill('figurenbild.html', values, {'MEDIA': media})
+    item = find_character(config, key)
+    if not item:
+        raise SystemExit(f'Figur „{key}“ nicht gefunden')
+    images = figurenbild.load_images(base, item['id'])['bilder'] if '_series' not in item else []
+    status = {'idee': ('Idee', 'idea'), 'gewaehlt': ('ausgewählt', 'picked'), 'referenz': ('Referenzbild', 'reference image')}
+    kind = {'erzeugung': ('Erzeugung', 'creation'), 'aenderung': ('Änderung', 'change')}
+    rows = []
+    for img in images:
+        path = figurenbild.figure_dir(base, item['id']) / img['datei']
+        rows.append({'V_ID': img['id'], 'V_THUMB': '' if args.text else portrait_data(path if path.is_file() else None, 160), 'V_ART_TEXT': kind[img['art']][1 if en else 0],
+                     'V_STATUS': img['status'], 'V_STATUS_TEXT': status[img['status']][1 if en else 0], 'V_KLEIDUNG': img.get('kleidung', ''),
+                     'V_TOOL': img.get('werkzeug', ''), 'V_INPUT': (('from ' if en else 'aus ') + ', '.join(img['eingabe'])) if img.get('eingabe') else '',
+                     'V_PROMPT': str(img.get('prompt', ''))[:140]})
+    if args.text:
+        out = [('### 🎨 Images of ' if en else '### 🎨 Bilder von ') + item['name'], '']
+        out += [f'- **{r["V_ID"]}** · {r["V_ART_TEXT"]} · {r["V_STATUS_TEXT"]}' + (f' · {r["V_KLEIDUNG"]}' if r['V_KLEIDUNG'] else '')
+                + (f' · {r["V_INPUT"]}' if r['V_INPUT'] else '') for r in rows] or ['No images yet.' if en else 'Noch keine Bilder.']
+        out += ['', ('Pick with `figurenbild.py . waehlen <character> <image> --status gewaehlt`; a reference approval is a separate step.' if en else
+                    'Auswählen mit `figurenbild.py . waehlen <Figur> <Bild> --status gewaehlt`; die Referenzfreigabe ist ein eigener Schritt.')]
+        return '\n'.join(out) + '\n'
+    return fill('figurenbild.html', {'FB_MODE': 'varianten', 'FB_FIGURE_ID': item['id'], 'FB_FIGURE_NAME': item['name']}, {'VARIANTS': rows})
+
+
 def import_preview_view(base, config, args):
     """Vorschau „Manuskript importieren“ (#124, Vorlage import-vorschau): Gliederung aus import/proposal.json."""
     import import_book
@@ -4328,7 +4378,7 @@ def choice_view(base, config, args):
                 {'QUESTIONS': questions, 'OPTIONS': options})
 
 
-FORMS = {'character-talk': character_talk_view, 'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view,
+FORMS = {'figure-image': figure_image_view, 'character-talk': character_talk_view, 'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view,
          'character-suggest': character_suggest_view, 'analysis-suggest': analysis_suggest_view, 'import-preview': import_preview_view, 'import-outline': import_outline_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
