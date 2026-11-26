@@ -115,6 +115,14 @@ Nicht in der App: Einchecken von Rückgaben (Upload), zeitgesteuerte Läufe, Auf
 Probedrucke und Nutzungsgrenzen, weil der GitHub-Konnektor sie nicht liefert. Klicks auf Fehlendes zeigen
 einen Hinweis und den Text, mit dem man es im Chat auslöst.
 
+## Knopf-Inventar (#662, #597)
+
+Jede Aktion der Widgets (Aktionstabelle in `templates/ui/BEFUELLUNG.md`) ist in genau einem Zustand: **geht** (in `index.html`
+behandelt, `case "<aktion>"`), **geht im Chat** oder **später**. Die beiden letzten stehen mit Grund (DE/EN) in
+[`aktionen.json`](aktionen.json). Der Test `tests/test_app_aktionen.py` lässt eine neue Aktion ohne Behandlung und ohne Eintrag
+scheitern. Die Einteilung ist ein Vorschlag und von Peter zu bestätigen. **Noch offen:** Die Knöpfe sollen vor dem Klick ausgegraut
+werden (`GW.capabilities` in `gw.js`, ghostwriter-ui); bis dahin meldet die App erst nach dem Klick „Das geht in dieser App noch nicht“.
+
 ## Einrichtung pro Benutzer
 
 1. In claude.ai unter Einstellungen → Konnektoren den Konnektor **github** verbinden.
