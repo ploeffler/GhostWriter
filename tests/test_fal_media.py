@@ -49,7 +49,7 @@ class MediaJobTest(Base):
         env = {'FAL_KEY': key} if key else {}
         with mock.patch.dict('os.environ', env, clear=False), mock.patch.object(fal_media, 'call', fake.call), \
                 mock.patch.object(fal_media, 'download', fake.download), mock.patch.object(fal_media.time, 'sleep', lambda s: None), \
-                mock.patch.object(jobs, 'budget_low', return_value=False):
+                mock.patch.object(jobs, 'budget_low', return_value=False), mock.patch('pricing.rates_for', return_value=None):
             if not key:
                 import os
                 os.environ.pop('FAL_KEY', None)
@@ -80,7 +80,8 @@ class MediaJobTest(Base):
         meta = yaml.safe_load((self.base / 'media/request-001/media.yml').read_text())
         self.assertNotIn('req-123', str(meta))                                       # request_id steht nicht im Ergebnis
         cost = yaml.safe_load((self.base / 'costs/project.yml').read_text())['entries'][-1]
-        self.assertEqual((cost['provider'], cost['cost_amount'], cost['cost_status']), ('fal', 0.1, 'estimated'))
+        self.assertEqual((cost['provider'], cost['cost_amount'], cost['cost_status'], cost['currency']), ('fal', 0.1, 'estimated', 'USD'))   # ohne Kurs bleibt die Originalwährung
+        self.assertEqual(cost['exchange_rate_status'], 'unavailable')
         self.assertEqual(jobs.files(self.base), [])                                  # Auftrag erledigt
         self.assertEqual(validate_project.schema_errors(validate_project.COSTS, yaml.safe_load((self.base / 'costs/project.yml').read_text()), 'costs'), [])
 
@@ -154,6 +155,24 @@ class MediaJobTest(Base):
         self.assertEqual(fal_media.app_of(MODEL), 'fal-ai/wan')
         with self.assertRaises(fal_media.FalError):
             fal_media.app_of('nur-eins')
+
+    def test_owner_budget_pauses_media_until_confirmed(self):
+        """Das Monatsbudget legt der Eigentümer fest (limits); ist es knapp, wartet der Auftrag, ohne dass etwas gesendet wird."""
+        self.enqueue()
+        fake = FakeFal()
+        with mock.patch.dict('os.environ', {'FAL_KEY': 'K'}), mock.patch.object(fal_media, 'call', fake.call), \
+                mock.patch.object(jobs, 'budget_low', return_value=True):
+            results, _ = jobs.process(self.base, commit=False, types=['media'])
+        self.assertTrue(results[0].get('waiting'))
+        self.assertEqual(fake.calls, [])
+        self.assertEqual(jobs.files(self.base)[0].exists(), True)
+
+    def test_images_and_audio_are_saved_too(self):
+        self.assertEqual(fal_media.media_urls({'images': [{'url': 'https://v3.fal.media/a.png'}, {'url': 'https://v3.fal.media/b.png'}]}),
+                         [('image', 'https://v3.fal.media/a.png'), ('image', 'https://v3.fal.media/b.png')])
+        self.assertEqual(fal_media.media_urls({'audio': {'url': 'https://v3.fal.media/a.mp3'}}), [('audio', 'https://v3.fal.media/a.mp3')])
+        with self.assertRaises(fal_media.FalError):
+            fal_media.media_urls({'other': 1})
 
     def test_workflow_and_remote_start(self):
         wf = yaml.safe_load((ROOT / '.github/workflows/media.yml').read_text())
