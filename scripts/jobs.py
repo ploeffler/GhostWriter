@@ -13,6 +13,7 @@ Aufruf:
   python scripts/jobs.py <buch> auto [--push-to <branch>]   (Analysen nach Kapitelabschluss einreihen, #123)
   python scripts/jobs.py <buch> cancel --request <auftrag>          (nur wartende Aufträge)
   python scripts/jobs.py <buch> enqueue --type chapter_review --field chapters=ch-03,ch-04|all   (Rundumprüfung, #531)
+  python scripts/jobs.py <buch> enqueue --type agent --field task="…" --field criteria="A;B" [--field kind=review|analysis|draft]   (Auftrag für die Sitzung, #65)
   python scripts/jobs.py <buch> complete --request <auftrag>        (Übergabe abschließen, wenn der Assistent die KI-Teile erledigt hat)
   python scripts/jobs.py <buch> process [--defaults datei] [--limit 5] [--push-to <arbeits-branch>]
   python scripts/jobs.py <ordner> remote [--start] [--paused] [--dry-run]   (Kontrolllauf, #481)
@@ -64,18 +65,20 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'scripts'))
 import research  # noqa: E402
 
-TYPES = ('research', 'analysis', 'colorize', 'import', 'chapter_review')
+TYPES = ('research', 'analysis', 'colorize', 'import', 'chapter_review', 'agent')
 # Felder je Art (Eingaben der bisherigen Actions, #479); sie stehen unter dem Namen der Art
 FIELDS = {'analysis': ('kind', 'scope', 'prompt_profile'),
           'colorize': ('folder', 'consent', 'model', 'replace', 'hint', 'minors_exception'),
           'import': ('step', 'file', 'ops', 'writing_approval', 'by', 'prompt_profile'),
-          'chapter_review': ('chapters',)}
+          'chapter_review': ('chapters',),
+          'agent': ('kind', 'task', 'criteria', 'scope')}
+AGENT_KINDS = ('review', 'analysis', 'draft')   # Prüflauf, Analyse, Entwurf (#65); nie Issues im Hauptrepo abarbeiten
 # Workflow, der eine Art abarbeitet, und der Branch, auf den das Ergebnis kommt
 WORKFLOW = {'research': 'research.yml', 'analysis': 'analyse.yml', 'colorize': 'colorize.yml', 'import': 'import.yml',
-            'chapter_review': 'analyse.yml'}
-TARGET = {'research': 'work', 'colorize': 'work', 'analysis': 'book', 'import': 'book', 'chapter_review': 'book'}
+            'chapter_review': 'analyse.yml', 'agent': 'analyse.yml'}
+TARGET = {'research': 'work', 'colorize': 'work', 'analysis': 'book', 'import': 'book', 'chapter_review': 'book', 'agent': 'book'}
 # Arten bzw. Schritte ohne KI-Kosten: keine Budgetprüfung
-FREE = {('import', 'convert'), ('import', 'edit'), ('import', 'apply'), ('chapter_review', '')}   # Rundumprüfung (#531): nur Prüfungen ohne KI
+FREE = {('import', 'convert'), ('import', 'edit'), ('import', 'apply'), ('chapter_review', ''), ('agent', '')}   # Rundumprüfung (#531): nur Prüfungen ohne KI
 REQUEST_RE = research.REQUEST_RE
 LIMIT = 5
 COMMIT_PATHS = ('chapters', 'matter', 'jobs')
@@ -434,6 +437,16 @@ def enqueue(base, type_='research', section=None, question=None, provider=None, 
             data['after'] = after
         data.update(start)
         data[type_] = {k: v for k, v in (fields or {}).items() if k in FIELDS[type_] and v not in (None, '')}
+        if type_ == 'agent':
+            agent = data['agent']
+            if not str(agent.get('task') or '').strip():
+                raise ValueError('Für einen Agent-Auftrag die Aufgabe angeben (--field task=…).')
+            agent.setdefault('kind', 'review')
+            if agent['kind'] not in AGENT_KINDS:
+                raise ValueError(f'Agent-Auftrag: kind {", ".join(AGENT_KINDS)} (Issues im Hauptrepo werden nicht abgearbeitet).')
+            crit = agent.get('criteria')
+            if isinstance(crit, str):
+                agent['criteria'] = [c.strip() for c in re.split(r'[;\n]', crit) if c.strip()]
         path = folder / f'request-{n:03d}.yml'
         write(path, data)
         return path
@@ -668,7 +681,19 @@ def run_chapter_review(base, job):
             'paths': ['analysis', 'story', 'editorial', 'costs/project.yml'], 'action': 'chapter_review.prepare'}
 
 
-RUNNERS = {'colorize': run_colorize, 'analysis': run_analysis, 'import': run_import, 'chapter_review': run_chapter_review}
+def run_agent(base, job):
+    """Auftrag für die Sitzung (#65, Entscheidung Peter 26.11.2026): Übergabe wie bei der Rundumprüfung. Die Action führt nichts aus; sie
+    vermerkt, dass die Startbedingungen erfüllt sind (Zustand `handover`). Die Sitzung arbeitet den Auftrag beim nächsten Einstieg ab
+    und schließt ihn mit `jobs.py … complete`. Kein Agent auf GitHub, keine Freigabe, kein Merge; Entwürfe nur als Vorschlag im Arbeits-Branch."""
+    a = job['data'].get('agent') or {}
+    job['data']['handover'] = {'prepared_at': now_utc().isoformat(), 'commit': git(base, 'rev-parse', 'HEAD', check=False).stdout.strip(),
+                               'note': 'Aufgabe für die Sitzung: ' + str(a.get('task') or '') + ' (Art: ' + str(a.get('kind') or 'review')
+                                       + '). Nach der Bearbeitung `jobs.py . complete --request <auftrag>`; Ergebnis als Befund, Vorschlag oder Änderungspaket, nie als Freigabe.'}
+    write(job['path'], job['data'])
+    return {'label': f'Agent-Auftrag bereit für die Sitzung: {str(a.get("task") or "")[:60]}', 'keep': True, 'paths': [], 'action': 'agent.handover'}
+
+
+RUNNERS = {'agent': run_agent, 'colorize': run_colorize, 'analysis': run_analysis, 'import': run_import, 'chapter_review': run_chapter_review}
 
 
 def run_job(base, job, defaults, now):
@@ -833,6 +858,7 @@ def remote_status(base='.', ref_prefix='refs/remotes/origin/'):
         elif st == 'handover':   # #531: Rundumprüfung vorbereitet, die KI-Teile macht der Assistent
             info['handover'] += 1
             info['handover_requests'].append(name)
+            info.setdefault('handover_agent', []).append(name) if kind_of(data) == 'agent' else None
         else:
             info['waiting'] += 1
     for ref in git(base, 'for-each-ref', '--format=%(refname)', ref_prefix + prefix).stdout.split():
@@ -884,7 +910,13 @@ def report(status, language='de'):
                                    f'retry: `python3 scripts/jobs.py . retry --request {request}`' if en else
                                    f'Modell nicht mehr verfügbar: im Formular „KI-Dienste“ ein anderes Modell eintragen oder '
                                    f'GhostWriter aktualisieren, dann erneut versuchen: `python3 scripts/jobs.py . retry --request {request}`'))
-        for request in info.get('handover_requests', [])[:3]:   # #531: Rundumprüfung vorbereitet
+        for request in info.get('handover_requests', [])[:3]:   # #531: Rundumprüfung vorbereitet, #65: Agent-Auftrag
+            if request in info.get('handover_agent', []):
+                lines.append('  - ' + (f'task for this session ({request}): read the job and do it now, then '
+                                       f'`python3 scripts/jobs.py . complete --request {request}`' if en else
+                                       f'Auftrag für die Sitzung ({request}): Auftrag lesen und jetzt abarbeiten, danach '
+                                       f'`python3 scripts/jobs.py . complete --request {request}`'))
+                continue
             lines.append('  - ' + (f'review prepared ({request}): do the AI parts now (docs/EDITORIAL-REVIEW.en.md), then '
                                    f'`python3 scripts/jobs.py . complete --request {request}`' if en else
                                    f'Rundumprüfung vorbereitet ({request}): die KI-Teile jetzt abarbeiten (docs/LEKTORAT.md, „Rundumprüfung“), danach '
