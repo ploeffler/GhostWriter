@@ -757,6 +757,27 @@ TODO_TEXT = {
 }
 
 
+def chapter_need_parts(row, language='de'):
+    """Handlungsbedarf eines Kapitels (#538, #672): nicht bestandene Prüfungen, seit der Prüfung geänderter Text, offene Hinweise."""
+    t = TODO_TEXT['en' if language == 'en' else 'de']
+    parts = []
+    for tag in row.get('CHAPTER_CHECKS') or []:
+        name = tag.get('CK_LABEL') or tag.get('CK_TAG', '')
+        if tag.get('CK_RESULT') == 'failed':
+            parts.append(f'{name} {t["failed"]}')
+        elif tag.get('CK_STATE') == 'changed':
+            parts.append(f'{name}: {t["changed"]}')
+    notes = row.get('CHAPTER_NOTES') or 0
+    if notes:
+        parts.append(f'{notes} ' + (t['note'] if notes == 1 else t['notes']))
+    return parts
+
+
+def chapter_need(row, language='de'):
+    """Eine kurze Zeile je Kapitel für die erweiterte Projektübersicht (#672); leer, wenn nichts zu tun ist."""
+    return ' · '.join(chapter_need_parts(row, language))
+
+
 def todo_items(rows, language='de', book_stale=()):
     """Einträge des Handlungsbedarfs (#538, #593): [{'text', 'chapter_id', 'number', 'notes'}], zuerst buchweite Prüfungen
     („Buch neu prüfen“), dann je Kapitel nur, was jetzt zu tun ist (nicht bestanden, seit der Prüfung geändert, offene Hinweise)."""
@@ -766,19 +787,10 @@ def todo_items(rows, language='de', book_stale=()):
         items.append({'text': f'{t["book"]} ({b["label"][("en" if language == "en" else "de")]})', 'chapter_id': '',
                       'number': 0, 'notes': 0})
     for r in rows:
-        parts = []
-        for tag in r.get('CHAPTER_CHECKS') or []:
-            name = tag.get('CK_LABEL') or tag.get('CK_TAG', '')
-            if tag.get('CK_RESULT') == 'failed':
-                parts.append(f'{name} {t["failed"]}')
-            elif tag.get('CK_STATE') == 'changed':
-                parts.append(f'{name}: {t["changed"]}')
-        notes = r.get('CHAPTER_NOTES') or 0
-        if notes:
-            parts.append(f'{notes} ' + (t['note'] if notes == 1 else t['notes']))
+        parts = chapter_need_parts(r, language)
         if parts:
             items.append({'text': f'{t["chapter"]} {r["CHAPTER_NUMBER"]}: ' + ' · '.join(parts), 'chapter_id': r.get('CHAPTER_ID', ''),
-                          'number': r['CHAPTER_NUMBER'], 'notes': notes})
+                          'number': r['CHAPTER_NUMBER'], 'notes': r.get('CHAPTER_NOTES') or 0})
     return items
 
 

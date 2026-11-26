@@ -213,29 +213,22 @@ class ChecksTest(unittest.TestCase):
         data = render_view_en.prepare('kapitelansicht', chap.data, self.config, args())
         self.assertIn('Quality: failed', json.loads(data['CHECKS_HISTORY_JSON'])[0]['CK_TEXT'])
 
-    def test_project_history_is_slim_and_capped(self):   # #497
-        """Viele lange Prüfungen: das Widget der Projektübersicht bleibt klein, Details gibt es in der Kapitelansicht."""
+    def test_project_has_no_history_text(self):   # #497, #672
+        """Viele lange Prüfungen: die Projektübersicht trägt weder Verlauf noch Fließtext; Details stehen in der Kapitelansicht."""
         long = 'Ein sehr langer Prüfhinweis mit vielen Wörtern. ' * 12
         for i in range(25):
             checks.record(self.base, self.config, 'quality_correction', [self.ch1['id']], 'passed_with_notes',
                           date=f'2026-10-{i + 1:02d}', note=long, report=f'editorial/bericht-{i:02d}-' + 'x' * 80 + '.md')
         wide = render_view.project_view(self.base, self.config, args(text=False, darstellung='erweitert'))
         row = wide.data['CHAPTERS'][0]
-        hist = json.loads(row['CHAPTER_HISTORY_JSON'])
-        self.assertEqual(len(hist), checks.HISTORY_CAP)
-        self.assertEqual(row['CHAPTER_HISTORY_COUNT'], checks.HISTORY_CAP)
-        self.assertEqual(set(hist[0]), set(checks.HISTORY_KEYS_SLIM))
-        self.assertEqual(hist[0]['CK_DATE'], '2026-10-24')   # neueste zuerst (die neueste Prüfung ist nicht „früher“)
-        self.assertNotIn('Prüfhinweis', row['CHAPTER_HISTORY_JSON'])
-        self.assertIn('24 frühere Prüfungen (die neuesten 10 unten', row['CHAPTER_CHECK_DETAILS'])
-        self.assertLess(len(row['CHAPTER_HISTORY_JSON']), 4000)
+        for key in ('CHAPTER_HISTORY', 'CHAPTER_HISTORY_JSON', 'CHAPTER_HISTORY_COUNT'):
+            self.assertNotIn(key, row)
+        self.assertNotIn('CHAPTER_CHECK_DETAILS', row)   # nichts zu tun: keine Zeile
+        self.assertNotIn('frühere', json.dumps(wide.data, ensure_ascii=False))
         chap = render_view.chapter_view(self.base, self.config, args(text=False), 1)   # die Kapitelansicht bleibt vollständig
         self.assertIn('Prüfhinweis', chap.data['CHECKS_HISTORY_JSON'])
-        import render_view_en
-        en = render_view_en.prepare('projektuebersicht', wide.data, self.config, args(text=False, darstellung='erweitert'))
-        self.assertEqual(len(json.loads(en['CHAPTERS'][0]['CHAPTER_HISTORY_JSON'])), checks.HISTORY_CAP)
 
-    def test_project_details_extended(self):   # #398
+    def test_project_details_extended(self):   # #398, #672
         import render_view_en
         checks.record(self.base, self.config, 'quality_correction', [self.ch1['id']], 'failed', date='2026-11-17')
         checks.record(self.base, self.config, 'quality_correction', [self.ch1['id']], 'passed_with_notes',
@@ -247,26 +240,37 @@ class ChecksTest(unittest.TestCase):
         wide = render_view.project_view(self.base, self.config, args(text=False, darstellung='erweitert'))
         row = wide.data['CHAPTERS'][0]
         tag = json.loads(row['CHAPTER_CHECKS_JSON'])[0]
-        self.assertEqual(tag['CK_NOTE'], '2 wesentliche Punkte (W1, W2), 9 Hinweise')
+        self.assertEqual(tag['CK_NOTE'], '2 wesentliche Punkte (W1, W2), 9 Hinweise')   # Tooltip
         self.assertTrue(tag['CK_ID'])
-        self.assertEqual(row['CHAPTER_HISTORY_COUNT'], 1)
-        self.assertIn('1 frühere Prüfung', row['CHAPTER_CHECK_DETAILS'])
-        self.assertIn('zuletzt nicht bestanden: Qualität 2026-11-17', row['CHAPTER_CHECK_DETAILS'])
-        self.assertIn('Frühere Prüfungen', wide.data['CHECKS_LEGEND'])
+        self.assertNotIn('CHAPTER_HISTORY_JSON', row)
+        self.assertNotIn('Frühere Prüfungen', wide.data['CHECKS_LEGEND'])
+        self.assertNotIn('CHAPTER_CHECK_DETAILS', row)   # letzte Qualitätsprüfung bestanden, keine offenen Hinweise
         payload = widget_json(wide.split('GW.render("projektuebersicht",', 1)[1].rsplit(')</script>', 1)[0].replace('<\\/', '</'))
         self.assertNotIn('CHAPTER_HISTORY', payload['CHAPTERS'][0])
-        self.assertIn('CHAPTER_HISTORY_JSON', payload['CHAPTERS'][0])
+        self.assertNotIn('CHAPTER_HISTORY_JSON', payload['CHAPTERS'][0])
         out = render_view.project_view(self.base, self.config, args(darstellung='erweitert'))
-        self.assertIn('**Prüfdetails**', out)
-        self.assertIn('- Kapitel 1: Qualität (', out)
-        self.assertIn('- Qualität: 2026-11-17 ✗', out)
-        self.assertNotIn('**Prüfdetails**', render_view.project_view(self.base, self.config, args()))
+        self.assertNotIn('**Prüfdetails**', out)
+        self.assertNotIn('Frühere Prüfungen', out)
         en = render_view_en.prepare('projektuebersicht', wide.data, self.config, args())
-        self.assertIn('Earlier checks', en['CHECKS_LEGEND'])
-        self.assertIn('Quality: failed', json.loads(en['CHAPTERS'][0]['CHAPTER_HISTORY_JSON'])[0]['CK_TEXT'])
-        self.assertIn('CK_NOTE', en['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])
-        en = render_view_en.prepare('projektuebersicht', plain.data, self.config, args())
         self.assertNotIn('Earlier checks', en['CHECKS_LEGEND'])
+        self.assertIn('CK_NOTE', en['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])
+
+    def test_project_need_line_is_short(self):   # #672
+        import render_view_en
+        checks.record(self.base, self.config, 'structure', [self.ch1['id']], 'failed', date='2026-11-17',
+                      note='Rundumprüfung; notes = Befunde dieser Prüfart')
+        checks.record(self.base, self.config, 'story_memory', [self.ch1['id']], 'failed', date='2026-11-17',
+                      note='Rundumprüfung; notes = Befunde dieser Prüfart')
+        wide = render_view.project_view(self.base, self.config, args(text=False, darstellung='erweitert'))
+        line = wide.data['CHAPTERS'][0]['CHAPTER_CHECK_DETAILS']
+        self.assertIn('nicht bestanden', line)
+        self.assertNotIn('Rundumprüfung', line)
+        self.assertLess(len(line.split()), 15)
+        en = render_view_en.prepare('projektuebersicht', wide.data, self.config, args())
+        self.assertIn('failed', en['CHAPTERS'][0]['CHAPTER_CHECK_DETAILS'])
+        self.assertNotIn('nicht bestanden', en['CHAPTERS'][0]['CHAPTER_CHECK_DETAILS'])
+        out = render_view.project_view(self.base, self.config, args(darstellung='erweitert'))
+        self.assertIn('Handlungsbedarf', out)
 
     def test_time_recorded_and_shown(self):   # #340
         e = checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed', date='2026-11-17', time='14:05')
