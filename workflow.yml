@@ -29,10 +29,12 @@ product_roadmap:
       - {version: "v1.4", goal: background_queue_and_ai_services}               # #65, #478, #66, #531, #462, #123
       - {version: "v1.5", goal: language_versions_and_characters}              # Planung 25.11.: #75, #430, #540, #532; #643 und #431 am 26.11. nach v1.6 (Abnahme offen)
       - {version: "v1.6", goal: own_app_with_browser_model}                     # #662, #35, #61; #525 (Modell im Browser), #75 (lokal übersetzen); Abnahme #643, #431
-      - {version: "v1.7", goal: telling_and_collecting}                        # #644, #645, #648, #646, #656
-      - {version: "v1.8", goal: review_with_readers}                           # #649, #657, #650, #652
-      - {version: "v1.9", goal: assistants}                                    # #659, #660, #661, #647, #657 (zeitgesteuert), #339, #204
-      - {version: "v2.0", goal: publishing_and_cloud_chat_providers}           # #651, #655, #653, #523; #525 (Anbieter mit Konto/Schlüssel), #555, #19, #616
+      - {version: "v1.7", goal: foundation_for_extensions}                     # Planung 26.11.: Plugin-Format (plugins#2), #707, #648
+      - {version: "v1.8", goal: knowledge_and_sources}                         # Planung 26.11.: Quellenverzeichnis, Belege, Zitate, Wissensquellen Teil 1 (#709), Plugin-Daten
+      - {version: "v1.9", goal: telling_and_readers}                           # Planung 26.11.: #644, #646, #656, #650, #652, #649, #657; Plugin Leserunde (plugins#7)
+      - {version: "v2.0", goal: assistants_and_cloud_chat_providers}           # Planung 26.11.: #659, #660, #661, #647, #339, #204; #525 (Anbieter mit Konto/Schlüssel), #555, #19, #616, #709
+      - {version: "v2.1", goal: publishing}                                    # Planung 26.11.: Plugin Veröffentlichen (plugins#8), #651, #655, #653, #523
+      - {version: "v2.5", goal: print_building_blocks_from_plugins}            # Planung 26.11.: Satz-Bausteine aus Plugins im gedruckten Buch (plugins#2, Art 6b)
   v1_0:
     purpose: complete_book_workflow_without_ai_provider_apis
     scope: chat_and_manual_handoff_without_ai_provider_connections
