@@ -224,21 +224,11 @@ def until_index(targets, until):
     raise SystemExit(f'Stelle „{until}“ nicht gefunden (Abschnitt N.M, Kapitel N, sec-… oder ein Teil)')
 
 
-def interview(base, key, until, max_chars=12000):
-    """Wissensstand einer Figur bis zu einer Stelle im Buch (#430, Stufe 2 des Figurengesprächs). Nur lesend.
-
-    Ausgegeben werden das Profil, ihre Auftritte (Abschnitte bis zur Stelle) und die Ereignisse aus story/timeline.yml bis dort,
-    je Eintrag mit Quelle (Abschnitt, Ereignis-ID). Ereignisse mit Feld `characters` gelten als **belegt** (die Figur weiß davon nur,
-    wenn sie aufgeführt ist); Ereignisse ohne das Feld als **angenähert** (die Figur kommt im Abschnitt vor). Ist der Umfang zu groß
-    (`max_chars`), erscheinen nur Titel und Ereignisse in Kurzform; das steht im Ergebnis. Nie das ganze Buch.
-    """
-    _, config = load(base)
-    item = find_character(config, key)
-    if not item:
-        raise SystemExit(f'Figur „{key}“ nicht gefunden')
+def knowledge(base, config, item, until):
+    """Wissensstand einer Figur bis zu einer Stelle (#430): (Abschnitte bis dort {id: (Schlüssel, Titel)}, Auftritte, Ereignisse mit
+    Belegstand). Gemeinsame Grundlage für `interview` und die Steuerkarte des Figurengesprächs (#431)."""
     targets = scope_targets(base, config, 'book')
     stop = until_index(targets, until)
-    names = {i['id']: i['name'] for i in character_items(config)}
     sections = {}
     appears = []
     for i, (k, t, entry) in enumerate(targets[:stop + 1]):
@@ -258,6 +248,23 @@ def interview(base, key, until, max_chars=12000):
                     events.append((ev, 'belegt'))
             elif any(a[0] == sid for a in appears):
                 events.append((ev, 'angenähert'))
+    return sections, appears, events
+
+
+def interview(base, key, until, max_chars=12000):
+    """Wissensstand einer Figur bis zu einer Stelle im Buch (#430, Stufe 2 des Figurengesprächs). Nur lesend.
+
+    Ausgegeben werden das Profil, ihre Auftritte (Abschnitte bis zur Stelle) und die Ereignisse aus story/timeline.yml bis dort,
+    je Eintrag mit Quelle (Abschnitt, Ereignis-ID). Ereignisse mit Feld `characters` gelten als **belegt** (die Figur weiß davon nur,
+    wenn sie aufgeführt ist); Ereignisse ohne das Feld als **angenähert** (die Figur kommt im Abschnitt vor). Ist der Umfang zu groß
+    (`max_chars`), erscheinen nur Titel und Ereignisse in Kurzform; das steht im Ergebnis. Nie das ganze Buch.
+    """
+    _, config = load(base)
+    item = find_character(config, key)
+    if not item:
+        raise SystemExit(f'Figur „{key}“ nicht gefunden')
+    names = {i['id']: i['name'] for i in character_items(config)}
+    sections, appears, events = knowledge(base, config, item, until)
     place = sections[list(sections)[-1]] if sections else ('', '')
     out = ['## Figurengespräch: Wissensstand bis ' + f'{place[0]} „{place[1]}“', '']
     if '_series' in item:

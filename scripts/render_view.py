@@ -3748,6 +3748,92 @@ ANALYSIS_VIEWS = {'portraits': portraits_suggest_view, 'glossary': glossary_sugg
                   'timeline': timeline_suggest_view, 'continuity': continuity_suggest_view, 'language': language_suggest_view}
 
 
+def talk_places(base, config):
+    """Auswahl der Stelle für das Figurengespräch (#431): „bis Kapitel N“ und Abschnitte; Wert wie `characters.py interview --bis`."""
+    en = UI.get('language') == 'en'
+    out = []
+    for ci, ch in enumerate(config['structure']['chapters'], start=1):
+        out.append({'P_VALUE': str(ci), 'P_LABEL': (f'until the end of chapter {ci}: ' if en else f'bis Ende Kapitel {ci}: ') + str(ch['title'])})
+        out += [{'P_VALUE': f'{ci}.{si}', 'P_LABEL': (f'{ci}.{si} ' + str(sec['title']))} for si, sec in enumerate(ch['sections'], start=1)]
+    return out
+
+
+def character_talk_view(base, config, args):
+    """Steuerkarte für das Figurengespräch (#431, Vorlage figurengespraech): Start, Knöpfe während des Gesprächs, Karte „Erkenntnisse“.
+    Aufruf `character-talk [<Figur>] [--draft {phase, until, insights:[{field, text}]}]`. Nur lesend; die Antworten der Figur stehen
+    im Chat, nicht im Widget. Erkenntnisse sind Vorschläge des Assistenten, nichts davon ist vorangehakt oder übernommen."""
+    import characters
+    draft = {}
+    if getattr(args, 'draft', None):
+        raw = args.draft
+        draft = json.loads(Path(raw).read_text(encoding='utf-8') if Path(raw).is_file() else raw)
+    en = UI.get('language') == 'en'
+    phase = draft.get('phase') or ('active' if args.where else 'start')
+    if phase not in ('start', 'active', 'insights'):
+        raise SystemExit('phase: start, active oder insights')
+    items = character_items(config)
+    figures = []
+    for i in items:
+        head = character_file(base, i)[0]
+        figures.append({'F_ID': i['id'], 'F_NAME': i['name'], 'F_PORTRAIT': portrait_data(character_portrait(base, i['id'], head)[1], 96)})
+    item = find_character(config, args.where) if args.where else None
+    if args.where and not item:
+        raise SystemExit(f'Figur „{args.where}“ nicht gefunden')
+    until = str(draft.get('until') or '').strip()
+    places = talk_places(base, config)
+    until_text, knowledge = ('whole book' if en else 'ganzes Buch'), ''
+    if until and not any(x['P_VALUE'] == until for x in places):
+        raise SystemExit(f'Stelle „{until}“ nicht gefunden (Abschnitt N.M oder Kapitel N)')
+    if until:
+        until_text = next(x['P_LABEL'] for x in places if x['P_VALUE'] == until)
+    if item:
+        try:
+            _, _, events = characters.knowledge(base, config, item, until or 'book') if until else (None, None, [])
+        except SystemExit:
+            events = []
+        if until:
+            sure = sum(1 for _, how in events if how == 'belegt')
+            near = len(events) - sure
+            knowledge = (f'{len(events)} events ({sure} documented, {near} approximated)' if en else
+                         f'{plural(len(events), "Ereignis", "Ereignisse")} ({sure} belegt, {near} angenähert)') if events else \
+                        ('no events up to here' if en else 'keine Ereignisse bis hierher')
+    insights = []
+    labels = {'traits': ('Eigenschaften', 'Traits'), 'voice': ('Sprechweise', 'Voice'), 'short': ('Ein Satz', 'One sentence'),
+              'appearance': ('Aussehen', 'Appearance'), 'age': ('Alter', 'Age'), 'description': ('Beschreibung', 'Description'),
+              'notes': ('Notizen', 'Notes'), 'relation': ('Beziehung', 'Relationship')}
+    head = character_file(base, item)[0] if item else {}
+    for n, ins in enumerate(draft.get('insights') or []):
+        field = str(ins.get('field') or '')
+        if field not in labels:
+            raise SystemExit(f'Erkenntnis {n + 1}: Feld {field or "(leer)"} unbekannt ({", ".join(labels)})')
+        cur = head.get(field)
+        cur = ', '.join(cur) if isinstance(cur, list) else ('' if cur is None else str(cur))
+        insights.append({'I_IDX': n, 'I_FIELD': field, 'I_FIELD_TEXT': labels[field][1 if en else 0], 'I_TEXT': str(ins.get('text') or ''), 'I_CURRENT': cur or '–'})
+    if not args.text:
+        values = {'TALK_PHASE': phase, 'TALK_FIGURE_ID': item['id'] if item else '', 'TALK_FIGURE_NAME': item['name'] if item else '',
+                  'TALK_PORTRAIT': next((f['F_PORTRAIT'] for f in figures if item and f['F_ID'] == item['id']), ''),
+                  'TALK_UNTIL': until, 'TALK_UNTIL_TEXT': until_text, 'TALK_KNOWLEDGE_TEXT': knowledge}
+        return fill('figurengespraech.html', values, {'FIGURES': figures, 'PLACES': places, 'INSIGHTS': insights})
+    name = item['name'] if item else ''
+    if phase == 'start':
+        out = ['### 💬 Character conversation' if en else '### 💬 Figurengespräch', '',
+               ('Pick a character and, optionally, a position in the book: ' + ('`Talk to <Name> until <place>`' ) if en else
+                'Figur und, wenn gewünscht, eine Stelle im Buch wählen: `Figurengespräch <Name> bis <Stelle>`'), '']
+        out += [f'- {f["F_NAME"]}' for f in figures] or ['- –']
+        out += ['', ('Places: `2.3` (section), `2` (end of chapter 2).' if en else 'Stellen: `2.3` (Abschnitt), `2` (bis Ende Kapitel 2).')]
+    elif phase == 'active':
+        out = [('### 💬 Conversation with ' if en else '### 💬 Gespräch mit ') + name, f'{"Knowledge up to" if en else "Wissensstand bis"}: {until_text}' + (f' · {knowledge}' if knowledge else ''), '',
+               ('The conversation runs in the chat. Controls: `End conversation` · `Change position: until <place>` · `Talk to <Name> until <place>` (switch character).' if en else
+                'Das Gespräch läuft im Chat. Steuerung: `Gespräch beenden` · `Stelle ändern: bis <Stelle>` · `Figurengespräch <Name> bis <Stelle>` (Figur wechseln).')]
+    else:
+        out = [('### 💬 Insights from the conversation with ' if en else '### 💬 Erkenntnisse aus dem Gespräch mit ') + name, '',
+               ('Suggestions only: nothing is applied. Reply with the numbers to apply, then confirm.' if en else
+                'Nur Vorschläge, nichts ist übernommen. Mit den Nummern antworten, die übernommen werden sollen, danach bestätigen.'), '']
+        out += [f'{n + 1}. {i["I_FIELD_TEXT"]}: {i["I_TEXT"]} ({"so far" if en else "bisher"}: {i["I_CURRENT"]})' for n, i in enumerate(insights)] or \
+               [('No insights to apply.' if en else 'Keine Erkenntnisse zum Übernehmen.')]
+    return '\n'.join(out) + '\n'
+
+
 def import_preview_view(base, config, args):
     """Vorschau „Manuskript importieren“ (#124, Vorlage import-vorschau): Gliederung aus import/proposal.json."""
     import import_book
@@ -4206,7 +4292,7 @@ def choice_view(base, config, args):
                 {'QUESTIONS': questions, 'OPTIONS': options})
 
 
-FORMS = {'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view,
+FORMS = {'character-talk': character_talk_view, 'choice': choice_view, 'book-create': book_create_view, 'series-edit': series_edit_view, 'omnibus-edit': omnibus_edit_view,
          'character-suggest': character_suggest_view, 'analysis-suggest': analysis_suggest_view, 'import-preview': import_preview_view, 'import-outline': import_outline_view, 'project-edit': project_edit_view, 'chapter-research': chapter_research_view, 'project-settings': project_settings_view, 'chapter-create': chapter_create_view,
          'chapter-reorder': chapter_reorder_view, 'edition-create': edition_create_view, 'chapter-edit': chapter_edit_view,
          'section-create': section_create_view, 'section-reorder': section_reorder_view,
