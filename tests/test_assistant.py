@@ -146,6 +146,16 @@ class ProfileTest(unittest.TestCase):
         _, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'answer_backup': 'irgendwann'})
         self.assertTrue(errs)
 
+    def test_answer_style_kurz_und_klar(self):   # #698
+        prof, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'answer_style': 'kurz-und-klar'})
+        self.assertEqual(errs, [])
+        skill = assistant.skill_path(self.d, prof).read_text(encoding='utf-8')
+        self.assertIn('ghostwriter-kurz-und-klar', skill)
+        prof, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'answer_style': 'standard'})
+        self.assertNotIn('ghostwriter-kurz-und-klar', assistant.skill_path(self.d, prof).read_text(encoding='utf-8'))
+        _, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'answer_style': 'einfach'})
+        self.assertTrue(errs)
+
     def test_display_and_answers(self):   # #330
         prof, errs, _ = assistant.set_profile(self.d, {**PROFILE, 'display': 'erweitert', 'answers': 'erweitert'})
         self.assertEqual(errs, [])

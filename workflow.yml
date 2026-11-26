@@ -27,8 +27,8 @@ product_roadmap:
       - {version: "v1.2", goal: checkout_for_review_and_material_intake}         # Mehrere Autoren Teil 1: #572, #574, #143, #490
       - {version: "v1.3", goal: checkin_and_docx_roundtrip}                      # Mehrere Autoren Teil 2: #573, #209 (D17), #569, #489
       - {version: "v1.4", goal: background_queue_and_ai_services}               # #65, #478, #66, #531, #462, #123
-      - {version: "v1.5", goal: language_versions_and_characters}              # Planung 25.11.: #75, #643, #430, #431, #540, #532
-      - {version: "v1.6", goal: own_app_with_browser_model}                     # #662, #35, #61; #525 (Modell im Browser), #75 (lokal übersetzen)
+      - {version: "v1.5", goal: language_versions_and_characters}              # Planung 25.11.: #75, #430, #540, #532; #643 und #431 am 26.11. nach v1.6 (Abnahme offen)
+      - {version: "v1.6", goal: own_app_with_browser_model}                     # #662, #35, #61; #525 (Modell im Browser), #75 (lokal übersetzen); Abnahme #643, #431
       - {version: "v1.7", goal: extension_foundation}                          # Planung 26.11.: plugins#2 (Format, Andockstellen Arten 1–5, 6a, 7), #707 Feingliederung mit Koordinaten, #648 Karte; parallel Plugin Film (plugins#3)
       - {version: "v1.8", goal: knowledge}                                     # Quellenverzeichnis, Belege, Zitate, Wissensquellen Teil 1 (#709); Umzug Figuren (plugins#6) und Erinnerung (plugins#5, #645); danach Plugin Guide (plugins#1)
       - {version: "v1.9", goal: telling_and_readers}                           # #644, #646, #656, #650, #652; Plugin Leserunde (plugins#7: Gegenlesen, #649, #657)

@@ -51,7 +51,7 @@ FILE_ONLY = {
 PROFILE_FORM = {'git': 'profile', 'author': 'profile', 'voice': 'profile', 'display': 'display', 'answers': 'answers'}
 PROFILE_SKIP = {'format', 'repo', 'skill'}
 PROFILE_DEFAULTS = {'interface_language': 'de', 'work_modes': 'ask', 'display': 'uebersichtlich', 'answers': 'einfach',
-                    'answer_backup': 'vor_antwort'}
+                    'answer_style': 'standard', 'answer_backup': 'vor_antwort'}
 SERIES_FIELDS = ['title', 'subtitle', 'kind', 'description', 'issn', 'also_in_series']
 OMNIBUS_GROUPS = ['title', 'subtitle', 'keep_matter', 'foreword', 'afterword', 'formats', 'publication', 'typesetting']
 

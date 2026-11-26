@@ -37,6 +37,7 @@ Schicke **Hilfe** im Chat. Du erhältst eine kurze Befehlsübersicht und die Kü
 | `Nur Text` | Darstellung auf Text umstellen |
 | `Einfacher Modus` | Knappe, verständliche Antworten |
 | `Erweiterte Antworten an` | Technische Einzelheiten einschalten |
+| `Kurz und klar an` | Antwortstil: Ergebnis zuerst, wenige Punkte, eine Frage als Auswahl |
 
 ## Änderungspakete schnüren und übernehmen
 

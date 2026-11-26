@@ -215,6 +215,8 @@ Der Benutzer kann den Antwortmodus jederzeit im Chat umschalten:
 - **„Erweiterte Antworten an“** oder **„Debugger-Modus an“**: technische Details, Repository- und Dateipfade, Branches, Commits, Prüfmeldungen, Fehlerursachen und Statusinformationen ausführlicher darstellen.
 - **„Erweiterte Antworten aus“**, **„Debugger-Modus aus“** oder **„Einfacher Modus“**: wieder zur verständlichen, knappen Darstellung wechseln.
 
+**„Kurz und klar an“ / „Kurz und klar aus“ (#698):** Antwortstil, unabhängig vom Antwortmodus: Ergebnis zuerst, höchstens 3–5 Punkte, eine Frage als Auswahl, Entscheidungen einzeln, eine eigene Zeile „👉 Du: …“, Alltagssprache, bei Recherchen die Empfehlung zuerst. Der Ablauf steht im Skill `ghostwriter-kurz-und-klar` (ghostwriter-skills). Fehler, Risiken, Kosten und Freigaben fallen nie weg. Dauerhaft als Standard der Bibliothek: `answer_style: kurz-und-klar` in `assistant.yml` („Kurz und klar dauerhaft“).
+
 Der gewählte Modus gilt für den laufenden Chat, bis der Benutzer ihn ändert. Nicht behaupten, die Einstellung sei dauerhaft gespeichert, sofern dafür keine ausdrücklich vorhandene Projekteinstellung genutzt wird.
 
 ## Darstellungsmodi für Chat-Ausgaben

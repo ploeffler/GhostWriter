@@ -27,6 +27,11 @@
       "enum": ["einfach", "erweitert"],
       "description": "Antwortmodus als Standard (#330): einfach = Alltagssprache, erweitert = mit technischen Details; fehlt = einfach. „Erweiterte Antworten an/aus“ im Chat geht vor."
     },
+    "answer_style": {
+      "type": "string",
+      "enum": ["standard", "kurz-und-klar"],
+      "description": "Antwortstil (#698): kurz-und-klar = Ergebnis zuerst, wenige Punkte, eine Frage als Auswahl, Alltagssprache (Skill ghostwriter-kurz-und-klar); fehlt = standard. Regelt die Form, der Antwortmodus (answers) die Detailtiefe; beide sind kombinierbar. „Kurz und klar an/aus“ im Chat geht vor."
+    },
     "answer_backup": {
       "type": "string",
       "enum": ["vor_antwort", "hintergrund"],
