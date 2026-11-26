@@ -11,6 +11,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 from chapter_revision import readiness
+from tests.widget_helpers import widget_data  # noqa: E402
 
 
 class ChapterRevisionTest(unittest.TestCase):
@@ -59,12 +60,12 @@ class WidgetReadinessTest(unittest.TestCase):
                 return subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'),
                                        str(project), 'chapter', '1'], capture_output=True,
                                       text=True, check=True).stdout
-            self.assertIn('"CHAPTER_REVISION_READY":"true"', render())
+            self.assertEqual(widget_data(render())['CHAPTER_REVISION_READY'], 'true')
             config = yaml.safe_load((project / 'ghostwriter.yml').read_text(encoding='utf-8'))
             first = project / config['structure']['chapters'][0]['sections'][0]['path']
             text = first.read_text(encoding='utf-8').split('## Manuskript')[0]
             first.write_text(text + '## Manuskript\n\nNoch nicht begonnen.\n', encoding='utf-8')
-            self.assertIn('"CHAPTER_REVISION_READY":""', render())
+            self.assertEqual(widget_data(render())['CHAPTER_REVISION_READY'], '')
 
 
 if __name__ == '__main__':

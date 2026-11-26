@@ -19,6 +19,7 @@ import import_book
 import matter
 import series
 import render_view
+from tests.widget_helpers import widget_json  # noqa: E402
 
 
 class RemainingViewsEnglishTest(unittest.TestCase):
@@ -46,7 +47,7 @@ class RemainingViewsEnglishTest(unittest.TestCase):
         result = subprocess.run(command, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         if widget:
-            return json.loads(re.search(r'GW.render\("[^"]+",(.*?)\)</script>', result.stdout).group(1))
+            return widget_json(re.search(r'GW.render\("[^"]+",(.*?)\)</script>', result.stdout).group(1))
         self.assertNotIn('<script', result.stdout)
         self.assertNotIn('Was möchtest du tun?', result.stdout)
         return result.stdout

@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 import yaml
+from tests.widget_helpers import widget_json  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -33,7 +34,7 @@ class ProjectDetailsTest(unittest.TestCase):
 
     def test_widget_data(self):
         out = self.run_view()
-        data = json.loads(re.search(r'GW\.render\("projektdaten-bearbeiten",(\{.*\})\)', out).group(1))
+        data = widget_json(re.search(r'GW\.render\("projektdaten-bearbeiten",(\{.*\})\)', out).group(1))
         self.assertEqual(data['PROJECT_SUBTITLE'], 'Ein Untertitel')
         self.assertEqual(data['PROJECT_LANGUAGE'], 'de')
         self.assertEqual(data['PROJECT_BOOK_TYPE'], 'Ratgeber')

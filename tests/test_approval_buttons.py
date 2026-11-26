@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from tests.widget_helpers import widget_json  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -24,7 +25,7 @@ class ApprovalButtonTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         m = re.search(r'GW\.render\("freigabe-bestaetigen",(\{.*\})\)</script>', r.stdout)
         self.assertIsNotNone(m, r.stdout)
-        return json.loads(m.group(1))
+        return widget_json(m.group(1))
 
     def test_section_buttons(self):
         v = self.values('approval-section', '1.1')

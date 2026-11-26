@@ -922,6 +922,52 @@ def widget_payload(name, data):
     return out
 
 
+def _empty(v):
+    return v is None or v == '' or (isinstance(v, list) and not v)
+
+
+def pack_payload(data):
+    """Kompakte Widget-Daten (#674, ab UI 0.72.0): leere Felder ("", [], null) der obersten Ebene weglassen und
+    Wiederholblöcke als {"k": [Feldnamen], "r": [[Werte], …]} schicken, wenn das kürzer ist. gw.js klappt sie mit
+    `_PACK` wieder aus und behandelt jeden fehlenden Platzhalter als leer. Ein Block wird nur gepackt, wenn alle
+    Zeilen dieselben Felder haben; sonst fiele ein absichtlich fehlendes Feld nicht mehr auf das äußere zurück."""
+    def dumps(v):
+        return json.dumps(v, ensure_ascii=False, separators=(',', ':'))
+    out = {'_PACK': 1}
+    for key, value in data.items():
+        if _empty(value):
+            continue
+        if isinstance(value, list) and all(isinstance(r, dict) for r in value) \
+                and all(set(r) == set(value[0]) for r in value):
+            cols = list(value[0])
+            rows = []
+            for r in value:
+                row = [r[c] for c in cols]
+                while row and row[-1] == '':
+                    row.pop()   # fehlende Werte am Zeilenende sind leer
+                rows.append(row)
+            packed = {'k': cols, 'r': rows}
+            if len(dumps(packed)) < len(dumps(value)):
+                value = packed
+        out[key] = value
+    return out
+
+
+def unpack_payload(data):
+    """Gegenstück zu pack_payload für Tests und native Darstellungen: Blöcke ausklappen, `_PACK` entfernen.
+    Weggelassene leere Felder bleiben weg (gw.js ergänzt sie aus der Vorlage)."""
+    if not isinstance(data, dict) or data.get('_PACK') != 1:
+        return data
+    out = {}
+    for key, value in data.items():
+        if key == '_PACK':
+            continue
+        if isinstance(value, dict) and isinstance(value.get('k'), list) and isinstance(value.get('r'), list):
+            value = [{c: (row[i] if i < len(row) else '') for i, c in enumerate(value['k'])} for row in value['r']]
+        out[key] = value
+    return out
+
+
 def fill(template, values, blocks=None):
     """Widget-Code: Ladezeile für ghostwriter-ui und GW.render mit den Daten.
     Maskieren, Wiederholblöcke und data-gw-if erledigt gw.js im Chat."""
@@ -930,7 +976,7 @@ def fill(template, values, blocks=None):
     data['LANGUAGE'] = UI.get('language', 'de')
     if UI.get('head'):
         data['HEAD_SHA'] = UI['head']  # gelesener Stand; gw.js schickt ihn als expected_head_sha zurück
-    payload = json.dumps(widget_payload(template[:-5], data), ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+    payload = json.dumps(pack_payload(widget_payload(template[:-5], data)), ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     url = UI_URL.format(repo=UI['repo'], ref=UI['ref'])
     return RenderedWidget((f'<div id="gw"></div>\n<script src="{url}"></script>\n'
             f'<script>GW.render({json.dumps(template[:-5])},{payload})</script>\n'), template[:-5], data)

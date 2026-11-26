@@ -16,6 +16,7 @@ import hinweise  # noqa: E402
 import checks  # noqa: E402
 import validate_project  # noqa: E402
 from render_view import load, section_file  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 
 def render_status(path):
@@ -356,7 +357,7 @@ class HinweiseTest(unittest.TestCase):
         run = lambda *a: subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'notes-review', *a,
                                          '--repo', 'o/r'], capture_output=True, text=True, check=True).stdout
         html = run()
-        page = json.loads(re.search(r'GW\.render\("hinweisdurchsicht",(.*)\)</script>', html).group(1))
+        page = widget_json(re.search(r'GW\.render\("hinweisdurchsicht",(.*)\)</script>', html).group(1))
         self.assertEqual(page['AUTO'][0]['E_ID'], 'e-001')
         self.assertIn('#### Ohne Autor lösbar', run('editorial/durchsicht-2026-11-20.yml', '--text'))
 

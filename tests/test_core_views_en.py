@@ -12,6 +12,7 @@ from pathlib import Path
 
 import yaml
 from scripts import render_view_en
+from tests.widget_helpers import widget_json  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 RENDER = ROOT / 'scripts' / 'render_view.py'
@@ -92,7 +93,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertEqual(before, section.read_bytes())
         self.assertEqual(text, self.run_view('section', '1.1', '--language', 'en', '--text').stdout)
         preview = self.run_view('section', '1.1', '--language', 'en', '--ui-ref', 'a' * 40).stdout
-        data = json.loads(re.search(r'GW.render\("abschnitt-bearbeiten",(.*?)\)</script>', preview).group(1))
+        data = widget_json(re.search(r'GW.render\("abschnitt-bearbeiten",(.*?)\)</script>', preview).group(1))
         self.assertEqual(data['MARKERS'][0]['MARKER_LABEL'], 'Check source')
         self.assertEqual(data['SECTION_MANUSCRIPT'].strip(), 'Originaltext mit [QUELLE PRÜFEN].')
 
@@ -112,7 +113,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         previews = []
         for language in ('de', 'en'):
             html = self.run_view('edition-create', '--language', language, '--ui-ref', 'a' * 40).stdout
-            previews.append(json.loads(re.search(r'GW.render\("auflage-erzeugen",(.*?)\)</script>', html).group(1)))
+            previews.append(widget_json(re.search(r'GW.render\("auflage-erzeugen",(.*?)\)</script>', html).group(1)))
         self.assertEqual(previews[0]['EDITION_NAME'], previews[1]['EDITION_NAME'])
         self.assertEqual(previews[0]['EDITION_TAG'], previews[1]['EDITION_TAG'])
         self.assertIn('Buch {name}', previews[1]['EDITION_NAME'])
@@ -190,7 +191,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
 
     def test_ui_preview_carries_language_and_raw_status(self):
         text = self.run_view('project', '--language', 'en', '--ui-ref', 'a' * 40).stdout
-        data = json.loads(re.search(r'GW.render\("projektuebersicht",(.*?)\)</script>', text).group(1))
+        data = widget_json(re.search(r'GW.render\("projektuebersicht",(.*?)\)</script>', text).group(1))
         self.assertEqual(data['LANGUAGE'], 'en')
         self.assertEqual(data['PROJECT_TITLE'], self.config['project']['title'])
         self.assertEqual(data['PROJECT_EDITION_TEXT'], 'no edition yet')
@@ -330,7 +331,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertIn('| Fact check | off |', text)
         self.assertIn('`1` At the end (after 1.1 “Beschreibung Kapitel”) *(default)*', text)
         html = self.run_view('section-create', '1', '--language', 'en', '--ui-ref', 'a' * 40).stdout
-        data = json.loads(re.search(r'GW.render\("abschnitt-anlegen",(.*?)\)</script>', html).group(1))
+        data = widget_json(re.search(r'GW.render\("abschnitt-anlegen",(.*?)\)</script>', html).group(1))
         self.assertEqual(data['FACT_CHECK_DEFAULT'], 'disabled')
         self.assertEqual(data['CHAPTER_ID'], 'c1')
         self.assertEqual(data['POSITIONS'][1]['POSITION_SELECTED'], 'selected')
@@ -364,7 +365,7 @@ class EnglishCoreViewsTest(unittest.TestCase):
 
     def preview(self, *args, language='en'):
         text = self.run_view(*args, '--language', language, '--ui-ref', 'a' * 40, '--head-sha', 'b' * 40).stdout
-        return json.loads(re.search(r'GW.render\("[^"\n]+",(.*?)\)</script>', text).group(1))
+        return widget_json(re.search(r'GW.render\("[^"\n]+",(.*?)\)</script>', text).group(1))
 
     def test_approval_checks_and_confirmation_are_identical_across_languages(self):
         section = self.chapter(False)

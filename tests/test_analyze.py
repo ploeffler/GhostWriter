@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 import analyze  # noqa: E402
 import validate_project  # noqa: E402
 from render_view import load, section_file  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 
 class AnalyzeTest(unittest.TestCase):
@@ -75,7 +76,7 @@ class AnalyzeTest(unittest.TestCase):
         call.assert_not_called()
         self.assertEqual((head2['blocks_analysed'], head2['input_tokens']), (0, 0))
         # Hinweis in der Übersicht, bis übernommen
-        view = lambda: json.loads(re.search(r'GW\.render\("projektuebersicht",(.*)\)</script>', subprocess.run(
+        view = lambda: widget_json(re.search(r'GW\.render\("projektuebersicht",(.*)\)</script>', subprocess.run(
             [sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'project'],
             capture_output=True, text=True, check=True).stdout).group(1))
         ov = view()
@@ -83,7 +84,7 @@ class AnalyzeTest(unittest.TestCase):
         self.assertIn('liegen bereit (1)', ov['ANALYSES'][0]['A_TEXT'])
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
                               '--draft', ov['ANALYSES'][0]['A_RUN']], capture_output=True, text=True, cwd=self.base); self.assertEqual(out.returncode, 0, out.stderr); out = out.stdout
-        page = json.loads(re.search(r'GW\.render\("figuren-vorschlag",(.*)\)</script>', out).group(1))
+        page = widget_json(re.search(r'GW\.render\("figuren-vorschlag",(.*)\)</script>', out).group(1))
         self.assertEqual(page['RUN_ID'], 'run-002')
         self.assertIn('Alter: 78 / 80', page['CONFLICTS_TEXT'])
         analyze.mark_applied(self.base, 'run-002')
@@ -130,11 +131,11 @@ class AnalyzeTest(unittest.TestCase):
         # Übersicht: Hinweis für Kurzbeschreibungen, Vorlage mit bisherigem Text
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'project'],
                              capture_output=True, text=True, check=True).stdout
-        ov = json.loads(re.search(r'GW\.render\("projektuebersicht",(.*)\)</script>', out).group(1))
+        ov = widget_json(re.search(r'GW\.render\("projektuebersicht",(.*)\)</script>', out).group(1))
         self.assertEqual([a['A_KIND'] for a in ov['ANALYSES']], ['summaries'])
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
                               '--draft', 'analysis/summaries/run-001.json'], capture_output=True, text=True, check=True).stdout
-        page = json.loads(re.search(r'GW\.render\("kurzbeschreibung-vorschlag",(.*)\)</script>', out).group(1))
+        page = widget_json(re.search(r'GW\.render\("kurzbeschreibung-vorschlag",(.*)\)</script>', out).group(1))
         sec = page['SUGGESTIONS'][1]
         _, goal_now, short_now, _ = section_file(self.base, chs[0]['sections'][0])
         self.assertEqual(sec['S_GOAL_NOW'], goal_now)
@@ -185,7 +186,7 @@ class AnalyzeTest(unittest.TestCase):
         self.assertGreaterEqual(head['dropped_without_evidence'], 1)
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
                               '--draft', 'analysis/style/run-001.json'], capture_output=True, text=True, check=True).stdout
-        page = json.loads(re.search(r'GW\.render\("stilprofil-vorschlag",(.*)\)</script>', out).group(1))
+        page = widget_json(re.search(r'GW\.render\("stilprofil-vorschlag",(.*)\)</script>', out).group(1))
         self.assertIn('Wörter je Satz', page['STATS_TEXT'])
         self.assertTrue(all(r['S_ON'] == '1' for r in page['SUGGESTIONS']))
         cfg_before = (self.base / 'ghostwriter.yml').read_text(encoding='utf-8')
@@ -289,7 +290,7 @@ class AnalyzeTest(unittest.TestCase):
             (self.base / 'costs/project.yml').read_text(encoding='utf-8'))['entries'] if e['note'].startswith('Zeitleiste')]))
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
                               '--draft', 'analysis/timeline/run-001.json'], capture_output=True, text=True, check=True).stdout
-        page = json.loads(re.search(r'GW\.render\("zeitleiste-vorschlag",(.*)\)</script>', out).group(1))
+        page = widget_json(re.search(r'GW\.render\("zeitleiste-vorschlag",(.*)\)</script>', out).group(1))
         self.assertEqual([e['E_FLAG'] for e in page['EVENTS']], ['1', '1'])
         analyze.apply(self.base, 'run-001', 'timeline', [{'index': 0, 'when': 'eines Morgens', 'what': 'Ein Brief kommt.'},
                                                           {'index': 1}, {'issue': 0}])
@@ -324,7 +325,7 @@ class AnalyzeTest(unittest.TestCase):
         self.assertEqual(head['dropped_without_evidence'], 1)
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'analysis-suggest',
                               '--draft', 'analysis/continuity/run-001.json'], capture_output=True, text=True, check=True).stdout
-        page = json.loads(re.search(r'GW\.render\("widerspruch-vorschlag",(.*)\)</script>', out).group(1))
+        page = widget_json(re.search(r'GW\.render\("widerspruch-vorschlag",(.*)\)</script>', out).group(1))
         self.assertEqual([f['F_ON'] for f in page['FACTS']], ['', '1'])   # vorgewählt: die letzte Fundstelle
         sec = self.base / chs[1]['sections'][0]['path']
         before = sec.read_text(encoding='utf-8')
@@ -372,7 +373,7 @@ class AnalyzeTest(unittest.TestCase):
         self.assertEqual(validate_project.check_project(self.base), [])
         out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'section', '1.1'],
                              capture_output=True, text=True, check=True).stdout
-        page = json.loads(re.search(r'GW\.render\("abschnitt-bearbeiten",(.*)\)</script>', out).group(1))
+        page = widget_json(re.search(r'GW\.render\("abschnitt-bearbeiten",(.*)\)</script>', out).group(1))
         self.assertEqual(len(page['HINTS']), len(idx))
         # ein neuer Lauf ersetzt die Hinweise der gelesenen Abschnitte
         analyze.run(self.base, 'language')

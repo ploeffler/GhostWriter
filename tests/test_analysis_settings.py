@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import analyze  # noqa: E402
 import validate_project  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 
 class AnalysisSettingsTest(unittest.TestCase):
@@ -45,7 +46,7 @@ class AnalysisSettingsTest(unittest.TestCase):
         self.assertEqual(validate_project.check_project(self.base), [])
         after = (self.base / 'ghostwriter.yml').read_text(encoding='utf-8')
         self.assertTrue(after.startswith(before.rstrip('\n')))   # Rest der Datei unverändert
-        data = json.loads(re.search(r'GW\.render\("analyse-einstellungen",(\{.*\})\)', self.view()).group(1))
+        data = widget_json(re.search(r'GW\.render\("analyse-einstellungen",(\{.*\})\)', self.view()).group(1))
         self.assertEqual((data['ANALYSIS_PROVIDER'], data['PRICE_INPUT'], data['PARALLEL'], data['LT_WORDS']),
                          ('openai', '0.25', '6', 'Opa Karl'))
         self.assertEqual(data['DEFAULT_MODEL_OPENAI'], analyze.PROVIDERS['openai']['model'])

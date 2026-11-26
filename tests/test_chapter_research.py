@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from tests.widget_helpers import widget_json  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -14,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def render(base, *extra):
     out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(base), 'chapter-research', '1', *extra],
                          capture_output=True, text=True, check=True).stdout
-    return json.loads(re.search(r'GW\.render\("kapitelrecherche",(.*)\)</script>', out).group(1))
+    return widget_json(re.search(r'GW\.render\("kapitelrecherche",(.*)\)</script>', out).group(1))
 
 
 class ChapterResearchTest(unittest.TestCase):
@@ -37,7 +38,7 @@ class ChapterResearchTest(unittest.TestCase):
         self.assertEqual(d['NEXT_CHAPTER'], 'true')
         self.assertTrue(d['NEXT_CHAPTER_LABEL'].startswith('Kapitel 2 · '))
         self.assertEqual((d['NEXT_WEIGHT'], d['RESEARCH_TASK']), (2, 'goal'))
-        self.assertEqual(d['SUGGESTED_SECTIONS'], [])
+        self.assertFalse(d['SUGGESTED_SECTIONS'])   # leer: fehlt in kompakten Daten (#674)
         self.assertEqual(d['SUGGESTED_GOAL'], '')
         self.assertIn('noch keine Kapitelrecherche', d['RUN_COUNT_TEXT'])
 

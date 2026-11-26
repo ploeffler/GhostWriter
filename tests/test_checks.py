@@ -18,6 +18,7 @@ import checks  # noqa: E402
 import render_view  # noqa: E402
 import validate_project  # noqa: E402
 from render_view import load, section_file  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 
 def args(**kw):
@@ -151,7 +152,7 @@ class ChecksTest(unittest.TestCase):
         row = json.loads(widget.data['CHAPTERS'][0]['CHAPTER_CHECKS_JSON'])
         self.assertEqual([c['CK_TAG'] for c in row], ['L✓·', 'K✓'])
         self.assertEqual(sorted(row[0]), ['CK_REPORT', 'CK_RESULT', 'CK_STATE', 'CK_TAG', 'CK_TEXT'])   # ohne CK_PILL (#360)
-        payload = json.loads(widget.split('GW.render("projektuebersicht",', 1)[1].rsplit(')</script>', 1)[0].replace('<\\/', '</'))
+        payload = widget_json(widget.split('GW.render("projektuebersicht",', 1)[1].rsplit(')</script>', 1)[0].replace('<\\/', '</'))
         self.assertNotIn('CHAPTER_CHECKS', payload['CHAPTERS'][0])   # Liste und Textfassung nur für --text (#360)
         self.assertNotIn('CHAPTER_CHECKS_TEXT', payload['CHAPTERS'][0])
         self.assertIn('CHAPTER_CHECKS_JSON', payload['CHAPTERS'][0])
@@ -252,7 +253,7 @@ class ChecksTest(unittest.TestCase):
         self.assertIn('1 frühere Prüfung', row['CHAPTER_CHECK_DETAILS'])
         self.assertIn('zuletzt nicht bestanden: Qualität 2026-11-17', row['CHAPTER_CHECK_DETAILS'])
         self.assertIn('Frühere Prüfungen', wide.data['CHECKS_LEGEND'])
-        payload = json.loads(wide.split('GW.render("projektuebersicht",', 1)[1].rsplit(')</script>', 1)[0].replace('<\\/', '</'))
+        payload = widget_json(wide.split('GW.render("projektuebersicht",', 1)[1].rsplit(')</script>', 1)[0].replace('<\\/', '</'))
         self.assertNotIn('CHAPTER_HISTORY', payload['CHAPTERS'][0])
         self.assertIn('CHAPTER_HISTORY_JSON', payload['CHAPTERS'][0])
         out = render_view.project_view(self.base, self.config, args(darstellung='erweitert'))

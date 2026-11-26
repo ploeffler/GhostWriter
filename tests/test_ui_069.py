@@ -17,6 +17,7 @@ import checks  # noqa: E402
 import matter  # noqa: E402
 import stale  # noqa: E402
 from render_view import load  # noqa: E402
+from tests.widget_helpers import widget_json  # noqa: E402
 
 
 class Base(unittest.TestCase):
@@ -34,7 +35,7 @@ class Base(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         m = re.search(r'GW\.render\("([a-z-]+)",(\{.*\})\)</script>', r.stdout)
         self.assertIsNotNone(m, r.stdout[:300])
-        return json.loads(m.group(2).replace('<\\/', '</'))
+        return widget_json(m.group(2).replace('<\\/', '</'))
 
     def text(self, *args):
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), *args, '--text', '--repo', 'o/r'],
