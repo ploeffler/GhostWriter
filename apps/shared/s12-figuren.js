@@ -91,6 +91,7 @@ async function allChars(){
 }
 const charSource = (it, ser) => !ser ? "" : it._series ? "series" : it._copy_of ? (it._differs ? "copy_diff" : "copy") : "own";
 async function commitDefault(files, message, action){
+  needWrite();
   const branch = await defaultBranch(); files = files.filter(f => f && typeof f.content === "string"); if (!files.length) return;
   await GW_PORTS.git.pushFiles(branch, files, message, action);
   S.seriesFor = null;   // nächstes Lesen holt den neuen Stand

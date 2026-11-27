@@ -15,6 +15,7 @@ async function prepareWork(book){
   return work;
 }
 async function commit(files, message, opts){
+  needWrite();   // Rolle und GitHub-Recht (#762)
   const b = S.book, work = workOf(b);
   files = files.filter(f => f && typeof f.content === "string");
   if (!files.length) return {nothing:true};

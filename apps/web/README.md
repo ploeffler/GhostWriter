@@ -187,3 +187,12 @@ Im Kopf steht „App x.y.z“ und, sobald ein Repository offen ist, „Repositor
 ## Kosten (#754)
 
 Die Buchübersicht liest die Summe aus `ghostwriter-index.json`. Lässt sich der Index nicht lesen, zeigt die App nicht still „–“, sondern rechnet die Summen selbst aus `costs/project.yml` und `chapters/<Kapitel>/costs/<Abschnitt>.yml` (nur Backend- und Action-Kosten, wie `render_view.py`). Gibt es Kosten nur fürs ganze Buch (z. B. Medienaufträge) und keine bei Kapiteln, steht bei Kapitel und Abschnitt `– (nur Buch)` und im Tooltip, dass die Kosten nur fürs ganze Buch erfasst sind (Chat und App gleich). Medienaufträge dem Abschnitt zuordnen ist #755 (v1.7).
+
+## Rollen je Buch (#762)
+
+Beim Öffnen eines Buchs ermittelt die App die Rolle wie der Chat (`scripts/team.py role()`, in JS `apps/shared/s19-rollen.js`): Login aus der Anmeldung, Schreibrecht des Tokens am Repository (`permissions.push`) und `team` aus `ghostwriter.yml`. Ohne `team` ist, wer Schreibrecht hat, Eigentümer; wer nicht im Team steht, ist Leser. Die GitHub-Rechte begrenzen immer, eine Rolle erweitert sie nie.
+- **Anzeige:** In der Projektübersicht steht ein Satz („Du arbeitest als Bearbeiter: schreiben, nicht abschließen …“), nur wenn es ein Team gibt oder das Schreibrecht fehlt.
+- **Knöpfe:** Leser haben keine Schreibknöpfe (Ansichten und Probedruck bleiben); Bearbeiter ohne `approve` haben keine Freigabe-Aktionen (abschließen, wieder öffnen, Schreiben erlauben, Bildfreigabe, Auflage, Sammelband) und der Grund nennt die Freigabeberechtigten. Betroffene Knöpfe sind ausgegraut; Speichern wird zusätzlich im Code verweigert.
+- **Commits** tragen Name und Adresse aus dem Team-Eintrag (`name`, `email`), sonst den Benutzer des Tokens, also nie den des Eigentümers. Eine Nachfrage nach Name und Adresse gibt es in der App nicht.
+- **Test:** `tests/data/rollen_faelle.json` prüft die Python- und die JS-Fassung mit denselben Fällen (`tests/test_team.py`, `apps/web/tests/rollen.test.cjs`). Rolle für die ganze Bibliothek (#761) ist nicht Teil davon.
+

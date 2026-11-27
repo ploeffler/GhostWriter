@@ -93,7 +93,8 @@ const GW_PORTS = {
       const parent = await rest("GET", `${base}/git/commits/${head}`);
       const blobs = await Promise.all(files.map(f => rest("POST", `${base}/git/blobs`, {content:String(f.content), encoding:"utf-8"})));
       const tree = await rest("POST", `${base}/git/trees`, {base_tree:parent.tree.sha, tree:files.map((f, i) => ({path:f.path, mode:"100644", type:"blob", sha:blobs[i].sha}))});
-      const commit = await rest("POST", `${base}/git/commits`, {message:msg, tree:tree.sha, parents:[head]});
+      const gu = S.role && S.role.git, who = gu ? {name:gu.name, email:gu.email, date:new Date().toISOString()} : null;   // Git-Benutzer aus dem Team-Eintrag (#762); sonst der des Tokens
+      const commit = await rest("POST", `${base}/git/commits`, Object.assign({message:msg, tree:tree.sha, parents:[head]}, who ? {author:who, committer:who} : {}));
       try { await rest("PATCH", `${base}/git/refs/heads/${encPath(branch)}`, {sha:commit.sha, force:false}); }
       catch (e) { if (e && e.status === 422) throw {code:"http_422", status:422, message:"Der Branch wurde inzwischen geändert. Lade neu und speichere noch einmal."}; throw e; }
       forgetCommits();
