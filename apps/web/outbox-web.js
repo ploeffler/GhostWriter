@@ -45,6 +45,7 @@ async function obFlush(){
     const home = {owner:S.owner, repo:S.repo, book:S.book}, blocked = new Set(), upPaths = new Set(); let done = 0, bookDone = new Set();
     try {
       for (const e of await OB.all()){
+        if (e.state === "spaeter") continue;                                                // zur Klärung auf eigenem Branch abgelegt: hält nichts auf
         const [o, r] = e.repo.split("/");
         if (home.owner && home.owner + "/" + home.repo !== e.repo) continue;               // anderes Repository ist geöffnet: später
         if (blocked.has(e.repo + "|" + e.book.branch)) continue;                           // ein Konflikt hält spätere Änderungen am selben Buch an
@@ -56,11 +57,19 @@ async function obFlush(){
             let remote = null; try { remote = await getFile(f.path, work, true); } catch (x) {}
             const was = e.seen[f.path];
             if (remote && remote.text === f.content) continue;                             // liegt schon so auf GitHub (etwa nach einem unklaren Fehler)
-            if (was && remote && remote.sha !== was){ conflict = f.path; break; }
+            if (was && remote && remote.sha !== was){
+              // GitHub hat sich geändert: ohne Überschneidung (andere Absätze) von selbst zusammenführen, sonst Konflikt zur Entscheidung
+              const base = e.base && e.base[f.path];
+              if (typeof base === "string"){
+                const chunks = merge3(base, f.content, remote.text);
+                if (!m3Conflicts(chunks)){ f.content = m3Join(chunks, []); e.seen[f.path] = remote.sha; e.base[f.path] = remote.text; e.merged = true; await OB.put(e); todo.push(f); continue; }
+              }
+              conflict = f.path; e.conflict = {path:f.path, remote:{text:remote.text, sha:remote.sha}}; break;
+            }
             todo.push(f);
           }
           if (conflict){ e.state = "konflikt"; e.error = obPlace(conflict); await OB.put(e); blocked.add(e.repo + "|" + e.book.branch); continue; }
-          if (todo.length) await GW_PORTS.git.pushFiles(work, todo, e.message, e.action);
+          if (todo.length) await GW_PORTS.git.pushFiles(work, todo, e.message + (e.merged ? " (mit dem Stand auf GitHub zusammengeführt)" : ""), e.action);
           if (todo.length && !(await openPR(b))) { try { await GW_PORTS.git.createPR({head:work, base:b.branch, title:`GhostWriter: Änderungen für ${b.branch}`, body:"Angelegt mit " + GW_PORTS.agent + ". Übernahme ins Buch nur nach ausdrücklicher Bestätigung."}); } catch (x) {} }
           await OB.del(e.id); done++; bookDone.add(e.repo + "|" + e.book.branch); e.files.forEach(f => upPaths.add(f.path));
         } catch (err) {
@@ -85,11 +94,13 @@ async function obRender(justUploaded){
   const all = await OB.all(), n = all.length;
   try { document.title = (n ? `(${n}) ` : "") + "GhostWriter"; } catch (e) {}
   if (!n){ el.hidden = true; el.textContent = ""; if (justUploaded){ const ok = $("net"); if (ok && ok.hidden){ ok.hidden = false; ok.className = "netbar"; ok.textContent = "Hochgeladen: alle Änderungen sind auf GitHub."; setTimeout(() => { if (ok.textContent.startsWith("Hochgeladen")){ ok.hidden = true; ok.textContent = ""; } }, 6000); } } return; }
-  const bad = all.filter(e => e.state === "konflikt").length, err = all.filter(e => e.state === "fehler").length, old = all.some(e => Date.now() - e.created > OUTBOX_DAY);
+  const bad = all.filter(e => e.state === "konflikt").length, later = all.filter(e => e.state === "spaeter"), err = all.filter(e => e.state === "fehler").length, old = all.some(e => Date.now() - e.created > OUTBOX_DAY);
   const places = [...new Set(all.flatMap(e => e.files.map(f => obPlace(f.path))))];
   const head = `⬆ ${n === 1 ? "1 Änderung" : n + " Änderungen"} nur auf diesem Gerät – noch nicht hochgeladen`;
   const act = obNetDown() ? "Hochladen, sobald wieder Netz da ist." : '<button class="link" data-act="outbox-flush">Jetzt hochladen</button>';
-  const notes = [bad ? `⚠ ${bad} Konflikt: auf GitHub wurde dieselbe Datei inzwischen geändert; nichts wurde überschrieben, die Lösung folgt in einer nächsten Fassung.` : "",
+  const fix = e => ` <button class="link" data-act="outbox-resolve" data-id="${e.id}">Konflikt lösen</button>`;
+  const notes = [bad ? `⚠ ${bad} ungelöster Konflikt: auf GitHub wurde dieselbe Stelle inzwischen anders geändert; nichts wurde überschrieben.` + all.filter(e => e.state === "konflikt").map(fix).join("") : "",
+    later.length ? `⏸ ${later.length} Konflikt später zu lösen (lokaler Stand liegt auf dem Branch ${esc(later[0].branch || "")}).` + later.map(fix).join("") : "",
     err ? `⚠ ${err} nicht hochgeladen: ${esc(all.find(e => e.state === "fehler").error)}` : "",
     old ? "Diese Änderungen liegen seit mehr als 24 Stunden nur lokal. Bitte bald hochladen." : "",
     OB.mem ? "Dieser Browser hat keinen dauerhaften Speicher: Die Änderungen gehen beim Neuladen verloren." : ""].filter(Boolean);

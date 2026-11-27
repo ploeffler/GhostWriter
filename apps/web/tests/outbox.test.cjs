@@ -1,7 +1,7 @@
 // Outbox der eigenen Web-App (#662, #61): lokal sichern, später hochladen, bei Konflikt nichts überschreiben. Aufruf: node apps/web/tests/outbox.test.cjs
 "use strict";
 const assert = require("node:assert/strict"), fs = require("node:fs"), path = require("node:path"), vm = require("node:vm");
-const src = fs.readFileSync(path.join(__dirname, "..", "outbox-web.js"), "utf8");
+const src = fs.readFileSync(path.join(__dirname, "..", "merge3.js"), "utf8") + "\n" + fs.readFileSync(path.join(__dirname, "..", "outbox-web.js"), "utf8");
 
 function load(opts){
   opts = opts || {};
@@ -10,7 +10,7 @@ function load(opts){
   const ctx = {
     NET: {online:true, github:true}, S: {owner:"o", repo:"r", book:{branch:"b"}, view:"project"}, token: () => "tok", esc: s => String(s), $: id => els[id],
     chapters: () => [{sections:[{path:"chapters/01/a.md", title:"Eins"}]}], errText: e => "Fehler: " + e.message,
-    document: {title:"GhostWriter"}, window: {addEventListener: (t, f) => { listeners[t] = f; }}, navigator: {}, setTimeout, Date, Promise, JSON, Array, Set, Map, Object, String,
+    document: {title:"GhostWriter"}, window: {addEventListener: (t, f) => { listeners[t] = f; }}, navigator: {}, setTimeout, Date, Promise, JSON, Array, Set, Map, Object, String, Int32Array, Error, Math,
     GW_PORTS: {agent:"Web", git: {pushFiles: async (b, f, m, a) => { if (opts.pushError) throw opts.pushError; pushes.push({b, f, m, a}); }, createPR: async p => { prs.push(p); }}},
     prepareWork: async b => "ghostwriter/" + b.branch, getFile: async (p, ref) => { if (remote[p] === undefined) throw {message:"404"}; return remote[p]; },
     openPR: async () => opts.pr === undefined ? null : opts.pr, loadBookData: async () => {}, show: () => {}
@@ -49,7 +49,27 @@ const entry = (o) => Object.assign({repo:"o/r", book:{branch:"b", work_branch:""
   await t.ctx.GW_PORTS.outbox.flush();
   assert.equal(t.pushes.length, 0, "bei Konflikt wird nichts hochgeladen");
   const left = await t.ctx.GW_PORTS.outbox.list(); assert.equal(left.length, 2); assert.equal(left[0].state, "konflikt"); assert.equal(left[1].state, "wartet");
-  assert.match(t.els.unsaved.innerHTML, /1 Konflikt/); assert.match(t.els.unsaved.innerHTML, /nichts wurde überschrieben/);
+  assert.match(t.els.unsaved.innerHTML, /1 ungelöster Konflikt/); assert.match(t.els.unsaved.innerHTML, /data-act="outbox-resolve"/); assert.match(t.els.unsaved.innerHTML, /nichts wurde überschrieben/);
+
+  // Mit Ausgangstext: verschiedene Absätze → von selbst zusammengeführt und hochgeladen
+  const P3 = (...a) => a.join("\n\n");
+  t = load({remote:{"chapters/01/a.md":{sha:"s2", text:P3("Kopf", "A", "B", "C remote")}}});
+  await t.ctx.GW_PORTS.outbox.add(entry({files:[{path:"chapters/01/a.md", content:P3("Kopf", "A lokal", "B", "C")}], base:{"chapters/01/a.md":P3("Kopf", "A", "B", "C")}}));
+  await t.ctx.GW_PORTS.outbox.flush();
+  assert.equal(t.pushes.length, 1); assert.equal(t.pushes[0].f[0].content, P3("Kopf", "A lokal", "B", "C remote"));
+  assert.match(t.pushes[0].m, /zusammengeführt/); assert.equal((await t.ctx.GW_PORTS.outbox.list()).length, 0);
+  // Mit Ausgangstext, aber gleicher Absatz verschieden: Konflikt, GitHub-Fassung zur Anzeige im Eintrag, nichts hochgeladen
+  t = load({remote:{"chapters/01/a.md":{sha:"s2", text:P3("Kopf", "A remote", "B", "C")}}});
+  await t.ctx.GW_PORTS.outbox.add(entry({files:[{path:"chapters/01/a.md", content:P3("Kopf", "A lokal", "B", "C")}], base:{"chapters/01/a.md":P3("Kopf", "A", "B", "C")}}));
+  await t.ctx.GW_PORTS.outbox.flush();
+  const kf = (await t.ctx.GW_PORTS.outbox.list())[0]; assert.equal(t.pushes.length, 0); assert.equal(kf.state, "konflikt");
+  assert.equal(kf.conflict.path, "chapters/01/a.md"); assert.equal(kf.conflict.remote.sha, "s2"); assert.match(kf.conflict.remote.text, /A remote/);
+  // „Später“-Einträge halten nichts auf und werden nicht hochgeladen
+  kf.state = "spaeter"; kf.branch = "ghostwriter/konflikt-b-x"; await t.x.OB.put(kf);
+  await t.ctx.GW_PORTS.outbox.add(entry({files:[{path:"chapters/01/neu.md", content:"n"}], seen:{}}));
+  await t.ctx.GW_PORTS.outbox.flush();
+  assert.equal(t.pushes.length, 1); assert.equal(t.pushes[0].f[0].path, "chapters/01/neu.md");
+  await t.x.obRender(); assert.match(t.els.unsaved.innerHTML, /1 Konflikt später zu lösen/);
 
   // Schon identisch auf GitHub (etwa nach unklarem Fehler): kein doppelter Commit, Eintrag verschwindet
   t = load({remote:{"chapters/01/a.md":{sha:"s9", text:"lokal"}}});
