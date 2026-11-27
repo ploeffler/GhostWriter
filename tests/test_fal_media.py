@@ -65,6 +65,26 @@ class MediaJobTest(Base):
         self.assertEqual(jobs.TARGET['media'], 'work')
         self.assertEqual(jobs.WORKFLOW['media'], 'media.yml')
 
+    def test_request_number_and_cost_id_are_not_reused_after_a_job_is_done(self):   # #719
+        first = self.enqueue()
+        self.assertEqual(first.name, 'request-001.yml')
+        results, _ = self.run_jobs(FakeFal())
+        self.assertTrue(results[0]['ok'], results)
+        self.assertFalse(first.exists())                                              # erledigte Aufträge werden gelöscht
+        second = self.enqueue()
+        self.assertEqual(second.name, 'request-002.yml')                              # nicht wieder 001
+        results, _ = self.run_jobs(FakeFal())
+        self.assertTrue(results[0]['ok'], results)
+        ids = [e['activity_id'] for e in yaml.safe_load((self.base / 'costs' / 'project.yml').read_text())['entries']]
+        self.assertEqual(ids, ['act-media-request-001', 'act-media-request-002'])    # zwei verschiedene Kosten-IDs
+
+    def test_cost_id_stays_unique_even_if_an_old_entry_collides(self):   # #719, Sicherung in run_media
+        costs = self.base / 'costs' / 'project.yml'
+        costs.parent.mkdir(exist_ok=True)
+        costs.write_text(yaml.safe_dump({'scope': 'project', 'entries': [{'activity_id': 'act-media-request-001'}]}), encoding='utf-8')
+        self.assertEqual(jobs.unique_activity_id(self.base, 'act-media-request-001'), 'act-media-request-001-2')
+        self.assertEqual(jobs.unique_activity_id(self.base, 'act-media-request-009'), 'act-media-request-009')
+
     def test_runs_submits_once_saves_result_and_cost(self):
         self.enqueue()
         fake = FakeFal()

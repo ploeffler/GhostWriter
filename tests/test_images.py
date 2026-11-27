@@ -60,6 +60,37 @@ class ImageTest(unittest.TestCase):
         hit = images.all_images(self.base, config)[meta['id']]
         hit[3].write_text(hit[3].read_text(encoding='utf-8').replace('status: draft', 'status: approved'), encoding='utf-8')
 
+    def test_orphan_image_folder_is_warned_and_listed_book_wide(self):   # #684
+        meta, _ = self.add()
+        _, config = load(self.base)
+        sec = config['structure']['chapters'][0]['sections'][0]
+        old = self.base / config['structure']['chapters'][0]['path'] / 'images' / sec['id']
+        orphan = old.parent / (sec['id'].rsplit('-', 1)[0] + '-alter-slug')   # Abschnitt wurde umbenannt, Ordner blieb stehen
+        old.rename(orphan)
+        self.assertEqual(validate_project.check_project(self.base), [])        # kein Fehler, nur Warnung
+        rel = orphan.relative_to(self.base).as_posix()
+        found = images.orphan_folders(self.base, config)
+        self.assertEqual([f for f, _ in found], [rel])
+        self.assertTrue(found[0][1].startswith(sec['id'].rsplit('-', 1)[0]))      # Vorschlag: Abschnitt mit gleicher Nummer
+        warn = validate_project.image_warnings(self.base)
+        self.assertEqual(len(warn), 1)
+        self.assertIn('Bildordner ohne passenden Abschnitt', warn[0])
+        self.assertIn(rel, warn[0])
+        import render_view
+        out = render_view.images_book_view(self.base, config)                  # buchweite Liste statt Abbruch
+        self.assertIn('Bilder des Buchs', out)
+        self.assertIn(meta['id'], out)
+        self.assertIn('Bildordner ohne Abschnitt', out)
+
+    def test_book_wide_images_without_section_argument(self):   # #684
+        meta, _ = self.add()
+        r = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'images', '--text', '--repo', 'o/r'],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('Bilder des Buchs', r.stdout)
+        self.assertIn(meta['id'], r.stdout)
+        self.assertNotIn('None', r.stdout)
+
     def test_prompt_uses_style_and_character_looks(self):
         _, config = load(self.base)
         prompt, ids = images.build_prompt(self.base, config, '1.1', 'Beide sitzen auf der Bank, Abendlicht')

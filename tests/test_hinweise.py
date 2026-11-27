@@ -109,6 +109,19 @@ class HinweiseTest(unittest.TestCase):
         self.assertNotIn('`e-001`', hinweise.show(data, only_open=True))
         self.assertFalse(validate_project.check_project(self.base))
 
+    def test_head_comment_survives_writing(self):   # #717: Sperrvermerk des Autors darf nicht verschwinden
+        path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        head = '# SPERRVERMERK: apply und accept für diese Datei nicht ausführen (Autor, 20.11.2026)\n# Grund: Kapitel wird überarbeitet\n'
+        path.write_text(head + '\n' + path.read_text(encoding='utf-8'), encoding='utf-8')
+        hinweise.decide(path, 'e-001', 'geändert', 'Eigene Fassung')
+        text = path.read_text(encoding='utf-8')
+        self.assertTrue(text.startswith(head), text[:200])
+        self.assertEqual(text.count('SPERRVERMERK'), 1)
+        hinweise.write_yaml(path, hinweise.read_yaml(path))
+        self.assertTrue(path.read_text(encoding='utf-8').startswith(head))           # auch nach weiteren Schreibvorgängen
+        self.assertEqual(hinweise.head_comments('a: 1\n# später\n'), '')            # nur der führende Block
+        self.assertEqual(hinweise.head_comments('# a\n\n# b\nx: 1\n'), '# a\n\n# b\n')
+
     def test_chapter_filter_and_validation(self):
         with self.assertRaises(ValueError):
             hinweise.collect(self.base, self.config, chapters=['kap-x'])

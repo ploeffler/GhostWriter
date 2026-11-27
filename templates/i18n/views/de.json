@@ -1112,5 +1112,10 @@
   "view.glossary_suggest.term": "Begriff",
   "view.glossary_suggest.terms": "Begriffe",
   "anecdote_used_mark": "enthält Anekdote",
+  "view.images.book_images": "### 🖼️ Bilder des Buchs",
+  "view.images.book_table": "| Abschnitt | Bild | Bildunterschrift | Stand |",
+  "view.images.book_none": "*In diesem Buch gibt es noch keine Bilder.*",
+  "view.images.book_orphan": "⚠ Bildordner ohne Abschnitt: `{p_a}`{p_b}",
+  "view.images.book_hint": "Bilder eines Abschnitts: `Bilder N.M`.",
   "anecdote_planned_mark": "Anekdote eingeplant"
 }

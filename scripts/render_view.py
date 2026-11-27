@@ -1282,9 +1282,39 @@ def series_terms(base, config, entries):
     return series.compare_terms(entries, terms) if terms else []
 
 
+def images_book_view(base, config):
+    """Alle Bilder eines Buchs als Textliste (#684), auch aus Ordnern ohne passenden Abschnitt."""
+    import images
+    label = {}
+    for c, ch in enumerate(config['structure']['chapters'], 1):
+        for s, sec in enumerate(ch['sections'], 1):
+            label[sec['id']] = f'{c}.{s} {sec["title"]}'
+    rows = [(label.get(v[0].get('section_id'), v[0].get('section_id') or '–'), iid, v[0].get('caption') or '–',
+             view_message('view.images.approved') if v[0].get('status') == 'approved' else view_message('view.images.draft'))
+            for iid, v in images.all_images(base, config).items()]
+    orphans = images.orphan_folders(base, config)
+    for rel, _ in orphans:
+        for meta_path in sorted((Path(base) / rel).glob('img-*.yml')):
+            meta = yaml.safe_load(meta_path.read_text(encoding='utf-8')) or {}
+            rows.append((f'⚠ {meta.get("section_id") or rel}', meta.get('id', meta_path.stem), meta.get('caption') or '–',
+                         view_message('view.images.approved') if meta.get('status') == 'approved' else view_message('view.images.draft')))
+    lines = [view_message('view.images.book_images'), '']
+    if rows:
+        lines += [view_message('view.images.book_table'), '|---|---|---|---|']
+        lines += [f'| {a} | `{b}` | {c} | {d} |' for a, b, c, d in rows]
+    else:
+        lines += [view_message('view.images.book_none')]
+    for rel, guess in orphans:
+        lines += ['', view_message('view.images.book_orphan', p_a=rel, p_b=f' → `{guess}`' if guess else '')]
+    lines += ['', view_message('view.images.book_hint')]
+    return '\n'.join(lines) + '\n'
+
+
 def images_view(base, config, args):
     """Illustrationen eines Abschnitts bzw. Teils (#54): Liste mit Status; Textfassung bzw. Vorlage bilder."""
     import images
+    if not args.where:   # buchweite Bilderliste (#684): statt „Abschnitt None nicht gefunden“
+        return images_book_view(base, config)
     target, folder = images.find_target(config, args.where)
     imgs = [(iid, v) for iid, v in images.all_images(base, config).items() if v[0].get('section_id') == target['id']]
     head = section_file(base, target)[0]

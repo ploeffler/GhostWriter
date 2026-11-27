@@ -195,8 +195,28 @@ def read_yaml(path):
     return yaml.safe_load(Path(path).read_text(encoding='utf-8')) or {}
 
 
+def head_comments(text):
+    """Führender Kommentarblock einer YAML-Datei (Kommentar- und Leerzeilen bis zur ersten Zeile mit Inhalt)."""
+    head = []
+    for line in text.splitlines(keepends=True):
+        if line.strip() == '' or line.lstrip().startswith('#'):
+            head.append(line)
+        else:
+            break
+    while head and head[-1].strip() == '':
+        head.pop()
+    return ''.join(head)
+
+
 def write_yaml(path, data):
-    Path(path).write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=100), encoding='utf-8')
+    """Schreibt die Datei; der Kopfkommentar bleibt erhalten (#717), z. B. ein Sperrvermerk des Autors, der `apply` für diese
+    Datei untersagt. safe_dump kennt keine Kommentare und würde ihn sonst stillschweigend löschen."""
+    p = Path(path)
+    head = head_comments(p.read_text(encoding='utf-8')) if p.is_file() else ''
+    body = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=100)
+    if head and not body.startswith(head):
+        body = head + '\n' + body if not head.endswith('\n') else head + body
+    p.write_text(body, encoding='utf-8')
 
 
 BOOK = 'book'   # buchweiter Befund (#423): kein Abschnitt, nur Autorenentscheidung

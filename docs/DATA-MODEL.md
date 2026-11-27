@@ -318,7 +318,7 @@ ai_disclosure:
 
 ## Illustrationen
 
-Bilder zu Abschnitten und Teilen von Vor- und Nachspann (#54). Je Bild die Datei `img-<slug>.png|jpg` und die Beschreibung `img-<slug>.yml` im Ordner `chapters/<kapitel>/images/<section-id>/` bzw. `matter/images/<mat-id>/`, Schema [`schemas/image.schema.json`](../schemas/image.schema.json):
+Bilder zu Abschnitten und Teilen von Vor- und Nachspann (#54). Ein Bildordner, der zu keinem Abschnitt mehr passt (z. B. nach dem Umbenennen), erscheint als Hinweis ⚠ von `scripts/validate_project.py` mit Vermutung des neuen Abschnitts, ohne die Prüfung scheitern zu lassen; `render_view.py . images` zeigt ihn in der buchweiten Liste (#684). Je Bild die Datei `img-<slug>.png|jpg` und die Beschreibung `img-<slug>.yml` im Ordner `chapters/<kapitel>/images/<section-id>/` bzw. `matter/images/<mat-id>/`, Schema [`schemas/image.schema.json`](../schemas/image.schema.json):
 
 ```yaml
 id: img-opi-und-strolchi-auf-der-bank
