@@ -16,15 +16,15 @@ HERE = Path(__file__).resolve().parent
 INCLUDE = re.compile(r'^@@include (\S+)@@$')
 
 
-def build():
-    lines = (HERE / 'index.src.html').read_text(encoding='utf-8').split('\n')
+def build(here=HERE):
+    lines = (Path(here) / 'index.src.html').read_text(encoding='utf-8').split('\n')
     out = []
     for line in lines:
         m = INCLUDE.match(line)
         if not m:
             out.append(line)
             continue
-        text = (HERE / m.group(1)).read_text(encoding='utf-8')
+        text = (Path(here) / m.group(1)).read_text(encoding='utf-8')
         out.append(text[:-1] if text.endswith('\n') else text)
     return '\n'.join(out)
 

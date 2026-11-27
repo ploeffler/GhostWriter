@@ -47,7 +47,7 @@ function patchRun(){
 }
 function desk(name, data, extra, key){
   if (S.chatKey !== key){ S.chat = []; S.chatKey = key; }
-  $("app").innerHTML = `<div class="desk"><div>${msgBox()}<div id="gw"></div>${extra || ""}</div>${claudePanel()}</div>`;
+  $("app").innerHTML = GW_PORTS.noChat ? `<div class="one">${msgBox()}<div id="gw"></div>${extra || ""}</div>` : `<div class="desk"><div>${msgBox()}<div id="gw"></div>${extra || ""}</div>${claudePanel()}</div>`;
   gwRender(name, data); patchRun(); crumbs(); renderChat(); window.scrollTo(0, 0);
 }
 async function show(view, arg){
@@ -74,15 +74,6 @@ async function show(view, arg){
     if (view === "merge"){ crumbs(); return widget("aenderungen-uebernehmen", mergeData()); }
     if (view === "report"){ $("app").innerHTML = `<div class="one"><div class="card report"><button class="btn" data-go="back" style="margin-bottom:16px">‹ Zurück</button><p class="dim">${esc(S.report.path)}</p>${mdDoc(S.report.text)}</div></div>`; window.scrollTo(0, 0); return; }
   } catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; $("app").innerHTML = `<div class="one">${msgBox()}</div>`; }
-}
-function connectView(){
-  const warn = !S.ready ? `<p class="dim"><span class="spin"></span>Verbindung zu GitHub wird geprüft …</p>` : !S.mcp ? `<div class="note warn"><b>GitHub-Verbindung nicht verfügbar.</b> Diese App liest und speichert über deinen GitHub-Konnektor in Claude. Verbinde ihn unter claude.ai → Einstellungen → Konnektoren und öffne die App danach erneut.</div>` : "";
-  $("app").innerHTML = `<div class="one"><div class="card"><div style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><i class="ti ti-books" style="font-size:22px;color:#e8731c"></i><b style="font-size:20px">GhostWriter öffnen</b></div>
-    <p class="dim" style="margin:0 0 14px">Deine GhostWriter-Bibliothek auf GitHub – mit denselben Ansichten wie im Chat. Gelesen und gespeichert wird über deinen GitHub-Konnektor, Claude arbeitet über dein eigenes Claude-Konto. Keine Tokens, keine Schlüssel.</p>
-    ${warn}${msgBox()}
-    <form id="fConnect" style="display:flex;gap:8px;flex-wrap:wrap"><input class="in" id="repoIn" style="flex:1 1 240px" placeholder="owner/repo, z. B. chillyconcane/YAWA" value="${esc(store.get("gw.repo") || "")}" autocomplete="off"><button class="btn pri" ${S.mcp ? "" : "disabled"}>Öffnen</button></form>
-    <details class="dim" style="margin-top:14px"><summary>Einmalig einrichten</summary><ol><li>In claude.ai unter Einstellungen → Konnektoren den Konnektor <b>github</b> verbinden.</li><li>Für private Repositorys auf GitHub die App <a href="https://github.com/apps/claude-github-mcp-connector" target="_blank" rel="noopener">Claude Github MCP Connector</a> auf dem Konto installieren, dem das Repository gehört, und das Repository freigeben. Nur „autorisiert“ reicht nicht.</li><li>Beim ersten Öffnen fragt Claude, ob diese App GitHub benutzen darf – mit „Weiter“ bestätigen.</li></ol></details>
-    <p class="dim" style="margin:12px 0 0">Speichern legt Änderungen auf dem Arbeits-Branch ab und öffnet ein Änderungspaket. Ins Buch übernommen wird erst nach deiner Bestätigung.</p></div></div>`;
 }
 function checksCard(){
   if (!S.checks.length) return "";
