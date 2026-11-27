@@ -23,7 +23,7 @@ Der Service Worker legt die **App-Hülle** (Seite, Widget-Laufzeit, Symbole, `js
 Adressen, vor allem `api.github.com` mit dem Token, geht unberührt ans Netz und wird **nie** zwischengespeichert. Der Name des Speichers enthält einen Hash der
 Hülle (`build.py`); ein neuer Stand ersetzt den alten beim nächsten Laden.
 
-Die Leiste oben zeigt **Offline** („gelesen werden kann, was schon geladen ist; Speichern geht erst wieder mit Netz“) oder **Online, aber GitHub nicht erreichbar**.
+Die Leiste oben zeigt **Offline** („gelesen werden kann, was schon geladen ist; Abschnittstexte werden auf dem Gerät gesichert, alles andere geht erst wieder mit Netz“) oder **Online, aber GitHub nicht erreichbar**.
 `navigator.onLine` ist nur ein erster Hinweis; deshalb fragt die App zusätzlich `api.github.com/rate_limit` ab (ohne Token, zählt nicht gegen das Limit, mit
 Zeitlimit): beim Start, bei online/offline, beim Zurückkehren in die App und nach einem Netzfehler mit wachsendem Abstand (10 s bis 5 min), kein Dauerabfragen.
 ## Ohne Netz schreiben: nicht hochgeladene Änderungen (#61)
@@ -177,4 +177,10 @@ Der Knopf mit dem Roboter oben öffnet **Modell im Browser**. Ein Sprachmodell l
 ## Versionen im Kopf (#735)
 
 Im Kopf steht „App x.y.z“ und, sobald ein Repository offen ist, „Repository x.y.z“ (GhostWriter-Version aus `ghostwriter-manifest.yml`, nur gelesen). Weichen die beiden Stände ab (Haupt- oder Nebenversion), wird die Anzeige gelb und der Tooltip nennt den Grund; ist das Manifest nicht lesbar (offline), steht nur die App-Version da.
+
+## Korrekturen in 1.6.1
+
+- **Speichern ohne Netz (#744, Teil 1):** Merkt die App das Netz erst beim Speichern (WLAN ohne Internet, Funkloch), sichert sie den Abschnitt trotzdem auf dem Gerät und lädt ihn später hoch (vorher kam nur „Keine Verbindung“, nichts war gesichert). Der Offline-Balken sagt jetzt, was geht: Abschnittstexte werden gesichert, Figuren, Gliederung und Freigaben brauchen Netz. **Noch offen (v1.7):** Start ohne Netz und Lesen ohne Netz (Zwischenspeicher für gelesene Dateien), Offline-Speichern auch für andere Aktionen.
+- **„Serie öffnen“ (#742):** zeigt die Serie (nur lesend): Bände mit „Band öffnen“, Figuren und Begriffe der Serie, Sammelband. Ändern geht weiter im Chat. Die 55 Knöpfe mit „Kommt mit v1.6.“ zeigen jetzt „Das geht im Chat.“.
+- **Kopf am Handy (#743):** unter 600 px Breite stehen in der ersten Zeile Bildmarke und Knöpfe, in der zweiten der Pfad (eine Zeile, scrollbar, letztes Glied sichtbar). Die Version steht unter Einstellungen › Version; eine Abweichung zwischen App und Repository zeigt ein gelber Punkt am Zahnrad.
 

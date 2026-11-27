@@ -29,3 +29,14 @@
 .gw-card>.gw-eds2>summary{padding:6px var(--pad-md,14px) 8px;font-size:13px;border-top:.5px dashed var(--border,#d6d3c8)}
 .gw-edlist{margin:0;padding:2px 14px 10px 32px}
 .gw-edlist li{margin:3px 0}
+/* Handy (#743): erste Zeile Bildmarke und Knöpfe, zweite Zeile der Pfad (eine Zeile, waagrecht scrollbar, letztes Glied sichtbar); Version steht in Einstellungen */
+.gear.warn{position:relative}.gear.warn::after{content:"";position:absolute;top:4px;right:6px;width:8px;height:8px;border-radius:50%;background:#e0a100}
+@media (max-width:600px){
+  header{gap:4px 6px;padding:6px max(3vw,10px)}
+  .brand{font-size:0;gap:0}
+  .vers{display:none}
+  header .gear{order:1;padding:6px 8px}header .gear:first-of-type{margin-left:auto}
+  .crumbs{order:3;flex:1 0 100%;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+  .crumbs::-webkit-scrollbar{display:none}
+  .crumbs>*{flex:none;white-space:nowrap}
+}
