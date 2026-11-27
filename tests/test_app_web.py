@@ -24,7 +24,7 @@ class WebApp(unittest.TestCase):
         used = {(WEB / m).resolve() for m in re.findall(r'^@@include (\S+)@@$', src, re.M)}
         shared = {p.resolve() for p in (APPS / 'shared').iterdir()}
         self.assertTrue(shared <= used, 'Die Web-App muss alle Teile aus apps/shared binden')
-        self.assertEqual({p.name for p in used - shared}, {'ports-web.js', 'net-web.js', 'merge3.js', 'outbox-web.js', 'konflikt-web.js', 'fehler-web.js', 'einstellungen-web.js', 'runs-web.js', 'boot-web.js', 'web.css'})
+        self.assertEqual({p.name for p in used - shared}, {'ports-web.js', 'net-web.js', 'merge3.js', 'outbox-web.js', 'konflikt-web.js', 'fehler-web.js', 'einstellungen-web.js', 'runs-web.js', 'voice-web.js', 'boot-web.js', 'web.css'})
 
     def test_kein_claude_anschluss_und_kein_fremder_host(self):
         for name in ('ports-web.js', 'boot-web.js'):
@@ -58,6 +58,19 @@ class WebApp(unittest.TestCase):
                 name = m.group(1) or m.group(2)
                 seen[name] = seen.get(name, 0) + 1
             self.assertEqual(sorted(k for k, v in seen.items() if v > 1), [], f'{app}: doppelter Name auf oberster Ebene')
+
+    @unittest.skipUnless(shutil.which('node'), 'Node nicht vorhanden')
+    def test_gebautes_skript_ist_gueltiges_javascript(self):
+        # ein Syntaxfehler in einem Teil zerlegt die ganze App beim Laden; darum das gebaute Skript beider Apps prüfen
+        import tempfile
+        for app in ('web', 'claude'):
+            html = (APPS / app / 'index.html').read_text(encoding='utf-8')
+            body = html[html.index('<script>\n') + 9:html.index('</script>', html.index('<script>\n'))]
+            with tempfile.TemporaryDirectory() as d:
+                f = Path(d) / 'app.js'
+                f.write_text(body, encoding='utf-8')
+                r = subprocess.run(['node', '--check', str(f)], capture_output=True, text=True, timeout=60)
+                self.assertEqual(r.returncode, 0, app + ': ' + r.stderr[:600])
 
     def test_token_nie_in_der_seite(self):
         html = (WEB / 'index.html').read_text(encoding='utf-8')

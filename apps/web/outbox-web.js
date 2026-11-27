@@ -91,20 +91,21 @@ async function obFlush(){
 }
 async function obRender(justUploaded){
   const el = $("unsaved"); if (!el) return;
-  const all = await OB.all(), n = all.length;
+  const all = await OB.all(), n = all.length, v = typeof voiceCount === "function" ? await voiceCount() : 0;   // Sprachnotizen (voice-web.js): nur lokal, bis sie im Chat abgeschrieben sind
   try { document.title = (n ? `(${n}) ` : "") + "GhostWriter"; } catch (e) {}
-  if (!n){ el.hidden = true; el.textContent = ""; if (justUploaded){ const ok = $("net"); if (ok && ok.hidden){ ok.hidden = false; ok.className = "netbar"; ok.textContent = "Hochgeladen: alle Änderungen sind auf GitHub."; setTimeout(() => { if (ok.textContent.startsWith("Hochgeladen")){ ok.hidden = true; ok.textContent = ""; } }, 6000); } } return; }
+  if (!n && !v){ el.hidden = true; el.textContent = ""; if (justUploaded){ const ok = $("net"); if (ok && ok.hidden){ ok.hidden = false; ok.className = "netbar"; ok.textContent = "Hochgeladen: alle Änderungen sind auf GitHub."; setTimeout(() => { if (ok.textContent.startsWith("Hochgeladen")){ ok.hidden = true; ok.textContent = ""; } }, 6000); } } return; }
   const bad = all.filter(e => e.state === "konflikt").length, later = all.filter(e => e.state === "spaeter"), err = all.filter(e => e.state === "fehler").length, old = all.some(e => Date.now() - e.created > OUTBOX_DAY);
   const places = [...new Set(all.flatMap(e => e.files.map(f => obPlace(f.path))))];
-  const head = `⬆ ${n === 1 ? "1 Änderung" : n + " Änderungen"} nur auf diesem Gerät – noch nicht hochgeladen`;
-  const act = obNetDown() ? "Hochladen, sobald wieder Netz da ist." : '<button class="link" data-act="outbox-flush">Jetzt hochladen</button>';
+  const voiceLine = v ? `🎙 ${v === 1 ? "1 Sprachnotiz wartet" : v + " Sprachnotizen warten"} auf Abschrift – nur auf diesem Gerät. <button class="link" data-act="voice-open">Öffnen</button>` : "";
+  const head = n ? `⬆ ${n === 1 ? "1 Änderung" : n + " Änderungen"} nur auf diesem Gerät – noch nicht hochgeladen` : voiceLine;
+  const act = !n ? "" : obNetDown() ? " · Hochladen, sobald wieder Netz da ist." : ' · <button class="link" data-act="outbox-flush">Jetzt hochladen</button>';
   const fix = e => ` <button class="link" data-act="outbox-resolve" data-id="${e.id}">Konflikt lösen</button>`;
-  const notes = [bad ? `⚠ ${bad} ungelöster Konflikt: auf GitHub wurde dieselbe Stelle inzwischen anders geändert; nichts wurde überschrieben.` + all.filter(e => e.state === "konflikt").map(fix).join("") : "",
+  const notes = [n ? voiceLine : "", bad ? `⚠ ${bad} ungelöster Konflikt: auf GitHub wurde dieselbe Stelle inzwischen anders geändert; nichts wurde überschrieben.` + all.filter(e => e.state === "konflikt").map(fix).join("") : "",
     later.length ? `⏸ ${later.length} Konflikt später zu lösen (lokaler Stand liegt auf dem Branch ${esc(later[0].branch || "")}).` + later.map(fix).join("") : "",
     err ? `⚠ ${err} nicht hochgeladen: ${esc(all.find(e => e.state === "fehler").error)}` : "",
     old ? "Diese Änderungen liegen seit mehr als 24 Stunden nur lokal. Bitte bald hochladen." : "",
     OB.mem ? "Dieser Browser hat keinen dauerhaften Speicher: Die Änderungen gehen beim Neuladen verloren." : ""].filter(Boolean);
   el.hidden = false; el.className = "unsavedbar";
-  el.innerHTML = `<b>${head}</b> · ${act}${notes.length ? `<div class="sub">${notes.join("<br>")}</div>` : ""}<details><summary>Betroffen</summary><ul>${places.map(p => `<li>${esc(p)}</li>`).join("")}</ul></details>`;
+  el.innerHTML = `<b>${head}</b>${act}${notes.length ? `<div class="sub">${notes.join("<br>")}</div>` : ""}${n ? `<details><summary>Betroffen</summary><ul>${places.map(p => `<li>${esc(p)}</li>`).join("")}</ul></details>` : ""}`;
 }
 window.addEventListener("beforeunload", ev => { if (document.title.startsWith("(")){ ev.preventDefault(); ev.returnValue = ""; } });

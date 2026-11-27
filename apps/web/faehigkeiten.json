@@ -30,7 +30,7 @@
     {
       "id": "sprachnotiz",
       "name": {"de": "Sprachnotiz aufnehmen", "en": "Record a voice note"},
-      "status": "geplant (#644, v1.9)",
+      "status": "vorhanden (#644)",
       "requires": {"microphone": true, "mediaRecorder": true},
       "fallback": {"de": "Diktieren über das Mikrofon der Tastatur.", "en": "Dictate with the keyboard microphone."},
       "reason": {"de": "braucht Mikrofon und Aufnahme im Browser", "en": "needs a microphone and recording in the browser"}
