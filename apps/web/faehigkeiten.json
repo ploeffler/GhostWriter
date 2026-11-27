@@ -38,12 +38,12 @@
     {
       "id": "modell-im-browser",
       "name": {"de": "Chat mit Modell im Browser", "en": "Chat with an in-browser model"},
-      "status": "geplant (#525, v1.6)",
-      "requires": {"webgpu": true, "memoryGB": 8, "storageFreeGB": 4, "shaderF16": false},
+      "status": "Gerüst (#525), Modelle siehe modelle.json",
+      "requires": {"webgpu": true, "memoryGB": 4, "storageFreeGB": 3, "shaderF16": true},
       "recommended": {"de": "Modellstufe folgt mit der Modellliste (#525); der Probelauf entscheidet, ob es läuft.", "en": "Model tier follows with the model list (#525); a trial run decides whether it works."},
       "fallback": {"de": "Chat mit Anbieter (ab v2.0) oder im Chat mit GhostWriter.", "en": "Chat with a provider (from v2.0) or in the GhostWriter chat."},
       "reason": {"de": "braucht WebGPU, mindestens {memoryGB} GB Arbeitsspeicher und {storageFreeGB} GB freien Speicher", "en": "needs WebGPU, at least {memoryGB} GB of memory and {storageFreeGB} GB free storage"},
-      "probe": "folgt"
+      "probe": "Probelauf in der Modellansicht"
     },
     {
       "id": "lokal-uebersetzen",

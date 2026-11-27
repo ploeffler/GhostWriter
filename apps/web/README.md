@@ -159,3 +159,18 @@ wird nur an `api.github.com` gesendet und mit „Abmelden“ gelöscht. Er steht
 - Das bereinigte Fehlerprotokoll wird noch **nicht** zusätzlich im Arbeits-Branch abgelegt (`.ghostwriter/app-fehler.yml`) und nicht vom täglichen Update-Lauf ausgewertet (#660, v2.0); gemeldet wird nur über das vorausgefüllte Issue. Die Bereinigung ist eine Vorsichtsmaßnahme (Namen, Pfade, Titel in Anführungszeichen, Token, Adressen, E-Mail), keine Garantie: bitte den Text vor dem Absenden ansehen.
 - Zusammengeführt wird Text je Absatz (durch eine Leerzeile getrennt). **Änderungen in benachbarten Absätzen zählen als eine Stelle** und werden als Konflikt gezeigt (wie benachbarte Zeilen in git). Für Dateien ohne gespeicherten Ausgangstext (ältere Einträge) und ohne Absätze gilt die Wahl für die ganze Datei. Strukturdateien (`ghostwriter.yml`) werden nicht feldweise zusammengeführt.
 - Die Konfliktlösung wurde nur im Browser gegen die nachgestellte Schnittstelle geprüft, nicht mit mehreren echten Geräten.
+
+## Modell im Browser (Gerüst, #525)
+
+Der Knopf mit dem Roboter oben öffnet **Modell im Browser**. Ein Sprachmodell läuft dann auf dem Gerät (WebGPU, Transformers.js 4.3.2); der Text verlässt das Gerät nie.
+
+- **Modellliste:** [`modelle.json`](modelle.json) (Format wie `faehigkeiten.json`): Gemma 4 E2B (Standard, 2,9 GB), Gemma 4 E4B (stark, 4,6 GB), Qwen3.5 2B (Notbehelf, 1,5 GB, schwaches Deutsch). Alle Apache 2.0, nicht gesperrt. Die App schlägt je nach Gerät eines vor; was nicht passt, bleibt ausgegraut mit Grund (gleiche Auswertung wie die Matrix in den Einstellungen).
+- **Nichts ohne Klick:** Die Laufzeit (von `cdn.jsdelivr.net`) und die Gewichte (von `huggingface.co`) werden erst nach „Herunterladen“ geladen, bei mehr als 1,5 GB nach einer Rückfrage. Sie liegen danach im Cache dieses Browsers und lassen sich dort löschen. Fortschritt, Abbrechen, Probelauf mit Zeitmessung sind eingebaut.
+- **Chat:** Lektorat, Zusammenfassen, Übersetzen, freie Frage. Das Modell schlägt nur vor; ein Vorschlag wird erst nach „Vorschlag kopieren“ übernommen. Es wird nichts automatisch gespeichert und kein Text an Actions oder Dritte geschickt.
+- **Werkzeugaufrufe** (Recherche) sind nur ergänzend vorbereitet: kleiner Leser für das Gemma- und das Qwen-Format (`mdlParseTools`), noch ohne Suchanbindung.
+- **Noch offen:** Abnahme auf einem Gerät mit WebGPU und shader-f16 (die Testumgebung hat keines; getestet sind Liste, Passung, Auswahl, Leser und die Ansicht), Übernahme eines Vorschlags direkt in den Abschnitt, Abschrift der Sprachnotizen (Gemma 4 mit Audio), Cache über den Service Worker für Offline-Start der Laufzeit.
+
+## Versionen im Kopf (#735)
+
+Im Kopf steht „App x.y.z“ und, sobald ein Repository offen ist, „Repository x.y.z“ (GhostWriter-Version aus `ghostwriter-manifest.yml`, nur gelesen). Weichen die beiden Stände ab (Haupt- oder Nebenversion), wird die Anzeige gelb und der Tooltip nennt den Grund; ist das Manifest nicht lesbar (offline), steht nur die App-Version da.
+
