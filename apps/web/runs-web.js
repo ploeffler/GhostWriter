@@ -99,3 +99,47 @@ document.addEventListener("click", async ev => {
     RUN.focus = ""; RUN.msg = "Gestartet. Warte auf den Lauf …"; await runsView();
   } catch (e) { S.msg = {kind:"err", html:esc(runErr(e))}; b.disabled = false; b.textContent = b.dataset.label || "Starten"; b.dataset.armed = ""; await runsView(); }
 });
+
+/* ---------- Seite „Daten“: „Branches aufräumen“ als Knopf (Action cleanup.yml) ----------
+   Statt des Links zur Action zeigt die Seite „Daten“ hier Knöpfe, wenn der Token es darf (Schreibrecht am Repository, Recht „Actions“, Action im Buch vorhanden).
+   „Nur anzeigen“ löscht nichts; „Branches aufräumen“ fragt vorher mit einem zweiten Klick. Gelöscht werden nur erledigte Arbeits-Branches (Änderungspaket übernommen oder
+   vollständig im Buch enthalten); Branches mit offenem Änderungspaket oder eigenen Commits bleiben (Prüfung in der Action, nichts geht verloren). */
+function cleanWhy(push, state, hasToken){
+  if (!hasToken) return "Nicht angemeldet.";
+  if (!push) return "Dein Token hat kein Schreibrecht an diesem Repository.";
+  if (state === "forbidden") return "Dem Token fehlt das Recht „Actions“ (Lesen und Schreiben).";
+  if (state === "missing") return "In diesem Repository fehlt die Action „Branches aufräumen“. Zuerst GhostWriter aktualisieren.";
+  return "";
+}
+async function cleanPatch(root){
+  const a = root.querySelector && root.querySelector('a[href$="/actions/workflows/cleanup.yml"]'); if (!a) return;
+  const href = a.getAttribute("href"), box = document.createElement("span"); box.className = "cleanbox"; box.innerHTML = '<span class="dim">Rechte werden geprüft …</span>'; a.replaceWith(box);
+  let info = null, state = "unknown";
+  try { info = await GW_PORTS.git.repoInfo(S.owner, S.repo); state = await GW_PORTS.git.workflowState("cleanup.yml"); } catch (e) {}
+  const why = cleanWhy(!!(info && info.permissions && info.permissions.push), state, !!token());
+  box.dataset.ref = (info && info.default_branch) || "main"; box.dataset.href = href;
+  box.innerHTML = why ? `<a href="${esc(href)}" target="_blank" rel="noopener">Branches aufräumen</a> <span class="dim" title="${esc(why)}">(${esc(why)})</span>`
+    : `Branches aufräumen: <button class="btn" data-clean="dry">Nur anzeigen</button> <button class="btn" data-clean="run">Aufräumen</button>`;
+}
+{ const prev = GW_PORTS.afterRender; GW_PORTS.afterRender = (name, root) => { if (prev) prev(name, root); if (name === "daten") cleanPatch(root); }; }
+async function cleanStart(box, dry){
+  box.innerHTML = '<span class="dim">Wird gestartet …</span>';
+  try { await GW_PORTS.git.dispatch("cleanup.yml", box.dataset.ref || "main", {dry_run:dry ? "true" : "false"}); }
+  catch (e) { box.innerHTML = `<span class="note err">${esc(runErr(e))}</span> <a href="${esc(box.dataset.href || "#")}" target="_blank" rel="noopener">Auf GitHub öffnen</a>`; return; }
+  box.innerHTML = `<b>${dry ? "Anzeige" : "Aufräumen"} gestartet.</b> <span id="cleanrun" class="dim">Lauf wird gesucht …</span>`;
+  setTimeout(async () => {
+    try { const r = (await GW_PORTS.git.listRuns("cleanup.yml", {perPage:1}))[0]; const el = $("cleanrun"); if (r && el) el.innerHTML = `<a href="${esc(r.url)}" target="_blank" rel="noopener">Lauf öffnen</a>`; } catch (e) {}
+  }, 4000);
+  [10000, 30000, 60000].forEach(ms => setTimeout(() => { if (S.view === "data") show("data"); }, ms));   // Zahl der Branches und letzte Läufe nachladen (nur solange die Seite offen ist)
+}
+document.addEventListener("click", ev => {
+  const b = ev.target.closest && ev.target.closest("[data-clean]"); if (!b) return;
+  ev.preventDefault(); const box = b.closest(".cleanbox");
+  if (b.dataset.clean === "dry") return cleanStart(box, true);
+  if (b.dataset.armed !== "1"){
+    b.dataset.armed = "1"; b.textContent = "Ja, jetzt aufräumen";
+    const n = document.createElement("div"); n.className = "dim"; n.style.cssText = "font-size:12px;margin-top:4px"; n.textContent = "Gelöscht werden nur erledigte Arbeits-Branches (Änderungspaket übernommen oder vollständig im Buch enthalten). Branches mit offenem Änderungspaket oder eigenen Commits bleiben.";
+    box.appendChild(n); return;
+  }
+  cleanStart(box, false);
+});

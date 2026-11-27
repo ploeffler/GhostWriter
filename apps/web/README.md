@@ -63,6 +63,13 @@ jeder Benutzer meldet sich mit seinem eigenen Token an. Eine **neue Fassung** de
 ändert sich mit jedem Bau). Forks können dieselbe App auf ihrer eigenen Page hosten (`https://<besitzer>.github.io/<repo>/app/`), die Herkunft zeigt Einstellungen › Verbindungen.
 Lokal ausprobieren: `cd apps/web && python3 -m http.server 8765`, dann `http://localhost:8765/` öffnen.
 
+## Bibliotheksansicht: Serien als Akkordeon (#662)
+
+Im Bücherregal stehen Serien (Reihen) als **Akkordeon**: je Serie ein aufklappbarer Bereich mit Titel, Zahl der Bände, Fortschritt aller Bände („40 von 87 Abschnitten freigegeben“ mit Balken) und
+**Serie öffnen ›**; darin liegen die Karten der Bände in Bandreihenfolge. Danach kommt **Einzelne Bücher**. Serien sind zuerst zugeklappt, „Einzelne Bücher“ zuerst offen; der Zustand wird je Serie im Browser
+gemerkt. Ohne Serien bleibt das Regal wie bisher. Die Kopfzeile nennt die Zahl der Serien, Serien ohne Band stehen darunter. Die Daten (`library.json` → `series`, je Buch `series` und `volume`) füllt jetzt
+auch die Claude-Web-App in die Widget-Felder (vorher blieben sie leer und die Serien erschienen als lose Karten); das Akkordeon selbst gibt es nur in der eigenen Web-App (`regal-web.js`).
+
 ## Ausgabe und Läufe: Actions starten, Ergebnisse holen (#662)
 
 Der Drucker oben rechts öffnet **Ausgabe und Läufe**. Die App startet die Actions des Buch-Repositorys per `workflow_dispatch` (Vertrag: `templates/ui/BEFUELLUNG.md`,
@@ -76,6 +83,11 @@ Aktionstabelle; `ref` ist der Buch-Branch) und zeigt, was daraus wird. Die Aktio
 - **Letzte Läufe** (Stand läuft / fertig / fehlgeschlagen / abgebrochen, Branch, Zeit, Link). Nach dem Start fragt die App alle 6 Sekunden nach, **nur solange ein Lauf läuft, die
   Ansicht offen ist und höchstens 10 Minuten**; sonst gibt es keinen Abruf im Takt. Die Ergebnisse (PDF, DOCX …) stehen auf der Laufseite unter „Artifacts“ (14 Tage).
 - **Auflagen und Vorabfassungen:** die letzten Releases mit ihren Dateien als Links (öffnen sich bei GitHub; für private Repositorys musst du dort angemeldet sein).
+
+**Seite „Daten“:** Statt des Links zur Action zeigt sie bei **Erledigte Branches** die Knöpfe **Nur anzeigen** (löscht nichts) und **Aufräumen** (startet die Action „Branches aufräumen“, `cleanup.yml`,
+auf dem Standard-Branch). Die Knöpfe erscheinen nur, wenn der Token es darf: Schreibrecht am Repository, Recht „Actions“ und die Action ist im Buch vorhanden; sonst steht der Link mit dem Grund da.
+„Aufräumen“ fragt mit einem zweiten Klick nach; gelöscht werden nur erledigte Arbeits-Branches (Änderungspaket übernommen oder vollständig im Buch enthalten), Branches mit offenem Änderungspaket oder eigenen
+Commits bleiben (Prüfung in der Action). Nach dem Start steht der Link zum Lauf da, die Seite lädt die Zahl der Branches und **Letzte Läufe** nach (jetzt mit echten Läufen statt „nicht abrufbar“).
 
 Eingaben werden vor dem Start geprüft (Kapitel nur als Zahlen, Frist als `JJJJ-MM-TT`, Pflichtfelder); nie startet etwas ohne Klick. Fehlt die Action im Buch, sagt die App es und verweist auf
 „GhostWriter aktualisieren“; fehlt dem Token das Recht „Actions“, sagt sie das ebenfalls. **Nicht in dieser Fassung:** eine neue **Auflage** anlegen (Auflagen-Änderungspaket mit Freigaben,
@@ -129,7 +141,7 @@ wird nur an `api.github.com` gesendet und mit „Abmelden“ gelöscht. Er steht
 
 ## Aufbau
 
-- `index.src.html`, `ports-web.js` (GitHub-REST, Formen wie `GW_PORTS` in [`apps/claude/ports-claude.js`](../claude/ports-claude.js)), `net-web.js` (online/offline), `merge3.js` (Dreiwege-Vergleich), `outbox-web.js` (lokal sichern, hochladen), `konflikt-web.js` (Konflikt lösen), `fehler-web.js` (Fehler melden), `einstellungen-web.js` (Einstellungen, Gerät), `runs-web.js` (Actions starten), `voice-web.js` (Sprachnotizen), `faehigkeiten.json`, `boot-web.js`, `web.css`, `manifest.webmanifest`, `sw.src.js` (wird zu `sw.js`), `icons/`.
+- `index.src.html`, `ports-web.js` (GitHub-REST, Formen wie `GW_PORTS` in [`apps/claude/ports-claude.js`](../claude/ports-claude.js)), `net-web.js` (online/offline), `merge3.js` (Dreiwege-Vergleich), `outbox-web.js` (lokal sichern, hochladen), `konflikt-web.js` (Konflikt lösen), `fehler-web.js` (Fehler melden), `einstellungen-web.js` (Einstellungen, Gerät), `runs-web.js` (Actions starten), `voice-web.js` (Sprachnotizen), `regal-web.js` (Serien als Akkordeon), `faehigkeiten.json`, `boot-web.js`, `web.css`, `manifest.webmanifest`, `sw.src.js` (wird zu `sw.js`), `icons/`.
 - Ansichten und Abläufe kommen aus [`apps/shared/`](../shared). `python3 apps/web/build.py` baut `index.html` und kopiert die Widget-Laufzeit
   (`vendor/gw-lite.js`, `vendor/icons.css`) aus `apps/claude/vendor/`; `--check` prüft den Stand. `vendor/js-yaml.min.js` (MIT) liegt fest hier.
 - Tests: `tests/test_app_web.py`, `apps/web/tests/ports-web.test.cjs` (Anschluss gegen einen nachgestellten `fetch`) und `apps/web/tests/sw.test.cjs` (Service Worker) `apps/web/tests/outbox.test.cjs` (lokal sichern, hochladen, Konflikt) `apps/web/tests/merge3.test.cjs` (Zusammenführen) und `apps/web/tests/fehler.test.cjs` (Bereinigen, Meldungstext, Matrix) und `apps/web/tests/runs.test.cjs` (Starten, Eingaben, Stand) und `apps/web/tests/voice.test.cjs` (Aufnehmen, Verwalten, kein Netz), alle ohne Netz.

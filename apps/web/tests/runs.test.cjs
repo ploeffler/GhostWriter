@@ -5,11 +5,11 @@ const src = fs.readFileSync(path.join(__dirname, "..", "runs-web.js"), "utf8");
 const calls = [], rests = [];
 const ctx = {
   S: {owner:"o", repo:"r", book:{branch:"buch/x"}, view:"runs"}, esc: String, $: () => null, crumbs(){}, busy(){}, msgBox: () => "", show(){}, errText: e => "Fehler: " + e.message, fmtTime: () => "t", fmtBytes: n => n + " B",
-  document: {addEventListener(){}}, window: {scrollTo(){}}, FormData: class { constructor(f){ this.f = f; } forEach(fn){ Object.entries(this.f.values).forEach(([k, v]) => [].concat(v).forEach(x => fn(x, k))); } },
+  document: {addEventListener(){}, createElement: () => ({dataset:{}, style:{}})}, window: {scrollTo(){}}, FormData: class { constructor(f){ this.f = f; } forEach(fn){ Object.entries(this.f.values).forEach(([k, v]) => [].concat(v).forEach(x => fn(x, k))); } },
   GW_PORTS: {git: {dispatch: async (file, ref, inputs) => { calls.push({file, ref, inputs}); }, listRuns: async () => [], listReleases: async () => []}},
   setTimeout, clearTimeout, Date, JSON, Array, Object, String, Number, Math, Promise
 };
-vm.runInNewContext(src + "\n;this.__x = {runDispatch, RUN_STATE, runErr, RUN, GW_PORTS};", ctx);
+vm.runInNewContext(src + "\n;this.__x = {runDispatch, RUN_STATE, runErr, RUN, GW_PORTS, cleanWhy};", ctx);
 const X = ctx.__x, form = (values, checked) => ({values, querySelectorAll: () => (checked || []).map(v => ({value:v})), closest(){}});
 (async () => {
   // Probedruck: Formate und Kapitel, Vorgabe pdf; Ref ist der Buch-Branch
@@ -43,5 +43,11 @@ const X = ctx.__x, form = (values, checked) => ({values, querySelectorAll: () =>
   // Aktionen der Ansichten gehen in diese Ansicht
   for (const a of ["edition.create.open", "edition.proof", "edition.preview", "manuscript.export", "checkout.start"]) assert.equal(typeof X.GW_PORTS.actions[a], "function", a);
   assert.equal(typeof X.GW_PORTS.views.runs, "function");
+  // „Branches aufräumen“ auf der Seite Daten: nur mit Rechten
+  assert.equal(X.cleanWhy(true, "ok", true), "");
+  assert.match(X.cleanWhy(true, "ok", false), /Nicht angemeldet/); assert.match(X.cleanWhy(false, "ok", true), /Schreibrecht/);
+  assert.match(X.cleanWhy(true, "forbidden", true), /„Actions“/); assert.match(X.cleanWhy(true, "missing", true), /fehlt die Action/);
+  assert.equal(X.cleanWhy(true, "unknown", true), "");                       // unklar: der Start meldet ein fehlendes Recht verständlich
+  assert.equal(typeof X.GW_PORTS.afterRender, "function");
   console.log("runs ok");
 })().catch(e => { console.error(e); process.exit(1); });

@@ -90,6 +90,17 @@ aside.claude{position:sticky;top:70px;display:flex;flex-direction:column;max-hei
 .gear{background:none;border:0;cursor:pointer;font-size:20px;padding:6px 10px;color:inherit}
 #errtoast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);max-width:92vw;background:#3d1f0a;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;z-index:20}
 #errtoast .link{color:#ffd9b8}
+.gw-acc{margin:10px 0;border:.5px solid var(--border,#d6d3c8);border-radius:8px;background:var(--surface-1,#fff)}
+.gw-acc>summary{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;padding:10px 14px;cursor:pointer;list-style:none;font-size:15px}
+.gw-acc>summary::-webkit-details-marker{display:none}
+.gw-acc>summary::before{content:"▸";font-size:12px;color:var(--text-secondary,#666);transition:transform .15s}
+.gw-acc[open]>summary::before{transform:rotate(90deg)}
+.gw-acct{font-weight:600}
+.gw-accm{font-size:12px;color:var(--text-secondary,#666)}
+.gw-accbar{display:inline-block;width:90px;height:5px;background:var(--border,#d6d3c8);border-radius:3px;overflow:hidden}
+.gw-accbar i{display:block;height:100%;background:var(--text-accent,#b45309)}
+.gw-accopen{margin-left:auto}
+.gw-acc>.gw-shelf{padding:0 14px 14px}
 </style>
 </head>
 <body>
@@ -241,6 +252,10 @@ const GW_PORTS = {
     async listReleases(){
       const r = await rest("GET", `${repoBase()}/releases?per_page=6`);
       return (Array.isArray(r) ? r : []).map(x => ({name:x.name || x.tag_name, tag:x.tag_name, url:x.html_url, pre:!!x.prerelease, date:x.published_at, assets:(x.assets || []).map(a => ({name:a.name, url:a.browser_download_url, size:a.size}))}));
+    },
+    async workflowState(file){   // ok | missing (Action fehlt im Buch) | forbidden (Token ohne Recht „Actions“)
+      try { await rest("GET", `${repoBase()}/actions/workflows/${encodeURIComponent(file)}`); return "ok"; }
+      catch (e) { return e && e.status === 404 ? "missing" : e && e.status === 403 ? "forbidden" : "unknown"; }
     },
     async listBranches(owner, repo, page){ const r = await rest("GET", `/repos/${owner}/${repo}/branches?per_page=100&page=${page || 1}`); return Array.isArray(r) ? r : []; }
   }
@@ -787,6 +802,50 @@ document.addEventListener("click", async ev => {
     RUN.focus = ""; RUN.msg = "Gestartet. Warte auf den Lauf …"; await runsView();
   } catch (e) { S.msg = {kind:"err", html:esc(runErr(e))}; b.disabled = false; b.textContent = b.dataset.label || "Starten"; b.dataset.armed = ""; await runsView(); }
 });
+
+/* ---------- Seite „Daten“: „Branches aufräumen“ als Knopf (Action cleanup.yml) ----------
+   Statt des Links zur Action zeigt die Seite „Daten“ hier Knöpfe, wenn der Token es darf (Schreibrecht am Repository, Recht „Actions“, Action im Buch vorhanden).
+   „Nur anzeigen“ löscht nichts; „Branches aufräumen“ fragt vorher mit einem zweiten Klick. Gelöscht werden nur erledigte Arbeits-Branches (Änderungspaket übernommen oder
+   vollständig im Buch enthalten); Branches mit offenem Änderungspaket oder eigenen Commits bleiben (Prüfung in der Action, nichts geht verloren). */
+function cleanWhy(push, state, hasToken){
+  if (!hasToken) return "Nicht angemeldet.";
+  if (!push) return "Dein Token hat kein Schreibrecht an diesem Repository.";
+  if (state === "forbidden") return "Dem Token fehlt das Recht „Actions“ (Lesen und Schreiben).";
+  if (state === "missing") return "In diesem Repository fehlt die Action „Branches aufräumen“. Zuerst GhostWriter aktualisieren.";
+  return "";
+}
+async function cleanPatch(root){
+  const a = root.querySelector && root.querySelector('a[href$="/actions/workflows/cleanup.yml"]'); if (!a) return;
+  const href = a.getAttribute("href"), box = document.createElement("span"); box.className = "cleanbox"; box.innerHTML = '<span class="dim">Rechte werden geprüft …</span>'; a.replaceWith(box);
+  let info = null, state = "unknown";
+  try { info = await GW_PORTS.git.repoInfo(S.owner, S.repo); state = await GW_PORTS.git.workflowState("cleanup.yml"); } catch (e) {}
+  const why = cleanWhy(!!(info && info.permissions && info.permissions.push), state, !!token());
+  box.dataset.ref = (info && info.default_branch) || "main"; box.dataset.href = href;
+  box.innerHTML = why ? `<a href="${esc(href)}" target="_blank" rel="noopener">Branches aufräumen</a> <span class="dim" title="${esc(why)}">(${esc(why)})</span>`
+    : `Branches aufräumen: <button class="btn" data-clean="dry">Nur anzeigen</button> <button class="btn" data-clean="run">Aufräumen</button>`;
+}
+{ const prev = GW_PORTS.afterRender; GW_PORTS.afterRender = (name, root) => { if (prev) prev(name, root); if (name === "daten") cleanPatch(root); }; }
+async function cleanStart(box, dry){
+  box.innerHTML = '<span class="dim">Wird gestartet …</span>';
+  try { await GW_PORTS.git.dispatch("cleanup.yml", box.dataset.ref || "main", {dry_run:dry ? "true" : "false"}); }
+  catch (e) { box.innerHTML = `<span class="note err">${esc(runErr(e))}</span> <a href="${esc(box.dataset.href || "#")}" target="_blank" rel="noopener">Auf GitHub öffnen</a>`; return; }
+  box.innerHTML = `<b>${dry ? "Anzeige" : "Aufräumen"} gestartet.</b> <span id="cleanrun" class="dim">Lauf wird gesucht …</span>`;
+  setTimeout(async () => {
+    try { const r = (await GW_PORTS.git.listRuns("cleanup.yml", {perPage:1}))[0]; const el = $("cleanrun"); if (r && el) el.innerHTML = `<a href="${esc(r.url)}" target="_blank" rel="noopener">Lauf öffnen</a>`; } catch (e) {}
+  }, 4000);
+  [10000, 30000, 60000].forEach(ms => setTimeout(() => { if (S.view === "data") show("data"); }, ms));   // Zahl der Branches und letzte Läufe nachladen (nur solange die Seite offen ist)
+}
+document.addEventListener("click", ev => {
+  const b = ev.target.closest && ev.target.closest("[data-clean]"); if (!b) return;
+  ev.preventDefault(); const box = b.closest(".cleanbox");
+  if (b.dataset.clean === "dry") return cleanStart(box, true);
+  if (b.dataset.armed !== "1"){
+    b.dataset.armed = "1"; b.textContent = "Ja, jetzt aufräumen";
+    const n = document.createElement("div"); n.className = "dim"; n.style.cssText = "font-size:12px;margin-top:4px"; n.textContent = "Gelöscht werden nur erledigte Arbeits-Branches (Änderungspaket übernommen oder vollständig im Buch enthalten). Branches mit offenem Änderungspaket oder eigenen Commits bleiben.";
+    box.appendChild(n); return;
+  }
+  cleanStart(box, false);
+});
 /* ---------- Sprachnotizen (#644, #662) ----------
    Aufnahme im Browser (MediaRecorder), lokal gespeichert (IndexedDB), nie hochgeladen: Audio kommt nie ins Repository und nie in einen Actions-Lauf; Spracherkennung läuft nie
    als Action (Beschluss Peter, 25.11.2026). Eine App-Aufnahme ist die einzige Kopie: Sie bleibt hier, bis sie im Chat abgeschrieben ist und du entscheidest, ob du sie aufs Gerät
@@ -898,6 +957,38 @@ document.addEventListener("click", async ev => {
   }
 });
 window.addEventListener("beforeunload", ev => { if (VOICE.rec){ ev.preventDefault(); ev.returnValue = ""; } });
+/* ---------- Bücherregal: Serien als Akkordeon (#662) ----------
+   Das Widget „Bücherregal“ setzt über die Karten einer Serie eine Überschrift. Diese App macht daraus ein Akkordeon: je Serie (und „Einzelne Bücher“) ein
+   aufklappbarer Bereich mit Titel, Zahl der Bände, Fortschritt aller Bände und „Serie öffnen ›“; darin liegen die Karten wieder im Raster. Der Zustand (auf/zu)
+   wird je Serie im Browser gemerkt. Serien sind zuerst zu, „Einzelne Bücher“ zuerst offen. Ohne Serien bleibt das Regal unverändert. Die Karten behalten ihre Funktion. */
+function regalSums(cards){
+  let done = 0, total = 0;
+  cards.forEach(c => { const m = /(\d+)\s+von\s+(\d+)\s+Abschnitt/.exec([...c.querySelectorAll(".st")].map(x => x.textContent).join(" ")); if (m){ done += +m[1]; total += +m[2]; } });
+  return {done, total, pct:total ? Math.round(100 * done / total) : 0};
+}
+function regalGroup(g){
+  const series = !g.head.classList.contains("plain"), cards = g.cards.filter(c => c.classList.contains("gw-card")), first = cards[0] && cards[0].querySelector(".gw-book");
+  const title = (g.head.querySelector("span") || {}).textContent || "", sid = series ? ((first && first.dataset.series) || title) : "einzeln", key = "gw.acc." + sid;
+  const sum = regalSums(cards), vols = cards.length, d = document.createElement("details");
+  d.className = "gw-acc"; d.dataset.series = series ? sid : "";
+  const saved = store.get(key);
+  d.open = saved == null ? !series : saved === "1";
+  const prog = series && sum.total ? `<span class="gw-accbar" title="${sum.done} von ${sum.total} Abschnitten freigegeben"><i style="width:${sum.pct}%"></i></span>` : "";
+  d.innerHTML = `<summary><span class="gw-acct">${esc(title)}</span><span class="gw-accm">${vols === 1 ? "1 Buch" : vols + (series ? " Bände" : " Bücher")}${series && sum.total ? ` · ${sum.done} von ${sum.total} Abschnitten freigegeben` : ""}</span>${prog}${series ? '<button type="button" class="link gw-accopen">Serie öffnen ›</button>' : ""}</summary>`;
+  const body = document.createElement("div"); body.className = "gw-shelf"; cards.forEach(c => body.appendChild(c)); d.appendChild(body);
+  const btn = d.querySelector(".gw-accopen"); if (btn) btn.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); g.head.click(); });
+  d.addEventListener("toggle", () => store.set(key, d.open ? "1" : "0"));
+  return d;
+}
+function regalPatch(root){
+  const shelf = root.querySelector && root.querySelector(".gw-shelf"); if (!shelf || shelf.dataset.acc) return;
+  const kids = [...shelf.children]; if (!kids.some(k => k.classList.contains("gw-sh"))) return;
+  const groups = []; let cur = null;
+  kids.forEach(k => { if (k.classList.contains("gw-sh")){ cur = {head:k, cards:[]}; groups.push(cur); } else if (cur) cur.cards.push(k); });
+  shelf.dataset.acc = "1"; shelf.style.display = "block"; shelf.textContent = "";
+  groups.forEach(g => shelf.appendChild(regalGroup(g)));
+}
+{ const prev = GW_PORTS.afterRender; GW_PORTS.afterRender = (name, root) => { if (prev) prev(name, root); if (name === "buecherregal") regalPatch(root); }; }
 async function getFile(path, ref, fresh){
   const key = (ref || "") + "|" + path;
   if (!fresh && S.files.has(key)) return S.files.get(key);
@@ -1006,10 +1097,15 @@ function bookRow(b){
     BOOK_SERIES:"", BOOK_SERIES_TITLE:"", BOOK_SERIES_KEY:"", BOOK_VOLUME_TEXT:""};
 }
 function libraryData(){
-  const books = S.lib.books || [], rows = books.map(bookRow);
+  const books = S.lib.books || [], byBranch = new Map(books.map(b => [b.branch, b])), ser = S.lib.series || [], rows = [], seen = new Set();
+  // Bücher einer Serie zuerst, gruppiert und in Bandreihenfolge (#116, wie render_view.library_view); danach die übrigen
+  ser.forEach((s, si) => (s.volumes || []).forEach((br, n) => { const b = byBranch.get(br); if (b && !seen.has(br)){ rows.push(Object.assign(bookRow(b), {BOOK_SERIES:s.id, BOOK_SERIES_TITLE:s.title || s.id, BOOK_SERIES_KEY:"S" + (si + 1), BOOK_VOLUME_NUMBER:n + 1, BOOK_VOLUME_TEXT:"Band " + (n + 1)})); seen.add(br); } }));
+  books.forEach(b => { if (!seen.has(b.branch)) rows.push(bookRow(b)); });
+  const emptySeries = ser.filter(s => !(s.volumes || []).some(br => byBranch.has(br))).map(s => ({S_ID:s.id, S_TITLE:s.title || s.id, S_KEY:"S" + (ser.indexOf(s) + 1)}));
   const editions = books.flatMap(b => (b.editions || []).map(e => { const n = e && typeof e === "object" ? (e.number || e.edition) : e; return n ? {E_BOOK_BRANCH:b.branch, E_NUMBER:n, E_TEXT:"Auflage " + n, E_DATE_TEXT:deDate((e && (e.date || e.published)) || ""), E_TAG:(e && e.tag) || ""} : null; }).filter(Boolean));
-  const d = {LANGUAGE:"de", LIBRARY_NAME:S.owner + "/" + S.repo, BOOK_COUNT_TEXT:plural(rows.length, "Buch", "Bücher"), JOBS_TEXT:jobsText(["done", "failed", "waiting", "waiting_budget"].reduce((t, k) => (t[k] = books.reduce((n, b) => n + ((b.jobs || {})[k] || 0), 0), t), {}), true), EMPTY:rows.length ? "" : "1", UPDATED_TEXT:"", SESSION_COUNT_TEXT:"", BOOKS:rows};
+  const d = {LANGUAGE:"de", LIBRARY_NAME:S.owner + "/" + S.repo, BOOK_COUNT_TEXT:plural(rows.length, "Buch", "Bücher") + (ser.length ? " · " + plural(ser.length, "Serie", "Serien") : ""), JOBS_TEXT:jobsText(["done", "failed", "waiting", "waiting_budget"].reduce((t, k) => (t[k] = books.reduce((n, b) => n + ((b.jobs || {})[k] || 0), 0), t), {}), true), EMPTY:rows.length ? "" : "1", UPDATED_TEXT:"", SESSION_COUNT_TEXT:"", BOOKS:rows};
   if (editions.length) d.EDITIONS = editions;
+  if (emptySeries.length) d.EMPTY_SERIES = emptySeries;
   return d;
 }
 const base = () => ({LANGUAGE:"de", HEAD_SHA:S.head});
@@ -1133,7 +1229,7 @@ function applyNa(root){
     b.setAttribute("disabled", ""); b.setAttribute("aria-disabled", "true"); b.setAttribute("data-gw-na", why); b.setAttribute("title", why); b.classList.add("gw-na");
   });
 }
-function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); blankRaw($("gw")); applyNa($("gw")); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
+function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); blankRaw($("gw")); applyNa($("gw")); if (GW_PORTS.afterRender) GW_PORTS.afterRender(name, $("gw")); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
 function widget(name, data, extra){ $("app").innerHTML = `<div class="one">${msgBox()}<div id="gw"></div>${extra || ""}</div>`; gwRender(name, data); patchRun(); crumbs(); window.scrollTo(0, 0); }
 /* Abschnittssteuerung an die App anpassen (#462): „Sofort“ läuft hier in der App, nicht im Chat. Ist ein Dienst mit
    Websuche eingestellt, recherchiert die Action „Recherche“: dieser Knopf ist dann aktiv, „Sofort“ (ohne Internet) aus. */
@@ -2743,6 +2839,15 @@ async function merge(data){
 }
 
 
+/* Letzte Läufe der Actions auf der Seite „Daten“: Anschlüsse, die Läufe lesen können (eigene Web-App), zeigen sie; sonst der Link zu GitHub */
+async function dataRuns(own, rp){
+  const all = {R_NAME:"Alle Läufe der Actions auf GitHub ansehen", R_STATE:"other", R_TEXT:"auf GitHub öffnen", R_URL:`https://github.com/${own}/${rp}/actions`};
+  if (!GW_PORTS.git.listRuns) return [Object.assign({}, all, {R_NAME:"Läufe der Actions auf GitHub ansehen", R_TEXT:"in dieser App nicht abrufbar – auf GitHub öffnen"})];
+  try {
+    const rs = await GW_PORTS.git.listRuns(null, {perPage:6}), st = r => r.status !== "completed" ? ["other", "läuft"] : r.conclusion === "success" ? ["ok", "fertig"] : r.conclusion === "cancelled" ? ["other", "abgebrochen"] : ["fail", "fehlgeschlagen"];
+    return rs.map(r => ({R_NAME:r.name || "Lauf", R_STATE:st(r)[0], R_TEXT:`${st(r)[1]} · ${deDate(String(r.created || "").slice(0, 10))}`, R_URL:r.url})).concat([all]);
+  } catch (e) { return [Object.assign({}, all, {R_TEXT:"nicht lesbar (" + errText(e).slice(0, 70) + ") – auf GitHub öffnen"})]; }
+}
 /* Seite „Daten“ (wie render_view.py data; Läufe der Actions sind über den Konnektor nicht abrufbar) */
 async function dataData(){
   const lib = S.lib || {}, prog = lib.program || {}, own = S.owner, rp = S.repo;
@@ -2775,7 +2880,7 @@ async function dataData(){
     UI_TEXT:`ghostwriter-ui ${prog.ui_version || "?"} · Commit ${String(prog.ui_commit || "").slice(0, 7)}`, GITHUB_KNOWN:repo || brR ? "1" : "",
     REPO_TEXT:`${vis} · ${sizeText} · ${brText}`, CLEANUP_URL:`https://github.com/${own}/${rp}/actions/workflows/cleanup.yml`, TASKS_URL:`https://github.com/${own}/${rp}/issues?q=is%3Aissue+is%3Aopen+L%C3%B6schaufgaben`, LIMITS_TEXT:"",
     BOOKS:books, SECRETS:srows,
-    RUNS:[{R_NAME:"Läufe der Actions auf GitHub ansehen", R_STATE:"other", R_TEXT:"in dieser App nicht abrufbar – auf GitHub öffnen", R_URL:`https://github.com/${own}/${rp}/actions`}]});
+    RUNS:await dataRuns(own, rp)});
   if (upR != null && vcmp(upR, prog.version) > 0) d.PROGRAM_UPDATE_TEXT += " – einspielen mit der Action „GhostWriter aktualisieren“ oder im Chat";
   return d;
 }
