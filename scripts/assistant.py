@@ -29,6 +29,7 @@ Skill-Name: <autor>-auf-<repo> (skill_name), z. B. cyberlefl325-auf-yawa.
 import argparse
 import json
 import re
+import subprocess
 import sys
 import unicodedata
 from pathlib import Path
@@ -121,9 +122,25 @@ def skill_path(base, profile):
 
 
 def is_library(base):
+    """Bibliothek: Standard-Branch ohne Kapitel, oder ein Repository mit Buch-Branches (#706).
+    Nicht nur nach den Kapiteln des gerade ausgecheckten Branchs entscheiden, sonst wird ein Buch-Branch
+    einer Bibliothek zum „Buch“ und der persönliche Skill hängt davon ab, wo er erzeugt wurde."""
     cfg = Path(base, 'ghostwriter.yml')
     data = (yaml.safe_load(cfg.read_text(encoding='utf-8')) or {}) if cfg.is_file() else {}
-    return not ((data.get('structure') or {}).get('chapters'))
+    if not ((data.get('structure') or {}).get('chapters')):
+        return True
+    man = Path(base, 'ghostwriter-manifest.yml')
+    lib = ((yaml.safe_load(man.read_text(encoding='utf-8')) or {}).get('library') or {}) if man.is_file() else {}
+    prefix = str(lib.get('book_prefix') or 'buch/').strip('/')
+    try:
+        out = subprocess.run(['git', '-C', str(base), 'for-each-ref', '--count=1', '--format=%(refname)',
+                              f'refs/heads/{prefix}', f'refs/remotes/origin/{prefix}'],
+                             capture_output=True, text=True, timeout=10).stdout
+        head = subprocess.run(['git', '-C', str(base), 'rev-parse', '--abbrev-ref', 'HEAD'],
+                              capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return bool(out.strip()) or head.startswith(prefix + '/')
 
 
 def render(base, profile):
@@ -132,6 +149,7 @@ def render(base, profile):
     up = profile.get('upstream') or upstream_repo(base)
     git = profile.get('git') or {}
     kind = 'Bibliothek' if is_library(base) else 'Buch'
+    kind_phrase = 'an der GhostWriter-Bibliothek' if kind == 'Bibliothek' else 'am GhostWriter-Buch'   # #706: richtig gebeugt
     author = (profile.get('author') or '').strip()
     title = f'{author or repo.split("/")[0]} auf {repo.split("/")[1]}'
     if git:
@@ -159,7 +177,7 @@ def render(base, profile):
         lines.append('\n'.join(details))
     if not lines:
         lines.append('- Standard-Erzählstimme: noch nicht festgelegt; dann gilt das Stilprofil des Buchs bzw. der Wizard (Schritt 6).')
-    values = {'SKILL': profile['skill'], 'TITLE': title, 'KIND': kind, 'REPO': repo, 'UPSTREAM': up,
+    values = {'SKILL': profile['skill'], 'TITLE': title, 'KIND': kind, 'KIND_PHRASE': kind_phrase, 'REPO': repo, 'UPSTREAM': up,
               'GIT_LOGIN': git.get('name') or repo.split('/')[0], 'GIT_LINES': git_lines,
               'AUTHOR_LINE': f'- Autor: {author} (Vorbelegung bei „Neues Buch“; je Buch gilt `project.author`).' if author
                              else '- Autor: noch nicht im Profil; je Buch gilt `project.author`.',

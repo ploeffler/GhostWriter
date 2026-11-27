@@ -231,6 +231,21 @@ class ProfileTest(unittest.TestCase):
         self.assertEqual(d['skill'], 'anna-berg-auf-romane')
         self.assertNotIn('git', d)
 
+    def test_book_branch_of_library_stays_library(self):   # #706
+        assistant.set_profile(self.d, PROFILE)
+        skill = (self.d / '.claude/skills/cyberlefl325-auf-yawa/SKILL.md').read_text(encoding='utf-8')
+        self.assertIn('Arbeit an der GhostWriter-Bibliothek chillyconcane/YAWA', skill)
+        git(self.d, 'init', '-q', '-b', 'main')
+        git(self.d, 'add', '.'); git(self.d, 'commit', '-qm', 'start')
+        git(self.d, 'switch', '-q', '-c', 'buch/revier-adria')
+        shutil.copyfile(ROOT / 'tests/fixtures/adhs/ghostwriter.yml', self.d / 'ghostwriter.yml')   # Struktur eingetragen
+        self.assertTrue(assistant.is_library(self.d))
+        self.assertEqual(assistant.check(self.d), [])          # der Skill passt weiter, kein Umschreiben nötig
+        git(self.d, 'switch', '-q', 'main'); git(self.d, 'branch', '-q', '-D', 'buch/revier-adria')
+        shutil.copyfile(ROOT / 'tests/fixtures/adhs/ghostwriter.yml', self.d / 'ghostwriter.yml')
+        self.assertFalse(assistant.is_library(self.d))         # einzelnes Buch ohne Buch-Branches
+        self.assertIn('Arbeit am GhostWriter-Buch chillyconcane/YAWA', assistant.render(self.d, assistant.load(self.d)))
+
     def test_cli(self):
         r = subprocess.run([sys.executable, str(ROOT / 'scripts/assistant.py'), str(self.d), 'set', json.dumps(PROFILE)],
                            capture_output=True, text=True)
