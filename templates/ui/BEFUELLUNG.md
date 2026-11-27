@@ -65,7 +65,7 @@ Im Modus „Widget“ schreibt der Assistent keine fertige Ansicht, sondern nur 
 | Kapitelkosten | Summe der Abschnittskosten des Kapitels |
 | Projektkosten | Summe der Kapitelkosten plus `costs/project.yml` |
 | Geldformat | zwei Nachkommastellen, Komma, Leerzeichen, Währungszeichen: `1,80 €`. Enthält die Summe mindestens einen Eintrag mit `cost_status: estimated`, steht `≈ ` davor. Gibt es keinen Betrag, steht `–` |
-| Kosten-Tooltip | Grundtext (z. B. „Summe der Abschnittskosten“), bei Schätzungen ergänzt um „, enthält geschätzte Kosten“; ohne Betrag „Keine KI-API-Kosten erfasst (Arbeit im Chat über ein Abo kostet nichts zusätzlich)“ |
+| Kosten-Tooltip | Grundtext (z. B. „Summe der Abschnittskosten“), bei Schätzungen ergänzt um „, enthält geschätzte Kosten“; ohne Betrag „Keine KI-API-Kosten erfasst (Arbeit im Chat über ein Abo kostet nichts zusätzlich)“. Gibt es Kosten nur in `costs/project.yml` (z. B. Medienaufträge, #754), steht bei Kapitel und Abschnitt ohne eigenen Betrag `– (nur Buch)` (`CHAPTER_COST`/`SECTION_COST`; in der Kapitelliste der Projektübersicht nur der Tooltip) und der Tooltip „Keine Kosten für diesen Teil erfasst: KI-API-Kosten (z. B. Medienaufträge) sind nur fürs ganze Buch erfasst, siehe Projektübersicht“ (Englisch: `– (book only)`) |
 | Marker | Vorkommen von `[PLATZHALTER-ANEKDOTE`, `[QUELLE PRÜFEN`, `[MEDIZIN PRÜFEN`, `[RECHT PRÜFEN` im Manuskript (Teil unter `## Manuskript`); der Hinweis nach dem Doppelpunkt bis `]` ist `MARKER_TEXT` |
 | Marker-Text | `keine offenen Marker`, `1 offener Marker`, `N offene Marker` |
 | Anzahl Abschnitte | `1 Abschnitt`, `N Abschnitte` |

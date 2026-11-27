@@ -34,6 +34,11 @@ function libraryData(){
 }
 const base = () => ({LANGUAGE:"de", HEAD_SHA:S.head});
 const shortTitle = () => (S.cfg.project || {}).title_short || S.book.title_short || S.book.title;
+/* Kosten nur fürs ganze Buch (#754): Gibt es Buchkosten, aber nirgends Kosten bei Kapiteln, ist „–“ dort kein Fehler. Gleiche Texte wie scripts/render_view.py. */
+const projectOnlyCosts = () => { const c = (S.idx.project || {}).cost; return !!(c && c.amount != null) && !(S.struct || []).some(x => x.cost && x.cost.amount != null); };
+const COST_ONLY_HINT = "Keine Kosten für diesen Teil erfasst: KI-API-Kosten (z. B. Medienaufträge) sind nur fürs ganze Buch erfasst, siehe Projektübersicht";
+const costShown = (k, only) => (k && k.text && k.text !== "–") ? k.text : only ? "– (nur Buch)" : "–";
+const costTip = (k, base, only) => (k && k.text && k.text !== "–") || !only ? base : COST_ONLY_HINT;
 async function projectData(){
   await loadSecFiles(allSecs(), "Projektübersicht wird geladen");
   const p = S.cfg.project || {}, ix = S.idx.project || {};
@@ -41,7 +46,7 @@ async function projectData(){
     let w = 0, done = 0;
     for (const s of c.sections || []){ const f = cached(s.path); if (!f) continue; w += words(msOf(f.text)); done += front(f.text).status === "approved" ? 1 : 0; }
     const tags = tagsFor((c.sections || []).map(s => s.id));
-    const row = {CHAPTER_NUMBER:i + 1, CHAPTER_TITLE:c.title, CHAPTER_STATUS:c.status, CHAPTER_COST:(c.cost && c.cost.text) || "–", CHAPTER_COST_HINT:"Summe der Abschnittskosten",
+    const row = {CHAPTER_NUMBER:i + 1, CHAPTER_TITLE:c.title, CHAPTER_STATUS:c.status, CHAPTER_COST:(c.cost && c.cost.text) || "–", CHAPTER_COST_HINT:costTip(c.cost, "Summe der Abschnittskosten", projectOnlyCosts()),
       CHAPTER_ID:c.id, CHAPTER_WORDS:w, CHAPTER_WORDS_TEXT:fmtNum(w) + (w === 1 ? " Wort" : " Wörter"),
       CHAPTER_APPROVED_TEXT:(c.sections || []).length ? `${done} von ${c.sections.length}` : "", CHAPTER_CHECKS_JSON:pick(tags, J_SLIM), CHAPTER_NOTES_TEXT:"", CHAPTER_CHECK_DETAILS:""};
     const sm = staleMarks((c.sections || []).map((s, si) => [`${i + 1}.${si + 1}`, (cached(s.path) || {}).text]));
@@ -90,7 +95,7 @@ async function chapterData(ci){
   const d = Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), CHAPTER_ID:c.id, CHAPTER_NUMBER:ci + 1,
     CHAPTER_GOAL:part(readme, "Ziel des Kapitels"), CHAPTER_SUMMARY:part(readme, "Kurzbeschreibung"), CHAPTER_TITLE:c.title, CHAPTER_SUBTITLE:sub ? sub[1] : (c.subtitle || ""),
     SECTION_COUNT_TEXT:n + (n === 1 ? " Abschnitt" : " Abschnitte"), MARKER_COUNT_TEXT:markers ? `${markers} offene${markers === 1 ? "r" : ""} Marker` : "keine offenen Marker",
-    CHAPTER_COST:(c.cost && c.cost.text) || "–", CHAPTER_COST_HINT:"Summe der Abschnittskosten", APPROVED_COUNT_TEXT:`${approved} von ${n}`,
+    CHAPTER_COST:costShown(c.cost, projectOnlyCosts()), CHAPTER_COST_HINT:costTip(c.cost, "Summe der Abschnittskosten", projectOnlyCosts()), APPROVED_COUNT_TEXT:`${approved} von ${n}`,
     CHAPTER_APPROVABLE:c.status === "ready_for_approval" && n && approved === n ? "true" : "", CHAPTER_REVISION_READY:"", SECTIONS:rows});
   if (S.checks.length) d.CHECKS_LEGEND = LEGEND_FULL;
   if (tags.length) d.CHECKS_JSON = pick(tags, J_FULL);
@@ -107,8 +112,8 @@ async function sectionData(id){
   const [pid, ptx] = nav(si - 1), [nid, ntx] = nav(si + 1), ap = h.approvals || {}, waived = ((S.cfg.workflow || {}).require_section_writing_approval === false);
   const tags = tagsFor([id]), hist = historyFor([id]);
   const d = Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), CHAPTER_ID:x.c.id, CHAPTER_NUMBER:ci + 1,
-    SECTION_ID:id, SECTION_NUMBER:`${ci + 1}.${si + 1}`, SECTION_TITLE:x.s.title, SECTION_STATUS:h.status || x.s.status, SECTION_COST:(x.s.cost && x.s.cost.text) || "–",
-    SECTION_COST_HINT:"Summe der Kosteneinträge", SECTION_GOAL:part(t, "Ziel des Abschnitts"), SECTION_SUMMARY:part(t, "Kurzbeschreibung"), SECTION_MANUSCRIPT:ms,
+    SECTION_ID:id, SECTION_NUMBER:`${ci + 1}.${si + 1}`, SECTION_TITLE:x.s.title, SECTION_STATUS:h.status || x.s.status, SECTION_COST:costShown(x.s.cost, projectOnlyCosts()),
+    SECTION_COST_HINT:costTip(x.s.cost, "Summe der Kosteneinträge", projectOnlyCosts()), SECTION_GOAL:part(t, "Ziel des Abschnitts"), SECTION_SUMMARY:part(t, "Kurzbeschreibung"), SECTION_MANUSCRIPT:ms,
     MARKER_COUNT_TEXT:markers.length ? `${markers.length} offene${markers.length === 1 ? "r" : ""} Marker` : "keine offenen Marker",
     FACT_CHECK:h.fact_check || "disabled", APPROVAL_WRITING:String(!!ap.writing || waived), APPROVAL_SECTION:String(!!ap.section),
     PREV_SECTION_ID:pid, PREV_SECTION_PROMPT:ptx, NEXT_SECTION_ID:nid, NEXT_SECTION_PROMPT:ntx, MARKERS:markers});

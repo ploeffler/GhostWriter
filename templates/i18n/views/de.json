@@ -1030,6 +1030,8 @@
   "limit.warning": "Vorwarnung: {details}",
   "cost.none": "Keine KI-API-Kosten erfasst (Arbeit im Chat über ein Abo kostet nichts zusätzlich)",
   "cost.estimated": ", enthält geschätzte Kosten",
+  "cost.project_only": "Keine Kosten für diesen Teil erfasst: KI-API-Kosten (z. B. Medienaufträge) sind nur fürs ganze Buch erfasst, siehe Projektübersicht",
+  "cost.project_only_short": "– (nur Buch)",
   "disclosure.task_research": "Recherche",
   "disclosure.task_brainstorming": "Ideensammlung",
   "disclosure.task_writing": "Textentwürfe",
