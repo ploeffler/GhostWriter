@@ -121,7 +121,7 @@ async function cleanPatch(root){
   box.innerHTML = why ? `<a href="${esc(href)}" target="_blank" rel="noopener">Branches aufräumen</a> <span class="dim" title="${esc(why)}">(${esc(why)})</span>`
     : `Branches aufräumen: <button class="btn" data-clean="dry">Nur anzeigen</button> <button class="btn" data-clean="run">Aufräumen</button>`;
 }
-GW_PORTS.afterRender = (name, root) => { if (name === "daten") cleanPatch(root); };
+{ const prev = GW_PORTS.afterRender; GW_PORTS.afterRender = (name, root) => { if (prev) prev(name, root); if (name === "daten") cleanPatch(root); }; }
 async function cleanStart(box, dry){
   box.innerHTML = '<span class="dim">Wird gestartet …</span>';
   try { await GW_PORTS.git.dispatch("cleanup.yml", box.dataset.ref || "main", {dry_run:dry ? "true" : "false"}); }

@@ -90,6 +90,17 @@ aside.claude{position:sticky;top:70px;display:flex;flex-direction:column;max-hei
 .gear{background:none;border:0;cursor:pointer;font-size:20px;padding:6px 10px;color:inherit}
 #errtoast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);max-width:92vw;background:#3d1f0a;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;z-index:20}
 #errtoast .link{color:#ffd9b8}
+.gw-acc{margin:10px 0;border:.5px solid var(--border,#d6d3c8);border-radius:8px;background:var(--surface-1,#fff)}
+.gw-acc>summary{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;padding:10px 14px;cursor:pointer;list-style:none;font-size:15px}
+.gw-acc>summary::-webkit-details-marker{display:none}
+.gw-acc>summary::before{content:"▸";font-size:12px;color:var(--text-secondary,#666);transition:transform .15s}
+.gw-acc[open]>summary::before{transform:rotate(90deg)}
+.gw-acct{font-weight:600}
+.gw-accm{font-size:12px;color:var(--text-secondary,#666)}
+.gw-accbar{display:inline-block;width:90px;height:5px;background:var(--border,#d6d3c8);border-radius:3px;overflow:hidden}
+.gw-accbar i{display:block;height:100%;background:var(--text-accent,#b45309)}
+.gw-accopen{margin-left:auto}
+.gw-acc>.gw-shelf{padding:0 14px 14px}
 </style>
 </head>
 <body>
@@ -813,7 +824,7 @@ async function cleanPatch(root){
   box.innerHTML = why ? `<a href="${esc(href)}" target="_blank" rel="noopener">Branches aufräumen</a> <span class="dim" title="${esc(why)}">(${esc(why)})</span>`
     : `Branches aufräumen: <button class="btn" data-clean="dry">Nur anzeigen</button> <button class="btn" data-clean="run">Aufräumen</button>`;
 }
-GW_PORTS.afterRender = (name, root) => { if (name === "daten") cleanPatch(root); };
+{ const prev = GW_PORTS.afterRender; GW_PORTS.afterRender = (name, root) => { if (prev) prev(name, root); if (name === "daten") cleanPatch(root); }; }
 async function cleanStart(box, dry){
   box.innerHTML = '<span class="dim">Wird gestartet …</span>';
   try { await GW_PORTS.git.dispatch("cleanup.yml", box.dataset.ref || "main", {dry_run:dry ? "true" : "false"}); }
@@ -946,6 +957,38 @@ document.addEventListener("click", async ev => {
   }
 });
 window.addEventListener("beforeunload", ev => { if (VOICE.rec){ ev.preventDefault(); ev.returnValue = ""; } });
+/* ---------- Bücherregal: Serien als Akkordeon (#662) ----------
+   Das Widget „Bücherregal“ setzt über die Karten einer Serie eine Überschrift. Diese App macht daraus ein Akkordeon: je Serie (und „Einzelne Bücher“) ein
+   aufklappbarer Bereich mit Titel, Zahl der Bände, Fortschritt aller Bände und „Serie öffnen ›“; darin liegen die Karten wieder im Raster. Der Zustand (auf/zu)
+   wird je Serie im Browser gemerkt. Serien sind zuerst zu, „Einzelne Bücher“ zuerst offen. Ohne Serien bleibt das Regal unverändert. Die Karten behalten ihre Funktion. */
+function regalSums(cards){
+  let done = 0, total = 0;
+  cards.forEach(c => { const m = /(\d+)\s+von\s+(\d+)\s+Abschnitt/.exec([...c.querySelectorAll(".st")].map(x => x.textContent).join(" ")); if (m){ done += +m[1]; total += +m[2]; } });
+  return {done, total, pct:total ? Math.round(100 * done / total) : 0};
+}
+function regalGroup(g){
+  const series = !g.head.classList.contains("plain"), cards = g.cards.filter(c => c.classList.contains("gw-card")), first = cards[0] && cards[0].querySelector(".gw-book");
+  const title = (g.head.querySelector("span") || {}).textContent || "", sid = series ? ((first && first.dataset.series) || title) : "einzeln", key = "gw.acc." + sid;
+  const sum = regalSums(cards), vols = cards.length, d = document.createElement("details");
+  d.className = "gw-acc"; d.dataset.series = series ? sid : "";
+  const saved = store.get(key);
+  d.open = saved == null ? !series : saved === "1";
+  const prog = series && sum.total ? `<span class="gw-accbar" title="${sum.done} von ${sum.total} Abschnitten freigegeben"><i style="width:${sum.pct}%"></i></span>` : "";
+  d.innerHTML = `<summary><span class="gw-acct">${esc(title)}</span><span class="gw-accm">${vols === 1 ? "1 Buch" : vols + (series ? " Bände" : " Bücher")}${series && sum.total ? ` · ${sum.done} von ${sum.total} Abschnitten freigegeben` : ""}</span>${prog}${series ? '<button type="button" class="link gw-accopen">Serie öffnen ›</button>' : ""}</summary>`;
+  const body = document.createElement("div"); body.className = "gw-shelf"; cards.forEach(c => body.appendChild(c)); d.appendChild(body);
+  const btn = d.querySelector(".gw-accopen"); if (btn) btn.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); g.head.click(); });
+  d.addEventListener("toggle", () => store.set(key, d.open ? "1" : "0"));
+  return d;
+}
+function regalPatch(root){
+  const shelf = root.querySelector && root.querySelector(".gw-shelf"); if (!shelf || shelf.dataset.acc) return;
+  const kids = [...shelf.children]; if (!kids.some(k => k.classList.contains("gw-sh"))) return;
+  const groups = []; let cur = null;
+  kids.forEach(k => { if (k.classList.contains("gw-sh")){ cur = {head:k, cards:[]}; groups.push(cur); } else if (cur) cur.cards.push(k); });
+  shelf.dataset.acc = "1"; shelf.style.display = "block"; shelf.textContent = "";
+  groups.forEach(g => shelf.appendChild(regalGroup(g)));
+}
+{ const prev = GW_PORTS.afterRender; GW_PORTS.afterRender = (name, root) => { if (prev) prev(name, root); if (name === "buecherregal") regalPatch(root); }; }
 async function getFile(path, ref, fresh){
   const key = (ref || "") + "|" + path;
   if (!fresh && S.files.has(key)) return S.files.get(key);
@@ -1054,10 +1097,15 @@ function bookRow(b){
     BOOK_SERIES:"", BOOK_SERIES_TITLE:"", BOOK_SERIES_KEY:"", BOOK_VOLUME_TEXT:""};
 }
 function libraryData(){
-  const books = S.lib.books || [], rows = books.map(bookRow);
+  const books = S.lib.books || [], byBranch = new Map(books.map(b => [b.branch, b])), ser = S.lib.series || [], rows = [], seen = new Set();
+  // Bücher einer Serie zuerst, gruppiert und in Bandreihenfolge (#116, wie render_view.library_view); danach die übrigen
+  ser.forEach((s, si) => (s.volumes || []).forEach((br, n) => { const b = byBranch.get(br); if (b && !seen.has(br)){ rows.push(Object.assign(bookRow(b), {BOOK_SERIES:s.id, BOOK_SERIES_TITLE:s.title || s.id, BOOK_SERIES_KEY:"S" + (si + 1), BOOK_VOLUME_NUMBER:n + 1, BOOK_VOLUME_TEXT:"Band " + (n + 1)})); seen.add(br); } }));
+  books.forEach(b => { if (!seen.has(b.branch)) rows.push(bookRow(b)); });
+  const emptySeries = ser.filter(s => !(s.volumes || []).some(br => byBranch.has(br))).map(s => ({S_ID:s.id, S_TITLE:s.title || s.id, S_KEY:"S" + (ser.indexOf(s) + 1)}));
   const editions = books.flatMap(b => (b.editions || []).map(e => { const n = e && typeof e === "object" ? (e.number || e.edition) : e; return n ? {E_BOOK_BRANCH:b.branch, E_NUMBER:n, E_TEXT:"Auflage " + n, E_DATE_TEXT:deDate((e && (e.date || e.published)) || ""), E_TAG:(e && e.tag) || ""} : null; }).filter(Boolean));
-  const d = {LANGUAGE:"de", LIBRARY_NAME:S.owner + "/" + S.repo, BOOK_COUNT_TEXT:plural(rows.length, "Buch", "Bücher"), JOBS_TEXT:jobsText(["done", "failed", "waiting", "waiting_budget"].reduce((t, k) => (t[k] = books.reduce((n, b) => n + ((b.jobs || {})[k] || 0), 0), t), {}), true), EMPTY:rows.length ? "" : "1", UPDATED_TEXT:"", SESSION_COUNT_TEXT:"", BOOKS:rows};
+  const d = {LANGUAGE:"de", LIBRARY_NAME:S.owner + "/" + S.repo, BOOK_COUNT_TEXT:plural(rows.length, "Buch", "Bücher") + (ser.length ? " · " + plural(ser.length, "Serie", "Serien") : ""), JOBS_TEXT:jobsText(["done", "failed", "waiting", "waiting_budget"].reduce((t, k) => (t[k] = books.reduce((n, b) => n + ((b.jobs || {})[k] || 0), 0), t), {}), true), EMPTY:rows.length ? "" : "1", UPDATED_TEXT:"", SESSION_COUNT_TEXT:"", BOOKS:rows};
   if (editions.length) d.EDITIONS = editions;
+  if (emptySeries.length) d.EMPTY_SERIES = emptySeries;
   return d;
 }
 const base = () => ({LANGUAGE:"de", HEAD_SHA:S.head});
