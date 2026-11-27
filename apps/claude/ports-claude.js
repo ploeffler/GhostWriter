@@ -26,7 +26,7 @@ function fileOf(res){
    git.listPRs({head, base, perPage, owner, repo}) → [PR] (head/base als Branch-Namen) · git.prCommits(nr) → [Commit] · git.createBranch(name, from)
    git.createPR({head, base, title, body}) · git.mergePR(nr, {title, expectedHeadSha}) · git.updatePRBranch(nr) · git.pushFiles(branch, files, message, action)
    git.me() → Login|"" · git.repoInfo(owner, repo, full) → Repository|null · git.listBranches(owner, repo, seite) → [Branch]
-   ai: S.sample (oder null) · store: localStorage · agent: Kennung in Commit-Nachrichten · noChat: true blendet die Chat-Seitenleiste aus */
+   ai: S.sample (oder null) · store: localStorage · agent: Kennung in Commit-Nachrichten · noChat: true blendet die Chat-Seitenleiste aus · outbox (optional, nur die eigene Web-App): Änderungen ohne Netz lokal sichern, siehe apps/web/outbox-web.js */
 const refOf = ref => ref ? (/^[0-9a-f]{40}$/.test(ref) ? ref : "refs/heads/" + ref) : "";
 const arr = r => Array.isArray(r && r.payload) ? r.payload : [];
 const GW_PORTS = {

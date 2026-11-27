@@ -1,6 +1,6 @@
 /* ---------- Schreiben ins Repository (ein Commit je Aufgabe, Arbeits-Branch, Änderungspaket) ---------- */
-async function prepareWork(){
-  const b = S.book, work = workOf(b);
+async function prepareWork(book){
+  const b = book || S.book, work = workOf(b);
   if (await openPR(b)) return work;
   const bk = await getFile("ghostwriter.yml", b.branch, true);
   const wk = await getFile("ghostwriter.yml", work, true).catch(() => null);
@@ -18,7 +18,8 @@ async function commit(files, message, opts){
   const b = S.book, work = workOf(b);
   files = files.filter(f => f && typeof f.content === "string");
   if (!files.length) return {nothing:true};
-  await GW_PORTS.git.pushFiles(work, files, message, opts && opts.action);
+  try { await GW_PORTS.git.pushFiles(work, files, message, opts && opts.action); }
+  catch (e) { if (GW_PORTS.outbox && e && (e.code === "offline" || e.code === "server_unavailable")) return localCommit(files, message, opts); throw e; }
   let pr = await openPR(b), note = "";
   if (!pr){ try { await GW_PORTS.git.createPR({head:work, base:b.branch, title:`GhostWriter: Änderungen für ${b.branch}`, body:"Angelegt mit " + GW_PORTS.agent + ". Übernahme ins Buch nur nach ausdrücklicher Bestätigung."}); pr = await openPR(b); } catch (e) { note = errText(e); } }
   if (pr) await prCommits(pr);
@@ -26,8 +27,20 @@ async function commit(files, message, opts){
   await loadBookData(work, files);
   return {pr, note};
 }
+/* Ohne Netz (nur Anschlüsse mit Outbox, #662): erst auf diesem Gerät sichern, später hochladen. Gelesen wird die lokale Fassung sofort. */
+async function localCommit(files, message, opts){
+  const b = S.book;
+  files = files.filter(f => f && typeof f.content === "string");
+  if (!files.length) return {nothing:true};
+  const seen = {}; files.forEach(f => { const o = S.files.get(S.readRef + "|" + f.path); seen[f.path] = (o && o.sha) || null; });   // null: Stand unbekannt, keine Prüfung
+  Object.assign(seen, (opts && opts.seen) || {});                                                                                    // der Stand, auf dem das Formular beruhte, geht vor
+  const n = await GW_PORTS.outbox.add({repo:S.owner + "/" + S.repo, book:{branch:b.branch, work_branch:b.work_branch || ""}, files, message, action:opts && opts.action, seen});
+  applyOverlay(S.readRef, files);
+  return {local:true, pending:n};
+}
 function savedMsg(what, r){
   if (r.nothing) return {kind:"info", html:"Keine Änderungen – nichts gespeichert."};
+  if (r.local) return {kind:"warn", html:`<b>${esc(what)}</b> Nur auf diesem Gerät gespeichert, noch nicht hochgeladen. Es wird hochgeladen, sobald GitHub wieder erreichbar ist; oben steht, was wartet.`};
   return r.pr ? {kind:"ok", html:`<b>${esc(what)}</b> Änderungspaket <a href="${esc(r.pr.url)}" target="_blank" rel="noopener">#${r.pr.number}</a> ist offen – übernehmen kannst du es in der Projektübersicht.`}
               : {kind:"warn", html:`<b>${esc(what)}</b> Gespeichert auf dem Arbeits-Branch. Das Änderungspaket konnte nicht angelegt werden: ${esc(r.note)}`};
 }
@@ -121,8 +134,10 @@ async function saveSection(data){
   const x = allSecs().find(v => v.s.id === data.section_id); if (!x) return;
   const seen = S.secFile; busy("Wird gespeichert …");
   try {
-    const work = await prepareWork();
-    const cur = await getFile(x.s.path, work, true);
+    // ohne Netz (oder solange Älteres wartet) auf Grundlage des geladenen Stands lokal sichern; sonst wie bisher gegen den Arbeits-Branch
+    const local = !!(GW_PORTS.outbox && seen && seen.text != null && (GW_PORTS.outbox.offline() || await GW_PORTS.outbox.pending(S.book.branch)));
+    const work = local ? workOf(S.book) : await prepareWork();
+    const cur = local ? {text:seen.text, sha:seen.sha} : await getFile(x.s.path, work, true);
     if (seen && seen.sha && cur.sha && seen.sha !== cur.sha && seen.text !== cur.text) throw {message:"Der Abschnitt wurde inzwischen an anderer Stelle geändert. Lade ihn neu (deine Eingaben vorher kopieren)."};
     const h = front(cur.text), ap = h.approvals || {};
     let md = cur.text;
@@ -132,7 +147,8 @@ async function saveSection(data){
       md = setBlock(md, "Manuskript", data.manuscript);
     }
     if (data.fact_check) md = setFact(md, data.fact_check);
-    const r = await commit(md === cur.text ? [] : [{path:x.s.path, content:md}], `Abschnitt ${S.secNo} „${x.s.title}“ gespeichert`, {action:"section.update"});
+    const files = md === cur.text ? [] : [{path:x.s.path, content:md}], what = `Abschnitt ${S.secNo} „${x.s.title}“ gespeichert`;
+    const r = local ? await localCommit(files, what, {action:"section.update", seen:{[x.s.path]: cur.sha || null}}) : await commit(files, what, {action:"section.update"});
     S.msg = savedMsg("Gespeichert.", r);
   } catch (e) { S.msg = failMsg(e); }
   show("section", x.s.id);

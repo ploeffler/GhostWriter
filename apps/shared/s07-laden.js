@@ -22,10 +22,13 @@ async function loadBookData(ref, overlay){
   buildStruct();
   S.checks = []; try { const d = window.jsyaml.load((await getFile("editorial/checks.yml", ref)).text); S.checks = ((d && d.checks) || []).filter(e => e && e.kind && e.result); } catch (e) {}
   S.rules = await getFile("SCHREIBREGELN.md", ref).then(f => f.text.slice(0, 8000)).catch(() => "");
-  if (overlay){ // eben Geschriebenes sofort zeigen, auch wenn GitHub noch den alten Stand liefert
-    const old = new Map(); overlay.forEach(f => { const k = ref + "|" + f.path, o = S.files.get(k); if (!o || o.text !== f.content) S.files.set(k, {text:f.content, commit:(o && o.commit) || S.head, sha:""}); });
-    const g = overlay.find(f => f.path === "ghostwriter.yml"); if (g){ try { S.cfg = window.jsyaml.load(g.content) || S.cfg; } catch (e) {} buildStruct(); }
-  }
+  // nur lokal gespeicherte Änderungen (Anschluss mit Outbox, #662) liegen über dem Stand von GitHub, bis sie hochgeladen sind
+  const pend = GW_PORTS.outbox && S.book ? await GW_PORTS.outbox.overlay(S.book.branch).catch(() => []) : [];
+  if (pend.length || overlay) applyOverlay(ref, pend.concat(overlay || []));
+}
+function applyOverlay(ref, overlay){ // eben Geschriebenes sofort zeigen, auch wenn GitHub noch den alten Stand liefert
+  overlay.forEach(f => { const k = ref + "|" + f.path, o = S.files.get(k); if (!o || o.text !== f.content) S.files.set(k, {text:f.content, commit:(o && o.commit) || S.head, sha:""}); });
+  const g = overlay.slice().reverse().find(f => f.path === "ghostwriter.yml"); if (g){ try { S.cfg = window.jsyaml.load(g.content) || S.cfg; } catch (e) {} buildStruct(); }
 }
 function buildStruct(){
   const ixC = new Map((S.idx.chapters || []).map(c => [c.id, c])), ixS = new Map((S.idx.chapters || []).flatMap(c => (c.sections || []).map(s => [s.id, s])));
