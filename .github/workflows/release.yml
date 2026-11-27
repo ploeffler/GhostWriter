@@ -81,6 +81,9 @@ jobs:
       - name: Dokumentationswebsite bauen und prüfen
         if: ${{ inputs.prerelease == '' }}
         run: python scripts/package_docs_site.py
+      - name: Eigene Web-App unter /app/ einbeziehen
+        if: ${{ inputs.prerelease == '' }}
+        run: python scripts/package_web_app.py --output build/pages/app
       - name: Tag und GitHub-Release anlegen
         if: ${{ !inputs.dry_run }}
         run: |

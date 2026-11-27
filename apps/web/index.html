@@ -86,7 +86,8 @@ aside.claude{position:sticky;top:70px;display:flex;flex-direction:column;max-hei
 .unsavedbar .sub{margin-top:4px}
 .unsavedbar details{margin-top:4px}
 .unsavedbar ul{margin:4px 0 0;padding-left:18px}
-.gear{margin-left:auto;background:none;border:0;cursor:pointer;font-size:20px;padding:6px 10px;color:inherit}
+#runsbtn{margin-left:auto}
+.gear{background:none;border:0;cursor:pointer;font-size:20px;padding:6px 10px;color:inherit}
 #errtoast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);max-width:92vw;background:#3d1f0a;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;z-index:20}
 #errtoast .link{color:#ffd9b8}
 </style>
@@ -95,6 +96,7 @@ aside.claude{position:sticky;top:70px;display:flex;flex-direction:column;max-hei
 <header>
   <button class="brand" id="home"><svg viewBox="0 0 96 96" aria-hidden="true"><g transform="translate(4 2)"><path class="logo-a" d="M70 12 C 48 18, 32 36, 28 62 L 34 64 C 40 44, 52 30, 70 12 Z"/><path class="logo-b" d="M70 12 C 74 30, 64 48, 40 62 L 34 64 C 52 48, 62 32, 70 12 Z"/><path class="logo-c" d="M28 62 L 22 80 L 34 64 Z"/><path class="logo-w" d="M22 80 q 6 -6 12 0 t 12 0 t 12 0"/><circle class="logo-d" cx="52" cy="38" r="3"/><circle class="logo-d" cx="60" cy="30" r="3"/></g></svg>GhostWriter</button>
   <nav class="crumbs" id="crumbs" aria-label="Pfad"></nav>
+  <button class="gear" id="runsbtn" aria-label="Ausgabe und Läufe" title="Ausgabe und Läufe"><i class="ti ti-printer"></i></button>
   <button class="gear" id="gear" aria-label="Einstellungen" title="Einstellungen"><i class="ti ti-settings"></i></button>
 </header>
 <div id="errtoast" role="alert" hidden></div>
@@ -144,7 +146,7 @@ function errText(e){
   if (c === "server_unavailable") return "GitHub antwortet gerade nicht. Bitte gleich noch einmal versuchen.";
   if (c === "http_401") return "Der Token ist ungültig oder abgelaufen. Melde dich mit einem neuen Token an.";
   if (c === "http_403" && /rate limit/i.test(m)) return "GitHub hat die Anfragen für den Moment begrenzt. Bitte in einigen Minuten noch einmal versuchen.";
-  if (c === "http_403") return "GitHub verweigert den Zugriff. Der Token braucht für dieses Repository „Contents“ und „Pull requests“ mit Lesen und Schreiben.";
+  if (c === "http_403") return "GitHub verweigert den Zugriff. Der Token braucht für dieses Repository „Contents“ und „Pull requests“ mit Lesen und Schreiben (zum Starten von Läufen zusätzlich „Actions“ mit Lesen und Schreiben).";
   if (c === "http_404") return "Nicht gefunden. Prüfe owner/repo und ob der Token genau dieses Repository enthält.";
   if (c === "http_409" || c === "http_422") return "GitHub hat die Änderung nicht angenommen: " + m.slice(0, 200);
   return "Fehler: " + m.slice(0, 300);
@@ -229,6 +231,16 @@ const GW_PORTS = {
     },
     async me(){ const r = await rest("GET", "/user"); return (r && r.login) || ""; },
     async repoInfo(owner, repo){ return rest("GET", `/repos/${owner}/${repo}`).catch(() => null); },
+    async dispatch(file, ref, inputs){ await rest("POST", `${repoBase()}/actions/workflows/${encodeURIComponent(file)}/dispatches`, {ref, inputs:inputs || {}}); },
+    async listRuns(file, q){
+      q = q || {};
+      const r = await rest("GET", `${repoBase()}${file ? "/actions/workflows/" + encodeURIComponent(file) + "/runs" : "/actions/runs"}?per_page=${q.perPage || 15}${q.branch ? "&branch=" + encodeURIComponent(q.branch) : ""}${q.event ? "&event=" + q.event : ""}`);
+      return ((r && r.workflow_runs) || []).map(x => ({id:x.id, name:x.name || x.display_title || "", status:x.status, conclusion:x.conclusion, url:x.html_url, created:x.created_at, branch:x.head_branch, event:x.event}));
+    },
+    async listReleases(){
+      const r = await rest("GET", `${repoBase()}/releases?per_page=6`);
+      return (Array.isArray(r) ? r : []).map(x => ({name:x.name || x.tag_name, tag:x.tag_name, url:x.html_url, pre:!!x.prerelease, date:x.published_at, assets:(x.assets || []).map(a => ({name:a.name, url:a.browser_download_url, size:a.size}))}));
+    },
     async listBranches(owner, repo, page){ const r = await rest("GET", `/repos/${owner}/${repo}/branches?per_page=100&page=${page || 1}`); return Array.isArray(r) ? r : []; }
   }
 };
@@ -236,7 +248,7 @@ const GW_PORTS = {
 function connectView(){
   const t = token();
   const login = `<form id="fToken" style="display:flex;gap:8px;flex-wrap:wrap"><input class="in" id="tokenIn" type="password" style="flex:1 1 240px" placeholder="GitHub-Token (Fine-grained)" autocomplete="off"><button class="btn pri">Anmelden</button></form>
-    <details class="dim" style="margin-top:14px" open><summary>Token anlegen</summary><ol><li>Auf GitHub unter <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Settings → Developer settings → Fine-grained tokens</a> einen Token anlegen.</li><li><b>Repository access:</b> nur das eine Repository mit deinen Büchern.</li><li><b>Repository permissions:</b> „Contents“ und „Pull requests“ jeweils <i>Read and write</i>.</li><li>Token kopieren und hier einfügen. Er bleibt nur in diesem Browser gespeichert, unter „Abmelden“ löschst du ihn wieder.</li></ol></details>`;
+    <details class="dim" style="margin-top:14px" open><summary>Token anlegen</summary><ol><li>Auf GitHub unter <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Settings → Developer settings → Fine-grained tokens</a> einen Token anlegen.</li><li><b>Repository access:</b> nur das eine Repository mit deinen Büchern.</li><li><b>Repository permissions:</b> „Contents“ und „Pull requests“ jeweils <i>Read and write</i>; zusätzlich „Actions“ <i>Read and write</i>, wenn du Läufe starten willst (Probedruck, Vorabfassung, Auschecken).</li><li>Token kopieren und hier einfügen. Er bleibt nur in diesem Browser gespeichert, unter „Abmelden“ löschst du ihn wieder.</li></ol></details>`;
   const repo = `<p class="dim" style="margin:0 0 10px">Angemeldet. <button class="link" data-act="logout">Abmelden</button></p>
     <form id="fConnect" style="display:flex;gap:8px;flex-wrap:wrap"><input class="in" id="repoIn" style="flex:1 1 240px" placeholder="owner/repo, z. B. chillyconcane/YAWA" value="${esc(store.get("gw.repo") || "")}" autocomplete="off"><button class="btn pri">Öffnen</button></form>`;
   $("app").innerHTML = `<div class="one"><div class="card"><div style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><i class="ti ti-books" style="font-size:22px;color:#e8731c"></i><b style="font-size:20px">GhostWriter öffnen</b></div>
@@ -672,6 +684,107 @@ document.addEventListener("click", async ev => {
   if (a === "set-clear-errors"){ errStore([]); settingsView(); }
 });
 document.addEventListener("change", ev => { if (ev.target.dataset && ev.target.dataset.act === "set-device") store.set("gw.reportDevice", ev.target.checked ? "1" : "0"); });
+/* ---------- Ausgabe und Läufe: Actions starten und Ergebnisse holen (#662) ----------
+   Probedruck, Vorabfassung, Manuskript ausgeben und Auschecken zum Gegenlesen starten die Actions des Buch-Repositorys per workflow_dispatch (Vertrag: templates/ui/BEFUELLUNG.md,
+   Aktionstabelle). Die App zeigt die letzten Läufe mit Stand und Link (Ergebnisse stehen auf der Laufseite unter „Artifacts“, 14 Tage) und die letzten Releases mit Dateien.
+   Der Token braucht dafür zusätzlich „Actions“: Lesen und Schreiben. Was Geld oder sichtbare Spuren kostet (Vorabfassung: Tag und Pre-Release; Auschecken sperrt einen Bereich),
+   fragt vorher mit einem zweiten Klick nach; nie wird ohne Klick gestartet. Es gibt keinen Abruf im Takt: nur solange ein gestarteter Lauf läuft und die Ansicht offen ist. */
+const RUN = {back:null, timer:0, until:0, focus:"", pending:{}, msg:""};
+const RUN_FORMATS = [["pdf", "PDF"], ["pdf_print", "Druck-PDF"], ["booklet", "Booklet"], ["cover", "Umschlag"], ["docx", "DOCX"], ["epub", "EPUB"]];
+const RUN_FILES = {proof:"proof.yml", preview:"preview.yml", manuscript:"manuscript.yml", checkout:"checkout.yml"};
+const RUN_STATE = r => r.status !== "completed" ? ["läuft", "⏳"] : r.conclusion === "success" ? ["fertig", "✓"] : r.conclusion === "cancelled" ? ["abgebrochen", "⏹"] : r.conclusion === "skipped" ? ["übersprungen", "–"] : ["fehlgeschlagen", "✗"];
+const runsActive = rs => rs.some(r => r.status !== "completed");
+function runErr(e){
+  const c = e && e.code;
+  if (c === "http_404") return "In diesem Buch fehlt die Action oder der Zweig. Zuerst GhostWriter aktualisieren (Actions → GhostWriter aktualisieren).";
+  if (c === "http_403") return "Der Token darf keine Läufe starten. Lege ihn mit dem Recht „Actions“ (Lesen und Schreiben) neu an.";
+  if (c === "http_422") return "GitHub hat den Start nicht angenommen: " + String((e && e.message) || "").slice(0, 200);
+  return errText(e);
+}
+function runFormats(prefix, def){ return RUN_FORMATS.map(f => `<label style="margin-right:10px;font-size:13px"><input type="checkbox" name="${prefix}-fmt" value="${f[0]}" ${def.includes(f[0]) ? "checked" : ""}> ${f[1]}</label>`).join(""); }
+async function runsView(){
+  if (!RUN.back || S.view !== "runs") RUN.back = {view:S.view || "connect", arg:S.view === "section" ? S.sec && S.sec.id : S.chap};
+  S.view = "runs"; crumbs(); busy("Läufe werden gelesen …");
+  let runs = [], rels = [], err = "";
+  if (S.owner){ try { runs = await GW_PORTS.git.listRuns(null, {perPage:15}); } catch (e) { err = runErr(e); } try { rels = await GW_PORTS.git.listReleases(); } catch (e) {} }
+  const book = S.book, open = k => RUN.focus === k ? "open" : "";
+  const none = !S.owner ? '<p class="dim">Zuerst ein Repository öffnen.</p>' : !book ? '<p class="dim">Zum Starten zuerst ein Buch öffnen (der Lauf gilt für den Stand dieses Buchs).</p>' : "";
+  const forms = !S.owner || !book ? none : `
+    <details ${open("proof")}><summary><b>Probedruck</b> <span class="dim">· PDF zum Prüfen des Satzes, nichts wird veröffentlicht</span></summary><form data-run="proof" style="margin:8px 0">${runFormats("proof", ["pdf"])}
+      <div style="margin:6px 0"><input class="in" name="chapters" placeholder="Kapitel, z. B. 1-4 oder 1,3 (leer = alle)" style="max-width:340px"></div><button class="btn pri" data-run-start="proof">Probedruck starten</button></form></details>
+    <details ${open("preview")}><summary><b>Vorabfassung</b> <span class="dim">· legt einen Tag und ein Pre-Release an</span></summary><form data-run="preview" style="margin:8px 0">${runFormats("preview", [])}
+      <div style="margin:6px 0"><input class="in" name="chapters" placeholder="Kapitel, z. B. 1-4 oder 1,3 (leer = alle)" style="max-width:340px"></div><div class="dim" style="font-size:12px;margin-bottom:6px">Ohne Auswahl gelten die Formate aus den Einstellungen des Buchs.</div>
+      <button class="btn pri" data-run-start="preview" data-run-confirm="Es entsteht ein Tag <kurztitel>-vorab-N und ein im Repository sichtbares Pre-Release.">Vorabfassung anlegen</button></form></details>
+    <details ${open("manuscript")}><summary><b>Manuskript ausgeben</b> <span class="dim">· PDF oder Lesefassung</span></summary><form data-run="manuscript" style="margin:8px 0">
+      <select class="in" name="format" style="max-width:260px"><option value="pdf">PDF (ganzes Buch oder ein Kapitel)</option><option value="md">Lesefassung (Kapitel oder Abschnitt, Pflicht)</option></select>
+      <div style="margin:6px 0"><input class="in" name="chapter" placeholder="Kapitel (5) oder Abschnitt (5.1); leer = ganzes Buch" style="max-width:340px"></div><button class="btn pri" data-run-start="manuscript">Manuskript ausgeben</button></form></details>
+    <details ${open("checkout")}><summary><b>Auschecken zum Gegenlesen</b> <span class="dim">· sperrt den Bereich und baut DOCX und PDF</span></summary><form data-run="checkout" style="margin:8px 0">
+      <div style="margin:6px 0"><input class="in" name="chapters" placeholder="Kapitel, z. B. 3-5 oder 1,3" style="max-width:340px"> <label style="font-size:13px"><input type="checkbox" name="book"> ganzes Buch</label></div>
+      <div style="margin:6px 0"><input class="in" name="reader" placeholder="Gegenleser (GitHub-Login oder Name) – Pflicht" style="max-width:340px"> <input class="in" name="until" placeholder="Frist JJJJ-MM-TT (optional)" style="max-width:200px"></div>
+      <label style="font-size:13px"><input type="checkbox" name="dry_run"> Probelauf (nichts sperren, nichts committen)</label>
+      <div style="margin-top:6px"><button class="btn pri" data-run-start="checkout" data-run-confirm="Der Bereich wird gesperrt und es werden Dateien im Buch abgelegt.">Auschecken</button></div></form></details>`;
+  const rows = runs.length ? `<table class="kv">${runs.map(r => { const s = RUN_STATE(r); return `<tr><td>${s[1]} ${s[0]}</td><td>${esc(r.name)}<div class="dim">${esc(r.branch || "")} · ${esc(fmtTime(Date.parse(r.created)))}</div></td><td><a href="${esc(r.url)}" target="_blank" rel="noopener">Öffnen</a></td></tr>`; }).join("")}</table><p class="dim" style="font-size:12px">Ergebnisse (PDF, DOCX …) stehen auf der Laufseite unter „Artifacts“ und bleiben 14 Tage.</p>` : `<p class="dim">${err ? esc(err) : "Noch keine Läufe."}</p>`;
+  const rel = rels.length ? `<table class="kv">${rels.map(r => `<tr><td>${esc(r.name)}${r.pre ? ' <span class="dim">(Vorabfassung)</span>' : ""}<div class="dim">${esc(fmtTime(Date.parse(r.date)))}</div></td><td>${r.assets.length ? r.assets.map(a => `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.name)}</a> <span class="dim">${fmtBytes(a.size)}</span>`).join("<br>") : `<a href="${esc(r.url)}" target="_blank" rel="noopener">Öffnen</a>`}</td></tr>`).join("")}</table>` : '<p class="dim">Noch keine Auflagen oder Vorabfassungen.</p>';
+  $("app").innerHTML = `<div class="one"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:20px">Ausgabe und Läufe</b><button class="btn" data-act="runs-back">Zurück</button></div>${msgBox()}
+    <section class="card"><b>Starten</b><p class="dim" style="margin:6px 0">Startet eine Action im Buch-Repository. Der Token braucht dafür zusätzlich das Recht „Actions“ (Lesen und Schreiben). Ohne dieses Recht kannst du die Läufe nur ansehen.${RUN.msg ? `<br><b>${esc(RUN.msg)}</b>` : ""}</p>${forms}</section>
+    <section class="card"><div style="display:flex;justify-content:space-between"><b>Letzte Läufe</b><button class="btn" data-act="runs-refresh" title="Neu laden"><i class="ti ti-refresh"></i></button></div>${rows}</section>
+    <section class="card"><b>Auflagen und Vorabfassungen</b>${rel}<p class="dim" style="font-size:12px">Eine neue <b>Auflage</b> (Auflagen-Änderungspaket mit Freigaben) legst du in dieser Fassung noch im Chat mit GhostWriter an; danach baut die Action „Auflage veröffentlichen“ und das Ergebnis erscheint hier.</p></section></div>`;
+  window.scrollTo(0, 0);
+  runsWatch(runs);
+}
+function runsWatch(runs){
+  clearTimeout(RUN.timer);
+  if (S.view !== "runs" || Date.now() > RUN.until || !(runsActive(runs) || Object.keys(RUN.pending).length)) return;
+  RUN.timer = setTimeout(async () => {
+    if (S.view !== "runs" || !S.owner) return;
+    try {
+      const rs = await GW_PORTS.git.listRuns(null, {perPage:15});
+      Object.keys(RUN.pending).forEach(k => { if (rs.some(r => (r.name || "").length && Date.parse(r.created) >= RUN.pending[k] - 15000 && (r.event === "workflow_dispatch"))) delete RUN.pending[k]; });
+      RUN.msg = Object.keys(RUN.pending).length ? "Gestartet. Warte auf den Lauf …" : (runsActive(rs) ? "Der Lauf läuft." : "Der Lauf ist beendet.");
+      await runsView();
+    } catch (e) {}
+  }, 6000);
+}
+async function runDispatch(kind, form, confirmed){
+  const f = {}; new FormData(form).forEach((v, k) => { f[k] = f[k] === undefined ? v : f[k] + "," + v; });
+  const fmts = [...form.querySelectorAll('input[name$="-fmt"]:checked')].map(x => x.value);
+  let inputs = {};
+  if (kind === "proof") inputs = {formats:fmts.join(",") || "pdf", chapters:(f.chapters || "").trim()};
+  if (kind === "preview") inputs = {formats:fmts.join(","), chapters:(f.chapters || "").trim()};
+  if (kind === "manuscript"){ inputs = {format:f.format || "pdf", chapter:(f.chapter || "").trim()}; if (inputs.format === "md" && !inputs.chapter) return "Für die Lesefassung bitte ein Kapitel oder einen Abschnitt angeben."; }
+  if (kind === "checkout"){
+    inputs = {chapters:(f.chapters || "").trim(), book:f.book ? "true" : "false", reader:(f.reader || "").trim(), until:(f.until || "").trim(), dry_run:f.dry_run ? "true" : "false"};
+    if (!inputs.reader) return "Bitte den Gegenleser angeben.";
+    if (!f.book && !inputs.chapters) return "Bitte Kapitel angeben oder „ganzes Buch“ wählen.";
+    if (inputs.until && !/^\d{4}-\d{2}-\d{2}$/.test(inputs.until)) return "Die Frist bitte als JJJJ-MM-TT angeben.";
+  }
+  if (/[^0-9,.\- ]/.test(inputs.chapters || "") || /[^0-9.]/.test(inputs.chapter || "")) return "Kapitel bitte nur als Zahlen angeben, z. B. 1-4 oder 1,3.";
+  await GW_PORTS.git.dispatch(RUN_FILES[kind], S.book.branch, inputs);
+  RUN.pending[kind] = Date.now(); RUN.until = Date.now() + 10 * 60 * 1000;
+  return "";
+}
+GW_PORTS.views = Object.assign(GW_PORTS.views || {}, {runs:runsView});
+GW_PORTS.actions = {
+  "edition.create.open": () => { RUN.focus = ""; return runsView(); }, "edition.proof": () => { RUN.focus = "proof"; return runsView(); }, "edition.preview": () => { RUN.focus = "preview"; return runsView(); },
+  "manuscript.export": () => { RUN.focus = "manuscript"; return runsView(); }, "checkout.start": () => { RUN.focus = "checkout"; return runsView(); }
+};
+document.addEventListener("click", async ev => {
+  const g = ev.target.closest && ev.target.closest("#runsbtn"); if (g){ ev.preventDefault(); RUN.focus = ""; RUN.msg = ""; return runsView(); }
+  const a = ev.target.closest && ev.target.closest("[data-act]");
+  if (a && a.dataset.act === "runs-back"){ ev.preventDefault(); clearTimeout(RUN.timer); const k = RUN.back || {view:"connect"}; RUN.back = null; return show(k.view, k.arg); }
+  if (a && a.dataset.act === "runs-refresh"){ ev.preventDefault(); RUN.until = Date.now() + 2 * 60 * 1000; return runsView(); }
+  const b = ev.target.closest && ev.target.closest("[data-run-start]"); if (!b) return;
+  ev.preventDefault();
+  const kind = b.dataset.runStart, form = b.closest("form"), hint = b.dataset.runConfirm;
+  if (hint && b.dataset.armed !== "1"){   // zweiter Klick ist die ausdrückliche Bestätigung
+    b.dataset.armed = "1"; b.dataset.label = b.textContent; b.textContent = "Ja, jetzt starten";
+    const n = document.createElement("div"); n.className = "dim"; n.style.cssText = "font-size:12px;margin-top:4px"; n.textContent = hint; n.setAttribute("data-run-hint", ""); b.parentNode.insertBefore(n, b.nextSibling); return;
+  }
+  b.disabled = true; b.textContent = "Wird gestartet …";
+  try { const problem = await runDispatch(kind, form); if (problem){ b.disabled = false; b.textContent = b.dataset.label || "Starten"; b.dataset.armed = ""; const h = form.querySelector("[data-run-hint]"); if (h) h.remove(); RUN.msg = ""; alert(problem); return; }
+    RUN.focus = ""; RUN.msg = "Gestartet. Warte auf den Lauf …"; await runsView();
+  } catch (e) { S.msg = {kind:"err", html:esc(runErr(e))}; b.disabled = false; b.textContent = b.dataset.label || "Starten"; b.dataset.armed = ""; await runsView(); }
+});
 async function getFile(path, ref, fresh){
   const key = (ref || "") + "|" + path;
   if (!fresh && S.files.has(key)) return S.files.get(key);
@@ -903,7 +1016,7 @@ const NA = /*GW-NA*/{"analysis.apply":"Das geht im Chat.","analysis.open":"Das g
 function applyNa(root){
   root.querySelectorAll("[data-a],[data-gw-send]").forEach(b => {
     const a = b.getAttribute("data-a") || b.getAttribute("data-gw-send") || "", why = Object.prototype.hasOwnProperty.call(NA, a) ? NA[a] : "";
-    if (!why || b.hasAttribute("data-gw-na")) return;
+    if (!why || b.hasAttribute("data-gw-na") || (GW_PORTS.actions && GW_PORTS.actions[a])) return;
     b.setAttribute("disabled", ""); b.setAttribute("aria-disabled", "true"); b.setAttribute("data-gw-na", why); b.setAttribute("title", why); b.classList.add("gw-na");
   });
 }
@@ -1097,7 +1210,8 @@ async function act({action, data, text}){
       case "character.create": return characterCreate(data);
       case "character.update": return characterUpdate(data);
       case "run.start": return runStart(data);
-      default: return unsupported(text, action, data);
+      default: if (GW_PORTS.actions && GW_PORTS.actions[action]) return GW_PORTS.actions[action](data);   // Aktionen, die nur ein Anschluss kann (eigene Web-App: Actions starten)
+        return unsupported(text, action, data);
     }
   } catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; return show(S.view === "form" ? "project" : S.view, S.view === "section" ? S.sec && S.sec.id : S.chap); }
 }

@@ -15,7 +15,7 @@ function errText(e){
   if (c === "server_unavailable") return "GitHub antwortet gerade nicht. Bitte gleich noch einmal versuchen.";
   if (c === "http_401") return "Der Token ist ungültig oder abgelaufen. Melde dich mit einem neuen Token an.";
   if (c === "http_403" && /rate limit/i.test(m)) return "GitHub hat die Anfragen für den Moment begrenzt. Bitte in einigen Minuten noch einmal versuchen.";
-  if (c === "http_403") return "GitHub verweigert den Zugriff. Der Token braucht für dieses Repository „Contents“ und „Pull requests“ mit Lesen und Schreiben.";
+  if (c === "http_403") return "GitHub verweigert den Zugriff. Der Token braucht für dieses Repository „Contents“ und „Pull requests“ mit Lesen und Schreiben (zum Starten von Läufen zusätzlich „Actions“ mit Lesen und Schreiben).";
   if (c === "http_404") return "Nicht gefunden. Prüfe owner/repo und ob der Token genau dieses Repository enthält.";
   if (c === "http_409" || c === "http_422") return "GitHub hat die Änderung nicht angenommen: " + m.slice(0, 200);
   return "Fehler: " + m.slice(0, 300);
@@ -100,6 +100,16 @@ const GW_PORTS = {
     },
     async me(){ const r = await rest("GET", "/user"); return (r && r.login) || ""; },
     async repoInfo(owner, repo){ return rest("GET", `/repos/${owner}/${repo}`).catch(() => null); },
+    async dispatch(file, ref, inputs){ await rest("POST", `${repoBase()}/actions/workflows/${encodeURIComponent(file)}/dispatches`, {ref, inputs:inputs || {}}); },
+    async listRuns(file, q){
+      q = q || {};
+      const r = await rest("GET", `${repoBase()}${file ? "/actions/workflows/" + encodeURIComponent(file) + "/runs" : "/actions/runs"}?per_page=${q.perPage || 15}${q.branch ? "&branch=" + encodeURIComponent(q.branch) : ""}${q.event ? "&event=" + q.event : ""}`);
+      return ((r && r.workflow_runs) || []).map(x => ({id:x.id, name:x.name || x.display_title || "", status:x.status, conclusion:x.conclusion, url:x.html_url, created:x.created_at, branch:x.head_branch, event:x.event}));
+    },
+    async listReleases(){
+      const r = await rest("GET", `${repoBase()}/releases?per_page=6`);
+      return (Array.isArray(r) ? r : []).map(x => ({name:x.name || x.tag_name, tag:x.tag_name, url:x.html_url, pre:!!x.prerelease, date:x.published_at, assets:(x.assets || []).map(a => ({name:a.name, url:a.browser_download_url, size:a.size}))}));
+    },
     async listBranches(owner, repo, page){ const r = await rest("GET", `/repos/${owner}/${repo}/branches?per_page=100&page=${page || 1}`); return Array.isArray(r) ? r : []; }
   }
 };
@@ -107,7 +117,7 @@ const GW_PORTS = {
 function connectView(){
   const t = token();
   const login = `<form id="fToken" style="display:flex;gap:8px;flex-wrap:wrap"><input class="in" id="tokenIn" type="password" style="flex:1 1 240px" placeholder="GitHub-Token (Fine-grained)" autocomplete="off"><button class="btn pri">Anmelden</button></form>
-    <details class="dim" style="margin-top:14px" open><summary>Token anlegen</summary><ol><li>Auf GitHub unter <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Settings → Developer settings → Fine-grained tokens</a> einen Token anlegen.</li><li><b>Repository access:</b> nur das eine Repository mit deinen Büchern.</li><li><b>Repository permissions:</b> „Contents“ und „Pull requests“ jeweils <i>Read and write</i>.</li><li>Token kopieren und hier einfügen. Er bleibt nur in diesem Browser gespeichert, unter „Abmelden“ löschst du ihn wieder.</li></ol></details>`;
+    <details class="dim" style="margin-top:14px" open><summary>Token anlegen</summary><ol><li>Auf GitHub unter <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Settings → Developer settings → Fine-grained tokens</a> einen Token anlegen.</li><li><b>Repository access:</b> nur das eine Repository mit deinen Büchern.</li><li><b>Repository permissions:</b> „Contents“ und „Pull requests“ jeweils <i>Read and write</i>; zusätzlich „Actions“ <i>Read and write</i>, wenn du Läufe starten willst (Probedruck, Vorabfassung, Auschecken).</li><li>Token kopieren und hier einfügen. Er bleibt nur in diesem Browser gespeichert, unter „Abmelden“ löschst du ihn wieder.</li></ol></details>`;
   const repo = `<p class="dim" style="margin:0 0 10px">Angemeldet. <button class="link" data-act="logout">Abmelden</button></p>
     <form id="fConnect" style="display:flex;gap:8px;flex-wrap:wrap"><input class="in" id="repoIn" style="flex:1 1 240px" placeholder="owner/repo, z. B. chillyconcane/YAWA" value="${esc(store.get("gw.repo") || "")}" autocomplete="off"><button class="btn pri">Öffnen</button></form>`;
   $("app").innerHTML = `<div class="one"><div class="card"><div style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><i class="ti ti-books" style="font-size:22px;color:#e8731c"></i><b style="font-size:20px">GhostWriter öffnen</b></div>

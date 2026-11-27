@@ -23,7 +23,7 @@ const NA = /*GW-NA*/{"analysis.apply":"Das geht im Chat.","analysis.open":"Das g
 function applyNa(root){
   root.querySelectorAll("[data-a],[data-gw-send]").forEach(b => {
     const a = b.getAttribute("data-a") || b.getAttribute("data-gw-send") || "", why = Object.prototype.hasOwnProperty.call(NA, a) ? NA[a] : "";
-    if (!why || b.hasAttribute("data-gw-na")) return;
+    if (!why || b.hasAttribute("data-gw-na") || (GW_PORTS.actions && GW_PORTS.actions[a])) return;
     b.setAttribute("disabled", ""); b.setAttribute("aria-disabled", "true"); b.setAttribute("data-gw-na", why); b.setAttribute("title", why); b.classList.add("gw-na");
   });
 }
