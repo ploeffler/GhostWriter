@@ -4716,9 +4716,9 @@ def main():
     elif args.view == 'queue':   # Hintergrund-Warteschlange (#478): Vorlage warteschlange bzw. Textfassung
         import queue_view
         if args.text:
-            out = queue_view.text_view(base, config, language)
+            out = queue_view.text_view(base, config, language, args.timezone)
         else:
-            values, blocks = queue_view.widget_values(base, config, language)
+            values, blocks = queue_view.widget_values(base, config, language, args.timezone)
             out = fill('warteschlange.html', values, blocks)
     elif args.view == 'chapter':
         if getattr(args, 'scheibe', None) and args.text:
