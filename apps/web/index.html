@@ -544,7 +544,7 @@ document.addEventListener("change", ev => {
    zusammengefasst). „Fehler melden“ öffnet ein vorausgefülltes neues Issue im Hauptrepository; der Benutzer sieht den Text bei GitHub und schickt ihn selbst ab.
    Es gehen nur Technisches (Fehlerklasse, Programmversion, Schritt, bereinigte Meldung, Fingerabdruck, grober Browser) – kein Repository-, Branch-, Buchname,
    keine Pfade, keine Texte, keine Secrets. Gerätewerte nur grob und nur auf ausdrücklichen Wunsch. Die Arbeit geht nie verloren (liegt als „nur lokal“ in der Outbox). */
-const APP_VERSION = "1.5.0", ERR_KEY = "gw.errors", ERR_MAX = 30, UPSTREAM_DEFAULT = "ploeffler/GhostWriter";
+const APP_VERSION = "1.6.0", ERR_KEY = "gw.errors", ERR_MAX = 30, UPSTREAM_DEFAULT = "ploeffler/GhostWriter";
 function errUpstream(){
   const u = String((S.lib && S.lib.program && S.lib.program.upstream) || "").split(":")[0];
   return /^[\w.-]+\/[\w.-]+$/.test(u) ? u : UPSTREAM_DEFAULT;
