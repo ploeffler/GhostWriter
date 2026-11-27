@@ -88,6 +88,28 @@ def image_folders(config):
     return out
 
 
+def orphan_folders(base, config):
+    """Bildordner ohne passenden Abschnitt bzw. Teil (#684), z. B. nach dem Umbenennen: [(ordner, vermuteter neuer Abschnitt oder '')].
+    Vermutet wird der Abschnitt mit gleicher Nummer (`sec-01-01-…`), dessen Ordner es noch nicht gibt."""
+    base = Path(base)
+    known = {folder for _, folder in image_folders(config)}
+    sections = [s['id'] for ch in config['structure']['chapters'] for s in ch['sections']]
+    roots = [f'{ch["path"]}/images' for ch in config['structure']['chapters']] + ['matter/images']
+    out = []
+    for root in roots:
+        d = base / root
+        if not d.is_dir():
+            continue
+        for child in sorted(d.iterdir()):
+            rel = f'{root}/{child.name}'
+            if not child.is_dir() or rel in known:
+                continue
+            m = re.match(r'^(sec-\d+-\d+)-', child.name)
+            guess = next((x for x in sections if m and x.startswith(m.group(1) + '-') and not (base / root / x).is_dir()), '')
+            out.append((rel, guess))
+    return out
+
+
 def all_images(base, config):
     """{img-id: (beschreibung, bilddatei Path, ordner)} über alle Bildordner."""
     out = {}

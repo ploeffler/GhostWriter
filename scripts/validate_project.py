@@ -664,6 +664,19 @@ def manuscript_warnings(project_dir):
     return out
 
 
+def image_warnings(project_dir):
+    """Hinweis ohne Fehler (#684): Bildordner, die zu keinem Abschnitt bzw. Teil mehr passen (z. B. nach dem Umbenennen eines
+    Abschnitts). Das Bild wäre sonst in keiner Ansicht mehr erreichbar."""
+    base = Path(project_dir)
+    try:
+        import images
+        config = yaml.safe_load((base / 'ghostwriter.yml').read_text(encoding='utf-8')) or {}
+        return [f'{rel}: Bildordner ohne passenden Abschnitt' + (f' – vermutlich jetzt {guess} (Ordner umbenennen, section_id in den img-*.yml nachziehen)' if guess else '')
+                for rel, guess in images.orphan_folders(base, config)]
+    except Exception:   # noqa: BLE001 - Hinweise dürfen die Prüfung nie stören
+        return []
+
+
 def main(argv):
     if len(argv) < 2:
         print(__doc__)
@@ -691,6 +704,8 @@ def main(argv):
         for w in manuscript_warnings(project_dir):
             print(f'  ⚠ {w}')
         for w in checkout_warnings(project_dir):
+            print(f'  ⚠ {w}')
+        for w in image_warnings(project_dir):
             print(f'  ⚠ {w}')
     return 1 if failed else 0
 

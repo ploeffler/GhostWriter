@@ -1112,5 +1112,10 @@
   "view.glossary_suggest.term": "term",
   "view.glossary_suggest.terms": "terms",
   "anecdote_used_mark": "contains anecdote",
+  "view.images.book_images": "### 🖼️ Book images",
+  "view.images.book_table": "| Section | Image | Caption | Status |",
+  "view.images.book_none": "*There are no images in this book yet.*",
+  "view.images.book_orphan": "⚠ Image folder without a section: `{p_a}`{p_b}",
+  "view.images.book_hint": "Images of one section: `Images N.M`.",
   "anecdote_planned_mark": "anecdote planned"
 }
