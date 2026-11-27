@@ -58,6 +58,28 @@ noch kein Buch (die Bücher werden nicht lokal gehalten); weiterschreiben geht w
 **Veröffentlichen:** Diese Fassung ist nirgends gehostet. Eine GitHub Page für die App kommt erst nach ausdrücklicher Freigabe (öffentliche Bereitstellung).
 Lokal ausprobieren: `cd apps/web && python3 -m http.server 8765`, dann `http://localhost:8765/` öffnen.
 
+## Einstellungen › Verbindungen, Gerät, Fehler melden (#662)
+
+Das Zahnrad oben rechts öffnet **Einstellungen › Verbindungen**. Eine Gruppe erscheint erst, wenn ihre Funktion umgesetzt ist (kein toter Knopf); KI-Anbieter,
+Sprachnotizen und E-Mail-Feedback kommen mit ihren Versionen dazu. Schlüssel und Token stehen nur mit Status da, nie mit Wert, und alles lässt sich testen
+oder trennen.
+
+- **GitHub:** angemeldet als, Token vorhanden (mit Ablaufdatum, wenn GitHub es mitschickt), Repository, Rechte am Repository (Lesen/Schreiben/Verwalten), übrige Anfragen,
+  **Verbindung testen**, **Abmelden**.
+- **Herkunft dieser App:** die Adresse (`location.origin`) zum Kopieren, für die CORS-Freigabe lokaler Server (genutzt ab v2.0).
+- **Speicher auf diesem Gerät:** belegt von verfügbar, dauerhafter Speicher angefordert (mit Knopf), nicht hochgeladene Änderungen, Dateien der App-Hülle.
+- **Gerät und Fähigkeiten:** WebGPU (nur Vorhandensein), Arbeitsspeicher und Kerne (grob, nicht jeder Browser meldet sie), Speicherplatz, System und Browser,
+  App installiert, eingebaute Browser-KI, Mikrofon, Aufnahme, Spracherkennung, online/GitHub erreichbar. Die **Fähigkeiten-Matrix** [`faehigkeiten.json`](faehigkeiten.json)
+  (wird mit der App ausgeliefert, funktioniert offline) legt je Funktion die Voraussetzungen, einen Ersatzweg und Begründungstexte (DE/EN) fest; die Ansicht zeigt
+  „geht“, „unklar“ (Messwert fehlt) oder „geht nicht“ mit Grund. Gleiche Struktur wie die geplante Modellliste (#525); der **Probelauf** für Modelle folgt mit #525. Die
+  Messwerte bleiben auf dem Gerät.
+- **Fehler melden ohne Chat:** Fehler, die die App zeigt oder die unbehandelt auftreten, merkt sie sich bereinigt (letzte 30, nach Fingerabdruck zusammengefasst, im
+  Browser). Unter jeder Fehlermeldung und in einem Hinweis bei unbehandelten Fehlern steht **Fehler melden**; das öffnet ein **vorausgefülltes neues Issue** im
+  Hauptrepository (`upstream` der Bibliothek, sonst `ploeffler/GhostWriter`): Fehlerklasse, Programmversion der Web-App, Schritt, Aufruf (ohne Repository und Pfade),
+  bereinigte Meldung, grober Browser, Fingerabdruck, Häufigkeit; **keine** Repository-, Buch-, Branch- oder Textnamen, keine Pfade, keine Secrets (Format nach #660).
+  Du siehst den Text bei GitHub und schickst ihn selbst ab; die App braucht dafür keinen zusätzlichen Schlüssel. Grobe Gerätewerte („WebGPU ja, 8 GB“) gehen nur mit
+  ausdrücklichem Häkchen mit. Die Arbeit geht bei einem Fehler nie verloren (sie liegt als „nur lokal“ in der Outbox).
+
 ## Token
 
 Auf GitHub unter *Settings → Developer settings → Fine-grained tokens* einen Token anlegen: **Repository access** nur das eine Repository mit den Büchern,
@@ -66,10 +88,10 @@ wird nur an `api.github.com` gesendet und mit „Abmelden“ gelöscht. Er steht
 
 ## Aufbau
 
-- `index.src.html`, `ports-web.js` (GitHub-REST, Formen wie `GW_PORTS` in [`apps/claude/ports-claude.js`](../claude/ports-claude.js)), `net-web.js` (online/offline), `merge3.js` (Dreiwege-Vergleich), `outbox-web.js` (lokal sichern, hochladen), `konflikt-web.js` (Konflikt lösen), `boot-web.js`, `web.css`, `manifest.webmanifest`, `sw.src.js` (wird zu `sw.js`), `icons/`.
+- `index.src.html`, `ports-web.js` (GitHub-REST, Formen wie `GW_PORTS` in [`apps/claude/ports-claude.js`](../claude/ports-claude.js)), `net-web.js` (online/offline), `merge3.js` (Dreiwege-Vergleich), `outbox-web.js` (lokal sichern, hochladen), `konflikt-web.js` (Konflikt lösen), `fehler-web.js` (Fehler melden), `einstellungen-web.js` (Einstellungen, Gerät), `faehigkeiten.json`, `boot-web.js`, `web.css`, `manifest.webmanifest`, `sw.src.js` (wird zu `sw.js`), `icons/`.
 - Ansichten und Abläufe kommen aus [`apps/shared/`](../shared). `python3 apps/web/build.py` baut `index.html` und kopiert die Widget-Laufzeit
   (`vendor/gw-lite.js`, `vendor/icons.css`) aus `apps/claude/vendor/`; `--check` prüft den Stand. `vendor/js-yaml.min.js` (MIT) liegt fest hier.
-- Tests: `tests/test_app_web.py`, `apps/web/tests/ports-web.test.cjs` (Anschluss gegen einen nachgestellten `fetch`) und `apps/web/tests/sw.test.cjs` (Service Worker) `apps/web/tests/outbox.test.cjs` (lokal sichern, hochladen, Konflikt) und `apps/web/tests/merge3.test.cjs` (Zusammenführen), alle ohne Netz.
+- Tests: `tests/test_app_web.py`, `apps/web/tests/ports-web.test.cjs` (Anschluss gegen einen nachgestellten `fetch`) und `apps/web/tests/sw.test.cjs` (Service Worker) `apps/web/tests/outbox.test.cjs` (lokal sichern, hochladen, Konflikt) `apps/web/tests/merge3.test.cjs` (Zusammenführen) und `apps/web/tests/fehler.test.cjs` (Bereinigen, Meldungstext, Matrix), alle ohne Netz.
   Ausprobieren: `index.html` im Browser öffnen oder einen kleinen Webserver im Ordner starten.
 
 ## Grenzen dieser Fassung
@@ -80,5 +102,6 @@ wird nur an `api.github.com` gesendet und mit „Abmelden“ gelöscht. Er steht
 - Der Service Worker und die Installation wurden in Chromium geprüft (Hülle angelegt, Neuladen ohne Netz, Anzeige); Safari/iOS und Firefox sind nicht geprüft.
 - Hinweise im Text nennen noch „Claude“ (gemeinsame Ansichten); die Texte werden mit den nächsten Schritten angepasst.
 - Nicht gegen ein echtes Repository mit echtem Token geprüft: Die Durchläufe (Anmelden, Buch öffnen, Abschnitt speichern; offline schreiben, hochladen, Konflikt) liefen im Browser gegen eine nachgestellte GitHub-Schnittstelle.
+- Das bereinigte Fehlerprotokoll wird noch **nicht** zusätzlich im Arbeits-Branch abgelegt (`.ghostwriter/app-fehler.yml`) und nicht vom täglichen Update-Lauf ausgewertet (#660, v2.0); gemeldet wird nur über das vorausgefüllte Issue. Die Bereinigung ist eine Vorsichtsmaßnahme (Namen, Pfade, Titel in Anführungszeichen, Token, Adressen, E-Mail), keine Garantie: bitte den Text vor dem Absenden ansehen.
 - Zusammengeführt wird Text je Absatz (durch eine Leerzeile getrennt). **Änderungen in benachbarten Absätzen zählen als eine Stelle** und werden als Konflikt gezeigt (wie benachbarte Zeilen in git). Für Dateien ohne gespeicherten Ausgangstext (ältere Einträge) und ohne Absätze gilt die Wahl für die ganze Datei. Strukturdateien (`ghostwriter.yml`) werden nicht feldweise zusammengeführt.
 - Die Konfliktlösung wurde nur im Browser gegen die nachgestellte Schnittstelle geprüft, nicht mit mehreren echten Geräten.

@@ -11,6 +11,7 @@ js-yaml (MIT, vendor/js-yaml.LICENSE) liegt fest in vendor/.
 """
 import hashlib
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -24,14 +25,16 @@ _spec.loader.exec_module(_claude)
 
 
 def expected():
-    files = {HERE / 'index.html': _claude.build(HERE)}
+    manifest = (HERE.parent.parent / 'ghostwriter-manifest.yml').read_text(encoding='utf-8')
+    version = re.search(r'^version:\s*([0-9][0-9.]*)', manifest, re.M).group(1)
+    files = {HERE / 'index.html': _claude.build(HERE).replace('@@APP_VERSION@@', version)}
     for name in COPIES:
         files[HERE / 'vendor' / name] = (CLAUDE / 'vendor' / name).read_text(encoding='utf-8')
     # Service Worker: die Fassung im Namen des Speichers ist ein Hash über alles, was er zwischenspeichert (neuer Stand = neuer Speicher)
     h = hashlib.sha256()
     sw_src = (HERE / 'sw.src.js').read_text(encoding='utf-8')
     for part in [sw_src, files[HERE / 'index.html'], (HERE / 'manifest.webmanifest').read_text(encoding='utf-8'),
-                 (HERE / 'vendor' / 'js-yaml.min.js').read_text(encoding='utf-8')] + [files[HERE / 'vendor' / n] for n in COPIES]:
+                 (HERE / 'vendor' / 'js-yaml.min.js').read_text(encoding='utf-8'), (HERE / 'faehigkeiten.json').read_text(encoding='utf-8')] + [files[HERE / 'vendor' / n] for n in COPIES]:
         h.update(part.encode('utf-8'))
     for icon in sorted((HERE / 'icons').iterdir()):
         h.update(icon.read_bytes())

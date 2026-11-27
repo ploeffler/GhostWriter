@@ -8,6 +8,7 @@ const b64text = b64 => new TextDecoder().decode(Uint8Array.from(atob(String(b64)
 const MIME = {jpg:"image/jpeg", jpeg:"image/jpeg", png:"image/png", gif:"image/gif", webp:"image/webp", svg:"image/svg+xml"};
 const mimeOf = path => MIME[String(path).split(".").pop().toLowerCase()] || "image/jpeg";
 function errText(e){
+  if (typeof errLog === "function") errLog(e);   // fehler-web.js: bereinigt im Protokoll merken (für „Fehler melden“)
   const c = e && e.code, m = (e && e.message) || String(e);
   if (c === "no_token") return "Du bist nicht angemeldet. Trage einen GitHub-Token ein.";
   if (c === "offline") return "Keine Verbindung zu GitHub. Prüfe das Netz und versuche es noch einmal.";
@@ -30,8 +31,9 @@ async function rest(method, path, body, accept){
   const text = await res.text();
   if (!res.ok){
     let msg = ""; try { msg = (JSON.parse(text) || {}).message || ""; } catch (e) {}
-    throw {code:res.status >= 500 ? "server_unavailable" : "http_" + res.status, status:res.status, message:msg || res.statusText || ("HTTP " + res.status)};
+    throw {code:res.status >= 500 ? "server_unavailable" : "http_" + res.status, status:res.status, message:msg || res.statusText || ("HTTP " + res.status), endpoint:typeof errEndpoint === "function" ? errEndpoint(method, path) : ""};
   }
+  try { const x = res.headers && res.headers.get && res.headers.get("github-authentication-token-expiration"); if (x && typeof LAST_HDR !== "undefined") LAST_HDR.expires = x; } catch (e) {}
   if (accept && !/json/.test(accept)) return text;       // roher Text (Datei, Commit-Kennung)
   try { return text ? JSON.parse(text) : null; } catch (e) { return text; }
 }
@@ -48,6 +50,7 @@ const repoBase = (o, r) => `/repos/${o || S.owner}/${r || S.repo}`;
 const GW_PORTS = {
   agent: "GhostWriter Web-App",
   noChat: true,   // Stufe 1 (#662): ohne Chat-Seitenleiste
+  report: {button: () => typeof errButton === "function" ? errButton() : ""},   // „Fehler melden“ unter Fehlermeldungen
   git: {
     async getFile(path, ref, o){
       o = o || {}; const base = repoBase(o.owner, o.repo), q = ref ? "?ref=" + encodeURIComponent(ref) : "";

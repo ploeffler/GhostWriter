@@ -24,7 +24,7 @@ class WebApp(unittest.TestCase):
         used = {(WEB / m).resolve() for m in re.findall(r'^@@include (\S+)@@$', src, re.M)}
         shared = {p.resolve() for p in (APPS / 'shared').iterdir()}
         self.assertTrue(shared <= used, 'Die Web-App muss alle Teile aus apps/shared binden')
-        self.assertEqual({p.name for p in used - shared}, {'ports-web.js', 'net-web.js', 'merge3.js', 'outbox-web.js', 'konflikt-web.js', 'boot-web.js', 'web.css'})
+        self.assertEqual({p.name for p in used - shared}, {'ports-web.js', 'net-web.js', 'merge3.js', 'outbox-web.js', 'konflikt-web.js', 'fehler-web.js', 'einstellungen-web.js', 'boot-web.js', 'web.css'})
 
     def test_kein_claude_anschluss_und_kein_fremder_host(self):
         for name in ('ports-web.js', 'boot-web.js'):
@@ -34,9 +34,23 @@ class WebApp(unittest.TestCase):
         ports = (WEB / 'ports-web.js').read_text(encoding='utf-8')
         self.assertEqual(sorted(set(re.findall(r'https://[a-z.]+', ports.split('/* Startseite')[0]))), ['https://api.github.com'])
 
+    def test_fehlerberichte_ohne_persoenliches(self):
+        # die Meldung geht nur an das Hauptrepository (feste Vorgabe oder upstream aus der Bibliothek), nie an ein Buch-Repository
+        text = (WEB / 'fehler-web.js').read_text(encoding='utf-8')
+        self.assertIn('https://github.com/${errUpstream()}/issues/new', text)
+        self.assertIn('UPSTREAM_DEFAULT = "ploeffler/GhostWriter"', text)
+        self.assertNotIn('S.owner', text.split('function errIssueUrl')[1].split('function errReport')[0])
+        matrix = json.loads((WEB / 'faehigkeiten.json').read_text(encoding='utf-8'))
+        for f in matrix['functions']:
+            for k in ('name', 'reason', 'fallback'):
+                self.assertTrue(f[k]['de'] and f[k]['en'], f['id'] + ': ' + k + ' DE/EN')
+        self.assertIn('faehigkeiten.json', (WEB / 'sw.js').read_text(encoding='utf-8'))
+        self.assertIn('GhostWriter Web-App', (WEB / 'index.html').read_text(encoding='utf-8'))
+        self.assertNotIn('@@APP_VERSION@@', (WEB / 'index.html').read_text(encoding='utf-8'))
+
     def test_token_nie_in_der_seite(self):
         html = (WEB / 'index.html').read_text(encoding='utf-8')
-        self.assertNotRegex(html, r'github_pat_|ghp_[A-Za-z0-9]{20}')
+        self.assertNotRegex(html, r'github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}')
 
     def test_pwa_dateien(self):
         manifest = json.loads((WEB / 'manifest.webmanifest').read_text(encoding='utf-8'))
@@ -54,7 +68,7 @@ class WebApp(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which('node'), 'Node nicht vorhanden')
     def test_node_tests(self):
-        for name in ('ports-web.test.cjs', 'sw.test.cjs', 'outbox.test.cjs', 'merge3.test.cjs'):
+        for name in ('ports-web.test.cjs', 'sw.test.cjs', 'outbox.test.cjs', 'merge3.test.cjs', 'fehler.test.cjs'):
             r = subprocess.run(['node', str(WEB / 'tests' / name)], capture_output=True, text=True, timeout=60)
             self.assertEqual(r.returncode, 0, name + '\n' + r.stdout + r.stderr)
 
