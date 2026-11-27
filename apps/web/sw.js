@@ -1,7 +1,7 @@
 /* Service Worker der eigenen Web-App (#662, #35): die App-Hülle (Seite, Laufzeit, Symbole) läuft auch ohne Netz.
    Alles von anderen Adressen (api.github.com mit dem Token!) geht unberührt ans Netz und wird nie zwischengespeichert.
-   Die Fassung (0bf730e75bf8) ändert sich mit jedem Bau; ein neuer Stand ersetzt den alten beim nächsten Laden. */
-const CACHE = "gw-web-0bf730e75bf8";
+   Die Fassung (60329d9db9f2) ändert sich mit jedem Bau; ein neuer Stand ersetzt den alten beim nächsten Laden. */
+const CACHE = "gw-web-60329d9db9f2";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "faehigkeiten.json", "modelle.json", "vendor/gw-lite.js", "vendor/icons.css", "vendor/js-yaml.min.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/icon-180.png", "icons/icon.svg"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });

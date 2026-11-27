@@ -169,3 +169,8 @@ Der Knopf mit dem Roboter oben öffnet **Modell im Browser**. Ein Sprachmodell l
 - **Chat:** Lektorat, Zusammenfassen, Übersetzen, freie Frage. Das Modell schlägt nur vor; ein Vorschlag wird erst nach „Vorschlag kopieren“ übernommen. Es wird nichts automatisch gespeichert und kein Text an Actions oder Dritte geschickt.
 - **Werkzeugaufrufe** (Recherche) sind nur ergänzend vorbereitet: kleiner Leser für das Gemma- und das Qwen-Format (`mdlParseTools`), noch ohne Suchanbindung.
 - **Noch offen:** Abnahme auf einem Gerät mit WebGPU und shader-f16 (die Testumgebung hat keines; getestet sind Liste, Passung, Auswahl, Leser und die Ansicht), Übernahme eines Vorschlags direkt in den Abschnitt, Abschrift der Sprachnotizen (Gemma 4 mit Audio), Cache über den Service Worker für Offline-Start der Laufzeit.
+
+## Versionen im Kopf (#735)
+
+Im Kopf steht „App x.y.z“ und, sobald ein Repository offen ist, „Repository x.y.z“ (GhostWriter-Version aus `ghostwriter-manifest.yml`, nur gelesen). Weichen die beiden Stände ab (Haupt- oder Nebenversion), wird die Anzeige gelb und der Tooltip nennt den Grund; ist das Manifest nicht lesbar (offline), steht nur die App-Version da.
+

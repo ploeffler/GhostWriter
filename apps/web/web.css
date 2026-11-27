@@ -20,3 +20,4 @@
 .gw-accbar i{display:block;height:100%;background:var(--text-accent,#b45309)}
 .gw-accopen{margin-left:auto}
 .gw-acc>.gw-shelf{padding:0 14px 14px}
+.vers{font-size:11px;color:var(--text-3,#777);white-space:nowrap}.vers.warn{color:#9a6b00;font-weight:600}
