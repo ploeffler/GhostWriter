@@ -664,6 +664,19 @@ def manuscript_warnings(project_dir):
     return out
 
 
+def image_warnings(project_dir):
+    """Hinweise ohne Fehler (#684): Bildordner ohne bekannten Abschnitt bzw. Teil."""
+    try:
+        import images
+        from render_view import load
+        root, config = load(Path(project_dir))
+        return [f'{folder}: Bildordner ohne Abschnitt' + (f' – gehört vermutlich zu {hint}: python3 scripts/images.py . relink {folder} {hint}' if hint
+                else ' – zuordnen mit python3 scripts/images.py . relink <ordner> <abschnitt>')
+                for folder, hint in images.orphan_folders(root, config)]
+    except Exception:   # noqa: BLE001 - Hinweise dürfen die Prüfung nie stören
+        return []
+
+
 def main(argv):
     if len(argv) < 2:
         print(__doc__)
@@ -691,6 +704,8 @@ def main(argv):
         for w in manuscript_warnings(project_dir):
             print(f'  ⚠ {w}')
         for w in checkout_warnings(project_dir):
+            print(f'  ⚠ {w}')
+        for w in image_warnings(project_dir):
             print(f'  ⚠ {w}')
     return 1 if failed else 0
 

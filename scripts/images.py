@@ -9,6 +9,11 @@ Aufruf:
                            [--variants N] [--credit "…"]
   python scripts/images.py <projektordner> ref <img-id>
   python scripts/images.py <projektordner> layout <img-id> [--position top-left|…|bottom-right|text] [--width 10–100]
+  python scripts/images.py <projektordner> orphans
+  python scripts/images.py <projektordner> relink <verwaister-ordner> <abschnitt>
+
+orphans listet Bildordner ohne bekannten Abschnitt (#684, z. B. nach einer geänderten Abschnitts-ID) mit Vorschlag;
+relink verschiebt einen solchen Ordner zum Abschnitt und zieht `section_id` nach (keine Freigabe, Bilder unverändert).
 
 layout legt fest, wo das Bild im Abschnitt steht und wie breit es ist (Medienplatzierung, #54): oben bzw. unten,
 links oder rechts mit Textumfluss, mittig ohne; `text` = an der Stelle im Manuskript. Breite in Prozent der nutzbaren
@@ -99,6 +104,53 @@ def all_images(base, config):
             meta = yaml.safe_load(meta_path.read_text(encoding='utf-8')) or {}
             out[meta.get('id', meta_path.stem)] = (meta, d / str(meta.get('file', '')), folder, meta_path)
     return out
+
+
+def orphan_folders(base, config):
+    """Bildordner ohne bekannten Abschnitt bzw. Teil (#684), z. B. nach einer geänderten Abschnitts-ID.
+    [(ordner, vorschlag)]: vorschlag ist die ID des Abschnitts mit derselben Nummer (`sec-01-01-…`) oder ''."""
+    known = {folder for _, folder in image_folders(config)}
+    roots = sorted({f.rsplit('/', 1)[0] for f in known} | {f'{ch["path"]}/images' for ch in config['structure']['chapters']}
+                   | {'matter/images'})
+    ids = [s['id'] for ch in config['structure']['chapters'] for s in ch['sections']]
+    out = []
+    for root in roots:
+        d = base / root
+        if not d.is_dir():
+            continue
+        for sub in sorted(x for x in d.iterdir() if x.is_dir()):
+            folder = f'{root}/{sub.name}'
+            if folder in known:
+                continue
+            m = re.match(r'(sec-\d+-\d+-)', sub.name)
+            hits = [i for i in ids if m and i.startswith(m.group(1))]
+            out.append((folder, hits[0] if len(hits) == 1 else ''))
+    return out
+
+
+def relink(base, config, old_folder, key):
+    """Verwaisten Bildordner einem Abschnitt bzw. Teil zuordnen (#684): Ordner verschieben, `section_id` in den
+    img-*.yml nachziehen. Kein Bild wird freigegeben oder geändert. Gibt die Zahl der Beschreibungen zurück."""
+    src = base / old_folder
+    if not src.is_dir() or old_folder not in {f for f, _ in orphan_folders(base, config)}:
+        raise ValueError(f'{old_folder}: kein verwaister Bildordner')
+    target, folder = find_target(config, key)
+    dst = base / folder
+    dst.mkdir(parents=True, exist_ok=True)
+    n = 0
+    for item in sorted(src.iterdir()):
+        if (dst / item.name).exists():
+            raise ValueError(f'{folder}/{item.name} gibt es schon; nichts verschoben')
+    for item in sorted(src.iterdir()):
+        item.rename(dst / item.name)
+    for meta_path in sorted(dst.glob('img-*.yml')):
+        text = meta_path.read_text(encoding='utf-8')
+        new = re.sub(r'(?m)^section_id:\s*.*$', f'section_id: {target["id"]}', text, count=1)
+        if new != text:
+            meta_path.write_text(new, encoding='utf-8')
+            n += 1
+    src.rmdir()
+    return n, folder
 
 
 POSITIONS = ('top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right')
@@ -334,7 +386,7 @@ def placement_problems(texts):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('project')
-    ap.add_argument('cmd', choices=['list', 'prompt', 'add', 'ref', 'layout'])
+    ap.add_argument('cmd', choices=['list', 'prompt', 'add', 'ref', 'layout', 'orphans', 'relink'])
     ap.add_argument('--position', choices=POSITIONS + ('text',))
     ap.add_argument('--width', type=int, help='bei layout: Breite in Prozent (10–100)')
     ap.add_argument('args', nargs='*')
@@ -364,6 +416,17 @@ def main(argv):
             imgs = {k: v for k, v in imgs.items() if v[0].get('section_id') == sid}
         for iid, (meta, path, folder, _) in imgs.items():
             print(f'{iid:<32} {meta.get("status"):<9} {meta.get("caption", "")}  ({folder}/{meta.get("file")})')
+        return 0
+    if a.cmd == 'orphans':
+        for folder, hint in orphan_folders(base, config):
+            print(f'{folder}' + (f'  → passt vermutlich zu {hint} (python scripts/images.py . relink {folder} {hint})' if hint else ''))
+        return 0
+    if a.cmd == 'relink':
+        if len(a.args) != 2:
+            ap.error('relink braucht den verwaisten Ordner und den Abschnitt')
+        n, folder = relink(base, config, a.args[0], a.args[1])
+        print(f'✓ {a.args[0]} → {folder} ({n} Bildbeschreibung(en) angepasst)')
+        print(f'Commit-Nachricht: Bilder dem Abschnitt {a.args[1]} zugeordnet')
         return 0
     if a.cmd == 'prompt':
         if not a.args or not a.scene:

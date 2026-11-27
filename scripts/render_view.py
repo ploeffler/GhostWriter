@@ -1282,9 +1282,44 @@ def series_terms(base, config, entries):
     return series.compare_terms(entries, terms) if terms else []
 
 
+def book_images_text(base, config, images):
+    """Alle Bilder des Buchs als Tabelle (Abschnitt, Bild, Unterschrift, Stand, im Text) und verwaiste Bildordner (#684)."""
+    nums = {}
+    for c, ch in enumerate(config['structure']['chapters'], 1):
+        for k, sec in enumerate(ch['sections'], 1):
+            nums[sec['id']] = (f'{c}.{k}', sec)
+    for _, item in matter_items(config):
+        nums[item['id']] = (item.get('title') or item['id'], item)
+    used = {}
+    lines = [view_message('view.images.book_images', p_a=(config.get('project') or {}).get('working_title', '')), '']
+    rows = []
+    for iid, (meta, _, folder, _) in images.all_images(base, config).items():
+        sid = meta.get('section_id', '')
+        num, target = nums.get(sid, (sid, None))
+        if target is not None and sid not in used:
+            try:
+                used[sid] = set(images.refs_in(section_file(base, target)[3]))
+            except Exception:   # noqa: BLE001 - fehlende Datei meldet die Projektprüfung
+                used[sid] = set()
+        rows.append(f'| {num} | `{iid}` | {meta.get("caption") or "–"} | '
+                    f'{view_message("view.images.approved") if meta.get("status") == "approved" else view_message("view.images.draft")} | '
+                    f'{view_message("view.images.yes") if iid in used.get(sid, set()) else view_message("view.images.no")} |')
+    if rows:
+        lines += [view_message('view.images.book_table'), '|---|---|---|---|---|'] + rows
+    else:
+        lines += [view_message('view.images.no_images_yet')]
+    orphans = images.orphan_folders(base, config)
+    if orphans:
+        lines += ['', view_message('view.images.orphans')]
+        lines += [f'- `{f}`' + (f' – {view_message("view.images.orphan_hint", p_a=h)}' if h else '') for f, h in orphans]
+    return '\n'.join(lines) + '\n'
+
+
 def images_view(base, config, args):
     """Illustrationen eines Abschnitts bzw. Teils (#54): Liste mit Status; Textfassung bzw. Vorlage bilder."""
     import images
+    if not args.where:   # buchweite Bilderliste (#684) statt Abbruch; dazu Bildordner ohne Abschnitt
+        return book_images_text(base, config, images)
     target, folder = images.find_target(config, args.where)
     imgs = [(iid, v) for iid, v in images.all_images(base, config).items() if v[0].get('section_id') == target['id']]
     head = section_file(base, target)[0]

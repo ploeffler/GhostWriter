@@ -60,6 +60,35 @@ class ImageTest(unittest.TestCase):
         hit = images.all_images(self.base, config)[meta['id']]
         hit[3].write_text(hit[3].read_text(encoding='utf-8').replace('status: draft', 'status: approved'), encoding='utf-8')
 
+    def test_orphan_folder_warned_listed_and_relinked(self):   # #684
+        import validate_project
+        meta, folder = self.add()
+        self.place(meta['id'])
+        _, config = load(self.base)
+        sid = config['structure']['chapters'][0]['sections'][0]['id']
+        old = folder.replace(sid, sid + '-alter-titel')          # Abschnitts-ID hat sich geändert, Ordner blieb stehen
+        (self.base / folder).rename(self.base / old)
+        for y in (self.base / old).glob('img-*.yml'):
+            y.write_text(y.read_text(encoding='utf-8').replace(f'section_id: {sid}', f'section_id: {sid}-alter-titel'), encoding='utf-8')
+        self.assertEqual(images.orphan_folders(self.base, config), [(old, sid)])   # gleiche Nummer sec-01-01- → Vorschlag
+        warn = validate_project.image_warnings(self.base)
+        self.assertTrue(warn and old in warn[0], warn)
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'images', '--text', '--repo', 'a/b'],
+                             capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0, out.stderr)            # ohne Abschnitt: buchweite Liste statt Abbruch
+        self.assertIn('Bilder im Buch', out.stdout)
+        self.assertIn(old, out.stdout)
+        n, new_folder = images.relink(self.base, config, old, '1.1')
+        self.assertEqual((n, new_folder), (1, folder))
+        self.assertEqual(images.orphan_folders(self.base, config), [])
+        self.assertIn(meta['id'], images.all_images(self.base, config))
+        self.assertEqual(validate_project.image_warnings(self.base), [])
+        out = subprocess.run([sys.executable, str(ROOT / 'scripts/render_view.py'), str(self.base), 'images', '--text', '--repo', 'a/b'],
+                             capture_output=True, text=True)
+        self.assertIn(f'| 1.1 | `{meta["id"]}` |', out.stdout)
+        with self.assertRaises(ValueError):
+            images.relink(self.base, config, folder, '1.1')        # kein verwaister Ordner
+
     def test_prompt_uses_style_and_character_looks(self):
         _, config = load(self.base)
         prompt, ids = images.build_prompt(self.base, config, '1.1', 'Beide sitzen auf der Bank, Abendlicht')
