@@ -340,6 +340,13 @@ class NewBookTest(unittest.TestCase):
         self.assertEqual(len(text.splitlines()), len(new.splitlines()))
         self.assertEqual({k: v for k, v in cfg.items() if k != 'project'}, {k: v for k, v in yaml.safe_load(text).items() if k != 'project'})
 
+    def test_create_laesst_profil_auf_dem_standard_branch(self):   # #706
+        Path(self.d, 'assistant.yml').write_text('repo: a/b\nskill: mein-skill\n', encoding='utf-8')
+        self.g('add', '.'); self.g('commit', '-qm', 'Profil')
+        library.create_book('Mein Gartenjahr', 'Gartenjahr', 'Max', self.d, 'refs/heads', MANIFEST, base='main')
+        self.assertFalse(Path(self.d, 'assistant.yml').exists())
+        self.assertIn('assistant.yml', self.g('ls-tree', '--name-only', 'main'))
+
     def test_create(self):
         r = library.create_book('Mein Gartenjahr', 'Gartenjahr', 'Max', self.d, 'refs/heads', MANIFEST, base='main')
         self.assertEqual(r['taken'], [])
