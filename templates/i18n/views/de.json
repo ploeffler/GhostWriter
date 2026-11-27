@@ -1,5 +1,6 @@
 {
   "there_are_no_pending_changes": "Es gibt keine offenen Änderungen.",
+  "changes.more": "… {number} ältere Änderungen. Vollständige Liste auf Wunsch: „Alle Änderungen anzeigen“ (--alle).",
   "apply_changes": "### 🔀 Buchänderungen übernehmen",
   "apply_to_from_pull_request": "In `{p_a}` übernehmen: {p_b} aus `{p_c}` (Änderungspaket #{p_d}).",
   "change_date_commit": "| # | Änderung | Datum | Commit |",

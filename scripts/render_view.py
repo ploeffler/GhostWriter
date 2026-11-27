@@ -2272,8 +2272,14 @@ def changes_merge_view(base, config, args):
     if not changes:
         msg = view_message('there_are_no_pending_changes')
         return msg + '\n' if args.text else f'<p>{msg}</p>\n'
+    commits = changes['commits']
+    compact = len(commits) > 5 and not getattr(args, 'all_entries', False)
+    shown = commits[-5:] if compact else commits
     rows = [{'CHANGE_MESSAGE': c['message'].splitlines()[0], 'CHANGE_DATE': change_date(c.get('date')),
-             'CHANGE_SHA': c['sha'][:7]} for c in changes['commits']]
+             'CHANGE_SHA': c['sha'][:7]} for c in shown]
+    if compact:
+        rows.insert(0, {'CHANGE_MESSAGE': view_message('changes.more', number=len(commits) - 5),
+                        'CHANGE_DATE': '', 'CHANGE_SHA': ''})
     values = {'PENDING_TEXT': changes_text(changes), 'PENDING_PR': changes['pull_request'],
               'BOOK_BRANCH': changes['book_branch'], 'WORK_BRANCH': changes['work_branch']}
     if args.text:
@@ -4628,7 +4634,7 @@ def main():
     ap.add_argument('--repo', help='owner/name des Buch-Repositorys; ohne Angabe aus GITHUB_REPOSITORY bzw. git remote origin (#134)')
     ap.add_argument('--branch', default='main')
     ap.add_argument('--status', help='bei timeline: nur Einträge mit diesem Belegstand (documented, reported, uncertain, invented; mehrere mit Komma)')
-    ap.add_argument('--alle', dest='all_entries', action='store_true', help='bei notes-review: ganze Liste statt Stufen (#570)')
+    ap.add_argument('--alle', dest='all_entries', action='store_true', help='bei notes-review: ganze Liste statt Stufen (#570); bei changes-merge: alle Änderungen statt der fünf neuesten (#716)')
     ap.add_argument('--entry', help='bei notes-review: genau diesen Eintrag als Karte zeigen (#473)')
     ap.add_argument('--next', dest='next_entry', action='store_true', help='bei notes-review: nächsten offenen Eintrag als Karte zeigen (#473)')
     ap.add_argument('--columns', action='store_true', help='bei timeline: Zeitleiste in Spalten als Tabelle (#450, immer Text)')

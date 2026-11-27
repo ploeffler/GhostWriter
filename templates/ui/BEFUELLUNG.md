@@ -703,7 +703,9 @@ Auswahlkarten für feste Antwortmöglichkeiten im Einstiegsdialog (`START.md`, A
 | `PENDING_TEXT`, `PENDING_PR` | wie in der Projektübersicht |
 | `BOOK_BRANCH`, `WORK_BRANCH` | Buch-Branch und Arbeits-Branch (`ghostwriter/<buch-branch>`) |
 | `HEAD_SHA` | letzter Commit des Arbeits-Branchs; `gw.js` schickt ihn mit `changes.merge` zurück |
-| Block `CHANGES`: `CHANGE_MESSAGE`, `CHANGE_DATE`, `CHANGE_SHA` | je Commit des Pull Requests, älteste zuerst: erste Zeile der Commit-Nachricht, Datum `TT.MM.JJJJ, HH:MM` in Ortszeit (siehe „Offene Änderungen“), Commit mit 7 Zeichen |
+| Block `CHANGES`: `CHANGE_MESSAGE`, `CHANGE_DATE`, `CHANGE_SHA` | höchstens fünf neueste Benutzer-Commits des Pull Requests, innerhalb dieser Auswahl älteste zuerst: erste Zeile der Commit-Nachricht, Datum `TT.MM.JJJJ, HH:MM` in Ortszeit (siehe „Offene Änderungen“), Commit mit 7 Zeichen |
+
+Bei mehr als fünf Änderungen beginnt `CHANGES` mit einer Zusammenfassungszeile: Zahl der älteren Änderungen und Hinweis „Alle Änderungen anzeigen“ (`changes-merge --alle`); Datum und Commit bleiben dort leer. `--alle` zeigt alle Benutzer-Commits, älteste zuerst. Gesamtzahl, Ziel, Änderungspaket und `HEAD_SHA` bleiben vom Kürzen unberührt; die Bestätigung betrifft das ganze Paket. Auf ausdrücklichen Wunsch die vollständige Ansicht mit frischen Daten öffnen, sonst auch im Begleittext keine volle Commitliste. Text und Widget verwenden dieselbe Auswahl (Deutsch/Englisch).
 
 ### `abschnitt-anlegen.html`
 

@@ -28,6 +28,8 @@ Auch der Übergabehelfer verwendet bei `--fetch` die Option `--prune`. Ist ein A
 
 Nach bestätigter Übertragung lautet der Stand **gespeichert, noch nicht übernommen**. Du kannst diesen Arbeitsstand bereits ansehen und weiterbearbeiten; die Ansichten lesen aus dem offenen Änderungspaket. Im übernommenen Buchstand stehen die Änderungen erst nach **Änderungen übernehmen**. Dabei bestätigst du die gezeigte aktuelle Fassung. Kommt inzwischen etwas dazu, muss die geänderte Fassung erneut gezeigt werden.
 
+Die Übernahmebestätigung zeigt die Gesamtzahl und höchstens die fünf neuesten Änderungen. Bei größeren Paketen nennt sie die Zahl der älteren Einträge. „Alle Änderungen anzeigen“ öffnet die vollständige Liste (`render_view.py changes-merge --alle`). Die Bestätigung gilt weiterhin für das gesamte angezeigte Änderungspaket und dessen aktuellen Stand.
+
 Wenn du für dein Buch **sofort übernehmen** (`changes.auto_merge: true`) bewusst aktiviert hast, werden gewöhnliche Buchänderungen nach dem Speichern automatisch übernommen. Inhaltliche Freigaben bleiben eigene ausdrückliche Entscheidungen. Eine Auflage hat immer ihr eigenes Änderungspaket und braucht eine ausdrückliche Übernahmebestätigung.
 
 ## Gesprächsarbeit sichern und wieder aufnehmen
