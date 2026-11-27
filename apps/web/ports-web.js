@@ -110,6 +110,10 @@ const GW_PORTS = {
       const r = await rest("GET", `${repoBase()}/releases?per_page=6`);
       return (Array.isArray(r) ? r : []).map(x => ({name:x.name || x.tag_name, tag:x.tag_name, url:x.html_url, pre:!!x.prerelease, date:x.published_at, assets:(x.assets || []).map(a => ({name:a.name, url:a.browser_download_url, size:a.size}))}));
     },
+    async workflowState(file){   // ok | missing (Action fehlt im Buch) | forbidden (Token ohne Recht „Actions“)
+      try { await rest("GET", `${repoBase()}/actions/workflows/${encodeURIComponent(file)}`); return "ok"; }
+      catch (e) { return e && e.status === 404 ? "missing" : e && e.status === 403 ? "forbidden" : "unknown"; }
+    },
     async listBranches(owner, repo, page){ const r = await rest("GET", `/repos/${owner}/${repo}/branches?per_page=100&page=${page || 1}`); return Array.isArray(r) ? r : []; }
   }
 };
