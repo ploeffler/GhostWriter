@@ -14,4 +14,9 @@ document.addEventListener("click", ev => {
   if (!b) return;
   ev.preventDefault(); store.set(TOKEN_KEY, ""); S.login = ""; S.owner = ""; S.lib = null; S.book = null; S.files.clear(); S.msg = null; show("connect");
 });
+window.addEventListener("online", () => { NET.online = true; netProbe(); });
+window.addEventListener("offline", () => { NET.online = false; netProbe(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && NET.github !== true) netProbe(); });
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) navigator.serviceWorker.register("sw.js").catch(() => {});
 show("connect");
+netProbe();

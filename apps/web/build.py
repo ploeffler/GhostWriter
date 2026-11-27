@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Baut apps/web/index.html und kopiert die mitgelieferte UI-Laufzeit (#662, Schritt 3).
+"""Baut apps/web/index.html und sw.js und kopiert die mitgelieferte UI-Laufzeit (#662, Schritt 3).
 
 Wie bei der Claude-Web-App (apps/claude/build.py) setzt die Zeile `@@include <Pfad>@@` in index.src.html die Teile aus apps/shared/ und den
 Anschluss dieser App (ports-web.js, boot-web.js) zusammen. Die Widget-Laufzeit und die Symbole kommen aus apps/claude/vendor/ (gleicher Auszug,
@@ -9,6 +9,7 @@ js-yaml (MIT, vendor/js-yaml.LICENSE) liegt fest in vendor/.
   python3 apps/web/build.py           baut
   python3 apps/web/build.py --check   prüft, dass alles zu den Quellen passt (Exit 1 sonst)
 """
+import hashlib
 import importlib.util
 import sys
 from pathlib import Path
@@ -26,6 +27,15 @@ def expected():
     files = {HERE / 'index.html': _claude.build(HERE)}
     for name in COPIES:
         files[HERE / 'vendor' / name] = (CLAUDE / 'vendor' / name).read_text(encoding='utf-8')
+    # Service Worker: die Fassung im Namen des Speichers ist ein Hash über alles, was er zwischenspeichert (neuer Stand = neuer Speicher)
+    h = hashlib.sha256()
+    sw_src = (HERE / 'sw.src.js').read_text(encoding='utf-8')
+    for part in [sw_src, files[HERE / 'index.html'], (HERE / 'manifest.webmanifest').read_text(encoding='utf-8'),
+                 (HERE / 'vendor' / 'js-yaml.min.js').read_text(encoding='utf-8')] + [files[HERE / 'vendor' / n] for n in COPIES]:
+        h.update(part.encode('utf-8'))
+    for icon in sorted((HERE / 'icons').iterdir()):
+        h.update(icon.read_bytes())
+    files[HERE / 'sw.js'] = sw_src.replace('@@VERSION@@', h.hexdigest()[:12])
     return files
 
 
