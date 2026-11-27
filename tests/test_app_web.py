@@ -92,7 +92,7 @@ class WebApp(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which('node'), 'Node nicht vorhanden')
     def test_node_tests(self):
-        for name in ('ports-web.test.cjs', 'sw.test.cjs', 'outbox.test.cjs', 'merge3.test.cjs', 'fehler.test.cjs', 'runs.test.cjs'):
+        for name in ('ports-web.test.cjs', 'sw.test.cjs', 'outbox.test.cjs', 'merge3.test.cjs', 'fehler.test.cjs', 'runs.test.cjs', 'laden.test.cjs'):
             r = subprocess.run(['node', str(WEB / 'tests' / name)], capture_output=True, text=True, timeout=60)
             self.assertEqual(r.returncode, 0, name + '\n' + r.stdout + r.stderr)
 

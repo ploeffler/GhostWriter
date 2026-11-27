@@ -7,11 +7,21 @@ async function loadRepo(spec){
   try { S.lib = JSON.parse((await getFile("library.json")).text); }
   catch (e) {
     try { await getFile("ghostwriter-index.json"); S.lib = {books:[{branch:"main", title:S.repo, status:"ready", work_branch:"ghostwriter/main"}]}; }
-    catch (e2) { S.msg = {kind:"err", html:esc(errText(e))}; S.owner = ""; return show("connect"); }
+    catch (e2) { S.msg = {kind:"err", html:esc(await repoMissingText(e))}; S.owner = ""; return show("connect"); }
   }
   S.msg = null;
   if ((S.lib.books || []).length === 1) return openBook(S.lib.books[0].branch);
   show("library");
+}
+async function repoMissingText(e){   // #729: ein 404 auf library.json heißt nicht „Fehler der App“; erst klären, ob das Repository erreichbar ist
+  if (!e || e.code !== "http_404") return errText(e);
+  const name = S.owner + "/" + S.repo;
+  try { await GW_PORTS.git.listDir("", ""); }
+  catch (e3) {
+    if (e3 && e3.code === "http_404") return "„" + name + "“ wurde nicht gefunden – oder der Token hat dafür keinen Zugriff (bei privaten Repositories antwortet GitHub ebenfalls mit „nicht gefunden“). Prüfe owner/repo und ob der Token genau dieses Repository enthält.";
+    return errText(e3);
+  }
+  return "„" + name + "“ ist erreichbar, enthält aber weder ein Bücherregal (library.json) noch ein Buch (ghostwriter-index.json). Ein Programm-Repository ist kein Buch: Wähle das Repository, in dem dein Buch oder deine Bibliothek liegt.";
 }
 async function loadBookData(ref, overlay){
   S.readRef = ref; S.files.clear();
