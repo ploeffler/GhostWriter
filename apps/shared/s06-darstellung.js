@@ -33,6 +33,7 @@ function widget(name, data, extra){ $("app").innerHTML = `<div class="one">${msg
    Websuche eingestellt, recherchiert die Action „Recherche“: dieser Knopf ist dann aktiv, „Sofort“ (ohne Internet) aus. */
 function patchRun(){
   const gw = $("gw"); if (!gw || !gw.querySelector(".gw-card[data-task]")) return;
+  gw.querySelectorAll('.gw-opt[data-mode="sofort"][data-available="false"]').forEach(b => { b.title = "Kein Modell verfügbar: In dieser App gibt es dafür noch keinen Chat. Nutze den Chat mit GhostWriter."; });   // Grund statt des allgemeinen Texts (#759)
   gw.querySelectorAll('.gw-opt[data-mode="sofort"] span').forEach(sp => { const t = sp.lastChild; if (t && t.nodeType === 3) t.nodeValue = " · hier in der App"; });
   webProvider().then(w => {
     const card = gw.querySelector('.gw-card[data-task="Recherche"]'); if (!w || !card || !gw.isConnected) return;

@@ -89,7 +89,7 @@ These are ordinary requests, not shortcuts around approvals:
 - “Incorporate this material in chapter 2: <new notes or material>.”
 - “Review chapter 2 against the research. Analyze only.”
 
-In an open section, **RS** starts immediate research and **GS** starts immediate ghostwriting (writing must be allowed). **M** opens confirmation for collected changes in the book overview when changes exist. Shortcuts depend on the last displayed view; the full mapping is in [text views and shortcuts](../templates/ui/BEFUELLUNG.md#textfassung-ohne-widgets). See the [user guide](USER-GUIDE.en.md) for the full process.
+In an open section, **RS** starts immediate research and **GS** starts an immediate AI draft (writing must be allowed). **M** opens confirmation for collected changes in the book overview when changes exist. Shortcuts depend on the last displayed view; the full mapping is in [text views and shortcuts](../templates/ui/BEFUELLUNG.md#textfassung-ohne-widgets). See the [user guide](USER-GUIDE.en.md) for the full process.
 
 ## Help output in the chat
 

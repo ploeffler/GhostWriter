@@ -385,6 +385,7 @@ async function sectionData(id){
     SECTION_COST_HINT:costTip(x.s.cost, "Summe der Kosteneinträge", projectOnlyCosts()), SECTION_GOAL:part(t, "Ziel des Abschnitts"), SECTION_SUMMARY:part(t, "Kurzbeschreibung"), SECTION_MANUSCRIPT:ms,
     MARKER_COUNT_TEXT:markers.length ? `${markers.length} offene${markers.length === 1 ? "r" : ""} Marker` : "keine offenen Marker",
     FACT_CHECK:h.fact_check || "disabled", APPROVAL_WRITING:String(!!ap.writing || waived), APPROVAL_SECTION:String(!!ap.section),
+    WRITING_NOW_AVAILABLE:S.sample ? "true" : "false", RESEARCH_NOW_AVAILABLE:S.sample ? "true" : "false",   // „Sofort“ braucht Chat oder Modell (#759)
     PREV_SECTION_ID:pid, PREV_SECTION_PROMPT:ptx, NEXT_SECTION_ID:nid, NEXT_SECTION_PROMPT:ntx, MARKERS:markers});
   const st = staleOf(t);
   Object.assign(d, {STALE_TEXT:st ? staleHint(st) : "", STALE_NONE:st ? "" : "1", STALE_ARGS:JSON.stringify({section_id:id})});
@@ -433,6 +434,7 @@ function widget(name, data, extra){ $("app").innerHTML = `<div class="one">${msg
    Websuche eingestellt, recherchiert die Action „Recherche“: dieser Knopf ist dann aktiv, „Sofort“ (ohne Internet) aus. */
 function patchRun(){
   const gw = $("gw"); if (!gw || !gw.querySelector(".gw-card[data-task]")) return;
+  gw.querySelectorAll('.gw-opt[data-mode="sofort"][data-available="false"]').forEach(b => { b.title = "Kein Modell verfügbar: In dieser App gibt es dafür noch keinen Chat. Nutze den Chat mit GhostWriter."; });   // Grund statt des allgemeinen Texts (#759)
   gw.querySelectorAll('.gw-opt[data-mode="sofort"] span').forEach(sp => { const t = sp.lastChild; if (t && t.nodeType === 3) t.nodeValue = " · hier in der App"; });
   webProvider().then(w => {
     const card = gw.querySelector('.gw-card[data-task="Recherche"]'); if (!w || !card || !gw.isConnected) return;
@@ -1884,7 +1886,7 @@ async function reviewApply(d){
   show("review", d.file);
 }
 
-/* KI-Lauf „Sofort“ (Recherche, Ghostwriting) über Claude in der App */
+/* KI-Lauf „Sofort“ (Recherche, KI-Entwurf) über Claude in der App */
 async function runStart(d){
   if (d.task === "research" && (d.mode === "web" || (d.mode === "immediate" && !d.offline))){
     const w = await webProvider();
@@ -1895,7 +1897,7 @@ async function runStart(d){
   if (!S.sample){ S.msg = {kind:"warn", html:"Claude ist in dieser Ansicht nicht verfügbar."}; return show("section", d.section_id); }
   const x = allSecs().find(v => v.s.id === d.section_id), f = await getFile(x.s.path, S.readRef, true), h = front(f.text), ap = h.approvals || {};
   const waived = ((S.cfg.workflow || {}).require_section_writing_approval === false);
-  if (d.task === "writing" && !(ap.writing || waived)){ S.msg = {kind:"warn", html:"<b>Ghostwriting ist für diesen Abschnitt nicht erlaubt.</b> Erlaube zuerst das Schreiben (unten bei „Schreiben und Abschluss“)."}; return show("section", d.section_id); }
+  if (d.task === "writing" && !(ap.writing || waived)){ S.msg = {kind:"warn", html:"<b>KI-Entwurf ist für diesen Abschnitt nicht erlaubt.</b> Erlaube zuerst das Schreiben (unten bei „Schreiben und Abschluss“)."}; return show("section", d.section_id); }
   if (d.task === "writing" && ap.section){ S.msg = {kind:"warn", html:"Der Abschnitt ist abgeschlossen. Zum Schreiben zuerst wieder öffnen."}; return show("section", d.section_id); }
   if (S.view !== "section" || !S.sec || S.sec.id !== d.section_id) await show("section", d.section_id);
   else { S.msg = null; await show("section", d.section_id); }
@@ -1903,10 +1905,10 @@ async function runStart(d){
   const prompt = d.task === "research"
     ? `Erstelle einen Recherchelauf für diesen Abschnitt. WICHTIG: Du hast in dieser App keinen Internetzugang. Recherchiere aus deinem Wissen, kennzeichne Unsicherheiten ausdrücklich, erfinde keine Quellen, URLs, Zitate oder Zahlen. Nenne nur Quellen, die du sicher kennst, jeweils mit dem Vermerk „bitte prüfen“, und schreibe ausdrücklich, dass keine Internetrecherche stattgefunden hat.
 Antworte NUR mit dem Inhalt zwischen den Zeilen <<<RECHERCHE und RECHERCHE>>>, gegliedert in genau diese Überschriften: ## Fragestellung und Suchumfang, ## Rechercheergebnisse, ## Quellen, ## Widersprüche und Unsicherheiten, ## Offene Fragen, ## Relevanz für den Abschnitt. Davor höchstens zwei Sätze Zusammenfassung.`
-    : `Schreibe das Manuskript dieses einen Abschnitts (Ghostwriting). Grundlage: Ziel, Kurzbeschreibung, Buchprofil, Schreibregeln und die Rechercheläufe unten. Erfinde keine Fakten; offene Stellen als Marker wie [QUELLE PRÜFEN: …] oder [PLATZHALTER-ANEKDOTE: …]. Vermeide KI-typische Muster (ankündigende Schlusssätze, Floskeln, Dreierreihen von Adjektiven, erklärende Moral). Nur dieser Abschnitt.
+    : `Schreibe das Manuskript dieses einen Abschnitts (KI-Entwurf). Grundlage: Ziel, Kurzbeschreibung, Buchprofil, Schreibregeln und die Rechercheläufe unten. Erfinde keine Fakten; offene Stellen als Marker wie [QUELLE PRÜFEN: …] oder [PLATZHALTER-ANEKDOTE: …]. Vermeide KI-typische Muster (ankündigende Schlusssätze, Floskeln, Dreierreihen von Adjektiven, erklärende Moral). Nur dieser Abschnitt.
 Setze den vollständigen Manuskripttext zwischen die Zeilen <<<MANUSKRIPT und MANUSKRIPT>>>. Danach in zwei, drei Sätzen: wichtigste Annahmen und Stellen, die der Autor prüfen sollte.${runs.length ? "\n\nRECHERCHELÄUFE DES ABSCHNITTS\n" + runs.map(r => r.text.slice(0, 6000)).join("\n\n---\n\n") : "\n\n(Keine Rechercheläufe vorhanden.)"}`;
   S.pendingRun = {task:d.task, section_id:d.section_id};
-  chat(prompt, d.task === "research" ? "Recherche · Sofort" : "Ghostwriting · Sofort");
+  chat(prompt, d.task === "research" ? "Recherche · Sofort" : "KI-Entwurf · Sofort");
 }
 async function runFiles(x, folder){
   const dir = `${x.c.path}/${folder}/${x.s.id}`;
