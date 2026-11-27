@@ -195,6 +195,25 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual((t[0]['CK_SHORT'], t[0]['CK_STATE']), ('ASp', 'unknown'))
         self.assertEqual(validate_project.checks_errors(self.base, self.config), [])
 
+    def test_history_marks_checks_replaced_by_later_full_check(self):   # Nachprüfung ersetzt früheren Befund
+        ids = [s['id'] for s in self.ch1['sections']]
+        checks.record(self.base, self.config, 'language', [self.ch1['id']], 'failed', date='2026-11-20', time='17:10', note='Nachprüfung offen')
+        checks.record(self.base, self.config, 'language', [self.ch1['id']], 'passed', date='2026-11-20', time='17:54')
+        h = checks.history(self.base, self.config, ids)
+        self.assertEqual(len(h), 1)
+        self.assertEqual(h[0]['CK_SUPERSEDED'], '2026-11-20 17:54 ✓')
+        self.assertEqual(h[0]['CK_NOTE'], 'ersetzt durch spätere Prüfung 2026-11-20 17:54 ✓ · Nachprüfung offen')
+        self.assertIn('ersetzt durch 2026-11-20 17:54 ✓', '\n'.join(checks.history_text(h)))
+        self.assertIn('superseded by later check 2026-11-20 17:54 ✓', checks.history_note('', h[0]['CK_SUPERSEDED'], 'en'))
+
+    def test_history_keeps_check_not_covered_by_later_partial_check(self):
+        ids = [s['id'] for s in self.ch1['sections']]
+        checks.record(self.base, self.config, 'language', [self.ch1['id']], 'failed', date='2026-11-20', time='17:10')
+        checks.record(self.base, self.config, 'language', [ids[0]], 'passed', date='2026-11-20', time='17:54')   # nur ein Abschnitt
+        h = checks.history(self.base, self.config, ids)
+        self.assertEqual((h[0]['CK_RESULT'], h[0]['CK_SUPERSEDED']), ('failed', ''))   # nicht ersetzt: der Rest des Kapitels wurde nicht nachgeprüft
+        self.assertEqual(checks.history(self.base, self.config, [ids[0]])[0]['CK_SUPERSEDED'], '2026-11-20 17:54 ✓')   # für diesen Abschnitt schon
+
     def test_history_of_earlier_checks(self):   # #340
         for d, r in (('2026-11-17', 'failed'), ('2026-11-18', 'passed_with_notes')):
             checks.record(self.base, self.config, 'quality_correction', [self.ch1['id']], r, date=d)

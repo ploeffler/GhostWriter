@@ -680,17 +680,42 @@ def history(base, config, unit_ids, entries=None, language='de', now_digests=Non
     now_digests = now_digests if now_digests is not None else digests(base, config, list(unit))
     hits = sorted(touching(config, entries, unit), key=lambda t: (when(t[1]), t[0]), reverse=True)
     seen, out = set(), []
-    for _, e, hit in hits:
+    for k, (_, e, hit) in enumerate(hits):
         if e['kind'] not in seen:
             seen.add(e['kind'])
             continue
+        later = superseded_by(hits, k)
+        sup = f'{when(later)} {RESULT_MARK.get(later["result"], "")}'.strip() if later else ''
+        own = e.get('note') or ''
+        note = history_note(own, sup, lang)   # Hinweis auch im Tooltip der Widgets (CK_NOTE), ohne neue UI-Felder
         out.append(dict(localize({'CK_KIND': e['kind'], 'CK_RESULT': e['result'], 'CK_DATE': str(e.get('date') or ''),
                                   'CK_WHEN': when(e),
                                   'CK_REPORT': e.get('report') or '',
                                   'CK_STATE': state(base, config, e, hit, now_digests),
                                   'CK_PARTIAL': '1' if len(hit) < len(unit) else ''}, lang),
-                        CK_ID=str(e.get('id') or ''), CK_NOTE=e.get('note') or ''))
+                        CK_ID=str(e.get('id') or ''), CK_NOTE=note, CK_NOTE_OWN=own, CK_SUPERSEDED=sup))
     return out
+
+
+SUPERSEDED_TEXT = {'de': 'ersetzt durch spätere Prüfung {}', 'en': 'superseded by later check {}'}
+
+
+def history_note(own, superseded, lang='de'):
+    """Notiz eines früheren Eintrags; ist er ersetzt, steht der Hinweis davor."""
+    if not superseded:
+        return own
+    return SUPERSEDED_TEXT[lang if lang in SUPERSEDED_TEXT else 'de'].format(superseded) + (' · ' + own if own else '')
+
+
+def superseded_by(hits, k):
+    """Spätere Prüfung derselben Art, die alles abdeckt, was der Eintrag k in der Einheit prüfte (neueste zuerst sortiert):
+    der frühere Befund gilt dann nicht mehr (z. B. Nachprüfung nach einem Befund). Sonst None."""
+    _, e, hit = hits[k]
+    mine = set(hit)
+    for _, later, later_hit in hits[:k]:
+        if later['kind'] == e['kind'] and mine <= set(later_hit):
+            return later
+    return None
 
 
 def history_text(items, language='de'):
@@ -705,6 +730,7 @@ def history_text(items, language='de'):
     for name, ts in groups.items():
         lines.append(f'- {name}: ' + ' · '.join(
             f'{t["CK_WHEN"]} {t["CK_MARK"]}{ {"changed": "*", "unknown": "?"}.get(t["CK_STATE"], "") if t["CK_MARK"] != "?" else ""}'
+            + (f' ({"ersetzt durch" if language != "en" else "superseded by"} {t["CK_SUPERSEDED"]})' if t.get('CK_SUPERSEDED') else '')
             for t in ts))
     return lines
 
