@@ -57,11 +57,11 @@ function load(extra){
   const ctx2 = {S:{view:"x"}, store:{get:() => null, set(){}}, esc: String, $: () => null, window:{}, document:{addEventListener(){}}, GW_PORTS:{}, NET:{}, Date, Number, JSON, Array, Object, String, Math, errBrowser: () => "x · y", token: () => "", errList: () => [], location:{origin:""}, navigator:{}, crumbs(){}, busy(){}, msgBox: () => "", show(){}, errStore(){}, rest(){}, OB:{all: async () => []}, netProbe(){}, errText: String};
   vm.runInNewContext(read("einstellungen-web.js") + "\n;this.__x = {setEval};", ctx2);
   const E = ctx2.__x.setEval, matrix = JSON.parse(read("faehigkeiten.json")), fn = id => matrix.functions.find(f => f.id === id);
-  const strong = {indexedDB:true, secure:true, serviceWorker:true, persistApi:true, microphone:true, mediaRecorder:true, webgpu:true, memoryGB:8, storageFreeGB:20, builtInTranslator:false, builtInPrompt:false};
+  const strong = {indexedDB:true, secure:true, serviceWorker:true, persistApi:true, microphone:true, mediaRecorder:true, webgpu:true, shaderF16:true, memoryGB:8, storageFreeGB:20, builtInTranslator:false, builtInPrompt:false};
   assert.equal(E(fn("modell-im-browser"), strong).r, "ok");
   assert.equal(E(fn("modell-im-browser"), Object.assign({}, strong, {webgpu:false})).r, "nein");
-  assert.match(E(fn("modell-im-browser"), Object.assign({}, strong, {webgpu:false})).why, /WebGPU, mindestens 8 GB Arbeitsspeicher und 4 GB freien Speicher/);
-  assert.equal(E(fn("modell-im-browser"), Object.assign({}, strong, {memoryGB:4})).r, "nein");
+  assert.match(E(fn("modell-im-browser"), Object.assign({}, strong, {webgpu:false})).why, /WebGPU, mindestens 4 GB Arbeitsspeicher und 3 GB freien Speicher/);
+  assert.equal(E(fn("modell-im-browser"), Object.assign({}, strong, {memoryGB:2})).r, "nein");
   assert.equal(E(fn("modell-im-browser"), Object.assign({}, strong, {memoryGB:null})).r, "eingeschraenkt");   // deviceMemory nicht überall verfügbar: unklar statt falsch
   assert.equal(E(fn("lokal-uebersetzen"), Object.assign({}, strong, {webgpu:false, builtInTranslator:true})).r, "ok");   // Alternative: Browser-Übersetzer
   assert.equal(E(fn("lokal-uebersetzen"), Object.assign({}, strong, {webgpu:false})).r, "nein");

@@ -24,7 +24,7 @@ class WebApp(unittest.TestCase):
         used = {(WEB / m).resolve() for m in re.findall(r'^@@include (\S+)@@$', src, re.M)}
         shared = {p.resolve() for p in (APPS / 'shared').iterdir()}
         self.assertTrue(shared <= used, 'Die Web-App muss alle Teile aus apps/shared binden')
-        self.assertEqual({p.name for p in used - shared}, {'ports-web.js', 'net-web.js', 'merge3.js', 'outbox-web.js', 'konflikt-web.js', 'fehler-web.js', 'einstellungen-web.js', 'runs-web.js', 'voice-web.js', 'regal-web.js', 'boot-web.js', 'web.css'})
+        self.assertEqual({p.name for p in used - shared}, {'ports-web.js', 'net-web.js', 'merge3.js', 'outbox-web.js', 'konflikt-web.js', 'fehler-web.js', 'einstellungen-web.js', 'runs-web.js', 'voice-web.js', 'modelle-web.js', 'version-web.js', 'regal-web.js', 'boot-web.js', 'web.css'})
 
     def test_kein_claude_anschluss_und_kein_fremder_host(self):
         for name in ('ports-web.js', 'boot-web.js'):
@@ -92,7 +92,7 @@ class WebApp(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which('node'), 'Node nicht vorhanden')
     def test_node_tests(self):
-        for name in ('ports-web.test.cjs', 'sw.test.cjs', 'outbox.test.cjs', 'merge3.test.cjs', 'fehler.test.cjs', 'runs.test.cjs', 'laden.test.cjs', 'pruefprotokoll.test.cjs'):
+        for name in ('ports-web.test.cjs', 'sw.test.cjs', 'outbox.test.cjs', 'merge3.test.cjs', 'fehler.test.cjs', 'runs.test.cjs', 'laden.test.cjs', 'voice.test.cjs', 'modelle.test.cjs', 'version.test.cjs', 'pruefprotokoll.test.cjs'):
             r = subprocess.run(['node', str(WEB / 'tests' / name)], capture_output=True, text=True, timeout=60)
             self.assertEqual(r.returncode, 0, name + '\n' + r.stdout + r.stderr)
 

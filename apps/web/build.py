@@ -34,7 +34,7 @@ def expected():
     h = hashlib.sha256()
     sw_src = (HERE / 'sw.src.js').read_text(encoding='utf-8')
     for part in [sw_src, files[HERE / 'index.html'], (HERE / 'manifest.webmanifest').read_text(encoding='utf-8'),
-                 (HERE / 'vendor' / 'js-yaml.min.js').read_text(encoding='utf-8'), (HERE / 'faehigkeiten.json').read_text(encoding='utf-8')] + [files[HERE / 'vendor' / n] for n in COPIES]:
+                 (HERE / 'vendor' / 'js-yaml.min.js').read_text(encoding='utf-8'), (HERE / 'faehigkeiten.json').read_text(encoding='utf-8'), (HERE / 'modelle.json').read_text(encoding='utf-8')] + [files[HERE / 'vendor' / n] for n in COPIES]:
         h.update(part.encode('utf-8'))
     for icon in sorted((HERE / 'icons').iterdir()):
         h.update(icon.read_bytes())
