@@ -324,6 +324,20 @@ UI_URL = 'https://cdn.jsdelivr.net/gh/{repo}@{ref}/dist/gw.min.js'  # von jsDeli
 UI = {'repo': 'ploeffler/ghostwriter-ui', 'ref': None}
 
 
+def read_json_arg(raw):
+    """JSON aus einem Aufrufwert lesen: JSON-Text (beginnt mit { oder [) direkt, sonst als Dateipfad, wenn es die Datei gibt (#704).
+    Lange JSON-Texte sind als Dateiname zu lang; is_file() darf daran nicht abbrechen."""
+    text = str(raw)
+    if text.lstrip()[:1] not in ('{', '['):
+        try:
+            path = Path(text)
+            if path.is_file():
+                text = path.read_text(encoding='utf-8')
+        except OSError:
+            pass
+    return json.loads(text)
+
+
 def view_message(key, **values):
     """Nur feste Oberflächentexte übersetzen, keine fertig befüllten Nutztexte."""
     try:
@@ -3467,7 +3481,7 @@ def character_suggest_view(base, config, args):
     Assistenten mit scope und items [{name, aliases, role, short, age, appearance, traits, voice, relations,
     sections, evidence [{where, quote}]}]; where = Bereich (book, N, N.M, Teil bzw. ser-…)."""
     raw = args.draft or '{}'
-    data = json.loads(Path(raw).read_text(encoding='utf-8') if Path(raw).is_file() else raw)
+    data = read_json_arg(raw)
     scope = data.get('scope') or args.where or 'book'
     is_series = str(scope).startswith('ser-')
     if is_series:   # Serienebene: auf dem Standard-Branch
@@ -3940,7 +3954,7 @@ def character_talk_view(base, config, args):
     draft = {}
     if getattr(args, 'draft', None):
         raw = args.draft
-        draft = json.loads(Path(raw).read_text(encoding='utf-8') if Path(raw).is_file() else raw)
+        draft = read_json_arg(raw)
     en = UI.get('language') == 'en'
     phase = draft.get('phase') or ('active' if args.where else 'start')
     if phase not in ('start', 'active', 'insights'):
@@ -4433,8 +4447,7 @@ LETTERS = 'abcdef'
 def choice_spec(args):
     """Auswahl-Spezifikation: Schritt aus templates/wizard-choices.yml (where) oder --spec (JSON-Datei bzw. JSON-Text)."""
     if args.spec:
-        raw = Path(args.spec).read_text(encoding='utf-8') if Path(args.spec).is_file() else args.spec
-        spec = json.loads(raw)
+        spec = read_json_arg(args.spec)
         spec.setdefault('step', args.where or 'choice')
         return spec
     lib = yaml.safe_load(WIZARD_CHOICES.read_text(encoding='utf-8'))
