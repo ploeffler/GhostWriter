@@ -26,7 +26,7 @@ async function rest(method, path, body, accept){
   try {
     res = await fetch(API + path, {method, cache:"no-store", body:body ? JSON.stringify(body) : undefined,
       headers:Object.assign({Authorization:"Bearer " + t, Accept:accept || "application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28"}, body ? {"Content-Type":"application/json"} : {})});
-  } catch (e) { throw {code:"offline", message:"Keine Verbindung zu GitHub."}; }
+  } catch (e) { if (typeof netFailed === "function") netFailed(); throw {code:"offline", message:"Keine Verbindung zu GitHub."}; }
   const text = await res.text();
   if (!res.ok){
     let msg = ""; try { msg = (JSON.parse(text) || {}).message || ""; } catch (e) {}

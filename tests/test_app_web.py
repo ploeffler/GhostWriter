@@ -1,5 +1,6 @@
 """Eigene Web-App (#662, Schritt 3): gebaut aus apps/shared, eigener Anschluss ohne Konnektor."""
 import importlib.util
+import json
 import re
 import shutil
 import subprocess
@@ -23,7 +24,7 @@ class WebApp(unittest.TestCase):
         used = {(WEB / m).resolve() for m in re.findall(r'^@@include (\S+)@@$', src, re.M)}
         shared = {p.resolve() for p in (APPS / 'shared').iterdir()}
         self.assertTrue(shared <= used, 'Die Web-App muss alle Teile aus apps/shared binden')
-        self.assertEqual({p.name for p in used - shared}, {'ports-web.js', 'boot-web.js'})
+        self.assertEqual({p.name for p in used - shared}, {'ports-web.js', 'net-web.js', 'boot-web.js', 'web.css'})
 
     def test_kein_claude_anschluss_und_kein_fremder_host(self):
         for name in ('ports-web.js', 'boot-web.js'):
@@ -37,10 +38,25 @@ class WebApp(unittest.TestCase):
         html = (WEB / 'index.html').read_text(encoding='utf-8')
         self.assertNotRegex(html, r'github_pat_|ghp_[A-Za-z0-9]{20}')
 
+    def test_pwa_dateien(self):
+        manifest = json.loads((WEB / 'manifest.webmanifest').read_text(encoding='utf-8'))
+        self.assertEqual((manifest['start_url'], manifest['scope'], manifest['display']), ('./', './', 'standalone'))
+        sizes = {i['sizes'] for i in manifest['icons']}
+        self.assertTrue({'192x192', '512x512'} <= sizes)
+        for icon in manifest['icons']:
+            self.assertTrue((WEB / icon['src']).is_file(), icon['src'])
+        sw = (WEB / 'sw.js').read_text(encoding='utf-8')
+        for f in re.findall(r'"([^"]+\.(?:html|js|css|png|svg|webmanifest))"', sw.split('const SHELL = ')[1].split(';')[0]):
+            self.assertTrue((WEB / f).is_file(), f + ' ist in der App-Hülle des Service Workers, fehlt aber')
+        html = (WEB / 'index.html').read_text(encoding='utf-8')
+        self.assertIn('rel="manifest" href="manifest.webmanifest"', html)
+        self.assertNotIn('@@VERSION@@', sw)
+
     @unittest.skipUnless(shutil.which('node'), 'Node nicht vorhanden')
-    def test_anschluss_mit_nachgestelltem_fetch(self):
-        r = subprocess.run(['node', str(WEB / 'tests' / 'ports-web.test.cjs')], capture_output=True, text=True, timeout=60)
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+    def test_node_tests(self):
+        for name in ('ports-web.test.cjs', 'sw.test.cjs'):
+            r = subprocess.run(['node', str(WEB / 'tests' / name)], capture_output=True, text=True, timeout=60)
+            self.assertEqual(r.returncode, 0, name + '\n' + r.stdout + r.stderr)
 
 
 if __name__ == '__main__':
