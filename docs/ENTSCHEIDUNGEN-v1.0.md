@@ -338,6 +338,17 @@ Vom Benutzer nach der Aufwandsanalyse bestätigt („Stufe 1: sofort, Stufe 2: I
 Bestätigte Planung, noch keine Umsetzung oder praktische Abnahme. Keine GitHub-Übertragung durch diesen Beschluss beauftragt.
 
 
+## Beschluss vom 27. November 2026: Claude-Artefakt wird nicht mehr gepflegt
+
+Vom Benutzer als Entscheidung mitgeteilt:
+
+- **Das Artefakt „GhostWriter für Claude“ (Web-App in Claude, `apps/claude`) wird nicht mehr weiter gepflegt.** Es gibt keine neuen Funktionen, Fehlerbehebungen oder Veröffentlichungen mehr dafür. Der veröffentlichte Link bleibt in der zuletzt veröffentlichten Fassung bestehen und wird nicht aktualisiert.
+- **Ersatz:** Die eigene Web-App (`apps/web`, GitHub Page, #662, v1.6) führt die Ansichten und Aktionen weiter.
+- **Es wird nichts gelöscht.** Die Dateien von `apps/claude` bleiben im Repository, sie werden nur nicht mehr weiterentwickelt. Weiter gepflegt wird, was `apps/web` mitnutzt: der Baukasten `apps/claude/build.py`, die Widget-Laufzeit `apps/claude/vendor/` und die gemeinsame Logik `apps/shared/`.
+- Keine Änderung an Chat, Widgets in Claude oder den Skills: Das Widget in der Claude-Unterhaltung ist nicht das Artefakt.
+
+Umsetzung: Vermerk in den Anleitungen, keine Änderung am Code.
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
