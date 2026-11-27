@@ -23,6 +23,7 @@ const nf = {code:"http_404", status:404, message:"Not Found"};
   // mit bekanntem Login nennt die Meldung das Konto, damit ein Token des falschen Kontos auffällt (#731); der Platzhalter „chat“ nicht
   r = await run({getFile: async () => { throw nf; }, listDir: async () => { throw nf; }}, "chillyconcane");
   assert.match(r.ctx.S.msg.html, /angemeldet als „chillyconcane“/);
+  assert.match(r.ctx.S.msg.html, /Collaborator.*klassischen Token/s, "fremdes Konto: Hinweis auf klassischen Token (#763)");
   r = await run({getFile: async () => { throw nf; }, listDir: async () => { throw nf; }}, "chat");
   assert.doesNotMatch(r.ctx.S.msg.html, /angemeldet als/);
   // andere Fehler gehen unverändert durch errText (und damit ins Protokoll)
