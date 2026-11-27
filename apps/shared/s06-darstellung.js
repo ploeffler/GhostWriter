@@ -7,7 +7,7 @@ function crumbs(){
   if (S.sec) c.push(`›<span style="padding:0 6px">${esc(S.secNo)}</span>`);
   $("crumbs").innerHTML = c.join(" ");
 }
-const msgBox = () => S.msg ? `<div class="note ${S.msg.kind}" role="status">${S.msg.html}</div>` : "";
+const msgBox = () => S.msg ? `<div class="note ${S.msg.kind}" role="status">${S.msg.html}${S.msg.kind === "err" && GW_PORTS.report ? GW_PORTS.report.button() : ""}</div>` : "";
 function busy(t){ $("app").innerHTML = `<div class="one"><p class="dim"><span class="spin"></span>${esc(t)}</p></div>`; }
 /* Fehlende Platzhalter gelten als leer (#685, wie _PACK ab UI 0.72): Die eingebaute Laufzeit lässt unbekannte {{NAME}} stehen.
    Nach dem Rendern aus Text und Attributen entfernen; Ereignisbehandler bleiben, weil nur Knotenwerte geändert werden. */
@@ -53,6 +53,7 @@ function desk(name, data, extra, key){
 async function show(view, arg){
   S.view = view;
   try {
+    if (GW_PORTS.views && GW_PORTS.views[view]) return GW_PORTS.views[view](arg);   // Ansichten, die nur ein Anschluss kennt (eigene Web-App: Einstellungen)
     if (view === "connect"){ crumbs(); return connectView(); }
     if (view === "library"){ S.book = null; S.chap = null; S.sec = null; crumbs(); return widget("buecherregal", libraryData()); }
     if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, checksCard() + queueCard() + await reviewCard() + await checkinCard(), "project"); }

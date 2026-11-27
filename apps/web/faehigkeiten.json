@@ -1,0 +1,67 @@
+{
+  "format": 1,
+  "updated": "2026-11-27",
+  "hinweis": "Fähigkeiten-Matrix der Web-App (#662): welche Funktion welche Voraussetzungen braucht. Gleiche Struktur wie die geplante Modellliste (#525). Wird mit der App ausgeliefert und funktioniert offline; Messwerte des Geräts bleiben auf dem Gerät.",
+  "functions": [
+    {
+      "id": "offline-schreiben",
+      "name": {"de": "Abschnitt ohne Netz schreiben", "en": "Write a section without network"},
+      "status": "vorhanden",
+      "requires": {"indexedDB": true},
+      "fallback": {"de": "Änderungen liegen nur im Arbeitsspeicher und gehen beim Neuladen verloren.", "en": "Changes stay in memory only and are lost on reload."},
+      "reason": {"de": "braucht IndexedDB", "en": "needs IndexedDB"}
+    },
+    {
+      "id": "app-installieren",
+      "name": {"de": "Als App installieren (PWA)", "en": "Install as an app (PWA)"},
+      "status": "vorhanden",
+      "requires": {"serviceWorker": true, "secureContext": true},
+      "fallback": {"de": "Die Seite im Browser öffnen.", "en": "Open the page in the browser."},
+      "reason": {"de": "braucht Service Worker und eine sichere Adresse (https oder localhost)", "en": "needs a service worker and a secure address (https or localhost)"}
+    },
+    {
+      "id": "dauerhafter-speicher",
+      "name": {"de": "Dauerhafter Speicher", "en": "Persistent storage"},
+      "status": "vorhanden",
+      "requires": {"persistApi": true},
+      "fallback": {"de": "Der Browser kann den Speicher bei Platzmangel räumen: Änderungen zeitnah hochladen.", "en": "The browser may clear storage when space runs low: upload changes soon."},
+      "reason": {"de": "der Browser bietet keinen dauerhaften Speicher an", "en": "the browser offers no persistent storage"}
+    },
+    {
+      "id": "sprachnotiz",
+      "name": {"de": "Sprachnotiz aufnehmen", "en": "Record a voice note"},
+      "status": "geplant (#644, v1.9)",
+      "requires": {"microphone": true, "mediaRecorder": true},
+      "fallback": {"de": "Diktieren über das Mikrofon der Tastatur.", "en": "Dictate with the keyboard microphone."},
+      "reason": {"de": "braucht Mikrofon und Aufnahme im Browser", "en": "needs a microphone and recording in the browser"}
+    },
+    {
+      "id": "modell-im-browser",
+      "name": {"de": "Chat mit Modell im Browser", "en": "Chat with an in-browser model"},
+      "status": "geplant (#525, v1.6)",
+      "requires": {"webgpu": true, "memoryGB": 8, "storageFreeGB": 4, "shaderF16": false},
+      "recommended": {"de": "Modellstufe folgt mit der Modellliste (#525); der Probelauf entscheidet, ob es läuft.", "en": "Model tier follows with the model list (#525); a trial run decides whether it works."},
+      "fallback": {"de": "Chat mit Anbieter (ab v2.0) oder im Chat mit GhostWriter.", "en": "Chat with a provider (from v2.0) or in the GhostWriter chat."},
+      "reason": {"de": "braucht WebGPU, mindestens {memoryGB} GB Arbeitsspeicher und {storageFreeGB} GB freien Speicher", "en": "needs WebGPU, at least {memoryGB} GB of memory and {storageFreeGB} GB free storage"},
+      "probe": "folgt"
+    },
+    {
+      "id": "lokal-uebersetzen",
+      "name": {"de": "Lokal übersetzen im Browser", "en": "Translate locally in the browser"},
+      "status": "geplant (#75, v1.6)",
+      "requires": {"webgpu": true, "memoryGB": 8, "storageFreeGB": 4},
+      "alternative": {"builtInTranslator": true},
+      "fallback": {"de": "Übersetzung im Chat mit GhostWriter.", "en": "Translation in the GhostWriter chat."},
+      "reason": {"de": "braucht die Übersetzung des Browsers oder WebGPU mit mindestens {memoryGB} GB Arbeitsspeicher", "en": "needs the browser's translator or WebGPU with at least {memoryGB} GB of memory"},
+      "probe": "folgt"
+    },
+    {
+      "id": "kontingent-browser-ki",
+      "name": {"de": "Eingebaute Browser-KI", "en": "Built-in browser AI"},
+      "status": "geplant (#525)",
+      "requires": {"builtInPrompt": true},
+      "fallback": {"de": "Modell im Browser oder Anbieter.", "en": "In-browser model or provider."},
+      "reason": {"de": "der Browser bietet keine eingebaute KI an", "en": "the browser has no built-in AI"}
+    }
+  ]
+}
