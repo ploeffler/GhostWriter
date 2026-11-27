@@ -4,7 +4,7 @@ Erster Wurf der eigenen App aus [#662](https://github.com/ploeffler/GhostWriter/
 ([`apps/claude/`](../claude/README.md)), aber ohne Claude und ohne Konnektor. Sie läuft aus einem einzigen Ordner direkt im Browser und spricht
 über die GitHub-REST-Schnittstelle mit einem **Fine-grained Token** mit GitHub.
 
-**Stand:** Entwurf, noch nicht veröffentlicht. Installierbar als App (PWA), die App-Hülle läuft ohne Netz, und ein Abschnitt lässt sich ohne Netz schreiben und
+**Stand:** Entwurf, auf der GitHub Page veröffentlicht (siehe unten). Installierbar als App (PWA), die App-Hülle läuft ohne Netz, und ein Abschnitt lässt sich ohne Netz schreiben und
 später hochladen. Konflikte lassen sich lösen. Es gibt noch keine Einstellungen; das folgt in den nächsten Schritten von #662. Sie ist **nicht** Teil dessen, was
 Updates in Bibliotheken kopieren.
 
@@ -55,7 +55,12 @@ noch kein Buch (die Bücher werden nicht lokal gehalten); weiterschreiben geht w
 
 **Gelesen** wird aus dem Netz; was offline noch angezeigt wird, ist nur, was die Ansicht schon geladen hat.
 
-**Veröffentlichen:** Diese Fassung ist nirgends gehostet. Eine GitHub Page für die App kommt erst nach ausdrücklicher Freigabe (öffentliche Bereitstellung).
+**Veröffentlichen (freigegeben von Peter am 27.11.2026):** Die App liegt auf der GitHub Page unter `https://ploeffler.github.io/GhostWriter/app/` (nur die
+Laufzeitdateien, `scripts/package_web_app.py`; Quellen, Tests und README gehören nicht dazu). Veröffentlichen heißt: Action **Beispielseiten veröffentlichen**
+(`pages.yml`) mit `web_app: true` und `documentation: true`; mit `docs_ref: v1.5` (Tag des letzten Release) bleibt die veröffentlichte Dokumentation unverändert und nur
+die App kommt dazu. Der Release-Ablauf (`release.yml`) nimmt die App bei jeder Veröffentlichung mit, damit sie nicht verschwindet. Die Seite enthält keine Buchinhalte;
+jeder Benutzer meldet sich mit seinem eigenen Token an. Eine **neue Fassung** der App erreicht Geräte beim nächsten Laden (der Name des Service-Worker-Speichers
+ändert sich mit jedem Bau). Forks können dieselbe App auf ihrer eigenen Page hosten (`https://<besitzer>.github.io/<repo>/app/`), die Herkunft zeigt Einstellungen › Verbindungen.
 Lokal ausprobieren: `cd apps/web && python3 -m http.server 8765`, dann `http://localhost:8765/` öffnen.
 
 ## Einstellungen › Verbindungen, Gerät, Fehler melden (#662)

@@ -8,6 +8,14 @@ on:
         description: 'Zentrale Dokumentation einbeziehen – nur nach ausdrücklicher Veröffentlichungsfreigabe'
         type: boolean
         default: false
+      docs_ref:
+        description: 'Stand der Dokumentation (Tag oder Branch); leer = main. Mit z. B. v1.5 bleibt die veröffentlichte Dokumentation unverändert und nur die Web-App kommt dazu'
+        type: string
+        default: ''
+      web_app:
+        description: 'Eigene Web-App unter /app/ einbeziehen – nur nach ausdrücklicher Veröffentlichungsfreigabe'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -28,15 +36,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        if: inputs.documentation
+        if: inputs.documentation || inputs.web_app
         with:
           python-version: '3.12'
+      - name: Stand der Dokumentation holen
+        if: inputs.documentation && inputs.docs_ref != ''
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.docs_ref }}
+          path: _docs
       - name: Dokumentationswerkzeuge installieren
         if: inputs.documentation
-        run: pip install -r scripts/docsite/requirements.txt
+        env:
+          DOCS_REF: ${{ inputs.docs_ref }}
+        run: |
+          if [ -n "$DOCS_REF" ]; then pip install -r _docs/scripts/docsite/requirements.txt; else pip install -r scripts/docsite/requirements.txt; fi
       - name: Freigegebenes Dokumentationspaket lokal aufbauen und prüfen
         if: inputs.documentation
-        run: python scripts/package_docs_site.py
+        env:
+          DOCS_REF: ${{ inputs.docs_ref }}
+        run: |
+          if [ -n "$DOCS_REF" ]; then (cd _docs && python scripts/package_docs_site.py --output "$GITHUB_WORKSPACE/build/pages"); else python scripts/package_docs_site.py; fi
+      - name: Eigene Web-App paketieren (nur Laufzeitdateien, unter /app/)
+        if: inputs.web_app
+        env:
+          TARGET: ${{ inputs.documentation && 'build/pages' || 'website' }}
+        run: python scripts/package_web_app.py --output "$TARGET/app"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
