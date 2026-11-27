@@ -109,6 +109,22 @@ class HinweiseTest(unittest.TestCase):
         self.assertNotIn('`e-001`', hinweise.show(data, only_open=True))
         self.assertFalse(validate_project.check_project(self.base))
 
+    def test_write_keeps_comments_and_untouched_entries(self):   # #717
+        path, _ = hinweise.collect(self.base, self.config, date='2026-11-20', commit='abcdef1')
+        text = path.read_text(encoding='utf-8')
+        head = '# GESPERRT vom Autor: kein apply, bis die Fassung geklärt ist\n\n'
+        path.write_text(head + text, encoding='utf-8')
+        data = hinweise.read_yaml(path)
+        others = [e['id'] for part in ('ohne_autor', 'autorenentscheidung') for e in data.get(part) or [] if e['id'] != 'e-001']
+        self.assertTrue(others)
+        before = path.read_text(encoding='utf-8')
+        hinweise.decide(path, 'e-001', 'geändert', 'Eigene Fassung')
+        after = path.read_text(encoding='utf-8')
+        self.assertTrue(after.startswith(head.rstrip('\n')))
+        self.assertEqual(hinweise.read_yaml(path)['ohne_autor'][0]['neu'], 'Eigene Fassung')
+        changed = [l for l in after.splitlines() if l not in before.splitlines()]
+        self.assertTrue(changed and len(changed) <= 4, changed)   # nur der entschiedene Eintrag ist neu geschrieben
+
     def test_chapter_filter_and_validation(self):
         with self.assertRaises(ValueError):
             hinweise.collect(self.base, self.config, chapters=['kap-x'])

@@ -51,6 +51,9 @@ from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from yaml_keep import write_keep  # noqa: E402
+
 LANGUAGE_KINDS = ('rechtschreibung', 'zeichensetzung', 'grammatik', 'wiederholung', 'satzbau', 'sprache')
 AUTHOR_KINDS = ('fakt', 'kontinuitaet', 'ton', 'aufbau', 'buchweit')
 KINDS = LANGUAGE_KINDS + AUTHOR_KINDS
@@ -196,7 +199,8 @@ def read_yaml(path):
 
 
 def write_yaml(path, data):
-    Path(path).write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=100), encoding='utf-8')
+    """Schreibt die Dialogdatei; Kommentare (z. B. ein Sperrvermerk) und unveränderte Einträge bleiben wörtlich erhalten (#717)."""
+    write_keep(path, data)
 
 
 BOOK = 'book'   # buchweiter Befund (#423): kein Abschnitt, nur Autorenentscheidung
