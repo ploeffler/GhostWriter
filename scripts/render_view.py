@@ -297,8 +297,22 @@ def money(amount, estimated, currency='€'):
     return ('≈ ' if estimated else '') + f'{s} {currency}'
 
 
-def cost_hint(base_hint, amount, estimated):
+def project_only_costs(base):
+    """Gibt es Kosten, die nur fürs ganze Buch erfasst sind (costs/project.yml, z. B. Medienaufträge)? Dann ist „–“ bei Kapitel und Abschnitt kein Fehler (#754)."""
+    return total(cost_entries(base, base / 'costs' / 'project.yml'))[0] is not None
+
+
+def cost_text(amount, estimated, project_only=False):
+    """Kostentext; ohne eigene Kosten bei vorhandenen Buchkosten mit Hinweis statt nacktem „–“ (#754)."""
+    if amount is None and project_only:
+        return view_message('cost.project_only_short')
+    return money(amount, estimated)
+
+
+def cost_hint(base_hint, amount, estimated, project_only=False):
     if amount is None:
+        if project_only:
+            return view_message('cost.project_only')
         return view_message('cost.none')
     return base_hint + (view_message('cost.estimated') if estimated else '')
 
@@ -1601,7 +1615,7 @@ def project_view(base, config, args):
         parts.append((ch_amount, ch_est))
         rows.append({'CHAPTER_NUMBER': i, 'CHAPTER_TITLE': ch['title'], 'CHAPTER_STATUS': ch['status'],
                      'CHAPTER_COST': money(ch_amount, ch_est),
-                     'CHAPTER_COST_HINT': cost_hint('Summe der Abschnittskosten', ch_amount, ch_est),
+                     'CHAPTER_COST_HINT': cost_hint('Summe der Abschnittskosten', ch_amount, ch_est, project_only_costs(base)),
                      'CHAPTER_ID': ch['id'], 'CHAPTER_WORDS': words,
                      'CHAPTER_WORDS_TEXT': f'{words:,}'.replace(',', '.') + (' Wort' if words == 1 else ' Wörter'),
                      'CHAPTER_APPROVED_TEXT': f'{done} von {len(ch["sections"])}' if ch['sections'] else '',
@@ -1880,7 +1894,7 @@ def chapter_view(base, config, args, cnum):
               'CHAPTER_TITLE': ch['title'], 'CHAPTER_SUBTITLE': sub.group(1) if sub else '',
               'SECTION_COUNT_TEXT': f'{n} Abschnitt' + ('' if n == 1 else 'e'),
               'MARKER_COUNT_TEXT': 'keine offenen Marker' if not counts_total else f'{counts_total} offene{"r" if counts_total == 1 else ""} Marker',
-              'CHAPTER_COST': money(amount, est), 'CHAPTER_COST_HINT': cost_hint('Summe der Abschnittskosten', amount, est),
+              'CHAPTER_COST': cost_text(amount, est, project_only_costs(base)), 'CHAPTER_COST_HINT': cost_hint('Summe der Abschnittskosten', amount, est, project_only_costs(base)),
               'APPROVED_COUNT_TEXT': f'{approved} von {n}',
               'CHAPTER_APPROVABLE': 'true' if ch['status'] == 'ready_for_approval' and n and approved == n else '',
               'CHAPTER_REVISION_READY': 'true' if revision_ready else ''}
@@ -2026,8 +2040,8 @@ def section_view(base, config, args, cnum, snum):
     n = len(markers)
     values = {'PROJECT_TITLE_SHORT': p['title_short'] or p['title'], 'CHAPTER_ID': ch['id'], 'CHAPTER_NUMBER': cnum,
               'SECTION_ID': s['id'], 'SECTION_NUMBER': f'{cnum}.{snum}', 'SECTION_TITLE': s['title'],
-              'SECTION_STATUS': head['status'], 'SECTION_COST': money(a, e),
-              'SECTION_COST_HINT': cost_hint('Summe der Kosteneinträge', a, e),
+              'SECTION_STATUS': head['status'], 'SECTION_COST': cost_text(a, e, project_only_costs(base)),
+              'SECTION_COST_HINT': cost_hint('Summe der Kosteneinträge', a, e, project_only_costs(base)),
               'SECTION_GOAL': goal, 'SECTION_SUMMARY': summary, 'SECTION_MANUSCRIPT': ms,
               'MARKER_COUNT_TEXT': 'keine offenen Marker' if not n else f'{n} offene{"r" if n == 1 else ""} Marker',
               'FACT_CHECK': head['fact_check'], 'APPROVAL_WRITING': str(writing_ok(config, head['approvals'])).lower(),

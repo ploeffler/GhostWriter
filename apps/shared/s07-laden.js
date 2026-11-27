@@ -26,10 +26,12 @@ async function repoMissingText(e){   // #729: ein 404 auf library.json heißt ni
 async function loadBookData(ref, overlay){
   S.readRef = ref; S.files.clear();
   S.idx = {project:{}, chapters:[]};
-  try { const ix = await getFile("ghostwriter-index.json", ref, true); S.idx = JSON.parse(ix.text); S.head = ix.commit || S.head; } catch (e) {}
+  S.idxMissing = false;
+  try { const ix = await getFile("ghostwriter-index.json", ref, true); S.idx = JSON.parse(ix.text); S.head = ix.commit || S.head; } catch (e) { S.idxMissing = true; }   // nicht still übergehen: Summen dann aus den Kostendateien (#754)
   const gy = await getFile("ghostwriter.yml", ref, true); if (gy.commit) S.head = gy.commit;
   S.cfg = {}; try { S.cfg = window.jsyaml.load(gy.text) || {}; } catch (e) {}
   buildStruct();
+  if (S.idxMissing) await costsFromFiles(ref);
   S.checks = []; try { const d = window.jsyaml.load((await getFile("editorial/checks.yml", ref)).text); S.checks = ((d && d.checks) || []).filter(e => e && e.kind && e.result); } catch (e) {}
   S.rules = await getFile("SCHREIBREGELN.md", ref).then(f => f.text.slice(0, 8000)).catch(() => "");
   // nur lokal gespeicherte Änderungen (Anschluss mit Outbox, #662) liegen über dem Stand von GitHub, bis sie hochgeladen sind
@@ -39,6 +41,24 @@ async function loadBookData(ref, overlay){
 function applyOverlay(ref, overlay){ // eben Geschriebenes sofort zeigen, auch wenn GitHub noch den alten Stand liefert
   overlay.forEach(f => { const k = ref + "|" + f.path, o = S.files.get(k); if (!o || o.text !== f.content) S.files.set(k, {text:f.content, commit:(o && o.commit) || S.head, sha:""}); });
   const g = overlay.slice().reverse().find(f => f.path === "ghostwriter.yml"); if (g){ try { S.cfg = window.jsyaml.load(g.content) || S.cfg; } catch (e) {} buildStruct(); }
+}
+/* Kosten ohne Index (#754): wie scripts/render_view.py aus costs/project.yml und chapters/<Kapitel>/costs/<Abschnitt>.yml summieren (nur Backend- und Action-Kosten). */
+function costSum(text){
+  let d = null; try { d = window.jsyaml.load(text); } catch (e) {}
+  const es = ((d && d.entries) || []).filter(e => e && ["backend_api", "action_api"].includes(e.source || "backend_api"));
+  const am = es.filter(e => e.cost_amount != null && e.cost_amount !== "").map(e => Number(e.cost_amount));
+  return {amount:am.length ? am.reduce((a, b) => a + b, 0) : null, estimated:es.some(e => e.cost_status === "estimated")};
+}
+const costText = c => c.amount == null ? "–" : (c.estimated ? "≈ " : "") + c.amount.toFixed(2).replace(".", ",") + " €";
+async function costsFromFiles(ref){
+  const read = async path => { try { return costSum((await getFile(path, ref, true)).text); } catch (e) { return {amount:null, estimated:false}; } };
+  const proj = await read("costs/project.yml"), secs = (S.struct || []).flatMap(c => (c.sections || []).map(s => ({c, s})));
+  const got = await pool(secs, 6, async x => read(x.c.path + "/costs/" + x.s.id + ".yml"));
+  secs.forEach((x, i) => { const c = got[i] || {amount:null, estimated:false}; x.s.cost = {amount:c.amount, estimated:c.estimated, text:costText(c)}; });
+  const all = [proj].concat(got.filter(Boolean)), am = all.filter(c => c.amount != null);
+  S.struct.forEach(c => { const l = c.sections.map(s => s.cost).filter(k => k && k.amount != null), a = l.length ? l.reduce((x, k) => x + k.amount, 0) : null, est = l.some(k => k.estimated); c.cost = {amount:a, estimated:est, text:costText({amount:a, estimated:est})}; });
+  const sum = am.length ? am.reduce((a, c) => a + c.amount, 0) : null, est = all.some(c => c.estimated);
+  S.idx.project = Object.assign(S.idx.project || {}, {cost:{amount:sum, estimated:est, text:costText({amount:sum, estimated:est})}});
 }
 function buildStruct(){
   const ixC = new Map((S.idx.chapters || []).map(c => [c.id, c])), ixS = new Map((S.idx.chapters || []).flatMap(c => (c.sections || []).map(s => [s.id, s])));

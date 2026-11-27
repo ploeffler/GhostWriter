@@ -77,3 +77,41 @@ class CostsTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ProjectOnlyCostsTest(unittest.TestCase):
+    """#754: Kosten nur fürs ganze Buch (Medienaufträge) – Kapitel und Abschnitt zeigen einen Hinweis statt nacktem „–“."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.base = Path(tmp.name)
+        import render_view
+        self.rv = render_view
+        render_view.UI['language'] = 'de'
+        self.addCleanup(lambda: render_view.UI.update(language='de'))
+
+    def write(self, rows):
+        (self.base / 'costs').mkdir(exist_ok=True)
+        (self.base / 'costs/project.yml').write_text(yaml.safe_dump({'scope': 'project', 'entries': rows}), encoding='utf-8')
+
+    def test_ohne_kosten_kein_hinweis(self):
+        self.assertFalse(self.rv.project_only_costs(self.base))
+        self.assertEqual(self.rv.cost_text(None, False, False), '–')
+        self.assertIn('Keine KI-API-Kosten', self.rv.cost_hint('Summe', None, False, False))
+
+    def test_nur_buchkosten_hinweis_de_en(self):
+        self.write([entry('estimated', 0.3189)])
+        only = self.rv.project_only_costs(self.base)
+        self.assertTrue(only)
+        self.assertEqual(self.rv.cost_text(None, False, only), '– (nur Buch)')
+        self.assertIn('nur fürs ganze Buch erfasst', self.rv.cost_hint('Summe', None, False, only))
+        self.assertEqual(self.rv.cost_text(Decimal('1.5'), False, only), '1,50 €')   # eigene Kosten bleiben unverändert
+        self.assertEqual(self.rv.cost_hint('Summe', Decimal('1.5'), False, only), 'Summe')
+        self.rv.UI['language'] = 'en'
+        self.assertEqual(self.rv.cost_text(None, False, only), '– (book only)')
+        self.assertIn('whole book only', self.rv.cost_hint('Summe', None, False, only))
+
+    def test_chat_schaetzung_zaehlt_nicht(self):
+        self.write([entry('estimated', 2, source='chat_estimate')])
+        self.assertFalse(self.rv.project_only_costs(self.base))

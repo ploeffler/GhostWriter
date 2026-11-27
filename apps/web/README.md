@@ -184,3 +184,6 @@ Im Kopf steht „App x.y.z“ und, sobald ein Repository offen ist, „Repositor
 - **„Serie öffnen“ (#742):** zeigt die Serie (nur lesend): Bände mit „Band öffnen“, Figuren und Begriffe der Serie, Sammelband. Ändern geht weiter im Chat. Die 55 Knöpfe mit „Kommt mit v1.6.“ zeigen jetzt „Das geht im Chat.“.
 - **Kopf am Handy (#743):** unter 600 px Breite stehen in der ersten Zeile Bildmarke und Knöpfe, in der zweiten der Pfad (eine Zeile, scrollbar, letztes Glied sichtbar). Die Version steht unter Einstellungen › Version; eine Abweichung zwischen App und Repository zeigt ein gelber Punkt am Zahnrad.
 
+## Kosten (#754)
+
+Die Buchübersicht liest die Summe aus `ghostwriter-index.json`. Lässt sich der Index nicht lesen, zeigt die App nicht still „–“, sondern rechnet die Summen selbst aus `costs/project.yml` und `chapters/<Kapitel>/costs/<Abschnitt>.yml` (nur Backend- und Action-Kosten, wie `render_view.py`). Gibt es Kosten nur fürs ganze Buch (z. B. Medienaufträge) und keine bei Kapiteln, steht bei Kapitel und Abschnitt `– (nur Buch)` und im Tooltip, dass die Kosten nur fürs ganze Buch erfasst sind (Chat und App gleich). Medienaufträge dem Abschnitt zuordnen ist #755 (v1.7).

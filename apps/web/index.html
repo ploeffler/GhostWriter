@@ -1430,6 +1430,11 @@ function libraryData(){
 }
 const base = () => ({LANGUAGE:"de", HEAD_SHA:S.head});
 const shortTitle = () => (S.cfg.project || {}).title_short || S.book.title_short || S.book.title;
+/* Kosten nur fürs ganze Buch (#754): Gibt es Buchkosten, aber nirgends Kosten bei Kapiteln, ist „–“ dort kein Fehler. Gleiche Texte wie scripts/render_view.py. */
+const projectOnlyCosts = () => { const c = (S.idx.project || {}).cost; return !!(c && c.amount != null) && !(S.struct || []).some(x => x.cost && x.cost.amount != null); };
+const COST_ONLY_HINT = "Keine Kosten für diesen Teil erfasst: KI-API-Kosten (z. B. Medienaufträge) sind nur fürs ganze Buch erfasst, siehe Projektübersicht";
+const costShown = (k, only) => (k && k.text && k.text !== "–") ? k.text : only ? "– (nur Buch)" : "–";
+const costTip = (k, base, only) => (k && k.text && k.text !== "–") || !only ? base : COST_ONLY_HINT;
 async function projectData(){
   await loadSecFiles(allSecs(), "Projektübersicht wird geladen");
   const p = S.cfg.project || {}, ix = S.idx.project || {};
@@ -1437,7 +1442,7 @@ async function projectData(){
     let w = 0, done = 0;
     for (const s of c.sections || []){ const f = cached(s.path); if (!f) continue; w += words(msOf(f.text)); done += front(f.text).status === "approved" ? 1 : 0; }
     const tags = tagsFor((c.sections || []).map(s => s.id));
-    const row = {CHAPTER_NUMBER:i + 1, CHAPTER_TITLE:c.title, CHAPTER_STATUS:c.status, CHAPTER_COST:(c.cost && c.cost.text) || "–", CHAPTER_COST_HINT:"Summe der Abschnittskosten",
+    const row = {CHAPTER_NUMBER:i + 1, CHAPTER_TITLE:c.title, CHAPTER_STATUS:c.status, CHAPTER_COST:(c.cost && c.cost.text) || "–", CHAPTER_COST_HINT:costTip(c.cost, "Summe der Abschnittskosten", projectOnlyCosts()),
       CHAPTER_ID:c.id, CHAPTER_WORDS:w, CHAPTER_WORDS_TEXT:fmtNum(w) + (w === 1 ? " Wort" : " Wörter"),
       CHAPTER_APPROVED_TEXT:(c.sections || []).length ? `${done} von ${c.sections.length}` : "", CHAPTER_CHECKS_JSON:pick(tags, J_SLIM), CHAPTER_NOTES_TEXT:"", CHAPTER_CHECK_DETAILS:""};
     const sm = staleMarks((c.sections || []).map((s, si) => [`${i + 1}.${si + 1}`, (cached(s.path) || {}).text]));
@@ -1486,7 +1491,7 @@ async function chapterData(ci){
   const d = Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), CHAPTER_ID:c.id, CHAPTER_NUMBER:ci + 1,
     CHAPTER_GOAL:part(readme, "Ziel des Kapitels"), CHAPTER_SUMMARY:part(readme, "Kurzbeschreibung"), CHAPTER_TITLE:c.title, CHAPTER_SUBTITLE:sub ? sub[1] : (c.subtitle || ""),
     SECTION_COUNT_TEXT:n + (n === 1 ? " Abschnitt" : " Abschnitte"), MARKER_COUNT_TEXT:markers ? `${markers} offene${markers === 1 ? "r" : ""} Marker` : "keine offenen Marker",
-    CHAPTER_COST:(c.cost && c.cost.text) || "–", CHAPTER_COST_HINT:"Summe der Abschnittskosten", APPROVED_COUNT_TEXT:`${approved} von ${n}`,
+    CHAPTER_COST:costShown(c.cost, projectOnlyCosts()), CHAPTER_COST_HINT:costTip(c.cost, "Summe der Abschnittskosten", projectOnlyCosts()), APPROVED_COUNT_TEXT:`${approved} von ${n}`,
     CHAPTER_APPROVABLE:c.status === "ready_for_approval" && n && approved === n ? "true" : "", CHAPTER_REVISION_READY:"", SECTIONS:rows});
   if (S.checks.length) d.CHECKS_LEGEND = LEGEND_FULL;
   if (tags.length) d.CHECKS_JSON = pick(tags, J_FULL);
@@ -1503,8 +1508,8 @@ async function sectionData(id){
   const [pid, ptx] = nav(si - 1), [nid, ntx] = nav(si + 1), ap = h.approvals || {}, waived = ((S.cfg.workflow || {}).require_section_writing_approval === false);
   const tags = tagsFor([id]), hist = historyFor([id]);
   const d = Object.assign(base(), {PROJECT_TITLE_SHORT:shortTitle(), CHAPTER_ID:x.c.id, CHAPTER_NUMBER:ci + 1,
-    SECTION_ID:id, SECTION_NUMBER:`${ci + 1}.${si + 1}`, SECTION_TITLE:x.s.title, SECTION_STATUS:h.status || x.s.status, SECTION_COST:(x.s.cost && x.s.cost.text) || "–",
-    SECTION_COST_HINT:"Summe der Kosteneinträge", SECTION_GOAL:part(t, "Ziel des Abschnitts"), SECTION_SUMMARY:part(t, "Kurzbeschreibung"), SECTION_MANUSCRIPT:ms,
+    SECTION_ID:id, SECTION_NUMBER:`${ci + 1}.${si + 1}`, SECTION_TITLE:x.s.title, SECTION_STATUS:h.status || x.s.status, SECTION_COST:costShown(x.s.cost, projectOnlyCosts()),
+    SECTION_COST_HINT:costTip(x.s.cost, "Summe der Kosteneinträge", projectOnlyCosts()), SECTION_GOAL:part(t, "Ziel des Abschnitts"), SECTION_SUMMARY:part(t, "Kurzbeschreibung"), SECTION_MANUSCRIPT:ms,
     MARKER_COUNT_TEXT:markers.length ? `${markers.length} offene${markers.length === 1 ? "r" : ""} Marker` : "keine offenen Marker",
     FACT_CHECK:h.fact_check || "disabled", APPROVAL_WRITING:String(!!ap.writing || waived), APPROVAL_SECTION:String(!!ap.section),
     PREV_SECTION_ID:pid, PREV_SECTION_PROMPT:ptx, NEXT_SECTION_ID:nid, NEXT_SECTION_PROMPT:ntx, MARKERS:markers});
@@ -1652,10 +1657,12 @@ async function repoMissingText(e){   // #729: ein 404 auf library.json heißt ni
 async function loadBookData(ref, overlay){
   S.readRef = ref; S.files.clear();
   S.idx = {project:{}, chapters:[]};
-  try { const ix = await getFile("ghostwriter-index.json", ref, true); S.idx = JSON.parse(ix.text); S.head = ix.commit || S.head; } catch (e) {}
+  S.idxMissing = false;
+  try { const ix = await getFile("ghostwriter-index.json", ref, true); S.idx = JSON.parse(ix.text); S.head = ix.commit || S.head; } catch (e) { S.idxMissing = true; }   // nicht still übergehen: Summen dann aus den Kostendateien (#754)
   const gy = await getFile("ghostwriter.yml", ref, true); if (gy.commit) S.head = gy.commit;
   S.cfg = {}; try { S.cfg = window.jsyaml.load(gy.text) || {}; } catch (e) {}
   buildStruct();
+  if (S.idxMissing) await costsFromFiles(ref);
   S.checks = []; try { const d = window.jsyaml.load((await getFile("editorial/checks.yml", ref)).text); S.checks = ((d && d.checks) || []).filter(e => e && e.kind && e.result); } catch (e) {}
   S.rules = await getFile("SCHREIBREGELN.md", ref).then(f => f.text.slice(0, 8000)).catch(() => "");
   // nur lokal gespeicherte Änderungen (Anschluss mit Outbox, #662) liegen über dem Stand von GitHub, bis sie hochgeladen sind
@@ -1665,6 +1672,24 @@ async function loadBookData(ref, overlay){
 function applyOverlay(ref, overlay){ // eben Geschriebenes sofort zeigen, auch wenn GitHub noch den alten Stand liefert
   overlay.forEach(f => { const k = ref + "|" + f.path, o = S.files.get(k); if (!o || o.text !== f.content) S.files.set(k, {text:f.content, commit:(o && o.commit) || S.head, sha:""}); });
   const g = overlay.slice().reverse().find(f => f.path === "ghostwriter.yml"); if (g){ try { S.cfg = window.jsyaml.load(g.content) || S.cfg; } catch (e) {} buildStruct(); }
+}
+/* Kosten ohne Index (#754): wie scripts/render_view.py aus costs/project.yml und chapters/<Kapitel>/costs/<Abschnitt>.yml summieren (nur Backend- und Action-Kosten). */
+function costSum(text){
+  let d = null; try { d = window.jsyaml.load(text); } catch (e) {}
+  const es = ((d && d.entries) || []).filter(e => e && ["backend_api", "action_api"].includes(e.source || "backend_api"));
+  const am = es.filter(e => e.cost_amount != null && e.cost_amount !== "").map(e => Number(e.cost_amount));
+  return {amount:am.length ? am.reduce((a, b) => a + b, 0) : null, estimated:es.some(e => e.cost_status === "estimated")};
+}
+const costText = c => c.amount == null ? "–" : (c.estimated ? "≈ " : "") + c.amount.toFixed(2).replace(".", ",") + " €";
+async function costsFromFiles(ref){
+  const read = async path => { try { return costSum((await getFile(path, ref, true)).text); } catch (e) { return {amount:null, estimated:false}; } };
+  const proj = await read("costs/project.yml"), secs = (S.struct || []).flatMap(c => (c.sections || []).map(s => ({c, s})));
+  const got = await pool(secs, 6, async x => read(x.c.path + "/costs/" + x.s.id + ".yml"));
+  secs.forEach((x, i) => { const c = got[i] || {amount:null, estimated:false}; x.s.cost = {amount:c.amount, estimated:c.estimated, text:costText(c)}; });
+  const all = [proj].concat(got.filter(Boolean)), am = all.filter(c => c.amount != null);
+  S.struct.forEach(c => { const l = c.sections.map(s => s.cost).filter(k => k && k.amount != null), a = l.length ? l.reduce((x, k) => x + k.amount, 0) : null, est = l.some(k => k.estimated); c.cost = {amount:a, estimated:est, text:costText({amount:a, estimated:est})}; });
+  const sum = am.length ? am.reduce((a, c) => a + c.amount, 0) : null, est = all.some(c => c.estimated);
+  S.idx.project = Object.assign(S.idx.project || {}, {cost:{amount:sum, estimated:est, text:costText({amount:sum, estimated:est})}});
 }
 function buildStruct(){
   const ixC = new Map((S.idx.chapters || []).map(c => [c.id, c])), ixS = new Map((S.idx.chapters || []).flatMap(c => (c.sections || []).map(s => [s.id, s])));

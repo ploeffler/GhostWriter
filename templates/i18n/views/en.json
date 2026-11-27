@@ -1030,6 +1030,8 @@
   "limit.warning": "Warning: {details}",
   "cost.none": "No AI API costs recorded (chat work covered by a subscription has no additional cost)",
   "cost.estimated": ", includes estimated costs",
+  "cost.project_only": "No costs recorded for this part: AI API costs (e.g. media jobs) are recorded for the whole book only, see the project overview",
+  "cost.project_only_short": "– (book only)",
   "disclosure.task_research": "Research",
   "disclosure.task_brainstorming": "Brainstorming",
   "disclosure.task_writing": "Text drafts",
