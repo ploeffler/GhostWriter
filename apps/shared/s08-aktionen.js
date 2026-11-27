@@ -63,7 +63,8 @@ async function act({action, data, text}){
       case "character.create": return characterCreate(data);
       case "character.update": return characterUpdate(data);
       case "run.start": return runStart(data);
-      default: return unsupported(text, action, data);
+      default: if (GW_PORTS.actions && GW_PORTS.actions[action]) return GW_PORTS.actions[action](data);   // Aktionen, die nur ein Anschluss kann (eigene Web-App: Actions starten)
+        return unsupported(text, action, data);
     }
   } catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; return show(S.view === "form" ? "project" : S.view, S.view === "section" ? S.sec && S.sec.id : S.chap); }
 }

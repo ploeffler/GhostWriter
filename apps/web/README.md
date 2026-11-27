@@ -63,6 +63,24 @@ jeder Benutzer meldet sich mit seinem eigenen Token an. Eine **neue Fassung** de
 ändert sich mit jedem Bau). Forks können dieselbe App auf ihrer eigenen Page hosten (`https://<besitzer>.github.io/<repo>/app/`), die Herkunft zeigt Einstellungen › Verbindungen.
 Lokal ausprobieren: `cd apps/web && python3 -m http.server 8765`, dann `http://localhost:8765/` öffnen.
 
+## Ausgabe und Läufe: Actions starten, Ergebnisse holen (#662)
+
+Der Drucker oben rechts öffnet **Ausgabe und Läufe**. Die App startet die Actions des Buch-Repositorys per `workflow_dispatch` (Vertrag: `templates/ui/BEFUELLUNG.md`,
+Aktionstabelle; `ref` ist der Buch-Branch) und zeigt, was daraus wird. Die Aktionen der Ansichten (`edition.proof`, `edition.preview`, `manuscript.export`, `checkout.start`,
+`edition.create.open`) öffnen dieselbe Ansicht und sind in dieser App nicht mehr ausgegraut.
+
+- **Probedruck** (`proof.yml`): Formate (PDF, Druck-PDF, Booklet, Umschlag, DOCX, EPUB) und Kapitel; nichts wird veröffentlicht.
+- **Vorabfassung** (`preview.yml`): legt einen Tag `<kurztitel>-vorab-N` und ein im Repository sichtbares Pre-Release an; deshalb erst nach einem **zweiten Klick** („Ja, jetzt starten“).
+- **Manuskript ausgeben** (`manuscript.yml`): PDF oder Lesefassung (Lesefassung braucht ein Kapitel oder einen Abschnitt).
+- **Auschecken zum Gegenlesen** (`checkout.yml`): Kapitel oder ganzes Buch, Gegenleser (Pflicht), Frist, Probelauf; sperrt den Bereich, deshalb ebenfalls mit zweitem Klick.
+- **Letzte Läufe** (Stand läuft / fertig / fehlgeschlagen / abgebrochen, Branch, Zeit, Link). Nach dem Start fragt die App alle 6 Sekunden nach, **nur solange ein Lauf läuft, die
+  Ansicht offen ist und höchstens 10 Minuten**; sonst gibt es keinen Abruf im Takt. Die Ergebnisse (PDF, DOCX …) stehen auf der Laufseite unter „Artifacts“ (14 Tage).
+- **Auflagen und Vorabfassungen:** die letzten Releases mit ihren Dateien als Links (öffnen sich bei GitHub; für private Repositorys musst du dort angemeldet sein).
+
+Eingaben werden vor dem Start geprüft (Kapitel nur als Zahlen, Frist als `JJJJ-MM-TT`, Pflichtfelder); nie startet etwas ohne Klick. Fehlt die Action im Buch, sagt die App es und verweist auf
+„GhostWriter aktualisieren“; fehlt dem Token das Recht „Actions“, sagt sie das ebenfalls. **Nicht in dieser Fassung:** eine neue **Auflage** anlegen (Auflagen-Änderungspaket mit Freigaben,
+`edition.create`) und Recherche/Analysen/Warteschlange starten (brauchen KI-Schlüssel des Forks und Kostenabfragen); das geht weiter im Chat mit GhostWriter.
+
 ## Einstellungen › Verbindungen, Gerät, Fehler melden (#662)
 
 Das Zahnrad oben rechts öffnet **Einstellungen › Verbindungen**. Eine Gruppe erscheint erst, wenn ihre Funktion umgesetzt ist (kein toter Knopf); KI-Anbieter,
@@ -88,15 +106,15 @@ oder trennen.
 ## Token
 
 Auf GitHub unter *Settings → Developer settings → Fine-grained tokens* einen Token anlegen: **Repository access** nur das eine Repository mit den Büchern,
-**Permissions** „Contents“ und „Pull requests“ jeweils *Read and write*. Der Token bleibt nur in diesem Browser (`localStorage`, Schlüssel `gw.token`),
+**Permissions** „Contents“ und „Pull requests“ jeweils *Read and write*; zum Starten von Läufen zusätzlich „Actions“ *Read and write* (ohne dieses Recht gehen alle anderen Funktionen; Läufe lassen sich dann nur ansehen). Der Token bleibt nur in diesem Browser (`localStorage`, Schlüssel `gw.token`),
 wird nur an `api.github.com` gesendet und mit „Abmelden“ gelöscht. Er steht nie im Repository, in Commits oder in Fehlermeldungen.
 
 ## Aufbau
 
-- `index.src.html`, `ports-web.js` (GitHub-REST, Formen wie `GW_PORTS` in [`apps/claude/ports-claude.js`](../claude/ports-claude.js)), `net-web.js` (online/offline), `merge3.js` (Dreiwege-Vergleich), `outbox-web.js` (lokal sichern, hochladen), `konflikt-web.js` (Konflikt lösen), `fehler-web.js` (Fehler melden), `einstellungen-web.js` (Einstellungen, Gerät), `faehigkeiten.json`, `boot-web.js`, `web.css`, `manifest.webmanifest`, `sw.src.js` (wird zu `sw.js`), `icons/`.
+- `index.src.html`, `ports-web.js` (GitHub-REST, Formen wie `GW_PORTS` in [`apps/claude/ports-claude.js`](../claude/ports-claude.js)), `net-web.js` (online/offline), `merge3.js` (Dreiwege-Vergleich), `outbox-web.js` (lokal sichern, hochladen), `konflikt-web.js` (Konflikt lösen), `fehler-web.js` (Fehler melden), `einstellungen-web.js` (Einstellungen, Gerät), `runs-web.js` (Actions starten), `faehigkeiten.json`, `boot-web.js`, `web.css`, `manifest.webmanifest`, `sw.src.js` (wird zu `sw.js`), `icons/`.
 - Ansichten und Abläufe kommen aus [`apps/shared/`](../shared). `python3 apps/web/build.py` baut `index.html` und kopiert die Widget-Laufzeit
   (`vendor/gw-lite.js`, `vendor/icons.css`) aus `apps/claude/vendor/`; `--check` prüft den Stand. `vendor/js-yaml.min.js` (MIT) liegt fest hier.
-- Tests: `tests/test_app_web.py`, `apps/web/tests/ports-web.test.cjs` (Anschluss gegen einen nachgestellten `fetch`) und `apps/web/tests/sw.test.cjs` (Service Worker) `apps/web/tests/outbox.test.cjs` (lokal sichern, hochladen, Konflikt) `apps/web/tests/merge3.test.cjs` (Zusammenführen) und `apps/web/tests/fehler.test.cjs` (Bereinigen, Meldungstext, Matrix), alle ohne Netz.
+- Tests: `tests/test_app_web.py`, `apps/web/tests/ports-web.test.cjs` (Anschluss gegen einen nachgestellten `fetch`) und `apps/web/tests/sw.test.cjs` (Service Worker) `apps/web/tests/outbox.test.cjs` (lokal sichern, hochladen, Konflikt) `apps/web/tests/merge3.test.cjs` (Zusammenführen) und `apps/web/tests/fehler.test.cjs` (Bereinigen, Meldungstext, Matrix) und `apps/web/tests/runs.test.cjs` (Starten, Eingaben, Stand), alle ohne Netz.
   Ausprobieren: `index.html` im Browser öffnen oder einen kleinen Webserver im Ordner starten.
 
 ## Grenzen dieser Fassung
@@ -107,6 +125,7 @@ wird nur an `api.github.com` gesendet und mit „Abmelden“ gelöscht. Er steht
 - Der Service Worker und die Installation wurden in Chromium geprüft (Hülle angelegt, Neuladen ohne Netz, Anzeige); Safari/iOS und Firefox sind nicht geprüft.
 - Hinweise im Text nennen noch „Claude“ (gemeinsame Ansichten); die Texte werden mit den nächsten Schritten angepasst.
 - Nicht gegen ein echtes Repository mit echtem Token geprüft: Die Durchläufe (Anmelden, Buch öffnen, Abschnitt speichern; offline schreiben, hochladen, Konflikt) liefen im Browser gegen eine nachgestellte GitHub-Schnittstelle.
+- Läufe starten und ansehen wurde nur gegen die nachgestellte Schnittstelle geprüft (kein echter Lauf, kein echter Token mit Recht „Actions“). Die Namen der Eingaben stammen aus den Workflow-Dateien; ändern sie sich, muss `runs-web.js` nachgezogen werden.
 - Das bereinigte Fehlerprotokoll wird noch **nicht** zusätzlich im Arbeits-Branch abgelegt (`.ghostwriter/app-fehler.yml`) und nicht vom täglichen Update-Lauf ausgewertet (#660, v2.0); gemeldet wird nur über das vorausgefüllte Issue. Die Bereinigung ist eine Vorsichtsmaßnahme (Namen, Pfade, Titel in Anführungszeichen, Token, Adressen, E-Mail), keine Garantie: bitte den Text vor dem Absenden ansehen.
 - Zusammengeführt wird Text je Absatz (durch eine Leerzeile getrennt). **Änderungen in benachbarten Absätzen zählen als eine Stelle** und werden als Konflikt gezeigt (wie benachbarte Zeilen in git). Für Dateien ohne gespeicherten Ausgangstext (ältere Einträge) und ohne Absätze gilt die Wahl für die ganze Datei. Strukturdateien (`ghostwriter.yml`) werden nicht feldweise zusammengeführt.
 - Die Konfliktlösung wurde nur im Browser gegen die nachgestellte Schnittstelle geprüft, nicht mit mehreren echten Geräten.

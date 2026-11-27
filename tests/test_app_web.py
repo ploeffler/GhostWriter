@@ -24,7 +24,7 @@ class WebApp(unittest.TestCase):
         used = {(WEB / m).resolve() for m in re.findall(r'^@@include (\S+)@@$', src, re.M)}
         shared = {p.resolve() for p in (APPS / 'shared').iterdir()}
         self.assertTrue(shared <= used, 'Die Web-App muss alle Teile aus apps/shared binden')
-        self.assertEqual({p.name for p in used - shared}, {'ports-web.js', 'net-web.js', 'merge3.js', 'outbox-web.js', 'konflikt-web.js', 'fehler-web.js', 'einstellungen-web.js', 'boot-web.js', 'web.css'})
+        self.assertEqual({p.name for p in used - shared}, {'ports-web.js', 'net-web.js', 'merge3.js', 'outbox-web.js', 'konflikt-web.js', 'fehler-web.js', 'einstellungen-web.js', 'runs-web.js', 'boot-web.js', 'web.css'})
 
     def test_kein_claude_anschluss_und_kein_fremder_host(self):
         for name in ('ports-web.js', 'boot-web.js'):
@@ -48,6 +48,17 @@ class WebApp(unittest.TestCase):
         self.assertIn('GhostWriter Web-App', (WEB / 'index.html').read_text(encoding='utf-8'))
         self.assertNotIn('@@APP_VERSION@@', (WEB / 'index.html').read_text(encoding='utf-8'))
 
+    def test_keine_doppelten_namen_im_gebauten_skript(self):
+        # zwei Teile mit demselben Namen auf oberster Ebene zerlegen die ganze App beim Laden (SyntaxError); darum hier prüfen
+        for app in ('web', 'claude'):
+            html = (APPS / app / 'index.html').read_text(encoding='utf-8')
+            body = html[html.index('<script>\n{') + 10:html.index('</script>')]
+            seen = {}
+            for m in re.finditer(r'^(?:async\s+)?(?:function\s+(\w+)|(?:const|let|var)\s+(\w+))', body, re.M):
+                name = m.group(1) or m.group(2)
+                seen[name] = seen.get(name, 0) + 1
+            self.assertEqual(sorted(k for k, v in seen.items() if v > 1), [], f'{app}: doppelter Name auf oberster Ebene')
+
     def test_token_nie_in_der_seite(self):
         html = (WEB / 'index.html').read_text(encoding='utf-8')
         self.assertNotRegex(html, r'github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}')
@@ -68,7 +79,7 @@ class WebApp(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which('node'), 'Node nicht vorhanden')
     def test_node_tests(self):
-        for name in ('ports-web.test.cjs', 'sw.test.cjs', 'outbox.test.cjs', 'merge3.test.cjs', 'fehler.test.cjs'):
+        for name in ('ports-web.test.cjs', 'sw.test.cjs', 'outbox.test.cjs', 'merge3.test.cjs', 'fehler.test.cjs', 'runs.test.cjs'):
             r = subprocess.run(['node', str(WEB / 'tests' / name)], capture_output=True, text=True, timeout=60)
             self.assertEqual(r.returncode, 0, name + '\n' + r.stdout + r.stderr)
 
