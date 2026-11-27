@@ -1,6 +1,6 @@
 ---
 name: {{SKILL}}
-description: {{TITLE}}: Arbeit an der GhostWriter-{{KIND}} {{REPO}} – Repo einrichten, Schreibzugriff als {{GIT_LOGIN}} prüfen, Texte in der Standard-Erzählstimme schreiben, Fehler oder Wünsche als Issue im Hauptrepo {{UPSTREAM}} melden.
+description: {{TITLE}}: Arbeit {{KIND_AT}} {{REPO}} – Repo einrichten, Schreibzugriff als {{GIT_LOGIN}} prüfen, Texte in der Standard-Erzählstimme schreiben, Fehler oder Wünsche als Issue im Hauptrepo {{UPSTREAM}} melden.
 ---
 
 # {{TITLE}}

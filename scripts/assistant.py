@@ -29,6 +29,7 @@ Skill-Name: <autor>-auf-<repo> (skill_name), z. B. cyberlefl325-auf-yawa.
 import argparse
 import json
 import re
+import subprocess
 import sys
 import unicodedata
 from pathlib import Path
@@ -120,10 +121,23 @@ def skill_path(base, profile):
     return Path(base, '.claude', 'skills', profile['skill'], 'SKILL.md')
 
 
+def _branch(base):
+    try:
+        out = subprocess.run(['git', '-C', str(base), 'rev-parse', '--abbrev-ref', 'HEAD'], capture_output=True, text=True, timeout=10)
+        return out.stdout.strip() if out.returncode == 0 else ''
+    except (OSError, subprocess.SubprocessError):
+        return ''
+
+
 def is_library(base):
+    """Bibliothek (#706): der Standard-Branch ohne Kapitel, aber auch jeder Buch-Branch einer Bibliothek. Der Text des
+    Skills darf nicht davon abhängen, auf welchem Branch er erzeugt wird; sonst scheitert `check` nach der Strukturanlage.
+    Eine Bibliothek erkennt man an `library.json` oder an einem Branch `buch/…` bzw. `ghostwriter/buch/…`."""
     cfg = Path(base, 'ghostwriter.yml')
     data = (yaml.safe_load(cfg.read_text(encoding='utf-8')) or {}) if cfg.is_file() else {}
-    return not ((data.get('structure') or {}).get('chapters'))
+    if not ((data.get('structure') or {}).get('chapters')):
+        return True
+    return Path(base, 'library.json').is_file() or bool(re.match(r'^(ghostwriter/)?buch/', _branch(base)))
 
 
 def render(base, profile):
@@ -132,6 +146,7 @@ def render(base, profile):
     up = profile.get('upstream') or upstream_repo(base)
     git = profile.get('git') or {}
     kind = 'Bibliothek' if is_library(base) else 'Buch'
+    kind_at = 'an der GhostWriter-Bibliothek' if kind == 'Bibliothek' else 'am GhostWriter-Buch'   # Beugung (#706)
     author = (profile.get('author') or '').strip()
     title = f'{author or repo.split("/")[0]} auf {repo.split("/")[1]}'
     if git:
@@ -159,7 +174,7 @@ def render(base, profile):
         lines.append('\n'.join(details))
     if not lines:
         lines.append('- Standard-Erzählstimme: noch nicht festgelegt; dann gilt das Stilprofil des Buchs bzw. der Wizard (Schritt 6).')
-    values = {'SKILL': profile['skill'], 'TITLE': title, 'KIND': kind, 'REPO': repo, 'UPSTREAM': up,
+    values = {'SKILL': profile['skill'], 'TITLE': title, 'KIND': kind, 'KIND_AT': kind_at, 'REPO': repo, 'UPSTREAM': up,
               'GIT_LOGIN': git.get('name') or repo.split('/')[0], 'GIT_LINES': git_lines,
               'AUTHOR_LINE': f'- Autor: {author} (Vorbelegung bei „Neues Buch“; je Buch gilt `project.author`).' if author
                              else '- Autor: noch nicht im Profil; je Buch gilt `project.author`.',

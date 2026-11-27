@@ -64,6 +64,24 @@ class ProfileTest(unittest.TestCase):
         self.assertNotIn('{{', skill)
         self.assertEqual(assistant.check(self.d), [])
 
+    def test_skill_text_does_not_depend_on_the_branch_or_the_structure(self):   # #706
+        import subprocess
+        g = lambda *a: subprocess.run(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *a], cwd=self.d, check=True, capture_output=True, text=True)
+        g('init', '-q', '-b', 'main')
+        assistant.set_profile(self.d, PROFILE)
+        base_skill = (self.d / '.claude/skills/cyberlefl325-auf-yawa/SKILL.md').read_text(encoding='utf-8')
+        self.assertIn('Arbeit an der GhostWriter-Bibliothek chillyconcane/YAWA', base_skill)
+        g('add', '.'); g('commit', '-qm', 'x')
+        g('switch', '-q', '-c', 'buch/neu')
+        cfg = yaml.safe_load((self.d / 'ghostwriter.yml').read_text(encoding='utf-8'))
+        cfg.setdefault('structure', {})['chapters'] = [{'id': 'ch-1', 'title': 'K', 'path': 'chapters/ch-1', 'sections': []}]
+        (self.d / 'ghostwriter.yml').write_text(yaml.safe_dump(cfg), encoding='utf-8')
+        self.assertTrue(assistant.is_library(self.d))                  # Buch-Branch mit Struktur gilt weiter als Bibliothek
+        self.assertEqual(assistant.check(self.d), [])                   # Skill unverändert gültig
+        g('switch', '-q', '-c', 'einzelbuch')                           # ohne Bibliotheksmerkmale ist es ein Buch
+        self.assertFalse(assistant.is_library(self.d))
+        self.assertIn('Arbeit am GhostWriter-Buch chillyconcane/YAWA', assistant.render(self.d, assistant.load(self.d)))
+
     def test_update_merges_and_keeps_name(self):
         assistant.set_profile(self.d, PROFILE)
         prof, errs, res = assistant.set_profile(self.d, {'author': 'Anna Berg', 'voice': {'tense': 'Präteritum'}})
