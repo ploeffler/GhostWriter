@@ -407,7 +407,7 @@ function applyNa(root){
     b.setAttribute("disabled", ""); b.setAttribute("aria-disabled", "true"); b.setAttribute("data-gw-na", why); b.setAttribute("title", why); b.classList.add("gw-na");
   });
 }
-function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); blankRaw($("gw")); applyNa($("gw")); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
+function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); blankRaw($("gw")); applyNa($("gw")); if (GW_PORTS.afterRender) GW_PORTS.afterRender(name, $("gw")); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
 function widget(name, data, extra){ $("app").innerHTML = `<div class="one">${msgBox()}<div id="gw"></div>${extra || ""}</div>`; gwRender(name, data); patchRun(); crumbs(); window.scrollTo(0, 0); }
 /* Abschnittssteuerung an die App anpassen (#462): „Sofort“ läuft hier in der App, nicht im Chat. Ist ein Dienst mit
    Websuche eingestellt, recherchiert die Action „Recherche“: dieser Knopf ist dann aktiv, „Sofort“ (ohne Internet) aus. */
@@ -2017,6 +2017,15 @@ async function merge(data){
 }
 
 
+/* Letzte Läufe der Actions auf der Seite „Daten“: Anschlüsse, die Läufe lesen können (eigene Web-App), zeigen sie; sonst der Link zu GitHub */
+async function dataRuns(own, rp){
+  const all = {R_NAME:"Alle Läufe der Actions auf GitHub ansehen", R_STATE:"other", R_TEXT:"auf GitHub öffnen", R_URL:`https://github.com/${own}/${rp}/actions`};
+  if (!GW_PORTS.git.listRuns) return [Object.assign({}, all, {R_NAME:"Läufe der Actions auf GitHub ansehen", R_TEXT:"in dieser App nicht abrufbar – auf GitHub öffnen"})];
+  try {
+    const rs = await GW_PORTS.git.listRuns(null, {perPage:6}), st = r => r.status !== "completed" ? ["other", "läuft"] : r.conclusion === "success" ? ["ok", "fertig"] : r.conclusion === "cancelled" ? ["other", "abgebrochen"] : ["fail", "fehlgeschlagen"];
+    return rs.map(r => ({R_NAME:r.name || "Lauf", R_STATE:st(r)[0], R_TEXT:`${st(r)[1]} · ${deDate(String(r.created || "").slice(0, 10))}`, R_URL:r.url})).concat([all]);
+  } catch (e) { return [Object.assign({}, all, {R_TEXT:"nicht lesbar (" + errText(e).slice(0, 70) + ") – auf GitHub öffnen"})]; }
+}
 /* Seite „Daten“ (wie render_view.py data; Läufe der Actions sind über den Konnektor nicht abrufbar) */
 async function dataData(){
   const lib = S.lib || {}, prog = lib.program || {}, own = S.owner, rp = S.repo;
@@ -2049,7 +2058,7 @@ async function dataData(){
     UI_TEXT:`ghostwriter-ui ${prog.ui_version || "?"} · Commit ${String(prog.ui_commit || "").slice(0, 7)}`, GITHUB_KNOWN:repo || brR ? "1" : "",
     REPO_TEXT:`${vis} · ${sizeText} · ${brText}`, CLEANUP_URL:`https://github.com/${own}/${rp}/actions/workflows/cleanup.yml`, TASKS_URL:`https://github.com/${own}/${rp}/issues?q=is%3Aissue+is%3Aopen+L%C3%B6schaufgaben`, LIMITS_TEXT:"",
     BOOKS:books, SECRETS:srows,
-    RUNS:[{R_NAME:"Läufe der Actions auf GitHub ansehen", R_STATE:"other", R_TEXT:"in dieser App nicht abrufbar – auf GitHub öffnen", R_URL:`https://github.com/${own}/${rp}/actions`}]});
+    RUNS:await dataRuns(own, rp)});
   if (upR != null && vcmp(upR, prog.version) > 0) d.PROGRAM_UPDATE_TEXT += " – einspielen mit der Action „GhostWriter aktualisieren“ oder im Chat";
   return d;
 }

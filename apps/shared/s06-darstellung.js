@@ -27,7 +27,7 @@ function applyNa(root){
     b.setAttribute("disabled", ""); b.setAttribute("aria-disabled", "true"); b.setAttribute("data-gw-na", why); b.setAttribute("title", why); b.classList.add("gw-na");
   });
 }
-function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); blankRaw($("gw")); applyNa($("gw")); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
+function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); blankRaw($("gw")); applyNa($("gw")); if (GW_PORTS.afterRender) GW_PORTS.afterRender(name, $("gw")); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
 function widget(name, data, extra){ $("app").innerHTML = `<div class="one">${msgBox()}<div id="gw"></div>${extra || ""}</div>`; gwRender(name, data); patchRun(); crumbs(); window.scrollTo(0, 0); }
 /* Abschnittssteuerung an die App anpassen (#462): „Sofort“ läuft hier in der App, nicht im Chat. Ist ein Dienst mit
    Websuche eingestellt, recherchiert die Action „Recherche“: dieser Knopf ist dann aktiv, „Sofort“ (ohne Internet) aus. */

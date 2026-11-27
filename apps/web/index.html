@@ -242,6 +242,10 @@ const GW_PORTS = {
       const r = await rest("GET", `${repoBase()}/releases?per_page=6`);
       return (Array.isArray(r) ? r : []).map(x => ({name:x.name || x.tag_name, tag:x.tag_name, url:x.html_url, pre:!!x.prerelease, date:x.published_at, assets:(x.assets || []).map(a => ({name:a.name, url:a.browser_download_url, size:a.size}))}));
     },
+    async workflowState(file){   // ok | missing (Action fehlt im Buch) | forbidden (Token ohne Recht „Actions“)
+      try { await rest("GET", `${repoBase()}/actions/workflows/${encodeURIComponent(file)}`); return "ok"; }
+      catch (e) { return e && e.status === 404 ? "missing" : e && e.status === 403 ? "forbidden" : "unknown"; }
+    },
     async listBranches(owner, repo, page){ const r = await rest("GET", `/repos/${owner}/${repo}/branches?per_page=100&page=${page || 1}`); return Array.isArray(r) ? r : []; }
   }
 };
@@ -787,6 +791,50 @@ document.addEventListener("click", async ev => {
     RUN.focus = ""; RUN.msg = "Gestartet. Warte auf den Lauf …"; await runsView();
   } catch (e) { S.msg = {kind:"err", html:esc(runErr(e))}; b.disabled = false; b.textContent = b.dataset.label || "Starten"; b.dataset.armed = ""; await runsView(); }
 });
+
+/* ---------- Seite „Daten“: „Branches aufräumen“ als Knopf (Action cleanup.yml) ----------
+   Statt des Links zur Action zeigt die Seite „Daten“ hier Knöpfe, wenn der Token es darf (Schreibrecht am Repository, Recht „Actions“, Action im Buch vorhanden).
+   „Nur anzeigen“ löscht nichts; „Branches aufräumen“ fragt vorher mit einem zweiten Klick. Gelöscht werden nur erledigte Arbeits-Branches (Änderungspaket übernommen oder
+   vollständig im Buch enthalten); Branches mit offenem Änderungspaket oder eigenen Commits bleiben (Prüfung in der Action, nichts geht verloren). */
+function cleanWhy(push, state, hasToken){
+  if (!hasToken) return "Nicht angemeldet.";
+  if (!push) return "Dein Token hat kein Schreibrecht an diesem Repository.";
+  if (state === "forbidden") return "Dem Token fehlt das Recht „Actions“ (Lesen und Schreiben).";
+  if (state === "missing") return "In diesem Repository fehlt die Action „Branches aufräumen“. Zuerst GhostWriter aktualisieren.";
+  return "";
+}
+async function cleanPatch(root){
+  const a = root.querySelector && root.querySelector('a[href$="/actions/workflows/cleanup.yml"]'); if (!a) return;
+  const href = a.getAttribute("href"), box = document.createElement("span"); box.className = "cleanbox"; box.innerHTML = '<span class="dim">Rechte werden geprüft …</span>'; a.replaceWith(box);
+  let info = null, state = "unknown";
+  try { info = await GW_PORTS.git.repoInfo(S.owner, S.repo); state = await GW_PORTS.git.workflowState("cleanup.yml"); } catch (e) {}
+  const why = cleanWhy(!!(info && info.permissions && info.permissions.push), state, !!token());
+  box.dataset.ref = (info && info.default_branch) || "main"; box.dataset.href = href;
+  box.innerHTML = why ? `<a href="${esc(href)}" target="_blank" rel="noopener">Branches aufräumen</a> <span class="dim" title="${esc(why)}">(${esc(why)})</span>`
+    : `Branches aufräumen: <button class="btn" data-clean="dry">Nur anzeigen</button> <button class="btn" data-clean="run">Aufräumen</button>`;
+}
+GW_PORTS.afterRender = (name, root) => { if (name === "daten") cleanPatch(root); };
+async function cleanStart(box, dry){
+  box.innerHTML = '<span class="dim">Wird gestartet …</span>';
+  try { await GW_PORTS.git.dispatch("cleanup.yml", box.dataset.ref || "main", {dry_run:dry ? "true" : "false"}); }
+  catch (e) { box.innerHTML = `<span class="note err">${esc(runErr(e))}</span> <a href="${esc(box.dataset.href || "#")}" target="_blank" rel="noopener">Auf GitHub öffnen</a>`; return; }
+  box.innerHTML = `<b>${dry ? "Anzeige" : "Aufräumen"} gestartet.</b> <span id="cleanrun" class="dim">Lauf wird gesucht …</span>`;
+  setTimeout(async () => {
+    try { const r = (await GW_PORTS.git.listRuns("cleanup.yml", {perPage:1}))[0]; const el = $("cleanrun"); if (r && el) el.innerHTML = `<a href="${esc(r.url)}" target="_blank" rel="noopener">Lauf öffnen</a>`; } catch (e) {}
+  }, 4000);
+  [10000, 30000, 60000].forEach(ms => setTimeout(() => { if (S.view === "data") show("data"); }, ms));   // Zahl der Branches und letzte Läufe nachladen (nur solange die Seite offen ist)
+}
+document.addEventListener("click", ev => {
+  const b = ev.target.closest && ev.target.closest("[data-clean]"); if (!b) return;
+  ev.preventDefault(); const box = b.closest(".cleanbox");
+  if (b.dataset.clean === "dry") return cleanStart(box, true);
+  if (b.dataset.armed !== "1"){
+    b.dataset.armed = "1"; b.textContent = "Ja, jetzt aufräumen";
+    const n = document.createElement("div"); n.className = "dim"; n.style.cssText = "font-size:12px;margin-top:4px"; n.textContent = "Gelöscht werden nur erledigte Arbeits-Branches (Änderungspaket übernommen oder vollständig im Buch enthalten). Branches mit offenem Änderungspaket oder eigenen Commits bleiben.";
+    box.appendChild(n); return;
+  }
+  cleanStart(box, false);
+});
 /* ---------- Sprachnotizen (#644, #662) ----------
    Aufnahme im Browser (MediaRecorder), lokal gespeichert (IndexedDB), nie hochgeladen: Audio kommt nie ins Repository und nie in einen Actions-Lauf; Spracherkennung läuft nie
    als Action (Beschluss Peter, 25.11.2026). Eine App-Aufnahme ist die einzige Kopie: Sie bleibt hier, bis sie im Chat abgeschrieben ist und du entscheidest, ob du sie aufs Gerät
@@ -1133,7 +1181,7 @@ function applyNa(root){
     b.setAttribute("disabled", ""); b.setAttribute("aria-disabled", "true"); b.setAttribute("data-gw-na", why); b.setAttribute("title", why); b.classList.add("gw-na");
   });
 }
-function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); blankRaw($("gw")); applyNa($("gw")); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
+function gwRender(name, data){ try { window.GW.render(name, data, $("gw"), "de"); blankRaw($("gw")); applyNa($("gw")); if (GW_PORTS.afterRender) GW_PORTS.afterRender(name, $("gw")); } catch (e) { $("gw").innerHTML = `<div class="note err">Ansicht konnte nicht dargestellt werden: ${esc(e.message || e)}</div>`; } }
 function widget(name, data, extra){ $("app").innerHTML = `<div class="one">${msgBox()}<div id="gw"></div>${extra || ""}</div>`; gwRender(name, data); patchRun(); crumbs(); window.scrollTo(0, 0); }
 /* Abschnittssteuerung an die App anpassen (#462): „Sofort“ läuft hier in der App, nicht im Chat. Ist ein Dienst mit
    Websuche eingestellt, recherchiert die Action „Recherche“: dieser Knopf ist dann aktiv, „Sofort“ (ohne Internet) aus. */
@@ -2743,6 +2791,15 @@ async function merge(data){
 }
 
 
+/* Letzte Läufe der Actions auf der Seite „Daten“: Anschlüsse, die Läufe lesen können (eigene Web-App), zeigen sie; sonst der Link zu GitHub */
+async function dataRuns(own, rp){
+  const all = {R_NAME:"Alle Läufe der Actions auf GitHub ansehen", R_STATE:"other", R_TEXT:"auf GitHub öffnen", R_URL:`https://github.com/${own}/${rp}/actions`};
+  if (!GW_PORTS.git.listRuns) return [Object.assign({}, all, {R_NAME:"Läufe der Actions auf GitHub ansehen", R_TEXT:"in dieser App nicht abrufbar – auf GitHub öffnen"})];
+  try {
+    const rs = await GW_PORTS.git.listRuns(null, {perPage:6}), st = r => r.status !== "completed" ? ["other", "läuft"] : r.conclusion === "success" ? ["ok", "fertig"] : r.conclusion === "cancelled" ? ["other", "abgebrochen"] : ["fail", "fehlgeschlagen"];
+    return rs.map(r => ({R_NAME:r.name || "Lauf", R_STATE:st(r)[0], R_TEXT:`${st(r)[1]} · ${deDate(String(r.created || "").slice(0, 10))}`, R_URL:r.url})).concat([all]);
+  } catch (e) { return [Object.assign({}, all, {R_TEXT:"nicht lesbar (" + errText(e).slice(0, 70) + ") – auf GitHub öffnen"})]; }
+}
 /* Seite „Daten“ (wie render_view.py data; Läufe der Actions sind über den Konnektor nicht abrufbar) */
 async function dataData(){
   const lib = S.lib || {}, prog = lib.program || {}, own = S.owner, rp = S.repo;
@@ -2775,7 +2832,7 @@ async function dataData(){
     UI_TEXT:`ghostwriter-ui ${prog.ui_version || "?"} · Commit ${String(prog.ui_commit || "").slice(0, 7)}`, GITHUB_KNOWN:repo || brR ? "1" : "",
     REPO_TEXT:`${vis} · ${sizeText} · ${brText}`, CLEANUP_URL:`https://github.com/${own}/${rp}/actions/workflows/cleanup.yml`, TASKS_URL:`https://github.com/${own}/${rp}/issues?q=is%3Aissue+is%3Aopen+L%C3%B6schaufgaben`, LIMITS_TEXT:"",
     BOOKS:books, SECRETS:srows,
-    RUNS:[{R_NAME:"Läufe der Actions auf GitHub ansehen", R_STATE:"other", R_TEXT:"in dieser App nicht abrufbar – auf GitHub öffnen", R_URL:`https://github.com/${own}/${rp}/actions`}]});
+    RUNS:await dataRuns(own, rp)});
   if (upR != null && vcmp(upR, prog.version) > 0) d.PROGRAM_UPDATE_TEXT += " – einspielen mit der Action „GhostWriter aktualisieren“ oder im Chat";
   return d;
 }

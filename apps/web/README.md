@@ -77,6 +77,11 @@ Aktionstabelle; `ref` ist der Buch-Branch) und zeigt, was daraus wird. Die Aktio
   Ansicht offen ist und höchstens 10 Minuten**; sonst gibt es keinen Abruf im Takt. Die Ergebnisse (PDF, DOCX …) stehen auf der Laufseite unter „Artifacts“ (14 Tage).
 - **Auflagen und Vorabfassungen:** die letzten Releases mit ihren Dateien als Links (öffnen sich bei GitHub; für private Repositorys musst du dort angemeldet sein).
 
+**Seite „Daten“:** Statt des Links zur Action zeigt sie bei **Erledigte Branches** die Knöpfe **Nur anzeigen** (löscht nichts) und **Aufräumen** (startet die Action „Branches aufräumen“, `cleanup.yml`,
+auf dem Standard-Branch). Die Knöpfe erscheinen nur, wenn der Token es darf: Schreibrecht am Repository, Recht „Actions“ und die Action ist im Buch vorhanden; sonst steht der Link mit dem Grund da.
+„Aufräumen“ fragt mit einem zweiten Klick nach; gelöscht werden nur erledigte Arbeits-Branches (Änderungspaket übernommen oder vollständig im Buch enthalten), Branches mit offenem Änderungspaket oder eigenen
+Commits bleiben (Prüfung in der Action). Nach dem Start steht der Link zum Lauf da, die Seite lädt die Zahl der Branches und **Letzte Läufe** nach (jetzt mit echten Läufen statt „nicht abrufbar“).
+
 Eingaben werden vor dem Start geprüft (Kapitel nur als Zahlen, Frist als `JJJJ-MM-TT`, Pflichtfelder); nie startet etwas ohne Klick. Fehlt die Action im Buch, sagt die App es und verweist auf
 „GhostWriter aktualisieren“; fehlt dem Token das Recht „Actions“, sagt sie das ebenfalls. **Nicht in dieser Fassung:** eine neue **Auflage** anlegen (Auflagen-Änderungspaket mit Freigaben,
 `edition.create`) und Recherche/Analysen/Warteschlange starten (brauchen KI-Schlüssel des Forks und Kostenabfragen); das geht weiter im Chat mit GhostWriter.
