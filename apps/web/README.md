@@ -81,6 +81,24 @@ Eingaben werden vor dem Start geprüft (Kapitel nur als Zahlen, Frist als `JJJJ-
 „GhostWriter aktualisieren“; fehlt dem Token das Recht „Actions“, sagt sie das ebenfalls. **Nicht in dieser Fassung:** eine neue **Auflage** anlegen (Auflagen-Änderungspaket mit Freigaben,
 `edition.create`) und Recherche/Analysen/Warteschlange starten (brauchen KI-Schlüssel des Forks und Kostenabfragen); das geht weiter im Chat mit GhostWriter.
 
+## Sprachnotizen (#644, #662)
+
+Das Mikrofon oben rechts öffnet **Sprachnotizen**. Die App nimmt im Browser auf (MediaRecorder, Opus, höchstens 30 Minuten je Aufnahme) und speichert die Aufnahme **nur auf diesem Gerät**
+(IndexedDB `gw-web-voice`, der Browser wird gebeten, den Speicher nicht zu räumen). Beschluss Peter vom 25.11.2026, daran hält sich die App:
+
+- **Audio kommt nie ins Repository und nie in einen Actions-Lauf; Spracherkennung läuft nie als Action.** Es gibt im Code keinen Netzzugriff für Aufnahmen (ein Test prüft das).
+- Die App-Aufnahme ist die **einzige Kopie**. Sie bleibt, bis sie im Chat abgeschrieben ist und du sie herunterlädst oder verwirfst; verwerfen fragt immer nach, bei einer noch nicht abgeschriebenen Aufnahme mit deutlichem Hinweis.
+- **Ablauf:** aufnehmen → **Herunterladen** → die Datei im Chat mit GhostWriter hochladen („Sprachnotiz“, Abschrift und Zuordnung nach #644) → hier **Im Chat abgeschrieben** wählen.
+  Die Leiste oben zeigt solange „🎙 N Sprachnotizen warten auf Abschrift – nur auf diesem Gerät“.
+- **Kontext:** Gemerkt wird, wo aufgenommen wurde (ganzes Buch, Kapitel N, Abschnitt N.M); der Name der heruntergeladenen Datei enthält Datum, Uhrzeit und diese Stelle
+  (`sprachnotiz-2026-11-27-0940-abschnitt-2-5.webm`) als Vorschlag für die spätere Zuordnung.
+- **Diktieren** in Textfelder geht ohne eigenen Code mit dem Mikrofon der Handy-Tastatur (läuft auf dem Gerät).
+- Mikrofon wird erst bei „Aufnahme starten“ angefragt und danach freigegeben; fehlt das Recht oder das Mikrofon, sagt die App es. Ist der Speicher knapp, steht eine Warnung da; schlägt das Speichern fehl,
+  bietet die App die Aufnahme sofort zum Herunterladen an.
+
+**Nicht in dieser Fassung:** Erkennung auf dem Gerät (der Browser müsste das ohne Netz können; nicht überall verfügbar), das Hochladen eines Stapels vom Diktiergerät (das geschieht im Chat),
+die Abschrift selbst (Chat, nach #644) und eine Wiederaufnahme einer unterbrochenen Aufnahme nach einem Absturz der Seite (eine laufende Aufnahme liegt bis zum Beenden im Arbeitsspeicher; beim Schließen der Seite fragt der Browser nach).
+
 ## Einstellungen › Verbindungen, Gerät, Fehler melden (#662)
 
 Das Zahnrad oben rechts öffnet **Einstellungen › Verbindungen**. Eine Gruppe erscheint erst, wenn ihre Funktion umgesetzt ist (kein toter Knopf); KI-Anbieter,
@@ -111,10 +129,10 @@ wird nur an `api.github.com` gesendet und mit „Abmelden“ gelöscht. Er steht
 
 ## Aufbau
 
-- `index.src.html`, `ports-web.js` (GitHub-REST, Formen wie `GW_PORTS` in [`apps/claude/ports-claude.js`](../claude/ports-claude.js)), `net-web.js` (online/offline), `merge3.js` (Dreiwege-Vergleich), `outbox-web.js` (lokal sichern, hochladen), `konflikt-web.js` (Konflikt lösen), `fehler-web.js` (Fehler melden), `einstellungen-web.js` (Einstellungen, Gerät), `runs-web.js` (Actions starten), `faehigkeiten.json`, `boot-web.js`, `web.css`, `manifest.webmanifest`, `sw.src.js` (wird zu `sw.js`), `icons/`.
+- `index.src.html`, `ports-web.js` (GitHub-REST, Formen wie `GW_PORTS` in [`apps/claude/ports-claude.js`](../claude/ports-claude.js)), `net-web.js` (online/offline), `merge3.js` (Dreiwege-Vergleich), `outbox-web.js` (lokal sichern, hochladen), `konflikt-web.js` (Konflikt lösen), `fehler-web.js` (Fehler melden), `einstellungen-web.js` (Einstellungen, Gerät), `runs-web.js` (Actions starten), `voice-web.js` (Sprachnotizen), `faehigkeiten.json`, `boot-web.js`, `web.css`, `manifest.webmanifest`, `sw.src.js` (wird zu `sw.js`), `icons/`.
 - Ansichten und Abläufe kommen aus [`apps/shared/`](../shared). `python3 apps/web/build.py` baut `index.html` und kopiert die Widget-Laufzeit
   (`vendor/gw-lite.js`, `vendor/icons.css`) aus `apps/claude/vendor/`; `--check` prüft den Stand. `vendor/js-yaml.min.js` (MIT) liegt fest hier.
-- Tests: `tests/test_app_web.py`, `apps/web/tests/ports-web.test.cjs` (Anschluss gegen einen nachgestellten `fetch`) und `apps/web/tests/sw.test.cjs` (Service Worker) `apps/web/tests/outbox.test.cjs` (lokal sichern, hochladen, Konflikt) `apps/web/tests/merge3.test.cjs` (Zusammenführen) und `apps/web/tests/fehler.test.cjs` (Bereinigen, Meldungstext, Matrix) und `apps/web/tests/runs.test.cjs` (Starten, Eingaben, Stand), alle ohne Netz.
+- Tests: `tests/test_app_web.py`, `apps/web/tests/ports-web.test.cjs` (Anschluss gegen einen nachgestellten `fetch`) und `apps/web/tests/sw.test.cjs` (Service Worker) `apps/web/tests/outbox.test.cjs` (lokal sichern, hochladen, Konflikt) `apps/web/tests/merge3.test.cjs` (Zusammenführen) und `apps/web/tests/fehler.test.cjs` (Bereinigen, Meldungstext, Matrix) und `apps/web/tests/runs.test.cjs` (Starten, Eingaben, Stand) und `apps/web/tests/voice.test.cjs` (Aufnehmen, Verwalten, kein Netz), alle ohne Netz.
   Ausprobieren: `index.html` im Browser öffnen oder einen kleinen Webserver im Ordner starten.
 
 ## Grenzen dieser Fassung
