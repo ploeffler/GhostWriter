@@ -85,6 +85,21 @@ class MediaJobTest(Base):
         self.assertEqual(jobs.files(self.base), [])                                  # Auftrag erledigt
         self.assertEqual(validate_project.schema_errors(validate_project.COSTS, yaml.safe_load((self.base / 'costs/project.yml').read_text()), 'costs'), [])
 
+    def test_number_not_reused_after_done(self):   # #719
+        self.enqueue()
+        self.run_jobs(FakeFal())
+        self.assertEqual(jobs.files(self.base), [])
+        second = self.enqueue()
+        self.assertEqual(second.name, 'request-002.yml')                             # Nummer 001 ist schon vergeben
+        self.run_jobs(FakeFal())
+        ids = [e['activity_id'] for e in yaml.safe_load((self.base / 'costs/project.yml').read_text())['entries']]
+        self.assertEqual(ids, ['act-media-request-001', 'act-media-request-002'])
+        self.assertTrue((self.base / 'media/request-002/video-1.mp4').is_file())
+
+    def test_duplicate_cost_id_gets_suffix(self):   # #719: alte Bücher mit schon doppelt vergebener Nummer
+        self.assertEqual(jobs.unique_activity_id([{'activity_id': 'a'}, {'activity_id': 'a-2'}], 'a'), 'a-3')
+        self.assertEqual(jobs.unique_activity_id([], 'a'), 'a')
+
     def test_no_payment_without_confirm_or_key(self):
         self.enqueue(confirm='')
         fake = FakeFal()

@@ -427,7 +427,7 @@ def enqueue(base, type_='research', section=None, question=None, provider=None, 
     if type_ != 'research':
         folder = base / 'jobs'
         folder.mkdir(parents=True, exist_ok=True)
-        n = research.next_number(folder, REQUEST_RE)
+        n = max(research.next_number(folder, REQUEST_RE), max(used_job_numbers(base), default=0) + 1)
         data = {'type': type_, 'requested_at': (now or now_utc()).isoformat(), 'requested_by': requested_by or 'chat'}
         if model:
             data['model'] = model
@@ -473,6 +473,38 @@ def enqueue(base, type_='research', section=None, question=None, provider=None, 
     path = folder / f'request-{n:03d}.yml'
     write(path, data)
     return path
+
+
+USED_RE = re.compile(r'request-(\d+)(?!\d)')
+
+
+def used_job_numbers(base):
+    """Schon vergebene Nummern erledigter Aufträge unter `jobs/` (#719): erledigte Auftragsdateien werden gelöscht,
+    ihre Nummer steckt aber noch in Kosten-IDs (`act-…-request-NNN`) und Ablageordnern (`media/request-NNN`).
+    Eine neue Nummer liegt immer darüber, damit Kosten-IDs, Commits und Ordner eindeutig bleiben."""
+    nums = set()
+    for cpath in (base / 'costs').glob('*.yml') if (base / 'costs').is_dir() else []:
+        try:
+            entries = (read(cpath) or {}).get('entries') or []
+        except Exception:
+            continue
+        for e in entries:
+            nums.update(int(m.group(1)) for m in USED_RE.finditer(str((e or {}).get('activity_id') or '')))
+    media = base / 'media'
+    if media.is_dir():
+        nums.update(int(m.group(1)) for d in media.iterdir() if d.is_dir() and (m := re.fullmatch(r'request-(\d+)', d.name)))
+    return nums
+
+
+def unique_activity_id(entries, wanted):
+    """`wanted`, oder mit Zähler `-2`, `-3` …, falls es die ID in `entries` schon gibt (#719)."""
+    ids = {str((e or {}).get('activity_id') or '') for e in entries}
+    if wanted not in ids:
+        return wanted
+    k = 2
+    while f'{wanted}-{k}' in ids:
+        k += 1
+    return f'{wanted}-{k}'
 
 
 def auto_analysis(base, now=None):
@@ -768,6 +800,7 @@ def run_media(base, job):
                'pricing_basis': 'per_call', 'pricing_source': 'Angabe im Auftrag (price_usd)', 'pricing_checked_at': now_utc().date().isoformat()}
         entry.update(pricing.cost_fields(est, currency, now_utc().date().isoformat()))
         entry['note'] = 'Medien-Auftrag (Hintergrundlauf), Preis laut Auftrag'
+    entry['activity_id'] = unique_activity_id(data.get('entries') or [], entry['activity_id'])
     data['entries'] = (data.get('entries') or []) + [entry]
     write(cpath, data)
     return {'label': f'Medium erzeugt: {saved[0]}' + (f' (+{len(saved) - 1})' if len(saved) > 1 else ''),
