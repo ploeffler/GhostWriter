@@ -45,7 +45,7 @@ Die Textfassungen erzeugt `render_view.py`; das setzt eine Umgebung voraus, die 
 - **Codex (Desktop, CLI, IDE):** liest `AGENTS.md` und die Skills im Repository selbst. Desktop, CLI und IDE sind getrennt zu betrachten; eine Aussage für die eine Variante gilt nicht für die anderen. Einrichtung: [Chat-Apps](CHAT-APPS.md).
 - **Claude (claude.ai):** zeigt die GhostWriter-Widgets. Schreiben über Arbeitsumgebung oder GitHub-Connector.
 - **Claude Code:** lädt die Skills des Repositorys; Schreiben über die Arbeitsumgebung.
-- **Claude-Web-App:** ein Artefakt in Claude, das dieselben Vorlagen zeigt und Klicks direkt ausführt, über die GitHub-Verbindung des Benutzers. Außerhalb des Lieferumfangs von v1.0 ([D06](ENTSCHEIDUNGEN-v1.0.md#d06--eigene-web-app-ohne-integrierten-modellaufruf)). Funktionen und Grenzen: [apps/claude/README.md](https://github.com/ploeffler/GhostWriter/blob/main/apps/claude/README.md).
+- **Claude-Web-App (wird nicht mehr gepflegt, Beschluss vom 27.11.2026):** ein Artefakt in Claude, das dieselben Vorlagen zeigt und Klicks direkt ausführt, über die GitHub-Verbindung des Benutzers. Außerhalb des Lieferumfangs von v1.0 ([D06](ENTSCHEIDUNGEN-v1.0.md#d06--eigene-web-app-ohne-integrierten-modellaufruf)). Funktionen und Grenzen: [apps/claude/README.md](https://github.com/ploeffler/GhostWriter/blob/main/apps/claude/README.md).
 - **Open WebUI:** eigener Weg über das GitHub-Werkzeug und die Pipe „GhostWriter Direkt“, ohne lokale GhostWriter-Skripte. Schreiben braucht den persönlichen Zugang des Benutzers. Einrichtung: [Open WebUI](https://github.com/ploeffler/GhostWriter/blob/main/integrations/openwebui/README.md).
 
 ## Immer gleich

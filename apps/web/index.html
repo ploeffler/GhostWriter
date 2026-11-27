@@ -707,7 +707,20 @@ document.addEventListener("change", ev => { if (ev.target.dataset && ev.target.d
    Aktionstabelle). Die App zeigt die letzten Läufe mit Stand und Link (Ergebnisse stehen auf der Laufseite unter „Artifacts“, 14 Tage) und die letzten Releases mit Dateien.
    Der Token braucht dafür zusätzlich „Actions“: Lesen und Schreiben. Was Geld oder sichtbare Spuren kostet (Vorabfassung: Tag und Pre-Release; Auschecken sperrt einen Bereich),
    fragt vorher mit einem zweiten Klick nach; nie wird ohne Klick gestartet. Es gibt keinen Abruf im Takt: nur solange ein gestarteter Lauf läuft und die Ansicht offen ist. */
-const RUN = {back:null, timer:0, until:0, focus:"", pending:{}, msg:""};
+const RUN = {back:null, timer:0, until:0, focus:"", pending:{}, msg:"", scope:""};
+/* Umfang (v1.6): im Buch nur dessen Läufe und Auflagen, ohne Buch (Bücherregal) oder auf Wunsch („Alle Läufe der Bibliothek“) alle Läufe des Repositorys */
+const runsScope = () => S.book && RUN.scope !== "lib" ? "book" : "lib";
+const runBookOf = r => (S.lib && S.lib.books || []).find(b => b.branch === r.branch || workOf(b) === r.branch);
+async function runsFetch(){
+  if (runsScope() !== "book") return GW_PORTS.git.listRuns(null, {perPage:30});
+  const b = S.book, [a, c] = await Promise.all([GW_PORTS.git.listRuns(null, {perPage:15, branch:b.branch}), GW_PORTS.git.listRuns(null, {perPage:15, branch:workOf(b)}).catch(() => [])]);
+  return a.concat(c).sort((x, y) => Date.parse(y.created) - Date.parse(x.created)).slice(0, 15);
+}
+function runRelOfBook(r){   // Auflagen und Vorabfassungen tragen Kurztitel oder Buchname im Tag bzw. Namen; im Einzelbuch (Standard-Branch) gehören alle dazu
+  const b = S.book; if (!b || !/^buch\//.test(b.branch)) return true;
+  const slug = b.branch.replace(/^buch\//, "").toLowerCase(), hay = ((r.tag || "") + " " + (r.name || "")).toLowerCase();
+  return hay.includes(slug) || [b.title_short, b.title].some(t => t && hay.includes(String(t).toLowerCase()));
+}
 const RUN_FORMATS = [["pdf", "PDF"], ["pdf_print", "Druck-PDF"], ["booklet", "Booklet"], ["cover", "Umschlag"], ["docx", "DOCX"], ["epub", "EPUB"]];
 const RUN_FILES = {proof:"proof.yml", preview:"preview.yml", manuscript:"manuscript.yml", checkout:"checkout.yml"};
 const RUN_STATE = r => r.status !== "completed" ? ["läuft", "⏳"] : r.conclusion === "success" ? ["fertig", "✓"] : r.conclusion === "cancelled" ? ["abgebrochen", "⏹"] : r.conclusion === "skipped" ? ["übersprungen", "–"] : ["fehlgeschlagen", "✗"];
@@ -724,10 +737,10 @@ async function runsView(){
   if (!RUN.back || S.view !== "runs") RUN.back = {view:S.view || "connect", arg:S.view === "section" ? S.sec && S.sec.id : S.chap};
   S.view = "runs"; crumbs(); busy("Läufe werden gelesen …");
   let runs = [], rels = [], err = "";
-  if (S.owner){ try { runs = await GW_PORTS.git.listRuns(null, {perPage:15}); } catch (e) { err = runErr(e); } try { rels = await GW_PORTS.git.listReleases(); } catch (e) {} }
-  const book = S.book, open = k => RUN.focus === k ? "open" : "";
+  if (S.owner){ try { runs = await runsFetch(); } catch (e) { err = runErr(e); } try { rels = await GW_PORTS.git.listReleases(); if (runsScope() === "book") rels = rels.filter(runRelOfBook); } catch (e) {} }
+  const book = S.book, lib = runsScope() === "lib", open = k => RUN.focus === k ? "open" : "";
   const none = !S.owner ? '<p class="dim">Zuerst ein Repository öffnen.</p>' : !book ? '<p class="dim">Zum Starten zuerst ein Buch öffnen (der Lauf gilt für den Stand dieses Buchs).</p>' : "";
-  const forms = !S.owner || !book ? none : `
+  const forms = !S.owner || !book ? none : lib ? '<p class="dim">Gestartet wird im jeweiligen Buch: Buch öffnen, dann den Drucker oben rechts.</p>' : `
     <details ${open("proof")}><summary><b>Probedruck</b> <span class="dim">· PDF zum Prüfen des Satzes, nichts wird veröffentlicht</span></summary><form data-run="proof" style="margin:8px 0">${runFormats("proof", ["pdf"])}
       <div style="margin:6px 0"><input class="in" name="chapters" placeholder="Kapitel, z. B. 1-4 oder 1,3 (leer = alle)" style="max-width:340px"></div><button class="btn pri" data-run-start="proof">Probedruck starten</button></form></details>
     <details ${open("preview")}><summary><b>Vorabfassung</b> <span class="dim">· legt einen Tag und ein Pre-Release an</span></summary><form data-run="preview" style="margin:8px 0">${runFormats("preview", [])}
@@ -741,12 +754,12 @@ async function runsView(){
       <div style="margin:6px 0"><input class="in" name="reader" placeholder="Gegenleser (GitHub-Login oder Name) – Pflicht" style="max-width:340px"> <input class="in" name="until" placeholder="Frist JJJJ-MM-TT (optional)" style="max-width:200px"></div>
       <label style="font-size:13px"><input type="checkbox" name="dry_run"> Probelauf (nichts sperren, nichts committen)</label>
       <div style="margin-top:6px"><button class="btn pri" data-run-start="checkout" data-run-confirm="Der Bereich wird gesperrt und es werden Dateien im Buch abgelegt.">Auschecken</button></div></form></details>`;
-  const rows = runs.length ? `<table class="kv">${runs.map(r => { const s = RUN_STATE(r); return `<tr><td>${s[1]} ${s[0]}</td><td>${esc(r.name)}<div class="dim">${esc(r.branch || "")} · ${esc(fmtTime(Date.parse(r.created)))}</div></td><td><a href="${esc(r.url)}" target="_blank" rel="noopener">Öffnen</a></td></tr>`; }).join("")}</table><p class="dim" style="font-size:12px">Ergebnisse (PDF, DOCX …) stehen auf der Laufseite unter „Artifacts“ und bleiben 14 Tage.</p>` : `<p class="dim">${err ? esc(err) : "Noch keine Läufe."}</p>`;
+  const rows = runs.length ? `<table class="kv">${runs.map(r => { const s = RUN_STATE(r); return `<tr><td>${s[1]} ${s[0]}</td><td>${esc(r.name)}<div class="dim">${esc(lib && runBookOf(r) ? (runBookOf(r).title_short || runBookOf(r).title) : (r.branch || ""))}${lib && runBookOf(r) ? " · " + esc(r.branch || "") : ""} · ${esc(fmtTime(Date.parse(r.created)))}</div></td><td><a href="${esc(r.url)}" target="_blank" rel="noopener">Öffnen</a></td></tr>`; }).join("")}</table><p class="dim" style="font-size:12px">Ergebnisse (PDF, DOCX …) stehen auf der Laufseite unter „Artifacts“ und bleiben 14 Tage.</p>` : `<p class="dim">${err ? esc(err) : "Noch keine Läufe."}</p>`;
   const rel = rels.length ? `<table class="kv">${rels.map(r => `<tr><td>${esc(r.name)}${r.pre ? ' <span class="dim">(Vorabfassung)</span>' : ""}<div class="dim">${esc(fmtTime(Date.parse(r.date)))}</div></td><td>${r.assets.length ? r.assets.map(a => `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.name)}</a> <span class="dim">${fmtBytes(a.size)}</span>`).join("<br>") : `<a href="${esc(r.url)}" target="_blank" rel="noopener">Öffnen</a>`}</td></tr>`).join("")}</table>` : '<p class="dim">Noch keine Auflagen oder Vorabfassungen.</p>';
-  $("app").innerHTML = `<div class="one"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:20px">Ausgabe und Läufe</b><button class="btn" data-act="runs-back">Zurück</button></div>${msgBox()}
+  $("app").innerHTML = `<div class="one"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:20px">Ausgabe und Läufe${lib ? "" : '<span class="dim" style="font-size:14px;font-weight:400"> · ' + esc(book.title_short || book.title || "") + "</span>"}</b><span>${book ? `<button class="btn" data-act="runs-scope">${lib ? "Nur dieses Buch" : "Alle Läufe der Bibliothek"}</button> ` : ""}<button class="btn" data-act="runs-back">Zurück</button></span></div>${msgBox()}
     <section class="card"><b>Starten</b><p class="dim" style="margin:6px 0">Startet eine Action im Buch-Repository. Der Token braucht dafür zusätzlich das Recht „Actions“ (Lesen und Schreiben). Ohne dieses Recht kannst du die Läufe nur ansehen.${RUN.msg ? `<br><b>${esc(RUN.msg)}</b>` : ""}</p>${forms}</section>
-    <section class="card"><div style="display:flex;justify-content:space-between"><b>Letzte Läufe</b><button class="btn" data-act="runs-refresh" title="Neu laden"><i class="ti ti-refresh"></i></button></div>${rows}</section>
-    <section class="card"><b>Auflagen und Vorabfassungen</b>${rel}<p class="dim" style="font-size:12px">Eine neue <b>Auflage</b> (Auflagen-Änderungspaket mit Freigaben) legst du in dieser Fassung noch im Chat mit GhostWriter an; danach baut die Action „Auflage veröffentlichen“ und das Ergebnis erscheint hier.</p></section></div>`;
+    <section class="card"><div style="display:flex;justify-content:space-between"><b>${lib ? "Letzte Läufe der Bibliothek" : "Letzte Läufe dieses Buchs"}</b><button class="btn" data-act="runs-refresh" title="Neu laden"><i class="ti ti-refresh"></i></button></div>${rows}</section>
+    <section class="card"><b>${lib ? "Auflagen und Vorabfassungen der Bibliothek" : "Auflagen und Vorabfassungen dieses Buchs"}</b>${rel}<p class="dim" style="font-size:12px">Eine neue <b>Auflage</b> (Auflagen-Änderungspaket mit Freigaben) legst du in dieser Fassung noch im Chat mit GhostWriter an; danach baut die Action „Auflage veröffentlichen“ und das Ergebnis erscheint hier.</p></section></div>`;
   window.scrollTo(0, 0);
   runsWatch(runs);
 }
@@ -756,7 +769,7 @@ function runsWatch(runs){
   RUN.timer = setTimeout(async () => {
     if (S.view !== "runs" || !S.owner) return;
     try {
-      const rs = await GW_PORTS.git.listRuns(null, {perPage:15});
+      const rs = await runsFetch();
       Object.keys(RUN.pending).forEach(k => { if (rs.some(r => (r.name || "").length && Date.parse(r.created) >= RUN.pending[k] - 15000 && (r.event === "workflow_dispatch"))) delete RUN.pending[k]; });
       RUN.msg = Object.keys(RUN.pending).length ? "Gestartet. Warte auf den Lauf …" : (runsActive(rs) ? "Der Lauf läuft." : "Der Lauf ist beendet.");
       await runsView();
@@ -787,9 +800,10 @@ GW_PORTS.actions = {
   "manuscript.export": () => { RUN.focus = "manuscript"; return runsView(); }, "checkout.start": () => { RUN.focus = "checkout"; return runsView(); }
 };
 document.addEventListener("click", async ev => {
-  const g = ev.target.closest && ev.target.closest("#runsbtn"); if (g){ ev.preventDefault(); RUN.focus = ""; RUN.msg = ""; return runsView(); }
+  const g = ev.target.closest && ev.target.closest("#runsbtn"); if (g){ ev.preventDefault(); RUN.focus = ""; RUN.msg = ""; RUN.scope = ""; return runsView(); }
   const a = ev.target.closest && ev.target.closest("[data-act]");
   if (a && a.dataset.act === "runs-back"){ ev.preventDefault(); clearTimeout(RUN.timer); const k = RUN.back || {view:"connect"}; RUN.back = null; return show(k.view, k.arg); }
+  if (a && a.dataset.act === "runs-scope"){ ev.preventDefault(); RUN.scope = runsScope() === "lib" ? "book" : "lib"; return runsView(); }
   if (a && a.dataset.act === "runs-refresh"){ ev.preventDefault(); RUN.until = Date.now() + 2 * 60 * 1000; return runsView(); }
   const b = ev.target.closest && ev.target.closest("[data-run-start]"); if (!b) return;
   ev.preventDefault();
@@ -1452,11 +1466,21 @@ async function loadRepo(spec){
   try { S.lib = JSON.parse((await getFile("library.json")).text); }
   catch (e) {
     try { await getFile("ghostwriter-index.json"); S.lib = {books:[{branch:"main", title:S.repo, status:"ready", work_branch:"ghostwriter/main"}]}; }
-    catch (e2) { S.msg = {kind:"err", html:esc(errText(e))}; S.owner = ""; return show("connect"); }
+    catch (e2) { S.msg = {kind:"err", html:esc(await repoMissingText(e))}; S.owner = ""; return show("connect"); }
   }
   S.msg = null;
   if ((S.lib.books || []).length === 1) return openBook(S.lib.books[0].branch);
   show("library");
+}
+async function repoMissingText(e){   // #729: ein 404 auf library.json heißt nicht „Fehler der App“; erst klären, ob das Repository erreichbar ist
+  if (!e || e.code !== "http_404") return errText(e);
+  const name = S.owner + "/" + S.repo;
+  try { await GW_PORTS.git.listDir("", ""); }
+  catch (e3) {
+    if (e3 && e3.code === "http_404") return "„" + name + "“ wurde nicht gefunden – oder der Token hat dafür keinen Zugriff (bei privaten Repositories antwortet GitHub ebenfalls mit „nicht gefunden“). Prüfe owner/repo und ob der Token genau dieses Repository enthält.";
+    return errText(e3);
+  }
+  return "„" + name + "“ ist erreichbar, enthält aber weder ein Bücherregal (library.json) noch ein Buch (ghostwriter-index.json). Ein Programm-Repository ist kein Buch: Wähle das Repository, in dem dein Buch oder deine Bibliothek liegt.";
 }
 async function loadBookData(ref, overlay){
   S.readRef = ref; S.files.clear();

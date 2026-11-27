@@ -4,7 +4,9 @@ Eine Web-App, die als Artefakt in Claude läuft: https://claude.ai/artifact/PQ3z
 Sie zeigt dieselben Ansichten wie GhostWriter im Chat, also die Widgets aus
 [ghostwriter-ui](https://github.com/ploeffler/ghostwriter-ui). Klicks führt sie direkt aus, ohne Chat.
 
-**Stand:** Versuch außerhalb des Lieferumfangs von v1.0. Eine eigene Web-App ist nach
+**Stand: wird nicht mehr gepflegt (Beschluss vom 27.11.2026, [Entscheidungsprotokoll](../../docs/ENTSCHEIDUNGEN-v1.0.md#beschluss-vom-27-november-2026-claude-artefakt-wird-nicht-mehr-gepflegt)).** Der veröffentlichte Link bleibt in der zuletzt veröffentlichten Fassung, es gibt keine Änderungen mehr daran. Nachfolger ist die eigene Web-App (`apps/web`, #662). Nichts wird gelöscht; `build.py`, `vendor/` und `apps/shared` nutzt `apps/web` mit und werden dafür weiter gepflegt.
+
+Früherer Stand: Versuch außerhalb des Lieferumfangs von v1.0. Eine eigene Web-App ist nach
 [D06](../../docs/ENTSCHEIDUNGEN-v1.0.md#d06--eigene-web-app-ohne-integrierten-modellaufruf) auf nach v1.0 verschoben.
 Diese App braucht weder eine eigene API noch einen Server. Sie arbeitet mit der GitHub-Verbindung des
 jeweiligen Benutzers in Claude und ruft Claude über dessen eigenes Konto auf.

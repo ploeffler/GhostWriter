@@ -496,6 +496,7 @@ def create_book(title, short='', author='', cwd=ROOT, namespace='refs/remotes/or
         paths.append('.ghostwriter/update.yml')
     run('add', *paths)
     run('rm', '-r', '-q', '--ignore-unmatch', 'series')   # Serien bleiben auf dem Standard-Branch (#116)
+    run('rm', '-q', '--ignore-unmatch', 'assistant.yml')   # das Profil gehört auf den Standard-Branch (#706): sonst scheitert assistant.check() nach der Strukturanlage
     run(*who, 'commit', '-q',
         '-m', f'Neues Buch angelegt: {r["fields"]["working_title"]}', '-m', 'GhostWriter-Aktion: library.book.create')
     if series_id:
