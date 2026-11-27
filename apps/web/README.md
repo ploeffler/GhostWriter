@@ -187,3 +187,7 @@ Im Kopf steht „App x.y.z“ und, sobald ein Repository offen ist, „Repositor
 ## Kosten (#754)
 
 Die Buchübersicht liest die Summe aus `ghostwriter-index.json`. Lässt sich der Index nicht lesen, zeigt die App nicht still „–“, sondern rechnet die Summen selbst aus `costs/project.yml` und `chapters/<Kapitel>/costs/<Abschnitt>.yml` (nur Backend- und Action-Kosten, wie `render_view.py`). Gibt es Kosten nur fürs ganze Buch (z. B. Medienaufträge) und keine bei Kapiteln, steht bei Kapitel und Abschnitt `– (nur Buch)` und im Tooltip, dass die Kosten nur fürs ganze Buch erfasst sind (Chat und App gleich). Medienaufträge dem Abschnitt zuordnen ist #755 (v1.7).
+
+## Anmeldung als Collaborator (#763)
+
+Ein Fine-grained Token gilt nur für Repositories des Kontos, für das er angelegt wurde. Bist du in einem privaten Repository eines anderen Kontos nur Collaborator, lässt es sich damit nicht auswählen. Die Startseite weist darauf hin und verlinkt das Anlegen eines **klassischen Tokens** (Recht `repo`, dazu `workflow` für Läufe; er gilt für alle eigenen Repositories, darum kurze Ablaufzeit). Auch die Meldung „nicht gefunden“ nennt das, wenn das Repository einem anderen Konto gehört als dem angemeldeten. Die App nutzt nur die REST-Schnittstelle, ein klassischer Token verhält sich dort gleich. Der Anmeldeweg selbst bleibt unverändert; Abnahme: als Collaborator mit klassischem Token ein fremdes privates Repository öffnen (steht bei Peter aus).
