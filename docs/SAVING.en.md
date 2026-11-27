@@ -28,6 +28,8 @@ The handover helper also fetches with `--prune` when `--fetch` is requested. If 
 
 After confirmed upload, the state is **saved, not yet merged**. You can view and continue working on that version; views read from the open change package. Changes reach the merged book version only after **Apply changes**. You confirm the current version shown to you. If it changes meanwhile, the revised package must be shown again.
 
+The confirmation shows the total number of changes and at most the five most recent entries. For larger packages it states how many earlier entries are omitted. “Show all changes” opens the full list (`render_view.py changes-merge --alle`). Confirmation still covers the entire change package and its current version.
+
 If you deliberately enabled **immediate application** (`changes.auto_merge: true`), ordinary book changes are merged automatically after saving. Content approvals remain separate explicit decisions. An edition always has its own change package and requires explicit merge confirmation.
 
 ## Back up and resume conversation work

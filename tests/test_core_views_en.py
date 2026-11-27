@@ -442,6 +442,46 @@ class EnglishCoreViewsTest(unittest.TestCase):
         self.assertIn('`buch/original`', text)
         self.assertEqual(json.loads(changes.read_text()), data)
 
+    def test_changes_compact_and_full_lists_preserve_confirmation_scope(self):
+        data = {'pull_request': 3, 'book_branch': 'buch/original', 'work_branch': 'ghostwriter/buch/original',
+                'commits': [{'sha': f'{i:040x}', 'message': f'Änderung-{i:02d}',
+                             'date': '2026-11-06T10:20:00Z'} for i in range(17)]}
+        # Automatic commits must affect neither the total nor the five visible changes.
+        data['commits'].append({'sha': 'a' * 40, 'message': 'Automatik\n\nGhostWriter-Aktion: index.build'})
+        changes = self.base / 'changes.json'
+        changes.write_text(json.dumps(data))
+        for lang in ('de', 'en'):
+            with self.subTest(language=lang):
+                options = ('changes-merge', '--changes', str(changes))
+                text = self.run_view(*options, '--language', lang, '--text').stdout
+                self.assertIn('17 Änderungen' if lang == 'de' else '17 changes', text)
+                self.assertIn('12 ältere' if lang == 'de' else '12 earlier', text)
+                self.assertIn('--alle', text)
+                self.assertNotIn('Änderung-11', text)
+                for i in range(12, 17):
+                    self.assertIn(f'Änderung-{i:02d}', text)
+                full = self.run_view(*options, '--language', lang, '--text', '--alle').stdout
+                for i in range(17):
+                    self.assertIn(f'Änderung-{i:02d}', full)
+                self.assertNotIn('Automatik', full)
+                short_widget = self.preview(*options, language=lang)
+                full_widget = self.preview(*options, '--alle', language=lang)
+                self.assertEqual(len(short_widget['CHANGES']), 6)  # one summary, five commits
+                self.assertEqual(len(full_widget['CHANGES']), 17)
+                for key in ('HEAD_SHA', 'PENDING_PR', 'BOOK_BRANCH', 'WORK_BRANCH', 'PENDING_TEXT'):
+                    self.assertEqual(short_widget[key], full_widget[key])
+                self.assertEqual(short_widget['HEAD_SHA'], 'b' * 40)
+                self.assertEqual(full_widget['CHANGES'][-5:], short_widget['CHANGES'][1:])
+        self.assertEqual(json.loads(changes.read_text()), data)
+
+    def test_changes_five_entries_need_no_summary(self):
+        changes = self.base / 'changes.json'
+        changes.write_text(json.dumps({'pull_request': 3, 'book_branch': 'main', 'work_branch': 'ghostwriter/main',
+            'commits': [{'sha': str(i) * 40, 'message': f'Änderung {i}'} for i in range(5)]}))
+        widget = self.preview('changes-merge', '--changes', str(changes))
+        self.assertEqual(len(widget['CHANGES']), 5)
+        self.assertNotIn('--alle', str(widget['CHANGES']))
+
     def test_reorder_views_preserve_ids_numbers_and_titles(self):
         self.chapter(True)
         chapter = self.run_view('chapter-reorder', '--language', 'en').stdout

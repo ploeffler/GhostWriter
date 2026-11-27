@@ -1,5 +1,6 @@
 {
   "there_are_no_pending_changes": "There are no pending changes.",
+  "changes.more": "… {number} earlier changes. Full list on request: ‘Show all changes’ (--alle).",
   "apply_changes": "### 🔀 Apply changes",
   "apply_to_from_pull_request": "Apply to `{p_a}`: {p_b} from `{p_c}` (pull request #{p_d}).",
   "change_date_commit": "| # | Change | Date | Commit |",
