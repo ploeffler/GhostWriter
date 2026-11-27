@@ -21,3 +21,8 @@
 .gw-accopen{margin-left:auto}
 .gw-acc>.gw-shelf{padding:0 14px 14px}
 .vers{font-size:11px;color:var(--text-3,#777);white-space:nowrap}.vers.warn{color:#9a6b00;font-weight:600}
+.gw-eds{display:none}   /* Auflagen der Karte stehen im Akkordeon darunter (regal-web.js) */
+.gw-eds2{margin:6px 0 0;font-size:13px}
+.gw-eds2>summary{padding:6px 10px;font-size:13px}
+.gw-edlist{margin:0;padding:4px 14px 10px 28px}
+.gw-edlist li{margin:3px 0}

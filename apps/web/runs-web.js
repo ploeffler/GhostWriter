@@ -12,8 +12,8 @@ async function runsFetch(){
   const b = S.book, [a, c] = await Promise.all([GW_PORTS.git.listRuns(null, {perPage:15, branch:b.branch}), GW_PORTS.git.listRuns(null, {perPage:15, branch:workOf(b)}).catch(() => [])]);
   return a.concat(c).sort((x, y) => Date.parse(y.created) - Date.parse(x.created)).slice(0, 15);
 }
-function runRelOfBook(r){   // Auflagen und Vorabfassungen tragen Kurztitel oder Buchname im Tag bzw. Namen; im Einzelbuch (Standard-Branch) gehören alle dazu
-  const b = S.book; if (!b || !/^buch\//.test(b.branch)) return true;
+function runRelOfBook(r, book){   // Auflagen und Vorabfassungen tragen Kurztitel oder Buchname im Tag bzw. Namen; im Einzelbuch (Standard-Branch) gehören alle dazu
+  const b = book || S.book; if (!b || !/^buch\//.test(b.branch)) return true;
   const slug = b.branch.replace(/^buch\//, "").toLowerCase(), hay = ((r.tag || "") + " " + (r.name || "")).toLowerCase();
   return hay.includes(slug) || [b.title_short, b.title].some(t => t && hay.includes(String(t).toLowerCase()));
 }
