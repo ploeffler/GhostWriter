@@ -133,9 +133,8 @@ function changed(files, orig){ return Object.entries(files).filter(([p, c]) => c
 async function saveSection(data){
   const x = allSecs().find(v => v.s.id === data.section_id); if (!x) return;
   const seen = S.secFile; busy("Wird gespeichert …");
-  try {
-    // ohne Netz (oder solange Älteres wartet) auf Grundlage des geladenen Stands lokal sichern; sonst wie bisher gegen den Arbeits-Branch
-    const local = !!(GW_PORTS.outbox && seen && seen.text != null && (GW_PORTS.outbox.offline() || await GW_PORTS.outbox.pending(S.book.branch)));
+  const netErr = e => !!(e && (e.code === "offline" || e.code === "server_unavailable"));
+  const attempt = async local => {
     const work = local ? workOf(S.book) : await prepareWork();
     const cur = local ? {text:seen.text, sha:seen.sha} : await getFile(x.s.path, work, true);
     if (seen && seen.sha && cur.sha && seen.sha !== cur.sha && seen.text !== cur.text) throw {message:"Der Abschnitt wurde inzwischen an anderer Stelle geändert. Lade ihn neu (deine Eingaben vorher kopieren)."};
@@ -150,6 +149,13 @@ async function saveSection(data){
     const files = md === cur.text ? [] : [{path:x.s.path, content:md}], what = `Abschnitt ${S.secNo} „${x.s.title}“ gespeichert`;
     const r = local ? await localCommit(files, what, {action:"section.update", seen:{[x.s.path]: cur.sha || null}, base:{[x.s.path]: cur.text}}) : await commit(files, what, {action:"section.update"});
     S.msg = savedMsg("Gespeichert.", r);
+  };
+  try {
+    // ohne Netz (oder solange Älteres wartet) auf Grundlage des geladenen Stands lokal sichern; sonst wie bisher gegen den Arbeits-Branch
+    const canLocal = !!(GW_PORTS.outbox && seen && seen.text != null);
+    const local = canLocal && (GW_PORTS.outbox.offline() || await GW_PORTS.outbox.pending(S.book.branch));
+    // Die App weiß erst nach dem ersten Fehlschlag, dass das Netz weg ist (WLAN ohne Internet, Funkloch): dann in jeder Vorstufe (Arbeits-Branch, frisches Lesen) auf die lokale Sicherung ausweichen (#744)
+    try { await attempt(!!local); } catch (e) { if (local || !canLocal || !netErr(e)) throw e; await attempt(true); }
   } catch (e) { S.msg = failMsg(e); }
   show("section", x.s.id);
 }

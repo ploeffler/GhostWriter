@@ -24,7 +24,7 @@ class WebApp(unittest.TestCase):
         used = {(WEB / m).resolve() for m in re.findall(r'^@@include (\S+)@@$', src, re.M)}
         shared = {p.resolve() for p in (APPS / 'shared').iterdir()}
         self.assertTrue(shared <= used, 'Die Web-App muss alle Teile aus apps/shared binden')
-        self.assertEqual({p.name for p in used - shared}, {'ports-web.js', 'net-web.js', 'merge3.js', 'outbox-web.js', 'konflikt-web.js', 'fehler-web.js', 'einstellungen-web.js', 'runs-web.js', 'voice-web.js', 'modelle-web.js', 'version-web.js', 'regal-web.js', 'boot-web.js', 'web.css'})
+        self.assertEqual({p.name for p in used - shared}, {'ports-web.js', 'net-web.js', 'merge3.js', 'outbox-web.js', 'konflikt-web.js', 'fehler-web.js', 'einstellungen-web.js', 'runs-web.js', 'voice-web.js', 'modelle-web.js', 'version-web.js', 'regal-web.js', 'serie-web.js', 'boot-web.js', 'web.css'})
 
     def test_kein_claude_anschluss_und_kein_fremder_host(self):
         for name in ('ports-web.js', 'boot-web.js'):

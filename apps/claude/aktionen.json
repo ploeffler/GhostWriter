@@ -98,19 +98,19 @@
    }
   },
   "chapter.sections.add": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "chapter.texts.update": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "character.talk.apply": {
@@ -154,67 +154,67 @@
    }
   },
   "checkout.aufbau": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "checkout.end": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "checkout.return": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "checkout.start": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "edition.create": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "edition.create.open": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "edition.preview": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "edition.proof": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "figurenbild.change": {
@@ -242,51 +242,51 @@
    }
   },
   "image.add": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "image.layout": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "image.place": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "image.prompt": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "import.apply": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "import.edit": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "import.outline.apply": {
@@ -314,35 +314,35 @@
    }
   },
   "library.book.create": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "library.book.create.open": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "library.edition.open": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "manuscript.export": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "material.add": {
@@ -354,283 +354,283 @@
    }
   },
   "matter.create": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "matter.glossary.from_series": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "matter.glossary.suggest": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "matter.glossary.to_series": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "matter.glossary.update": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "matter.update": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "project.ai_disclosure.open": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "project.ai_disclosure.update": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "project.analysis.open": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "project.analysis.update": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "project.output.open": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "project.output.update": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "project.providers.open": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "project.providers.update": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "project.rules.open": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "project.rules.update": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "project.settings.open": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "project.settings.update": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "series.create": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "series.create.open": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "series.edit.open": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "series.omnibus.approve": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "series.omnibus.edit.open": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "series.omnibus.publish": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "series.omnibus.revoke": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "series.omnibus.update": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "series.reorder": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "series.update": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "series.volume.add": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "series.volume.remove": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "update.apply": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "view.images": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "view.matter": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "view.series": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "view.timeline": {
-   "state": "spaeter",
-   "version": "v1.6",
+   "state": "chat",
+   "version": null,
    "reason": {
-    "de": "Kommt mit v1.6.",
-    "en": "Coming with v1.6."
+    "de": "Das geht im Chat.",
+    "en": "Available in the chat."
    }
   },
   "wizard.answer": {

@@ -19,6 +19,10 @@ async function verLoad(){
 function verShow(){
   const el = $("vers"); if (!el) return;
   const v = verText(APP_VERSION, VER.ver, VER.repo); el.textContent = v.text; el.title = v.title; el.classList.toggle("warn", v.warn);
+  const g = document.getElementById && document.getElementById("gear"); if (g){ g.classList.toggle("warn", v.warn); if (v.warn) g.title = "Einstellungen · " + v.title; else g.title = "Einstellungen"; }
 }
 setInterval(() => { const name = S.owner ? S.owner + "/" + S.repo : ""; if (name !== VER.repo) verLoad(); }, 1500);
 document.addEventListener("DOMContentLoaded", verShow); verShow();
+/* Pfad am Handy: das letzte Glied bleibt sichtbar (vorne kürzen statt umbrechen, #743) */
+{ const c = document.getElementById && document.getElementById("crumbs"); if (c && typeof MutationObserver !== "undefined") new MutationObserver(() => { c.scrollLeft = c.scrollWidth; }).observe(c, {childList:true, subtree:true}); }
+function verRows(){ const v = verText(APP_VERSION, VER.ver, VER.repo); return [["Version dieser App", esc(APP_VERSION)], ["GhostWriter im Repository", VER.repo ? (VER.ver ? esc(VER.ver) : '<span class="dim">nicht lesbar</span>') : '<span class="dim">kein Repository geöffnet</span>'], ...(v.warn ? [["Hinweis", esc(v.title)]] : [])]; }

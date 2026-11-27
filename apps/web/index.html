@@ -110,6 +110,17 @@ aside.claude{position:sticky;top:70px;display:flex;flex-direction:column;max-hei
 .gw-card>.gw-eds2>summary{padding:6px var(--pad-md,14px) 8px;font-size:13px;border-top:.5px dashed var(--border,#d6d3c8)}
 .gw-edlist{margin:0;padding:2px 14px 10px 32px}
 .gw-edlist li{margin:3px 0}
+/* Handy (#743): erste Zeile Bildmarke und Knöpfe, zweite Zeile der Pfad (eine Zeile, waagrecht scrollbar, letztes Glied sichtbar); Version steht in Einstellungen */
+.gear.warn{position:relative}.gear.warn::after{content:"";position:absolute;top:4px;right:6px;width:8px;height:8px;border-radius:50%;background:#e0a100}
+@media (max-width:600px){
+  header{gap:4px 6px;padding:6px max(3vw,10px)}
+  .brand{font-size:0;gap:0}
+  .vers{display:none}
+  header .gear{order:1;padding:6px 8px}header .gear:first-of-type{margin-left:auto}
+  .crumbs{order:3;flex:1 0 100%;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+  .crumbs::-webkit-scrollbar{display:none}
+  .crumbs>*{flex:none;white-space:nowrap}
+}
 </style>
 </head>
 <body>
@@ -307,8 +318,8 @@ function netSchedule(){
 }
 function netRender(){
   const el = $("net"); if (!el) return;
-  const msg = NET.online === false ? "Offline – gelesen werden kann, was schon geladen ist. Speichern geht erst wieder mit Netz."
-    : NET.github === false ? "Online, aber GitHub ist gerade nicht erreichbar. Speichern geht erst wieder, wenn GitHub antwortet." : "";
+  const msg = NET.online === false ? "Offline – gelesen werden kann, was schon geladen ist. Abschnittstexte kannst du weiter schreiben: Sie werden auf diesem Gerät gesichert und hochgeladen, sobald wieder Netz da ist. Alles andere (Figuren, Gliederung, Freigaben) geht erst wieder mit Netz."
+    : NET.github === false ? "Online, aber GitHub ist gerade nicht erreichbar. Abschnittstexte werden auf diesem Gerät gesichert und später hochgeladen; alles andere geht erst wieder, wenn GitHub antwortet." : "";
   el.hidden = !msg; el.className = "netbar" + (msg ? " off" : ""); el.textContent = msg;
 }
 function netFailed(){ NET.github = false; NET.wasDown = true; netRender(); netSchedule(); }   // von ports-web.js bei einem Netzfehler
@@ -685,6 +696,7 @@ async function settingsView(){
   const perm = conn.perms ? [conn.perms.pull ? "Lesen" : "", conn.perms.push ? "Schreiben" : "", conn.perms.admin ? "Verwalten" : ""].filter(Boolean).join(", ") || "keine" : "–";
   const github = `<section class="card"><b>GitHub</b><table class="kv">${row("Angemeldet als", conn.login ? esc(conn.login) : `<span class="dim">${esc(conn.error || "nein")}</span>`)}${row("Token", token() ? "vorhanden (Wert wird nie angezeigt)" + (conn.expires ? ", läuft ab am " + esc(String(conn.expires).slice(0, 10)) : "") : "keiner")}${row("Repository", conn.repo ? esc(conn.repo) + (conn.priv === true ? " (privat)" : "") : "<span class=\"dim\">keines geöffnet</span>")}${row("Rechte am Repository", esc(perm))}${row("Anfragen von GitHub", conn.rate ? `${conn.rate.remaining} von ${conn.rate.limit} übrig, neu ab ${esc(fmtTime(conn.rate.reset * 1000))}` : "–")}</table>
     <div class="row" style="gap:8px"><button class="btn" data-act="set-test">Verbindung testen</button>${token() ? '<button class="btn" data-act="logout">Abmelden</button>' : ""}</div><div id="settest" class="dim" style="margin-top:6px"></div></section>`;
+  const version = `<section class="card"><b>Version</b><table class="kv">${(typeof verRows === "function" ? verRows() : []).map(r => row(r[0], r[1])).join("")}</table></section>`;
   const origin = `<section class="card"><b>Herkunft dieser App</b><p class="dim" style="margin:6px 0">Diese Adresse brauchen lokale Server für ihre Freigabe (CORS, ab v2.0).</p><code id="orig">${esc(location.origin)}</code> <button class="btn" data-act="set-copy" data-text="${esc(location.origin)}">Kopieren</button></section>`;
   const speicher = `<section class="card"><b>Speicher auf diesem Gerät</b><table class="kv">${row("Belegt", `${fmtBytes(dev.storageUsed)} von ${fmtBytes(dev.storageQuota)}`)}${row("Dauerhaft angefordert", dev.persisted === true ? "ja" : dev.persisted === false ? "nein" : "unbekannt")}${row("Nicht hochgeladene Änderungen", st.unsaved ? `<b>${st.unsaved}</b> (${fmtBytes(st.bytes)})` : "keine")}${row("App-Hülle (Dateien)", String(st.hull))}</table>${dev.persisted === false && dev.persistApi ? '<button class="btn" data-act="set-persist">Dauerhaften Speicher anfordern</button>' : ""}</section>`;
   const devRows = [["System", esc(dev.platform || "unbekannt") + (dev.mobile ? " (Mobilgerät)" : "")], ["Browser", esc(errBrowser().split(" · ")[0])], ["Als App installiert", yn(dev.pwa)], ["Online", NET.online === false ? "nein" : "ja"], ["GitHub erreichbar", yn(dev.github)],
@@ -696,7 +708,7 @@ async function settingsView(){
   const errs = errList(), fehler = `<section class="card"><b>Fehlermeldungen</b><p class="dim" style="margin:6px 0">Fehler, die diese App zeigt, merkt sie sich hier (nur Technisches, ohne Repository-, Buch- und Textnamen). „Melden“ öffnet bei GitHub ein vorausgefülltes Issue; du schickst es selbst ab. Deine Arbeit geht dabei nie verloren.</p>
     ${errs.length ? `<table class="kv">${errs.map(r => `<tr><td>${esc(fmtTime(r.zuletzt))}<div class="dim">${esc(r.klasse)} · ${r.n}×</div></td><td>${esc(r.meldung || r.schritt)}<div class="dim"><code>${esc(r.fp)}</code></div></td><td><button class="btn" data-act="err-report" data-fp="${esc(r.fp)}">Melden</button></td></tr>`).join("")}</table>` : '<p class="dim">Keine Fehler gemerkt.</p>'}
     <label style="display:block;margin-top:8px;font-size:13px"><input type="checkbox" data-act="set-device" ${store.get("gw.reportDevice") === "1" ? "checked" : ""}> Grobe Gerätewerte anhängen („${esc(DEVICE_COARSE)}“)</label>${errs.length ? '<button class="btn" style="margin-top:8px" data-act="set-clear-errors">Protokoll leeren</button>' : ""}</section>`;
-  $("app").innerHTML = `<div class="one"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:20px">Einstellungen › Verbindungen</b><button class="btn" data-act="set-back">Zurück</button></div>${msgBox()}${github}${origin}${speicher}${geraet}${fehler}
+  $("app").innerHTML = `<div class="one"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:20px">Einstellungen › Verbindungen</b><button class="btn" data-act="set-back">Zurück</button></div>${msgBox()}${github}${version}${origin}${speicher}${geraet}${fehler}
     <p class="dim">Weitere Verbindungen (KI-Anbieter, Sprachnotizen, E-Mail-Feedback) erscheinen hier, sobald ihre Funktion umgesetzt ist.</p></div>
     <style>.kv{width:100%;border-collapse:collapse;margin:6px 0}.kv td,.kv th{padding:5px 8px;border-top:.5px solid var(--border,#d6d3c8);vertical-align:top;font-size:13px;text-align:left}.kv td:first-child{width:38%}.card{margin-bottom:12px}</style>`;
   window.scrollTo(0, 0);
@@ -1143,9 +1155,13 @@ async function verLoad(){
 function verShow(){
   const el = $("vers"); if (!el) return;
   const v = verText(APP_VERSION, VER.ver, VER.repo); el.textContent = v.text; el.title = v.title; el.classList.toggle("warn", v.warn);
+  const g = document.getElementById && document.getElementById("gear"); if (g){ g.classList.toggle("warn", v.warn); if (v.warn) g.title = "Einstellungen · " + v.title; else g.title = "Einstellungen"; }
 }
 setInterval(() => { const name = S.owner ? S.owner + "/" + S.repo : ""; if (name !== VER.repo) verLoad(); }, 1500);
 document.addEventListener("DOMContentLoaded", verShow); verShow();
+/* Pfad am Handy: das letzte Glied bleibt sichtbar (vorne kürzen statt umbrechen, #743) */
+{ const c = document.getElementById && document.getElementById("crumbs"); if (c && typeof MutationObserver !== "undefined") new MutationObserver(() => { c.scrollLeft = c.scrollWidth; }).observe(c, {childList:true, subtree:true}); }
+function verRows(){ const v = verText(APP_VERSION, VER.ver, VER.repo); return [["Version dieser App", esc(APP_VERSION)], ["GhostWriter im Repository", VER.repo ? (VER.ver ? esc(VER.ver) : '<span class="dim">nicht lesbar</span>') : '<span class="dim">kein Repository geöffnet</span>'], ...(v.warn ? [["Hinweis", esc(v.title)]] : [])]; }
 /* ---------- Bücherregal: Karten aufgeräumt, Auflagen als Akkordeon, Serien als Akkordeon (#662) ----------
    Karten: „eingerichtet“ und der Branch stehen nicht mehr auf der Karte („im Aufbau“ bleibt). Unter jeder Karte klappt „Auflagen und Vorabfassungen“ auf:
    Links zu den erzeugten Auflagen (aus library.json, Release-Seite auf GitHub) und zu den Vorabfassungen (Pre-Releases des Repositorys, einmal gelesen). Ohne Einträge fehlt das Akkordeon.
@@ -1208,6 +1224,52 @@ function regalPatch(root){
   groups.forEach(g => shelf.appendChild(regalGroup(g)));
 }
 { const prev = GW_PORTS.afterRender; GW_PORTS.afterRender = (name, root) => { if (prev) prev(name, root); if (name === "buecherregal") regalPatch(root); }; }
+/* ---------- Serienansicht (#742, nur anzeigen) ----------
+   „Serie öffnen ›“ im Bücherregal zeigt die Serie: Titel, Art, Bände in Reihenfolge mit „Band öffnen“, Figuren und Begriffe der Serie (lesend), Sammelband.
+   Gelesen aus series/<ser-id>/ auf dem Standard-Branch (series.yml, characters/char-*.md, glossary.yml, omnibus.yml); die Bände aus library.json.
+   Ändern (Titel, Reihenfolge, Bände, Sammelband, Glossar-Abgleich) bleibt im Chat; es gibt hier keine Freigaben. */
+const SER_KIND = {continuous:"durchgehende Handlung", standalone:"eigenständige Bände"};
+async function serYaml(path){ try { return window.jsyaml.load((await getFile(path, null, true)).text) || {}; } catch (e) { return null; } }
+async function seriesData(id){
+  const sy = await serYaml(`series/${id}/series.yml`); if (!sy) throw {message:"Die Serie „" + id + "“ ist nicht lesbar (series/" + id + "/series.yml)."};
+  const books = new Map(((S.lib && S.lib.books) || []).map(b => [b.branch, b])), vols = sy.volumes || [], inLib = ((S.lib && S.lib.series) || []).find(s => s.id === id);
+  const rows = vols.map((br, n) => { const b = books.get(br);
+    if (!b) return {V_NUMBER:n + 1, V_BRANCH:br, V_TITLE:br, V_TITLE_SHORT:br.split("/").pop(), V_STATE:"setup", V_STATE_TEXT:"nicht gefunden", V_PROGRESS:0, V_PROGRESS_TEXT:"", V_EDITION_TEXT:""};
+    const r = bookRow(b); return {V_NUMBER:n + 1, V_BRANCH:br, V_TITLE:r.BOOK_TITLE, V_TITLE_SHORT:r.BOOK_TITLE_SHORT, V_STATE:r.BOOK_STATE, V_STATE_TEXT:r.BOOK_STATE_TEXT, V_PROGRESS:r.BOOK_PROGRESS, V_PROGRESS_TEXT:r.BOOK_PROGRESS_TEXT, V_EDITION_TEXT:r.BOOK_EDITION_TEXT}; });
+  const files = (await listDefault(`series/${id}/characters`)).filter(e => /^char-.+\.md$/.test(e.name));
+  const chars = (await pool(files, 8, async e => { try { const h = front((await getFile(e.path || `series/${id}/characters/${e.name}`, null, true)).text); return {SC_ID:h.id || e.name.replace(/\.md$/, ""), SC_NAME:h.name || e.name.replace(/\.md$/, ""), SC_ROLE:h.role || "", SC_SHORT:h.short_description || h.description || ""}; } catch (x) { return null; } })).filter(Boolean);
+  const gl = await serYaml(`series/${id}/glossary.yml`), terms = ((gl && gl.terms) || []).map(t => ({ST_TERM:t.term || "", ST_TEXT:t.text || ""}));
+  const om = await serYaml(`series/${id}/omnibus.yml`);
+  const d = {LANGUAGE:"de", LIBRARY_NAME:S.owner + "/" + S.repo, SERIES_ID:sy.id || id, SERIES_TITLE:sy.title || (inLib && inLib.title) || id, SERIES_SUBTITLE:sy.subtitle || "", SERIES_DESCRIPTION:sy.description || "",
+    SERIES_KIND_TEXT:SER_KIND[sy.kind] || SER_KIND.continuous, VOLUME_COUNT_TEXT:plural(rows.length, "Band", "Bände"), VOLUMES:rows};
+  if (chars.length) d.SERIES_CHARACTERS = chars;
+  if (terms.length) d.SERIES_TERMS = terms;
+  if (om && Object.keys(om).length) Object.assign(d, {OMNIBUS_STATE:om.status === "approved" ? "approved" : "draft", OMNIBUS_TITLE:om.title || "", OMNIBUS_TEXT:`${plural((om.volumes || []).length, "Band", "Bände")} · ${om.status === "approved" ? "freigegeben" : "Entwurf"}${om.current_edition ? " · Auflage " + om.current_edition : ""}`});
+  return d;
+}
+function seriesHtml(d){
+  const vol = d.VOLUMES.map(v => `<tr><td style="width:56px">Band ${v.V_NUMBER}</td><td><b>${esc(v.V_TITLE)}</b><div class="dim">${esc(v.V_STATE_TEXT)}${v.V_PROGRESS_TEXT ? " · " + esc(v.V_PROGRESS_TEXT) : ""}${v.V_EDITION_TEXT ? " · " + esc(v.V_EDITION_TEXT) : ""}</div>${v.V_STATE === "ready" ? `<div class="bar" style="height:4px;background:var(--border,#d6d3c8);border-radius:2px;margin-top:4px"><i style="display:block;height:4px;width:${v.V_PROGRESS}%;background:var(--accent,#3d7a5a);border-radius:2px"></i></div>` : ""}</td>
+    <td style="white-space:nowrap;text-align:right">${v.V_STATE_TEXT === "nicht gefunden" ? "" : `<button class="btn" data-ser-open="${esc(v.V_BRANCH)}">Band öffnen ›</button>`}</td></tr>`).join("");
+  const chars = (d.SERIES_CHARACTERS || []).map(c => `<tr><td><b>${esc(c.SC_NAME)}</b>${c.SC_ROLE ? ` <span class="dim">${esc(c.SC_ROLE)}</span>` : ""}${c.SC_SHORT ? `<div class="dim">${esc(c.SC_SHORT)}</div>` : ""}</td></tr>`).join("");
+  const terms = (d.SERIES_TERMS || []).map(t => `<tr><td style="width:30%"><b>${esc(t.ST_TERM)}</b></td><td>${esc(t.ST_TEXT)}</td></tr>`).join("");
+  return `<div class="one"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><b style="font-size:20px">${esc(d.SERIES_TITLE)}</b>${d.SERIES_SUBTITLE ? `<div class="dim">${esc(d.SERIES_SUBTITLE)}</div>` : ""}</div><button class="btn" data-ser-back="1">Zurück zum Bücherregal</button></div>${msgBox()}
+    <section class="card"><span class="dim">${esc(d.SERIES_KIND_TEXT)} · ${esc(d.VOLUME_COUNT_TEXT)}</span>${d.SERIES_DESCRIPTION ? `<p style="margin:6px 0">${esc(d.SERIES_DESCRIPTION)}</p>` : ""}</section>
+    <section class="card"><b>Bände</b>${vol ? `<table class="kv">${vol}</table>` : '<p class="dim">Diese Serie hat noch keine Bände.</p>'}</section>
+    ${chars ? `<section class="card"><b>Figuren der Serie</b><table class="kv">${chars}</table></section>` : ""}${terms ? `<section class="card"><b>Begriffe der Serie</b><table class="kv">${terms}</table></section>` : ""}
+    ${d.OMNIBUS_TEXT ? `<section class="card"><b>Sammelband</b> ${esc(d.OMNIBUS_TITLE)}<div class="dim">${esc(d.OMNIBUS_TEXT)}</div></section>` : ""}
+    <p class="dim">Hier wird nur angezeigt. Serie ändern, Bände ordnen, Sammelband und Glossar-Abgleich gehen weiter im Chat mit GhostWriter.</p></div>`;
+}
+async function seriesView(id){
+  S.book = null; S.chap = null; S.sec = null; crumbs(); busy("Serie wird geladen …");
+  try { const d = await seriesData(id); $("app").innerHTML = seriesHtml(d); window.scrollTo(0, 0); }
+  catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; show("library"); }
+}
+GW_PORTS.views = Object.assign(GW_PORTS.views || {}, {series:seriesView});
+GW_PORTS.actions = Object.assign(GW_PORTS.actions || {}, {"view.series": data => { S.msg = null; return show("series", data && data.series_id); }});
+document.addEventListener("click", ev => {
+  const o = ev.target.closest && ev.target.closest("[data-ser-open]"); if (o){ ev.preventDefault(); return openBook(o.dataset.serOpen); }
+  const b = ev.target.closest && ev.target.closest("[data-ser-back]"); if (b){ ev.preventDefault(); S.msg = null; return show("library"); }
+});
 async function getFile(path, ref, fresh){
   const key = (ref || "") + "|" + path;
   if (!fresh && S.files.has(key)) return S.files.get(key);
@@ -1450,7 +1512,7 @@ function blankRaw(root){
 }
 /* Knopf-Inventar (#662): Aktionen, die diese App nicht kann, sind vor dem Klick ausgegraut. Die Liste steht in aktionen.json (Test: tests/test_app_aktionen.py);
    sobald die eingebaute Laufzeit UI 0.80.0 hat, übernimmt GW.capabilities das. */
-const NA = /*GW-NA*/{"analysis.apply":"Das geht im Chat.","analysis.open":"Das geht im Chat.","analysis.start":"Das geht im Chat.","anecdote.capture":"Das geht im Chat.","anecdote.plan":"Das geht im Chat.","anecdote.show":"Das geht im Chat.","anecdote.suggest":"Das geht im Chat.","anecdote.use":"Das geht im Chat.","backup.create":"Das geht im Chat.","chapter.research.open":"Das geht im Chat.","chapter.research.start":"Das geht im Chat.","chapter.revision.start":"Das geht im Chat.","chapter.sections.add":"Kommt mit v1.6.","chapter.texts.update":"Kommt mit v1.6.","character.talk.apply":"Das geht im Chat.","character.talk.end":"Das geht im Chat.","character.talk.start":"Das geht im Chat.","character.talk.switch":"Das geht im Chat.","character.talk.until":"Das geht im Chat.","checkout.aufbau":"Kommt mit v1.6.","checkout.end":"Kommt mit v1.6.","checkout.return":"Kommt mit v1.6.","checkout.start":"Kommt mit v1.6.","edition.create":"Kommt mit v1.6.","edition.create.open":"Kommt mit v1.6.","edition.preview":"Kommt mit v1.6.","edition.proof":"Kommt mit v1.6.","figurenbild.change":"Das geht im Chat.","figurenbild.pick":"Das geht im Chat.","figurenbild.stil.save":"Das geht im Chat.","image.add":"Kommt mit v1.6.","image.layout":"Kommt mit v1.6.","image.place":"Kommt mit v1.6.","image.prompt":"Kommt mit v1.6.","import.apply":"Kommt mit v1.6.","import.edit":"Kommt mit v1.6.","import.outline.apply":"Das geht im Chat.","import.outline.open":"Das geht im Chat.","import.outline.start":"Das geht im Chat.","library.book.create":"Kommt mit v1.6.","library.book.create.open":"Kommt mit v1.6.","library.edition.open":"Kommt mit v1.6.","manuscript.export":"Kommt mit v1.6.","material.add":"Das geht im Chat.","matter.create":"Kommt mit v1.6.","matter.glossary.from_series":"Kommt mit v1.6.","matter.glossary.suggest":"Kommt mit v1.6.","matter.glossary.to_series":"Kommt mit v1.6.","matter.glossary.update":"Kommt mit v1.6.","matter.update":"Kommt mit v1.6.","project.ai_disclosure.open":"Kommt mit v1.6.","project.ai_disclosure.update":"Kommt mit v1.6.","project.analysis.open":"Kommt mit v1.6.","project.analysis.update":"Kommt mit v1.6.","project.output.open":"Kommt mit v1.6.","project.output.update":"Kommt mit v1.6.","project.providers.open":"Kommt mit v1.6.","project.providers.update":"Kommt mit v1.6.","project.rules.open":"Kommt mit v1.6.","project.rules.update":"Kommt mit v1.6.","project.settings.open":"Kommt mit v1.6.","project.settings.update":"Kommt mit v1.6.","series.create":"Kommt mit v1.6.","series.create.open":"Kommt mit v1.6.","series.edit.open":"Kommt mit v1.6.","series.omnibus.approve":"Kommt mit v1.6.","series.omnibus.edit.open":"Kommt mit v1.6.","series.omnibus.publish":"Kommt mit v1.6.","series.omnibus.revoke":"Kommt mit v1.6.","series.omnibus.update":"Kommt mit v1.6.","series.reorder":"Kommt mit v1.6.","series.update":"Kommt mit v1.6.","series.volume.add":"Kommt mit v1.6.","series.volume.remove":"Kommt mit v1.6.","update.apply":"Kommt mit v1.6.","view.images":"Kommt mit v1.6.","view.matter":"Kommt mit v1.6.","view.series":"Kommt mit v1.6.","view.timeline":"Kommt mit v1.6.","wizard.answer":"Das geht im Chat.","wizard.skip":"Das geht im Chat."}/*GW-NA-END*/;
+const NA = /*GW-NA*/{"analysis.apply":"Das geht im Chat.","analysis.open":"Das geht im Chat.","analysis.start":"Das geht im Chat.","anecdote.capture":"Das geht im Chat.","anecdote.plan":"Das geht im Chat.","anecdote.show":"Das geht im Chat.","anecdote.suggest":"Das geht im Chat.","anecdote.use":"Das geht im Chat.","backup.create":"Das geht im Chat.","chapter.research.open":"Das geht im Chat.","chapter.research.start":"Das geht im Chat.","chapter.revision.start":"Das geht im Chat.","chapter.sections.add":"Das geht im Chat.","chapter.texts.update":"Das geht im Chat.","character.talk.apply":"Das geht im Chat.","character.talk.end":"Das geht im Chat.","character.talk.start":"Das geht im Chat.","character.talk.switch":"Das geht im Chat.","character.talk.until":"Das geht im Chat.","checkout.aufbau":"Das geht im Chat.","checkout.end":"Das geht im Chat.","checkout.return":"Das geht im Chat.","checkout.start":"Das geht im Chat.","edition.create":"Das geht im Chat.","edition.create.open":"Das geht im Chat.","edition.preview":"Das geht im Chat.","edition.proof":"Das geht im Chat.","figurenbild.change":"Das geht im Chat.","figurenbild.pick":"Das geht im Chat.","figurenbild.stil.save":"Das geht im Chat.","image.add":"Das geht im Chat.","image.layout":"Das geht im Chat.","image.place":"Das geht im Chat.","image.prompt":"Das geht im Chat.","import.apply":"Das geht im Chat.","import.edit":"Das geht im Chat.","import.outline.apply":"Das geht im Chat.","import.outline.open":"Das geht im Chat.","import.outline.start":"Das geht im Chat.","library.book.create":"Das geht im Chat.","library.book.create.open":"Das geht im Chat.","library.edition.open":"Das geht im Chat.","manuscript.export":"Das geht im Chat.","material.add":"Das geht im Chat.","matter.create":"Das geht im Chat.","matter.glossary.from_series":"Das geht im Chat.","matter.glossary.suggest":"Das geht im Chat.","matter.glossary.to_series":"Das geht im Chat.","matter.glossary.update":"Das geht im Chat.","matter.update":"Das geht im Chat.","project.ai_disclosure.open":"Das geht im Chat.","project.ai_disclosure.update":"Das geht im Chat.","project.analysis.open":"Das geht im Chat.","project.analysis.update":"Das geht im Chat.","project.output.open":"Das geht im Chat.","project.output.update":"Das geht im Chat.","project.providers.open":"Das geht im Chat.","project.providers.update":"Das geht im Chat.","project.rules.open":"Das geht im Chat.","project.rules.update":"Das geht im Chat.","project.settings.open":"Das geht im Chat.","project.settings.update":"Das geht im Chat.","series.create":"Das geht im Chat.","series.create.open":"Das geht im Chat.","series.edit.open":"Das geht im Chat.","series.omnibus.approve":"Das geht im Chat.","series.omnibus.edit.open":"Das geht im Chat.","series.omnibus.publish":"Das geht im Chat.","series.omnibus.revoke":"Das geht im Chat.","series.omnibus.update":"Das geht im Chat.","series.reorder":"Das geht im Chat.","series.update":"Das geht im Chat.","series.volume.add":"Das geht im Chat.","series.volume.remove":"Das geht im Chat.","update.apply":"Das geht im Chat.","view.images":"Das geht im Chat.","view.matter":"Das geht im Chat.","view.series":"Das geht im Chat.","view.timeline":"Das geht im Chat.","wizard.answer":"Das geht im Chat.","wizard.skip":"Das geht im Chat."}/*GW-NA-END*/;
 function applyNa(root){
   root.querySelectorAll("[data-a],[data-gw-send]").forEach(b => {
     const a = b.getAttribute("data-a") || b.getAttribute("data-gw-send") || "", why = Object.prototype.hasOwnProperty.call(NA, a) ? NA[a] : "";
@@ -1813,9 +1875,8 @@ function changed(files, orig){ return Object.entries(files).filter(([p, c]) => c
 async function saveSection(data){
   const x = allSecs().find(v => v.s.id === data.section_id); if (!x) return;
   const seen = S.secFile; busy("Wird gespeichert …");
-  try {
-    // ohne Netz (oder solange Älteres wartet) auf Grundlage des geladenen Stands lokal sichern; sonst wie bisher gegen den Arbeits-Branch
-    const local = !!(GW_PORTS.outbox && seen && seen.text != null && (GW_PORTS.outbox.offline() || await GW_PORTS.outbox.pending(S.book.branch)));
+  const netErr = e => !!(e && (e.code === "offline" || e.code === "server_unavailable"));
+  const attempt = async local => {
     const work = local ? workOf(S.book) : await prepareWork();
     const cur = local ? {text:seen.text, sha:seen.sha} : await getFile(x.s.path, work, true);
     if (seen && seen.sha && cur.sha && seen.sha !== cur.sha && seen.text !== cur.text) throw {message:"Der Abschnitt wurde inzwischen an anderer Stelle geändert. Lade ihn neu (deine Eingaben vorher kopieren)."};
@@ -1830,6 +1891,13 @@ async function saveSection(data){
     const files = md === cur.text ? [] : [{path:x.s.path, content:md}], what = `Abschnitt ${S.secNo} „${x.s.title}“ gespeichert`;
     const r = local ? await localCommit(files, what, {action:"section.update", seen:{[x.s.path]: cur.sha || null}, base:{[x.s.path]: cur.text}}) : await commit(files, what, {action:"section.update"});
     S.msg = savedMsg("Gespeichert.", r);
+  };
+  try {
+    // ohne Netz (oder solange Älteres wartet) auf Grundlage des geladenen Stands lokal sichern; sonst wie bisher gegen den Arbeits-Branch
+    const canLocal = !!(GW_PORTS.outbox && seen && seen.text != null);
+    const local = canLocal && (GW_PORTS.outbox.offline() || await GW_PORTS.outbox.pending(S.book.branch));
+    // Die App weiß erst nach dem ersten Fehlschlag, dass das Netz weg ist (WLAN ohne Internet, Funkloch): dann in jeder Vorstufe (Arbeits-Branch, frisches Lesen) auf die lokale Sicherung ausweichen (#744)
+    try { await attempt(!!local); } catch (e) { if (local || !canLocal || !netErr(e)) throw e; await attempt(true); }
   } catch (e) { S.msg = failMsg(e); }
   show("section", x.s.id);
 }
