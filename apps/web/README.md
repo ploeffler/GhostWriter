@@ -196,3 +196,7 @@ Beim Öffnen eines Buchs ermittelt die App die Rolle wie der Chat (`scripts/team
 - **Commits** tragen Name und Adresse aus dem Team-Eintrag (`name`, `email`), sonst den Benutzer des Tokens, also nie den des Eigentümers. Eine Nachfrage nach Name und Adresse gibt es in der App nicht.
 - **Test:** `tests/data/rollen_faelle.json` prüft die Python- und die JS-Fassung mit denselben Fällen (`tests/test_team.py`, `apps/web/tests/rollen.test.cjs`). Rolle für die ganze Bibliothek (#761) ist nicht Teil davon.
 
+
+## Anmeldung als Collaborator (#763)
+
+Ein Fine-grained Token gilt nur für Repositories des Kontos, für das er angelegt wurde. Bist du in einem privaten Repository eines anderen Kontos nur Collaborator, lässt es sich damit nicht auswählen. Die Startseite weist darauf hin und verlinkt das Anlegen eines **klassischen Tokens** (Recht `repo`, dazu `workflow` für Läufe; er gilt für alle eigenen Repositories, darum kurze Ablaufzeit). Auch die Meldung „nicht gefunden“ nennt das, wenn das Repository einem anderen Konto gehört als dem angemeldeten. Die App nutzt nur die REST-Schnittstelle, ein klassischer Token verhält sich dort gleich. Der Anmeldeweg selbst bleibt unverändert; Abnahme: als Collaborator mit klassischem Token ein fremdes privates Repository öffnen (steht bei Peter aus).
