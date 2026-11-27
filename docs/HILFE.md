@@ -89,7 +89,7 @@ Diese Beispiele sind normale Arbeitsaufträge, keine Abkürzungen, die Freigaben
 - „Einpflegen in Kapitel 2: <neue Notiz oder Material>“
 - „Kapitel 2 nachziehen. Nur analysieren.“
 
-Für Recherche und Schreiben gibt es im geöffneten Abschnitt die Kürzel **RS** (Recherche sofort) und **GS** (Ghostwriting sofort; Schreiben muss erlaubt sein). **M** öffnet in der Buchübersicht die Bestätigung für gesammelte Änderungen, wenn welche vorhanden sind. Kürzel gelten im Kontext der zuletzt angezeigten Ansicht; die vollständige Zuordnung steht in [Textfassung und Kürzel](../templates/ui/BEFUELLUNG.md#textfassung-ohne-widgets). Weitere Abläufe: [Einpflegen und Nachziehen](NACHZIEHEN.md), [Anleitung](ANLEITUNG.md).
+Für Recherche und Schreiben gibt es im geöffneten Abschnitt die Kürzel **RS** (Recherche sofort) und **GS** (KI-Entwurf sofort; Schreiben muss erlaubt sein). **M** öffnet in der Buchübersicht die Bestätigung für gesammelte Änderungen, wenn welche vorhanden sind. Kürzel gelten im Kontext der zuletzt angezeigten Ansicht; die vollständige Zuordnung steht in [Textfassung und Kürzel](../templates/ui/BEFUELLUNG.md#textfassung-ohne-widgets). Weitere Abläufe: [Einpflegen und Nachziehen](NACHZIEHEN.md), [Anleitung](ANLEITUNG.md).
 
 ## Ausgabe bei Hilfe im Chat
 

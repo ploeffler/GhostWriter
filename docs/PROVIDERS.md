@@ -28,7 +28,7 @@ ai_providers:
 |---|---|---|
 | `research` | Recherche zu Abschnitten | Internetrecherche nötig; Quellen müssen echt und abrufbar sein |
 | `brainstorming` | Ideen, Argumentationslinien, Beispiele | Kreativität, Kontextlänge |
-| `writing` | Ghostwriting des Manuskripts | Sprachqualität im Deutschen, Stiltreue, lange Texte |
+| `writing` | KI-Entwurf des Manuskripts | Sprachqualität im Deutschen, Stiltreue, lange Texte |
 | `revision` | Überarbeitung | Stilkonsistenz, präzises Umsetzen von Korrekturen |
 | `fact_check` | Prüfbericht zu Behauptungen | Möglichst **anderer** Anbieter als beim Schreiben; Internetrecherche |
 | `queue_processing` | Abarbeiten der GitHub-Issue-Queue | Nur hier zählt, welcher Agent technisch mit GitHub arbeiten kann |

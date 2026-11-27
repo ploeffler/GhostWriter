@@ -116,6 +116,7 @@ async function sectionData(id){
     SECTION_COST_HINT:costTip(x.s.cost, "Summe der Kosteneinträge", projectOnlyCosts()), SECTION_GOAL:part(t, "Ziel des Abschnitts"), SECTION_SUMMARY:part(t, "Kurzbeschreibung"), SECTION_MANUSCRIPT:ms,
     MARKER_COUNT_TEXT:markers.length ? `${markers.length} offene${markers.length === 1 ? "r" : ""} Marker` : "keine offenen Marker",
     FACT_CHECK:h.fact_check || "disabled", APPROVAL_WRITING:String(!!ap.writing || waived), APPROVAL_SECTION:String(!!ap.section),
+    WRITING_NOW_AVAILABLE:S.sample ? "true" : "false", RESEARCH_NOW_AVAILABLE:S.sample ? "true" : "false",   // „Sofort“ braucht Chat oder Modell (#759)
     PREV_SECTION_ID:pid, PREV_SECTION_PROMPT:ptx, NEXT_SECTION_ID:nid, NEXT_SECTION_PROMPT:ntx, MARKERS:markers});
   const st = staleOf(t);
   Object.assign(d, {STALE_TEXT:st ? staleHint(st) : "", STALE_NONE:st ? "" : "1", STALE_ARGS:JSON.stringify({section_id:id})});
