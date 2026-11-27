@@ -165,3 +165,19 @@ class TeamGateTest(unittest.TestCase):
         wf = (ROOT / '.github/workflows/validate.yml').read_text(encoding='utf-8')
         self.assertIn('team.py . gate', wf)
         self.assertIn("steps.kind.outputs.program != '1'", wf)
+
+
+class GemeinsameRollenfaelle(unittest.TestCase):
+    """#762: dieselben Fälle prüft apps/web/tests/rollen.test.cjs gegen die JS-Fassung (apps/shared/s19-rollen.js)."""
+
+    def test_fälle(self):
+        import json
+        faelle = json.loads((Path(__file__).parent / 'data' / 'rollen_faelle.json').read_text(encoding='utf-8'))['cases']
+        for c in faelle:
+            with self.subTest(c['name']):
+                info = team.role('.', {'team': c['team']} if c['team'] else {}, c['login'], c['push'])
+                for k, v in c['expect'].items():
+                    if k == 'git':
+                        self.assertEqual({'name': info['git']['name'], 'email': info['git']['email']}, v)
+                    else:
+                        self.assertEqual(info[k], v, k)

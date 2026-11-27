@@ -1,0 +1,147 @@
+{
+ "_comment": "Gemeinsame Testfälle für scripts/team.py role() und apps/shared/s19-rollen.js teamRole() (#762). Beide müssen dasselbe ergeben.",
+ "cases": [
+  {
+   "name": "ohne team: Schreibrecht = Eigentümer",
+   "team": null,
+   "login": "anna",
+   "push": true,
+   "expect": {
+    "role": "owner",
+    "write": true,
+    "approve": true
+   }
+  },
+  {
+   "name": "ohne team, kein Schreibrecht",
+   "team": null,
+   "login": "anna",
+   "push": false,
+   "expect": {
+    "role": "owner",
+    "write": false,
+    "approve": false
+   }
+  },
+  {
+   "name": "Eigentümer",
+   "team": [
+    {
+     "github": "anna",
+     "role": "owner"
+    }
+   ],
+   "login": "Anna",
+   "push": true,
+   "expect": {
+    "role": "owner",
+    "write": true,
+    "approve": true
+   }
+  },
+  {
+   "name": "Bearbeiter ohne approve",
+   "team": [
+    {
+     "github": "anna",
+     "role": "owner"
+    },
+    {
+     "github": "ben",
+     "role": "editor",
+     "name": "Ben Muster",
+     "email": "1+ben@users.noreply.github.com"
+    }
+   ],
+   "login": "ben",
+   "push": true,
+   "expect": {
+    "role": "editor",
+    "write": true,
+    "approve": false,
+    "git": {
+     "name": "Ben Muster",
+     "email": "1+ben@users.noreply.github.com"
+    }
+   }
+  },
+  {
+   "name": "Bearbeiter mit approve",
+   "team": [
+    {
+     "github": "anna",
+     "role": "owner"
+    },
+    {
+     "github": "ben",
+     "role": "editor",
+     "approve": true
+    }
+   ],
+   "login": "ben",
+   "push": true,
+   "expect": {
+    "role": "editor",
+    "write": true,
+    "approve": true
+   }
+  },
+  {
+   "name": "Leser",
+   "team": [
+    {
+     "github": "anna",
+     "role": "owner"
+    },
+    {
+     "github": "cleo",
+     "role": "reader"
+    }
+   ],
+   "login": "cleo",
+   "push": true,
+   "expect": {
+    "role": "reader",
+    "write": false,
+    "approve": false
+   }
+  },
+  {
+   "name": "Login nicht im Team: Leser",
+   "team": [
+    {
+     "github": "anna",
+     "role": "owner"
+    }
+   ],
+   "login": "fremd",
+   "push": true,
+   "expect": {
+    "role": "reader",
+    "write": false,
+    "approve": false
+   }
+  },
+  {
+   "name": "Bearbeiter ohne GitHub-Schreibrecht",
+   "team": [
+    {
+     "github": "anna",
+     "role": "owner"
+    },
+    {
+     "github": "ben",
+     "role": "editor",
+     "approve": true
+    }
+   ],
+   "login": "ben",
+   "push": false,
+   "expect": {
+    "role": "editor",
+    "write": false,
+    "approve": false
+   }
+  }
+ ]
+}

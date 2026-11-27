@@ -258,7 +258,8 @@ const GW_PORTS = {
       const parent = await rest("GET", `${base}/git/commits/${head}`);
       const blobs = await Promise.all(files.map(f => rest("POST", `${base}/git/blobs`, {content:String(f.content), encoding:"utf-8"})));
       const tree = await rest("POST", `${base}/git/trees`, {base_tree:parent.tree.sha, tree:files.map((f, i) => ({path:f.path, mode:"100644", type:"blob", sha:blobs[i].sha}))});
-      const commit = await rest("POST", `${base}/git/commits`, {message:msg, tree:tree.sha, parents:[head]});
+      const gu = S.role && S.role.git, who = gu ? {name:gu.name, email:gu.email, date:new Date().toISOString()} : null;   // Git-Benutzer aus dem Team-Eintrag (#762); sonst der des Tokens
+      const commit = await rest("POST", `${base}/git/commits`, Object.assign({message:msg, tree:tree.sha, parents:[head]}, who ? {author:who, committer:who} : {}));
       try { await rest("PATCH", `${base}/git/refs/heads/${encPath(branch)}`, {sha:commit.sha, force:false}); }
       catch (e) { if (e && e.status === 422) throw {code:"http_422", status:422, message:"Der Branch wurde inzwischen geändert. Lade neu und speichere noch einmal."}; throw e; }
       forgetCommits();
@@ -1549,8 +1550,8 @@ function blankRaw(root){
 const NA = /*GW-NA*/{"analysis.apply":"Das geht im Chat.","analysis.open":"Das geht im Chat.","analysis.start":"Das geht im Chat.","anecdote.capture":"Das geht im Chat.","anecdote.plan":"Das geht im Chat.","anecdote.show":"Das geht im Chat.","anecdote.suggest":"Das geht im Chat.","anecdote.use":"Das geht im Chat.","backup.create":"Das geht im Chat.","chapter.research.open":"Das geht im Chat.","chapter.research.start":"Das geht im Chat.","chapter.revision.start":"Das geht im Chat.","chapter.sections.add":"Das geht im Chat.","chapter.texts.update":"Das geht im Chat.","character.talk.apply":"Das geht im Chat.","character.talk.end":"Das geht im Chat.","character.talk.start":"Das geht im Chat.","character.talk.switch":"Das geht im Chat.","character.talk.until":"Das geht im Chat.","checkout.aufbau":"Das geht im Chat.","checkout.end":"Das geht im Chat.","checkout.return":"Das geht im Chat.","checkout.start":"Das geht im Chat.","edition.create":"Das geht im Chat.","edition.create.open":"Das geht im Chat.","edition.preview":"Das geht im Chat.","edition.proof":"Das geht im Chat.","figurenbild.change":"Das geht im Chat.","figurenbild.pick":"Das geht im Chat.","figurenbild.stil.save":"Das geht im Chat.","image.add":"Das geht im Chat.","image.layout":"Das geht im Chat.","image.place":"Das geht im Chat.","image.prompt":"Das geht im Chat.","import.apply":"Das geht im Chat.","import.edit":"Das geht im Chat.","import.outline.apply":"Das geht im Chat.","import.outline.open":"Das geht im Chat.","import.outline.start":"Das geht im Chat.","library.book.create":"Das geht im Chat.","library.book.create.open":"Das geht im Chat.","library.edition.open":"Das geht im Chat.","manuscript.export":"Das geht im Chat.","material.add":"Das geht im Chat.","matter.create":"Das geht im Chat.","matter.glossary.from_series":"Das geht im Chat.","matter.glossary.suggest":"Das geht im Chat.","matter.glossary.to_series":"Das geht im Chat.","matter.glossary.update":"Das geht im Chat.","matter.update":"Das geht im Chat.","project.ai_disclosure.open":"Das geht im Chat.","project.ai_disclosure.update":"Das geht im Chat.","project.analysis.open":"Das geht im Chat.","project.analysis.update":"Das geht im Chat.","project.output.open":"Das geht im Chat.","project.output.update":"Das geht im Chat.","project.providers.open":"Das geht im Chat.","project.providers.update":"Das geht im Chat.","project.rules.open":"Das geht im Chat.","project.rules.update":"Das geht im Chat.","project.settings.open":"Das geht im Chat.","project.settings.update":"Das geht im Chat.","series.create":"Das geht im Chat.","series.create.open":"Das geht im Chat.","series.edit.open":"Das geht im Chat.","series.omnibus.approve":"Das geht im Chat.","series.omnibus.edit.open":"Das geht im Chat.","series.omnibus.publish":"Das geht im Chat.","series.omnibus.revoke":"Das geht im Chat.","series.omnibus.update":"Das geht im Chat.","series.reorder":"Das geht im Chat.","series.update":"Das geht im Chat.","series.volume.add":"Das geht im Chat.","series.volume.remove":"Das geht im Chat.","update.apply":"Das geht im Chat.","view.images":"Das geht im Chat.","view.matter":"Das geht im Chat.","view.series":"Das geht im Chat.","view.timeline":"Das geht im Chat.","wizard.answer":"Das geht im Chat.","wizard.skip":"Das geht im Chat."}/*GW-NA-END*/;
 function applyNa(root){
   root.querySelectorAll("[data-a],[data-gw-send]").forEach(b => {
-    const a = b.getAttribute("data-a") || b.getAttribute("data-gw-send") || "", why = Object.prototype.hasOwnProperty.call(NA, a) ? NA[a] : "";
-    if (!why || b.hasAttribute("data-gw-na") || (GW_PORTS.actions && GW_PORTS.actions[a])) return;
+    const a = b.getAttribute("data-a") || b.getAttribute("data-gw-send") || "", rw = roleWhy(a), why = rw || (Object.prototype.hasOwnProperty.call(NA, a) ? NA[a] : "");   // Rolle (#762) vor Knopf-Inventar
+    if (!why || b.hasAttribute("data-gw-na") || (!rw && GW_PORTS.actions && GW_PORTS.actions[a])) return;
     b.setAttribute("disabled", ""); b.setAttribute("aria-disabled", "true"); b.setAttribute("data-gw-na", why); b.setAttribute("title", why); b.classList.add("gw-na");
   });
 }
@@ -1583,7 +1584,7 @@ async function show(view, arg){
     if (GW_PORTS.views && GW_PORTS.views[view]) return GW_PORTS.views[view](arg);   // Ansichten, die nur ein Anschluss kennt (eigene Web-App: Einstellungen)
     if (view === "connect"){ crumbs(); return connectView(); }
     if (view === "library"){ S.book = null; S.chap = null; S.sec = null; crumbs(); return widget("buecherregal", libraryData()); }
-    if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, checksCard() + queueCard() + await reviewCard() + await checkinCard(), "project"); }
+    if (view === "project"){ S.chap = null; S.sec = null; crumbs(); busy("Projektübersicht wird geladen …"); const d = await projectData(); return desk("projektuebersicht", d, roleNote() + checksCard() + queueCard() + await reviewCard() + await checkinCard(), "project"); }
     if (view === "checkin"){ crumbs(); busy("Rückgabe wird gelesen …"); return widget("rueckgabe", await checkinData(arg)); }
     if (view === "chapter"){ S.chap = arg; S.sec = null; crumbs(); busy("Kapitel wird geladen …"); const d = await chapterData(arg); return desk("kapitelansicht", d, "", "chapter:" + (chapters()[arg] || {}).id); }
     if (view === "queue"){ crumbs(); busy("Warteschlange wird gelesen …"); return widget("warteschlange", await queueData()); }
@@ -1704,6 +1705,7 @@ async function openBook(branch){
     S.pr = await openPR(S.book).catch(() => null);
     if (S.pr) await prCommits(S.pr);
     await loadBookData(S.pr ? workOf(S.book) : S.book.branch);
+    await loadRole();
     S.skills = null; S.skillsFor = ""; loadSkills().then(() => { if (S.view === "project" || S.view === "chapter" || S.view === "section") { const h = document.querySelector(".claude .ch-head p"); if (h) h.innerHTML = skillLine(h.dataset.base || h.textContent); } }).catch(() => {});
     show("project");
   } catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; S.book = null; show("library"); }
@@ -1722,6 +1724,8 @@ const chIndex = id => chapters().findIndex(c => c.id === id);
 function back(){ const f = S.from || {view:"project"}; S.from = null; return show(f.view, f.arg); }
 function here(){ return S.view === "section" ? {view:"section", arg:S.sec && S.sec.id} : S.view === "chapter" ? {view:"chapter", arg:S.chap} : {view:"project"}; }
 async function act({action, data, text}){
+  const rw = roleWhy(action);   // Rolle (#762): auch Aktionen aus dem Chat oder alten Ansichten nicht ausführen
+  if (rw){ S.msg = {kind:"warn", html:esc(rw)}; const h = here(); return show(h.view, h.arg); }
   try {
     switch (action){
       case "library.book.open": return openBook(data.branch);
@@ -1811,6 +1815,7 @@ async function prepareWork(book){
   return work;
 }
 async function commit(files, message, opts){
+  needWrite();   // Rolle und GitHub-Recht (#762)
   const b = S.book, work = workOf(b);
   files = files.filter(f => f && typeof f.content === "string");
   if (!files.length) return {nothing:true};
@@ -2303,6 +2308,7 @@ async function allChars(){
 }
 const charSource = (it, ser) => !ser ? "" : it._series ? "series" : it._copy_of ? (it._differs ? "copy_diff" : "copy") : "own";
 async function commitDefault(files, message, action){
+  needWrite();
   const branch = await defaultBranch(); files = files.filter(f => f && typeof f.content === "string"); if (!files.length) return;
   await GW_PORTS.git.pushFiles(branch, files, message, action);
   S.seriesFor = null;   // nächstes Lesen holt den neuen Stand
@@ -3461,6 +3467,56 @@ document.addEventListener("submit", ev => {
 });
 document.addEventListener("keydown", ev => { if (ev.target.id === "askIn" && ev.key === "Enter" && !ev.shiftKey && !ev.isComposing){ ev.preventDefault(); $("fAsk").requestSubmit(); } });
 
+/* ---------- Rollen je Buch (#762, #455) ----------
+   Dieselben Regeln wie scripts/team.py role(): `team` in ghostwriter.yml ordnet GitHub-Logins eine Rolle zu (owner, editor, reader; Bearbeiter mit approve: true
+   dürfen abschließen). Ohne `team` ist jeder mit Schreibrecht Eigentümer, wer nicht im Team steht, Leser. Die GitHub-Rechte begrenzen immer; eine Rolle erweitert
+   sie nie (D03). Gemeinsame Testfälle mit der Python-Fassung: tests/data/rollen_faelle.json. `validate` setzt die Regeln auf GitHub ohnehin durch (team.py gate). */
+const TEAM_ROLE_DE = {owner:"Eigentümer", editor:"Bearbeiter", reader:"Leser"};
+const APPROVAL_ACTIONS = ["approval.open", "approval.confirm", "edition.create.open", "edition.create", "series.omnibus.approve", "series.omnibus.revoke", "series.omnibus.publish"];
+// Aktionen, die schreiben (Änderungspaket, Warteschlange, Figuren, Reihenfolge …); Leser bekommen keine davon, Ansichten und Probedruck bleiben
+const WRITE_ACTIONS = ["section.update", "project.edit", "project.update", "chapter.create.open", "chapter.create", "chapter.edit.open", "chapter.update", "section.create.open", "section.create",
+  "chapter.reorder.open", "section.reorder.open", "chapter.reorder", "section.reorder", "changes.merge.open", "changes.merge", "queue.prioritize", "queue.cancel", "queue.retry",
+  "section.mark_stale", "section.clear_stale", "notes_review.decide", "notes_review.ask", "notes_review.plan", "notes_review.apply", "character.suggest.apply", "character.series.update",
+  "character.detach", "character.align", "character.adopt", "character.create", "character.update", "run.start"];
+function teamRole(cfg, login, push){   // push: GitHub-Schreibrecht (true/false), null = unbekannt
+  const entries = (cfg && cfg.team) || [], lc = String(login || "").toLowerCase();
+  const entry = entries.find(e => String(e.github || "").toLowerCase() === lc) || null;
+  let r, source;
+  if (!entries.length){ r = "owner"; source = "ohne team"; } else if (entry){ r = entry.role; source = "team"; } else { r = "reader"; source = "nicht im team"; }
+  let write = r === "owner" || r === "editor", approve = r === "owner" || (r === "editor" && !!(entry && entry.approve));
+  if (push === false){ write = false; approve = false; }   // GitHub-Rechte begrenzen immer
+  const git = write && entry && entry.name && entry.email ? {name:entry.name, email:entry.email} : null;
+  const approvers = entries.filter(e => e.role === "owner" || (e.role === "editor" && e.approve)).map(e => e.name || e.github);
+  return {login, role:r, role_text:TEAM_ROLE_DE[r] || r, source, write, approve, github_push:push, git, approvers,
+    not_offered: approve ? [] : write ? APPROVAL_ACTIONS.slice() : ["alle Schreibaktionen"]};
+}
+function roleSummary(i){
+  let who = `${i.login}: ${i.role_text}`; if (i.source === "ohne team") who += " (kein Team eingetragen)"; else if (i.source === "nicht im team") who += " (nicht im Team)";
+  let rights = i.approve ? "schreiben und abschließen" : i.write ? "schreiben, nicht abschließen" : "nur lesen";
+  if (i.github_push === false && i.role !== "reader") rights += " (ohne GitHub-Schreibrecht)";
+  return `${who} – ${rights}`;
+}
+async function loadRole(){   // beim Öffnen eines Buchs; ohne bekannten Login (Chat-Platzhalter) keine Einschränkung
+  S.role = null;
+  try {
+    const who = await login(); if (!who || who === "chat") return;
+    const info = await GW_PORTS.git.repoInfo(S.owner, S.repo).catch(() => null);
+    S.role = teamRole(S.cfg, who, info && info.permissions ? !!info.permissions.push : null);
+  } catch (e) { S.role = null; }
+}
+function roleWhy(action){   // Grund, warum die Rolle die Aktion nicht erlaubt (leer = erlaubt)
+  const r = S.role; if (!r || !action) return "";
+  const noWrite = r.github_push === false && r.role !== "reader" ? "Dein GitHub-Zugang hat kein Schreibrecht an diesem Repository." : "Du hast in diesem Buch nur Leserechte (Rolle Leser).";
+  if (!r.write && WRITE_ACTIONS.concat(APPROVAL_ACTIONS).includes(action)) return noWrite;
+  if (!r.approve && APPROVAL_ACTIONS.includes(action)) return "Abschließen, wieder öffnen, Auflagen und Sammelbände dürfen nur Freigabeberechtigte" + (r.approvers && r.approvers.length ? ": " + r.approvers.join(", ") : "") + ".";
+  return "";
+}
+function roleNote(){   // ein Satz in der Projektübersicht; nur bei einem Team oder fehlendem Schreibrecht
+  const r = S.role; if (!r || (r.source === "ohne team" && r.write && r.approve)) return "";
+  const rights = r.write ? (r.approve ? "" : " Abschließen und Auflagen dürfen nur Freigabeberechtigte" + (r.approvers.length ? " (" + r.approvers.map(esc).join(", ") + ")" : "") + ".") : " Schreibknöpfe sind ausgeblendet.";
+  return `<div class="note info" style="margin-top:12px">Du arbeitest als <b>${esc(r.role_text)}</b>: ${esc(roleSummary(r).split(" – ")[1])}.${rights}</div>`;
+}
+function needWrite(){ const w = roleWhy("section.update"); if (w) throw {message:w + " Änderungen werden nicht gespeichert."}; }
 S.mcp = null; S.sample = null; S.ready = true;   // kein Konnektor, keine KI in dieser Fassung (Stufe 1, #662)
 document.addEventListener("submit", async ev => {
   if (ev.target.id !== "fToken") return;

@@ -11,6 +11,8 @@ const chIndex = id => chapters().findIndex(c => c.id === id);
 function back(){ const f = S.from || {view:"project"}; S.from = null; return show(f.view, f.arg); }
 function here(){ return S.view === "section" ? {view:"section", arg:S.sec && S.sec.id} : S.view === "chapter" ? {view:"chapter", arg:S.chap} : {view:"project"}; }
 async function act({action, data, text}){
+  const rw = roleWhy(action);   // Rolle (#762): auch Aktionen aus dem Chat oder alten Ansichten nicht ausführen
+  if (rw){ S.msg = {kind:"warn", html:esc(rw)}; const h = here(); return show(h.view, h.arg); }
   try {
     switch (action){
       case "library.book.open": return openBook(data.branch);

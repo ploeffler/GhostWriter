@@ -73,6 +73,7 @@ async function openBook(branch){
     S.pr = await openPR(S.book).catch(() => null);
     if (S.pr) await prCommits(S.pr);
     await loadBookData(S.pr ? workOf(S.book) : S.book.branch);
+    await loadRole();
     S.skills = null; S.skillsFor = ""; loadSkills().then(() => { if (S.view === "project" || S.view === "chapter" || S.view === "section") { const h = document.querySelector(".claude .ch-head p"); if (h) h.innerHTML = skillLine(h.dataset.base || h.textContent); } }).catch(() => {});
     show("project");
   } catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; S.book = null; show("library"); }
