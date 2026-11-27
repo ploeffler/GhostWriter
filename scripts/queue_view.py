@@ -7,6 +7,7 @@ Aufträge lassen sich vorziehen (`queue.prioritize`) oder abbrechen (`queue.canc
 
   python scripts/render_view.py <buch> queue [--text] [--language en]
 """
+import datetime
 import json
 import re
 import subprocess
@@ -48,12 +49,25 @@ def t(language, key, **values):
     return TEXT['en' if language == 'en' else 'de'][key].format(**values)
 
 
-def when(iso, language):
+def when(iso, language, timezone=None):
+    """Zeitpunkt anzeigen. Ohne `timezone` (IANA-Name) wie bisher als UTC; mit `timezone` in Ortszeit umgerechnet (#718).
+    Zeitpunkte ohne Zeitzonenangabe gelten als UTC; bei unbekannter Zone bleibt die UTC-Anzeige."""
     m = re.match(r'(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})', str(iso or ''))
     if not m:
         return ''
     y, mo, d, h, mi = m.groups()
-    return f'{y}-{mo}-{d} {h}:{mi} UTC' if language == 'en' else f'{d}.{mo}.{y}, {h}:{mi} UTC'
+    suffix = ' UTC'
+    if timezone and str(timezone) not in ('UTC', 'Etc/UTC'):
+        try:
+            from zoneinfo import ZoneInfo
+            moment = datetime.datetime.fromisoformat(str(iso).replace('Z', '+00:00'))
+            if moment.tzinfo is None:
+                moment = moment.replace(tzinfo=datetime.timezone.utc)
+            y, mo, d, h, mi = moment.astimezone(ZoneInfo(str(timezone))).strftime('%Y-%m-%d-%H-%M').split('-')
+            suffix = ''
+        except Exception:   # noqa: BLE001 – unlesbarer Zeitpunkt oder unbekannte Zone: UTC wie angegeben zeigen
+            pass
+    return f'{y}-{mo}-{d} {h}:{mi}{suffix}' if language == 'en' else f'{d}.{mo}.{y}, {h}:{mi}{suffix}'
 
 
 def section_label(config, sid):
@@ -113,7 +127,7 @@ def done_runs(base, language):
         return []
 
 
-def groups(base, config, language='de'):
+def groups(base, config, language='de', timezone=None):
     """Zeilen je Gruppe: pending, failed, done."""
     pending, failed = [], []
     for j in jobs.jobs(base, config):
@@ -123,7 +137,7 @@ def groups(base, config, language='de'):
                'J_STATE': j['state']}
         if j['state'] == 'failed':
             row['J_DETAIL'] = str(d.get('error') or j.get('error') or t(language, 'unreadable'))
-            row['J_WHEN_TEXT'] = t(language, 'failed_at', when=when(d.get('failed_at'), language)).strip() if d.get('failed_at') else ''
+            row['J_WHEN_TEXT'] = t(language, 'failed_at', when=when(d.get('failed_at'), language, timezone)).strip() if d.get('failed_at') else ''
             row['J_ARGS'] = json.dumps({'request': row['J_PATH']}, ensure_ascii=False, separators=(',', ':'))   # Knopf „Erneut versuchen“ (#596)
             failed.append(row)
             continue
@@ -139,7 +153,7 @@ def groups(base, config, language='de'):
             row['J_BLOCKED_TEXT'] = t(language, 'blocked_by', name=j['blocked_by'])
         else:
             row['J_STATE_TEXT'] = t(language, 'open')
-        row['J_WHEN_TEXT'] = t(language, 'queued', when=when(d.get('requested_at'), language)) if d.get('requested_at') else ''
+        row['J_WHEN_TEXT'] = t(language, 'queued', when=when(d.get('requested_at'), language, timezone)) if d.get('requested_at') else ''
         if d.get('priority') is True:
             row['J_PRIORITY_TEXT'] = t(language, 'priority')
             row['J_PRIO_DISABLED'] = 'disabled'
@@ -154,8 +168,8 @@ def count_text(n, language):
     return t(language, 'none') if not n else t(language, 'one') if n == 1 else t(language, 'many', n=n)
 
 
-def widget_values(base, config, language='de'):
-    pending, failed, done = groups(base, config, language)
+def widget_values(base, config, language='de', timezone=None):
+    pending, failed, done = groups(base, config, language, timezone)
     values = {'QUEUE_BOOK': (config.get('project') or {}).get('title_short') or (config.get('project') or {}).get('title') or '',
               'QUEUE_COUNT_TEXT': count_text(len(pending) + len(failed) + len(done), language),
               'QUEUE_EMPTY': '' if pending or failed or done else '1'}
@@ -165,8 +179,8 @@ def widget_values(base, config, language='de'):
 ICON = {'open': '⏳', 'blocked': '⛓️', 'waiting_budget': '🟡', 'failed': '❌'}
 
 
-def text_view(base, config, language='de'):
-    pending, failed, done = groups(base, config, language)
+def text_view(base, config, language='de', timezone=None):
+    pending, failed, done = groups(base, config, language, timezone)
     total = len(pending) + len(failed) + len(done)
     lines = [f'**{t(language, "title")}** · {count_text(total, language)}', '']
     if not total:

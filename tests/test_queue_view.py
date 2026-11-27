@@ -58,6 +58,28 @@ class QueueViewTest(Base):
         self.assertEqual(pend[0]['J_STATE'], 'waiting_budget')
         self.assertIn('Bestätigung', pend[0]['J_STATE_TEXT'])
 
+    def test_when_timezone(self):
+        """#718: --timezone rechnet die Zeitpunkte um, auch über einen Datumswechsel; ohne Zone bleibt UTC."""
+        iso = '2026-11-26T23:22:00+00:00'
+        self.assertEqual(queue_view.when(iso, 'de'), '26.11.2026, 23:22 UTC')
+        self.assertEqual(queue_view.when(iso, 'de', 'Europe/Vienna'), '27.11.2026, 00:22')
+        self.assertEqual(queue_view.when(iso, 'en', 'Europe/Vienna'), '2026-11-27 00:22')
+        self.assertEqual(queue_view.when('2026-11-26T23:22:00Z', 'de', 'Europe/Vienna'), '27.11.2026, 00:22')
+        self.assertEqual(queue_view.when('2026-11-26 23:22', 'de', 'Europe/Vienna'), '27.11.2026, 00:22')
+        self.assertEqual(queue_view.when('2026-07-01T22:30:00+00:00', 'de', 'Europe/Vienna'), '02.07.2026, 00:30')
+        self.assertEqual(queue_view.when(iso, 'de', 'UTC'), '26.11.2026, 23:22 UTC')
+        self.assertEqual(queue_view.when(iso, 'de', 'Keine/Zone'), '26.11.2026, 23:22 UTC')
+        self.assertEqual(queue_view.when('', 'de', 'Europe/Vienna'), '')
+
+    def test_timezone_reaches_views(self):
+        self.fill()
+        _, blocks = queue_view.widget_values(self.base, self.config(), 'de', 'Europe/Vienna')
+        self.assertIn('22.11.2026, 21:00', blocks['PENDING'][0]['J_WHEN_TEXT'])
+        self.assertNotIn('UTC', blocks['PENDING'][0]['J_WHEN_TEXT'])
+        self.assertEqual(blocks['FAILED'][0]['J_WHEN_TEXT'], 'fehlgeschlagen 22.11.2026, 22:00')
+        self.assertIn('22.11.2026, 20:00 UTC', queue_view.widget_values(self.base, self.config(), 'de')[1]['PENDING'][0]['J_WHEN_TEXT'])
+        self.assertIn('fehlgeschlagen 22.11.2026, 22:00', queue_view.text_view(self.base, self.config(), 'de', 'Europe/Vienna'))
+
     def test_text_view_de_en_and_empty(self):
         text = queue_view.text_view(self.base, self.config(), 'de')
         self.assertIn('Keine Aufträge in der Warteschlange.', text)
