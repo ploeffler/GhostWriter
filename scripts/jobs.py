@@ -402,6 +402,29 @@ def merge(base, request, question=None):
     return job['path']
 
 
+COSTED_RE = re.compile(r'^act-[a-z]+-request-(\d{3,})')
+
+
+def next_request_number(folder, base):
+    """Nächste Auftragsnummer (#719): größer als jede Datei in `folder` und jede schon abgerechnete Nummer
+    (`act-<art>-request-NNN` in den Kosten). Erledigte Aufträge werden gelöscht; ohne diesen Blick finge die Zählung
+    wieder bei 1 an und zwei Aufträge teilten sich Nummer, Ablageordner und Kosten-ID."""
+    import costs
+    used = [int(m.group(1)) for e in costs.entries(base) if (m := COSTED_RE.match(str(e.get('activity_id') or '')))]
+    return max(research.next_number(folder, REQUEST_RE), max(used, default=0) + 1)
+
+
+def unique_activity_id(base, activity_id):
+    """Kosten-ID, die es noch nicht gibt (#719): bei Kollision mit einem Eintrag aus früherer Zeit `-2`, `-3` …"""
+    import costs
+    taken = {str(e.get('activity_id') or '') for e in costs.entries(base)}
+    candidate, k = activity_id, 1
+    while candidate in taken:
+        k += 1
+        candidate = f'{activity_id}-{k}'
+    return candidate
+
+
 def enqueue(base, type_='research', section=None, question=None, provider=None, model=None,
             confirm_low_budget=False, requested_by=None, now=None, fields=None, priority=False, after=None,
             not_before=None, when=None, after_event=None):
@@ -427,7 +450,7 @@ def enqueue(base, type_='research', section=None, question=None, provider=None, 
     if type_ != 'research':
         folder = base / 'jobs'
         folder.mkdir(parents=True, exist_ok=True)
-        n = research.next_number(folder, REQUEST_RE)
+        n = next_request_number(folder, base)
         data = {'type': type_, 'requested_at': (now or now_utc()).isoformat(), 'requested_by': requested_by or 'chat'}
         if model:
             data['model'] = model
@@ -756,7 +779,7 @@ def run_media(base, job):
     cpath.parent.mkdir(exist_ok=True)
     data = read(cpath) if cpath.is_file() else {'scope': 'project'}
     price = m.get('price_usd')
-    entry = {'activity_id': f'act-media-{stem}', 'occurred_at': now_utc().isoformat(), 'source': 'action_api', 'provider': 'fal',
+    entry = {'activity_id': unique_activity_id(base, f'act-media-{stem}'), 'occurred_at': now_utc().isoformat(), 'source': 'action_api', 'provider': 'fal',
              'model': model, 'activity_type': 'other', 'currency': 'USD', 'cost_amount': None, 'cost_status': 'unavailable',
              'other_usage_quantity': 1, 'note': 'Medien-Auftrag (Hintergrundlauf), Preis nicht angegeben'}
     if price is not None:   # Betrag in die Projektwährung umrechnen (ECB-Kurs), damit das Monatsbudget (limits.py) ihn richtig zählt
