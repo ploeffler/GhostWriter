@@ -12,7 +12,7 @@ vm.runInContext(m[0] + "\n" + src + "\nthis.api = {mdlFit, mdlPick, mdlParseTool
 const api = ctx.api;
 
 // Liste: jedes Modell vollständig, Deutsch und Englisch, nur freie Lizenzen
-assert.equal(list.runtime.version, "4.3.2"); assert.match(list.runtime.url, /transformers@4\.3\.2/);
+assert.equal(list.runtime.version, "4.3.2"); assert.match(list.runtime.url, /transformers@4\.3\.2\/dist\/transformers\.min\.js$/, "eigenständige Browser-Fassung (#739): die .web-Fassung importiert onnxruntime-web ohne Pfad");
 for (const mo of list.models){
   for (const k of ["id", "repo", "dtype", "class", "tier", "sizeBytes", "license", "requires", "toolFormat"]) assert.ok(mo[k] != null, mo.id + ": " + k);
   for (const k of ["name", "note", "reason"]) assert.ok(mo[k].de && mo[k].en, mo.id + ": " + k + " DE/EN");

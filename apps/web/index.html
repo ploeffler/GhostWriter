@@ -276,7 +276,9 @@ function connectView(){
   const t = token();
   const login = `<form id="fToken" style="display:flex;gap:8px;flex-wrap:wrap"><input class="in" id="tokenIn" type="password" style="flex:1 1 240px" placeholder="GitHub-Token (Fine-grained)" autocomplete="off"><button class="btn pri">Anmelden</button></form>
     <details class="dim" style="margin-top:14px" open><summary>Token anlegen</summary><ol><li>Auf GitHub unter <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Settings → Developer settings → Fine-grained tokens</a> einen Token anlegen.</li><li><b>Repository access:</b> nur das eine Repository mit deinen Büchern.</li><li><b>Repository permissions:</b> „Contents“ und „Pull requests“ jeweils <i>Read and write</i>; zusätzlich „Actions“ <i>Read and write</i>, wenn du Läufe starten willst (Probedruck, Vorabfassung, Auschecken).</li><li>Token kopieren und hier einfügen. Er bleibt nur in diesem Browser gespeichert, unter „Abmelden“ löschst du ihn wieder.</li></ol></details>`;
-  const repo = `<p class="dim" style="margin:0 0 10px">Angemeldet. <button class="link" data-act="logout">Abmelden</button></p>
+  const who = S.login && S.login !== "chat" ? S.login : "";
+  if (t && !who) GW_PORTS.git.me().then(w => { if (!w) return; S.login = w; const el = $("gwWho"); if (el) el.textContent = w; }).catch(() => {});
+  const repo = `<p class="dim" style="margin:0 0 10px">Angemeldet als <b id="gwWho">${esc(who || "…")}</b>. <button class="link" data-act="logout">Abmelden</button></p>
     <form id="fConnect" style="display:flex;gap:8px;flex-wrap:wrap"><input class="in" id="repoIn" style="flex:1 1 240px" placeholder="owner/repo, z. B. chillyconcane/YAWA" value="${esc(store.get("gw.repo") || "")}" autocomplete="off"><button class="btn pri">Öffnen</button></form>`;
   $("app").innerHTML = `<div class="one"><div class="card"><div style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><i class="ti ti-books" style="font-size:22px;color:#e8731c"></i><b style="font-size:20px">GhostWriter öffnen</b></div>
     <p class="dim" style="margin:0 0 14px">Deine GhostWriter-Bibliothek auf GitHub – mit denselben Ansichten wie im Chat, aber ohne Chat. Gelesen und gespeichert wird direkt über GitHub mit deinem Token.</p>
@@ -1551,7 +1553,7 @@ async function repoMissingText(e){   // #729: ein 404 auf library.json heißt ni
   const name = S.owner + "/" + S.repo;
   try { await GW_PORTS.git.listDir("", ""); }
   catch (e3) {
-    if (e3 && e3.code === "http_404") return "„" + name + "“ wurde nicht gefunden – oder der Token hat dafür keinen Zugriff (bei privaten Repositories antwortet GitHub ebenfalls mit „nicht gefunden“). Prüfe owner/repo und ob der Token genau dieses Repository enthält.";
+    if (e3 && e3.code === "http_404") return "„" + name + "“ wurde nicht gefunden – oder der Token hat dafür keinen Zugriff (bei privaten Repositories antwortet GitHub ebenfalls mit „nicht gefunden“). Prüfe owner/repo und ob der Token genau dieses Repository enthält" + (S.login && S.login !== "chat" ? " (angemeldet als „" + S.login + "“; ist das das richtige Konto?)" : "") + ".";
     return errText(e3);
   }
   return "„" + name + "“ ist erreichbar, enthält aber weder ein Bücherregal (library.json) noch ein Buch (ghostwriter-index.json). Ein Programm-Repository ist kein Buch: Wähle das Repository, in dem dein Buch oder deine Bibliothek liegt.";

@@ -2,7 +2,7 @@
   "format": 1,
   "updated": "2026-11-27",
   "hinweis": "Modellliste der Web-App (#525): Modelle, die im Browser laufen. Gleiche Struktur wie faehigkeiten.json (requires/reason). Gewichte kommen erst nach ausdrücklichem Klick von huggingface.co und bleiben im Cache dieses Browsers; Text verlässt das Gerät nie. Messwerte: siehe Kommentar #525 (CPU-Lauf, q4).",
-  "runtime": {"name": "Transformers.js", "version": "4.3.2", "url": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.web.min.js", "host": "cdn.jsdelivr.net"},
+  "runtime": {"name": "Transformers.js", "version": "4.3.2", "url": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js", "host": "cdn.jsdelivr.net"},
   "models": [
     {
       "id": "gemma4-e2b",

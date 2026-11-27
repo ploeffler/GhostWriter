@@ -3,9 +3,9 @@
 const assert = require("node:assert/strict"), fs = require("node:fs"), path = require("node:path"), vm = require("node:vm");
 const src = fs.readFileSync(path.join(__dirname, "..", "..", "shared", "s07-laden.js"), "utf8");
 
-function run(git){
+function run(git, login){
   const logged = [], shown = [];
-  const ctx = {S:{files:new Map(), msg:null}, store:{set(){}}, busy(){}, esc:s => String(s), show:v => shown.push(v), openBook(){}, getFile:(p) => git.getFile(p),
+  const ctx = {S:{files:new Map(), msg:null, login:login || ""}, store:{set(){}}, busy(){}, esc:s => String(s), show:v => shown.push(v), openBook(){}, getFile:(p) => git.getFile(p),
     errText:e => { logged.push(e); return "ERR:" + (e && e.code); }, GW_PORTS:{git}, JSON, Promise, Map, Object, String, Array};
   vm.runInNewContext(src + "\n;this.__loadRepo = loadRepo;", ctx);
   return ctx.__loadRepo("ploeffler/GhostWriter").then(() => ({ctx, logged, shown}));
@@ -19,6 +19,12 @@ const nf = {code:"http_404", status:404, message:"Not Found"};
   // Repository nicht sichtbar: Wurzel liefert ebenfalls 404 – Hinweis auf Zugriff, kein Fehlerprotokoll
   r = await run({getFile: async () => { throw nf; }, listDir: async () => { throw nf; }});
   assert.match(r.ctx.S.msg.html, /nicht gefunden – oder der Token hat dafür keinen Zugriff/); assert.deepEqual(r.logged, []);
+  assert.doesNotMatch(r.ctx.S.msg.html, /angemeldet als/);
+  // mit bekanntem Login nennt die Meldung das Konto, damit ein Token des falschen Kontos auffällt (#731); der Platzhalter „chat“ nicht
+  r = await run({getFile: async () => { throw nf; }, listDir: async () => { throw nf; }}, "chillyconcane");
+  assert.match(r.ctx.S.msg.html, /angemeldet als „chillyconcane“/);
+  r = await run({getFile: async () => { throw nf; }, listDir: async () => { throw nf; }}, "chat");
+  assert.doesNotMatch(r.ctx.S.msg.html, /angemeldet als/);
   // andere Fehler gehen unverändert durch errText (und damit ins Protokoll)
   r = await run({getFile: async () => { throw {code:"http_401", status:401, message:"Bad credentials"}; }, listDir: async () => []});
   assert.equal(r.ctx.S.msg.html, "ERR:http_401");
