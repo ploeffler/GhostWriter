@@ -68,7 +68,8 @@ def localize_checks(data):
         data['CHECKS'] = [checks.localize(t, 'en') for t in data['CHECKS']]
         data['CHECKS_JSON'] = checks.as_payload(data['CHECKS'], checks.COMPACT_KEYS + ('CK_PILL',))
     if data.get('CHECKS_HISTORY'):   # frühere Prüfungen (#340)
-        data['CHECKS_HISTORY'] = [dict(checks.localize(t, 'en'), CK_ID=t.get('CK_ID', ''), CK_NOTE=t.get('CK_NOTE', ''))
+        data['CHECKS_HISTORY'] = [dict(checks.localize(t, 'en'), CK_ID=t.get('CK_ID', ''),
+                                       CK_NOTE=checks.history_note(t.get('CK_NOTE_OWN', t.get('CK_NOTE', '')), t.get('CK_SUPERSEDED', ''), 'en'))
                                   for t in data['CHECKS_HISTORY']]
         data['CHECKS_HISTORY_JSON'] = checks.history_json(data['CHECKS_HISTORY'])
     if data.get('CHECKS_RECENT'):

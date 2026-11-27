@@ -106,8 +106,8 @@ const GW_PORTS = {
       const r = await rest("GET", `${repoBase()}${file ? "/actions/workflows/" + encodeURIComponent(file) + "/runs" : "/actions/runs"}?per_page=${q.perPage || 15}${q.branch ? "&branch=" + encodeURIComponent(q.branch) : ""}${q.event ? "&event=" + q.event : ""}`);
       return ((r && r.workflow_runs) || []).map(x => ({id:x.id, name:x.name || x.display_title || "", status:x.status, conclusion:x.conclusion, url:x.html_url, created:x.created_at, branch:x.head_branch, event:x.event}));
     },
-    async listReleases(){
-      const r = await rest("GET", `${repoBase()}/releases?per_page=6`);
+    async listReleases(n){
+      const r = await rest("GET", `${repoBase()}/releases?per_page=${n || 6}`);
       return (Array.isArray(r) ? r : []).map(x => ({name:x.name || x.tag_name, tag:x.tag_name, url:x.html_url, pre:!!x.prerelease, date:x.published_at, assets:(x.assets || []).map(a => ({name:a.name, url:a.browser_download_url, size:a.size}))}));
     },
     async workflowState(file){   // ok | missing (Action fehlt im Buch) | forbidden (Token ohne Recht „Actions“)

@@ -241,11 +241,21 @@ function tagsFor(ids){
   for (const [i, e, hit] of touching(unit)){ const r = rankOf(e, i); if (!latest[e.kind] || r >= latest[e.kind][0]) latest[e.kind] = [r, e, hit]; }
   return Object.entries(latest).sort((a, b) => (kindOrder(a[0]) - kindOrder(b[0])) || a[0].localeCompare(b[0])).map(([, v]) => mkTag(v[1], v[2], unit));
 }
+function supersededBy(hits, k){   // spätere Prüfung derselben Art, die alles abdeckt, was dieser Eintrag in der Einheit prüfte (hits: neueste zuerst)
+  const [, e, hit] = hits[k], mine = new Set(hit);
+  for (const [, l, lhit] of hits.slice(0, k)) if (l.kind === e.kind && [...mine].every(x => lhit.includes(x))) return l;
+  return null;
+}
 function historyFor(ids){
   const unit = new Set(ids); if (!unit.size || !S.checks.length) return [];
   const hits = touching(unit).sort((a, b) => rankOf(b[1], b[0]).localeCompare(rankOf(a[1], a[0])));
   const seen = new Set(), out = [];
-  for (const [, e, hit] of hits){ if (!seen.has(e.kind)){ seen.add(e.kind); continue; } out.push(mkTag(e, hit, unit)); }
+  hits.forEach(([, e, hit], k) => {
+    if (!seen.has(e.kind)){ seen.add(e.kind); return; }
+    const later = supersededBy(hits, k), sup = later ? (whenOf(later) + " " + (MARK[later.result] || "")).trim() : "", t = mkTag(e, hit, unit);
+    t.CK_SUPERSEDED = sup; t.CK_NOTE = sup ? "ersetzt durch spätere Prüfung " + sup + (e.note ? " · " + e.note : "") : (e.note || "");   // wie scripts/checks.py history()
+    out.push(t);
+  });
   return out;
 }
 const pick = (list, keys) => JSON.stringify(list.map(t => Object.fromEntries(keys.map(k => [k, t[k] || ""]))));
