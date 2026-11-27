@@ -70,7 +70,7 @@ Im Bücherregal stehen Serien (Reihen) als **Akkordeon**: je Serie ein aufklappb
 gemerkt. Ohne Serien bleibt das Regal wie bisher. Die Kopfzeile nennt die Zahl der Serien, Serien ohne Band stehen darunter. Die Daten (`library.json` → `series`, je Buch `series` und `volume`) füllt jetzt
 auch die Claude-Web-App in die Widget-Felder (vorher blieben sie leer und die Serien erschienen als lose Karten); das Akkordeon selbst gibt es nur in der eigenen Web-App (`regal-web.js`).
 
-**Buchkarten (v1.6):** In der eigenen Web-App stehen auf der Karte weder „eingerichtet“ noch der Branch (ein Buch „im Aufbau“ behält diese Angabe). Unter der Karte klappt das Akkordeon
+**Buchkarten (v1.6):** In der eigenen Web-App stehen auf der Karte weder „eingerichtet“ noch der Branch (ein Buch „im Aufbau“ behält diese Angabe). Am unteren Rand der Karte (ohne eigenen Rahmen, nur durch eine gestrichelte Linie abgesetzt) klappt das Akkordeon
 **Auflagen und Vorabfassungen (n)** auf: Links zu den erzeugten Auflagen (Tag aus `library.json`, Release-Seite auf GitHub) und zu den Vorabfassungen dieses Buchs (Pre-Releases des Repositorys,
 einmal gelesen, zugeordnet über Tag oder Name). Ohne Einträge fehlt das Akkordeon; ein Klick darauf öffnet das Buch nicht. Umgesetzt in `regal-web.js`; die Karten des Widgets selbst bleiben unverändert.
 
