@@ -178,7 +178,7 @@ Der Knopf mit dem Roboter oben öffnet **Modell im Browser**. Ein Sprachmodell l
 
 Im Kopf steht „App x.y.z“ und, sobald ein Repository offen ist, „Repository x.y.z“ (GhostWriter-Version aus `ghostwriter-manifest.yml`, nur gelesen). Weichen die beiden Stände ab (Haupt- oder Nebenversion), wird die Anzeige gelb und der Tooltip nennt den Grund; ist das Manifest nicht lesbar (offline), steht nur die App-Version da.
 
-## Korrekturen in 1.6.1
+## Korrekturen in 1.6.2
 
 - **Speichern ohne Netz (#744, Teil 1):** Merkt die App das Netz erst beim Speichern (WLAN ohne Internet, Funkloch), sichert sie den Abschnitt trotzdem auf dem Gerät und lädt ihn später hoch (vorher kam nur „Keine Verbindung“, nichts war gesichert). Der Offline-Balken sagt jetzt, was geht: Abschnittstexte werden gesichert, Figuren, Gliederung und Freigaben brauchen Netz. **Noch offen (v1.7):** Start ohne Netz und Lesen ohne Netz (Zwischenspeicher für gelesene Dateien), Offline-Speichern auch für andere Aktionen.
 - **„Serie öffnen“ (#742):** zeigt die Serie (nur lesend): Bände mit „Band öffnen“, Figuren und Begriffe der Serie, Sammelband. Ändern geht weiter im Chat. Die 55 Knöpfe mit „Kommt mit v1.6.“ zeigen jetzt „Das geht im Chat.“.
