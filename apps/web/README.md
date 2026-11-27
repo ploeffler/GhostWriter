@@ -80,7 +80,7 @@ Aktionstabelle; `ref` ist der Buch-Branch) und zeigt, was daraus wird. Die Aktio
 - **Vorabfassung** (`preview.yml`): legt einen Tag `<kurztitel>-vorab-N` und ein im Repository sichtbares Pre-Release an; deshalb erst nach einem **zweiten Klick** („Ja, jetzt starten“).
 - **Manuskript ausgeben** (`manuscript.yml`): PDF oder Lesefassung (Lesefassung braucht ein Kapitel oder einen Abschnitt).
 - **Auschecken zum Gegenlesen** (`checkout.yml`): Kapitel oder ganzes Buch, Gegenleser (Pflicht), Frist, Probelauf; sperrt den Bereich, deshalb ebenfalls mit zweitem Klick.
-- **Letzte Läufe** (Stand läuft / fertig / fehlgeschlagen / abgebrochen, Branch, Zeit, Link). Nach dem Start fragt die App alle 6 Sekunden nach, **nur solange ein Lauf läuft, die
+- **Letzte Läufe** (Stand läuft / fertig / fehlgeschlagen / abgebrochen, Branch, Zeit, Link). **Im Buch nur die Läufe dieses Buchs** (Buch-Branch und Arbeits-Branch `ghostwriter/<buch-branch>`), ebenso nur dessen Auflagen und Vorabfassungen. Der Knopf „Alle Läufe der Bibliothek“ zeigt die Übersicht über das ganze Repository mit dem Buchnamen je Lauf; ohne geöffnetes Buch (Bücherregal) öffnet der Drucker diese Übersicht, gestartet wird dort nichts (v1.6). Nach dem Start fragt die App alle 6 Sekunden nach, **nur solange ein Lauf läuft, die
   Ansicht offen ist und höchstens 10 Minuten**; sonst gibt es keinen Abruf im Takt. Die Ergebnisse (PDF, DOCX …) stehen auf der Laufseite unter „Artifacts“ (14 Tage).
 - **Auflagen und Vorabfassungen:** die letzten Releases mit ihren Dateien als Links (öffnen sich bei GitHub; für private Repositorys musst du dort angemeldet sein).
 

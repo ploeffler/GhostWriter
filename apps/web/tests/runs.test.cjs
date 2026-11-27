@@ -7,9 +7,10 @@ const ctx = {
   S: {owner:"o", repo:"r", book:{branch:"buch/x"}, view:"runs"}, esc: String, $: () => null, crumbs(){}, busy(){}, msgBox: () => "", show(){}, errText: e => "Fehler: " + e.message, fmtTime: () => "t", fmtBytes: n => n + " B",
   document: {addEventListener(){}, createElement: () => ({dataset:{}, style:{}})}, window: {scrollTo(){}}, FormData: class { constructor(f){ this.f = f; } forEach(fn){ Object.entries(this.f.values).forEach(([k, v]) => [].concat(v).forEach(x => fn(x, k))); } },
   GW_PORTS: {git: {dispatch: async (file, ref, inputs) => { calls.push({file, ref, inputs}); }, listRuns: async () => [], listReleases: async () => []}},
+  workOf: b => "ghostwriter/" + b.branch,
   setTimeout, clearTimeout, Date, JSON, Array, Object, String, Number, Math, Promise
 };
-vm.runInNewContext(src + "\n;this.__x = {runDispatch, RUN_STATE, runErr, RUN, GW_PORTS, cleanWhy};", ctx);
+vm.runInNewContext(src + "\n;this.__x = {runDispatch, RUN_STATE, runErr, RUN, GW_PORTS, cleanWhy, runsFetch, runsScope, runRelOfBook, runBookOf};", ctx);
 const X = ctx.__x, form = (values, checked) => ({values, querySelectorAll: () => (checked || []).map(v => ({value:v})), closest(){}});
 (async () => {
   // Probedruck: Formate und Kapitel, Vorgabe pdf; Ref ist der Buch-Branch
@@ -43,6 +44,20 @@ const X = ctx.__x, form = (values, checked) => ({values, querySelectorAll: () =>
   // Aktionen der Ansichten gehen in diese Ansicht
   for (const a of ["edition.create.open", "edition.proof", "edition.preview", "manuscript.export", "checkout.start"]) assert.equal(typeof X.GW_PORTS.actions[a], "function", a);
   assert.equal(typeof X.GW_PORTS.views.runs, "function");
+  // Umfang (v1.6): im Buch nur dessen Läufe (Buch- und Arbeits-Branch), in der Bibliothek alle mit Buchname
+  const asked = [], mk = (id, branch, created) => ({id, name:"n" + id, branch, created, status:"completed", conclusion:"success", url:"u"});
+  const all = [mk(1, "buch/x", "2026-11-27T10:00:00Z"), mk(2, "ghostwriter/buch/x", "2026-11-27T11:00:00Z"), mk(3, "buch/y", "2026-11-27T12:00:00Z"), mk(4, "main", "2026-11-27T13:00:00Z")];
+  ctx.GW_PORTS.git.listRuns = async (f, q) => { asked.push(q.branch || ""); return all.filter(r => !q.branch || r.branch === q.branch); };
+  ctx.S.lib = {books:[{branch:"buch/x", title:"Buch X", title_short:"X"}, {branch:"buch/y", title:"Buch Y"}]}; ctx.S.book = ctx.S.lib.books[0]; X.RUN.scope = "";
+  assert.equal(X.runsScope(), "book");
+  assert.deepEqual((await X.runsFetch()).map(r => r.id), [2, 1]); assert.deepEqual(asked, ["buch/x", "ghostwriter/buch/x"]);
+  X.RUN.scope = "lib"; assert.equal(X.runsScope(), "lib"); asked.length = 0;
+  assert.deepEqual((await X.runsFetch()).map(r => r.id), [1, 2, 3, 4]); assert.deepEqual(asked, [""]);
+  assert.equal(X.runBookOf(all[1]).title_short, "X"); assert.equal(X.runBookOf(all[3]), undefined);
+  ctx.S.book = null; X.RUN.scope = ""; assert.equal(X.runsScope(), "lib");   // Bücherregal: immer alle
+  ctx.S.book = ctx.S.lib.books[0];
+  assert.equal(X.runRelOfBook({tag:"x-auflage-1", name:"Auflage 1"}), true); assert.equal(X.runRelOfBook({tag:"y-auflage-1", name:"Buch Y"}), false);
+  ctx.S.book = {branch:"main"}; assert.equal(X.runRelOfBook({tag:"irgendwas", name:""}), true);   // Einzelbuch: alle
   // „Branches aufräumen“ auf der Seite Daten: nur mit Rechten
   assert.equal(X.cleanWhy(true, "ok", true), "");
   assert.match(X.cleanWhy(true, "ok", false), /Nicht angemeldet/); assert.match(X.cleanWhy(false, "ok", true), /Schreibrecht/);
