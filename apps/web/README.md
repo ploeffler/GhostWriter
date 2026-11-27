@@ -5,8 +5,7 @@ Erster Wurf der eigenen App aus [#662](https://github.com/ploeffler/GhostWriter/
 über die GitHub-REST-Schnittstelle mit einem **Fine-grained Token** mit GitHub.
 
 **Stand:** Entwurf, noch nicht veröffentlicht. Installierbar als App (PWA), die App-Hülle läuft ohne Netz, und ein Abschnitt lässt sich ohne Netz schreiben und
-später hochladen. Es gibt noch keine Konfliktlösung (ein Konflikt wird gemeldet, nichts wird überschrieben) und keine Einstellungen; das folgt in den
-nächsten Schritten von #662. Sie ist **nicht** Teil dessen, was
+später hochladen. Konflikte lassen sich lösen. Es gibt noch keine Einstellungen; das folgt in den nächsten Schritten von #662. Sie ist **nicht** Teil dessen, was
 Updates in Bibliotheken kopieren.
 
 ## Was sie kann
@@ -38,9 +37,15 @@ Wer **einen Abschnitt** speichert, während GitHub nicht erreichbar ist (oder so
 - **Verlassen:** Tab schließen oder neu laden fragt der Browser nach; beim Abmelden fragt die App (die Änderungen bleiben auf dem Gerät).
 - **Hochladen von selbst**, sobald GitHub wieder erreichbar ist, der Reihe nach (Branch und Änderungspaket wie beim normalen Speichern). Nur ein Tab lädt hoch
   (Web Locks).
-- **Nichts wird überschrieben:** Hat sich dieselbe Datei auf GitHub inzwischen geändert (Blob-Kennung ≠ Stand beim Schreiben, und der Text ist nicht
-  identisch), bleibt die lokale Fassung liegen, die Leiste meldet „⚠ 1 Konflikt“ und spätere Änderungen am selben Buch warten. Die **Lösung** (Fassungen
-  nebeneinander, Zusammenführen, „Später“ als eigener Branch) folgt im nächsten Schritt.
+- **Nichts wird überschrieben, Konflikte löst du selbst (#662):** Hat sich dieselbe Datei auf GitHub inzwischen geändert (Blob-Kennung ≠ Stand beim Schreiben),
+  vergleicht die App **dreifach, je Absatz** (Ausgangstext ↔ dieses Gerät ↔ GitHub, `merge3.js`): Änderungen an **verschiedenen Absätzen** werden von selbst
+  zusammengeführt und hochgeladen (der Commit sagt das); dieselbe Änderung auf beiden Seiten zählt einmal. Nur wo beide Seiten denselben Bereich verschieden
+  geändert haben, bleibt die lokale Fassung liegen, die Leiste meldet „⚠ ungelöster Konflikt“ mit **Konflikt lösen**. Die Ansicht zeigt je Stelle beide Fassungen
+  nebeneinander: **Meins behalten**, **GitHub übernehmen**, **Beides behalten** (untereinander, mit der Marke `[KONFLIKT PRÜFEN: …]`) oder **Selbst
+  zusammenfügen** (Textfeld); ohne Wahl wird nichts gespeichert. **Später – nichts verlieren** legt den lokalen Stand auf einem eigenen Branch
+  `ghostwriter/konflikt-<buch>-<datum>-<Nr>` ab; die Leiste zeigt dann „Konflikt später zu lösen“, der Eintrag hält nichts auf und lässt sich jederzeit
+  lösen. Ist der Abschnitt auf GitHub inzwischen **abgeschlossen**, warnt die Ansicht: nach dem Zusammenführen weicht der Text von der Freigabe ab und muss neu
+  abgeschlossen werden (nie stillschweigend als freigegeben).
 - Liegt eine Änderung schon identisch auf GitHub (etwa nach einem unklaren Fehler), wird sie nicht doppelt hochgeladen.
 
 **Grenzen:** Offline lässt sich nur das **Schreiben eines Abschnitts** sichern (Ziel, Kurzbeschreibung, Manuskript, Faktencheck). Alle anderen Aktionen (Freigeben,
@@ -61,10 +66,10 @@ wird nur an `api.github.com` gesendet und mit „Abmelden“ gelöscht. Er steht
 
 ## Aufbau
 
-- `index.src.html`, `ports-web.js` (GitHub-REST, Formen wie `GW_PORTS` in [`apps/claude/ports-claude.js`](../claude/ports-claude.js)), `net-web.js` (online/offline), `outbox-web.js` (lokal sichern, hochladen), `boot-web.js`, `web.css`, `manifest.webmanifest`, `sw.src.js` (wird zu `sw.js`), `icons/`.
+- `index.src.html`, `ports-web.js` (GitHub-REST, Formen wie `GW_PORTS` in [`apps/claude/ports-claude.js`](../claude/ports-claude.js)), `net-web.js` (online/offline), `merge3.js` (Dreiwege-Vergleich), `outbox-web.js` (lokal sichern, hochladen), `konflikt-web.js` (Konflikt lösen), `boot-web.js`, `web.css`, `manifest.webmanifest`, `sw.src.js` (wird zu `sw.js`), `icons/`.
 - Ansichten und Abläufe kommen aus [`apps/shared/`](../shared). `python3 apps/web/build.py` baut `index.html` und kopiert die Widget-Laufzeit
   (`vendor/gw-lite.js`, `vendor/icons.css`) aus `apps/claude/vendor/`; `--check` prüft den Stand. `vendor/js-yaml.min.js` (MIT) liegt fest hier.
-- Tests: `tests/test_app_web.py`, `apps/web/tests/ports-web.test.cjs` (Anschluss gegen einen nachgestellten `fetch`) und `apps/web/tests/sw.test.cjs` (Service Worker) und `apps/web/tests/outbox.test.cjs` (lokal sichern, hochladen, Konflikt), alle ohne Netz.
+- Tests: `tests/test_app_web.py`, `apps/web/tests/ports-web.test.cjs` (Anschluss gegen einen nachgestellten `fetch`) und `apps/web/tests/sw.test.cjs` (Service Worker) `apps/web/tests/outbox.test.cjs` (lokal sichern, hochladen, Konflikt) und `apps/web/tests/merge3.test.cjs` (Zusammenführen), alle ohne Netz.
   Ausprobieren: `index.html` im Browser öffnen oder einen kleinen Webserver im Ordner starten.
 
 ## Grenzen dieser Fassung
@@ -75,4 +80,5 @@ wird nur an `api.github.com` gesendet und mit „Abmelden“ gelöscht. Er steht
 - Der Service Worker und die Installation wurden in Chromium geprüft (Hülle angelegt, Neuladen ohne Netz, Anzeige); Safari/iOS und Firefox sind nicht geprüft.
 - Hinweise im Text nennen noch „Claude“ (gemeinsame Ansichten); die Texte werden mit den nächsten Schritten angepasst.
 - Nicht gegen ein echtes Repository mit echtem Token geprüft: Die Durchläufe (Anmelden, Buch öffnen, Abschnitt speichern; offline schreiben, hochladen, Konflikt) liefen im Browser gegen eine nachgestellte GitHub-Schnittstelle.
-- Pro Datei wird nur die Blob-Kennung verglichen; ein Zusammenführen verschiedener Absätze gibt es noch nicht.
+- Zusammengeführt wird Text je Absatz (durch eine Leerzeile getrennt). **Änderungen in benachbarten Absätzen zählen als eine Stelle** und werden als Konflikt gezeigt (wie benachbarte Zeilen in git). Für Dateien ohne gespeicherten Ausgangstext (ältere Einträge) und ohne Absätze gilt die Wahl für die ganze Datei. Strukturdateien (`ghostwriter.yml`) werden nicht feldweise zusammengeführt.
+- Die Konfliktlösung wurde nur im Browser gegen die nachgestellte Schnittstelle geprüft, nicht mit mehreren echten Geräten.

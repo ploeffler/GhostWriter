@@ -263,6 +263,49 @@ function netRender(){
   el.hidden = !msg; el.className = "netbar" + (msg ? " off" : ""); el.textContent = msg;
 }
 function netFailed(){ NET.github = false; NET.wasDown = true; netRender(); netSchedule(); }   // von ports-web.js bei einem Netzfehler
+/* ---------- Dreiwege-Vergleich je Absatz (#662, Konfliktlösung) ----------
+   merge3(Ausgangstext, lokal, GitHub) → Stücke: Text, der feststeht, oder {conflict:{base, local, remote}} (jeweils Absätze). Absätze sind durch genau
+   eine Leerzeile getrennt ("\n\n"), damit Zusammenfügen den Text unverändert wiedergibt. Änderungen an verschiedenen Absätzen werden übernommen,
+   gleiche Änderung auf beiden Seiten einmal; nur wo beide Seiten denselben Bereich verschieden geändert haben, bleibt ein Konflikt. */
+function m3Paras(t){ return String(t).split("\n\n"); }
+function m3Lcs(x, y){
+  const n = x.length, m = y.length, dp = Array.from({length:n + 1}, () => new Int32Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i][j] = x[i] === y[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out = new Map(); let i = 0, j = 0;
+  while (i < n && j < m){ if (x[i] === y[j]){ out.set(i, j); i++; j++; } else if (dp[i + 1][j] >= dp[i][j + 1]) i++; else j++; }
+  return out;
+}
+const m3Eq = (p, q) => p.length === q.length && p.every((v, i) => v === q[i]);
+function merge3(base, local, remote){
+  const B = m3Paras(base), A = m3Paras(local), R = m3Paras(remote), ma = m3Lcs(B, A), mr = m3Lcs(B, R), out = [];
+  let pb = 0, pa = 0, pr = 0;
+  const region = (eb, ea, er) => {
+    const b = B.slice(pb, eb), a = A.slice(pa, ea), r = R.slice(pr, er);
+    if (m3Eq(a, b)) out.push(...r); else if (m3Eq(r, b) || m3Eq(a, r)) out.push(...a); else out.push({conflict:{base:b, local:a, remote:r}});
+  };
+  for (let i = 0; i < B.length; i++){
+    if (!ma.has(i) || !mr.has(i)) continue;
+    region(i, ma.get(i), mr.get(i)); out.push(B[i]); pb = i + 1; pa = ma.get(i) + 1; pr = mr.get(i) + 1;
+  }
+  region(B.length, A.length, R.length);
+  return out;
+}
+const m3Conflicts = chunks => chunks.filter(c => typeof c !== "string" && c.conflict).length;
+/* Auswahl je Konflikt: "local" | "remote" | "both" (beide untereinander, mit Marke) | Text von Hand */
+function m3Join(chunks, choice){
+  const mark = (c, k) => `[KONFLIKT PRÜFEN: Fassung ${k === "local" ? "von diesem Gerät" : "von GitHub"}]`;
+  const out = []; let n = 0;
+  chunks.forEach(c => {
+    if (typeof c === "string"){ out.push(c); return; }
+    const x = c.conflict, pick = choice[n++];
+    if (pick === "local") out.push(...x.local);
+    else if (pick === "remote") out.push(...x.remote);
+    else if (pick === "both") out.push(mark(x, "local"), ...x.local, mark(x, "remote"), ...x.remote);
+    else if (typeof pick === "string") out.push(pick);
+    else throw new Error("Konflikt " + n + " ist nicht entschieden");
+  });
+  return out.join("\n\n");
+}
 /* ---------- Outbox: Änderungen, die nur auf diesem Gerät liegen (#662, #61) ----------
    Ohne Netz wird ein Abschnitt zuerst lokal gesichert (IndexedDB) und später hochgeladen. Nichts wird still überschrieben: Hat sich eine Datei auf GitHub
    inzwischen geändert, bleibt die lokale Fassung liegen und die Leiste meldet einen Konflikt (die Lösung folgt). Die Leiste oben ist nicht wegklickbar,
@@ -310,6 +353,7 @@ async function obFlush(){
     const home = {owner:S.owner, repo:S.repo, book:S.book}, blocked = new Set(), upPaths = new Set(); let done = 0, bookDone = new Set();
     try {
       for (const e of await OB.all()){
+        if (e.state === "spaeter") continue;                                                // zur Klärung auf eigenem Branch abgelegt: hält nichts auf
         const [o, r] = e.repo.split("/");
         if (home.owner && home.owner + "/" + home.repo !== e.repo) continue;               // anderes Repository ist geöffnet: später
         if (blocked.has(e.repo + "|" + e.book.branch)) continue;                           // ein Konflikt hält spätere Änderungen am selben Buch an
@@ -321,11 +365,19 @@ async function obFlush(){
             let remote = null; try { remote = await getFile(f.path, work, true); } catch (x) {}
             const was = e.seen[f.path];
             if (remote && remote.text === f.content) continue;                             // liegt schon so auf GitHub (etwa nach einem unklaren Fehler)
-            if (was && remote && remote.sha !== was){ conflict = f.path; break; }
+            if (was && remote && remote.sha !== was){
+              // GitHub hat sich geändert: ohne Überschneidung (andere Absätze) von selbst zusammenführen, sonst Konflikt zur Entscheidung
+              const base = e.base && e.base[f.path];
+              if (typeof base === "string"){
+                const chunks = merge3(base, f.content, remote.text);
+                if (!m3Conflicts(chunks)){ f.content = m3Join(chunks, []); e.seen[f.path] = remote.sha; e.base[f.path] = remote.text; e.merged = true; await OB.put(e); todo.push(f); continue; }
+              }
+              conflict = f.path; e.conflict = {path:f.path, remote:{text:remote.text, sha:remote.sha}}; break;
+            }
             todo.push(f);
           }
           if (conflict){ e.state = "konflikt"; e.error = obPlace(conflict); await OB.put(e); blocked.add(e.repo + "|" + e.book.branch); continue; }
-          if (todo.length) await GW_PORTS.git.pushFiles(work, todo, e.message, e.action);
+          if (todo.length) await GW_PORTS.git.pushFiles(work, todo, e.message + (e.merged ? " (mit dem Stand auf GitHub zusammengeführt)" : ""), e.action);
           if (todo.length && !(await openPR(b))) { try { await GW_PORTS.git.createPR({head:work, base:b.branch, title:`GhostWriter: Änderungen für ${b.branch}`, body:"Angelegt mit " + GW_PORTS.agent + ". Übernahme ins Buch nur nach ausdrücklicher Bestätigung."}); } catch (x) {} }
           await OB.del(e.id); done++; bookDone.add(e.repo + "|" + e.book.branch); e.files.forEach(f => upPaths.add(f.path));
         } catch (err) {
@@ -350,11 +402,13 @@ async function obRender(justUploaded){
   const all = await OB.all(), n = all.length;
   try { document.title = (n ? `(${n}) ` : "") + "GhostWriter"; } catch (e) {}
   if (!n){ el.hidden = true; el.textContent = ""; if (justUploaded){ const ok = $("net"); if (ok && ok.hidden){ ok.hidden = false; ok.className = "netbar"; ok.textContent = "Hochgeladen: alle Änderungen sind auf GitHub."; setTimeout(() => { if (ok.textContent.startsWith("Hochgeladen")){ ok.hidden = true; ok.textContent = ""; } }, 6000); } } return; }
-  const bad = all.filter(e => e.state === "konflikt").length, err = all.filter(e => e.state === "fehler").length, old = all.some(e => Date.now() - e.created > OUTBOX_DAY);
+  const bad = all.filter(e => e.state === "konflikt").length, later = all.filter(e => e.state === "spaeter"), err = all.filter(e => e.state === "fehler").length, old = all.some(e => Date.now() - e.created > OUTBOX_DAY);
   const places = [...new Set(all.flatMap(e => e.files.map(f => obPlace(f.path))))];
   const head = `⬆ ${n === 1 ? "1 Änderung" : n + " Änderungen"} nur auf diesem Gerät – noch nicht hochgeladen`;
   const act = obNetDown() ? "Hochladen, sobald wieder Netz da ist." : '<button class="link" data-act="outbox-flush">Jetzt hochladen</button>';
-  const notes = [bad ? `⚠ ${bad} Konflikt: auf GitHub wurde dieselbe Datei inzwischen geändert; nichts wurde überschrieben, die Lösung folgt in einer nächsten Fassung.` : "",
+  const fix = e => ` <button class="link" data-act="outbox-resolve" data-id="${e.id}">Konflikt lösen</button>`;
+  const notes = [bad ? `⚠ ${bad} ungelöster Konflikt: auf GitHub wurde dieselbe Stelle inzwischen anders geändert; nichts wurde überschrieben.` + all.filter(e => e.state === "konflikt").map(fix).join("") : "",
+    later.length ? `⏸ ${later.length} Konflikt später zu lösen (lokaler Stand liegt auf dem Branch ${esc(later[0].branch || "")}).` + later.map(fix).join("") : "",
     err ? `⚠ ${err} nicht hochgeladen: ${esc(all.find(e => e.state === "fehler").error)}` : "",
     old ? "Diese Änderungen liegen seit mehr als 24 Stunden nur lokal. Bitte bald hochladen." : "",
     OB.mem ? "Dieser Browser hat keinen dauerhaften Speicher: Die Änderungen gehen beim Neuladen verloren." : ""].filter(Boolean);
@@ -362,6 +416,84 @@ async function obRender(justUploaded){
   el.innerHTML = `<b>${head}</b> · ${act}${notes.length ? `<div class="sub">${notes.join("<br>")}</div>` : ""}<details><summary>Betroffen</summary><ul>${places.map(p => `<li>${esc(p)}</li>`).join("")}</ul></details>`;
 }
 window.addEventListener("beforeunload", ev => { if (document.title.startsWith("(")){ ev.preventDefault(); ev.returnValue = ""; } });
+/* ---------- Konflikt lösen (#662): lokale Fassung und GitHub-Fassung nebeneinander ----------
+   Je Stelle (Absatz), an der beide Seiten verschieden geändert haben: „Meins behalten“, „GitHub übernehmen“, „Beides behalten“ (beide untereinander mit
+   der Marke [KONFLIKT PRÜFEN: …]) oder „Selbst zusammenfügen“. Alles Übrige ist schon zusammengeführt. „Später – nichts verlieren“ legt den lokalen Stand
+   auf einem eigenen Branch ab. Ohne Ausgangstext (ältere Einträge) gilt die Wahl für die ganze Datei. Es wird nie ohne ausdrückliche Wahl überschrieben. */
+const KF = {id:0, chunks:null, remote:null, path:"", whole:false, back:null};
+const kfSlug = t => String(t).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30) || "buch";
+async function kfOpen(id){
+  const e = (await OB.all()).find(x => x.id === id); if (!e) return obRender();
+  KF.back = KF.back || {view:S.view, arg:S.view === "section" ? S.sec && S.sec.id : S.chap};
+  busy("Stand auf GitHub wird geholt …");
+  try {
+    const path = (e.conflict && e.conflict.path) || e.files[0].path, b = {branch:e.book.branch, work_branch:e.book.work_branch || undefined};
+    const remote = await getFile(path, workOf(b), true), local = e.files.find(f => f.path === path).content;
+    if (remote.text === local){ await OB.del(e.id); await obRender(true); S.msg = {kind:"ok", html:"Kein Konflikt mehr: GitHub hat schon dieselbe Fassung."}; return show(KF.back.view, KF.back.arg); }
+    const base = e.base && e.base[path];
+    Object.assign(KF, {id:e.id, path, remote, whole:typeof base !== "string", chunks:typeof base === "string" ? merge3(base, local, remote.text) : null});
+    kfRender(e, remote, local);
+  } catch (err) { S.msg = {kind:"err", html:esc(errText(err))}; show(KF.back.view, KF.back.arg); }
+}
+function kfRender(e, remote, local){
+  const place = obPlace(KF.path);
+  const approved = /approvals:[\s\S]{0,200}?section:\s*true/.test(remote.text.split("\n---")[0] || "");
+  const opts = (n, who) => `<div class="kfopt"><label><input type="radio" name="c${n}" value="local"> Meins behalten</label> <label><input type="radio" name="c${n}" value="remote"> GitHub übernehmen</label> <label><input type="radio" name="c${n}" value="both"> Beides behalten</label> <label><input type="radio" name="c${n}" value="hand"> Selbst zusammenfügen</label></div>`;
+  let n = 0, body;
+  if (KF.whole){
+    body = `<p class="dim">Zu diesem Eintrag gibt es keinen Ausgangstext; deshalb gilt die Wahl für die ganze Datei.</p><section class="kfc" data-i="0"><div class="kfcols"><div><b>Dieses Gerät</b><pre>${esc(local)}</pre></div><div><b>GitHub</b><pre>${esc(remote.text)}</pre></div></div>${opts(0)}<textarea class="in kfhand" rows="8" hidden>${esc(local)}</textarea></section>`;
+    KF.chunks = [{conflict:{base:[], local:[local], remote:[remote.text]}}];
+  } else {
+    const done = KF.chunks.filter(c => typeof c === "string").length;
+    body = `<p class="dim">${done} Absätze sind schon zusammengeführt. An ${m3Conflicts(KF.chunks)} ${m3Conflicts(KF.chunks) === 1 ? "Stelle" : "Stellen"} wurde derselbe Bereich auf beiden Seiten verschieden geändert:</p>` +
+      KF.chunks.filter(c => typeof c !== "string").map(c => { const i = n++; return `<section class="kfc" data-i="${i}"><div class="kfcols"><div><b>Dieses Gerät</b><pre>${esc(c.conflict.local.join("\n\n") || "(gelöscht)")}</pre></div><div><b>GitHub</b><pre>${esc(c.conflict.remote.join("\n\n") || "(gelöscht)")}</pre></div></div>${opts(i)}<textarea class="in kfhand" rows="6" hidden>${esc(c.conflict.local.join("\n\n"))}</textarea></section>`; }).join("");
+  }
+  $("app").innerHTML = `<div class="one"><div class="card"><b style="font-size:18px">Konflikt in ${esc(place)}</b>
+    <p class="dim">Dieselbe Stelle wurde auf diesem Gerät und auf GitHub verschieden geändert. Nichts wird überschrieben, bis du entschieden hast.</p>
+    ${approved ? '<div class="note warn">Auf GitHub ist dieser Abschnitt inzwischen <b>abgeschlossen</b>. Nach dem Zusammenführen weicht der Text von der Freigabe ab und muss neu abgeschlossen werden.</div>' : ""}
+    <form id="fKonflikt">${body}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn pri" data-kf="apply">Zusammenführen und hochladen</button><button type="button" class="btn" data-kf="later">Später – nichts verlieren</button><button type="button" class="btn" data-kf="cancel">Zurück</button></div></form>
+    <div id="kfmsg" class="dim" style="margin-top:8px"></div></div></div>
+    <style>.kfcols{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:700px){.kfcols{grid-template-columns:1fr}}.kfcols pre{white-space:pre-wrap;background:var(--surface-2,#f1efe7);padding:8px;border-radius:6px;font-size:13px}.kfc{border-top:.5px solid var(--border,#d6d3c8);padding:10px 0}.kfopt label{margin-right:12px;font-size:13px}</style>`;
+}
+async function kfApply(){
+  const e = (await OB.all()).find(x => x.id === KF.id); if (!e) return;
+  const choice = [], msg = $("kfmsg");
+  const secs = [...document.querySelectorAll("#fKonflikt .kfc")];
+  for (const s of secs){
+    const v = (s.querySelector("input:checked") || {}).value;
+    if (!v){ msg.textContent = "Bitte bei jeder Stelle eine Möglichkeit wählen."; return; }
+    choice.push(v === "hand" ? s.querySelector("textarea").value : v);
+  }
+  const text = m3Join(KF.chunks, choice), f = e.files.find(x => x.path === KF.path);
+  f.content = text; e.seen[KF.path] = KF.remote.sha; e.base = Object.assign(e.base || {}, {[KF.path]:KF.remote.text}); e.state = "wartet"; delete e.conflict; e.merged = true;
+  await OB.put(e); const back = KF.back; KF.back = null; KF.chunks = null;
+  S.msg = {kind:"ok", html:"<b>Zusammengeführt.</b> Es wird jetzt hochgeladen."}; show(back.view, back.arg);
+  await GW_PORTS.outbox.flush();
+}
+async function kfLater(){
+  const e = (await OB.all()).find(x => x.id === KF.id); if (!e) return;
+  const name = `ghostwriter/konflikt-${kfSlug(e.book.branch)}-${new Date().toISOString().slice(0, 10)}-${e.id}`, work = workOf({branch:e.book.branch, work_branch:e.book.work_branch || undefined});
+  $("kfmsg").textContent = "Wird auf einem eigenen Branch abgelegt …";
+  try {
+    try { await GW_PORTS.git.createBranch(name, work); } catch (x) { if (!/already exists|Reference already/i.test((x && x.message) || "")) throw x; }
+    await GW_PORTS.git.pushFiles(name, e.files, e.message + " (Konflikt, zur Klärung abgelegt)", e.action);
+    e.state = "spaeter"; e.branch = name; await OB.put(e);
+    const back = KF.back; KF.back = null; KF.chunks = null; S.msg = {kind:"ok", html:`<b>Abgelegt.</b> Dein Stand liegt auf dem Branch <code>${esc(name)}</code> und geht nicht verloren. Der Konflikt bleibt oben markiert, bis er gelöst ist.`};
+    await obRender(); show(back.view, back.arg);
+  } catch (err) { $("kfmsg").textContent = "Nicht abgelegt: " + errText(err); }
+}
+document.addEventListener("click", ev => {
+  const r = ev.target.closest && ev.target.closest('[data-act="outbox-resolve"]');
+  if (r){ ev.preventDefault(); kfOpen(Number(r.dataset.id)); return; }
+  const b = ev.target.closest && ev.target.closest("[data-kf]"); if (!b) return;
+  ev.preventDefault();
+  if (b.dataset.kf === "apply") kfApply(); else if (b.dataset.kf === "later") kfLater();
+  else { const back = KF.back || {view:"project"}; KF.back = null; show(back.view, back.arg); }
+});
+document.addEventListener("change", ev => {
+  if (!ev.target.matches || !ev.target.matches('#fKonflikt input[type="radio"]')) return;
+  const ta = ev.target.closest(".kfc").querySelector("textarea"); ta.hidden = ev.target.value !== "hand";
+});
 async function getFile(path, ref, fresh){
   const key = (ref || "") + "|" + path;
   if (!fresh && S.files.has(key)) return S.files.get(key);
@@ -839,9 +971,9 @@ async function localCommit(files, message, opts){
   const b = S.book;
   files = files.filter(f => f && typeof f.content === "string");
   if (!files.length) return {nothing:true};
-  const seen = {}; files.forEach(f => { const o = S.files.get(S.readRef + "|" + f.path); seen[f.path] = (o && o.sha) || null; });   // null: Stand unbekannt, keine Prüfung
-  Object.assign(seen, (opts && opts.seen) || {});                                                                                    // der Stand, auf dem das Formular beruhte, geht vor
-  const n = await GW_PORTS.outbox.add({repo:S.owner + "/" + S.repo, book:{branch:b.branch, work_branch:b.work_branch || ""}, files, message, action:opts && opts.action, seen});
+  const seen = {}, base = {}; files.forEach(f => { const o = S.files.get(S.readRef + "|" + f.path); seen[f.path] = (o && o.sha) || null; if (o && o.sha && typeof o.text === "string") base[f.path] = o.text; });   // null: Stand unbekannt, keine Prüfung; base: Ausgangstext für das Zusammenführen
+  Object.assign(seen, (opts && opts.seen) || {}); Object.assign(base, (opts && opts.base) || {});                                    // der Stand, auf dem das Formular beruhte, geht vor
+  const n = await GW_PORTS.outbox.add({repo:S.owner + "/" + S.repo, book:{branch:b.branch, work_branch:b.work_branch || ""}, files, message, action:opts && opts.action, seen, base});
   applyOverlay(S.readRef, files);
   return {local:true, pending:n};
 }
@@ -955,7 +1087,7 @@ async function saveSection(data){
     }
     if (data.fact_check) md = setFact(md, data.fact_check);
     const files = md === cur.text ? [] : [{path:x.s.path, content:md}], what = `Abschnitt ${S.secNo} „${x.s.title}“ gespeichert`;
-    const r = local ? await localCommit(files, what, {action:"section.update", seen:{[x.s.path]: cur.sha || null}}) : await commit(files, what, {action:"section.update"});
+    const r = local ? await localCommit(files, what, {action:"section.update", seen:{[x.s.path]: cur.sha || null}, base:{[x.s.path]: cur.text}}) : await commit(files, what, {action:"section.update"});
     S.msg = savedMsg("Gespeichert.", r);
   } catch (e) { S.msg = failMsg(e); }
   show("section", x.s.id);

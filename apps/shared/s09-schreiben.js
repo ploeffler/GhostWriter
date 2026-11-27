@@ -32,9 +32,9 @@ async function localCommit(files, message, opts){
   const b = S.book;
   files = files.filter(f => f && typeof f.content === "string");
   if (!files.length) return {nothing:true};
-  const seen = {}; files.forEach(f => { const o = S.files.get(S.readRef + "|" + f.path); seen[f.path] = (o && o.sha) || null; });   // null: Stand unbekannt, keine Prüfung
-  Object.assign(seen, (opts && opts.seen) || {});                                                                                    // der Stand, auf dem das Formular beruhte, geht vor
-  const n = await GW_PORTS.outbox.add({repo:S.owner + "/" + S.repo, book:{branch:b.branch, work_branch:b.work_branch || ""}, files, message, action:opts && opts.action, seen});
+  const seen = {}, base = {}; files.forEach(f => { const o = S.files.get(S.readRef + "|" + f.path); seen[f.path] = (o && o.sha) || null; if (o && o.sha && typeof o.text === "string") base[f.path] = o.text; });   // null: Stand unbekannt, keine Prüfung; base: Ausgangstext für das Zusammenführen
+  Object.assign(seen, (opts && opts.seen) || {}); Object.assign(base, (opts && opts.base) || {});                                    // der Stand, auf dem das Formular beruhte, geht vor
+  const n = await GW_PORTS.outbox.add({repo:S.owner + "/" + S.repo, book:{branch:b.branch, work_branch:b.work_branch || ""}, files, message, action:opts && opts.action, seen, base});
   applyOverlay(S.readRef, files);
   return {local:true, pending:n};
 }
@@ -148,7 +148,7 @@ async function saveSection(data){
     }
     if (data.fact_check) md = setFact(md, data.fact_check);
     const files = md === cur.text ? [] : [{path:x.s.path, content:md}], what = `Abschnitt ${S.secNo} „${x.s.title}“ gespeichert`;
-    const r = local ? await localCommit(files, what, {action:"section.update", seen:{[x.s.path]: cur.sha || null}}) : await commit(files, what, {action:"section.update"});
+    const r = local ? await localCommit(files, what, {action:"section.update", seen:{[x.s.path]: cur.sha || null}, base:{[x.s.path]: cur.text}}) : await commit(files, what, {action:"section.update"});
     S.msg = savedMsg("Gespeichert.", r);
   } catch (e) { S.msg = failMsg(e); }
   show("section", x.s.id);
