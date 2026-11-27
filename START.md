@@ -871,7 +871,7 @@ Stelle keine lange Formularliste auf einmal. Führe ein natürliches Gespräch u
 - Die Antwort kommt als `wizard.answer` mit `step` und `answers` (bzw. in der Textfassung als `1b, 2a`, eigene Antwort `1: Text`). Werte mit `field` in die vorgesehene Angabe übernehmen (z. B. `book_type`, `language`, `changes.auto_merge` als `true`/`false`, Übersetzungen als Sprachcodes in `project.translations_planned`, die KI-Angabe als `ai_disclosure` mit `mode` und `placement: imprint`); `keine` bei den Übersetzungen ergibt eine leere Liste und gilt nur allein. Antworten ohne `field` (Vorwissen, Umfang, Stil) fließen in Zielgruppe, Beschreibung und die Hinweise zum Schreibstil ein. Eine eigene Antwort (`other`) sinngemäß übernehmen und bei Bedarf kurz nachfragen.
 - Wie bisher gilt: nichts schreiben, bevor die Struktur freigegeben ist (Abschnitt 7); die Antworten sammeln sich im Gespräch.
 - `wizard.skip` bzw. `S`: Angabe bleibt vorerst offen, weiter mit dem nächsten Schritt.
-- Offene Schritte (Autor, Thema, Ziel, Kurzbeschreibung, Gliederung) bleiben Gespräch. Ergibt sich im Gespräch eine Auswahl mit wenigen festen Möglichkeiten, die nicht in der Datei steht, kann eine eigene Karte mit `--spec` (JSON, Aufbau wie in der Datei) gezeigt werden.
+- Offene Schritte (Autor, Thema, Ziel, Kurzbeschreibung, Gliederung) bleiben Gespräch. Ergibt sich im Gespräch eine Auswahl mit wenigen festen Möglichkeiten, die nicht in der Datei steht, kann eine eigene Karte mit `--spec` (JSON-Text oder JSON-Datei, Aufbau wie in der Datei; auch lange Texte sind möglich) gezeigt werden.
 
 ## 4a. Auswahl der KI-Anbieter
 

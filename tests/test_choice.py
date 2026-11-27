@@ -4,6 +4,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -84,6 +85,26 @@ class ChoiceTest(unittest.TestCase):
         d = payload(run('--spec', json.dumps(spec)).stdout)
         self.assertEqual(d['STEP'], 'custom.1')
         self.assertEqual(d['SKIPPABLE'], '')
+
+    def test_long_json_text_spec(self):
+        """#704: JSON-Text über 255 Zeichen darf nicht als Dateiname scheitern."""
+        opts = [{'value': 'v%d' % i, 'label': 'Antwort mit längerem Text Nummer %d' % i,
+                 'desc': 'Beschreibung zu dieser Antwort, damit der Text lang wird'} for i in range(6)]
+        spec = {'step': 'custom.2', 'title': 'Lang', 'questions': [{'key': 'x', 'header': 'X', 'text': 'Frage?', 'options': opts}]}
+        text = json.dumps(spec)
+        self.assertGreater(len(text), 255)
+        r = run('--spec', text)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(payload(r.stdout)['STEP'], 'custom.2')
+
+    def test_read_json_arg(self):
+        self.assertEqual(render_view.read_json_arg('{"a": 1}'), {'a': 1})
+        self.assertEqual(render_view.read_json_arg('{"a": "' + 'x' * 400 + '"}')['a'], 'x' * 400)
+        self.assertEqual(render_view.read_json_arg('[1, 2]'), [1, 2])
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / 'spec.json'
+            f.write_text('{"b": 2}', encoding='utf-8')
+            self.assertEqual(render_view.read_json_arg(str(f)), {'b': 2})
 
     def test_invalid_spec_is_refused(self):
         spec = {'questions': [{'key': 'x', 'header': 'X', 'text': '?', 'options': [{'value': 'a', 'label': 'A'}]}]}
