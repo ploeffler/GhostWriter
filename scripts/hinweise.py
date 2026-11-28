@@ -208,7 +208,7 @@ def head_comments(text):
     return ''.join(head)
 
 
-_TOP_LEVEL_KEY = re.compile(r'^([^\s#][^:]*):(?:[ \t].*|[ \t]*$)')
+_TOP_LEVEL_KEY = re.compile(r'^([^\s#\-][^:]*):(?:[ \t].*|[ \t]*$)')
 
 
 def _dump_yaml(data):
@@ -261,13 +261,20 @@ def _block_prefix(lines):
 
 
 def _list_items(lines):
-    """Zerlegt eine YAML-Liste; bei mehrdeutigen Randkommentaren None zurückgeben."""
-    head, items, pending = [], [], []
+    """Zerlegt eine YAML-Liste mit üblicher oder indentloser PyYAML-Einrückung."""
+    head, items, pending, indent = [], [], [], None
     for line in lines:
-        if re.match(r'^  - ', line):
-            items.append(pending + [line])
-            pending = []
-        elif items and (re.match(r'^  #', line) or not line.strip()):
+        match = re.match(r'^( {0,2})- ', line)
+        if match and len(match.group(1)) in (0, 2):
+            current_indent = len(match.group(1))
+            if indent is None:
+                indent = current_indent
+            if current_indent == indent:
+                items.append(pending + [line])
+                pending = []
+                continue
+        comment = (line.startswith('#') if indent == 0 else re.match(r'^  #', line)) if indent is not None else False
+        if items and (comment or not line.strip()):
             pending.append(line)
         elif items:
             # Ein nicht eingerückter Kommentar am Blockende lässt sich nicht
