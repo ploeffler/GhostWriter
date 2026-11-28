@@ -40,3 +40,19 @@
   .crumbs::-webkit-scrollbar{display:none}
   .crumbs>*{flex:none;white-space:nowrap}
 }
+
+/* EasyMDE für die Abschnittsseite; einfaches Textfeld mit ?editor=text. */
+.EasyMDEContainer{min-width:0;color:var(--ink,#263238)}
+.EasyMDEContainer .CodeMirror{font:inherit;line-height:1.7;overflow-wrap:anywhere}
+.EasyMDEContainer .editor-toolbar{display:flex;flex-wrap:wrap;gap:4px}
+.EasyMDEContainer .editor-toolbar button{min-width:40px;min-height:40px;width:auto;padding:0 10px}
+.EasyMDEContainer .editor-toolbar button:disabled{opacity:.4;pointer-events:none}
+.EasyMDEContainer .editor-preview{overflow-wrap:anywhere}
+.EasyMDEContainer .CodeMirror-fullscreen{z-index:101}
+.EasyMDEContainer .editor-toolbar.fullscreen{z-index:102}
+@media(max-width:600px){.EasyMDEContainer .CodeMirror{font-size:16px}}
+.EasyMDEContainer .CodeMirror,.EasyMDEContainer .editor-toolbar,.EasyMDEContainer .editor-preview{background:var(--surface-1,#fff);color:var(--text-primary,#263238);border-color:var(--border-strong,#b9bfc2)}
+.EasyMDEContainer .editor-toolbar button{color:var(--text-primary,#263238)}
+.EasyMDEContainer .editor-toolbar button.active,.EasyMDEContainer .editor-toolbar button:hover{background:var(--surface-2,#f7f6f3);border-color:var(--border-strong,#b9bfc2)}
+.EasyMDEContainer .CodeMirror-cursor{border-left-color:var(--text-primary,#263238)}
+.EasyMDEContainer .CodeMirror-selected{background:var(--bg-accent,#fdf0e4)}

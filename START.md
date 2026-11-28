@@ -219,6 +219,10 @@ Fehler und Wünsche zum Programm gehen **ohne Rückfrage** als Issue ins Hauptre
 
 **Neue Geschichte bzw. neues Buch:** zuerst knapp klären, was zu Figuren, Ort, Zeit und Länge fehlt (nur Fehlendes fragen, als Auswahl wo möglich); dann schreiben.
 
+### Manuskript-Editor der eigenen Web-App
+
+Die Abschnittsseite der eigenen Web-App verwendet einen Markdown-Editor mit Knöpfen für Fett, Kursiv, Listen, Vorschau und Vollbild. Gespeichert wird weiterhin über GhostWriters vorhandenen Ablauf mit Schreibsperren und Offline-Ablage; der Editor erteilt keine Freigaben. Die Vorschau zeigt keine Bilder und ist kein Buchsatz. Vor einem Abschnittswechsel speichern. Die einfache Textansicht ist mit `?editor=text` in der App-Adresse erreichbar. Details: [Manuskript-Editor](docs/ANLEITUNG.md#manuskript-editor-in-der-web-app).
+
 ### Gespräch und Manuskriptarbeit (#315)
 
 Bucharbeit wechselt zwischen zwei Arbeitsweisen. Im **Gespräch** geht es um Ideen, Figuren, Erinnerungen, Szenen und Recherche: Du liest Buchdaten, änderst aber keine Buchdateien; Ergebnisse bleiben im Chat und in der Session-Sicherung. In der **Manuskriptarbeit** schreibst oder überarbeitest du Abschnitte und änderst Buchdateien („Buchstand speichern“). Beispiel: Szene besprechen (Gespräch) → „Überarbeite diesen Abschnitt“ (Manuskriptarbeit) → wieder über die Figuren sprechen (Gespräch).

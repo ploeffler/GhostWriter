@@ -1,0 +1,35 @@
+<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Editor-Speicherprüfung</title><base href="../"><link rel="stylesheet" href="../shared/app.css"><link rel="stylesheet" href="web.css">
+<script src="vendor/js-yaml.min.js"></script><div id="gw"></div><div id="unsaved" hidden></div><div id="net"></div><p id="result">Wartet</p>
+<script>
+const SECTION='chapters/01/sections/01.md', source='---\nid: sec-1\nstatus: writing\nfact_check: disabled\napprovals:\n  writing: true\n  section: false\n---\n\n## Ziel des Abschnitts\n\nOffen.\n\n## Kurzbeschreibung\n\nOffen.\n\n## Manuskript\n\nAlt.\n';
+let errors=[];window.addEventListener("error",e=>{errors.push(e.message);$("result").textContent="ERROR: "+e.message;});
+let remote={text:source,sha:'s1'}, writes=[], savedPromise=null;
+const S={owner:'test',repo:'editor',book:{branch:'buch/test'},struct:[{sections:[{id:'sec-1',path:SECTION,title:'Test'}]}],sec:{id:'sec-1',path:SECTION},secNo:'1.1',secFile:remote,files:new Map(),readRef:'ghostwriter/buch/test',view:'section',role:null};
+const NET={online:true,github:true};
+const $=id=>document.getElementById(id),esc=s=>String(s),token=()=>true,workOf=b=>'ghostwriter/'+b.branch,errText=e=>e.message;
+const GW_PORTS={agent:'Test',git:{pushFiles:async(branch,files)=>{writes.push({branch,files});files.forEach(f=>{if(f.path===SECTION)remote={text:f.content,sha:'s'+(writes.length+1)};});},createPR:async()=>{}}};
+function busy(){} function show(){} function needWrite(){if(roleWhy('section.update'))throw Error('Nur lesen');}
+function roleWhy(){return S.role==='reader'?'Nur lesen':'';}
+async function openPR(){return {number:1,url:'https://example.invalid/pr/1'};} async function prCommits(){}
+async function getFile(){if(!NET.online)throw {code:'offline'};return remote;}
+async function loadBookData(){S.secFile=remote;} function applyOverlay(ref,files){S.secFile={text:files[0].content,sha:remote.sha};}
+
+</script>
+<script src="../shared/s03-abschnittsdateien.js"></script><script src="merge3.js"></script><script src="outbox-web.js"></script><script src="../shared/s09-schreiben.js"></script><script src="../shared/s08-aktionen.js"></script><script>window.sendPrompt=text=>{savedPromise=act(parseAction(text));};</script><script src="editor-web.js"></script><script src="vendor/gw-lite.js"></script>
+<script>
+function draw(text){GW.render('abschnitt-bearbeiten',{HEAD_SHA:'a'.repeat(40),SECTION_ID:'sec-1',SECTION_NUMBER:'1.1',SECTION_TITLE:'Test',SECTION_STATUS:'writing',SECTION_MANUSCRIPT:text,APPROVAL_WRITING:'true',APPROVAL_SECTION:'false',FACT_CHECK:'disabled',CHARACTERS:[],MARKERS:[]},$('gw'),'de');return editorAttach('abschnitt-bearbeiten',$('gw'));}
+const assert=(v,m)=>{if(!v)throw Error(m);};
+(async()=>{try{
+$("result").textContent="stage draw";await draw('Alt.');assert(GW_EDITOR.active,'Editor fehlt');
+$("result").textContent="stage online";const online='Online **fett**. `Code` \\Pfad ![](bild:img-test)\n\nZweiter Absatz.';GW_EDITOR.active.editor.value(online);$('gw-save').click();await savedPromise;
+assert(writes.length===1&&writes[0].branch==='ghostwriter/buch/test','Speichern nicht auf Arbeitsbranch: '+JSON.stringify({errors,writes,msg:S.msg,disabled:$("gw-save").disabled,promise:!!savedPromise,manuscript:$("gw-ms").value}));assert(msOf(remote.text)===online,'Online-Text verändert');
+$("result").textContent="stage offline";await draw(online);NET.online=false;const offline='Offline *kursiv*. ![](bild:img-test)';GW_EDITOR.active.editor.value(offline);$('gw-save').click();await savedPromise;
+assert(writes.length===1,'Offline Netzschreiben');assert((await OB.all()).length===1,'Outbox leer');assert(msOf((await OB.all())[0].files[0].content)===offline,'Offline-Text verändert');
+const persisted=outboxStore();assert((await persisted.all()).length===1,'IndexedDB nicht dauerhaft');
+$("result").textContent="stage flush";NET.online=true;await GW_PORTS.outbox.flush();assert((await OB.all()).length===0,'Outbox nicht geleert');assert(writes.length===2&&msOf(remote.text)===offline,'Hochladen verliert Text');
+await draw(offline);S.role='reader';await editorAttach('abschnitt-bearbeiten',$('gw'));assert(GW_EDITOR.active.editor.codemirror.getOption('readOnly')==='nocursor','Leser kann tippen');S.role=null;
+remote={text:source.replace('section: false','section: true'),sha:'approved'};S.secFile=remote;await draw('Alt.');GW_EDITOR.active.editor.value('Verbotene Änderung');$('gw-save').click();await savedPromise;
+assert(writes.length===2&&(S.msg||{}).kind==='err','Abschluss wurde umgangen');assert((await OB.all()).length===0,'Abgeschlossenen Text lokal gespeichert');
+$('result').textContent='PASS: echtes Abschnittsformular, Online-Speichern, IndexedDB, Offline-Speichern und Hochladen, Leserechte, abgeschlossener Abschnitt.';
+}catch(e){$('result').textContent='FAIL: '+(e.stack||e.message);}})();
+</script></html>

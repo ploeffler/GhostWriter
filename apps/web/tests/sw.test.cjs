@@ -30,7 +30,7 @@ const ev = (url, method = "GET", mode = "cors") => { const e = {request: {url, m
   // Installieren: App-Hülle vollständig im Speicher
   const inst = ev("x"); inst.waitUntil = p => { inst.out = p; }; t.listeners.install(inst); await inst.out;
   const shell = t.stores.get(ver[1]);
-  for (const f of ["index.html", "vendor/gw-lite.js", "vendor/icons.css", "vendor/js-yaml.min.js", "manifest.webmanifest", "icons/icon-192.png"])
+  for (const f of ["index.html", "vendor/gw-lite.js", "vendor/icons.css", "vendor/js-yaml.min.js", "vendor/easymde.min.js", "vendor/easymde.min.css", "vendor/purify.min.js", "manifest.webmanifest", "icons/icon-192.png"])
     assert([...shell.values()].some(v => v.url === f), f + " fehlt in der App-Hülle");
 
   // Aktivieren: nur alte Speicher dieser App fallen weg, fremde bleiben
@@ -56,5 +56,9 @@ const ev = (url, method = "GET", mode = "cors") => { const e = {request: {url, m
   e = ev("https://app.example/web/?x=1", "GET", "navigate"); t.listeners.fetch(e); r = await e.out; assert.equal(r.body, "shell:./");
   e = ev("https://app.example/web/andere-seite", "GET", "navigate"); t.listeners.fetch(e); r = await e.out; assert.equal(r.body, "shell:index.html");
   e = ev("https://app.example/web/gibt-es-nicht.js"); t.listeners.fetch(e); r = await e.out; assert.equal(r.error, true);
+  for (const asset of ["vendor/easymde.min.js", "vendor/easymde.min.css", "vendor/purify.min.js"]){
+    e = ev("https://app.example/web/" + asset); t.listeners.fetch(e); r = await e.out;
+    assert.equal(r.body, "shell:" + asset, "Editor ohne Netz verfügbar: " + asset);
+  }
   console.log("sw ok");
 })().catch(e => { console.error(e); process.exit(1); });

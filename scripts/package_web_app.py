@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / 'apps' / 'web'
 # Genau diese Dateien gehören zur veröffentlichten App; alles andere (Quellen, Tests, README, Bauskripte) nicht.
 FILES = ['index.html', 'sw.js', 'manifest.webmanifest', 'faehigkeiten.json', 'modelle.json',
+         'vendor/easymde.min.js', 'vendor/easymde.min.css', 'vendor/easymde.LICENSE',
+         'vendor/purify.min.js', 'vendor/purify.LICENSE',
          'vendor/gw-lite.js', 'vendor/icons.css', 'vendor/js-yaml.min.js', 'vendor/js-yaml.LICENSE',
          'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/icon-180.png', 'icons/icon.svg']
 

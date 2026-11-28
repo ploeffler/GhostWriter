@@ -145,6 +145,11 @@ cover:
 `visible: false` hides a part. `font: serif` or `sans` selects its font family. `break_after: [2]` forces a break after word two; output stops if a metadata change makes the break position invalid. Otherwise width controls wrapping. `background_targets` limits `background` to `front`, `spine` and/or `back`; explicit `panel_backgrounds` take precedence. Unselected panels without a specific color use the default color. The image still covers the front background. JSON patches modify only named fields and merge individual text areas and panel colors. `null` removes an override, for example `{"text_boxes":{"title":null}}` restores the template title.
 
 
+## Manuscript editor in the web app
+
+The section page provides a Markdown editor with formatting buttons and a preview. GhostWriter still handles saving and editing locks. The preview shows no images and does not represent book typesetting. Add `?editor=text` to the app URL to use the plain text area. Save before switching sections. A real mobile keyboard and saving in a real book have not yet been practically validated.
+
+
 ---
 
 <p align="right"><sub>Developed with support from Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Developed with support from Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>
