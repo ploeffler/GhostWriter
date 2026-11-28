@@ -208,7 +208,7 @@ def head_comments(text):
     return ''.join(head)
 
 
-_TOP_LEVEL_KEY = re.compile(r'^([^\\s#][^:]*):(?:[ \\t].*|[ \\t]*$)')
+_TOP_LEVEL_KEY = re.compile(r'^([^\s#][^:]*):(?:[ \t].*|[ \t]*$)')
 
 
 def _dump_yaml(data):
@@ -225,7 +225,7 @@ def _top_blocks(text):
     """
     blocks, key, current, pending = [], None, [], []
     for line in text.splitlines(keepends=True):
-        if not line.startswith((' ', '\\t')) and (not line.strip() or line.startswith('#')):
+        if not line.startswith((' ', '\t')) and (not line.strip() or line.startswith('#')):
             pending.append(line)
             continue
         match = _TOP_LEVEL_KEY.match(line)
@@ -289,7 +289,7 @@ def _parsed_list_items(key, items):
     parsed = []
     for item in items:
         try:
-            value = yaml.safe_load(key + ':\\n' + ''.join(item))
+            value = yaml.safe_load(key + ':\n' + ''.join(item))
         except yaml.YAMLError:
             return None
         if not isinstance(value, dict) or key not in value or not isinstance(value[key], list) or len(value[key]) != 1:
@@ -369,7 +369,7 @@ def write_yaml(path, data):
     head = head_comments(old_text)
     body = merge_yaml(old_text, data) if old_text else _dump_yaml(data)
     if head and not body.startswith(head):
-        body = head + '\\n' + body if not head.endswith('\\n') else head + body
+        body = head + '\n' + body if not head.endswith('\n') else head + body
     p.write_text(body, encoding='utf-8')
 
 
