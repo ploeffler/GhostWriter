@@ -244,7 +244,9 @@ def _top_blocks(text):
             current.append(line)
     if pending:
         if current:
-            current.extend(pending)
+            blocks.append((key, current))
+            current = []
+            blocks.append((None, pending))
         else:
             blocks.append((None, pending))
     if current:
@@ -337,6 +339,7 @@ def merge_yaml(old_text, data):
             return _dump_yaml(data)
         old_blocks[key] = lines
 
+    trailing = ''.join(scanned[-1][1]) if scanned and scanned[-1][0] is None and key_blocks else ''
     parts = []
     for key, value in data.items():
         block = old_blocks.get(key)
@@ -361,7 +364,7 @@ def merge_yaml(old_text, data):
                             for i in range(len(items))))
                         continue
         parts.append(''.join(prefix) + _dump_yaml({key: value}))
-    return ''.join(parts)
+    return ''.join(parts) + trailing
 
 
 def write_yaml(path, data):
