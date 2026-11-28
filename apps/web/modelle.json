@@ -2,52 +2,265 @@
   "format": 1,
   "updated": "2026-11-27",
   "hinweis": "Modellliste der Web-App (#525): Modelle, die im Browser laufen. Gleiche Struktur wie faehigkeiten.json (requires/reason). Gewichte kommen erst nach ausdrücklichem Klick von huggingface.co und bleiben im Cache dieses Browsers; Text verlässt das Gerät nie. Messwerte: siehe Kommentar #525 (CPU-Lauf, q4).",
-  "runtime": {"name": "Transformers.js", "version": "4.3.2", "url": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js", "host": "cdn.jsdelivr.net"},
+  "runtime": {
+    "name": "Transformers.js",
+    "version": "4.3.2",
+    "url": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js",
+    "host": "cdn.jsdelivr.net"
+  },
   "models": [
     {
       "id": "gemma4-e2b",
-      "name": {"de": "Gemma 4 E2B (Standard)", "en": "Gemma 4 E2B (default)"},
+      "name": {
+        "de": "Gemma 4 E2B (Standard)",
+        "en": "Gemma 4 E2B (default)"
+      },
       "repo": "onnx-community/gemma-4-E2B-it-ONNX",
       "dtype": "q4f16",
       "class": "Gemma4ForConditionalGeneration",
       "tier": "standard",
       "sizeBytes": 2900000000,
       "license": "Apache 2.0",
-      "requires": {"webgpu": true, "shaderF16": true, "memoryGB": 6, "storageFreeGB": 4},
+      "requires": {
+        "webgpu": true,
+        "shaderF16": true,
+        "memoryGB": 6,
+        "storageFreeGB": 4
+      },
       "toolFormat": "gemma",
       "audio": true,
-      "note": {"de": "Gutes Deutsch, Übersetzung, Zusammenfassen, Lektorat; kann später Sprachnotizen abschreiben.", "en": "Good German, translation, summaries, editing; can later transcribe voice notes."},
-      "reason": {"de": "braucht WebGPU mit shader-f16, mindestens {memoryGB} GB Arbeitsspeicher und {storageFreeGB} GB freien Speicher", "en": "needs WebGPU with shader-f16, at least {memoryGB} GB of memory and {storageFreeGB} GB free space"}
+      "note": {
+        "de": "Gutes Deutsch, Übersetzung, Zusammenfassen, Lektorat; kann später Sprachnotizen abschreiben.",
+        "en": "Good German, translation, summaries, editing; can later transcribe voice notes."
+      },
+      "reason": {
+        "de": "braucht WebGPU mit shader-f16, mindestens {memoryGB} GB Arbeitsspeicher und {storageFreeGB} GB freien Speicher",
+        "en": "needs WebGPU with shader-f16, at least {memoryGB} GB of memory and {storageFreeGB} GB free space"
+      },
+      "files": [
+        {
+          "path": "preprocessor_config.json",
+          "size": 43
+        },
+        {
+          "path": "generation_config.json",
+          "size": 238
+        },
+        {
+          "path": "processor_config.json",
+          "size": 1689
+        },
+        {
+          "path": "config.json",
+          "size": 5549
+        },
+        {
+          "path": "onnx/embed_tokens_q4f16.onnx",
+          "size": 5621
+        },
+        {
+          "path": "chat_template.jinja",
+          "size": 16317
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size": 18590
+        },
+        {
+          "path": "onnx/vision_encoder_q4f16.onnx",
+          "size": 189124
+        },
+        {
+          "path": "onnx/decoder_model_merged_q4f16.onnx",
+          "size": 673231
+        },
+        {
+          "path": "tokenizer.json",
+          "size": 19439251
+        },
+        {
+          "path": "onnx/vision_encoder_q4f16.onnx_data",
+          "size": 99189440
+        },
+        {
+          "path": "onnx/decoder_model_merged_q4f16.onnx_data",
+          "size": 1519700992
+        },
+        {
+          "path": "onnx/embed_tokens_q4f16.onnx_data",
+          "size": 1590689792
+        }
+      ]
     },
     {
       "id": "gemma4-e4b",
-      "name": {"de": "Gemma 4 E4B (stark)", "en": "Gemma 4 E4B (strong)"},
+      "name": {
+        "de": "Gemma 4 E4B (stark)",
+        "en": "Gemma 4 E4B (strong)"
+      },
       "repo": "onnx-community/gemma-4-E4B-it-ONNX",
       "dtype": "q4f16",
       "class": "Gemma4ForConditionalGeneration",
       "tier": "stark",
       "sizeBytes": 4570000000,
       "license": "Apache 2.0",
-      "requires": {"webgpu": true, "shaderF16": true, "memoryGB": 8, "storageFreeGB": 7},
+      "requires": {
+        "webgpu": true,
+        "shaderF16": true,
+        "memoryGB": 8,
+        "storageFreeGB": 7
+      },
       "toolFormat": "gemma",
       "audio": true,
-      "note": {"de": "Etwas idiomatischere Übersetzung, braucht einen starken Rechner und viel Platz.", "en": "Slightly more idiomatic translation; needs a strong machine and lots of space."},
-      "reason": {"de": "braucht WebGPU mit shader-f16, mindestens {memoryGB} GB Arbeitsspeicher und {storageFreeGB} GB freien Speicher", "en": "needs WebGPU with shader-f16, at least {memoryGB} GB of memory and {storageFreeGB} GB free space"}
+      "note": {
+        "de": "Etwas idiomatischere Übersetzung, braucht einen starken Rechner und viel Platz.",
+        "en": "Slightly more idiomatic translation; needs a strong machine and lots of space."
+      },
+      "reason": {
+        "de": "braucht WebGPU mit shader-f16, mindestens {memoryGB} GB Arbeitsspeicher und {storageFreeGB} GB freien Speicher",
+        "en": "needs WebGPU with shader-f16, at least {memoryGB} GB of memory and {storageFreeGB} GB free space"
+      },
+      "files": [
+        {
+          "path": "preprocessor_config.json",
+          "size": 43
+        },
+        {
+          "path": "generation_config.json",
+          "size": 238
+        },
+        {
+          "path": "processor_config.json",
+          "size": 1689
+        },
+        {
+          "path": "onnx/embed_tokens_q4f16.onnx",
+          "size": 5619
+        },
+        {
+          "path": "config.json",
+          "size": 5741
+        },
+        {
+          "path": "chat_template.jinja",
+          "size": 16317
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size": 18590
+        },
+        {
+          "path": "onnx/vision_encoder_q4f16.onnx",
+          "size": 189126
+        },
+        {
+          "path": "onnx/decoder_model_merged_q4f16.onnx",
+          "size": 850610
+        },
+        {
+          "path": "tokenizer.json",
+          "size": 19439251
+        },
+        {
+          "path": "onnx/vision_encoder_q4f16.onnx_data",
+          "size": 100762304
+        },
+        {
+          "path": "onnx/decoder_model_merged_q4f16.onnx_data_1",
+          "size": 812318720
+        },
+        {
+          "path": "onnx/embed_tokens_q4f16.onnx_data",
+          "size": 2017460224
+        },
+        {
+          "path": "onnx/decoder_model_merged_q4f16.onnx_data",
+          "size": 2074847232
+        }
+      ]
     },
     {
       "id": "qwen35-2b",
-      "name": {"de": "Qwen3.5 2B (Notbehelf)", "en": "Qwen3.5 2B (fallback)"},
+      "name": {
+        "de": "Qwen3.5 2B (Notbehelf)",
+        "en": "Qwen3.5 2B (fallback)"
+      },
       "repo": "onnx-community/Qwen3.5-2B-ONNX",
       "dtype": "q4f16",
       "class": "Qwen3_5ForConditionalGeneration",
       "tier": "notbehelf",
       "sizeBytes": 1470000000,
       "license": "Apache 2.0",
-      "requires": {"webgpu": true, "shaderF16": true, "memoryGB": 4, "storageFreeGB": 3},
+      "requires": {
+        "webgpu": true,
+        "shaderF16": true,
+        "memoryGB": 4,
+        "storageFreeGB": 3
+      },
       "toolFormat": "qwen",
       "audio": false,
-      "note": {"de": "Nur für kleine Geräte: Deutsch und Übersetzung sind deutlich schwächer, erfindet leicht Angaben. Vorschläge besonders genau prüfen.", "en": "Only for small devices: German and translation are clearly weaker and it invents details. Check suggestions carefully."},
-      "reason": {"de": "braucht WebGPU mit shader-f16, mindestens {memoryGB} GB Arbeitsspeicher und {storageFreeGB} GB freien Speicher", "en": "needs WebGPU with shader-f16, at least {memoryGB} GB of memory and {storageFreeGB} GB free space"}
+      "note": {
+        "de": "Nur für kleine Geräte: Deutsch und Übersetzung sind deutlich schwächer, erfindet leicht Angaben. Vorschläge besonders genau prüfen.",
+        "en": "Only for small devices: German and translation are clearly weaker and it invents details. Check suggestions carefully."
+      },
+      "reason": {
+        "de": "braucht WebGPU mit shader-f16, mindestens {memoryGB} GB Arbeitsspeicher und {storageFreeGB} GB freien Speicher",
+        "en": "needs WebGPU with shader-f16, at least {memoryGB} GB of memory and {storageFreeGB} GB free space"
+      },
+      "files": [
+        {
+          "path": "generation_config.json",
+          "size": 248
+        },
+        {
+          "path": "preprocessor_config.json",
+          "size": 336
+        },
+        {
+          "path": "onnx/embed_tokens_q4f16.onnx",
+          "size": 1064
+        },
+        {
+          "path": "processor_config.json",
+          "size": 1300
+        },
+        {
+          "path": "config.json",
+          "size": 2993
+        },
+        {
+          "path": "chat_template.jinja",
+          "size": 7755
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size": 10069
+        },
+        {
+          "path": "onnx/vision_encoder_q4f16.onnx",
+          "size": 393718
+        },
+        {
+          "path": "onnx/decoder_model_merged_q4f16.onnx",
+          "size": 1046438
+        },
+        {
+          "path": "tokenizer.json",
+          "size": 19226111
+        },
+        {
+          "path": "onnx/vision_encoder_q4f16.onnx_data",
+          "size": 196945920
+        },
+        {
+          "path": "onnx/embed_tokens_q4f16.onnx_data",
+          "size": 294010880
+        },
+        {
+          "path": "onnx/decoder_model_merged_q4f16.onnx_data",
+          "size": 1089777664
+        }
+      ]
     }
   ]
 }

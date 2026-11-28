@@ -1018,7 +1018,7 @@ window.addEventListener("beforeunload", ev => { if (VOICE.rec){ ev.preventDefaul
    (huggingface.co) werden erst nach „Herunterladen“ geladen und bleiben im Cache dieses Browsers; Buchtext verlässt das Gerät nie. Die KI schlägt nur vor: Es wird nichts
    automatisch gespeichert, ein Vorschlag wird erst nach eigenem Klick übernommen (Kopieren). Die Liste steht in modelle.json (Format wie faehigkeiten.json). */
 const MDL = {list:null, rt:null, loaded:null, pipe:null, busy:false, progress:{}, abort:null, msg:null, probe:{}, chat:[], back:null};
-const MDL_KEY = "gw.model", MDL_DONE = "gw.model.done.", MDL_RUN = "gw.model.run";   // fertig geladen (je Modell) / Download läuft (Marke gegen Unterbrechung, #758)
+const MDL_KEY = "gw.model", MDL_DONE = "gw.model.done.", MDL_RUN = "gw.model.run", MDL_PHASE = "gw.model.phase", MDL_CRASH = "gw.model.crashes.";   // fertig geladen (je Modell) / Download läuft (Marke gegen Unterbrechung, #758) / Phase und Absturzzähler (#774)
 const MDL_TASKS = {
   lektorat: {de:"Lektorat", sys:"Du bist ein sorgfältiger Lektor. Verbessere Rechtschreibung, Grammatik und Ausdruck des Textes. Erhalte Inhalt, Handlung, Ton und Erzählstimme. Erfinde nichts dazu. Antworte nur mit dem überarbeiteten Text."},
   zusammenfassen: {de:"Zusammenfassen", sys:"Fasse den Text in wenigen Sätzen zusammen. Erfinde nichts dazu. Antworte nur mit der Zusammenfassung."},
@@ -1073,13 +1073,52 @@ async function mdlWake(on){   // Bildschirm anlassen, solange der Download läuf
     if (navigator.wakeLock && !mdlLock){ mdlLock = await navigator.wakeLock.request("screen"); mdlLock.addEventListener && mdlLock.addEventListener("release", () => { mdlLock = null; }); }
   } catch (e) { mdlLock = null; }
 }
+const mdlPhase = v => { try { store.set(MDL_PHASE, v); } catch (e) {} };
+const mdlFileUrl = (m, path) => "https://huggingface.co/" + m.repo + "/resolve/main/" + path;
+/* Freier Platz vorab (#774): zu wenig Platz meldet sich vor dem Download, nicht erst als Absturz. Fragt außerdem dauerhaften Speicher an. */
+async function mdlPreflight(m){
+  try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) {}
+  try {
+    if (navigator.storage && navigator.storage.estimate){
+      const e = await navigator.storage.estimate(), frei = (e.quota || 0) - (e.usage || 0);
+      if (e.quota && frei < m.sizeBytes * 1.3) return `Zu wenig freier Speicher: ${fmtBytes(frei)} frei, ${mdlSize(m)} nötig.`;
+    }
+  } catch (e) {}
+  return "";
+}
+/* Dateien einzeln gestreamt in den Cache der Laufzeit schreiben (#774, Stufe 2): Die Antwort wird durchgereicht und nie als Ganzes in den JavaScript-Speicher gelesen.
+   Schlüssel ist die Anfrage-URL wie bei Transformers.js (so zählt auch mdlHasFiles). Fehlt eine Datei hier, lädt from_pretrained sie danach wie bisher selbst. */
+async function mdlPrefetch(m, onBytes){
+  if (!m.files || !m.files.length || !window.caches || typeof fetch !== "function") return;
+  const cache = await caches.open("transformers-cache"), total = m.files.reduce((a, f) => a + f.size, 0);
+  let done = 0; const ctl = new AbortController(); MDL.fetchAbort = ctl;
+  for (const f of m.files){
+    if (MDL.cancel) throw new Error("abgebrochen");
+    const url = mdlFileUrl(m, f.path);
+    if (await cache.match(url)){ done += f.size; onBytes(done, total, f.path); continue; }
+    mdlPhase("datei:" + f.path);
+    const res = await fetch(url, {signal:ctl.signal});
+    if (!res.ok || !res.body) throw new Error("Datei nicht ladbar: " + f.path + " (" + res.status + ")");
+    let got = 0; const base = done;
+    const counter = new TransformStream({transform(chunk, c){ if (MDL.cancel){ ctl.abort(); c.error(new Error("abgebrochen")); return; } got += chunk.byteLength; MDL.lastTick = Date.now(); onBytes(base + got, total, f.path); c.enqueue(chunk); }});
+    const headers = {"content-type": res.headers.get("content-type") || "application/octet-stream"}; const len = res.headers.get("content-length"); if (len) headers["content-length"] = len;
+    await cache.put(url, new Response(res.body.pipeThrough(counter), {headers}));   // ein Abbruch mitten in der Datei hinterlässt keinen Eintrag
+    done = base + f.size;
+  }
+  MDL.fetchAbort = null;
+}
 async function mdlDownload(m){
   if (MDL.busy) return; MDL.busy = true; MDL.cancel = false; MDL.msg = null; MDL.lastTick = Date.now();
-  MDL.progress = {pct:0, file:"", loaded:0, total:m.sizeBytes, m:m.id}; store.set(MDL_RUN, m.id);
+  const fehl = await mdlPreflight(m);
+  if (fehl){ MDL.msg = {kind:"err", html:esc(fehl)}; MDL.busy = false; if (S.view === "model") modelView(); return; }
+  MDL.progress = {pct:0, file:"", loaded:0, total:m.sizeBytes, m:m.id}; store.set(MDL_RUN, m.id); mdlPhase("start");
   if (S.view === "model") modelView();   // Balken und „Abbrechen“ sofort zeigen (#758)
   mdlWake(true);
   try {
     const rt = await mdlRuntime(), files = {};
+    await mdlPrefetch(m, (l, t, file) => { MDL.progress = {pct:Math.min(99, Math.round(l / t * 100)), file, loaded:l, total:t, m:m.id}; mdlTick(); });
+    if (MDL.cancel) throw new Error("abgebrochen");
+    mdlPhase("sitzung"); MDL.starting = true; if (S.view === "model") modelView();
     const model = await rt[m.class].from_pretrained(m.repo, {dtype:m.dtype, device:"webgpu", progress_callback: p => {
       if (MDL.cancel) throw new Error("abgebrochen");   // beendet den Download an der nächsten Meldung; fertige Dateien bleiben im Cache
       MDL.lastTick = Date.now();
@@ -1087,16 +1126,17 @@ async function mdlDownload(m){
     }});
     if (MDL.cancel) throw new Error("abgebrochen");
     MDL.progress = {pct:100, file:"", loaded:m.sizeBytes, total:m.sizeBytes, m:m.id}; mdlTick();
+    mdlPhase("prozessor");
     const proc = await rt.AutoProcessor.from_pretrained(m.repo);
-    MDL.pipe = {model, proc, m}; MDL.loaded = m.id; store.set(MDL_KEY, m.id); store.set(MDL_DONE + m.id, "1");
+    MDL.pipe = {model, proc, m}; MDL.loaded = m.id; store.set(MDL_KEY, m.id); store.set(MDL_DONE + m.id, "1"); store.set(MDL_CRASH + m.id, "");
     MDL.msg = {kind:"ok", html:`<b>${esc(m.name.de)}</b> ist geladen und liegt im Speicher dieses Browsers.`};
   } catch (e) {
     if (MDL.cancel) MDL.msg = {kind:"info", html:"Der Download wurde abgebrochen. Fertig geladene Dateien bleiben erhalten; „Download fortsetzen“ lädt nur den Rest."};
     else { MDL.msg = {kind:"err", html:esc("Das Modell konnte nicht geladen werden: " + (e && e.message || e)) + " Fertig geladene Dateien bleiben erhalten; „Download fortsetzen“ lädt nur den Rest."}; if (typeof errLog === "function") errLog(e, {schritt:"modell"}); }
   }
-  MDL.busy = false; MDL.cancel = false; MDL.progress = {}; store.set(MDL_RUN, ""); mdlWake(false); if (S.view === "model") modelView();
+  MDL.busy = false; MDL.cancel = false; MDL.starting = false; MDL.fetchAbort = null; MDL.progress = {}; store.set(MDL_RUN, ""); mdlPhase(""); mdlWake(false); if (S.view === "model") modelView();
 }
-function mdlProgLabel(p){ return !p.loaded ? "wird geladen …" : `${p.pct || 0} % · ${fmtBytes(p.loaded)} von ${fmtBytes(p.total)}`; }
+function mdlProgLabel(p){ return MDL.starting ? "Modell wird gestartet …" : !p.loaded ? "wird geladen …" : `${p.pct || 0} % · ${fmtBytes(p.loaded)} von ${fmtBytes(p.total)}`; }
 function mdlTick(){ const el = $("mdlprog"); if (!el) return; const p = MDL.progress; el.value = p.pct || 0; const t = $("mdlproglabel"); if (t) t.textContent = mdlProgLabel(p); }
 async function mdlDelete(m){
   try { const c = await caches.open("transformers-cache"); for (const r of await c.keys()) if (r.url.includes("/" + m.repo + "/")) await c.delete(r); } catch (e) {}
@@ -1119,10 +1159,28 @@ async function mdlProbe(m){   // Probelauf: kurzer Auftrag, Zeitmessung; das Erg
   const s = (performance.now() - t0) / 1000; MDL.probe[m.id] = {sec:s, tokens:n, text:txt, tps:n / s};
   return MDL.probe[m.id];
 }
+function mdlCrashMsg(ph, n){   // Absturz erkennen und benennen (#774): wiederholt an derselben Stelle heißt „Gerät schafft es nicht“
+  const wo = ph === "sitzung" ? "beim Starten des Modells" : ph && ph.startsWith("datei:") ? "bei der Datei " + ph.slice(6) : "";
+  if (n >= 2 && ph && ph !== "start") return {kind:"warn", html:`Der Download ist ${n} Mal an derselben Stelle abgestürzt${wo ? " (" + esc(wo) + ")" : ""}. Wahrscheinlich reicht der Arbeitsspeicher dieses Geräts nicht. Weitere Versuche helfen vermutlich nicht; nutze den Chat mit GhostWriter oder einen Rechner. „Diagnose kopieren“ hilft bei der Fehlersuche.`, repeat:true};
+  return {kind:"warn", html:`Der letzte Download wurde unterbrochen${wo ? " (" + esc(wo) + ")" : ""}, etwa durch Neuladen, App-Wechsel oder Speichermangel. Fertig geladene Dateien bleiben erhalten; „Download fortsetzen“ lädt nur den Rest.`};
+}
+/* Diagnose zum Kopieren (#774): nur Gerätewerte und Modellzustand, keine Buchinhalte. */
+async function mdlDiagnose(){
+  const dev = await setDevice(), l = await mdlList(), est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate().catch(() => ({})) : {}, pm = (typeof performance !== "undefined" && performance.memory) || {};
+  const rows = [["Modelle", l.models.map(m => m.id + ": " + (store.get(MDL_CRASH + m.id) || 0) + " Abstürze, Stelle " + (store.get(MDL_CRASH + "phase." + m.id) || "–")).join("; ")],
+    ["Speicher frei/Kontingent", `${fmtBytes((est.quota || 0) - (est.usage || 0))} / ${fmtBytes(est.quota || 0)}`], ["Arbeitsspeicher (deviceMemory)", String(navigator.deviceMemory || "unbekannt")], ["Kerne", String(navigator.hardwareConcurrency || "unbekannt")],
+    ["WebGPU maxBufferSize", String(dev.maxBuffer || "–")], ["WebGPU maxStorageBufferBindingSize", String(dev.maxStorageBuffer || "–")], ["JS-Heap belegt", pm.usedJSHeapSize ? fmtBytes(pm.usedJSHeapSize) : "–"],
+    ["Dauerhaft angefordert", String(dev.persisted)], ["Mobilgerät", String(!!dev.mobile)], ["Browser", typeof errBrowser === "function" ? errBrowser() : "–"]];
+  return "GhostWriter Modell-Diagnose\n" + rows.map(r => r[0] + ": " + r[1]).join("\n");
+}
 async function modelView(){
   if (!MDL.back || S.view !== "model") MDL.back = {view:S.view || "connect", arg:S.view === "section" ? S.sec && S.sec.id : S.chap};
   S.view = "model"; crumbs();
-  if (!MDL.busy && store.get(MDL_RUN)){ store.set(MDL_RUN, ""); MDL.msg = {kind:"warn", html:"Der letzte Download wurde unterbrochen (Seite neu geladen oder App gewechselt). Fertig geladene Dateien bleiben erhalten; „Download fortsetzen“ lädt nur den Rest."}; }
+  if (!MDL.busy && store.get(MDL_RUN)){
+    const id = store.get(MDL_RUN), ph = store.get(MDL_PHASE); store.set(MDL_RUN, ""); mdlPhase("");
+    const n = Number(store.get(MDL_CRASH + id) || 0) + 1; store.set(MDL_CRASH + id, String(n)); store.set(MDL_CRASH + "phase." + id, ph);
+    MDL.msg = mdlCrashMsg(ph, n);
+  }
   const [l, dev] = await Promise.all([mdlList(), setDevice()]), pick = mdlPick(l.models, dev), webgpu = dev.webgpu;
   const rows = [];
   for (const m of l.models){
@@ -1139,7 +1197,7 @@ async function modelView(){
   $("app").innerHTML = `<div class="one"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:20px">Modell im Browser</b><button class="btn" data-act="mdl-back">Zurück</button></div>${msgBox()}${MDL.msg ? `<div class="note ${MDL.msg.kind}">${MDL.msg.html}</div>` : ""}
     <section class="card"><b>Wie das funktioniert</b><p class="dim" style="margin:6px 0">Das Modell läuft auf diesem Gerät. Dein Text wird <b>nicht ins Netz geschickt</b>. Heruntergeladen werden nur das Programm für das Modell (von ${esc((l.runtime && l.runtime.host) || "cdn.jsdelivr.net")}) und die Modelldatei (von huggingface.co), und zwar erst, wenn du auf „Herunterladen“ klickst. Das Modell schlägt nur vor; gespeichert wird nichts von allein.</p>
     ${webgpu ? "" : '<div class="note warn">Dieses Gerät meldet kein WebGPU. Ohne WebGPU läuft das Modell nicht oder sehr langsam; nutze dann den Chat mit GhostWriter.</div>'}${dev.shaderF16 ? "" : webgpu ? '<div class="note warn">WebGPU ohne „shader-f16“: die kleinen Modelle brauchen es.</div>' : ""}</section>
-    <section class="card"><b>Modelle</b>${prog}<table class="kv">${rows.join("")}</table></section><section class="card"><b>Chat</b>${chat}</section></div>`;
+    <section class="card"><b>Modelle</b>${dev.mobile ? '<div class="note warn">Auf Handys stürzt der Download großer Modelle oft ab (zu wenig Arbeitsspeicher pro Tab). Besser am Rechner oder im Chat mit GhostWriter.</div>' : ""}${prog}<table class="kv">${rows.join("")}</table></section><section class="card"><b>Chat</b>${chat}</section><section class="card"><button class="btn" data-mdl="diag">Diagnose kopieren</button> <span class="dim">Gerätewerte und Modellzustand, keine Buchinhalte.</span></section></div>`;
   window.scrollTo(0, 0);
 }
 function mdlChatHtml(){
@@ -1173,6 +1231,7 @@ document.addEventListener("click", async ev => {
   if (k === "delete" && m){ if (confirm("Das Modell von diesem Gerät löschen?")) mdlDelete(m); return; }
   if (k === "probe" && m){ MDL.msg = {kind:"info", html:"Probelauf läuft …"}; MDL.busy = true; modelView(); try { const r = await mdlProbe(m); MDL.msg = {kind:"ok", html:`Probelauf: ${r.tps.toFixed(1).replace(".", ",")} Token pro Sekunde.`}; } catch (e) { MDL.msg = {kind:"err", html:esc("Der Probelauf ist fehlgeschlagen: " + (e && e.message || e))}; } MDL.busy = false; return modelView(); }
   if (k === "cancel"){ if (MDL.abort){ try { MDL.abort.interrupt(); } catch (e) {} return; } MDL.cancel = true; MDL.msg = {kind:"info", html:"Wird abgebrochen …"}; const t = $("mdlproglabel"); if (t) t.textContent = "wird abgebrochen …"; return; }
+  if (k === "diag"){ try { await navigator.clipboard.writeText(await mdlDiagnose()); b.textContent = "Kopiert"; } catch (e) { b.textContent = "Nicht möglich"; } return; }
   if (k === "stop"){ try { MDL.abort && MDL.abort.interrupt(); } catch (e) {} return; }
   if (k === "copy"){ try { await navigator.clipboard.writeText(MDL.chat[Number(b.dataset.i)].text); b.textContent = "Kopiert"; } catch (e) { b.textContent = "Nicht möglich"; } }
 });
