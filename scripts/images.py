@@ -254,11 +254,11 @@ def add(base, key, file, caption, alt='', prompt='', source='chat', provider='',
         raise ValueError('Ungültige maximale Bildkante')
     from io import BytesIO
     from PIL import Image
+    from image_validation import validate_image
+    mime = 'image/jpeg' if ext in ('.jpg', '.jpeg') else 'image/png'
+    validate_image(data, src.name, mime)
     with Image.open(BytesIO(data)) as image:
-        if image.format not in ('PNG', 'JPEG'):
-            raise ValueError('Nur PNG oder JPEG.')
         size = image.size
-        image.verify()
     resized = None
     if max(size) > max_px:
         if not confirm_resize:
