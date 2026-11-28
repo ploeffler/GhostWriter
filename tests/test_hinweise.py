@@ -127,20 +127,20 @@ class HinweiseTest(unittest.TestCase):
         path = self.base / 'editorial/durchsicht-preserve.yml'
         long_text = 'Ein langer Originalwortlaut mit mehreren erläuternden Bestandteilen, der deutlich mehr als hundert Zeichen umfasst. ' * 2
         original = (
-            '# Kopfkommentar bleibt erhalten\\n'
-            'buch: Test\\n'
-            'ohne_autor:\\n'
-            '  - id: e-001\\n'
-            f'    alt: "{long_text}"\\n'
-            '    # Kommentar innerhalb des unveränderten Eintrags\\n'
-            '    entscheidung: offen\\n'
-            '  - id: e-002\\n'
-            '    alt: Zweiter Eintrag\\n'
-            '    entscheidung: offen\\n'
-            '  - id: e-003\\n'
-            '    alt: Dritter Eintrag\\n'
-            '    entscheidung: offen\\n'
-            'autorenentscheidung: []\\n'
+            '# Kopfkommentar bleibt erhalten\n'
+            'buch: Test\n'
+            'ohne_autor:\n'
+            '  - id: e-001\n'
+            f'    alt: "{long_text}"\n'
+            '    # Kommentar innerhalb des unveränderten Eintrags\n'
+            '    entscheidung: offen\n'
+            '  - id: e-002\n'
+            '    alt: Zweiter Eintrag\n'
+            '    entscheidung: offen\n'
+            '  - id: e-003\n'
+            '    alt: Dritter Eintrag\n'
+            '    entscheidung: offen\n'
+            'autorenentscheidung: []\n'
         )
         path.write_text(original, encoding='utf-8')
         data = hinweise.read_yaml(path)
@@ -152,7 +152,7 @@ class HinweiseTest(unittest.TestCase):
         third = original[original.index('  - id: e-003'):original.index('autorenentscheidung:')]
         self.assertIn(first, written)
         self.assertIn(third, written)
-        self.assertIn('    # Kommentar innerhalb des unveränderten Eintrags\\n', written)
+        self.assertIn('    # Kommentar innerhalb des unveränderten Eintrags\n', written)
         self.assertEqual(yaml.safe_load(written), data)
 
         # Ein erneutes Schreiben ohne Datenänderung darf auch den Rest nicht umformatieren.
@@ -163,16 +163,16 @@ class HinweiseTest(unittest.TestCase):
         """#717: Bei Parsefehlern oder nicht sicher trennbaren Listen bleibt das Schreiben möglich."""
         path = self.base / 'editorial/durchsicht-fallback.yml'
         data = {'buch': 'Test', 'ohne_autor': [{'id': 'e-001', 'entscheidung': 'offen'}]}
-        path.write_text('buch: [\\n', encoding='utf-8')
+        path.write_text('buch: [\n', encoding='utf-8')
         hinweise.write_yaml(path, data)
         self.assertEqual(yaml.safe_load(path.read_text(encoding='utf-8')), data)
 
         # Geänderte Listenlänge: vollständiger Dump statt riskanter Zuordnung per Index.
         path.write_text(
-            'buch: Test\\n'
-            'ohne_autor:\\n'
-            '  - id: e-001\\n'
-            '    entscheidung: offen\\n',
+            'buch: Test\n'
+            'ohne_autor:\n'
+            '  - id: e-001\n'
+            '    entscheidung: offen\n',
             encoding='utf-8')
         expanded = hinweise.read_yaml(path)
         expanded['ohne_autor'].append({'id': 'e-002', 'entscheidung': 'offen'})
