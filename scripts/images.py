@@ -23,7 +23,7 @@ add legt ein Bild ab: chapters/<kapitel>/images/<abschnitt>/img-<slug>.<png|jpg>
 (bei Vor-/Nachspann matter/images/<mat-id>/), dazu img-<slug>.yml (Beschreibung,
 Schema schemas/image.schema.json) und den Lauf run-NNN.md (unveränderlich).
 Status ist zunächst `draft`; ins Buch kommt ein Bild erst nach der Freigabe
-(START.md, „Illustrationen“). Pillow prüft Uploads. images.max_px (Vorgabe 3000)
+(START.md, „Illustrationen“). Pillow dekodiert Uploads vollständig und erkennt auch abgeschnittene Bilddaten. images.max_px (Vorgabe 3000)
 begrenzt die Buchfassung; Verkleinerung nur nach Bestätigung, Original bleibt erhalten.
 --source: chat (im Chat erzeugt), copy (Auftrag bei einem anderen Dienst),
 own (eigenes Bild, nicht KI-erzeugt).
@@ -254,11 +254,11 @@ def add(base, key, file, caption, alt='', prompt='', source='chat', provider='',
         raise ValueError('Ungültige maximale Bildkante')
     from io import BytesIO
     from PIL import Image
+    from image_validation import validate_image
+    mime = 'image/jpeg' if ext in ('.jpg', '.jpeg') else 'image/png'
+    validate_image(data, src.name, mime)
     with Image.open(BytesIO(data)) as image:
-        if image.format not in ('PNG', 'JPEG'):
-            raise ValueError('Nur PNG oder JPEG.')
         size = image.size
-        image.verify()
     resized = None
     if max(size) > max_px:
         if not confirm_resize:

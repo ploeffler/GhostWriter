@@ -28,7 +28,7 @@ Auftrag (Schema schemas/job.schema.json): eine Datei `request-NNN.yml`.
   und tragen ihre Felder unter einem Schlüssel mit dem Namen der Art.
 Gemeinsame Felder: `type`, `requested_at`, `requested_by`, `provider`, `model`,
 `confirm_low_budget`; Zustand: `error` und `failed_at` (fehlgeschlagen, läuft nicht erneut),
-`waiting: budget` (wartet auf Bestätigung, weil das KI-Budget unter der Schwelle ist).
+`waiting: budget` (wartet auf Bestätigung, weil das KI-Budget unter der Schwelle ist). Bei Medienaufträgen hält `previous_request` die Kennung eines bei fal.ai endgültig fehlgeschlagenen Ergebnisses fest; `submitted` wird dann entfernt, damit ein erneuter Versuch neu senden kann.
 
 Startbedingungen (#65, alle optional, mehrere kombinierbar: der Auftrag startet erst, wenn **alle** erfüllt sind):
 `not_before` (ISO-Zeitpunkt, feste Zeit), `when: budget_free` (nur wenn das KI-Budget des Monats nicht unter der Pausenschwelle
@@ -309,8 +309,8 @@ def prioritize(base, request):
 
 
 def retry(base, request):
-    """Erneut versuchen (#554): `error` und `failed_at` entfernen, der Auftrag ist wieder offen. Kein zweiter Auftrag.
-    Nur fehlgeschlagene Aufträge; Frage, Modell und Anbieter bleiben, wie sie sind."""
+    """Erneut versuchen (#554): `error` und `failed_at` entfernen. Medienaufträge ohne `submitted` senden neu;
+    nach endgültigem fal.ai-4xx bleibt die alte Kennung in `previous_request`. Sonst wird die vorhandene request_id weitergenutzt."""
     job = find(base, request)
     if job['state'] != 'failed':
         raise ValueError('Erneut versuchen geht nur bei fehlgeschlagenen Aufträgen.')
@@ -425,6 +425,25 @@ def unique_activity_id(base, activity_id):
     return candidate
 
 
+def _validate_media_input(base, media):
+    """Prüft Medien-Eingaben innerhalb des Buchs vollständig vor Queue oder Upload."""
+    name = str((media or {}).get('input') or '').strip()
+    if not name:
+        return
+    base = Path(base).resolve()
+    src = (base / name).resolve()
+    if base not in src.parents or not src.is_file():
+        raise research.ResearchError('media.input muss eine vorhandene Bilddatei innerhalb des Buchs sein.')
+    mime = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp'}.get(src.suffix.lower())
+    if not mime:
+        raise research.ResearchError('media.input: JPEG, PNG oder WebP.')
+    from image_validation import validate_image
+    try:
+        validate_image(src.read_bytes(), src.name, mime)
+    except ValueError as exc:
+        raise research.ResearchError(str(exc)) from None
+
+
 def enqueue(base, type_='research', section=None, question=None, provider=None, model=None,
             confirm_low_budget=False, requested_by=None, now=None, fields=None, priority=False, after=None,
             not_before=None, when=None, after_event=None):
@@ -462,6 +481,8 @@ def enqueue(base, type_='research', section=None, question=None, provider=None, 
             data['after'] = after
         data.update(start)
         data[type_] = {k: v for k, v in (fields or {}).items() if k in FIELDS[type_] and v not in (None, '')}
+        if type_ == 'media':
+            _validate_media_input(base, data['media'])
         if type_ == 'agent':
             agent = data['agent']
             if not str(agent.get('task') or '').strip():
@@ -738,6 +759,7 @@ def run_media(base, job):
     outdir = Path(str(m.get('output') or f'media/{stem}'))
     if outdir.is_absolute() or '..' in outdir.parts:
         raise research.ResearchError('media.output muss ein Ordner im Buch sein.')
+    _validate_media_input(base, m)
     try:
         key = fal_media.api_key()
         rid = (job['data'].get('submitted') or {}).get('request_id')
@@ -771,6 +793,16 @@ def run_media(base, job):
             fal_media.download(url, dest)
             saved.append(dest.relative_to(base).as_posix())
     except (fal_media.FalError, ValueError) as e:   # JSONDecodeError ist ein ValueError
+        if (isinstance(e, fal_media.FalError) and e.status is not None
+                and 400 <= e.status < 500 and e.status not in (408, 409, 425, 429)):
+            submitted = job['data'].pop('submitted', None)
+            if submitted:
+                job['data']['previous_request'] = {
+                    'request_id': submitted['request_id'],
+                    'at': now_utc().isoformat(),
+                    'http_status': e.status,
+                }
+                write(job['path'], job['data'])
         raise research.ResearchError(str(e)[:300])
     meta = {'model': model, 'seed': m.get('seed'), 'prompt': prompt, 'files': saved, 'created_at': now_utc().isoformat(),
             'note': 'Entwurf, keine Freigabe. Die request_id steht nicht hier.'}

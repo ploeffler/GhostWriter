@@ -95,7 +95,7 @@ class MediaPolicyTest(unittest.TestCase):
     def test_corrupt_image_rejected_before_writing(self):
         self.source.write_bytes(b'not an image')
         before = self.snapshot()
-        with self.assertRaises(OSError):
+        with self.assertRaisesRegex(ValueError, 'beschädigt oder unvollständig'):
             self.add()
         self.assertEqual(before, self.snapshot())
 
