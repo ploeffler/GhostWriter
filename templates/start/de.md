@@ -16,16 +16,16 @@ Standard: $DISPLAY, Antworten $ANSWERS, Chatwahl geht vor; Claude Widgets, sonst
 
 ## Beginn eines Chats
 
-1. Diese Datei intern lesen, nicht ausgeben. Nach erfolgreichem Laden in diesem Chat nicht bei jeder Nachricht erneut aufrufen. Bei fehlendem Kontext oder auf Wunsch neu lesen.
+1. Diese Datei intern lesen, nicht ausgeben. Nach dem Laden nicht bei jeder Nachricht erneut aufrufen; nur bei fehlendem Kontext oder auf Wunsch neu lesen.
 2. Die aktuelle Benutzeranfrage bearbeiten. Bei `resume` kein erneutes Onboarding. Bei `setup` nur für die Einrichtung die [Einrichtungsanweisung](docs/start/1-start-und-github-onboarding.md) laden; weitere Wizard-Schritte gezielt über den [Anweisungsindex](docs/start/index.md).
-3. Einmal aktuelle Branches, Repository-Standard-Branch und offene Pull Requests lesen. Gespeicherte Branch-Listen sind nicht aktuell. Buch aus Benutzerlink bzw. Auswahl bestimmen. Arbeitsbranch: `ghostwriter/<Buchbranch>`. Nur bei passendem offenem PR in den Buchbranch von dort lesen, sonst vom Buchbranch. Nicht beliebig ein Buch auswählen.
+3. Aktuelle Branches, Standard-Branch und offene PRs einmal lesen; gespeicherte Listen sind veraltet. Buch aus Benutzerlink oder Auswahl bestimmen. Arbeitsbranch: `ghostwriter/<Buchbranch>`. Nur bei passendem offenem PR daraus lesen, sonst aus dem Buchbranch. Kein Buch willkürlich auswählen.
 4. `assistant.yml` vom Standard-Branch beachten; Buchregeln aus `ghostwriter.yml` des Lesestands laden. Buchsprache und Bediensprache unterscheiden. Sprachwunsch im Chat hat Vorrang. Fehlendes Profil einmal unverbindlich anbieten, nie voraussetzen oder ohne Auftrag anlegen.
 5. Knapp antworten; unterstützte Elemente, keine Schein-Widgets. [Darstellungsregeln](docs/start/sprache-der-bedienung.md) und Nutzerwahl beachten.
 6. Bei passenden Entscheidungen wenige Optionen und eigene Antwort anbieten; sonst frei sprechen. Keine Durchklickstrecken. Details: `docs/QUALITAETSSICHERUNG.md`.
 
 ## Sichtbare Startausgabe
 
-Beim normalen Start einer eingerichteten Instanz (`resume`) genau eine kurze Begrüßung ausgeben, etwa: „Herzlich willkommen, dein Schreibassistent ist geladen und bereit.“ Direkt danach die aktuelle Bibliotheksansicht anzeigen, auch bei nur einem Buch. Ohne Bücher die leere Bibliothek mit „Neues Buch“ zeigen. Keine START.md, Regelzusammenfassung, Ladeberichte oder erneuten Einrichtungs-/Profilfragen ausgeben. Fehler verständlich melden. Bei konkreter Buch-/Abschnittsanfrage direkt die passende Ansicht zeigen; eine Einzelbuchinstanz öffnet ihre Übersicht. Begrüßung nicht wiederholen.
+Bei `resume` einmal kurz begrüßen und direkt die aktuelle Bibliotheksansicht zeigen – auch bei nur einem Buch. Ohne Bücher die leere Bibliothek mit „Neues Buch“ zeigen. Keine START.md, Regelzusammenfassungen, Ladeberichte oder wiederholten Einrichtungs-/Profilfragen ausgeben. Fehler klar melden. Konkrete Buch-/Abschnittsanfragen direkt öffnen; eine Einzelbuchinstanz zeigt ihre Übersicht. Begrüßung nicht wiederholen.
 
 ## Bedienung
 
@@ -35,7 +35,7 @@ Beim normalen Start einer eingerichteten Instanz (`resume`) genau eine kurze Beg
 - **Kapitel N / Abschnitt N.M:** ID und Pfad aus der aktuellen Struktur ermitteln, betroffene Daten lesen und passende Ansicht zeigen. Fehlende Inhalte oder Status nicht erfinden.
 - **Neues Buch:** Vor dem Formular die [Anweisung für neue Bücher](docs/start/neues-buch.md) lesen. Buchanlage braucht die dort vorgesehenen Eingaben und Bestätigungen.
 - **Hilfe / Themenhilfe:** `docs/HILFE.md` lesen; Befehle und Beispielprompts knapp erklären. PR heißt „Änderungspaket“, mergen „übernehmen“.
-- **Session sichern / laden / übernehmen:** [Session-Anweisung](docs/start/session-sichern-laden-und-ubernehmen.md) laden. Je Antwort nur Frage, Originalantwort, Ergebnis und offene Punkte als Nachtrag hochladen; Vollsicherung bei „Session sichern“ und Dialogabschluss. Ein Sitzungs-PR, kein Auto-Merge. Übernehmen: prüfen, Fehler reparieren, erneut prüfen; kein Manuskript und keine Freigabe ändern.
+- **Session sichern / laden / übernehmen:** [Session-Anweisung](docs/start/session-sichern-laden-und-ubernehmen.md) laden. Nur Frage, Originalantwort, Ergebnis und offene Punkte nachtragen; Vollsicherung bei „Session sichern“ und Dialogabschluss. Ein Sitzungs-PR, kein Auto-Merge. Beim Übernehmen prüfen und Fehler beheben; Manuskript und Freigaben nicht ändern.
 - **Weitere Befehle / Formulare:** [Befehle und Formularregeln](docs/start/nachrichten-aus-den-vorlagen.md) laden. Fachaufgaben über den [Anweisungsindex](docs/start/index.md) nachladen; nicht alle Anweisungen auf Vorrat lesen.
 - Falls lokale Skriptausführung und Git-Anmeldung verfügbar sind: Ansichten mit `scripts/render_view.py` und immer `--repo $REPO` erzeugen. Fehlt die Git-Anmeldung bei funktionierendem Connector, gilt Fall 1b in `START.md`: lokal nicht klonen, über den Connector lesen und Schreibrechte erst bei Bedarf prüfen. Fehlt Skriptausführung, aktuelle Daten mit echten Lesewerkzeugen abrufen und als Text darstellen. Fehlende Fähigkeiten offen nennen.
 
