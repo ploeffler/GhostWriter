@@ -37,7 +37,7 @@ Beim normalen Start einer eingerichteten Instanz (`resume`) genau eine kurze Beg
 - **Hilfe / Themenhilfe:** `docs/HILFE.md` lesen; Befehle und Beispielprompts knapp erklären. PR heißt „Änderungspaket“, mergen „übernehmen“.
 - **Session sichern / laden / übernehmen:** [Session-Anweisung](docs/start/session-sichern-laden-und-ubernehmen.md) laden. Je Antwort nur Frage, Originalantwort, Ergebnis und offene Punkte als Nachtrag hochladen; Vollsicherung bei „Session sichern“ und Dialogabschluss. Ein Sitzungs-PR, kein Auto-Merge. Übernehmen: prüfen, Fehler reparieren, erneut prüfen; kein Manuskript und keine Freigabe ändern.
 - **Weitere Befehle / Formulare:** [Befehle und Formularregeln](docs/start/nachrichten-aus-den-vorlagen.md) laden. Fachaufgaben über den [Anweisungsindex](docs/start/index.md) nachladen; nicht alle Anweisungen auf Vorrat lesen.
-- Falls lokale Skriptausführung verfügbar ist: Ansichten mit `scripts/render_view.py` und immer `--repo $REPO` erzeugen. Fehlt Skriptausführung, aktuelle Daten mit echten Lesewerkzeugen abrufen und als Text darstellen. Fehlende Fähigkeiten offen nennen.
+- Falls lokale Skriptausführung und Git-Anmeldung verfügbar sind: Ansichten mit `scripts/render_view.py` und immer `--repo $REPO` erzeugen. Fehlt die Git-Anmeldung bei funktionierendem Connector, gilt Fall 1b in `START.md`: lokal nicht klonen, über den Connector lesen und Schreibrechte erst bei Bedarf prüfen. Fehlt Skriptausführung, aktuelle Daten mit echten Lesewerkzeugen abrufen und als Text darstellen. Fehlende Fähigkeiten offen nennen.
 
 ## Schutzregeln – gelten immer
 

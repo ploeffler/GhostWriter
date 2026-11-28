@@ -37,7 +37,7 @@ For a normal start of a configured instance (`resume`), show one short greeting,
 - **Help:** Read `docs/HILFE.md`; `Help` shows a short command overview, `Help commands`, `Help changes`, and `Help sessions` show focused help. Read only; use the selected interface language.
 - **Session sichern / laden / übernehmen:** read the [session instructions](docs/start/session-sichern-laden-und-ubernehmen.md). Append only each question, original answer, result and open points; upload and verify before replying. Full backup on Save session and completion. One session PR, no auto-merge. Acceptance: check, diagnose, repair and recheck; no manuscript or approval changes.
 - **Other commands / forms:** Read the [command and form rules](docs/start/nachrichten-aus-den-vorlagen.md); use the [instruction index](docs/start/index.md) for specific tasks. Do not load all instructions in advance. Detailed source instructions may be German; answer in the chosen interface language without translating manuscript text.
-- With local execution use `scripts/render_view.py` and always `--repo $REPO`. Without it, fetch actual data with reading tools and display text. State missing capabilities honestly.
+- With local execution and Git authentication, use `scripts/render_view.py` and always `--repo $REPO`. If Git authentication is missing but the connector works, follow Fall 1b in `START.md`: do not clone locally; read through the connector and check write access only when needed. Without script execution, fetch actual data with reading tools and display text. State missing capabilities honestly.
 
 ## Always applicable safeguards
 
