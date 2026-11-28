@@ -1,6 +1,6 @@
 /* Freigaben (START.md, „Freigaben“) */
 const EMPTY_MS = ["", "Noch nicht begonnen.", "Offen."];
-async function login(){ if (S.login) return S.login; try { S.login = (await GW_PORTS.git.me()) || "chat"; } catch (e) { S.login = "chat"; } return S.login; }
+async function login(){ if (S.login) return S.login; try { S.login = (await GW_PORTS.git.me()) || "chat"; } catch (e) { if (gwNetErr(e)) return "chat"; S.login = "chat"; } return S.login; }   // ein Netzfehler wird nicht festgehalten: nach Rückkehr des Netzes wird neu gelesen (#744)
 async function sha256full(t){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t.trim())); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
 function nowIso(){ const d = new Date(), o = -d.getTimezoneOffset(), p = n => String(Math.abs(n)).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${o >= 0 ? "+" : "-"}${p(Math.trunc(o / 60))}:${p(o % 60)}`; }
 async function approvalState(data){

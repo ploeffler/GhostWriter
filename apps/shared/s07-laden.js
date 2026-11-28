@@ -2,12 +2,12 @@
 async function loadRepo(spec){
   const m = /(?:github\.com\/)?([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(spec.trim());
   if (!m){ S.msg = {kind:"err", html:"Bitte als owner/repo eingeben."}; return show("connect"); }
-  [S.owner, S.repo] = [m[1], m[2]]; store.set("gw.repo", S.owner + "/" + S.repo); S.files.clear(); S.lib = null; S.libCfg = undefined; S.webJobs = {};
+  [S.owner, S.repo] = [m[1], m[2]]; store.set("gw.repo", S.owner + "/" + S.repo); S.files.clear(); S.lib = null; S.libCfg = undefined; S.webJobs = {}; S.stale = 0;
   busy("Bücherregal wird geladen …");
-  try { S.lib = JSON.parse((await getFile("library.json")).text); }
+  try { S.lib = JSON.parse((await getFile("library.json", "", false, true)).text); }
   catch (e) {
-    try { await getFile("ghostwriter-index.json"); S.lib = {books:[{branch:"main", title:S.repo, status:"ready", work_branch:"ghostwriter/main"}]}; }
-    catch (e2) { S.msg = {kind:"err", html:esc(await repoMissingText(e))}; S.owner = ""; return show("connect"); }
+    try { await getFile("ghostwriter-index.json", "", false, true); S.lib = {books:[{branch:"main", title:S.repo, status:"ready", work_branch:"ghostwriter/main"}]}; }
+    catch (e2) { S.msg = {kind:"err", html:esc(gwNetErr(e) || gwNetErr(e2) ? "Dieses Repository wurde auf diesem Gerät noch nie geöffnet und es gibt gerade kein Netz. Öffne es einmal mit Netz, danach geht es auch offline." : await repoMissingText(e))}; S.owner = ""; return show("connect"); }
   }
   S.msg = null;
   if ((S.lib.books || []).length === 1) return openBook(S.lib.books[0].branch);
@@ -24,11 +24,11 @@ async function repoMissingText(e){   // #729: ein 404 auf library.json heißt ni
   return "„" + name + "“ ist erreichbar, enthält aber weder ein Bücherregal (library.json) noch ein Buch (ghostwriter-index.json). Ein Programm-Repository ist kein Buch: Wähle das Repository, in dem dein Buch oder deine Bibliothek liegt.";
 }
 async function loadBookData(ref, overlay){
-  S.readRef = ref; S.files.clear();
+  S.readRef = ref; S.files.clear(); S.stale = 0;
   S.idx = {project:{}, chapters:[]};
   S.idxMissing = false;
-  try { const ix = await getFile("ghostwriter-index.json", ref, true); S.idx = JSON.parse(ix.text); S.head = ix.commit || S.head; } catch (e) { S.idxMissing = true; }   // nicht still übergehen: Summen dann aus den Kostendateien (#754)
-  const gy = await getFile("ghostwriter.yml", ref, true); if (gy.commit) S.head = gy.commit;
+  try { const ix = await getFile("ghostwriter-index.json", ref, true, true); S.idx = JSON.parse(ix.text); S.head = ix.commit || S.head; } catch (e) { S.idxMissing = true; }   // nicht still übergehen: Summen dann aus den Kostendateien (#754)
+  const gy = await getFile("ghostwriter.yml", ref, true, true); if (gy.commit) S.head = gy.commit;
   S.cfg = {}; try { S.cfg = window.jsyaml.load(gy.text) || {}; } catch (e) {}
   buildStruct();
   if (S.idxMissing) await costsFromFiles(ref);
@@ -70,12 +70,16 @@ async function openBook(branch){
   S.book = (S.lib.books || []).find(b => b.branch === branch); if (!S.book) return;
   S.chap = null; S.sec = null; S.chat = []; S.msg = null; S.showAll = false; crumbs(); busy("Buch wird geöffnet …");
   try {
-    S.pr = await openPR(S.book).catch(() => null);
+    let prErr = null; S.pr = await openPR(S.book).catch(e => { prErr = e; return null; });
     if (S.pr) await prCommits(S.pr);
-    await loadBookData(S.pr ? workOf(S.book) : S.book.branch);
+    // ohne Netz den Branch lesen, von dem zuletzt gelesen wurde (meist der Arbeits-Branch), nicht den Buch-Branch (#744)
+    let ref = S.pr ? workOf(S.book) : S.book.branch;
+    if (!S.pr && GW_PORTS.snap && (gwNetErr(prErr) || (GW_PORTS.outbox && GW_PORTS.outbox.offline()))){ const meta = await GW_PORTS.snap.meta(S.owner + "/" + S.repo); if (meta && meta.branch === S.book.branch && meta.readRef) ref = meta.readRef; }
+    await loadBookData(ref);
+    if (!S.stale && GW_PORTS.snap) GW_PORTS.snap.setMeta(S.owner + "/" + S.repo, {branch:S.book.branch, readRef:ref});
     await loadRole();
     S.skills = null; S.skillsFor = ""; loadSkills().then(() => { if (S.view === "project" || S.view === "chapter" || S.view === "section") { const h = document.querySelector(".claude .ch-head p"); if (h) h.innerHTML = skillLine(h.dataset.base || h.textContent); } }).catch(() => {});
     show("project");
-  } catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; S.book = null; show("library"); }
+  } catch (e) { S.msg = {kind:"err", html:esc(gwNetErr(e) ? "Dieses Buch ist noch nicht auf diesem Gerät. Öffne es einmal mit Netz, danach geht es auch offline." : errText(e))}; S.book = null; show("library"); }
 }
 

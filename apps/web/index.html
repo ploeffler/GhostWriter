@@ -337,7 +337,8 @@ function netRender(){
   const el = $("net"); if (!el) return;
   const msg = NET.online === false ? "Offline – gelesen werden kann, was schon geladen ist. Abschnittstexte kannst du weiter schreiben: Sie werden auf diesem Gerät gesichert und hochgeladen, sobald wieder Netz da ist. Alles andere (Figuren, Gliederung, Freigaben) geht erst wieder mit Netz."
     : NET.github === false ? "Online, aber GitHub ist gerade nicht erreichbar. Abschnittstexte werden auf diesem Gerät gesichert und später hochgeladen; alles andere geht erst wieder, wenn GitHub antwortet." : "";
-  el.hidden = !msg; el.className = "netbar" + (msg ? " off" : ""); el.textContent = msg;
+  const st = msg && S.stale ? " Angezeigt wird der Stand vom " + new Date(S.stale).toLocaleString("de-DE", {day:"numeric", month:"numeric", hour:"2-digit", minute:"2-digit"}) + " Uhr." : "";
+  el.hidden = !msg; el.className = "netbar" + (msg ? " off" : ""); el.textContent = msg + st;
 }
 function netFailed(){ NET.github = false; NET.wasDown = true; netRender(); netSchedule(); }   // von ports-web.js bei einem Netzfehler
 /* ---------- Dreiwege-Vergleich je Absatz (#662, Konfliktlösung) ----------
@@ -389,12 +390,22 @@ function m3Join(chunks, choice){
    solange etwas wartet; beim Verlassen der Seite fragt der Browser nach. Ein Eintrag: {id, repo, book:{branch, work_branch}, files:[{path, content}],
    message, action, seen:{path: Blob-Kennung|null}, created, state:"wartet"|"konflikt"|"fehler", error}. */
 const OUTBOX_DAY = 24 * 3600 * 1000;
+/* Gemeinsame Datenbank „gw-web“ (Version 2, #744): Speicher „outbox“ (wartende Änderungen) und „files“ (Offline-Bestand gelesener Dateien, snap-web.js). */
+function gwDb(){
+  if (gwDb.p) return gwDb.p;
+  gwDb.p = new Promise((ok, no) => {
+    const r = indexedDB.open("gw-web", 2);
+    r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains("outbox")) d.createObjectStore("outbox", {keyPath:"id", autoIncrement:true}); if (!d.objectStoreNames.contains("files")) d.createObjectStore("files", {keyPath:"key"}); };
+    r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+  });
+  return gwDb.p;
+}
 function outboxStore(){
   if (typeof indexedDB === "undefined"){            // Rückfall (Tests, sehr alte Browser): nur im Arbeitsspeicher, geht beim Neuladen verloren
     const m = new Map(); let n = 0;
     return {mem:true, all:async () => [...m.values()].sort((a, b) => a.id - b.id), put:async e => { if (!e.id) e.id = ++n; m.set(e.id, JSON.parse(JSON.stringify(e))); return e.id; }, del:async id => { m.delete(id); }};
   }
-  const db = new Promise((ok, no) => { const r = indexedDB.open("gw-web", 1); r.onupgradeneeded = () => r.result.createObjectStore("outbox", {keyPath:"id", autoIncrement:true}); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+  const db = gwDb();
   const run = (mode, fn) => db.then(d => new Promise((ok, no) => { const t = d.transaction("outbox", mode), q = fn(t.objectStore("outbox")); t.oncomplete = () => ok(q && q.result); t.onerror = () => no(t.error); t.onabort = () => no(t.error); }));
   return {mem:false, all:() => run("readonly", s => s.getAll()).then(a => (a || []).sort((x, y) => x.id - y.id)), put:e => run("readwrite", s => s.put(e)), del:id => run("readwrite", s => s.delete(id))};
 }
@@ -494,6 +505,36 @@ async function obRender(justUploaded){
   el.innerHTML = `<b>${head}</b>${act}${notes.length ? `<div class="sub">${notes.join("<br>")}</div>` : ""}${n ? `<details><summary>Betroffen</summary><ul>${places.map(p => `<li>${esc(p)}</li>`).join("")}</ul></details>` : ""}`;
 }
 window.addEventListener("beforeunload", ev => { if (document.title.startsWith("(")){ ev.preventDefault(); ev.returnValue = ""; } });
+/* ---------- Offline-Bestand gelesener Dateien (#744, Teil 2) ----------
+   Jede erfolgreich gelesene Textdatei eines Buchs wird auf diesem Gerät abgelegt (IndexedDB, Speicher „files“ der Datenbank „gw-web“). Nur bei einem Netzfehler
+   liest getFile (s02-dateien.js) daraus; sonst bleibt alles wie bisher. Abgelegt wird nur Buchtext im Klartext mit Prüfsumme und Commit, nie der Token oder
+   Antwort-Köpfe von GitHub. Bilder (Binärdaten) bleiben draußen. Beim Abmelden wird der Bestand gelöscht (clear), die Outbox nicht.
+   Schlüssel: „<owner>/<repo>|<ref>|<pfad>“; der zuletzt gelesene Branch je Repository steht unter „<owner>/<repo>|meta“. */
+const SNAP_MAX = 4000;   // Dateien je Gerät; ist es mehr, werden die ältesten verworfen
+function snapStore(){
+  if (typeof indexedDB === "undefined"){   // Rückfall (Tests, sehr alte Browser): nur im Arbeitsspeicher
+    const m = new Map();
+    return {mem:true, get:async k => m.get(k) || null, put:async e => { m.set(e.key, JSON.parse(JSON.stringify(e))); }, all:async () => [...m.values()], del:async k => { m.delete(k); }, clear:async () => { m.clear(); }};
+  }
+  const run = (mode, fn) => gwDb().then(d => new Promise((ok, no) => { const t = d.transaction("files", mode), q = fn(t.objectStore("files")); t.oncomplete = () => ok(q && q.result); t.onerror = () => no(t.error); t.onabort = () => no(t.error); }));
+  return {mem:false, get:k => run("readonly", s => s.get(k)).then(r => r || null), put:e => run("readwrite", s => s.put(e)), all:() => run("readonly", s => s.getAll()).then(a => a || []), del:k => run("readwrite", s => s.delete(k)), clear:() => run("readwrite", s => s.clear())};
+}
+const SB = snapStore();
+let snapPuts = 0;
+async function snapPrune(){   // selten: älteste Dateien über SNAP_MAX hinaus entfernen (Meta-Einträge bleiben)
+  const all = (await SB.all()).filter(e => !e.meta); if (all.length <= SNAP_MAX) return;
+  all.sort((a, b) => a.t - b.t); for (const e of all.slice(0, all.length - SNAP_MAX)) await SB.del(e.key);
+}
+GW_PORTS.snap = {
+  async put(repo, ref, path, f){
+    if (!f || typeof f.text !== "string") return;
+    try { await SB.put({key:repo + "|" + (ref || "") + "|" + path, repo, ref:ref || "", path, text:f.text, sha:f.sha || null, commit:f.commit || null, t:Date.now()}); if (++snapPuts % 100 === 0) await snapPrune(); } catch (e) {}
+  },
+  async get(repo, ref, path){ try { return await SB.get(repo + "|" + (ref || "") + "|" + path); } catch (e) { return null; } },
+  async meta(repo){ try { return await SB.get(repo + "|meta"); } catch (e) { return null; } },
+  async setMeta(repo, m){ try { await SB.put({key:repo + "|meta", meta:true, branch:m.branch, readRef:m.readRef, t:Date.now()}); } catch (e) {} },
+  async clear(){ try { await SB.clear(); } catch (e) {} }
+};
 /* ---------- Konflikt lösen (#662): lokale Fassung und GitHub-Fassung nebeneinander ----------
    Je Stelle (Absatz), an der beide Seiten verschieden geändert haben: „Meins behalten“, „GitHub übernehmen“, „Beides behalten“ (beide untereinander mit
    der Marke [KONFLIKT PRÜFEN: …]) oder „Selbst zusammenfügen“. Alles Übrige ist schon zusammengeführt. „Später – nichts verlieren“ legt den lokalen Stand
@@ -1382,11 +1423,23 @@ async function editorAttach(name, root){
 { const previous = GW_PORTS.afterRender; GW_PORTS.afterRender = (name, root) => {
   if (previous) previous(name, root); editorAttach(name, root);
 }; }
-async function getFile(path, ref, fresh){
-  const key = (ref || "") + "|" + path;
+/* Offline-Bestand (#744): Jede erfolgreich gelesene Datei wird auf dem Gerät abgelegt (GW_PORTS.snap, nur Buchtext, nie der Token). Nur bei einem Netzfehler
+   (offline, GitHub nicht erreichbar) und nur für Lesezugriffe (`fresh` nicht gesetzt oder `allowStale` ausdrücklich) kommt der abgelegte Stand zurück,
+   mit Zeitpunkt in S.stale. Schreibwege lesen mit `fresh` ohne `allowStale`: ein veralteter Stand gilt dort nie als frisch. */
+const gwNetErr = e => !!(e && (e.code === "offline" || e.code === "server_unavailable"));
+async function getFile(path, ref, fresh, allowStale){
+  const key = (ref || "") + "|" + path, repo = S.owner + "/" + S.repo;
   if (!fresh && S.files.has(key)) return S.files.get(key);
-  const f = await GW_PORTS.git.getFile(path, ref);
+  let f;
+  try { f = await GW_PORTS.git.getFile(path, ref); }
+  catch (e) {
+    const old = gwNetErr(e) && (!fresh || allowStale) && GW_PORTS.snap ? await GW_PORTS.snap.get(repo, ref, path) : null;
+    if (!old) throw e;   // nie gelesen oder kein Netzfehler: der Fehler bleibt
+    f = {text:old.text, sha:old.sha, commit:old.commit, stale:old.t};
+    S.stale = S.stale ? Math.min(S.stale, old.t) : old.t;   // ältester benutzter Stand, für den Hinweis in der Leiste
+  }
   if (f.text === null) throw {message:"Datei nicht lesbar: " + path};
+  if (!f.stale && GW_PORTS.snap) GW_PORTS.snap.put(repo, ref, path, f);   // nicht warten
   S.files.set(key, f);
   return f;
 }
@@ -1723,12 +1776,12 @@ function mdDoc(t){
 async function loadRepo(spec){
   const m = /(?:github\.com\/)?([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(spec.trim());
   if (!m){ S.msg = {kind:"err", html:"Bitte als owner/repo eingeben."}; return show("connect"); }
-  [S.owner, S.repo] = [m[1], m[2]]; store.set("gw.repo", S.owner + "/" + S.repo); S.files.clear(); S.lib = null; S.libCfg = undefined; S.webJobs = {};
+  [S.owner, S.repo] = [m[1], m[2]]; store.set("gw.repo", S.owner + "/" + S.repo); S.files.clear(); S.lib = null; S.libCfg = undefined; S.webJobs = {}; S.stale = 0;
   busy("Bücherregal wird geladen …");
-  try { S.lib = JSON.parse((await getFile("library.json")).text); }
+  try { S.lib = JSON.parse((await getFile("library.json", "", false, true)).text); }
   catch (e) {
-    try { await getFile("ghostwriter-index.json"); S.lib = {books:[{branch:"main", title:S.repo, status:"ready", work_branch:"ghostwriter/main"}]}; }
-    catch (e2) { S.msg = {kind:"err", html:esc(await repoMissingText(e))}; S.owner = ""; return show("connect"); }
+    try { await getFile("ghostwriter-index.json", "", false, true); S.lib = {books:[{branch:"main", title:S.repo, status:"ready", work_branch:"ghostwriter/main"}]}; }
+    catch (e2) { S.msg = {kind:"err", html:esc(gwNetErr(e) || gwNetErr(e2) ? "Dieses Repository wurde auf diesem Gerät noch nie geöffnet und es gibt gerade kein Netz. Öffne es einmal mit Netz, danach geht es auch offline." : await repoMissingText(e))}; S.owner = ""; return show("connect"); }
   }
   S.msg = null;
   if ((S.lib.books || []).length === 1) return openBook(S.lib.books[0].branch);
@@ -1745,11 +1798,11 @@ async function repoMissingText(e){   // #729: ein 404 auf library.json heißt ni
   return "„" + name + "“ ist erreichbar, enthält aber weder ein Bücherregal (library.json) noch ein Buch (ghostwriter-index.json). Ein Programm-Repository ist kein Buch: Wähle das Repository, in dem dein Buch oder deine Bibliothek liegt.";
 }
 async function loadBookData(ref, overlay){
-  S.readRef = ref; S.files.clear();
+  S.readRef = ref; S.files.clear(); S.stale = 0;
   S.idx = {project:{}, chapters:[]};
   S.idxMissing = false;
-  try { const ix = await getFile("ghostwriter-index.json", ref, true); S.idx = JSON.parse(ix.text); S.head = ix.commit || S.head; } catch (e) { S.idxMissing = true; }   // nicht still übergehen: Summen dann aus den Kostendateien (#754)
-  const gy = await getFile("ghostwriter.yml", ref, true); if (gy.commit) S.head = gy.commit;
+  try { const ix = await getFile("ghostwriter-index.json", ref, true, true); S.idx = JSON.parse(ix.text); S.head = ix.commit || S.head; } catch (e) { S.idxMissing = true; }   // nicht still übergehen: Summen dann aus den Kostendateien (#754)
+  const gy = await getFile("ghostwriter.yml", ref, true, true); if (gy.commit) S.head = gy.commit;
   S.cfg = {}; try { S.cfg = window.jsyaml.load(gy.text) || {}; } catch (e) {}
   buildStruct();
   if (S.idxMissing) await costsFromFiles(ref);
@@ -1791,13 +1844,17 @@ async function openBook(branch){
   S.book = (S.lib.books || []).find(b => b.branch === branch); if (!S.book) return;
   S.chap = null; S.sec = null; S.chat = []; S.msg = null; S.showAll = false; crumbs(); busy("Buch wird geöffnet …");
   try {
-    S.pr = await openPR(S.book).catch(() => null);
+    let prErr = null; S.pr = await openPR(S.book).catch(e => { prErr = e; return null; });
     if (S.pr) await prCommits(S.pr);
-    await loadBookData(S.pr ? workOf(S.book) : S.book.branch);
+    // ohne Netz den Branch lesen, von dem zuletzt gelesen wurde (meist der Arbeits-Branch), nicht den Buch-Branch (#744)
+    let ref = S.pr ? workOf(S.book) : S.book.branch;
+    if (!S.pr && GW_PORTS.snap && (gwNetErr(prErr) || (GW_PORTS.outbox && GW_PORTS.outbox.offline()))){ const meta = await GW_PORTS.snap.meta(S.owner + "/" + S.repo); if (meta && meta.branch === S.book.branch && meta.readRef) ref = meta.readRef; }
+    await loadBookData(ref);
+    if (!S.stale && GW_PORTS.snap) GW_PORTS.snap.setMeta(S.owner + "/" + S.repo, {branch:S.book.branch, readRef:ref});
     await loadRole();
     S.skills = null; S.skillsFor = ""; loadSkills().then(() => { if (S.view === "project" || S.view === "chapter" || S.view === "section") { const h = document.querySelector(".claude .ch-head p"); if (h) h.innerHTML = skillLine(h.dataset.base || h.textContent); } }).catch(() => {});
     show("project");
-  } catch (e) { S.msg = {kind:"err", html:esc(errText(e))}; S.book = null; show("library"); }
+  } catch (e) { S.msg = {kind:"err", html:esc(gwNetErr(e) ? "Dieses Buch ist noch nicht auf diesem Gerät. Öffne es einmal mit Netz, danach geht es auch offline." : errText(e))}; S.book = null; show("library"); }
 }
 
 /* ---------- Aktionen aus den Widgets ---------- */
@@ -2068,7 +2125,7 @@ async function saveSection(data){
 
 /* Freigaben (START.md, „Freigaben“) */
 const EMPTY_MS = ["", "Noch nicht begonnen.", "Offen."];
-async function login(){ if (S.login) return S.login; try { S.login = (await GW_PORTS.git.me()) || "chat"; } catch (e) { S.login = "chat"; } return S.login; }
+async function login(){ if (S.login) return S.login; try { S.login = (await GW_PORTS.git.me()) || "chat"; } catch (e) { if (gwNetErr(e)) return "chat"; S.login = "chat"; } return S.login; }   // ein Netzfehler wird nicht festgehalten: nach Rückkehr des Netzes wird neu gelesen (#744)
 async function sha256full(t){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t.trim())); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
 function nowIso(){ const d = new Date(), o = -d.getTimezoneOffset(), p = n => String(Math.abs(n)).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${o >= 0 ? "+" : "-"}${p(Math.trunc(o / 60))}:${p(o % 60)}`; }
 async function approvalState(data){
@@ -3640,7 +3697,8 @@ document.addEventListener("click", async ev => {
   if (!b) return;
   const n = (await OB.all()).length;
   if (n && !confirm(`Es ${n === 1 ? "wartet 1 Änderung" : "warten " + n + " Änderungen"}, die nur auf diesem Gerät liegen und noch nicht hochgeladen sind. Beim Abmelden bleiben sie hier gespeichert, werden aber erst nach erneuter Anmeldung hochgeladen. Trotzdem abmelden?`)) return;
-  ev.preventDefault(); store.set(TOKEN_KEY, ""); S.login = ""; S.owner = ""; S.lib = null; S.book = null; S.files.clear(); S.msg = null; show("connect");
+  else if (!n && !confirm("Beim Abmelden wird auch der Offline-Bestand (zuletzt gelesene Buchtexte) von diesem Gerät gelöscht. Abmelden?")) return;
+  ev.preventDefault(); if (GW_PORTS.snap) await GW_PORTS.snap.clear(); store.set(TOKEN_KEY, ""); S.login = ""; S.owner = ""; S.lib = null; S.book = null; S.files.clear(); S.msg = null; show("connect");
 });
 window.addEventListener("online", () => { NET.online = true; netProbe(); });
 window.addEventListener("offline", () => { NET.online = false; netProbe(); });

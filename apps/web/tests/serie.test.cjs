@@ -35,5 +35,7 @@ const read = f => fs.readFileSync(path.join(__dirname, "..", "..", f), "utf8");
   out.length = 0; c2.prepareWork = async () => { throw {code:"forbidden", message:"Kein Zugriff."}; };
   await c2.api.saveSection({section_id:"sec-1", manuscript:"neu", goal:"", summary:""});
   assert.deepEqual(out, ["show:section"]); assert.equal(c2.S.msg.kind, "err");
+  // Gegenprobe (#744): ein 403 oder 422 von GitHub gilt nicht als Netzfehler und wandert nicht in die Outbox
+  for (const code of ["http_403", "http_422"]){ out.length = 0; c2.prepareWork = async () => { throw {code, message:"x"}; }; await c2.api.saveSection({section_id:"sec-1", manuscript:"neu", goal:"", summary:""}); assert.deepEqual(out, ["show:section"], code); assert.equal(c2.S.msg.kind, "err"); }
   console.log("serie.test.cjs: ok");
 })().catch(e => { console.error(e); process.exit(1); });
