@@ -130,14 +130,14 @@ class HinweiseTest(unittest.TestCase):
             '# Kopfkommentar bleibt erhalten\n'
             'buch: Test\n'
             'ohne_autor:\n'
-            '  - id: e-001\n'
-            f'    alt: "{long_text}"\n'
-            '    # Kommentar innerhalb des unveränderten Eintrags\n'
-            '    entscheidung: offen\n'
-            '  - id: e-002\n'
+            '- id: e-001\n'
+            f'  alt: "{long_text}"\n'
+            '  # Kommentar innerhalb des unveränderten Eintrags\n'
+            '  entscheidung: offen\n'
+            '- id: e-002\n'
             '    alt: Zweiter Eintrag\n'
             '    entscheidung: offen\n'
-            '  - id: e-003\n'
+            '- id: e-003\n'
             '    alt: Dritter Eintrag\n'
             '    entscheidung: offen\n'
             'autorenentscheidung: []\n'
@@ -148,8 +148,8 @@ class HinweiseTest(unittest.TestCase):
         hinweise.write_yaml(path, data)
         written = path.read_text(encoding='utf-8')
 
-        first = original[original.index('  - id: e-001'):original.index('  - id: e-002')]
-        third = original[original.index('  - id: e-003'):original.index('autorenentscheidung:')]
+        first = original[original.index('- id: e-001'):original.index('- id: e-002')]
+        third = original[original.index('- id: e-003'):original.index('autorenentscheidung:')]
         self.assertIn(first, written)
         self.assertIn(third, written)
         self.assertIn('    # Kommentar innerhalb des unveränderten Eintrags\n', written)
