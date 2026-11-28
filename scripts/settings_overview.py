@@ -42,6 +42,8 @@ GROUP_FORM = {'project': 'project-edit', 'ai_settings': 'rules', 'rules': 'rules
 FILE_ONLY = {
     'interface.language', 'updates.auto', 'images.style', 'images.credit_in_imprint', 'images.max_px',
     'limits.actions_minutes_warn_below', 'limits.actions_minutes_pause_below',
+    'limits.actions_budget_monthly', 'limits.actions_minutes_included', 'limits.actions_price_per_minute',   # #787: Formularfeld folgt mit der UI-Vorlage
+    'limits.actions_warn_used_percent', 'limits.actions_pause_used_percent',
     'limits.pause_below_percent', 'limits.warn_below_percent', 'cover.back_blurb_position',
     'style.perspective', 'style.tense', 'style.address', 'style.register', 'style.tone', 'style.features',
     'style.avoid', 'style.sentence_length_avg', 'style.dialogue_share', 'analysis.auto_after_chapter',
