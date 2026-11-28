@@ -172,7 +172,7 @@ class HinweiseTest(unittest.TestCase):
             'buch: Test\n'
             'ohne_autor:\n'
             '  - id: e-001\n'
-            '  entscheidung: offen\n',
+            '    entscheidung: offen\n',
             encoding='utf-8')
         expanded = hinweise.read_yaml(path)
         expanded['ohne_autor'].append({'id': 'e-002', 'entscheidung': 'offen'})
