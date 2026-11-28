@@ -134,6 +134,8 @@ class MediaJobTest(Base):
             validate_image(valid, 'valid.png', 'image/png')
             with self.assertRaisesRegex(ValueError, 'beschädigt oder unvollständig'):
                 validate_image(valid[:len(valid) // 3], 'broken.png', 'image/png')
+            with self.assertRaisesRegex(ValueError, 'beschädigt oder unvollständig'):
+                validate_image(b'not-a-png' + bytes.fromhex('0000000049454e44ae426082'), 'fake.png', 'image/png')
 
     def test_fal_error_text_extracts_message_and_type(self):
         raw = json.dumps({'detail': [{'msg': 'Failed to load the image. Please ensure the image file is not corrupted.',

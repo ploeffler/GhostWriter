@@ -14,9 +14,9 @@ def validate_image(data, name='Bild', mime=None):
         from PIL import Image
     except ImportError:
         if mime == 'image/png':
-            valid = data.endswith(bytes.fromhex('0000000049454e44ae426082'))
+            valid = data.startswith(bytes.fromhex('89504e470d0a1a0a')) and data.endswith(bytes.fromhex('0000000049454e44ae426082'))
         elif mime == 'image/jpeg':
-            valid = data.endswith(bytes.fromhex('ffd9'))
+            valid = data.startswith(bytes.fromhex('ffd8ff')) and data.endswith(bytes.fromhex('ffd9'))
         elif mime == 'image/webp':
             valid = (len(data) >= 12 and data[:4] == b'RIFF' and data[8:12] == b'WEBP'
                      and int.from_bytes(data[4:8], 'little') + 8 == len(data))
