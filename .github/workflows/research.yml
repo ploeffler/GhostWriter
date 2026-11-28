@@ -202,35 +202,20 @@ jobs:
         run: |
           if ! git ls-remote --exit-code --heads origin "$WORK" >/dev/null; then echo "Nichts zu speichern"; exit 0; fi
           owner=${GITHUB_REPOSITORY%%/*}
-          if ! open=$(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&head=$owner:$WORK&base=$BOOK" --jq 'length' 2>"$RUNNER_TEMP/pr-open.err"); then
-            echo "::warning::Offene Pull Requests konnten nicht geprüft werden. Der Arbeits-Branch $WORK bleibt gespeichert; das Änderungspaket muss gegebenenfalls von Hand angelegt werden."
-            echo "Änderungspaket nicht geprüft: $WORK ist gespeichert; GitHub konnte offene Pull Requests nicht abfragen." | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          if ! ahead=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BOOK...$WORK" --jq '.ahead_by' 2>"$RUNNER_TEMP/pr-compare.err"); then
-            echo "::warning::Änderungen auf $WORK konnten nicht verglichen werden. Der Arbeits-Branch bleibt gespeichert; das Änderungspaket muss gegebenenfalls von Hand angelegt werden."
-            echo "Änderungspaket nicht geprüft: $WORK ist gespeichert; GitHub konnte die Branches nicht vergleichen." | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          if [ "$open" = "0" ] && [ -n "$ahead" ] && [ "$ahead" != "0" ]; then
-            if url=$(gh api "repos/$GITHUB_REPOSITORY/pulls" -f base="$BOOK" -f head="$WORK" \
-                -f title="GhostWriter: offene Änderungen" \
-                -f body="Offene Änderungen aus GhostWriter. Übernommen wird erst nach Bestätigung." --jq '.html_url' 2>"$RUNNER_TEMP/pr.err"); then
-              echo "$url" | tee -a "$GITHUB_STEP_SUMMARY"
-            else
-              error=$(head -c 200 "$RUNNER_TEMP/pr.err" || true)
-              echo "::warning::Änderungspaket konnte nicht angelegt werden ($error). Die Änderungen liegen auf $WORK. Einstellung: Settings → Actions → General → Workflow permissions → „Allow GitHub Actions to create and approve pull requests“ einschalten oder den Pull Request im Chat anlegen lassen."
-              echo "Änderungspaket fehlt: $WORK ist gespeichert, der Pull Request konnte nicht angelegt werden. GitHub-Einstellung „Allow GitHub Actions to create and approve pull requests“ prüfen oder Pull Request im Chat anlegen lassen." | tee -a "$GITHUB_STEP_SUMMARY"
-            fi
+          open=$(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&head=$owner:$WORK&base=$BOOK" --jq 'length')
+          ahead=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BOOK...$WORK" --jq '.ahead_by')
+          if [ "$open" = "0" ] && [ "${ahead:-0}" != "0" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/pulls" -f base="$BOOK" -f head="$WORK" \
+              -f title="GhostWriter: offene Änderungen" \
+              -f body="Offene Änderungen aus GhostWriter. Übernommen wird erst nach Bestätigung." --jq '.html_url' | tee -a "$GITHUB_STEP_SUMMARY"
           else
             echo "Änderungspaket: $WORK" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Selbstneustart
-        # #757: nach einem Fehler beim Anlegen des Änderungspakets weiterlaufen, sofern die Abarbeitung selbst erfolgreich war.
         # Pausierte Automatik (GHOSTWRITER_ACTIONS_PAUSED, #62): nicht selbst weiterlaufen; der Rest bleibt in der
         # Warteschlange, bis von Hand oder vom täglichen Update-Lauf nach der Pause neu angestoßen wird.
-        if: ${{ !cancelled() && steps.jobs.outcome == 'success' && steps.jobs.outputs.remaining != '' && steps.jobs.outputs.remaining != '0' && vars.GHOSTWRITER_ACTIONS_PAUSED != 'true' }}
+        if: steps.jobs.outputs.remaining != '' && steps.jobs.outputs.remaining != '0' && vars.GHOSTWRITER_ACTIONS_PAUSED != 'true'
         env:
           BOOK: ${{ steps.work.outputs.book }}
           GH_TOKEN: ${{ github.token }}

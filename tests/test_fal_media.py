@@ -1,4 +1,6 @@
 """#701: Medien-Aufträge bei fal.ai in der Hintergrund-Warteschlange (ohne echten Aufruf)."""
+import io
+import json
 import sys
 import tempfile
 import unittest
@@ -10,6 +12,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import fal_media  # noqa: E402
+from image_validation import validate_image  # noqa: E402
 import jobs  # noqa: E402
 import research  # noqa: E402
 import validate_project  # noqa: E402
@@ -21,16 +24,18 @@ PNG = b'\x89PNG\r\n\x1a\n' + b'0' * 20
 
 class FakeFal:
     """Ersetzt fal_media.call und download; zählt die Aufrufe."""
-    def __init__(self, submit_status=200, states=('IN_PROGRESS', 'COMPLETED')):
+    def __init__(self, submit_status=200, states=('IN_PROGRESS', 'COMPLETED'), result_status=200, result_data=None):
         self.calls, self.downloads, self.states, self.submit_status = [], [], list(states), submit_status
+        self.result_status, self.result_data, self.bodies = result_status, result_data, []
 
     def call(self, url, data=None, key=None):
         self.calls.append((url, data is not None, key))
         if data is not None:
+            self.bodies.append(data)
             return (self.submit_status, {'request_id': 'req-123'} if self.submit_status < 300 else {'error': 'content_policy_violation'})
         if url.endswith('/status'):
             return 200, {'status': self.states.pop(0) if self.states else 'COMPLETED'}
-        return 200, {'video': {'url': 'https://v3.fal.media/files/x/out.mp4'}}
+        return self.result_status, self.result_data if self.result_data is not None else {'video': {'url': 'https://v3.fal.media/files/x/out.mp4'}}
 
     def download(self, url, dest):
         self.downloads.append(url)
@@ -40,6 +45,13 @@ class FakeFal:
 
 
 class MediaJobTest(Base):
+    @staticmethod
+    def image_bytes(fmt='PNG'):
+        from PIL import Image
+        out = io.BytesIO()
+        Image.new('RGB', (8, 8), 'white').save(out, format=fmt)
+        return out.getvalue()
+
     def enqueue(self, **extra):
         fields = {'model': MODEL, 'prompt': 'Locked wide shot', 'seed': '7', 'confirm': True, 'price_usd': '0.10'}
         fields.update(extra)
@@ -84,6 +96,77 @@ class MediaJobTest(Base):
         costs.write_text(yaml.safe_dump({'scope': 'project', 'entries': [{'activity_id': 'act-media-request-001'}]}), encoding='utf-8')
         self.assertEqual(jobs.unique_activity_id(self.base, 'act-media-request-001'), 'act-media-request-001-2')
         self.assertEqual(jobs.unique_activity_id(self.base, 'act-media-request-009'), 'act-media-request-009')
+
+    def test_truncated_input_is_rejected_before_enqueue_or_submit(self):
+        image = self.base / 'broken.png'
+        valid = self.image_bytes()
+        image.write_bytes(valid[:len(valid) // 3])
+        with self.assertRaisesRegex(research.ResearchError, 'beschädigt oder unvollständig'):
+            jobs.enqueue(self.base, 'media', fields={'model': MODEL, 'prompt': 'test', 'confirm': True, 'input': 'broken.png'})
+        self.assertEqual(jobs.files(self.base), [])
+        path = self.enqueue()
+        data = yaml.safe_load(path.read_text())
+        data['media']['input'] = 'broken.png'   # bereits vorhandener Auftrag aus einer älteren Programmversion
+        path.write_text(yaml.safe_dump(data))
+        fake = FakeFal()
+        results, _ = self.run_jobs(fake)
+        self.assertFalse(results[0]['ok'])
+        self.assertIn('beschädigt oder unvollständig', results[0]['error'])
+        self.assertEqual(fake.calls, [])
+        saved = yaml.safe_load(path.read_text())
+        self.assertNotIn('submitted', saved)
+        self.assertFalse((self.base / 'costs/project.yml').exists())
+
+    def test_valid_png_jpeg_and_webp_inputs_are_submitted(self):
+        for fmt, ext, mime in [('PNG', '.png', 'image/png'), ('JPEG', '.jpg', 'image/jpeg'), ('WEBP', '.webp', 'image/webp')]:
+            with self.subTest(format=fmt):
+                (self.base / f'input{ext}').write_bytes(self.image_bytes(fmt))
+                self.enqueue(input=f'input{ext}')
+                fake = FakeFal()
+                results, _ = self.run_jobs(fake)
+                self.assertTrue(results[0]['ok'], results)
+                self.assertEqual(len(fake.bodies), 1)
+                self.assertTrue(fake.bodies[0]['image_url'].startswith(f'data:{mime};base64,'))
+
+    def test_image_validation_fallback_without_pillow(self):
+        valid = self.image_bytes()
+        with mock.patch.dict(sys.modules, {'PIL': None}):
+            validate_image(valid, 'valid.png', 'image/png')
+            with self.assertRaisesRegex(ValueError, 'beschädigt oder unvollständig'):
+                validate_image(valid[:len(valid) // 3], 'broken.png', 'image/png')
+
+    def test_fal_error_text_extracts_message_and_type(self):
+        raw = json.dumps({'detail': [{'msg': 'Failed to load the image. Please ensure the image file is not corrupted.',
+                                      'type': 'image_load_error', 'loc': ['body', 'input.image_url']}]})
+        self.assertEqual(fal_media._error_text(raw),
+                         'Failed to load the image. Please ensure the image file is not corrupted. [image_load_error]')
+        self.assertEqual(fal_media._error_text('plain provider error'), 'plain provider error')
+
+    def test_final_4xx_result_allows_retry_with_new_submission(self):
+        (self.base / 'input.png').write_bytes(self.image_bytes())
+        path = self.enqueue(input='input.png')
+        failed = FakeFal(result_status=422, result_data={'error': 'Failed to load the image. [image_load_error]'})
+        results, _ = self.run_jobs(failed)
+        self.assertFalse(results[0]['ok'])
+        self.assertIn('image_load_error', results[0]['error'])
+        data = yaml.safe_load(path.read_text())
+        self.assertNotIn('submitted', data)
+        self.assertEqual(data['previous_request']['request_id'], 'req-123')
+        self.assertEqual(data['previous_request']['http_status'], 422)
+        jobs.retry(self.base, path.name)
+        retry_fake = FakeFal()
+        results, _ = self.run_jobs(retry_fake)
+        self.assertTrue(results[0]['ok'], results)
+        self.assertEqual(len([call for call in retry_fake.calls if call[1]]), 1)
+
+    def test_final_5xx_keeps_request_id(self):
+        path = self.enqueue()
+        failed = FakeFal(result_status=503, result_data={'error': 'provider unavailable'})
+        results, _ = self.run_jobs(failed)
+        self.assertFalse(results[0]['ok'])
+        data = yaml.safe_load(path.read_text())
+        self.assertEqual(data['submitted']['request_id'], 'req-123')
+        self.assertNotIn('previous_request', data)
 
     def test_runs_submits_once_saves_result_and_cost(self):
         self.enqueue()
@@ -202,6 +285,7 @@ class MediaJobTest(Base):
         self.assertIn('--types media', text)
         self.assertIn('secrets.FAL_KEY', text)
         self.assertNotIn('GEMINI', text)
+        self.assertRegex(text, r'pip install [^\n]*pillow')
 
 
 if __name__ == '__main__':

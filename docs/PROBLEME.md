@@ -40,10 +40,6 @@ GitHub schickt eine Nachricht zu jedem Workflow-Lauf, den du ausgelöst hast –
 
 Eine gespeicherte Referenz ist noch keine bestätigte Übergabe an einen Bilddienst. Der Assistent muss die ausgewählten Dateien separat an einen Dienst übergeben, der Referenzen unterstützt, oder die Grenze nennen. Siehe [Bilder und Referenzen](BILDER-UND-REFERENZBILDER.md).
 
-## Hintergrundlauf: Pull Request konnte nicht angelegt werden
-
-Meldet ein Lauf *„Änderungspaket nicht angelegt“* oder *„GitHub Actions is not permitted to create or approve pull requests“*, sind die Ergebnisse bereits auf dem Arbeits-Branch `ghostwriter/…` gespeichert. Es fehlt nur der Pull Request; die Warteschlange läuft weiter. Du kannst den Pull Request im Chat anlegen lassen oder die Einstellung einmalig im Repository einschalten: **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests**. Diese Repository-Einstellung ist zusätzlich zu den Rechten im Workflow erforderlich.
-
 ## Das Problem bleibt
 
 Notiere Befehl, Fehlermeldung, Client und Programmversion (**Daten**). Melde Programmfehler im Hauptrepository, ohne private Buchtexte, Chats oder Schlüssel offenzulegen. Suche vorher nach einem gleichen Problem. Für den Update-Stand siehe [Updates](UPDATES.md).

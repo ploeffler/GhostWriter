@@ -185,10 +185,9 @@ jobs:
           python scripts/jobs.py . process --types import --limit "$LIMIT" --push-to "$WORK" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Selbstneustart
-        # #757: nach einem Fehler beim Anlegen des Änderungspakets weiterlaufen, sofern die Abarbeitung selbst erfolgreich war.
         # Pausierte Automatik (GHOSTWRITER_ACTIONS_PAUSED, #62): nicht selbst weiterlaufen; der Rest bleibt in der
         # Warteschlange, bis von Hand oder vom täglichen Update-Lauf nach der Pause neu angestoßen wird.
-        if: ${{ !cancelled() && steps.jobs.outcome == 'success' && steps.jobs.outputs.remaining != '' && steps.jobs.outputs.remaining != '0' && vars.GHOSTWRITER_ACTIONS_PAUSED != 'true' }}
+        if: steps.jobs.outputs.remaining != '' && steps.jobs.outputs.remaining != '0' && vars.GHOSTWRITER_ACTIONS_PAUSED != 'true'
         env:
           BOOK: ${{ steps.work.outputs.book }}
           GH_TOKEN: ${{ github.token }}

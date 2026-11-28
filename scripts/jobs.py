@@ -28,7 +28,7 @@ Auftrag (Schema schemas/job.schema.json): eine Datei `request-NNN.yml`.
   und tragen ihre Felder unter einem Schlüssel mit dem Namen der Art.
 Gemeinsame Felder: `type`, `requested_at`, `requested_by`, `provider`, `model`,
 `confirm_low_budget`; Zustand: `error` und `failed_at` (fehlgeschlagen, läuft nicht erneut),
-`waiting: budget` (wartet auf Bestätigung, weil das KI-Budget unter der Schwelle ist).
+`waiting: budget` (wartet auf Bestätigung, weil das KI-Budget unter der Schwelle ist). Bei Medienaufträgen hält `previous_request` die Kennung eines bei fal.ai endgültig fehlgeschlagenen Ergebnisses fest; `submitted` wird dann entfernt, damit ein erneuter Versuch neu senden kann.
 
 Startbedingungen (#65, alle optional, mehrere kombinierbar: der Auftrag startet erst, wenn **alle** erfüllt sind):
 `not_before` (ISO-Zeitpunkt, feste Zeit), `when: budget_free` (nur wenn das KI-Budget des Monats nicht unter der Pausenschwelle
@@ -309,8 +309,8 @@ def prioritize(base, request):
 
 
 def retry(base, request):
-    """Erneut versuchen (#554): `error` und `failed_at` entfernen, der Auftrag ist wieder offen. Kein zweiter Auftrag.
-    Nur fehlgeschlagene Aufträge; Frage, Modell und Anbieter bleiben, wie sie sind."""
+    """Erneut versuchen (#554): `error` und `failed_at` entfernen. Medienaufträge ohne `submitted` senden neu;
+    nach endgültigem fal.ai-4xx bleibt die alte Kennung in `previous_request`. Sonst wird die vorhandene request_id weitergenutzt."""
     job = find(base, request)
     if job['state'] != 'failed':
         raise ValueError('Erneut versuchen geht nur bei fehlgeschlagenen Aufträgen.')

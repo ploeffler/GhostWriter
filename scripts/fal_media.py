@@ -26,7 +26,27 @@ ALLOWED_DOWNLOAD = ('fal.media', 'fal.run', 'fal.ai')
 
 
 class FalError(Exception):
-    pass
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status
+
+
+def _error_text(raw):
+    """Fal-JSON auf Meldung und Typ reduzieren, bevor eine Längenbegrenzung greift."""
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        return str(raw)[:300]
+    detail = data.get('detail') if isinstance(data, dict) else None
+    if isinstance(detail, list):
+        parts = [f'{item.get("msg")} [{item.get("type")}]' for item in detail
+                 if isinstance(item, dict) and item.get('msg')]
+        if parts:
+            return '; '.join(parts)[:500]
+    if isinstance(detail, str):
+        return detail[:500]
+    error = data.get('error') if isinstance(data, dict) else None
+    return (str(error) if error is not None else str(raw))[:500]
 
 
 def app_of(model):
@@ -47,7 +67,7 @@ def call(url, data=None, key=None):
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
             return r.status, json.loads(r.read() or b'{}')
     except urllib.error.HTTPError as e:
-        return e.code, {'error': e.read().decode('utf-8', 'replace')[:300]}
+        return e.code, {'error': _error_text(e.read().decode('utf-8', 'replace'))}
     except (urllib.error.URLError, TimeoutError) as e:
         raise FalError(f'fal.ai ist nicht erreichbar: {getattr(e, "reason", e)}') from None
 
@@ -56,7 +76,7 @@ def submit(model, body, key):
     """Auftrag senden → request_id. Abgelehnt (z. B. content_policy_violation) oder Fehler: FalError, nie automatisch wiederholen."""
     status, data = call(f'{BASE}/{model.strip("/")}', body, key)
     if status >= 300 or not data.get('request_id'):
-        raise FalError(f'fal.ai hat den Auftrag nicht angenommen (HTTP {status}): {str(data.get("error") or data)[:200]}')
+        raise FalError(f'fal.ai hat den Auftrag nicht angenommen (HTTP {status}): {str(data.get("error") or data)[:500]}', status=status)
     return str(data['request_id'])
 
 
@@ -69,7 +89,7 @@ def wait(model, request_id, key, timeout=1500, interval=5, sleep=time.sleep, clo
         if data.get('status') == 'COMPLETED':
             return
         if status >= 400 or data.get('status') not in ('IN_QUEUE', 'IN_PROGRESS'):
-            raise FalError(f'Status {status}: {str(data)[:200]}')
+            raise FalError(f'Status {status}: {str(data.get("error") or data)[:500]}', status=status if status >= 400 else None)
         if clock() >= end:
             raise FalError('Zeit abgelaufen: der Auftrag läuft bei fal.ai weiter und wird beim nächsten Lauf abgeholt.')
         sleep(interval)
@@ -78,7 +98,7 @@ def wait(model, request_id, key, timeout=1500, interval=5, sleep=time.sleep, clo
 def result(model, request_id, key):
     status, data = call(f'{BASE}/{app_of(model)}/requests/{request_id}', None, key)
     if status >= 300:
-        raise FalError(f'Ergebnis nicht abrufbar (HTTP {status}): {str(data.get("error") or data)[:200]}')
+        raise FalError(f'Ergebnis nicht abrufbar (HTTP {status}): {str(data.get("error") or data)[:500]}', status=status)
     return data
 
 

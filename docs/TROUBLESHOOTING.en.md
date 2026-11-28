@@ -36,10 +36,6 @@ If these runs show as *skipped* under **Actions** and the repository variable `G
 
 Storing a reference does not confirm that it was passed to an image service. The assistant must separately attach selected files to a service that supports references, or disclose the limitation. See [images and references](IMAGES-AND-REFERENCES.en.md).
 
-## A background run could not create a pull request
-
-If a run reports *“Change package not created”* or *“GitHub Actions is not permitted to create or approve pull requests”*, its results have already been saved to the working branch `ghostwriter/…`. Only the pull request is missing; the queue continues. Ask the chat assistant to create the pull request, or enable this repository setting once: **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests**. This repository setting is required in addition to the permissions declared by the workflow.
-
 ## The problem persists
 
 Record the command, error, client and program version (**Data**). Report program errors in the main repository without exposing private book text, chats or keys. Search for an existing report first. See [updates](UPDATES.en.md) for update status.

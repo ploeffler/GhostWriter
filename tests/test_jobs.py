@@ -484,7 +484,7 @@ class WorkflowTest(unittest.TestCase):
 
     def _run_change_package(self, workflow, **overrides):
         data = yaml.safe_load((ROOT / f'.github/workflows/{workflow}.yml').read_text(encoding='utf-8'))
-        step = next(st for st in data['jobs']['process']['steps'] if st.get('name') == 'Änderungspaket')
+        step = next(st for job in data['jobs'].values() for st in job.get('steps', []) if st.get('name') == 'Änderungspaket')
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             bindir = root / 'bin'
