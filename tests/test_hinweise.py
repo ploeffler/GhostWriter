@@ -122,6 +122,34 @@ class HinweiseTest(unittest.TestCase):
         self.assertEqual(hinweise.head_comments('a: 1\n# später\n'), '')            # nur der führende Block
         self.assertEqual(hinweise.head_comments('# a\n\n# b\nx: 1\n'), '# a\n\n# b\n')
 
+    def test_unrelated_yaml_entries_stay_byte_identical(self):
+        long = 'Eine absichtlich lange ursprüngliche Fassung, deren Anführungszeichen und Zeilenlage bei einer anderen Entscheidung unverändert bleiben müssen.'
+        old = ('# Vermerk\n\n'
+               'buch: test\n'
+               'ohne_autor:\n'
+               f'- id: e-001\n  alt: "{long}"\n  # Kommentar im unbeteiligten Eintrag\n  entscheidung: offen\n'
+               '- id: e-002\n  alt: kurz\n  entscheidung: offen\n'
+               '- id: e-003\n  alt: bleibt\n  entscheidung: offen\n')
+        data = yaml.safe_load(old)
+        data['ohne_autor'][1]['entscheidung'] = 'nein'
+
+        merged = hinweise.merge_yaml(old, data)
+
+        first = f'- id: e-001\n  alt: "{long}"\n  # Kommentar im unbeteiligten Eintrag\n  entscheidung: offen\n'
+        third = '- id: e-003\n  alt: bleibt\n  entscheidung: offen\n'
+        self.assertIn(first, merged)
+        self.assertIn(third, merged)
+        self.assertIn('entscheidung: nein', merged)
+        self.assertEqual(yaml.safe_load(merged), data)
+        self.assertEqual(hinweise.merge_yaml(old, yaml.safe_load(old)), 'buch:' + old.split('buch:', 1)[1])
+
+    def test_yaml_merge_falls_back_safely(self):
+        data = {'eintraege': [{'id': 'e-001'}]}
+        self.assertEqual(yaml.safe_load(hinweise.merge_yaml('kaputt: [\n', data)), data)
+        self.assertEqual(yaml.safe_load(hinweise.merge_yaml('eintraege:\n- id: alt\n', {
+            'eintraege': [{'id': 'alt'}, {'id': 'neu'}]
+        })), {'eintraege': [{'id': 'alt'}, {'id': 'neu'}]})
+
     def test_chapter_filter_and_validation(self):
         with self.assertRaises(ValueError):
             hinweise.collect(self.base, self.config, chapters=['kap-x'])

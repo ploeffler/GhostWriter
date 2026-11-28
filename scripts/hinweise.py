@@ -208,12 +208,71 @@ def head_comments(text):
     return ''.join(head)
 
 
+def _dump(data):
+    return yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=100)
+
+
+def _top_blocks(text):
+    """YAML-Text in Blöcke je einfachem Top-Level-Schlüssel zerlegen."""
+    out, current = [], [None, []]
+    for line in text.splitlines(keepends=True):
+        match = re.match(r'([^\s#\-][^:]*):', line)
+        if match:
+            out.append(current)
+            current = [match.group(1), [line]]
+        else:
+            current[1].append(line)
+    out.append(current)
+    return out
+
+
+def _list_items(lines):
+    """Block einer Top-Level-Liste in Kopf und Listenelemente zerlegen."""
+    head, items = [lines[0]], []
+    for line in lines[1:]:
+        if re.match(r'\s{0,2}- ', line):
+            items.append([line])
+        elif items:
+            items[-1].append(line)
+        else:
+            head.append(line)
+    return head, items
+
+
+def merge_yaml(old_text, data):
+    """Unveränderte YAML-Bereiche originalgetreu übernehmen; bei Zweifel vollständig neu schreiben."""
+    try:
+        old = yaml.safe_load(old_text) or {}
+    except yaml.YAMLError:
+        return _dump(data)
+    if not isinstance(old, dict) or not isinstance(data, dict):
+        return _dump(data)
+    old_blocks = {key: lines for key, lines in _top_blocks(old_text) if key}
+    parts = []
+    for key, value in data.items():
+        block = old_blocks.get(key)
+        if block is not None and old.get(key) == value:
+            parts.append(''.join(block))
+            continue
+        if block is not None and isinstance(value, list) and isinstance(old.get(key), list):
+            head, items = _list_items(block)
+            fresh = _dump({key: value}).splitlines(keepends=True)
+            _, fresh_items = _list_items(fresh)
+            if len(items) == len(old[key]) == len(value) == len(fresh_items):
+                parts.append(''.join(head) + ''.join(
+                    ''.join(items[index] if old[key][index] == value[index] else fresh_items[index])
+                    for index in range(len(items))))
+                continue
+        parts.append(_dump({key: value}))
+    return ''.join(parts)
+
+
 def write_yaml(path, data):
-    """Schreibt die Datei; der Kopfkommentar bleibt erhalten (#717), z. B. ein Sperrvermerk des Autors, der `apply` für diese
-    Datei untersagt. safe_dump kennt keine Kommentare und würde ihn sonst stillschweigend löschen."""
+    """Kopfkommentar und unveränderte Einträge originalgetreu erhalten (#717)."""
     p = Path(path)
-    head = head_comments(p.read_text(encoding='utf-8')) if p.is_file() else ''
-    body = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=100)
+    old_text = p.read_text(encoding='utf-8') if p.is_file() else ''
+    head = head_comments(old_text)
+    body = merge_yaml(old_text, data) if old_text else _dump(data)
     if head and not body.startswith(head):
         body = head + '\n' + body if not head.endswith('\n') else head + body
     p.write_text(body, encoding='utf-8')

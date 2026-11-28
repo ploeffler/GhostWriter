@@ -212,7 +212,10 @@ Fassung, bestätigt der Autor ihn mit `--as-text` (`ersatz_bestaetigt: true`).
 `collect --merge` meldet auffällige `neu` in vorhandenen Einträgen. **Sperren:**
 `hinweise.py lock . --reason "…"` sperrt eine Dialogdatei (`gesperrt`): `apply`
 und `accept` brechen mit dem Grund ab, entscheiden bleibt möglich, `show`, `plan`
-und die Karte zeigen den Hinweis; `hinweise.py unlock .` hebt die Sperre auf. Auslassungspunkte
+und die Karte zeigen den Hinweis; `hinweise.py unlock .` hebt die Sperre auf. Ein
+Kommentar am Dateikopf ist nur ein Vermerk und sperrt nichts. Unveränderte Einträge
+behalten beim Schreiben ihren ursprünglichen Umbruch, ihre Anführungszeichen und
+Kommentare; Kommentare innerhalb eines geänderten Eintrags können entfallen. Auslassungspunkte
 und Leerzeichen, die der alte Wortlaut aus dem Befund am Rand mitbringt, werden vor
 dem Vergleich und beim Ersetzen weggelassen (bei `neu` nur dieselben Ränder, #522);
 steht der Wortlaut mit den Punkten im Text, bleibt er unverändert. „Text hat sich
