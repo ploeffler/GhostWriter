@@ -293,7 +293,7 @@ function libraryData(){
   const books = S.lib.books || [], byBranch = new Map(books.map(b => [b.branch, b])), ser = S.lib.series || [], rows = [], seen = new Set();
   // Bücher einer Serie zuerst, gruppiert und in Bandreihenfolge (#116, wie render_view.library_view); danach die übrigen
   ser.forEach((s, si) => (s.volumes || []).forEach((br, n) => { const b = byBranch.get(br); if (b && !seen.has(br)){ rows.push(Object.assign(bookRow(b), {BOOK_SERIES:s.id, BOOK_SERIES_TITLE:s.title || s.id, BOOK_SERIES_KEY:"S" + (si + 1), BOOK_VOLUME_NUMBER:n + 1, BOOK_VOLUME_TEXT:"Band " + (n + 1)})); seen.add(br); } }));
-  books.forEach(b => { if (!seen.has(b.branch)) rows.push(bookRow(b)); });
+  books.forEach(b => { if (!seen.has(b.branch)){ rows.push(bookRow(b)); seen.add(b.branch); } });
   const emptySeries = ser.filter(s => !(s.volumes || []).some(br => byBranch.has(br))).map(s => ({S_ID:s.id, S_TITLE:s.title || s.id, S_KEY:"S" + (ser.indexOf(s) + 1)}));
   const editions = books.flatMap(b => (b.editions || []).map(e => { const n = e && typeof e === "object" ? (e.number || e.edition) : e; return n ? {E_BOOK_BRANCH:b.branch, E_NUMBER:n, E_TEXT:"Auflage " + n, E_DATE_TEXT:deDate((e && (e.date || e.published)) || ""), E_TAG:(e && e.tag) || ""} : null; }).filter(Boolean));
   const d = {LANGUAGE:"de", LIBRARY_NAME:S.owner + "/" + S.repo, BOOK_COUNT_TEXT:plural(rows.length, "Buch", "Bücher") + (ser.length ? " · " + plural(ser.length, "Serie", "Serien") : ""), JOBS_TEXT:jobsText(["done", "failed", "waiting", "waiting_budget"].reduce((t, k) => (t[k] = books.reduce((n, b) => n + ((b.jobs || {})[k] || 0), 0), t), {}), true), EMPTY:rows.length ? "" : "1", UPDATED_TEXT:"", SESSION_COUNT_TEXT:"", BOOKS:rows};

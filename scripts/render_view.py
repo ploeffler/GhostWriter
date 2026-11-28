@@ -3339,7 +3339,7 @@ def library_view(base, config, args):
     # Bücher einer Serie zuerst, gruppiert und in Bandreihenfolge (#116); danach die übrigen
     for si, s in enumerate(ser, start=1):
         for n, br in enumerate(s['volumes'], start=1):
-            if br in by_branch:
+            if br in by_branch and br not in seen:
                 r = book_row(by_branch[br])
                 r.update({'BOOK_SERIES': s['id'], 'BOOK_SERIES_TITLE': s['title'], 'BOOK_SERIES_KEY': f'S{si}',
                           'BOOK_VOLUME_NUMBER': n, 'BOOK_VOLUME_TEXT': f'Band {n}'})
@@ -3348,6 +3348,7 @@ def library_view(base, config, args):
     for b in books:
         if b['branch'] not in seen:
             rows.append(dict(book_row(b), BOOK_SERIES='', BOOK_SERIES_TITLE='', BOOK_SERIES_KEY='', BOOK_VOLUME_TEXT=''))
+            seen.add(b['branch'])
     empty_series = [{'S_ID': s['id'], 'S_TITLE': s['title'], 'S_KEY': f'S{i}'} for i, s in enumerate(ser, start=1)
                     if not any(br in by_branch for br in s['volumes'])]
     editions = edition_rows(rows, by_branch)
