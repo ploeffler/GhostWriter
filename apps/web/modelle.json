@@ -43,10 +43,25 @@
       "tier": "notbehelf",
       "sizeBytes": 1470000000,
       "license": "Apache 2.0",
-      "requires": {"webgpu": true, "shaderF16": true, "memoryGB": 4, "storageFreeGB": 3},
+      "requires": {"webgpu": true, "shaderF16": true, "memoryGB": 6, "storageFreeGB": 3},
       "toolFormat": "qwen",
       "audio": false,
-      "note": {"de": "Nur für kleine Geräte: Deutsch und Übersetzung sind deutlich schwächer, erfindet leicht Angaben. Vorschläge besonders genau prüfen.", "en": "Only for small devices: German and translation are clearly weaker and it invents details. Check suggestions carefully."},
+      "note": {"de": "Nur für schwächere Rechner (Handys bleiben ausgeschlossen, #774): Deutsch und Übersetzung sind deutlich schwächer, erfindet leicht Angaben. Vorschläge besonders genau prüfen.", "en": "Only for small devices: German and translation are clearly weaker and it invents details. Check suggestions carefully."},
+      "reason": {"de": "braucht WebGPU mit shader-f16, mindestens {memoryGB} GB Arbeitsspeicher und {storageFreeGB} GB freien Speicher", "en": "needs WebGPU with shader-f16, at least {memoryGB} GB of memory and {storageFreeGB} GB free space"}
+    },
+    {
+      "id": "qwen35-0.8b",
+      "name": {"de": "Qwen3.5 0.8B (Mini, Handy)", "en": "Qwen3.5 0.8B (mini, phone)"},
+      "repo": "onnx-community/Qwen3.5-0.8B-ONNX",
+      "dtype": "q4f16",
+      "class": "Qwen3_5ForConditionalGeneration",
+      "tier": "mini",
+      "sizeBytes": 650000000,
+      "license": "Apache 2.0",
+      "requires": {"webgpu": true, "shaderF16": true, "memoryGB": 2, "storageFreeGB": 1.5},
+      "toolFormat": "qwen",
+      "audio": false,
+      "note": {"de": "Für Handys und schwache Geräte (≈ 0,65 GB, #774). Deutsch und Übersetzung sind schwach, erfindet leicht Angaben: nur für kurze Hilfen, Vorschläge genau prüfen. Für Qualität lieber einen Rechner im Netz verbinden.", "en": "For phones and weak devices (≈ 0.65 GB, #774). German and translation are weak and it invents details: short helpers only, check suggestions carefully. For quality, connect a computer on your network instead."},
       "reason": {"de": "braucht WebGPU mit shader-f16, mindestens {memoryGB} GB Arbeitsspeicher und {storageFreeGB} GB freien Speicher", "en": "needs WebGPU with shader-f16, at least {memoryGB} GB of memory and {storageFreeGB} GB free space"}
     }
   ]

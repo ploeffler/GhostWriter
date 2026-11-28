@@ -8,7 +8,7 @@ const ctx = {fmtBytes: n => String(n), store:{d:{}, set(k, v){ this.d[k] = v; },
 vm.createContext(ctx);
 // setEval aus den Einstellungen (gleiche Auswertung wie die Matrix) herauslösen
 const m = ev.match(/function setEval[\s\S]*?\n}\n/); assert.ok(m, "setEval gefunden");
-vm.runInContext(m[0] + "\n" + src + "\nthis.api = {mdlFit, mdlPick, mdlParseTools, mdlMessages, MDL_TASKS, mdlList, mdlState, mdlDownload, MDL, mdlProgLabel};", ctx);
+vm.runInContext(m[0] + "\n" + src + "\nthis.api = {mdlFit, mdlPick, mdlParseTools, mdlMessages, MDL_TASKS, mdlList, mdlState, mdlDownload, MDL, mdlProgLabel, mdlSrvNorm, mdlSrvLocal, mdlSrvChunks, mdlSrvGenerate, mdlSrvModels};", ctx);
 const api = ctx.api;
 
 // Liste: jedes Modell vollständig, Deutsch und Englisch, nur freie Lizenzen
@@ -32,7 +32,11 @@ assert.equal(api.mdlFit(by("gemma4-e2b"), {...good, memoryGB:null}).r, "eingesch
 // Auswahl: viel Rechner → stark; mittel → Standard; klein → Notbehelf; nichts → null
 assert.equal(api.mdlPick(list.models, good).id, "gemma4-e4b");
 assert.equal(api.mdlPick(list.models, {...good, memoryGB:6, storageFreeGB:5}).id, "gemma4-e2b");
-assert.equal(api.mdlPick(list.models, {...good, memoryGB:4, storageFreeGB:3}).id, "qwen35-2b");
+assert.equal(api.mdlPick(list.models, {...good, memoryGB:8, storageFreeGB:3}).id, "qwen35-2b", "8 GB, wenig Platz: Notbehelf");
+assert.equal(api.mdlPick(list.models, {...good, memoryGB:4, storageFreeGB:3}).id, "qwen35-0.8b", "Handy (Chrome meldet höchstens 4): Mini statt 2B (#774)");
+assert.equal(api.mdlFit(by("qwen35-2b"), {...good, memoryGB:4, storageFreeGB:3}).r, "nein", "2B stürzte auf dem 4-GB-Gerät ab (#774)");
+assert.equal(api.mdlFit(by("qwen35-0.8b"), {...good, memoryGB:4, storageFreeGB:3}).r, "ok");
+assert.ok(by("qwen35-0.8b").sizeBytes < 7e8);
 assert.equal(api.mdlPick(list.models, {...good, webgpu:false}), null);
 
 // Werkzeugaufrufe je Format (Formate aus dem Test in #525)
@@ -78,5 +82,24 @@ assert.equal(msg[0].role, "system"); assert.match(msg[0].content, /Erfinde nicht
   ctx.mdlRuntime = async () => ({ME: {from_pretrained: async () => { throw new Error("Netz weg"); }}});
   await api.mdlDownload(mm);
   assert.equal(api.MDL.msg.kind, "err"); assert.match(api.MDL.msg.html, /fortsetzen/); assert.equal(ctx.store.get("gw.model.done." + m.id), "");
+  // Absturz beim Starten (#774): Marke „|start“ bleibt nach dem Absturz stehen; die Ansicht merkt sich das und bietet keinen neuen Download an
+  ctx.mdlRuntime = async () => ({ME: {from_pretrained: async (repo, o) => { o.progress_callback({status:"progress", file:"a", loaded:m.sizeBytes, total:m.sizeBytes}); assert.equal(ctx.store.get("gw.model.run"), m.id + "|start"); throw new Error("x"); }}});
+  await api.mdlDownload(mm); assert.equal(ctx.store.get("gw.model.run"), "", "normales Ende räumt die Marke weg");
+  ctx.URL = URL; ctx.clearTimeout = clearTimeout; // Rechner im Netz (#774): Adresse, Datenstrom, Fehler
+  assert.equal(api.mdlSrvNorm("192.168.0.20:11434"), "http://192.168.0.20:11434/v1");
+  assert.equal(api.mdlSrvNorm(" https://pc.local/v1/ "), "https://pc.local/v1"); assert.equal(api.mdlSrvNorm(""), "");
+  assert.equal(api.mdlSrvLocal("http://192.168.0.20:11434/v1"), true); assert.equal(api.mdlSrvLocal("http://localhost:1234/v1"), true);
+  assert.equal(api.mdlSrvLocal("https://api.example.com/v1"), false); assert.equal(api.mdlSrvLocal("http://172.20.1.1"), true); assert.equal(api.mdlSrvLocal("http://172.32.1.1"), false);
+  const c1 = api.mdlSrvChunks('data: {"choices":[{"delta":{"content":"Hal"}}]}\ndata: {"choices":[{"delta":{"content":"lo"}}]}\ndata: {"choi'); assert.deepEqual([...c1.out], ["Hal", "lo"]); assert.match(c1.rest, /^data: \{"choi/);
+  assert.equal(api.mdlSrvChunks("data: [DONE]\n").out.length, 0);
+  const enc = new TextEncoder(); ctx.AbortController = AbortController; ctx.TextDecoder = TextDecoder; ctx.URL = URL;
+  ctx.store.set("gw.model.server", "http://pc:11434/v1"); ctx.store.set("gw.model.server.model", "qwen");
+  let sent = null, bodies = ['data: {"choices":[{"delta":{"content":"Guten "}}]}\n', 'data: {"choices":[{"delta":{"content":"Tag"}}]}\ndata: [DONE]\n'];
+  ctx.fetch = async (u, o) => { sent = {u, b:JSON.parse(o.body)}; let i = 0; return {ok:true, body:{getReader: () => ({read: async () => i < bodies.length ? {done:false, value:enc.encode(bodies[i++])} : {done:true}})}}; };
+  const seen = []; const txt = await api.mdlSrvGenerate([{role:"user", content:"x"}], t => seen.push(t), 50);
+  assert.equal(txt, "Guten Tag"); assert.deepEqual(seen, ["Guten ", "Guten Tag"]); assert.equal(sent.u, "http://pc:11434/v1/chat/completions"); assert.equal(sent.b.model, "qwen"); assert.equal(sent.b.stream, true);
+  ctx.fetch = async () => { throw new TypeError("Failed to fetch"); }; ctx.location = {origin:"https://x.github.io"};
+  await assert.rejects(() => api.mdlSrvModels("pc:11434"), /nicht erreichbar[\s\S]*CORS/);
+  ctx.fetch = async () => ({ok:true, json: async () => ({data:[{id:"llama3"}]})}); assert.equal((await api.mdlSrvModels("pc:11434"))[0], "llama3");
   console.log("modelle.test.cjs: ok");
 })().catch(e => { console.error(e); process.exit(1); });
