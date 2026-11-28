@@ -478,6 +478,83 @@ class WorkflowTest(unittest.TestCase):
             data = yaml.safe_load((ROOT / f'.github/workflows/{wf}.yml').read_text(encoding='utf-8'))
             step = next(st for st in data['jobs']['process']['steps'] if st.get('name') == 'Selbstneustart')
             self.assertIn("vars.GHOSTWRITER_ACTIONS_PAUSED != 'true'", step['if'])
+            self.assertIn('!cancelled()', step['if'])
+            self.assertIn("steps.jobs.outcome == 'success'", step['if'])
+            self.assertNotIn('always()', step['if'])
+
+    def _run_change_package(self, workflow, **overrides):
+        data = yaml.safe_load((ROOT / f'.github/workflows/{workflow}.yml').read_text(encoding='utf-8'))
+        step = next(st for st in data['jobs']['process']['steps'] if st.get('name') == 'Änderungspaket')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bindir = root / 'bin'
+            bindir.mkdir()
+            runner_temp = root / 'runner'
+            runner_temp.mkdir()
+            summary = root / 'summary.md'
+            log = root / 'gh.log'
+            (bindir / 'git').write_text(
+                '#!/bin/bash\nif [ "$1" = "ls-remote" ]; then [ "${GIT_FAIL:-0}" = "0" ]; exit $?; fi\nexit 1\n',
+                encoding='utf-8')
+            (bindir / 'gh').write_text(
+                '#!/bin/bash\nurl="$2"\nprintf "%s\\n" "$url" >> "$GH_LOG"\n'
+                'case "$url" in\n'
+                '  *"/pulls?state=open"*) printf "%s\\n" "${GH_OPEN:-0}" ;;\n'
+                '  *"/compare/"*) printf "%s\\n" "${GH_AHEAD:-3}" ;;\n'
+                '  */pulls) if [ "${GH_MODE:-403}" = "403" ]; then echo "HTTP 403: permission denied" >&2; exit 1; fi; printf "%s\\n" "https://github.com/example/repo/pull/99" ;;\n'
+                '  *) echo "unexpected gh api URL: $url" >&2; exit 2 ;;\n'
+                'esac\n',
+                encoding='utf-8')
+            (bindir / 'git').chmod(0o755)
+            (bindir / 'gh').chmod(0o755)
+            env = os.environ.copy()
+            env.update({
+                'PATH': str(bindir) + os.pathsep + os.defpath,
+                'GITHUB_REPOSITORY': 'example/repo',
+                'GITHUB_STEP_SUMMARY': str(summary),
+                'RUNNER_TEMP': str(runner_temp),
+                'GH_LOG': str(log),
+                'BOOK': 'buch/test',
+                'WORK': 'ghostwriter/buch/test',
+                'GH_MODE': '403',
+                'GH_OPEN': '0',
+                'GH_AHEAD': '3',
+                'GIT_FAIL': '0',
+            })
+            env.update(overrides)
+            result = subprocess.run(['bash', '-eo', 'pipefail', '-c', step['run']], cwd=ROOT,
+                                    env=env, capture_output=True, text=True)
+            return result, summary.read_text(encoding='utf-8') if summary.exists() else '', log.read_text(encoding='utf-8') if log.exists() else ''
+
+    def test_aenderungspaket_ohne_pr_recht_bricht_nicht_ab(self):
+        for wf in ('media', 'research', 'colorize', 'image'):
+            with self.subTest(workflow=wf, case='403'):
+                result, summary, _ = self._run_change_package(wf, GH_MODE='403')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn('::warning::', result.stdout)
+                self.assertIn('ghostwriter/buch/test', result.stdout)
+                self.assertIn('Pull Request konnte nicht angelegt werden', summary)
+            with self.subTest(workflow=wf, case='success'):
+                result, summary, _ = self._run_change_package(wf, GH_MODE='success')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn('https://github.com/example/repo/pull/99', summary)
+            with self.subTest(workflow=wf, case='existing-pr'):
+                result, _, log = self._run_change_package(wf, GH_MODE='success', GH_OPEN='1')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertNotIn('repos/example/repo/pulls\n', log)
+            with self.subTest(workflow=wf, case='git-unavailable'):
+                result, summary, _ = self._run_change_package(wf, GIT_FAIL='1')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn('Nichts zu speichern', result.stdout)
+
+    def test_selbstneustart_nach_fehler_im_speicherschritt(self):
+        for wf in ('media', 'research', 'colorize', 'import', 'analyse'):
+            data = yaml.safe_load((ROOT / f'.github/workflows/{wf}.yml').read_text(encoding='utf-8'))
+            step = next(st for st in data['jobs']['process']['steps'] if st.get('name') == 'Selbstneustart')
+            self.assertIn('!cancelled()', step['if'])
+            self.assertIn("steps.jobs.outcome == 'success'", step['if'])
+            self.assertIn("vars.GHOSTWRITER_ACTIONS_PAUSED != 'true'", step['if'])
+            self.assertNotIn('always()', step['if'])
 
 if __name__ == '__main__':
     unittest.main()
