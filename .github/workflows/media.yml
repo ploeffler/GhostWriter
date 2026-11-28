@@ -39,7 +39,7 @@ jobs:
           python-version: '3.12'
 
       - name: Python-Abhängigkeiten
-        run: pip install pyyaml jsonschema
+        run: pip install pyyaml jsonschema pillow
 
       - name: Buch
         id: book
@@ -73,7 +73,7 @@ jobs:
 
       - name: Abhängigkeiten
         run: |
-          pip install pyyaml jsonschema
+          pip install pyyaml jsonschema pillow
 
       - name: Ziel-Branch
         id: work
