@@ -208,14 +208,168 @@ def head_comments(text):
     return ''.join(head)
 
 
+_TOP_LEVEL_KEY = re.compile(r'^([^\\s#][^:]*):(?:[ \\t].*|[ \\t]*$)')
+
+
+def _dump_yaml(data):
+    """Bisherige YAML-Serialisierung; Fallback für nicht sicher zerlegbare Dateien."""
+    return yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=100)
+
+
+def _top_blocks(text):
+    """Zerlegt eine Top-Level-Zuordnung in Originaltextblöcke.
+
+    Kommentare und Leerzeilen auf Spaltenebene 0 vor einem Schlüssel gehören zu
+    dessen Block. Der führende Kommentarblock wird zusätzlich von head_comments
+    behandelt. Unbekannte YAML-Formen werden später durch Parsevergleich erkannt.
+    """
+    blocks, key, current, pending = [], None, [], []
+    for line in text.splitlines(keepends=True):
+        if not line.startswith((' ', '\\t')) and (not line.strip() or line.startswith('#')):
+            pending.append(line)
+            continue
+        match = _TOP_LEVEL_KEY.match(line)
+        if match:
+            if key is not None:
+                blocks.append((key, current))
+            elif current:
+                blocks.append((None, current))
+            elif pending:
+                blocks.append((None, pending))
+            key = match.group(1).strip()
+            current, pending = pending + [line], []
+        else:
+            current.extend(pending)
+            pending = []
+            current.append(line)
+    if pending:
+        if current:
+            current.extend(pending)
+        else:
+            blocks.append((None, pending))
+    if current:
+        blocks.append((key, current))
+    return blocks
+
+
+def _block_prefix(lines):
+    """Kommentare/Leerzeilen vor dem eigentlichen Top-Level-Schlüssel."""
+    for i, line in enumerate(lines):
+        if _TOP_LEVEL_KEY.match(line):
+            return lines[:i]
+    return []
+
+
+def _list_items(lines):
+    """Zerlegt eine YAML-Liste; bei mehrdeutigen Randkommentaren None zurückgeben."""
+    head, items, pending = [], [], []
+    for line in lines:
+        if re.match(r'^  - ', line):
+            items.append(pending + [line])
+            pending = []
+        elif items and (re.match(r'^  #', line) or not line.strip()):
+            pending.append(line)
+        elif items:
+            # Ein nicht eingerückter Kommentar am Blockende lässt sich nicht
+            # sicher einem Listenelement zuordnen: lieber vollständig dumpen.
+            if line.startswith('#') or not line.strip():
+                return None
+            items[-1].extend(pending)
+            pending = []
+            items[-1].append(line)
+        else:
+            head.append(line)
+    if pending:
+        return None
+    return head, items
+
+
+def _parsed_list_items(key, items):
+    """Liest jedes Originalelement einzeln; None signalisiert eine unsichere Trennung."""
+    parsed = []
+    for item in items:
+        try:
+            value = yaml.safe_load(key + ':\\n' + ''.join(item))
+        except yaml.YAMLError:
+            return None
+        if not isinstance(value, dict) or key not in value or not isinstance(value[key], list) or len(value[key]) != 1:
+            return None
+        parsed.append(value[key][0])
+    return parsed
+
+
+def merge_yaml(old_text, data):
+    """Erzeugt YAML und übernimmt unveränderte Originalblöcke zeichengetreu (#717).
+
+    Nur wenn Schlüssel und Listenelemente zweifelsfrei erkannt und einzeln
+    zurückgeparst werden können, wird partiell übernommen. Sonst greift der
+    bisherige vollständige safe_dump.
+    """
+    if not isinstance(data, dict):
+        return _dump_yaml(data)
+    try:
+        old = yaml.safe_load(old_text) or {}
+    except yaml.YAMLError:
+        return _dump_yaml(data)
+    if not isinstance(old, dict):
+        return _dump_yaml(data)
+
+    scanned = _top_blocks(old_text)
+    key_blocks = [(key, lines) for key, lines in scanned if key is not None]
+    keys = [key for key, _ in key_blocks]
+    if len(keys) != len(old) or len(set(keys)) != len(keys) or set(keys) != set(old):
+        return _dump_yaml(data)
+
+    old_blocks = {}
+    for key, lines in key_blocks:
+        try:
+            parsed = yaml.safe_load(''.join(lines))
+        except yaml.YAMLError:
+            return _dump_yaml(data)
+        if parsed != {key: old[key]}:
+            return _dump_yaml(data)
+        old_blocks[key] = lines
+
+    parts = []
+    for key, value in data.items():
+        block = old_blocks.get(key)
+        if block is not None and old.get(key) == value:
+            parts.append(''.join(block))
+            continue
+        prefix = _block_prefix(block) if block is not None else []
+        if block is not None and isinstance(value, list) and isinstance(old.get(key), list):
+            split = _list_items(block)
+            if split is not None:
+                head, items = split
+                old_items = _parsed_list_items(key, items)
+                fresh = _dump_yaml({key: value}).splitlines(keepends=True)
+                fresh_split = _list_items(fresh)
+                if fresh_split is not None:
+                    _, fresh_items = fresh_split
+                    fresh_values = _parsed_list_items(key, fresh_items)
+                    if (old_items == old[key] and fresh_values == value
+                            and len(items) == len(old_items) == len(fresh_items) == len(value)):
+                        parts.append(''.join(head) + ''.join(
+                            ''.join(items[i] if old_items[i] == value[i] else fresh_items[i])
+                            for i in range(len(items))))
+                        continue
+        parts.append(''.join(prefix) + _dump_yaml({key: value}))
+    return ''.join(parts)
+
+
 def write_yaml(path, data):
-    """Schreibt die Datei; der Kopfkommentar bleibt erhalten (#717), z. B. ein Sperrvermerk des Autors, der `apply` für diese
-    Datei untersagt. safe_dump kennt keine Kommentare und würde ihn sonst stillschweigend löschen."""
+    """Schreibt YAML; unveränderte Einträge und der Kopfkommentar bleiben erhalten (#717).
+
+    Kommentare innerhalb eines geänderten Eintrags können entfallen. Ein
+    Kommentar ist nur ein Vermerk, keine wirksame Sperre: dafür gilt das Feld
+    `gesperrt` (siehe `locked()`, #675).
+    """
     p = Path(path)
-    head = head_comments(p.read_text(encoding='utf-8')) if p.is_file() else ''
-    body = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=100)
+    old_text = p.read_text(encoding='utf-8') if p.is_file() else ''
+    head = head_comments(old_text)
+    body = merge_yaml(old_text, data) if old_text else _dump_yaml(data)
     if head and not body.startswith(head):
-        body = head + '\n' + body if not head.endswith('\n') else head + body
+        body = head + '\\n' + body if not head.endswith('\\n') else head + body
     p.write_text(body, encoding='utf-8')
 
 
