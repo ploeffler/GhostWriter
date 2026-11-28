@@ -4,12 +4,22 @@
    solange etwas wartet; beim Verlassen der Seite fragt der Browser nach. Ein Eintrag: {id, repo, book:{branch, work_branch}, files:[{path, content}],
    message, action, seen:{path: Blob-Kennung|null}, created, state:"wartet"|"konflikt"|"fehler", error}. */
 const OUTBOX_DAY = 24 * 3600 * 1000;
+/* Gemeinsame Datenbank „gw-web“ (Version 2, #744): Speicher „outbox“ (wartende Änderungen) und „files“ (Offline-Bestand gelesener Dateien, snap-web.js). */
+function gwDb(){
+  if (gwDb.p) return gwDb.p;
+  gwDb.p = new Promise((ok, no) => {
+    const r = indexedDB.open("gw-web", 2);
+    r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains("outbox")) d.createObjectStore("outbox", {keyPath:"id", autoIncrement:true}); if (!d.objectStoreNames.contains("files")) d.createObjectStore("files", {keyPath:"key"}); };
+    r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+  });
+  return gwDb.p;
+}
 function outboxStore(){
   if (typeof indexedDB === "undefined"){            // Rückfall (Tests, sehr alte Browser): nur im Arbeitsspeicher, geht beim Neuladen verloren
     const m = new Map(); let n = 0;
     return {mem:true, all:async () => [...m.values()].sort((a, b) => a.id - b.id), put:async e => { if (!e.id) e.id = ++n; m.set(e.id, JSON.parse(JSON.stringify(e))); return e.id; }, del:async id => { m.delete(id); }};
   }
-  const db = new Promise((ok, no) => { const r = indexedDB.open("gw-web", 1); r.onupgradeneeded = () => r.result.createObjectStore("outbox", {keyPath:"id", autoIncrement:true}); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+  const db = gwDb();
   const run = (mode, fn) => db.then(d => new Promise((ok, no) => { const t = d.transaction("outbox", mode), q = fn(t.objectStore("outbox")); t.oncomplete = () => ok(q && q.result); t.onerror = () => no(t.error); t.onabort = () => no(t.error); }));
   return {mem:false, all:() => run("readonly", s => s.getAll()).then(a => (a || []).sort((x, y) => x.id - y.id)), put:e => run("readwrite", s => s.put(e)), del:id => run("readwrite", s => s.delete(id))};
 }

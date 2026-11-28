@@ -6,7 +6,7 @@ const src = fs.readFileSync(path.join(__dirname, "..", "..", "shared", "s07-lade
 function run(git, login){
   const logged = [], shown = [];
   const ctx = {S:{files:new Map(), msg:null, login:login || ""}, store:{set(){}}, busy(){}, esc:s => String(s), show:v => shown.push(v), openBook(){}, getFile:(p) => git.getFile(p),
-    errText:e => { logged.push(e); return "ERR:" + (e && e.code); }, GW_PORTS:{git}, JSON, Promise, Map, Object, String, Array};
+    gwNetErr: e => !!(e && (e.code === "offline" || e.code === "server_unavailable")), errText:e => { logged.push(e); return "ERR:" + (e && e.code); }, GW_PORTS:{git}, JSON, Promise, Map, Object, String, Array};
   vm.runInNewContext(src + "\n;this.__loadRepo = loadRepo;", ctx);
   return ctx.__loadRepo("ploeffler/GhostWriter").then(() => ({ctx, logged, shown}));
 }

@@ -59,9 +59,16 @@ Wer **einen Abschnitt** speichert, während GitHub nicht erreichbar ist (oder so
 - Liegt eine Änderung schon identisch auf GitHub (etwa nach einem unklaren Fehler), wird sie nicht doppelt hochgeladen.
 
 **Grenzen:** Offline lässt sich nur das **Schreiben eines Abschnitts** sichern (Ziel, Kurzbeschreibung, Manuskript, Faktencheck). Alle anderen Aktionen (Freigeben,
-Kapitel anlegen, Figuren, Warteschlange …) brauchen Netz und melden das. Ein **Neuladen ohne Netz** zeigt die gesicherten Änderungen in der Leiste, öffnet aber
-noch kein Buch (die Bücher werden nicht lokal gehalten); weiterschreiben geht wieder mit Netz. Ohne IndexedDB (sehr alte Browser, privates Fenster) liegen die
+Kapitel anlegen, Figuren, Warteschlange …) brauchen Netz und melden das. Ohne IndexedDB (sehr alte Browser, privates Fenster) liegen die
 Änderungen nur im Arbeitsspeicher; die Leiste warnt dann.
+
+### Offline starten und lesen (#744, Teil 2)
+
+Jede Datei, die die App erfolgreich von GitHub liest (Buchtext, Konfiguration, `library.json`), legt sie zusätzlich auf dem Gerät ab (IndexedDB `gw-web`, Speicher `files`, Datei [`snap-web.js`](snap-web.js)). Nur bei einem **Netzfehler** liest `getFile` daraus; bei jedem anderen Fehler (403, 404, 422) bleibt der Fehler. Schreibwege (`prepareWork`, Online-Zweig von „Speichern“) lesen mit `fresh` ohne Erlaubnis für alte Stände: Ein abgelegter Stand gilt dort nie als frisch. So geht ein **Neuladen ohne Netz**: Bücherregal und zuletzt geöffnetes Buch sind lesbar, die Leiste nennt den Stand („Angezeigt wird der Stand vom … Uhr“); ein Abschnitt lässt sich weiter schreiben und liegt in der Outbox. Das Buch wird vom zuletzt gelesenen Branch geöffnet (meist der Arbeits-Branch, `meta` je Repository).
+- **Grenzen:** Nur Gelesenes ist offline da (kein Vorladen; „Für offline bereithalten“ höchstens später), keine Bilder, nur der Abschnitttext ist schreibbar. Ein nie geöffnetes Repository oder Buch zeigt „… noch nicht auf diesem Gerät. Öffne es einmal mit Netz.“ Ein Token-Widerruf fällt offline nicht auf; beim Hochladen scheitert es sauber, die Outbox bleibt. Höchstens 4000 Dateien je Gerät, die ältesten fallen heraus.
+- **Anmeldung:** `login()` hält einen Netzfehler nicht mehr als „chat“ fest; nach Rückkehr des Netzes werden Rolle und Git-Benutzer neu gelesen.
+- **Abmelden** löscht den Offline-Bestand (er enthält Buchtext im Klartext); die Outbox bleibt erhalten. Der Abmelde-Dialog nennt das.
+- **Nicht geprüft:** Verhalten im echten Browser (Chrome, Netz aus, installierte PWA, Datenbank-Upgrade Version 1 auf 2) und am Handy; getestet sind Ablage, Rückfall, Gegenproben, Start und Buch öffnen, Leistentext und `login()` in `apps/web/tests/snap.test.cjs`.
 
 **Gelesen** wird aus dem Netz; was offline noch angezeigt wird, ist nur, was die Ansicht schon geladen hat.
 

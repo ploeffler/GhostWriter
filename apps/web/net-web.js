@@ -22,6 +22,7 @@ function netRender(){
   const el = $("net"); if (!el) return;
   const msg = NET.online === false ? "Offline – gelesen werden kann, was schon geladen ist. Abschnittstexte kannst du weiter schreiben: Sie werden auf diesem Gerät gesichert und hochgeladen, sobald wieder Netz da ist. Alles andere (Figuren, Gliederung, Freigaben) geht erst wieder mit Netz."
     : NET.github === false ? "Online, aber GitHub ist gerade nicht erreichbar. Abschnittstexte werden auf diesem Gerät gesichert und später hochgeladen; alles andere geht erst wieder, wenn GitHub antwortet." : "";
-  el.hidden = !msg; el.className = "netbar" + (msg ? " off" : ""); el.textContent = msg;
+  const st = msg && S.stale ? " Angezeigt wird der Stand vom " + new Date(S.stale).toLocaleString("de-DE", {day:"numeric", month:"numeric", hour:"2-digit", minute:"2-digit"}) + " Uhr." : "";
+  el.hidden = !msg; el.className = "netbar" + (msg ? " off" : ""); el.textContent = msg + st;
 }
 function netFailed(){ NET.github = false; NET.wasDown = true; netRender(); netSchedule(); }   // von ports-web.js bei einem Netzfehler

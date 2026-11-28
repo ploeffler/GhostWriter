@@ -16,7 +16,8 @@ document.addEventListener("click", async ev => {
   if (!b) return;
   const n = (await OB.all()).length;
   if (n && !confirm(`Es ${n === 1 ? "wartet 1 Änderung" : "warten " + n + " Änderungen"}, die nur auf diesem Gerät liegen und noch nicht hochgeladen sind. Beim Abmelden bleiben sie hier gespeichert, werden aber erst nach erneuter Anmeldung hochgeladen. Trotzdem abmelden?`)) return;
-  ev.preventDefault(); store.set(TOKEN_KEY, ""); S.login = ""; S.owner = ""; S.lib = null; S.book = null; S.files.clear(); S.msg = null; show("connect");
+  else if (!n && !confirm("Beim Abmelden wird auch der Offline-Bestand (zuletzt gelesene Buchtexte) von diesem Gerät gelöscht. Abmelden?")) return;
+  ev.preventDefault(); if (GW_PORTS.snap) await GW_PORTS.snap.clear(); store.set(TOKEN_KEY, ""); S.login = ""; S.owner = ""; S.lib = null; S.book = null; S.files.clear(); S.msg = null; show("connect");
 });
 window.addEventListener("online", () => { NET.online = true; netProbe(); });
 window.addEventListener("offline", () => { NET.online = false; netProbe(); });
