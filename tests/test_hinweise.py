@@ -135,11 +135,11 @@ class HinweiseTest(unittest.TestCase):
             '  # Kommentar innerhalb des unveränderten Eintrags\n'
             '  entscheidung: offen\n'
             '- id: e-002\n'
-            '    alt: Zweiter Eintrag\n'
-            '    entscheidung: offen\n'
+            '  alt: Zweiter Eintrag\n'
+            '  entscheidung: offen\n'
             '- id: e-003\n'
-            '    alt: Dritter Eintrag\n'
-            '    entscheidung: offen\n'
+            '  alt: Dritter Eintrag\n'
+            '  entscheidung: offen\n'
             'autorenentscheidung: []\n'
         )
         path.write_text(original, encoding='utf-8')
@@ -152,7 +152,7 @@ class HinweiseTest(unittest.TestCase):
         third = original[original.index('- id: e-003'):original.index('autorenentscheidung:')]
         self.assertIn(first, written)
         self.assertIn(third, written)
-        self.assertIn('    # Kommentar innerhalb des unveränderten Eintrags\n', written)
+        self.assertIn('  # Kommentar innerhalb des unveränderten Eintrags\n', written)
         self.assertEqual(yaml.safe_load(written), data)
 
         # Ein erneutes Schreiben ohne Datenänderung darf auch den Rest nicht umformatieren.
@@ -172,7 +172,7 @@ class HinweiseTest(unittest.TestCase):
             'buch: Test\n'
             'ohne_autor:\n'
             '  - id: e-001\n'
-            '    entscheidung: offen\n',
+            '  entscheidung: offen\n',
             encoding='utf-8')
         expanded = hinweise.read_yaml(path)
         expanded['ohne_autor'].append({'id': 'e-002', 'entscheidung': 'offen'})
