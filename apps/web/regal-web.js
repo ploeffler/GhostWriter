@@ -54,8 +54,19 @@ function regalPatch(root){
   shelf.querySelectorAll(".gw-card").forEach(regalTidy);
   if (shelf.dataset.acc) return;
   const kids = [...shelf.children]; if (!kids.some(k => k.classList.contains("gw-sh"))) return;
-  const groups = []; let cur = null;
-  kids.forEach(k => { if (k.classList.contains("gw-sh")){ cur = {head:k, cards:[]}; groups.push(cur); } else if (cur) cur.cards.push(k); });
+  const groups = []; let cur = null, seen = new Set();
+  kids.forEach(k => {
+    if (k.classList.contains("gw-sh")){ cur = {head:k, cards:[]}; groups.push(cur); }
+    else if (cur){
+      if (k.classList.contains("gw-card")){
+        const book = k.querySelector(".gw-book"), branch = book && book.dataset.branch;
+        if (branch && seen.has(branch)){ k.remove(); return; }
+        if (branch) seen.add(branch);
+      }
+      cur.cards.push(k);
+    }
+  });
+  for (let i = groups.length - 1; i >= 0; i--) if (!groups[i].cards.some(k => k.classList.contains("gw-card"))) groups.splice(i, 1);
   shelf.dataset.acc = "1"; shelf.style.display = "block"; shelf.textContent = "";
   groups.forEach(g => shelf.appendChild(regalGroup(g)));
 }

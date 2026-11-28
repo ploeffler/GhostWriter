@@ -209,6 +209,25 @@ class ShelfTest(unittest.TestCase):
         self.assertIn('GW.render("buecherregal"', widget)
         self.assertEqual(widget_data(widget)['BOOKS'][0]['BOOK_PENDING_TEXT'], '1 Änderung offen')
 
+    def test_series_and_shelf_rows_are_unique_for_repeated_branches(self):
+        data = dict(self.data)
+        first, second = (dict(b) for b in self.data['books'][:2])
+        solo = dict(first, branch='buch/solo', title='Einzelbuch')
+        data['books'] = [first, second, solo, dict(first)]
+        data['series'] = [
+            {'id': 'serie-1', 'title': 'Serie 1', 'volumes': [first['branch'], second['branch']]},
+            {'id': 'serie-2', 'title': 'Serie 2', 'volumes': [second['branch']]},
+        ]
+        path = Path(self.d, 'library-duplicates.json')
+        path.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+        widget = self.view(self.d, 'library', '--library', str(path))
+        result = widget_data(widget)
+        rows = result['BOOKS']
+        branches = [row['BOOK_BRANCH'] for row in rows]
+        self.assertEqual(branches, [first['branch'], second['branch'], 'buch/solo'])
+        self.assertEqual([row['BOOK_SERIES'] for row in rows], ['serie-1', 'serie-1', ''])
+        self.assertEqual(result['BOOK_COUNT_TEXT'], '3 Bücher · 2 Serien')
+
     def test_project_link_from_two_books(self):
         fx = str(ROOT / 'tests/fixtures/adhs')
         self.assertIn('"LIBRARY_COUNT":2', self.view(fx, 'project', '--library', str(self.lib)))
