@@ -122,6 +122,69 @@ class HinweiseTest(unittest.TestCase):
         self.assertEqual(hinweise.head_comments('a: 1\n# später\n'), '')            # nur der führende Block
         self.assertEqual(hinweise.head_comments('# a\n\n# b\nx: 1\n'), '# a\n\n# b\n')
 
+    def test_unmodified_yaml_entries_remain_byte_identical(self):
+        """#717: Lange Zeilen, Anführungszeichen und Kommentare unbeteiligter Einträge bleiben erhalten."""
+        path = self.base / 'editorial/durchsicht-preserve.yml'
+        long_text = 'Ein langer Originalwortlaut mit mehreren erläuternden Bestandteilen, der deutlich mehr als hundert Zeichen umfasst. ' * 2
+        original = (
+            '# Kopfkommentar bleibt erhalten\\n'
+            'buch: Test\\n'
+            'ohne_autor:\\n'
+            '  - id: e-001\\n'
+            f'    alt: "{long_text}"\\n'
+            '    # Kommentar innerhalb des unveränderten Eintrags\\n'
+            '    entscheidung: offen\\n'
+            '  - id: e-002\\n'
+            '    alt: Zweiter Eintrag\\n'
+            '    entscheidung: offen\\n'
+            '  - id: e-003\\n'
+            '    alt: Dritter Eintrag\\n'
+            '    entscheidung: offen\\n'
+            'autorenentscheidung: []\\n'
+        )
+        path.write_text(original, encoding='utf-8')
+        data = hinweise.read_yaml(path)
+        data['ohne_autor'][1]['entscheidung'] = 'geändert'
+        hinweise.write_yaml(path, data)
+        written = path.read_text(encoding='utf-8')
+
+        first = original[original.index('  - id: e-001'):original.index('  - id: e-002')]
+        third = original[original.index('  - id: e-003'):original.index('autorenentscheidung:')]
+        self.assertIn(first, written)
+        self.assertIn(third, written)
+        self.assertIn('    # Kommentar innerhalb des unveränderten Eintrags\\n', written)
+        self.assertEqual(yaml.safe_load(written), data)
+
+        # Ein erneutes Schreiben ohne Datenänderung darf auch den Rest nicht umformatieren.
+        hinweise.write_yaml(path, hinweise.read_yaml(path))
+        self.assertEqual(path.read_text(encoding='utf-8'), written)
+
+    def test_write_yaml_falls_back_when_preservation_is_unsafe(self):
+        """#717: Bei Parsefehlern oder nicht sicher trennbaren Listen bleibt das Schreiben möglich."""
+        path = self.base / 'editorial/durchsicht-fallback.yml'
+        data = {'buch': 'Test', 'ohne_autor': [{'id': 'e-001', 'entscheidung': 'offen'}]}
+        path.write_text('buch: [\\n', encoding='utf-8')
+        hinweise.write_yaml(path, data)
+        self.assertEqual(yaml.safe_load(path.read_text(encoding='utf-8')), data)
+
+        # Geänderte Listenlänge: vollständiger Dump statt riskanter Zuordnung per Index.
+        path.write_text(
+            'buch: Test\\n'
+            'ohne_autor:\\n'
+            '  - id: e-001\\n'
+            '    entscheidung: offen\\n',
+            encoding='utf-8')
+        expanded = hinweise.read_yaml(path)
+        expanded['ohne_autor'].append({'id': 'e-002', 'entscheidung': 'offen'})
+        hinweise.write_yaml(path, expanded)
+        self.assertEqual(yaml.safe_load(path.read_text(encoding='utf-8')), expanded)
+
+    def test_write_yaml_creates_valid_new_file(self):
+        path = self.base / 'editorial/durchsicht-neu.yml'
+        data = {'buch': 'Test', 'ohne_autor': []}
+        hinweise.write_yaml(path, data)
+        self.assertEqual(yaml.safe_load(path.read_text(encoding='utf-8')), data)
+
     def test_chapter_filter_and_validation(self):
         with self.assertRaises(ValueError):
             hinweise.collect(self.base, self.config, chapters=['kap-x'])
