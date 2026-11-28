@@ -4,9 +4,9 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 import yaml
-from types import SimpleNamespace
 
 from tests.authority_helpers import fake_github
 
@@ -101,7 +101,7 @@ class SectionsTest(unittest.TestCase):
         meta, _ = self.add_test_image('1.3')
         target = self.config()['structure']['chapters'][1]['sections'][0]
         target_id = target['id']
-        target_chapter = target['path'].split('/')[0]
+        target_chapter = self.config()['structure']['chapters'][1]['path']
         sections.cmd_merge(self.base, '1.3', target_id, 'archive')
 
         config = self.config()
