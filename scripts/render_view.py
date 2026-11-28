@@ -3339,7 +3339,7 @@ def library_view(base, config, args):
     # Bücher einer Serie zuerst, gruppiert und in Bandreihenfolge (#116); danach die übrigen
     for si, s in enumerate(ser, start=1):
         for n, br in enumerate(s['volumes'], start=1):
-            if br in by_branch:
+            if br in by_branch and br not in seen:
                 r = book_row(by_branch[br])
                 r.update({'BOOK_SERIES': s['id'], 'BOOK_SERIES_TITLE': s['title'], 'BOOK_SERIES_KEY': f'S{si}',
                           'BOOK_VOLUME_NUMBER': n, 'BOOK_VOLUME_TEXT': f'Band {n}'})
