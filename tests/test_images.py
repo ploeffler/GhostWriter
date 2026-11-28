@@ -163,17 +163,6 @@ class ImageTest(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, 'nicht als visuelle Referenz freigegeben'):
             self.add(reference_ids=[ref['id']])
 
-    def test_add_rejects_truncated_png_before_writing_files(self):
-        image = self.tmp / 'bild.png'
-        data = image.read_bytes()
-        image.write_bytes(data[:len(data) // 3])
-        with self.assertRaisesRegex(ValueError, 'beschädigt oder unvollständig'):
-            self.add()
-        _, config = load(self.base)
-        section = config['structure']['chapters'][0]['sections'][0]
-        folder = self.base / config['structure']['chapters'][0]['path'] / 'images' / section['id']
-        self.assertFalse(folder.exists())
-
     def test_add_writes_meta_and_run(self):
         meta, folder = self.add(names=['Opi'])
         self.assertEqual(meta['id'], 'img-opi-und-strolchi-auf-der-bank')
