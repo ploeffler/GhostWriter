@@ -83,7 +83,8 @@ Für Änderungen an der Kapitelgliederung gibt es `scripts/sections.py` (#293):
 `merge` legt Abschnitte zusammen, `remove` entfernt einen Abschnitt (Datei nach
 `archiv/`), `move` verschiebt ihn in ein anderes Kapitel. Das Skript zieht
 `ghostwriter.yml`, Nummern und Überschriften, die Abschnittslisten der
-Kapitel-READMEs, Laufdateien, Kosten und Markdown-Verweise nach. Abgeschlossene
+Kapitel-READMEs, Laufdateien, Kosten und Markdown-Verweise nach. Beim Zusammenlegen
+wandern Bilder mit in den Zielabschnitt und behalten dort ihre Zuordnung. Abgeschlossene
 Abschnitte bleiben gesperrt, bis sie wieder geöffnet sind; ein Manuskript
 wird nur nach ausdrücklicher Wahl angehängt, archiviert oder entfernt. Entfernte
 IDs stehen in `structure.retired`, damit das Freigabe- und Prüfprotokoll

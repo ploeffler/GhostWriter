@@ -9,8 +9,10 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'scripts'))
+sys.path.insert(0, str(ROOT / 'tests'))
 import sections  # noqa: E402
 import validate_project  # noqa: E402
+from test_cover import png  # noqa: E402
 
 CH1 = 'chapters/01-endlich-eine-erklaerung'
 S2 = 'sec-01-02-die-etiketten-die-wir-kennen'
@@ -68,6 +70,24 @@ class SectionsTest(unittest.TestCase):
         readme = (self.base / CH1 / 'README.md').read_text(encoding='utf-8')
         self.assertIn('| 1.3 | Die Uhr, die bei mir anders tickt |', readme)
         self.assertEqual(self.config()['structure']['retired'][0]['merged_into'], S2)
+        self.valid()
+
+    def test_merge_retargets_images(self):
+        self.blank(S3)
+        source = self.base / CH1 / 'images' / S3
+        source.mkdir(parents=True)
+        png(source / 'img-test.png', 12, 8)
+        (source / 'img-test.yml').write_text(yaml.safe_dump({
+            'id': 'img-test', 'section_id': S3, 'file': 'img-test.png',
+            'caption': 'Testbild', 'status': 'draft', 'ai_generated': False,
+            'source': 'own'
+        }, allow_unicode=True, sort_keys=False), encoding='utf-8')
+
+        sections.cmd_merge(self.base, S3, S2)
+
+        target = self.base / CH1 / 'images' / S2 / 'img-test.yml'
+        self.assertTrue(target.is_file())
+        self.assertEqual(yaml.safe_load(target.read_text(encoding='utf-8'))['section_id'], S2)
         self.valid()
 
     def test_manuscript_needs_choice(self):

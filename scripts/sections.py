@@ -255,6 +255,18 @@ def move_runs(base, ch_from, sid_from, ch_to, sid_to):
     return moved
 
 
+def retarget_images(base, ch_to, sid_from, sid_to):
+    """Bildbeschreibungen nach dem Zusammenlegen dem Zielabschnitt zuordnen."""
+    folder = base / ch_to['path'] / 'images' / sid_to
+    files = sorted(folder.glob('img-*.yml')) if folder.is_dir() else []
+    for path in files:
+        data = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+        if data.get('section_id') != sid_from:
+            continue
+        data['section_id'] = sid_to
+        path.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=10**6), encoding='utf-8')
+
+
 def move_costs(base, ch_from, sid_from, ch_to, sid_to):
     src = base / ch_from['path'] / 'costs' / f'{sid_from}.yml'
     if not src.is_file():
@@ -368,6 +380,7 @@ def retire(base, config, text, ch, sec, action, into=None, manuscript_mode=None,
         add_to_target(base, target, material_block(num, stext), ms if mode == 'append' else '')
         for f, t in move_runs(base, ch, sec['id'], tch, target['id']):
             repl[str(f.relative_to(base))] = str(t.relative_to(base))
+        retarget_images(base, tch, sec['id'], target['id'])
         move_costs(base, ch, sec['id'], tch, target['id'])
         record['merged_into'] = target['id']
         if mode == 'archive':
