@@ -25,9 +25,12 @@ Die **eingebauten GitHub-Verbindungen** beider Apps können nur lesen (Stand der
 |---|---|---|
 | Klon und Git-Anmeldung (Claude Code, Claude mit `add_repo`, Codex) | `permissions.push` und Probe-Push mit `--dry-run` | Probe-Push, dann der erste Commit |
 | Nur GitHub-Connector (ChatGPT-Chat, Claude ohne Klon) | `permissions.push` über den Connector; **kein Probe-Push** | der erste echte Commit auf `ghostwriter/<buch-branch>` |
+| Shell ohne Git-Anmeldung, Connector vorhanden (ChatGPT Work Mode, Beobachtung vom 27.11.2026, #764) | Connector-Lesen prüfen; lokales Git/`gh` nicht angemeldet; Schreibrecht erst bei Bedarf über den Connector prüfen | Lesezugriff ist belegt; lokaler Klon fehlt, Schreibzugriff bleibt ungeprüft |
 | Kein Schreibwerkzeug | nichts zu prüfen | Dateien mit Zielpfad im Chat ausgeben (`START.md`, „Freigabe und Repository-Übertragung“) |
 
 Der Assistent nennt in einem Satz, welcher Fall vorliegt, statt abzubrechen. Kann ein Client keinen Pull Request anlegen, bittet der Assistent den Benutzer, ihn auf GitHub anzulegen.
+
+**Beobachtung ChatGPT Work Mode vom 27.11.2026 (#764):** `git clone` scheiterte mit Exit-Code 128 („could not read Username“), `gh api user` mit Exit-Code 4 („gh auth login“); derselbe Benutzer konnte das private Repository über den GitHub-Connector lesen. Das belegt fehlende lokale Git-/CLI-Zugangsdaten in dieser Sitzung, nicht fehlende Repository-Rechte und keine Dateisystemsperre. Der Connector-Lesezugriff beweist keinen Schreibzugriff. Ob Work Mode einen unterstützten Weg für kurzlebige Git-Zugangsdaten anbietet, bleibt offen.
 
 Belege:
 - Claude: Die GitHub-Integration synchronisiert nur Dateinamen und Inhalte eines Branches, ohne Commit-Historie und Pull Requests ([Anthropic-Hilfe: Use the GitHub integration](https://support.claude.com/en/articles/10167454-use-the-github-integration)).
@@ -92,8 +95,10 @@ Bucharbeit wechselt zwischen **Gespräch** (Ideen, Figuren, Szenen, Recherche be
 |---|---|---|---|
 | Claude mit eingebundenem Repository bzw. Arbeitsumgebung | ja | ja | im selben Chat, ohne Übergabe |
 | Claude ohne Repository, ChatGPT mit GitHub-Connector (nur lesend) | ja | nein | vorbereitete Übergabe in eine Umgebung mit Schreibzugriff |
-| ChatGPT Work, Codex | ja | ja | im selben Chat; Übergabe zurück in einen reinen Chat bei Bedarf |
+| ChatGPT Work, Codex* | ja | ja | im selben Chat; Übergabe zurück in einen reinen Chat bei Bedarf |
 | Open WebUI | ja | je nach eingerichteten Werkzeugen | sonst vorbereitete Übergabe |
+
+* Bei Work Mode ist eine lokale Shell nicht gleichbedeutend mit angemeldetem Git. Der beobachtete Fall #764 konnte über den Connector lesen, aber nicht lokal klonen; die tatsächliche Verfügbarkeit kann je Sitzung variieren.
 
 Ein Wechsel der Oberfläche selbst (z. B. vom ChatGPT-Chat nach Work) liegt beim Anbieter; GhostWriter schaltet sie nicht um. Der Assistent sagt diese Grenze in einem Satz und bietet den Befehl `Übergabe` an: `python scripts/handover.py . --section 3.2 --mode manuskript` erzeugt einen kopierfertigen Text mit Starttext, geprüftem Stand (Repository, Buch-Branch und Commit, Arbeitsbranch, Pull Request, Abschnitt mit Prüfsumme, offene Abschnitte, Gesprächssicherungen) und einem JSON-Block. Aus den Sicherungen – übernommenen im Buch und noch offenen `ghostwriter/chat/*` – übernimmt sie die gespeicherten **Entscheidungen** und **offenen Aufgaben** (Thema Planung), je Sicherung auf 600 Zeichen gekürzt und mit Herkunft; das ist gespeicherter Stand, keine Freigabe (#315, Teil 2). Der Assistent ergänzt, was nur im Chat steht, ausdrücklich als nicht gespeichert. In der anderen Umgebung prüft `python scripts/handover.py . check <übergabe>` vor dem ersten Schreiben: `✓` unverändert, `ⓘ` neuere Fassung (erst neu lesen), `✗` Konflikt (nicht schreiben). Das Skript liest nur.
 
