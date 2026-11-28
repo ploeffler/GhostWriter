@@ -251,9 +251,9 @@ class MediaJobTest(Base):
 
     def test_input_must_be_inside_book_and_download_host_checked(self):
         (self.base / 'bild.png').write_bytes(PNG)
-        self.enqueue(input='../draussen.png')
-        results, _ = self.run_jobs(FakeFal())
-        self.assertIn('Bilddatei im Buch', results[0]['error'])
+        with self.assertRaisesRegex(research.ResearchError, 'innerhalb des Buchs'):
+            self.enqueue(input='../draussen.png')
+        self.assertEqual(jobs.files(self.base), [])
         self.assertTrue(fal_media.host_ok('https://v3b.fal.media/a.mp4'))
         self.assertFalse(fal_media.host_ok('https://evil.example/a.mp4'))
         self.assertFalse(fal_media.host_ok('http://v3.fal.media/a.mp4'))
