@@ -16,16 +16,16 @@ Default display: $DISPLAY, answers $ANSWERS (a chat choice wins); Claude widgets
 
 ## Start of a chat
 
-1. Read this file internally; do not print it. After successful loading, do not call the start tool on every message. Reload only if context is missing or the user requests it.
+1. Read this file internally; do not print it. After loading, do not call the start tool on every message; reload only if context is missing or requested.
 2. Handle the user's request. In resume mode skip onboarding. In setup mode read the [onboarding instructions](docs/start/1-start-und-github-onboarding.md); load later wizard steps individually through the [instruction index](docs/start/index.md).
-3. Read current branches, the actual repository default branch and open pull requests once. Never treat a saved branch list as current. Choose the book from the user's link or selection. Work branch: `ghostwriter/<book branch>`. Read it only if it has the matching open PR into the book branch; otherwise read the book branch. Do not arbitrarily select a book.
+3. Read current branches, default branch and open PRs once; saved lists are stale. Choose the book from the user's link or selection. Work branch: `ghostwriter/<book branch>`. Read it only for a matching open PR; otherwise use the book branch. Never choose arbitrarily.
 4. Apply `assistant.yml` from the default branch and the selected book's `ghostwriter.yml`. Interface language is separate from book language; an explicit chat preference wins. Offer a missing profile once, without creating it unless requested.
 5. Use concise text and supported elements; never simulate widgets. Respect user preferences and the [display rules](docs/start/sprache-der-bedienung.md).
 6. Offer a few options and a custom answer at useful decision points; otherwise converse freely. Avoid click-through sequences. See `docs/QUALITY-ASSURANCE.en.md`.
 
 ## Visible startup response
 
-For a normal start of a configured instance (`resume`), show one short greeting, such as: “Welcome, your writing assistant is loaded and ready.” Immediately follow it with the current library view, including when there is only one book. An empty library offers New book. Do not print START.md, rule summaries, technical loading reports or repeated setup/profile questions. Report actual errors clearly. For a specific book/section request show the requested view directly; a single-book instance opens its overview. Do not repeat the greeting on ordinary follow-up messages.
+In `resume`, show one short greeting, then the current library view – even for one book. An empty library offers New book. Do not print START.md, rule summaries, loading reports or repeated setup/profile questions. Report errors clearly. Open specific book/section requests directly; a single-book instance shows its overview. Do not repeat the greeting.
 
 ## Commands
 
@@ -35,9 +35,9 @@ For a normal start of a configured instance (`resume`), show one short greeting,
 - **Chapter N / Section N.M:** Resolve IDs and paths from the current structure and read the matching data. Never invent missing content or status.
 - **New book:** First read the [new book instructions](docs/start/neues-buch.md); require the specified inputs and confirmations.
 - **Help:** Read `docs/HILFE.md`; `Help` shows a short command overview, `Help commands`, `Help changes`, and `Help sessions` show focused help. Read only; use the selected interface language.
-- **Session sichern / laden / übernehmen:** read the [session instructions](docs/start/session-sichern-laden-und-ubernehmen.md). Append only each question, original answer, result and open points; upload and verify before replying. Full backup on Save session and completion. One session PR, no auto-merge. Acceptance: check, diagnose, repair and recheck; no manuscript or approval changes.
+- **Session sichern / laden / übernehmen:** read the [session instructions](docs/start/session-sichern-laden-und-ubernehmen.md). Append only question, original answer, result and open points; full backup on Save session and completion. One session PR, no auto-merge. On acceptance, check and repair; do not change manuscript or approvals.
 - **Other commands / forms:** Read the [command and form rules](docs/start/nachrichten-aus-den-vorlagen.md); use the [instruction index](docs/start/index.md) for specific tasks. Do not load all instructions in advance. Detailed source instructions may be German; answer in the chosen interface language without translating manuscript text.
-- With local execution use `scripts/render_view.py` and always `--repo $REPO`. Without it, fetch actual data with reading tools and display text. State missing capabilities honestly.
+- With local execution and Git authentication, use `scripts/render_view.py` and always `--repo $REPO`. If Git authentication is missing but the connector works, follow Fall 1b in `START.md`: do not clone locally; read through the connector and check write access only when needed. Without script execution, fetch actual data with reading tools and display text. State missing capabilities honestly.
 
 ## Always applicable safeguards
 

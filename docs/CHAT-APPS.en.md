@@ -27,9 +27,12 @@ The original assessment refers to [Anthropic's GitHub integration help](https://
 |---|---|---|
 | Clone and Git login (Claude Code, Claude with `add_repo`, Codex) | `permissions.push` and a probe push with `--dry-run` | the probe push, then the first commit |
 | GitHub connector only (ChatGPT chat, Claude without a clone) | `permissions.push` through the connector; **no probe push** | the first real commit on `ghostwriter/<book-branch>` |
+| Shell without Git login, connector available (ChatGPT Work Mode, observed 27 Nov 2026, #764) | check connector read access; local Git/`gh` is not logged in; check write access through the connector only when needed | connector read access is evidenced; no local clone, write access remains unverified |
 | No write tool | nothing to check | output the full file contents with target paths in the chat (`START.md`, "Freigabe und Repository-Übertragung") |
 
 The assistant states in one sentence which case applies instead of stopping. If a client cannot open a pull request, the assistant asks the user to open it on GitHub.
+
+**ChatGPT Work Mode observation of 27 November 2026 (#764):** `git clone` failed with exit code 128 ("could not read Username"), and `gh api user` with exit code 4 ("gh auth login"). The same user could read the private repository through the GitHub connector. This evidences missing local Git/CLI credentials in that session, not missing repository permissions or a filesystem restriction. Connector read access does not prove write access. Whether Work Mode offers a supported way to provide short-lived Git credentials remains unknown.
 
 ## Ways to work with the repository
 
@@ -87,8 +90,10 @@ Book work alternates between **conversation** (discussing ideas, characters, sce
 |---|---|---|---|
 | Claude with the repository attached or a work environment | yes | yes | in the same chat, no handover |
 | Claude without repository, ChatGPT with the GitHub connector (read-only) | yes | no | prepared handover to an environment with write access |
-| ChatGPT Work, Codex | yes | yes | in the same chat; handover back to a plain chat if needed |
+| ChatGPT Work, Codex* | yes | yes | in the same chat; handover back to a plain chat if needed |
 | Open WebUI | yes | depending on the configured tools | otherwise prepared handover |
+
+* In Work Mode, a local shell does not imply that Git is authenticated. In the observed #764 case, the connector could read the repository but local cloning failed; availability may vary by session.
 
 Switching the interface itself (for example from a ChatGPT chat to Work) is up to the provider; GhostWriter does not switch it. The assistant states this limit in one sentence and offers the `Handover` command: `python scripts/handover.py . --section 3.2 --mode manuskript` produces copy-ready text with a start prompt, the verified state (repository, book branch and commit, work branch, pull request, section with checksum, open sections, conversation backups) and a JSON block. From the backups – accepted ones in the book and still open `ghostwriter/chat/*` – it carries over the saved **decisions** and **open tasks** (planning topic), shortened to 600 characters per backup and with their origin; this is saved state, not an approval (#315, part 2). The assistant adds what exists only in the chat, explicitly marked as not saved. In the other environment, `python scripts/handover.py . check <handover>` checks before the first write: `✓` unchanged, `ⓘ` newer version (re-read first), `✗` conflict (do not write). The script only reads.
 

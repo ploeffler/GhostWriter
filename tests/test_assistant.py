@@ -275,7 +275,7 @@ class EntryFilesTest(unittest.TestCase):
         """#569: Was früher nur im Skill `ghostwriter` stand, steht in START.md; der Skill hat keine Kopie im Hauptrepo mehr."""
         text = (ROOT / 'START.md').read_text(encoding='utf-8')
         for s in ('--repo', 'permissions.push', 'user.email', 'zz-schreibtest', 'Fall 1', 'Fall 2', 'Fall 3', '„Speichern“',
-                  '„Zusammenführen“', 'issue_write', 'Anforderungen zuordnen'):
+                  '„Zusammenführen“', 'issue_write', 'Anforderungen zuordnen', 'Fall 1b', 'could not read Username', 'Fähigkeiten getrennt feststellen'):
             self.assertIn(s, text)
         for f in ('CLAUDE.md', 'AGENTS.md'):
             t = (ROOT / f).read_text(encoding='utf-8')
