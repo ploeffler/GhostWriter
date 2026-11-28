@@ -1,5 +1,15 @@
 # GhostWriter – eigene Web-App (Stufe 1, ohne Chat)
 
+
+## Manuskript bearbeiten mit EasyMDE
+
+EasyMDE 2.21.0 ersetzt das Manuskriptfeld auf der Abschnittsseite. Mit `?editor=text` bleibt das einfache Textfeld verfügbar. Fett, Kursiv, Listen, Vorschau und Vollbild; Änderungen laufen über das bisherige Textfeld und die bestehende Speicher-/Outbox-Logik. Die eigene EasyMDE-Speicherung und der Wörterbuchdownload sind aus. Vor einem Abschnittswechsel wie bisher speichern.
+
+Die Vorschau wird mit DOMPurify 3.5.0 bereinigt und lädt keine Bilder; GhostWriter-Bildverweise bleiben im Text erhalten. Sie ist keine Buchsatz-Vorschau. Die Dateien liegen fest unter `vendor/`, samt Lizenzen; der Service Worker nimmt die Laufzeitdateien in die Offline-Hülle auf. Kein CDN-Aufruf. Quellen: [EasyMDE 2.21.0](https://www.npmjs.com/package/easymde/v/2.21.0), [DOMPurify 3.5.0](https://www.npmjs.com/package/dompurify/v/3.5.0); die Paketintegrität wurde gegen die npm-Prüfsummen geprüft. Demo mit erfundenen Daten: `editor-prototype.html?editor=easymde`. „Speichern“ zeigt dort nur den übergebenen Text und schreibt nichts zu GitHub. Die Demo gehört nicht zum Veröffentlichungspaket.
+
+Prüfen: `GW_TEST_BROWSER=/pfad/zu/chrome GW_TEST_PLAYWRIGHT=/pfad/zu/playwright-core python3 -m unittest tests.test_editor_prototype`. Die optionale IndexedDB-Prüfung benötigt `playwright-core` und Node. Ohne diese Konfiguration wird sie ausdrücklich übersprungen; die übrigen Browserprüfungen laufen mit Chrome. Die Tests prüfen langen Text und Bildverweise unverändert, Übergabe ans Speicherfeld, externe Textänderung, Sperre/Entsperren, sichere Vorschau, Abschnittswechsel und die einfache Textansicht. Der zusätzliche Integrationstest führt das echte Abschnittsformular durch Online-Speichern und Offline-Ablage in IndexedDB bis zum späteren Hochladen gegen eine nachgestellte GitHub-Schnittstelle; fremde Netzaufrufe sind gesperrt. Echte Handy-Tastatur, lange Schreibsitzung und ein vollständiger GitHub-Durchlauf mit einem echten Buch sind noch nicht abgenommen; automatisierte Prüfungen verwenden ausschließlich erfundene Testdaten.
+
+
 Erster Wurf der eigenen App aus [#662](https://github.com/ploeffler/GhostWriter/issues/662): dieselben Ansichten wie in der Claude-Web-App
 ([`apps/claude/`](../claude/README.md)), aber ohne Claude und ohne Konnektor. Sie läuft aus einem einzigen Ordner direkt im Browser und spricht
 über die GitHub-REST-Schnittstelle mit einem **Fine-grained Token** mit GitHub.
@@ -200,3 +210,9 @@ Beim Öffnen eines Buchs ermittelt die App die Rolle wie der Chat (`scripts/team
 ## Anmeldung als Collaborator (#763)
 
 Ein Fine-grained Token gilt nur für Repositories des Kontos, für das er angelegt wurde. Bist du in einem privaten Repository eines anderen Kontos nur Collaborator, lässt es sich damit nicht auswählen. Die Startseite weist darauf hin und verlinkt das Anlegen eines **klassischen Tokens** (Recht `repo`, dazu `workflow` für Läufe; er gilt für alle eigenen Repositories, darum kurze Ablaufzeit). Auch die Meldung „nicht gefunden“ nennt das, wenn das Repository einem anderen Konto gehört als dem angemeldeten. Die App nutzt nur die REST-Schnittstelle, ein klassischer Token verhält sich dort gleich. Der Anmeldeweg selbst bleibt unverändert; Abnahme: als Collaborator mit klassischem Token ein fremdes privates Repository öffnen (steht bei Peter aus).
+
+---
+
+Entwickelt mit Unterstützung von Claude (Anthropic)
+
+Entwickelt mit Unterstützung von Codex (OpenAI)

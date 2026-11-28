@@ -36,6 +36,8 @@ def expected():
     for part in [sw_src, files[HERE / 'index.html'], (HERE / 'manifest.webmanifest').read_text(encoding='utf-8'),
                  (HERE / 'vendor' / 'js-yaml.min.js').read_text(encoding='utf-8'), (HERE / 'faehigkeiten.json').read_text(encoding='utf-8'), (HERE / 'modelle.json').read_text(encoding='utf-8')] + [files[HERE / 'vendor' / n] for n in COPIES]:
         h.update(part.encode('utf-8'))
+    for asset in ('easymde.min.js', 'easymde.min.css', 'purify.min.js'):
+        h.update((HERE / 'vendor' / asset).read_bytes())
     for icon in sorted((HERE / 'icons').iterdir()):
         h.update(icon.read_bytes())
     files[HERE / 'sw.js'] = sw_src.replace('@@VERSION@@', h.hexdigest()[:12])

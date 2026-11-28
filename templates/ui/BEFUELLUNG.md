@@ -828,6 +828,8 @@ Aufbau, immer in dieser Reihenfolge:
 2. **Kennzeile** als Inline-Code: `gw:<aktion>`, dahinter alle kurzen Werte (Zahl, `true`/`false` oder Text ohne Leerzeichen und Backtick, höchstens 80 Zeichen) als `schlüssel=wert`, getrennt durch Leerzeichen.
 3. **Feldzeilen** für alle übrigen Werte (Freitext, Leerzeichen, leer, länger als 80 Zeichen), je Feld eine Zeile `feld: wert`. Mehrzeilige Werte setzen jede Folgezeile mit zwei Leerzeichen eingerückt fort. Ein leerer Wert steht als `feld:`. Backtick und Backslash im Wert sind mit einem Backslash maskiert (`\``, `\\`); beim Lesen wieder zurücknehmen. Zahlen, Listen und Objekte, die nicht in die Kennzeile passen, stehen als `feld (JSON): <JSON in einer Zeile>`.
 
+Die Web-App und die gemeinsame App-Laufzeit lesen diese Feldzeilen einschließlich leerer Werte, Einrückung, Maskierung und JSON. Alte `gw`-JSON-Blöcke bleiben lesbar. Ein unlesbares JSON-Feld stoppt die Aktion, statt mit unvollständigen Formulardaten zu speichern.
+
 ````text
 Eintrag e-033: anders formulieren
 

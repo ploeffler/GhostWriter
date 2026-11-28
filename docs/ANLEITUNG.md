@@ -153,6 +153,11 @@ cover:
 `visible: false` blendet einen Textteil aus. `font: serif` oder `sans` wählt die Schriftgruppe. `break_after: [2]` erzwingt nach dem zweiten Wort einen Umbruch; passt die Position nach einer Textänderung nicht mehr, stoppt die Ausgabe mit einem Hinweis. Sonst erfolgt der Umbruch anhand der Breite. `background_targets` begrenzt die Verwendung von `background` auf `front`, `spine` und/oder `back`; ausdrücklich gespeicherte `panel_backgrounds` haben Vorrang. Nicht ausgewählte Flächen ohne eigenen Farbwert verwenden die Standardfarbe. Das Bild überdeckt weiterhin die Vorderseitenfarbe. Ein JSON-Patch ändert nur genannte Felder; Textbereiche und Flächenfarben werden einzeln zusammengeführt. `null` entfernt eine individuelle Angabe, etwa `{"text_boxes":{"title":null}}` für die Rückkehr zur Vorlage.
 
 
+## Manuskript-Editor in der Web-App
+
+Auf der Abschnittsseite steht ein Markdown-Editor mit Formatierknöpfen und Vorschau. Speichern und Schreibsperren bleiben bei GhostWriter. Die Vorschau zeigt keine Bilder und entspricht nicht dem Buchsatz. Mit `?editor=text` in der App-Adresse bleibt das einfache Textfeld verfügbar. Vor einem Abschnittswechsel speichern. Echte Handy-Tastatur und Speichern in einem echten Buch sind noch nicht praktisch abgenommen.
+
+
 ---
 
 <p align="right"><sub>Entwickelt mit Unterstützung von Claude (Anthropic) · <a href="https://claude.ai">claude.ai</a><br>Entwickelt mit Unterstützung von Codex (OpenAI)</sub>&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.svg"><img src="../assets/logo.svg" alt="GhostWriter" height="22" align="absmiddle"></picture></p>

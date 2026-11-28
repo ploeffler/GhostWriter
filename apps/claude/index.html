@@ -590,7 +590,23 @@ function parseAction(text){
   let m = /```gw\n([\s\S]*?)\n```/.exec(text);
   if (m){ try { const o = JSON.parse(m[1]); const a = o.action; delete o.action; return {action:a, data:o, text:text.split("\n\n")[0]}; } catch (e) {} }
   m = /`gw:([^\s`]+)([^`]*)`/.exec(text);
-  if (m){ const data = {}; m[2].trim().split(/\s+/).filter(Boolean).forEach(kv => { const i = kv.indexOf("="); if (i < 0) return; const k = kv.slice(0, i), v = kv.slice(i + 1); data[k] = /^-?\d+$/.test(v) ? Number(v) : v === "true" ? true : v === "false" ? false : v; }); return {action:m[1], data, text:text.split("\n\n")[0]}; }
+  if (m){
+    const data = Object.create(null);
+    m[2].trim().split(/\s+/).filter(Boolean).forEach(kv => { const i = kv.indexOf("="); if (i < 0) return; const k = kv.slice(0, i), v = kv.slice(i + 1); data[k] = /^-?\d+$/.test(v) ? Number(v) : v === "true" ? true : v === "false" ? false : v; });
+    // UI-Nachrichtenformat: freie Werte nach der Kennzeile, Folgezeilen mit zwei Leerzeichen.
+    // Nur die vom Format maskierten Backslashes/Backticks zurücknehmen, keinen Text trimmen.
+    const lines = text.slice(m.index + m[0].length).replace(/^\r?\n/, "").split(/\r?\n/);
+    const unmask = s => s.replace(/\\([\\`])/g, "$1");
+    for (let i = 0; i < lines.length; i++){
+      const f = /^([a-zA-Z_][\w]*)( \(JSON\))?: ?(.*)$/.exec(lines[i]); if (!f) continue;
+      let value = f[3];
+      while (i + 1 < lines.length && lines[i + 1].startsWith("  ")) value += "\n" + lines[++i].slice(2);
+      value = unmask(value);
+      if (f[2]){ try { data[f[1]] = JSON.parse(value); } catch (_) { return {action:"", data:{}, text}; } }
+      else data[f[1]] = value;
+    }
+    return {action:m[1], data, text:text.split("\n\n")[0]};
+  }
   return {action:"", data:{}, text};
 }
 window.sendPrompt = text => { const a = parseAction(String(text)); setTimeout(() => act(a), 0); };

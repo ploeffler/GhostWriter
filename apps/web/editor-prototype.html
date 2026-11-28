@@ -1,0 +1,35 @@
+<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GhostWriter · Editor-Prototyp</title><link rel="stylesheet" href="vendor/icons.css">
+<style>body{font:17px/1.6 system-ui;background:#f6f4ef;color:#263238;margin:0}main{max-width:900px;margin:32px auto;padding:24px;background:white;border-radius:12px}button{padding:10px;margin:4px}textarea{width:100%;min-height:280px;box-sizing:border-box}.dim{color:#697577}.locked .EasyMDEContainer{opacity:.65}.editor-toolbar{display:flex;flex-wrap:wrap}.editor-toolbar button{min-width:40px;width:auto;padding:0 10px}pre{white-space:pre-wrap;overflow-wrap:anywhere}h1{font-size:1.5rem}</style>
+<main><p class="dim">GhostWriter · Lokaler Prototyp · erfundener Beispieltext</p><h1>Abschnitt 1.1 · Am Kai</h1>
+<p>Kein GitHub-Zugang nötig. „Speichern“ zeigt hier nur den Text, der an GhostWriter übergeben würde.</p>
+<button id="switch">Anderen Abschnitt öffnen</button><button id="lock">Abschnitt sperren</button>
+<div id="gw"></div><h2>Zuletzt gespeichert</h2><pre id="saved">Noch nichts gespeichert.</pre><p id="test-result" role="status"></p></main>
+<script>const GW_PORTS={};</script><script src="editor-web.js"></script>
+<script>
+let section=1, locked=false;
+function renderDemo(){document.getElementById('gw').innerHTML='<div class="gw-lockable"><label for="gw-ms">Manuskript</label><textarea id="gw-ms"></textarea><button id="save">Speichern</button></div>';
+ const a=document.getElementById('gw-ms');a.value=section===1?'Der Wind strich über den Kai.\n\n**Marta** blieb stehen. „Wartest du schon lange?“\n\nEin *leises Klirren* kam vom Boot.':'## Zweiter Abschnitt\n\nEin anderer Text. ![](bild:img-1)';
+ document.getElementById('save').onclick=()=>{document.getElementById('saved').textContent=a.value;};
+ GW_PORTS.afterRender('abschnitt-bearbeiten',document.getElementById('gw'));
+}
+document.getElementById('switch').onclick=()=>{section=section===1?2:1;renderDemo();};
+document.getElementById('lock').onclick=()=>{locked=!locked;document.querySelector('.gw-lockable').classList.toggle('locked',locked);document.getElementById('save').disabled=locked;};
+renderDemo();
+async function check(){
+ const result=document.getElementById('test-result');try{
+  const wait=async()=>{for(let i=0;i<100&&!GW_EDITOR.active;i++)await new Promise(r=>setTimeout(r,25));if(!GW_EDITOR.active)throw Error('Editor fehlt');};
+  const assert=(v,m)=>{if(!v)throw Error(m);};await wait();
+  const a=GW_EDITOR.active;const text='Neu **fett** und *kursiv*. ![](bild:img-1)\n\n'+('Langer Absatz. '.repeat(3000));a.editor.value(text);
+  document.getElementById('save').click();assert(document.getElementById('saved').textContent===text,'Speichern verliert Text');
+  a.area.value='Vorschlag aus der App';a.area.dispatchEvent(new Event('input',{bubbles:true}));assert(a.editor.value()==='Vorschlag aus der App','Externe Änderung fehlt');
+  document.getElementById('lock').click();await new Promise(r=>setTimeout(r,25));assert(a.editor.codemirror.getOption('readOnly')==='nocursor','Sperre fehlt');
+  document.getElementById('lock').click();await new Promise(r=>setTimeout(r,25));assert(a.editor.codemirror.getOption('readOnly')===false,'Entsperren fehlt');
+  const p=editorPreview('**Hallo** <img src="https://example.invalid/leak" onerror="alert(1)"><script>alert(1)<\/script>');assert(p.includes('<strong>Hallo</strong>')&&!p.includes('<img')&&!p.includes('<script'),'Unsichere Vorschau');
+  document.getElementById('switch').click();await wait();assert(GW_EDITOR.active.editor.value().startsWith('## Zweiter'),'Abschnittswechsel falsch');
+  assert(document.querySelectorAll('.EasyMDEContainer').length===1,'Editor doppelt');
+  editorRelease();assert(!GW_EDITOR.active,'Aufräumen fehlt');renderDemo();await wait();
+  result.textContent='PASS: Text und Bildverweise unverändert, langer Text, Speichern, Vorschlag, Sperre, Vorschau, Abschnittswechsel.';
+ }catch(e){result.textContent='FAIL: '+e.message;}}
+if(new URLSearchParams(location.search).has('test'))check();
+</script></html>
