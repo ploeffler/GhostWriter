@@ -201,7 +201,7 @@ proposal. If a short text really is the new wording, the author confirms it with
 values in existing entries. **Locking:** `hinweise.py lock . --reason "…"` locks a
 dialogue file (`gesperrt`): `apply` and `accept` stop with the reason, deciding
 stays possible, `show`, `plan` and the card show the note; `hinweise.py unlock .`
-lifts the lock. Ellipses and spaces that the old wording carries
+lifts the lock. A YAML comment is only an annotation; only the `gesperrt` field enforces a lock. When a dialogue file is written, unchanged entries retain their original line breaks, quoting and comments byte for byte (#717); only changed entries are re-serialized. Comments inside an entry that is itself changed may be lost. Ellipses and spaces that the old wording carries
 at its edges from the finding are left out before comparing and replacing (for `neu`
 only the same edges, #522); if the wording really stands with the dots in the text it
 stays unchanged. The script does not claim that the text has changed; it does not

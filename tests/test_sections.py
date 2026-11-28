@@ -4,13 +4,19 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 import yaml
+
+from tests.authority_helpers import fake_github
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'scripts'))
 import sections  # noqa: E402
+import images  # noqa: E402
+import render_view  # noqa: E402
 import validate_project  # noqa: E402
+from test_cover import png  # noqa: E402
 
 CH1 = 'chapters/01-endlich-eine-erklaerung'
 S2 = 'sec-01-02-die-etiketten-die-wir-kennen'
@@ -68,6 +74,43 @@ class SectionsTest(unittest.TestCase):
         readme = (self.base / CH1 / 'README.md').read_text(encoding='utf-8')
         self.assertIn('| 1.3 | Die Uhr, die bei mir anders tickt |', readme)
         self.assertEqual(self.config()['structure']['retired'][0]['merged_into'], S2)
+        self.valid()
+
+    def add_test_image(self, section):
+        fake_github(self, self.base, seal=False)
+        image_file = Path(self.tmp.name) / 'testbild.png'
+        png(image_file, 120, 80)
+        return images.add(self.base, section, image_file, caption='Testbild', source='own')
+
+    def test_merge_moves_images_and_retargets_section_id(self):
+        meta, _ = self.add_test_image('1.3')
+        sections.cmd_merge(self.base, '1.3', '1.2', 'archive')
+
+        config = self.config()
+        folder = self.base / CH1 / 'images' / S2
+        stored = yaml.safe_load((folder / f'{meta["id"]}.yml').read_text(encoding='utf-8'))
+        self.assertEqual(stored['section_id'], S2)
+        found = images.all_images(self.base, config)
+        self.assertIn(meta['id'], found)
+        self.assertEqual(found[meta['id']][0]['section_id'], S2)
+        view = render_view.images_view(self.base, config, SimpleNamespace(where='1.2', text=True))
+        self.assertIn(meta['id'], view)
+        self.valid()
+
+    def test_merge_moves_images_across_chapters_and_retargets_section_id(self):
+        meta, _ = self.add_test_image('1.3')
+        target = self.config()['structure']['chapters'][1]['sections'][0]
+        target_id = target['id']
+        target_chapter = self.config()['structure']['chapters'][1]['path']
+        sections.cmd_merge(self.base, '1.3', target_id, 'archive')
+
+        config = self.config()
+        folder = self.base / target_chapter / 'images' / target_id
+        stored = yaml.safe_load((folder / f'{meta["id"]}.yml').read_text(encoding='utf-8'))
+        self.assertEqual(stored['section_id'], target_id)
+        found = images.all_images(self.base, config)
+        self.assertIn(meta['id'], found)
+        self.assertEqual(found[meta['id']][0]['section_id'], target_id)
         self.valid()
 
     def test_manuscript_needs_choice(self):
