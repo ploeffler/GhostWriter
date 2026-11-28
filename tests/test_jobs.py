@@ -479,5 +479,29 @@ class WorkflowTest(unittest.TestCase):
             step = next(st for st in data['jobs']['process']['steps'] if st.get('name') == 'Selbstneustart')
             self.assertIn("vars.GHOSTWRITER_ACTIONS_PAUSED != 'true'", step['if'])
 
+    def test_selbstneustart_laeuft_nach_fehler_im_speicherschritt(self):
+        for workflow in ('media', 'research', 'colorize', 'import', 'analyse'):
+            with self.subTest(workflow=workflow):
+                data = yaml.safe_load((ROOT / f'.github/workflows/{workflow}.yml').read_text(encoding='utf-8'))
+                step = next(item for item in data['jobs']['process']['steps'] if item.get('name') == 'Selbstneustart')
+                condition = step['if']
+                self.assertIn('!cancelled()', condition)
+                self.assertIn("steps.jobs.outcome == 'success'", condition)
+                self.assertIn("vars.GHOSTWRITER_ACTIONS_PAUSED != 'true'", condition)
+                self.assertNotIn('always()', condition)
+
+    def test_aenderungspaket_ohne_pr_recht_bricht_nicht_ab(self):
+        for workflow in ('media', 'research', 'colorize', 'image'):
+            with self.subTest(workflow=workflow):
+                data = yaml.safe_load((ROOT / f'.github/workflows/{workflow}.yml').read_text(encoding='utf-8'))
+                job = data['jobs'].get('process') or data['jobs']['image']
+                step = next(item for item in job['steps'] if item.get('name') == 'Änderungspaket')
+                script = step['run']
+                self.assertIn('if url=$(gh api', script)
+                self.assertIn('::warning::Änderungspaket nicht angelegt', script)
+                self.assertIn('$RUNNER_TEMP/pr.err', script)
+                self.assertIn('|| echo 0', script)
+                self.assertIn('|| echo ""', script)
+
 if __name__ == '__main__':
     unittest.main()

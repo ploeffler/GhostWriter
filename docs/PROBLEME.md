@@ -32,6 +32,10 @@ Zeigt jeder Lauf unter **Actions** *„The job was not started because recent ac
 
 Stehen diese Läufe unter **Actions** als *skipped* und gibt es die Repository-Variable `GHOSTWRITER_ACTIONS_PAUSED` mit `true`, ist die Automatik wegen knapper Actions-Minuten angehalten (Issue „GhostWriter: Actions-Minuten knapp“). Sie läuft mit dem neuen Monat von selbst wieder an; von Hand gestartete Läufe gehen immer. Wer die Pause früher aufheben will, löscht die Variable unter *Settings → Secrets and variables → Actions*. Siehe [Updates](UPDATES.md).
 
+## Hintergrundlauf darf kein Änderungspaket anlegen
+
+Meldet ein Lauf „GitHub Actions is not permitted to create or approve pull requests“, sind die Ergebnisse trotzdem auf dem Arbeits-Branch `ghostwriter/<buch>` gespeichert. Nur das Änderungspaket fehlt; die Warteschlange arbeitet weitere Aufträge ab. Schalte einmal unter *Settings → Actions → General → Workflow permissions* **Allow GitHub Actions to create and approve pull requests** ein oder lass den Pull Request im Chat anlegen.
+
 ## Ich bekomme sehr viele E-Mails von GitHub
 
 GitHub schickt eine Nachricht zu jedem Workflow-Lauf, den du ausgelöst hast – beim Schreiben also zu fast jedem Speichern. Unter **GitHub → Settings → Notifications → System → Actions** *Only notify for failed workflows* wählen oder *Email* ausschalten. Abgebrochene Läufe (*cancelled*) sind gewollt: Ein neuerer Lauf ersetzt den älteren. Seit #287 starten Arbeits-Branches keine Läufe mehr. Siehe [Updates](UPDATES.md).

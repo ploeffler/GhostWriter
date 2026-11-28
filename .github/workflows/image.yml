@@ -131,12 +131,18 @@ jobs:
         run: |
           if ! git ls-remote --exit-code --heads origin "$WORK" >/dev/null; then echo "Nichts zu speichern"; exit 0; fi
           owner=${GITHUB_REPOSITORY%%/*}
-          open=$(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&head=$owner:$WORK&base=$BOOK" --jq 'length')
-          ahead=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BOOK...$WORK" --jq '.ahead_by')
+          open=$(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&head=$owner:$WORK&base=$BOOK" --jq 'length' 2>/dev/null || echo 0)
+          ahead=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BOOK...$WORK" --jq '.ahead_by' 2>/dev/null || echo "")
           if [ "$open" = "0" ] && [ "${ahead:-0}" != "0" ]; then
-            gh api "repos/$GITHUB_REPOSITORY/pulls" -f base="$BOOK" -f head="$WORK" \
-              -f title="GhostWriter: offene Änderungen" \
-              -f body="Offene Änderungen aus GhostWriter. Übernommen wird erst nach Bestätigung." --jq '.html_url' | tee -a "$GITHUB_STEP_SUMMARY"
+            if url=$(gh api "repos/$GITHUB_REPOSITORY/pulls" -f base="$BOOK" -f head="$WORK" \
+                -f title="GhostWriter: offene Änderungen" \
+                -f body="Offene Änderungen aus GhostWriter. Übernommen wird erst nach Bestätigung." --jq '.html_url' 2>"$RUNNER_TEMP/pr.err"); then
+              echo "$url" | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              error=$(head -c 200 "$RUNNER_TEMP/pr.err")
+              echo "::warning::Änderungspaket nicht angelegt ($error). Die Änderungen liegen auf $WORK. Unter Settings → Actions → General → Workflow permissions das Anlegen von Pull Requests erlauben oder den Pull Request im Chat anlegen lassen."
+              echo "Änderungspaket fehlt: $WORK ist gespeichert; der Pull Request konnte nicht angelegt werden." | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
           else
             echo "Änderungspaket: $WORK" | tee -a "$GITHUB_STEP_SUMMARY"
           fi

@@ -203,8 +203,9 @@ jobs:
 
       - name: Selbstneustart
         # Pausierte Automatik (GHOSTWRITER_ACTIONS_PAUSED, #62): nicht selbst weiterlaufen; der Rest bleibt in der
-        # Warteschlange, bis von Hand oder vom täglichen Update-Lauf nach der Pause neu angestoßen wird.
-        if: steps.jobs.outputs.remaining != '' && steps.jobs.outputs.remaining != '0' && vars.GHOSTWRITER_ACTIONS_PAUSED != 'true'
+        # Warteschlange, bis von Hand oder vom täglichen Update-Lauf nach der Pause neu angestoßen wird. #757: auch
+        # nach einem Fehler in einem späteren Speicherschritt fortsetzen, aber nie nach Abbruch oder Fehler in jobs.
+        if: ${{ !cancelled() && steps.jobs.outcome == 'success' && steps.jobs.outputs.remaining != '' && steps.jobs.outputs.remaining != '0' && vars.GHOSTWRITER_ACTIONS_PAUSED != 'true' }}
         env:
           BOOK: ${{ steps.work.outputs.book }}
           GH_TOKEN: ${{ github.token }}

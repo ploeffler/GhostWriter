@@ -32,6 +32,10 @@ If every run under **Actions** says “The job was not started because recent ac
 
 If these runs show as *skipped* under **Actions** and the repository variable `GHOSTWRITER_ACTIONS_PAUSED` is `true`, automation is paused because Actions minutes are low (issue “GhostWriter: Actions-Minuten knapp”). It resumes by itself next month; manual runs always work. To lift the pause earlier, delete the variable under *Settings → Secrets and variables → Actions*. See [updates](UPDATES.en.md).
 
+## A background run cannot create a pull request
+
+If a run reports “GitHub Actions is not permitted to create or approve pull requests”, the results are still saved on the `ghostwriter/<book>` working branch. Only the pull request is missing; the queue continues with further jobs. Enable **Allow GitHub Actions to create and approve pull requests** once under *Settings → Actions → General → Workflow permissions*, or ask the chat to create the pull request.
+
 ## An image does not use my reference
 
 Storing a reference does not confirm that it was passed to an image service. The assistant must separately attach selected files to a service that supports references, or disclose the limitation. See [images and references](IMAGES-AND-REFERENCES.en.md).
