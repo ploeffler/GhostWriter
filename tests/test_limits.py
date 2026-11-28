@@ -74,15 +74,15 @@ class LimitTest(unittest.TestCase):
         config = self.setup(1, extra={'actions_minutes_monthly': 2000})
         rows = limits.evaluate(self.base, config, '2026-11', {'actions_minutes_used': 1850, 'api_rate': (4900, 5000)})
         self.assertEqual([(r['key'], r['state']) for r in rows],
-                         [('ai_budget', 'ok'), ('actions_minutes', 'pause'), ('api_rate', 'pause')])
+                         [('ai_budget', 'ok'), ('actions_minutes', 'warn'), ('api_rate', 'pause')])   # 92,5 % verbraucht: Warnung ab 90 %, Pause erst ab 95 % (#787)
         self.assertEqual(rows[1]['text'], 'Actions-Minuten 8 % übrig (1850 von 2000 min verbraucht, noch 150 min)')
 
     def test_minutes_left_absolute(self):
         # #277: feste Restminuten greifen auch bei großem Kontingent (5 % von 3000 wären 150)
-        config = self.setup(1, extra={'actions_minutes_monthly': 3000, 'pause_below_percent': 0, 'warn_below_percent': 0})
+        config = self.setup(1, extra={'actions_minutes_monthly': 3000, 'actions_warn_used_percent': 100, 'actions_pause_used_percent': 100})
         state = lambda used: limits.evaluate(self.base, config, '2026-11', {'actions_minutes_used': used})[1]['state']
         self.assertEqual([state(2500), state(2750), state(2950)], ['ok', 'warn', 'pause'])
-        config = self.setup(1, extra={'actions_minutes_monthly': 3000, 'pause_below_percent': 0, 'warn_below_percent': 0,
+        config = self.setup(1, extra={'actions_minutes_monthly': 3000, 'actions_warn_used_percent': 100, 'actions_pause_used_percent': 100,
                                       'actions_minutes_warn_below': None, 'actions_minutes_pause_below': 50})
         self.assertEqual(limits.evaluate(self.base, config, '2026-11', {'actions_minutes_used': 2940})[1]['state'], 'ok')
         self.assertEqual(limits.evaluate(self.base, config, '2026-11', {'actions_minutes_used': 2960})[1]['state'], 'pause')
@@ -94,7 +94,38 @@ class LimitTest(unittest.TestCase):
         os.environ['GHOSTWRITER_REPO_PRIVATE'] = 'true'
         self.addCleanup(os.environ.pop, 'GHOSTWRITER_REPO_PRIVATE', None)
         rows = limits.evaluate(self.base, config, '2026-11', live)
-        self.assertEqual((rows[1]['key'], rows[1]['total'], rows[1]['state']), ('actions_minutes', 2000, 'pause'))
+        self.assertEqual((rows[1]['key'], rows[1]['total'], rows[1]['state']), ('actions_minutes', 2000, 'pause'))   # 97,5 % verbraucht
+
+    def test_minutes_thresholds_90_95(self):
+        # #787: ab 90 % verbraucht Warnung, ab 95 % Pause; ohne Budget-Feld, auch bei festem Kontingent; die festen Restminuten (#277) gelten zusätzlich
+        config = self.setup(1, extra={'actions_minutes_monthly': 10000, 'actions_minutes_warn_below': None, 'actions_minutes_pause_below': None})
+        state = lambda used, c=config: limits.evaluate(self.base, c, '2026-11', {'actions_minutes_used': used})[1]['state']
+        self.assertEqual([state(8999), state(9000), state(9499), state(9500), state(10000)], ['ok', 'warn', 'warn', 'pause', 'pause'])
+        own = self.setup(1, extra={'actions_minutes_monthly': 10000, 'actions_minutes_warn_below': None, 'actions_minutes_pause_below': None,
+                                   'actions_warn_used_percent': 80, 'actions_pause_used_percent': 98})
+        self.assertEqual([state(7999, own), state(8000, own), state(9799, own), state(9800, own)], ['ok', 'warn', 'warn', 'pause'])
+
+    def test_quota_from_budget(self):
+        # #787: Freiminuten + Budget ÷ Minutenpreis, abgerundet; actions_minutes_monthly hat Vorrang
+        quota = lambda **lim: limits.settings({'limits': lim})['actions_minutes_monthly']
+        self.assertEqual(quota(actions_budget_monthly=40), 8666)
+        self.assertEqual(quota(actions_budget_monthly=40, actions_minutes_monthly=3000), 3000)
+        self.assertEqual(quota(actions_budget_monthly=40, actions_price_per_minute=0.01), 6000)
+        self.assertEqual(quota(actions_budget_monthly=10, actions_minutes_included=3000), 4666)
+        self.assertIsNone(quota())   # ohne Budget bleibt alles wie bisher
+        self.assertIsNone(quota(actions_budget_monthly=0))
+
+    def test_budget_text_in_row(self):
+        config = self.setup(1, extra={'actions_budget_monthly': 40})
+        rows = limits.evaluate(self.base, config, '2026-11', {'actions_minutes_used': 2000 + 5750})   # 5750 Minuten über den Freiminuten = 34,50 $
+        row = [r for r in rows if r['key'] == 'actions_minutes'][0]
+        self.assertEqual((row['total'], row['state']), (8666, 'ok'))   # 89,4 % verbraucht: noch keine Warnung
+        self.assertIn('vom Budget 34,50 von 40,00 $ verbraucht, noch 5,50 $', row['text'])
+        warn = limits.evaluate(self.base, config, '2026-11', {'actions_minutes_used': 8000})
+        self.assertEqual([r['state'] for r in warn if r['key'] == 'actions_minutes'], ['warn'])   # 92,3 % verbraucht
+        self.assertIn('noch 4,00 $', [r['text'] for r in warn if r['key'] == 'actions_minutes'][0])
+        rows = limits.evaluate(self.base, self.setup(1, extra={'actions_minutes_monthly': 2000}), '2026-11', {'actions_minutes_used': 100})
+        self.assertNotIn('Budget', [r for r in rows if r['key'] == 'actions_minutes'][0]['text'])
 
     def test_estimate_minutes(self):
         run = lambda a, b, conclusion='success', status='completed': {

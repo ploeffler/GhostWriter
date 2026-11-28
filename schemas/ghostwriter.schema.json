@@ -511,6 +511,11 @@
         "actions_minutes_monthly": {"type": ["integer", "null"], "minimum": 0, "description": "Actions-Minuten je Monat (z. B. 2000 bei privaten Repositorys im Free-Plan); leer = nicht prüfen, in privaten Repositorys 2000"},
         "actions_minutes_warn_below": {"type": ["integer", "null"], "minimum": 0, "description": "Vorwarnung, wenn weniger Actions-Minuten übrig sind (#277); fehlt = 300, null = keine"},
         "actions_minutes_pause_below": {"type": ["integer", "null"], "minimum": 0, "description": "Automatik pausiert, wenn weniger Actions-Minuten übrig sind (#277); fehlt = 100, null = keine"},
+        "actions_budget_monthly": {"type": ["number", "null"], "minimum": 0, "description": "Actions-Budget in USD je Monat, wie bei GitHub eingestellt (#787); daraus ergibt sich das Kontingent actions_minutes_included + Budget / actions_price_per_minute, wenn actions_minutes_monthly fehlt"},
+        "actions_minutes_included": {"type": ["integer", "null"], "minimum": 0, "description": "Freiminuten des Plans (#787); fehlt = 2000"},
+        "actions_price_per_minute": {"type": ["number", "null"], "exclusiveMinimum": 0, "description": "Preis je Linux-Minute in USD (#787); fehlt = 0.006"},
+        "actions_warn_used_percent": {"type": ["number", "null"], "minimum": 0, "maximum": 100, "description": "Warnung ab so viel Prozent der Actions-Minuten verbraucht (#787); fehlt = 90"},
+        "actions_pause_used_percent": {"type": ["number", "null"], "minimum": 0, "maximum": 100, "description": "Tägliche Automatik pausiert ab so viel Prozent der Actions-Minuten verbraucht (#787); fehlt = 95"},
         "pause_below_percent": {"type": "number", "minimum": 0, "maximum": 100},
         "warn_below_percent": {"type": "number", "minimum": 0, "maximum": 100}
       },

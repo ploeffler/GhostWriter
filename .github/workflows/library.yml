@@ -208,7 +208,7 @@ jobs:
             else
               folge="Noch läuft alles. Ist das Kontingent leer, startet GitHub bis zum neuen Monat keinen Lauf mehr (Bücherregal, Übersicht, Prüfung, Auflagen)."
             fi
-            body="$TEXT (Schätzung aus den Läufen dieses Repositorys im laufenden Monat)."$'\n\n'"$folge"$'\n\n'"Was hilft: seltener einzeln speichern, erledigte Arbeits-Branches aufräumen (Actions → Branches aufräumen) oder in den GitHub-Einstellungen (Settings → Billing and plans) ein Ausgabenlimit setzen. Andere private Repositorys desselben Kontos zählen mit. Kontingent und Grenzen: Projekteinstellungen → Limits, docs/UPDATES.md."
+            body="$TEXT (Schätzung aus den Läufen dieses Repositorys im laufenden Monat)."$'\n\n'"$folge"$'\n\n'"Was hilft: seltener einzeln speichern, erledigte Arbeits-Branches aufräumen (Actions → Branches aufräumen) oder in den GitHub-Einstellungen (Settings → Billing and plans) ein Ausgabenlimit setzen. Ist dort schon ein Budget gesetzt, trage es in ghostwriter.yml unter limits als actions_budget_monthly (USD je Monat) ein: Das Kontingent wird dann aus Freiminuten und Budget berechnet und die Warnung rechnet damit (kein Wert von Hand ausrechnen). Der Budgetstand ist eine Schätzung; GitHubs Abrechnung lässt sich nicht lesen, und andere private Repositorys desselben Kontos zählen bei GitHub mit. Ist bei GitHub „Nutzung bei Erreichen stoppen“ eingeschaltet, schlagen die Läufe nach Erreichen des Budgets fehl. Kontingent und Grenzen: Projekteinstellungen → Limits, docs/UPDATES.md."
             if [ -z "$num" ]; then
               gh issue create --title "$title" --body "$body"
             elif [ "$(gh api "repos/$GITHUB_REPOSITORY/issues/$num" --jq .body)" != "$body" ]; then

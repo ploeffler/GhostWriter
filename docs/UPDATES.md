@@ -186,13 +186,20 @@ Weiter geht es von selbst, sobald wieder genug übrig ist – meist mit dem neue
 limits:
   ai_budget_monthly: 10          # € je Monat; fehlt = keine Prüfung
   actions_minutes_monthly: 2000  # fehlt = keine Prüfung, in privaten Repositorys 2000
+  actions_budget_monthly: 40     # USD je Monat wie bei GitHub eingestellt (#787); fehlt actions_minutes_monthly, gilt Freiminuten + Budget ÷ Preis
+  actions_minutes_included: 2000 # Freiminuten des Plans (Vorgabe 2000)
+  actions_price_per_minute: 0.006 # USD je Linux-Minute (Vorgabe 0.006)
+  actions_warn_used_percent: 90  # Warnung ab 90 % der Actions-Minuten verbraucht (Vorgabe)
+  actions_pause_used_percent: 95 # Pause der täglichen Automatik ab 95 % (Vorgabe)
   actions_minutes_warn_below: 300   # Vorwarnung unter 300 Restminuten (null = aus)
   actions_minutes_pause_below: 100  # Pause unter 100 Restminuten (null = aus)
   warn_below_percent: 20
   pause_below_percent: 10
 ```
 
-Bei den Actions-Minuten gilt die strengere Stufe aus Prozent und Restminuten. Bei 2000 Minuten greifen zuerst die Prozente (Vorwarnung ab 400, Pause ab 200 Restminuten); die festen Restminuten schützen größere Kontingente, bei denen 10 % erst spät kämen.
+Bei den Actions-Minuten gilt (#787) die Warnung **ab 90 %** und die Pause der täglichen Automatik **ab 95 %** der Minuten verbraucht, auch ohne Budget-Angabe; beide Schwellen lassen sich mit `actions_warn_used_percent` und `actions_pause_used_percent` ändern. Zusätzlich gilt die strengere Stufe aus Prozent und festen Restminuten (#277): Bei 2000 Minuten greifen zuerst die Restminuten (Vorwarnung ab 1700 verbraucht, Pause ab 1900); sie schützen kleine Kontingente. Die Prozente `warn_below_percent` und `pause_below_percent` (20 und 10) gelten weiter für das KI-Budget und das API-Rate-Limit.
+
+**Actions-Budget in USD (#787):** Wer bei GitHub unter *Settings → Billing and plans* ein Budget für Actions gesetzt hat, trägt es als `limits.actions_budget_monthly` ein. Das Kontingent ergibt sich dann aus den Freiminuten plus Budget ÷ Minutenpreis, abgerundet (2000 + 40 $ ÷ 0,006 $ = 8666 Minuten); die Warnung rechnet damit, und Meldung und Hinweis-Issue nennen den geschätzten Budgetstand („vom Budget 34,50 von 40,00 $ verbraucht, noch 5,50 $“). Ein ausdrücklich gesetztes `actions_minutes_monthly` hat Vorrang. Grenzen: GitHubs Abrechnung lässt sich mit dem Workflow-Token nicht lesen, der Stand ist eine Schätzung aus den Läufen dieses Repositorys; andere private Repositorys desselben Kontos zählen bei GitHub mit. Ist bei GitHub „Nutzung bei Erreichen stoppen“ eingeschaltet, schlagen Läufe nach Erreichen des Budgets fehl. Das Eingabefeld in den Projekteinstellungen folgt mit der UI-Vorlage; bis dahin steht der Wert in `ghostwriter.yml`.
 
 Kontingente bei den KI-Anbietern selbst kommen mit dem Backend (#19, #66).
 

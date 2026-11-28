@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Limits prüfen: unter 10 % keine Automatik, ab 20 % Vorwarnung (#62).
+"""Limits prüfen: KI-Budget unter 10 % keine Automatik, ab 20 % Vorwarnung (#62); Actions-Minuten ab 90 % verbraucht Warnung, ab 95 % Pause (#787).
 
 Aufruf:
   python scripts/limits.py <projektordner> check [--live] [--json datei] [--month JJJJ-MM]
@@ -15,7 +15,15 @@ Geprüft wird, was sich ohne Backend prüfen lässt:
                    (nur mit --live: GitHub-API, je Lauf auf volle Minuten
                    aufgerundet, übersprungene Läufe zählen nicht, #277); ohne
                    Angabe keine Prüfung, außer in privaten Repositorys
-                   (GHOSTWRITER_REPO_PRIVATE=true): dort gilt 2000
+                   (GHOSTWRITER_REPO_PRIVATE=true): dort gilt 2000.
+                   Mit limits.actions_budget_monthly (USD, wie bei GitHub eingestellt)
+                   gilt das Kontingent Freiminuten (limits.actions_minutes_included,
+                   Vorgabe 2000) + Budget ÷ limits.actions_price_per_minute (Vorgabe
+                   0.006 USD je Linux-Minute), abgerundet; ein gesetztes
+                   actions_minutes_monthly hat Vorrang (#787). Die Meldung nennt dann
+                   den geschätzten Budgetstand. Warnung ab limits.actions_warn_used_percent
+                   (Vorgabe 90) verbraucht, Pause ab limits.actions_pause_used_percent
+                   (Vorgabe 95)
                    Zusätzlich feste Restminuten (#277): unter
                    limits.actions_minutes_warn_below (Vorgabe 300) Vorwarnung,
                    unter limits.actions_minutes_pause_below (Vorgabe 100) Pause –
@@ -58,20 +66,47 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 from render_view import counted, load  # noqa: E402
 
 DEFAULT = {'ai_budget_monthly': None, 'actions_minutes_monthly': None, 'pause_below_percent': 10, 'warn_below_percent': 20,
-           'actions_minutes_warn_below': 300, 'actions_minutes_pause_below': 100}
+           'actions_minutes_warn_below': 300, 'actions_minutes_pause_below': 100,
+           'actions_budget_monthly': None, 'actions_minutes_included': None, 'actions_price_per_minute': 0.006,
+           'actions_warn_used_percent': 90, 'actions_pause_used_percent': 95}
 PRIVATE_MINUTES = 2000   # Free-Plan, private Repositorys (#277)
+LINUX_PRICE = 0.006      # USD je Linux-Minute (2 Kerne, x64), Stand 2026 (#787)
 MINUTES_ISSUE_TITLE = 'GhostWriter: Actions-Minuten knapp'
 PAUSE_VARIABLE = 'GHOSTWRITER_ACTIONS_PAUSED'
 LABEL = {'ai_budget': 'KI-Budget', 'actions_minutes': 'Actions-Minuten', 'api_rate': 'GitHub-API'}
 ISSUE_TITLE = 'GhostWriter-Automatik pausiert'
 
 
+def _number(v, default=None):
+    try:
+        return float(v) if v not in (None, '') and float(v) >= 0 else default
+    except (TypeError, ValueError):
+        return default
+
+
 def settings(config):
     s = dict(DEFAULT)
     s.update((config or {}).get('limits') or {})
-    if s['actions_minutes_monthly'] is None and os.environ.get('GHOSTWRITER_REPO_PRIVATE') == 'true':
+    s['actions_price_per_minute'] = _number(s['actions_price_per_minute']) or LINUX_PRICE
+    budget = _number(s['actions_budget_monthly'])
+    included = _number(s['actions_minutes_included'])
+    if s['actions_minutes_monthly'] is None and budget:
+        # Kontingent aus dem Budget (#787): Freiminuten + Budget ÷ Minutenpreis, abgerundet. Ein ausdrücklich gesetztes actions_minutes_monthly hat Vorrang.
+        s['actions_minutes_monthly'] = int((PRIVATE_MINUTES if included is None else included) + budget / s['actions_price_per_minute'] + 1e-9)
+    elif s['actions_minutes_monthly'] is None and os.environ.get('GHOSTWRITER_REPO_PRIVATE') == 'true':
         s['actions_minutes_monthly'] = PRIVATE_MINUTES
     return s
+
+
+def budget_text(s, used):
+    """Stand des Budgets (#787), z. B. „vom Budget 34,50 von 40 $ verbraucht, noch 5,50 $“; leer ohne Budget. Nur eine Schätzung: GitHubs Abrechnung ist nicht lesbar."""
+    budget = _number(s.get('actions_budget_monthly'))
+    if not budget:
+        return ''
+    included = PRIVATE_MINUTES if _number(s.get('actions_minutes_included')) is None else _number(s.get('actions_minutes_included'))
+    spent = max(0.0, float(used) - included) * s['actions_price_per_minute']
+    de = lambda v: f'{v:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
+    return f'vom Budget {de(min(spent, budget))} von {de(budget)} $ verbraucht, noch {de(max(0.0, budget - spent))} $'
 
 
 def month_costs(base, month):
@@ -175,11 +210,15 @@ def evaluate(base, config, month=None, live=None):
     pause, warn = float(s['pause_below_percent']), float(s['warn_below_percent'])
     rows = []
     order = {'ok': 0, 'warn': 1, 'pause': 2}
-    def add(key, used, total, unit, warn_left=None, pause_left=None):
+    def add(key, used, total, unit, warn_left=None, pause_left=None, pct=None, extra=''):
         if not total:
             return
         left = max(0.0, (total - used) / total * 100)
-        state = 'pause' if left == 0 or left < pause else 'warn' if left < warn else 'ok'
+        wp, pp = pct if pct else (warn, pause)
+        if pct:   # „ab“ x % verbraucht (#787): die Grenze selbst zählt schon dazu
+            state = 'pause' if left == 0 or left <= pp + 1e-9 else 'warn' if left <= wp + 1e-9 else 'ok'
+        else:
+            state = 'pause' if left == 0 or left < pp else 'warn' if left < wp else 'ok'
         rest = max(0.0, total - used)
         if pause_left is not None and rest < float(pause_left):
             state = 'pause'
@@ -189,12 +228,15 @@ def evaluate(base, config, month=None, live=None):
         rows.append({'key': key, 'label': LABEL[key], 'used': used, 'total': total, 'left_pct': round(left, 1), 'state': state,
                      'left': rest,
                      'text': f'{LABEL[key]} {round(left):d} % übrig ({fmt(used)} von {fmt(total)}{" " + unit if unit else ""} verbraucht'
-                             + (f', noch {int(rest)} min' if key == 'actions_minutes' else '') + ')'})
+                             + (f', noch {int(rest)} min' if key == 'actions_minutes' else '') + (f', {extra}' if extra else '') + ')'})
     if s['ai_budget_monthly']:
         add('ai_budget', month_costs(base, month), float(s['ai_budget_monthly']), '€')
     if s['actions_minutes_monthly'] and 'actions_minutes_used' in live:
+        # Actions-Minuten (#787): ab 90 % verbraucht warnen, ab 95 % die tägliche Automatik pausieren (Felder actions_warn_used_percent / actions_pause_used_percent);
+        # die festen Restminuten (#277) gelten zusätzlich, es gilt die strengere Stufe
+        wu, pu = _number(s.get('actions_warn_used_percent'), 90), _number(s.get('actions_pause_used_percent'), 95)
         add('actions_minutes', float(live['actions_minutes_used']), float(s['actions_minutes_monthly']), 'min',
-            s.get('actions_minutes_warn_below'), s.get('actions_minutes_pause_below'))
+            s.get('actions_minutes_warn_below'), s.get('actions_minutes_pause_below'), pct=(100 - wu, 100 - pu), extra=budget_text(s, live['actions_minutes_used']))
     if 'api_rate' in live and live['api_rate'][1]:
         add('api_rate', float(live['api_rate'][0]), float(live['api_rate'][1]), '')
     return rows
